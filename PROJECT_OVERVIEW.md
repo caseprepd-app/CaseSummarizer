@@ -18,9 +18,14 @@ The app executes a 5-step process:
 3.  **File Selection:** User reviews OCR confidence scores and selects which documents to include in processing.
 4.  **AI Processing (The "Brain"):** Selected documents are indexed in a FAISS vector store for Q&A, and optionally fed to Ollama for summarization.
 5.  **Output Generation:** The app displays three outputs:
-    - **Q&A Results (Primary):** Answers to 14 branching questions about the case using vector search
-    - **Vocabulary List:** Rare/unusual terms identified via multi-algorithm extraction (NER + RAKE + BM25)
+    - **Names & Vocabulary (Primary):** Combined people + technical terms extracted via NER + LLM reconciliation. Shows "Found By" column indicating whether each item was found by Both, NER only, or LLM only. Progressive output: NER results shown immediately, enhanced with LLM results when complete. (Session 45)
+    - **Q&A Results:** Document Q&A using hybrid retrieval (BM25+ + FAISS) with LlamaIndex query transformation for vague questions (Session 44)
     - **Case Summary (Optional):** AI-generated synthesis via Ollama (off by default)
+
+> **Session 45 Architecture Update:** The extraction pipeline now uses unified semantic chunking with token enforcement (tiktoken). Single chunking pass serves both LLM extraction and Q&A indexing. Key changes:
+> - Combined extraction prompt extracts both people (with roles) and vocabulary in one LLM call per chunk
+> - Simplified UI checkboxes: "Extract Names & Vocabulary" (ON), "Enable Q&A" (ON), "Generate Summary" (OFF)
+> - Output pane has distinct background color with progress badge showing data source (NER only → NER + LLM)
 
 ---
 
@@ -35,6 +40,8 @@ The app executes a 5-step process:
 * **PDF Handling:** **`pdfplumber`** (MIT license - safe for commercial use)
 * **PDF to Image:** **`pdf2image`** (for OCR preprocessing)
 * **NLP Tools:** **`nltk`** for word frequency lists and basic text processing
+* **Query Transformation:** **LlamaIndex** (`llama-index-core`, `llama-index-llms-ollama`) for expanding vague Q&A queries into specific search terms (Session 44)
+* **Token Counting:** **`tiktoken`** for accurate token counting in semantic chunking (Session 45)
 * **Packaging:** **PyInstaller** (to create standalone `.exe`)
 
 ### 3.2 External Data Dependencies
@@ -1234,11 +1241,11 @@ This phase will remove OCR/document artifacts and support user customization:
 
 ### Phase 4: Output Generation (Parallel Workflows)
 
-#### **Workflow A: Vocabulary Extraction [PARTIALLY IMPLEMENTED]**
+#### **Workflow A: Vocabulary Extraction [FULLY OPERATIONAL - Session 44]**
 
-**Files:** `src/vocabulary_extractor.py`, `src/ui/widgets.py:200` (checkbox)
+**Files:** `src/vocabulary/vocabulary_extractor.py`, `src/extraction/llm_extractor.py`, `src/vocabulary/reconciler.py`, `src/ui/widgets.py`
 
-**Current Status:** VocabularyExtractor class is fully functional and tested (8 passing tests), but NOT integrated into the main processing pipeline.
+**Current Status:** Dual NER + LLM extraction with reconciliation is fully operational. Shows "Found By" column indicating source (Both, NER, LLM).
 
 1. **User Configuration**
    - User checks "Rare Word List (CSV)" checkbox in OutputOptionsWidget
@@ -1488,8 +1495,9 @@ RawTextExtractor.process_document()
 | 3A | Raw Text Extraction | ✅ Complete | PDF/TXT/RTF, OCR, confidence scoring (Session 1) |
 | 3B | Character Sanitization | ✅ Complete | 6-stage cleanup, ftfy+unidecode (Session 3) |
 | 3C | Smart Preprocessing | 📋 Planned | Design ready (scratchpad), waiting implementation |
-| 4A | Vocabulary Extraction | ⚠️ Partial | Code complete, tests pass, NOT integrated into pipeline |
+| 4A | Vocabulary Extraction | ✅ Complete | Dual NER + LLM extraction with reconciliation, "Found By" column (Session 44) |
 | 4B | Summarization | ✅ Complete | Progressive chunking, Ollama integration, working end-to-end |
+| 4C | Q&A Query Transform | ✅ Complete | LlamaIndex + Ollama query expansion for vague questions (Session 44) |
 | 5 | Results Display | ✅ Complete | CSV/text display, copy/save functionality |
 
 ---
@@ -1683,6 +1691,6 @@ When adding new transformation stages (e.g., Phase 3C Smart Preprocessing):
 
 ---
 
-**Document Version:** 2.1 (Updated with Code Patterns)
-**Date:** November 25, 2025
+**Document Version:** 2.2 (Session 44 - NER+LLM Vocabulary + LlamaIndex Q&A)
+**Date:** December 9, 2025
 **Status:** Ready for Implementation

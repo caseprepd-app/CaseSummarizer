@@ -32,6 +32,17 @@ CATEGORY_PRIORITY = {
     "OTHER": 1,
 }
 
+# Transcript artifacts to filter out (these are headers, not people)
+TRANSCRIPT_ARTIFACTS = {
+    "CROSS", "DIRECT", "RECROSS", "REDIRECT", "RE-DIRECT", "RE-CROSS",
+    "EXAMINATION", "CROSS EXAMINATION", "DIRECT EXAMINATION",
+    "SIR", "MA'AM", "MADAM", "THE COURT", "THE WITNESS", "THE CLERK",
+    "Q", "A", "BY", "MR", "MS", "MRS", "DR",  # Single-letter/title artifacts
+}
+
+# Minimum name length to accept (filters OCR garbage)
+MIN_NAME_LENGTH = 3
+
 
 @dataclass
 class PersonEntry:
@@ -379,6 +390,7 @@ class DataAggregator:
         # Group by fuzzy-matched canonical name
         merged_people: dict[str, PersonEntry] = {}
 
+        filtered_count = 0
         for entry in all_entries:
             name = entry.get("name", "").strip()
             role = entry.get("role", "")
@@ -386,6 +398,11 @@ class DataAggregator:
             source = entry.get("source", "")
 
             if not name:
+                continue
+
+            # Filter out transcript artifacts and short names
+            if self._is_artifact(name):
+                filtered_count += 1
                 continue
 
             # Find existing match
@@ -433,10 +450,47 @@ class DataAggregator:
 
         debug_log(
             f"[DataAggregator] Aggregated {len(all_entries)} name entries "
-            f"into {sum(len(v) for v in by_category.values())} unique people"
+            f"into {sum(len(v) for v in by_category.values())} unique people "
+            f"(filtered {filtered_count} artifacts)"
         )
 
         return by_category
+
+    def _is_artifact(self, name: str) -> bool:
+        """
+        Check if a name is a transcript artifact or invalid.
+
+        Filters out:
+        - Transcript headers (CROSS, DIRECT, etc.)
+        - Very short names (likely OCR errors)
+        - Names that are just titles
+
+        Args:
+            name: Name string to check
+
+        Returns:
+            True if this should be filtered out
+        """
+        # Check minimum length
+        if len(name) < MIN_NAME_LENGTH:
+            return True
+
+        # Check against artifact list (case-insensitive)
+        name_upper = name.upper().strip()
+        if name_upper in TRANSCRIPT_ARTIFACTS:
+            return True
+
+        # Check if name starts with common artifacts
+        for artifact in TRANSCRIPT_ARTIFACTS:
+            if name_upper.startswith(artifact + " "):
+                return True
+
+        # Filter names that are just numbers or punctuation
+        alphanumeric = ''.join(c for c in name if c.isalnum())
+        if not alphanumeric or alphanumeric.isdigit():
+            return True
+
+        return False
 
     def _find_name_match(
         self,

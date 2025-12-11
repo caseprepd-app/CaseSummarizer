@@ -1,0 +1,20 @@
+Extract KEY FACTS, DATES, CASE TYPE HINTS, and VOCABULARY from this legal document chunk.
+
+DEFINITIONS:
+- Key facts: Important events, injuries, medical procedures, outcomes, or circumstances
+- Dates: Any specific dates or time periods mentioned
+- Case type hints: Indicators of what type of case this is (e.g., "medical malpractice", "personal injury")
+- Vocabulary: Technical, medical, or legal terms that a layperson might not understand
+
+RULES:
+- Key facts should be objective statements, not opinions or arguments
+- Dates should be in the format found in the document
+- Case type hints should be general categories
+- Vocabulary should include technical terms that need definition
+- If a field has no relevant content in this chunk, return an empty list
+
+Return ONLY valid JSON in this exact format:
+{"key_facts": ["Plaintiff underwent surgery on...", "The CT scan revealed..."], "dates_mentioned": ["January 5, 2021", "March 2020"], "case_type_hints": ["medical malpractice", "negligence"], "vocabulary": ["pulmonary embolism", "CT angiogram", "heparin"]}
+
+DOCUMENT CHUNK:
+{chunk_text}

@@ -1,0 +1,37 @@
+Extract NAMES and TECHNICAL VOCABULARY from this legal document chunk.
+
+You are helping court reporters prepare word lists for accurate transcription.
+
+EXTRACT TWO TYPES OF TERMS:
+
+1. NAMES (people and organizations that need correct spelling):
+   - Full names of individuals (attorneys, witnesses, parties, doctors, experts)
+   - Organization names (hospitals, law firms, companies, agencies)
+   - Do NOT include: titles alone (Dr., Mr., Ms.), single letters, generic roles (plaintiff, defendant)
+
+2. TECHNICAL VOCABULARY (specialized terms a reporter might not know):
+   - Medical terms: diagnoses, procedures, medications, anatomy, conditions
+   - Legal terms: motions, causes of action, legal concepts, statutes
+   - Industry jargon: technical terms specific to the case subject matter
+   - Do NOT include: common English words, proper names (those go in NAMES)
+
+CATEGORIES TO USE:
+- Person: Named individuals (full names only)
+- Place: Organizations, companies, hospitals, law firms, locations
+- Medical: Healthcare and medical terminology
+- Technical: Legal terms, industry jargon, other specialized vocabulary
+- Unknown: Terms you cannot confidently categorize
+
+IMPORTANT RULES:
+- Extract EVERY relevant term you find - do not summarize or truncate
+- Include the FULL name or term, not abbreviations
+- One entry per unique term (no duplicates within this chunk)
+- If unsure about category, use "Unknown"
+
+Return ONLY valid JSON in this exact format:
+{"terms": [{"term": "EXTRACTED_NAME_HERE", "type": "Person"}, {"term": "EXTRACTED_TERM_HERE", "type": "Medical"}]}
+
+DO NOT copy the placeholder examples above. Extract ONLY terms that actually appear in the document chunk below.
+
+DOCUMENT CHUNK:
+{chunk_text}

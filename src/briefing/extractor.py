@@ -2,17 +2,14 @@
 Chunk Extractor for Case Briefing Generator.
 
 Extracts structured information from document chunks using Ollama's
-structured output mode. This is the MAP phase of the Map-Reduce pattern.
+structured output mode. Uses PARALLEL PROMPT CHAINING for better accuracy.
 
-Each chunk is processed independently to extract:
-- Parties (plaintiffs, defendants)
-- Allegations and claims
-- Defenses (if present)
-- Names mentioned with roles
-- Key facts and dates
-- Case type hints
+Architecture:
+- 4 focused prompts per chunk (parties, names, allegations, facts)
+- All (chunk, prompt) pairs processed in parallel via ThreadPoolExecutor
+- Results merged by chunk_id after completion
 
-The extracted data is later aggregated by the DataAggregator (REDUCE phase).
+This is the MAP phase of the Map-Reduce pattern.
 """
 
 import threading
@@ -27,9 +24,34 @@ from src.logging_config import debug_log
 from .chunker import BriefingChunk
 
 
-# External prompt file path (relative to project root)
-# Edit this file to modify extraction behavior without changing code
-EXTRACTION_PROMPT_FILE = Path("config/briefing_extraction_prompt.txt")
+# External prompt files directory
+EXTRACTION_PROMPTS_DIR = Path("config/extraction_prompts")
+
+# Prompt types and their corresponding files
+PROMPT_TYPES = {
+    "parties": "01_parties.txt",
+    "names": "02_names.txt",
+    "allegations": "03_allegations.txt",
+    "facts": "04_facts.txt",
+}
+
+
+@dataclass
+class PartialExtraction:
+    """
+    Partial extraction result from a single focused prompt.
+
+    Attributes:
+        chunk_id: ID of the source chunk
+        prompt_type: Which prompt was used ("parties", "names", etc.)
+        data: Parsed JSON response from Ollama
+        success: Whether extraction succeeded
+    """
+
+    chunk_id: int
+    prompt_type: str
+    data: dict = field(default_factory=dict)
+    success: bool = True
 
 
 @dataclass
@@ -37,7 +59,7 @@ class ChunkExtraction:
     """
     Extracted data from a single document chunk.
 
-    Represents the output of processing one chunk through the LLM.
+    Represents the merged output of all 4 focused prompts for one chunk.
     Multiple ChunkExtraction objects are later merged by the DataAggregator.
 
     Attributes:
@@ -75,20 +97,20 @@ class ChunkExtractor:
     """
     Extracts structured information from document chunks via Ollama.
 
-    Uses the generate_structured() method with JSON format mode for
-    reliable extraction. Each chunk is processed with a consistent
-    prompt template that includes the expected JSON schema.
+    Uses PARALLEL PROMPT CHAINING: 4 focused prompts per chunk,
+    all running in parallel for maximum throughput.
 
     Example:
         extractor = ChunkExtractor()
-        extraction = extractor.extract(chunk)
-        print(extraction.parties)
+        extractions = extractor.extract_batch(chunks)
+        for e in extractions:
+            print(e.parties)
     """
 
     def __init__(
         self,
         ollama_manager: OllamaModelManager | None = None,
-        max_tokens: int = 1000,
+        max_tokens: int = 500,  # Reduced since prompts are simpler
     ):
         """
         Initialize the chunk extractor.
@@ -99,42 +121,52 @@ class ChunkExtractor:
         """
         self.ollama_manager = ollama_manager or OllamaModelManager()
         self.max_tokens = max_tokens
-        self._prompt_template = self._load_prompt_template()
+        self._prompt_templates = self._load_prompt_templates()
 
-        debug_log(f"[ChunkExtractor] Initialized with max_tokens={max_tokens}")
+        debug_log(
+            f"[ChunkExtractor] Initialized with {len(self._prompt_templates)} prompts, "
+            f"max_tokens={max_tokens}"
+        )
 
-    def _load_prompt_template(self) -> str:
+    def _load_prompt_templates(self) -> dict[str, str]:
         """
-        Load the extraction prompt template from external file.
-
-        Loads from config/briefing_extraction_prompt.txt for easy editing
-        without modifying code. Falls back to a minimal prompt if file missing.
+        Load all focused prompt templates from external files.
 
         Returns:
-            Prompt template string with {doc_type}, {source}, {chunk_text} placeholders
+            Dict mapping prompt_type to prompt template string
         """
-        try:
-            if EXTRACTION_PROMPT_FILE.exists():
-                template = EXTRACTION_PROMPT_FILE.read_text(encoding="utf-8")
-                debug_log(f"[ChunkExtractor] Loaded prompt from {EXTRACTION_PROMPT_FILE}")
-                return template
-        except Exception as e:
-            debug_log(f"[ChunkExtractor] Error loading prompt file: {e}")
+        templates = {}
 
-        # Fallback minimal prompt if file not found
-        debug_log("[ChunkExtractor] Using fallback prompt (file not found)")
-        return """Extract information from this legal document. Return valid JSON only.
+        for prompt_type, filename in PROMPT_TYPES.items():
+            filepath = EXTRACTION_PROMPTS_DIR / filename
+            try:
+                if filepath.exists():
+                    templates[prompt_type] = filepath.read_text(encoding="utf-8")
+                    debug_log(f"[ChunkExtractor] Loaded prompt: {filename}")
+                else:
+                    debug_log(f"[ChunkExtractor] WARNING: Prompt file not found: {filepath}")
+                    templates[prompt_type] = self._fallback_prompt(prompt_type)
+            except Exception as e:
+                debug_log(f"[ChunkExtractor] Error loading {filename}: {e}")
+                templates[prompt_type] = self._fallback_prompt(prompt_type)
 
-Document type: {doc_type}
-Source: {source}
+        return templates
 
-{chunk_text}
-
-Output JSON with: parties (plaintiffs/defendants), allegations, defenses, names_mentioned, key_facts, dates_mentioned, case_type_hints, vocabulary"""
+    def _fallback_prompt(self, prompt_type: str) -> str:
+        """Return minimal fallback prompt if file not found."""
+        fallbacks = {
+            "parties": 'Extract plaintiffs and defendants. Return JSON: {"plaintiffs": [], "defendants": []}\n\n{chunk_text}',
+            "names": 'Extract names mentioned. Return JSON: {"names_mentioned": []}\n\n{chunk_text}',
+            "allegations": 'Extract allegations and defenses. Return JSON: {"allegations": [], "defenses": []}\n\n{chunk_text}',
+            "facts": 'Extract facts and dates. Return JSON: {"key_facts": [], "dates_mentioned": [], "case_type_hints": [], "vocabulary": []}\n\n{chunk_text}',
+        }
+        return fallbacks.get(prompt_type, "{chunk_text}")
 
     def extract(self, chunk: BriefingChunk) -> ChunkExtraction:
         """
-        Extract structured data from a single chunk.
+        Extract structured data from a single chunk using all 4 prompts sequentially.
+
+        This method is primarily for testing. Use extract_batch() for production.
 
         Args:
             chunk: BriefingChunk to process
@@ -142,36 +174,14 @@ Output JSON with: parties (plaintiffs/defendants), allegations, defenses, names_
         Returns:
             ChunkExtraction with extracted data
         """
-        debug_log(f"[ChunkExtractor] Processing chunk {chunk.chunk_id} from {chunk.source_document}")
+        debug_log(f"[ChunkExtractor] Processing chunk {chunk.chunk_id} (sequential)")
 
-        # Build the prompt from template
-        prompt = self._prompt_template.format(
-            doc_type=chunk.document_type,
-            source=chunk.source_document,
-            chunk_text=chunk.text,
-        )
+        partials = []
+        for prompt_type in PROMPT_TYPES:
+            partial = self._extract_single(chunk, prompt_type)
+            partials.append(partial)
 
-        # Call Ollama structured output
-        try:
-            response = self.ollama_manager.generate_structured(
-                prompt=prompt,
-                max_tokens=self.max_tokens,
-                temperature=0.0,  # Deterministic for extraction
-            )
-
-            if response is None:
-                debug_log(f"[ChunkExtractor] No response for chunk {chunk.chunk_id}")
-                return self._empty_extraction(chunk, success=False)
-
-            # Parse the response into ChunkExtraction
-            extraction = self._parse_response(chunk, response)
-            debug_log(f"[ChunkExtractor] Chunk {chunk.chunk_id}: extracted {self._count_items(extraction)} items")
-
-            return extraction
-
-        except Exception as e:
-            debug_log(f"[ChunkExtractor] Error processing chunk {chunk.chunk_id}: {e}")
-            return self._empty_extraction(chunk, success=False)
+        return self._merge_partials(chunk, partials)
 
     def extract_batch(
         self,
@@ -181,11 +191,10 @@ Output JSON with: parties (plaintiffs/defendants), allegations, defenses, names_
         max_workers: int | None = None,
     ) -> list[ChunkExtraction]:
         """
-        Extract structured data from multiple chunks.
+        Extract structured data from multiple chunks using parallel prompt chaining.
 
-        Supports parallel processing for improved performance. Worker count
-        is automatically calculated based on system resources and user's
-        resource usage setting (configurable in Settings → Performance).
+        Creates N×4 tasks (N chunks × 4 prompts) and processes them all in parallel.
+        Results are merged by chunk_id after completion.
 
         Args:
             chunks: List of BriefingChunk objects
@@ -199,16 +208,23 @@ Output JSON with: parties (plaintiffs/defendants), allegations, defenses, names_
         if not chunks:
             return []
 
-        total = len(chunks)
+        num_chunks = len(chunks)
+        num_prompts = len(PROMPT_TYPES)
+        total_tasks = num_chunks * num_prompts
 
         # Auto-calculate workers if not specified
         if max_workers is None:
             from src.system_resources import get_optimal_workers
-            # Each Ollama extraction uses ~2GB RAM
-            max_workers = get_optimal_workers(task_ram_gb=2.0, max_workers=8)
+            # Each Ollama extraction uses ~2GB RAM, but prompts are lighter now
+            max_workers = get_optimal_workers(task_ram_gb=1.5, max_workers=12)
 
-        # Use sequential processing if parallel is disabled or only one chunk
-        if not parallel or total <= 1 or max_workers <= 1:
+        debug_log(
+            f"[ChunkExtractor] Parallel prompt chaining: {num_chunks} chunks × "
+            f"{num_prompts} prompts = {total_tasks} tasks, {max_workers} workers"
+        )
+
+        # Use sequential processing if parallel is disabled or trivial workload
+        if not parallel or total_tasks <= 4 or max_workers <= 1:
             return self._extract_sequential(chunks, progress_callback)
 
         return self._extract_parallel(chunks, progress_callback, max_workers)
@@ -229,31 +245,35 @@ Output JSON with: parties (plaintiffs/defendants), allegations, defenses, names_
             List of extractions in order
         """
         extractions = []
-        total = len(chunks)
+        total = len(chunks) * len(PROMPT_TYPES)
+        current = 0
 
-        for i, chunk in enumerate(chunks):
-            if progress_callback:
-                progress_callback(i, total)
+        for chunk in chunks:
+            partials = []
+            for prompt_type in PROMPT_TYPES:
+                partial = self._extract_single(chunk, prompt_type)
+                partials.append(partial)
+                current += 1
+                if progress_callback:
+                    progress_callback(current, total)
 
-            extraction = self.extract(chunk)
+            extraction = self._merge_partials(chunk, partials)
             extractions.append(extraction)
 
-        if progress_callback:
-            progress_callback(total, total)
-
-        debug_log(f"[ChunkExtractor] Sequential batch complete: {len(extractions)} chunks")
+        debug_log(f"[ChunkExtractor] Sequential extraction complete: {len(extractions)} chunks")
         return extractions
 
     def _extract_parallel(
         self,
         chunks: list[BriefingChunk],
         progress_callback: Callable[[int, int], None] | None = None,
-        max_workers: int = 2,
+        max_workers: int = 6,
     ) -> list[ChunkExtraction]:
         """
-        Extract chunks in parallel using ThreadPoolExecutor.
+        Extract using parallel prompt chaining.
 
-        Results are returned in chunk_id order regardless of completion order.
+        Flattens all (chunk, prompt_type) pairs into a single task queue
+        for maximum parallelism.
 
         Args:
             chunks: Chunks to process
@@ -263,49 +283,184 @@ Output JSON with: parties (plaintiffs/defendants), allegations, defenses, names_
         Returns:
             List of extractions ordered by chunk_id
         """
-        total = len(chunks)
+        total_tasks = len(chunks) * len(PROMPT_TYPES)
         completed_count = 0
         count_lock = threading.Lock()
 
-        # Dict to store results by chunk_id for ordering
-        results: dict[int, ChunkExtraction] = {}
+        # Store partial results by (chunk_id, prompt_type)
+        partial_results: dict[tuple[int, str], PartialExtraction] = {}
 
-        debug_log(f"[ChunkExtractor] Starting parallel extraction: {total} chunks, {max_workers} workers")
+        debug_log(
+            f"[ChunkExtractor] Starting parallel extraction: {total_tasks} tasks, "
+            f"{max_workers} workers"
+        )
 
-        def extract_with_tracking(chunk: BriefingChunk) -> ChunkExtraction:
-            """Extract a chunk and track progress."""
+        def extract_task(chunk: BriefingChunk, prompt_type: str) -> PartialExtraction:
+            """Extract a single (chunk, prompt_type) pair."""
             nonlocal completed_count
-            result = self.extract(chunk)
+            result = self._extract_single(chunk, prompt_type)
 
             with count_lock:
                 completed_count += 1
                 if progress_callback:
-                    progress_callback(completed_count, total)
+                    progress_callback(completed_count, total_tasks)
 
             return result
 
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
-            # Submit all chunks
-            future_to_chunk = {
-                executor.submit(extract_with_tracking, chunk): chunk
-                for chunk in chunks
-            }
+            # Submit all (chunk, prompt_type) pairs
+            future_to_task = {}
+            for chunk in chunks:
+                for prompt_type in PROMPT_TYPES:
+                    future = executor.submit(extract_task, chunk, prompt_type)
+                    future_to_task[future] = (chunk.chunk_id, prompt_type)
 
             # Collect results as they complete
-            for future in as_completed(future_to_chunk):
-                chunk = future_to_chunk[future]
+            for future in as_completed(future_to_task):
+                chunk_id, prompt_type = future_to_task[future]
                 try:
-                    extraction = future.result()
-                    results[chunk.chunk_id] = extraction
+                    partial = future.result()
+                    partial_results[(chunk_id, prompt_type)] = partial
                 except Exception as e:
-                    debug_log(f"[ChunkExtractor] Parallel extraction error for chunk {chunk.chunk_id}: {e}")
-                    results[chunk.chunk_id] = self._empty_extraction(chunk, success=False)
+                    debug_log(
+                        f"[ChunkExtractor] Error for chunk {chunk_id}, {prompt_type}: {e}"
+                    )
+                    partial_results[(chunk_id, prompt_type)] = PartialExtraction(
+                        chunk_id=chunk_id,
+                        prompt_type=prompt_type,
+                        data={},
+                        success=False,
+                    )
 
-        # Sort by chunk_id to maintain order
-        extractions = [results[cid] for cid in sorted(results.keys())]
+        # Merge partials by chunk_id
+        extractions = []
+        for chunk in chunks:
+            partials = [
+                partial_results.get(
+                    (chunk.chunk_id, pt),
+                    PartialExtraction(chunk_id=chunk.chunk_id, prompt_type=pt, success=False),
+                )
+                for pt in PROMPT_TYPES
+            ]
+            extraction = self._merge_partials(chunk, partials)
+            extractions.append(extraction)
 
-        debug_log(f"[ChunkExtractor] Parallel batch complete: {len(extractions)} chunks processed")
+        debug_log(
+            f"[ChunkExtractor] Parallel extraction complete: {len(extractions)} chunks "
+            f"from {total_tasks} tasks"
+        )
         return extractions
+
+    def _extract_single(
+        self,
+        chunk: BriefingChunk,
+        prompt_type: str,
+    ) -> PartialExtraction:
+        """
+        Run a single focused extraction prompt on a chunk.
+
+        Args:
+            chunk: The chunk to process
+            prompt_type: Which prompt to use ("parties", "names", etc.)
+
+        Returns:
+            PartialExtraction with results
+        """
+        template = self._prompt_templates.get(prompt_type, "")
+        if not template:
+            return PartialExtraction(
+                chunk_id=chunk.chunk_id,
+                prompt_type=prompt_type,
+                success=False,
+            )
+
+        # Build prompt using replace() to avoid curly brace issues
+        prompt = template.replace("{chunk_text}", chunk.text)
+
+        try:
+            response = self.ollama_manager.generate_structured(
+                prompt=prompt,
+                max_tokens=self.max_tokens,
+                temperature=0.0,  # Deterministic for extraction
+            )
+
+            if response is None:
+                debug_log(
+                    f"[ChunkExtractor] No response for chunk {chunk.chunk_id}, {prompt_type}"
+                )
+                return PartialExtraction(
+                    chunk_id=chunk.chunk_id,
+                    prompt_type=prompt_type,
+                    success=False,
+                )
+
+            return PartialExtraction(
+                chunk_id=chunk.chunk_id,
+                prompt_type=prompt_type,
+                data=response,
+                success=True,
+            )
+
+        except Exception as e:
+            debug_log(
+                f"[ChunkExtractor] Error for chunk {chunk.chunk_id}, {prompt_type}: {e}"
+            )
+            return PartialExtraction(
+                chunk_id=chunk.chunk_id,
+                prompt_type=prompt_type,
+                success=False,
+            )
+
+    def _merge_partials(
+        self,
+        chunk: BriefingChunk,
+        partials: list[PartialExtraction],
+    ) -> ChunkExtraction:
+        """
+        Merge partial extractions from all 4 prompts into one ChunkExtraction.
+
+        Args:
+            chunk: The source chunk
+            partials: List of PartialExtraction objects (one per prompt type)
+
+        Returns:
+            Complete ChunkExtraction with merged data
+        """
+        import json
+
+        # Combine all partial data
+        merged_data = {}
+        any_success = False
+
+        for partial in partials:
+            if partial.success and partial.data:
+                data = partial.data
+
+                # Handle case where data is a string (raw JSON) instead of dict
+                if isinstance(data, str):
+                    try:
+                        data = json.loads(data)
+                    except json.JSONDecodeError:
+                        debug_log(
+                            f"[ChunkExtractor] Failed to parse JSON for chunk "
+                            f"{chunk.chunk_id}, {partial.prompt_type}: {data[:100]}"
+                        )
+                        continue
+
+                # Only update if data is a dict
+                if isinstance(data, dict):
+                    merged_data.update(data)
+                    any_success = True
+                else:
+                    debug_log(
+                        f"[ChunkExtractor] Unexpected data type for chunk "
+                        f"{chunk.chunk_id}, {partial.prompt_type}: {type(data)}"
+                    )
+
+        if not any_success:
+            return self._empty_extraction(chunk, success=False)
+
+        return self._parse_response(chunk, merged_data)
 
     def _parse_response(
         self,
@@ -313,23 +468,31 @@ Output JSON with: parties (plaintiffs/defendants), allegations, defenses, names_
         response: dict[str, Any],
     ) -> ChunkExtraction:
         """
-        Parse Ollama JSON response into ChunkExtraction dataclass.
+        Parse merged JSON response into ChunkExtraction dataclass.
 
         Handles missing fields gracefully by using defaults.
 
         Args:
             chunk: Source chunk for metadata
-            response: Parsed JSON response from Ollama
+            response: Merged JSON response from all prompts
 
         Returns:
             ChunkExtraction with parsed data
         """
         # Extract parties
         parties_data = response.get("parties", {})
-        parties = {
-            "plaintiffs": self._ensure_list(parties_data.get("plaintiffs", [])),
-            "defendants": self._ensure_list(parties_data.get("defendants", [])),
-        }
+        # Handle both nested and flat party formats
+        if isinstance(parties_data, dict):
+            parties = {
+                "plaintiffs": self._ensure_list(parties_data.get("plaintiffs", [])),
+                "defendants": self._ensure_list(parties_data.get("defendants", [])),
+            }
+        else:
+            # Flat format from parties prompt
+            parties = {
+                "plaintiffs": self._ensure_list(response.get("plaintiffs", [])),
+                "defendants": self._ensure_list(response.get("defendants", [])),
+            }
 
         # Extract names with normalization
         names_raw = response.get("names_mentioned", [])

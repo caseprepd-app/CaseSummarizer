@@ -1,0 +1,45 @@
+{
+  "categories": [
+    {
+      "id": "Person",
+      "description": "Named individuals (attorneys, witnesses, parties, doctors)"
+    },
+    {
+      "id": "Place",
+      "description": "Organizations and locations (hospitals, law firms, companies, addresses)"
+    },
+    {
+      "id": "Medical",
+      "description": "Medical and healthcare terms (diagnoses, procedures, medications, anatomy)"
+    },
+    {
+      "id": "Technical",
+      "description": "Legal and other technical terms (motions, causes of action, industry jargon)"
+    },
+    {
+      "id": "Unknown",
+      "description": "Terms that could not be confidently classified"
+    }
+  ],
+  "ner_mapping": {
+    "PERSON": "Person",
+    "ORG": "Place",
+    "GPE": "Place",
+    "LOC": "Place",
+    "FAC": "Place",
+    "NORP": "Place",
+    "PRODUCT": "Technical",
+    "EVENT": "Technical",
+    "WORK_OF_ART": "Technical",
+    "LAW": "Technical",
+    "LANGUAGE": "Technical",
+    "DATE": "Technical",
+    "TIME": "Technical",
+    "PERCENT": "Technical",
+    "MONEY": "Technical",
+    "QUANTITY": "Technical",
+    "ORDINAL": "Technical",
+    "CARDINAL": "Technical"
+  },
+  "llm_prompt_categories": "Person, Place, Medical, Technical, Unknown"
+}

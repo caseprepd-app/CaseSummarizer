@@ -443,6 +443,44 @@ def _register_all_settings():
         action=_open_question_editor,
     ))
 
+    # ===================================================================
+    # EXPERIMENTAL TAB (Session 43)
+    # ===================================================================
+
+    SettingsRegistry.register(SettingDefinition(
+        key="vocab_use_llm",
+        label="Use LLM for vocabulary extraction",
+        category="Experimental",
+        setting_type=SettingType.CHECKBOX,
+        tooltip=(
+            "When enabled, vocabulary extraction uses both NER (spaCy) and "
+            "LLM (Ollama) to find terms. The results are reconciled and "
+            "terms found by both methods are ranked higher.\n\n"
+            "This may take longer but typically provides more accurate results. "
+            "Disable to use NER-only extraction (faster but may miss some terms)."
+        ),
+        default=True,
+        getter=lambda: prefs.is_vocab_llm_enabled(),
+        setter=lambda v: prefs.set_vocab_llm_enabled(v),
+    ))
+
+    SettingsRegistry.register(SettingDefinition(
+        key="experimental_briefing_enabled",
+        label="Enable Case Briefing (experimental)",
+        category="Experimental",
+        setting_type=SettingType.CHECKBOX,
+        tooltip=(
+            "⚠️ EXPERIMENTAL: Case Briefing extracts parties, allegations, "
+            "and case facts from legal documents. This feature is still "
+            "being refined and may produce incomplete or inaccurate results.\n\n"
+            "When enabled, a 'Case Briefing (experimental)' checkbox will "
+            "appear in the output options. Requires application restart."
+        ),
+        default=False,
+        getter=lambda: prefs.is_experimental_briefing_enabled(),
+        setter=lambda v: prefs.set_experimental_briefing_enabled(v),
+    ))
+
 
 # Register all settings when this module is imported
 _register_all_settings()

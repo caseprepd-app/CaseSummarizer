@@ -21,13 +21,19 @@ class TestQAResult:
         """QAResult should have sensible defaults."""
         from src.qa import QAResult
 
-        result = QAResult(question="Who is the plaintiff?", answer="John Smith")
+        result = QAResult(
+            question="Who is the plaintiff?",
+            quick_answer="John Smith is the plaintiff.",
+            citation="The plaintiff John Smith filed..."
+        )
 
         assert result.question == "Who is the plaintiff?"
-        assert result.answer == "John Smith"
+        assert result.quick_answer == "John Smith is the plaintiff."
+        assert result.citation == "The plaintiff John Smith filed..."
+        # Backward compatibility: answer property returns quick_answer
+        assert result.answer == "John Smith is the plaintiff."
         assert result.include_in_export is True  # Default to included
         assert result.source_summary == ""
-        assert result.answer_mode == "extraction"
         assert result.confidence == 0.0
         assert result.is_followup is False
 
@@ -37,10 +43,10 @@ class TestQAResult:
 
         result = QAResult(
             question="What damages are sought?",
-            answer="$100,000 in compensatory damages",
+            quick_answer="$100,000 in compensatory damages",
+            citation="Plaintiff seeks damages of $100,000...",
             include_in_export=False,
             source_summary="complaint.pdf, pages 5-6",
-            answer_mode="ollama",
             confidence=0.85,
             retrieval_time_ms=123.4,
             is_followup=True
@@ -48,10 +54,11 @@ class TestQAResult:
 
         assert result.include_in_export is False
         assert result.source_summary == "complaint.pdf, pages 5-6"
-        assert result.answer_mode == "ollama"
         assert result.confidence == 0.85
         assert result.retrieval_time_ms == 123.4
         assert result.is_followup is True
+        assert result.quick_answer == "$100,000 in compensatory damages"
+        assert result.citation == "Plaintiff seeks damages of $100,000..."
 
 
 class TestAnswerGenerator:
@@ -210,9 +217,9 @@ questions:
 
             # Add mock results
             orchestrator.results = [
-                QAResult(question="Q1", answer="A1", include_in_export=True),
-                QAResult(question="Q2", answer="A2", include_in_export=False),
-                QAResult(question="Q3", answer="A3", include_in_export=True),
+                QAResult(question="Q1", quick_answer="A1", citation="C1", include_in_export=True),
+                QAResult(question="Q2", quick_answer="A2", citation="C2", include_in_export=False),
+                QAResult(question="Q3", quick_answer="A3", citation="C3", include_in_export=True),
             ]
 
             exportable = orchestrator.get_exportable_results()
@@ -233,7 +240,7 @@ questions:
             )
 
             orchestrator.results = [
-                QAResult(question="Q1", answer="A1", include_in_export=True),
+                QAResult(question="Q1", quick_answer="A1", citation="C1", include_in_export=True),
             ]
 
             # Toggle off
@@ -261,7 +268,8 @@ questions:
             orchestrator.results = [
                 QAResult(
                     question="What type of case is this?",
-                    answer="This is a civil personal injury case.",
+                    quick_answer="This is a civil personal injury case.",
+                    citation="Filed in civil court for personal injury...",
                     source_summary="complaint.pdf",
                     include_in_export=True
                 ),
@@ -271,7 +279,7 @@ questions:
 
             assert "DOCUMENT Q&A SUMMARY" in text
             assert "Q1: What type of case is this?" in text
-            assert "A: This is a civil personal injury case." in text
+            assert "Quick Answer: This is a civil personal injury case." in text
             assert "[Source: complaint.pdf]" in text
 
     def test_export_to_text_excludes_unchecked(self):
@@ -287,8 +295,8 @@ questions:
             )
 
             orchestrator.results = [
-                QAResult(question="Included", answer="Yes", include_in_export=True),
-                QAResult(question="Excluded", answer="No", include_in_export=False),
+                QAResult(question="Included", quick_answer="Yes", citation="C1", include_in_export=True),
+                QAResult(question="Excluded", quick_answer="No", citation="C2", include_in_export=False),
             ]
 
             text = orchestrator.export_to_text()
@@ -308,7 +316,7 @@ questions:
                 embeddings=MagicMock()
             )
 
-            orchestrator.results = [QAResult(question="Q", answer="A")]
+            orchestrator.results = [QAResult(question="Q", quick_answer="A", citation="C")]
             assert len(orchestrator.results) == 1
 
             orchestrator.clear_results()

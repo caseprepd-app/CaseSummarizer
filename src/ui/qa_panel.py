@@ -1,18 +1,23 @@
 """
 Q&A Panel Widget for LocalScribe.
 
-Displays Q&A results from vector search in a plain text format with:
-- Scrollable results display (text)
-- Per-result include/exclude toggles (Treeview checkboxes)
-- Action buttons: Edit Questions, Ask More Questions, Export TXT
-- Collapsible follow-up question input pane
+Displays Q&A results in a CSV-style table with three columns:
+- Question: The question asked
+- Quick Answer: AI-synthesized answer from Ollama
+- Citation: Raw text excerpts from BM25+/vector retrieval
 
-The panel supports both automatic default questions and user-initiated
-follow-up questions through the "Ask More Questions" feature.
+Features:
+- Excel-like Treeview table with frozen headers
+- Per-result include/exclude toggles (checkbox column)
+- Export to CSV or TXT
+- Collapsible follow-up question input pane
 """
 
-from pathlib import Path
-from tkinter import Menu, filedialog, messagebox, ttk
+import csv
+import io
+import queue
+import threading
+from tkinter import filedialog, messagebox, ttk
 from typing import Callable
 
 import customtkinter as ctk
@@ -25,18 +30,34 @@ from src.qa.qa_orchestrator import QAResult
 CHECK_ICON = "☑"  # U+2611 Ballot Box with Check
 UNCHECK_ICON = "☐"  # U+2610 Ballot Box
 
+# Column configuration for Q&A table
+QA_COLUMN_CONFIG = {
+    "Include": {"width": 50, "max_chars": 3},
+    "Question": {"width": 180, "max_chars": 35},
+    "Quick Answer": {"width": 250, "max_chars": 50},
+    "Citation": {"width": 300, "max_chars": 60},
+}
+
+
+def truncate_text(text: str, max_chars: int) -> str:
+    """Truncate text with ellipsis for table display."""
+    if not text:
+        return ""
+    text = str(text).replace('\n', ' ').replace('\r', '').strip()
+    if len(text) <= max_chars:
+        return text
+    return text[:max_chars - 3] + "..."
+
 
 class QAPanel(ctk.CTkFrame):
     """
-    Q&A display panel with results, toggles, and follow-up input.
+    Q&A display panel with CSV-style table layout.
 
     Features:
-    - Plain text display of Q&A pairs (scrollable)
-    - Treeview-based toggle list for include/exclude checkboxes
-    - "Edit Questions" button to open question editor
-    - "Ask More Questions" button to reveal follow-up input
-    - "Export TXT" button to save selected Q&As
-    - Collapsible follow-up question pane
+    - 3-column table: Question | Quick Answer | Citation
+    - Include/exclude checkboxes for export
+    - Export to CSV or TXT
+    - Follow-up question input pane
 
     Example:
         panel = QAPanel(parent)
@@ -45,6 +66,9 @@ class QAPanel(ctk.CTkFrame):
         # Handle follow-up questions
         panel.set_followup_callback(lambda q: orchestrator.ask_followup(q))
     """
+
+    # Class-level flag to track if style has been configured (Session 45)
+    _style_configured = False
 
     def __init__(
         self,
@@ -69,22 +93,26 @@ class QAPanel(ctk.CTkFrame):
         # Results storage
         self._results: list[QAResult] = []
 
+        # Async follow-up state
+        self._followup_queue: queue.Queue = queue.Queue()
+        self._followup_thread: threading.Thread | None = None
+        self._polling_active: bool = False
+
         # Configure grid
         self.grid_columnconfigure(0, weight=1)
-        self.grid_rowconfigure(1, weight=1)  # Results area expands
+        self.grid_rowconfigure(1, weight=1)  # Table area expands
 
         # Build UI components
         self._create_header()
-        self._create_results_area()
-        self._create_toggle_list()
+        self._create_table_area()
         self._create_button_bar()
         self._create_followup_pane()
 
         # Apply Treeview styling
-        self._create_toggle_style()
+        self._create_table_style()
 
         if DEBUG_MODE:
-            debug_log("[QAPanel] Initialized")
+            debug_log("[QAPanel] Initialized with CSV-style table layout")
 
     def _create_header(self):
         """Create header with title and info."""
@@ -93,7 +121,7 @@ class QAPanel(ctk.CTkFrame):
 
         title = ctk.CTkLabel(
             header,
-            text="Document Q&A",
+            text="Document Q&A (CSV Format)",
             font=ctk.CTkFont(size=14, weight="bold")
         )
         title.pack(side="left")
@@ -106,89 +134,120 @@ class QAPanel(ctk.CTkFrame):
         )
         self.info_label.pack(side="right")
 
-    def _create_results_area(self):
-        """Create main results display area."""
-        # Frame for results display and toggle list side by side
-        results_frame = ctk.CTkFrame(self, fg_color="transparent")
-        results_frame.grid(row=1, column=0, sticky="nsew", padx=5, pady=5)
-        results_frame.grid_columnconfigure(0, weight=3)  # Text area gets more space
-        results_frame.grid_columnconfigure(1, weight=1)  # Toggle list
-        results_frame.grid_rowconfigure(0, weight=1)
+    def _create_table_area(self):
+        """Create main CSV-style table display."""
+        # Frame for table with dark theme
+        table_frame = ctk.CTkFrame(self, fg_color="#2b2b2b", corner_radius=6)
+        table_frame.grid(row=1, column=0, sticky="nsew", padx=5, pady=5)
+        table_frame.grid_columnconfigure(0, weight=1)
+        table_frame.grid_rowconfigure(0, weight=1)
 
-        # Text display for Q&A content
-        self.results_text = ctk.CTkTextbox(
-            results_frame,
-            wrap="word",
-            font=ctk.CTkFont(size=11)
-        )
-        self.results_text.grid(row=0, column=0, sticky="nsew", padx=(0, 5))
+        # Define columns
+        columns = ("Include", "Question", "Quick Answer", "Citation")
 
-        # Initial placeholder text
-        self._show_placeholder()
-
-    def _create_toggle_list(self):
-        """Create Treeview-based toggle list for include/exclude."""
-        # Get the results_frame (parent of results_text)
-        results_frame = self.results_text.master
-
-        # Frame for toggle list
-        toggle_frame = ctk.CTkFrame(results_frame, fg_color="#2b2b2b", corner_radius=6)
-        toggle_frame.grid(row=0, column=1, sticky="nsew")
-        toggle_frame.grid_columnconfigure(0, weight=1)
-        toggle_frame.grid_rowconfigure(1, weight=1)
-
-        # Label
-        toggle_label = ctk.CTkLabel(
-            toggle_frame,
-            text="Include in Export:",
-            font=ctk.CTkFont(size=11, weight="bold")
-        )
-        toggle_label.grid(row=0, column=0, sticky="w", padx=5, pady=(5, 2))
-
-        # Treeview for checkboxes
-        self.toggle_tree = ttk.Treeview(
-            toggle_frame,
-            columns=("include", "question"),
-            show="tree",  # Hide column headers
-            style="QAToggle.Treeview",
-            selectmode="browse",
-            height=10
+        # Create Treeview
+        self.qa_tree = ttk.Treeview(
+            table_frame,
+            columns=columns,
+            show="headings",
+            style="QATable.Treeview",
+            selectmode="browse"
         )
 
-        # Configure columns
-        self.toggle_tree.column("#0", width=0, stretch=False)  # Hide tree column
-        self.toggle_tree.column("include", width=25, stretch=False, anchor="center")
-        self.toggle_tree.column("question", width=150, stretch=True, anchor="w")
+        # Configure column headings and widths
+        for col in columns:
+            col_config = QA_COLUMN_CONFIG.get(col, {"width": 100})
+            self.qa_tree.heading(col, text=col, anchor='w')
+            # Citation column stretches to fill remaining space
+            stretch = True if col == "Citation" else False
+            self.qa_tree.column(
+                col,
+                width=col_config["width"],
+                minwidth=50,
+                anchor='w',
+                stretch=stretch
+            )
 
-        self.toggle_tree.grid(row=1, column=0, sticky="nsew", padx=2, pady=2)
-
-        # Scrollbar for toggle list
-        toggle_scroll = ttk.Scrollbar(
-            toggle_frame,
+        # Add vertical scrollbar
+        vsb = ttk.Scrollbar(
+            table_frame,
             orient="vertical",
-            command=self.toggle_tree.yview
+            command=self.qa_tree.yview,
+            style="QATable.Vertical.TScrollbar"
         )
-        self.toggle_tree.configure(yscrollcommand=toggle_scroll.set)
-        toggle_scroll.grid(row=1, column=1, sticky="ns")
+        self.qa_tree.configure(yscrollcommand=vsb.set)
 
-        # Bind click to toggle
-        self.toggle_tree.bind("<Button-1>", self._on_toggle_click)
+        # Add horizontal scrollbar
+        hsb = ttk.Scrollbar(
+            table_frame,
+            orient="horizontal",
+            command=self.qa_tree.xview,
+            style="QATable.Horizontal.TScrollbar"
+        )
+        self.qa_tree.configure(xscrollcommand=hsb.set)
 
-    def _create_toggle_style(self):
-        """Create Treeview style for toggle list."""
+        # Grid layout
+        self.qa_tree.grid(row=0, column=0, sticky="nsew")
+        vsb.grid(row=0, column=1, sticky="ns")
+        hsb.grid(row=1, column=0, sticky="ew")
+
+        # Bind click for Include column toggle
+        self.qa_tree.bind("<Button-1>", self._on_table_click)
+
+        # Bind double-click to show full text
+        self.qa_tree.bind("<Double-1>", self._on_double_click)
+
+    def _create_table_style(self):
+        """Create Treeview style for Q&A table (Session 45: only once to avoid UI lockup)."""
+        # Only configure style once to prevent UI lockup from repeated theme_use calls
+        if QAPanel._style_configured:
+            return
+
         style = ttk.Style()
+        # Note: theme_use("default") can cause layout thrashing, only do once
         style.theme_use("default")
 
+        # Main treeview styling - dark theme
         style.configure(
-            "QAToggle.Treeview",
+            "QATable.Treeview",
             background="#2b2b2b",
             foreground="white",
             fieldbackground="#2b2b2b",
             borderwidth=0,
-            rowheight=22,
+            rowheight=28,
             font=('Segoe UI', 10)
         )
-        style.map('QAToggle.Treeview', background=[('selected', '#3470b6')])
+        style.map('QATable.Treeview', background=[('selected', '#3470b6')])
+
+        # Header styling
+        style.configure(
+            "QATable.Treeview.Heading",
+            background="#404040",
+            foreground="white",
+            relief="flat",
+            font=('Segoe UI', 10, 'bold'),
+            padding=(8, 4)
+        )
+        style.map("QATable.Treeview.Heading", background=[('active', '#505050')])
+
+        # Scrollbar styling
+        style.configure(
+            "QATable.Vertical.TScrollbar",
+            background="#404040",
+            troughcolor="#2b2b2b",
+            borderwidth=0,
+            arrowcolor="white"
+        )
+        style.configure(
+            "QATable.Horizontal.TScrollbar",
+            background="#404040",
+            troughcolor="#2b2b2b",
+            borderwidth=0,
+            arrowcolor="white"
+        )
+
+        QAPanel._style_configured = True
+        debug_log("[QAPanel] Table style configured")
 
     def _create_button_bar(self):
         """Create action buttons bar."""
@@ -213,14 +272,24 @@ class QAPanel(ctk.CTkFrame):
         )
         self.ask_more_btn.pack(side="left", padx=5)
 
-        # Export TXT button
-        self.export_btn = ctk.CTkButton(
+        # Export CSV button (primary)
+        self.export_csv_btn = ctk.CTkButton(
             button_frame,
-            text="Export TXT",
-            command=self._export_to_file,
+            text="Export CSV",
+            command=self._export_to_csv,
             width=100
         )
-        self.export_btn.pack(side="right", padx=5)
+        self.export_csv_btn.pack(side="right", padx=5)
+
+        # Export TXT button (secondary)
+        self.export_txt_btn = ctk.CTkButton(
+            button_frame,
+            text="Export TXT",
+            command=self._export_to_txt,
+            width=90,
+            fg_color="#555555"
+        )
+        self.export_txt_btn.pack(side="right", padx=5)
 
         # Select All / Deselect All buttons
         self.select_all_btn = ctk.CTkButton(
@@ -267,122 +336,101 @@ class QAPanel(ctk.CTkFrame):
         )
         self.followup_ask_btn.pack(side="right", padx=(5, 10), pady=10)
 
-    def _show_placeholder(self):
-        """Show placeholder text when no results."""
-        self.results_text.configure(state="normal")
-        self.results_text.delete("0.0", "end")
-        self.results_text.insert(
-            "0.0",
-            "Q&A results will appear here after document processing.\n\n"
-            "The system will automatically ask default questions about your documents "
-            "using vector similarity search."
-        )
-        self.results_text.configure(state="disabled")
-
     def display_results(self, results: list[QAResult]):
         """
-        Display Q&A results in the panel.
+        Display Q&A results in the table.
 
         Args:
             results: List of QAResult objects to display
         """
         self._results = results
 
-        # Update text display
-        self._render_text_display()
+        # Clear existing items
+        self.qa_tree.delete(*self.qa_tree.get_children())
 
-        # Update toggle list
-        self._render_toggle_list()
+        # Insert rows
+        for i, result in enumerate(results):
+            include_icon = CHECK_ICON if result.include_in_export else UNCHECK_ICON
+            question = truncate_text(result.question, QA_COLUMN_CONFIG["Question"]["max_chars"])
+            quick_answer = truncate_text(result.quick_answer, QA_COLUMN_CONFIG["Quick Answer"]["max_chars"])
+            citation = truncate_text(result.citation, QA_COLUMN_CONFIG["Citation"]["max_chars"])
+
+            self.qa_tree.insert(
+                "",
+                "end",
+                iid=str(i),
+                values=(include_icon, question, quick_answer, citation)
+            )
 
         # Update info label
         included = sum(1 for r in results if r.include_in_export)
         self.info_label.configure(text=f"{included}/{len(results)} selected for export")
 
         if DEBUG_MODE:
-            debug_log(f"[QAPanel] Displaying {len(results)} results")
+            debug_log(f"[QAPanel] Displaying {len(results)} results in table")
 
-    def _render_text_display(self):
-        """Render Q&A results as formatted text."""
-        self.results_text.configure(state="normal")
-        self.results_text.delete("0.0", "end")
+    def _on_table_click(self, event):
+        """Handle click on table to toggle include/exclude."""
+        # Check if click was on Include column
+        column = self.qa_tree.identify_column(event.x)
+        item_id = self.qa_tree.identify_row(event.y)
 
-        if not self._results:
-            self._show_placeholder()
+        if not item_id:
             return
 
-        lines = []
-        lines.append("═" * 60)
-        lines.append("DOCUMENT Q&A RESULTS")
-        lines.append("═" * 60)
-        lines.append("")
+        # Only toggle if clicking the Include column (#1)
+        if column == "#1":
+            try:
+                index = int(item_id)
+                if 0 <= index < len(self._results):
+                    # Toggle the flag
+                    result = self._results[index]
+                    result.include_in_export = not result.include_in_export
 
-        for i, result in enumerate(self._results, 1):
-            # Question
-            lines.append(f"Q{i}: {result.question}")
-            lines.append("")
+                    # Update display
+                    icon = CHECK_ICON if result.include_in_export else UNCHECK_ICON
+                    values = list(self.qa_tree.item(item_id, 'values'))
+                    values[0] = icon
+                    self.qa_tree.item(item_id, values=tuple(values))
 
-            # Answer
-            lines.append(f"A: {result.answer}")
+                    # Update info label
+                    included = sum(1 for r in self._results if r.include_in_export)
+                    self.info_label.configure(text=f"{included}/{len(self._results)} selected for export")
 
-            # Source citation if available
-            if result.source_summary:
-                lines.append(f"   [Source: {result.source_summary}]")
+                    if DEBUG_MODE:
+                        debug_log(f"[QAPanel] Toggled Q{index + 1}: include={result.include_in_export}")
 
-            # Export status indicator
-            status = CHECK_ICON if result.include_in_export else UNCHECK_ICON
-            lines.append(f"\n{status} Include in export")
+            except (ValueError, IndexError):
+                pass
 
-            lines.append("")
-            lines.append("─" * 60)
-            lines.append("")
+    def _on_double_click(self, event):
+        """Handle double-click to show full text in a popup."""
+        column = self.qa_tree.identify_column(event.x)
+        item_id = self.qa_tree.identify_row(event.y)
 
-        self.results_text.insert("0.0", "\n".join(lines))
-        self.results_text.configure(state="disabled")
-
-    def _render_toggle_list(self):
-        """Render toggle list with checkboxes."""
-        # Clear existing items
-        self.toggle_tree.delete(*self.toggle_tree.get_children())
-
-        for i, result in enumerate(self._results):
-            icon = CHECK_ICON if result.include_in_export else UNCHECK_ICON
-            # Truncate question for display
-            question_display = result.question[:40] + "..." if len(result.question) > 40 else result.question
-
-            self.toggle_tree.insert(
-                "",
-                "end",
-                iid=str(i),
-                values=(icon, question_display)
-            )
-
-    def _on_toggle_click(self, event):
-        """Handle click on toggle list to toggle include_in_export."""
-        item_id = self.toggle_tree.identify_row(event.y)
         if not item_id:
             return
 
         try:
             index = int(item_id)
             if 0 <= index < len(self._results):
-                # Toggle the flag
                 result = self._results[index]
-                result.include_in_export = not result.include_in_export
 
-                # Update display
-                icon = CHECK_ICON if result.include_in_export else UNCHECK_ICON
-                values = self.toggle_tree.item(item_id, 'values')
-                self.toggle_tree.item(item_id, values=(icon, values[1]))
+                # Determine which column was clicked
+                if column == "#2":  # Question
+                    title = "Full Question"
+                    content = result.question
+                elif column == "#3":  # Quick Answer
+                    title = "Full Quick Answer"
+                    content = result.quick_answer
+                elif column == "#4":  # Citation
+                    title = "Full Citation"
+                    content = result.citation
+                else:
+                    return
 
-                # Update text display
-                self._render_text_display()
-
-                # Update info label
-                included = sum(1 for r in self._results if r.include_in_export)
-                self.info_label.configure(text=f"{included}/{len(self._results)} selected for export")
-
-                if DEBUG_MODE:
-                    debug_log(f"[QAPanel] Toggled Q{index + 1}: include={result.include_in_export}")
+                # Show in messagebox (simple approach)
+                messagebox.showinfo(title, content)
 
         except (ValueError, IndexError):
             pass
@@ -392,11 +440,8 @@ class QAPanel(ctk.CTkFrame):
         for result in self._results:
             result.include_in_export = include
 
-        self._render_toggle_list()
-        self._render_text_display()
-
-        included = sum(1 for r in self._results if r.include_in_export)
-        self.info_label.configure(text=f"{included}/{len(self._results)} selected for export")
+        # Refresh display
+        self.display_results(self._results)
 
     def _toggle_followup_pane(self):
         """Show/hide the follow-up question input pane."""
@@ -411,7 +456,7 @@ class QAPanel(ctk.CTkFrame):
             self.followup_entry.focus()
 
     def _submit_followup(self):
-        """Submit a follow-up question."""
+        """Submit a follow-up question asynchronously."""
         question = self.followup_entry.get().strip()
         if not question:
             return
@@ -424,30 +469,67 @@ class QAPanel(ctk.CTkFrame):
             )
             return
 
+        # Prevent duplicate submissions
+        if self._followup_thread is not None and self._followup_thread.is_alive():
+            debug_log("[QAPanel] Follow-up already in progress, ignoring")
+            return
+
         # Clear entry
         self.followup_entry.delete(0, "end")
 
         # Disable button while processing
         self.followup_ask_btn.configure(state="disabled", text="Asking...")
+        self.followup_entry.configure(state="disabled")
+
+        if DEBUG_MODE:
+            debug_log(f"[QAPanel] Starting async follow-up: {question[:30]}...")
+
+        # Run callback in background thread
+        def run_followup():
+            try:
+                result = self.on_ask_followup(question)
+                self._followup_queue.put(("success", result))
+            except Exception as e:
+                self._followup_queue.put(("error", str(e)))
+                debug_log(f"[QAPanel] Follow-up thread error: {e}")
+
+        self._followup_thread = threading.Thread(target=run_followup, daemon=True)
+        self._followup_thread.start()
+
+        # Start polling for results
+        self._polling_active = True
+        self._poll_followup_result()
+
+    def _poll_followup_result(self):
+        """Poll for follow-up result from background thread."""
+        if not self._polling_active:
+            return
 
         try:
-            # Call the callback (should run async in real implementation)
-            result = self.on_ask_followup(question)
+            msg_type, data = self._followup_queue.get_nowait()
 
-            if result:
+            # Got a result - process it
+            self._polling_active = False
+
+            if msg_type == "success" and data is not None:
                 # Add to results
-                self._results.append(result)
+                self._results.append(data)
                 self.display_results(self._results)
 
                 if DEBUG_MODE:
-                    debug_log(f"[QAPanel] Added follow-up: {question[:30]}...")
+                    debug_log(f"[QAPanel] Follow-up completed successfully")
 
-        except Exception as e:
-            messagebox.showerror("Error", f"Failed to ask question: {e}")
-            debug_log(f"[QAPanel] Follow-up error: {e}")
+            elif msg_type == "error":
+                messagebox.showerror("Error", f"Failed to ask question: {data}")
 
-        finally:
+            # Re-enable input
             self.followup_ask_btn.configure(state="normal", text="Ask")
+            self.followup_entry.configure(state="normal")
+            self.followup_entry.focus()
+
+        except queue.Empty:
+            # No result yet, keep polling
+            self.after(100, self._poll_followup_result)
 
     def _on_edit_click(self):
         """Handle Edit Questions button click."""
@@ -459,7 +541,41 @@ class QAPanel(ctk.CTkFrame):
                 "Question editor will be available in Settings > Q&A > Edit Default Questions"
             )
 
-    def _export_to_file(self):
+    def _export_to_csv(self):
+        """Export selected Q&A results to CSV file."""
+        exportable = [r for r in self._results if r.include_in_export]
+
+        if not exportable:
+            messagebox.showwarning(
+                "No Q&A Selected",
+                "Select at least one Q&A pair to export.\n\n"
+                "Click the checkboxes in the Include column."
+            )
+            return
+
+        filepath = filedialog.asksaveasfilename(
+            defaultextension=".csv",
+            filetypes=[("CSV files", "*.csv"), ("All files", "*.*")],
+            initialfile="document_qa.csv",
+            title="Export Q&A Results"
+        )
+
+        if not filepath:
+            return
+
+        try:
+            content = self._format_csv_export(exportable)
+            with open(filepath, 'w', encoding='utf-8', newline='') as f:
+                f.write(content)
+
+            messagebox.showinfo("Exported", f"Q&A results saved to:\n{filepath}")
+            debug_log(f"[QAPanel] Exported {len(exportable)} Q&A pairs to CSV: {filepath}")
+
+        except Exception as e:
+            messagebox.showerror("Export Error", f"Failed to save file: {e}")
+            debug_log(f"[QAPanel] Export error: {e}")
+
+    def _export_to_txt(self):
         """Export selected Q&A results to TXT file."""
         exportable = [r for r in self._results if r.include_in_export]
 
@@ -467,7 +583,7 @@ class QAPanel(ctk.CTkFrame):
             messagebox.showwarning(
                 "No Q&A Selected",
                 "Select at least one Q&A pair to export.\n\n"
-                "Click the checkboxes in the toggle list on the right."
+                "Click the checkboxes in the Include column."
             )
             return
 
@@ -482,18 +598,45 @@ class QAPanel(ctk.CTkFrame):
             return
 
         try:
-            content = self._format_export(exportable)
+            content = self._format_txt_export(exportable)
             with open(filepath, 'w', encoding='utf-8') as f:
                 f.write(content)
 
             messagebox.showinfo("Exported", f"Q&A results saved to:\n{filepath}")
-            debug_log(f"[QAPanel] Exported {len(exportable)} Q&A pairs to {filepath}")
+            debug_log(f"[QAPanel] Exported {len(exportable)} Q&A pairs to TXT: {filepath}")
 
         except Exception as e:
             messagebox.showerror("Export Error", f"Failed to save file: {e}")
             debug_log(f"[QAPanel] Export error: {e}")
 
-    def _format_export(self, results: list[QAResult]) -> str:
+    def _format_csv_export(self, results: list[QAResult]) -> str:
+        """
+        Format results as CSV.
+
+        Args:
+            results: List of QAResult objects to export
+
+        Returns:
+            CSV string with headers
+        """
+        output = io.StringIO()
+        writer = csv.writer(output)
+
+        # Header row
+        writer.writerow(["Question", "Quick Answer", "Citation", "Source"])
+
+        # Data rows
+        for result in results:
+            writer.writerow([
+                result.question,
+                result.quick_answer,
+                result.citation,
+                result.source_summary
+            ])
+
+        return output.getvalue()
+
+    def _format_txt_export(self, results: list[QAResult]) -> str:
         """
         Format results for TXT export.
 
@@ -512,26 +655,30 @@ class QAPanel(ctk.CTkFrame):
 
         for i, result in enumerate(results, 1):
             lines.append(f"Q{i}: {result.question}")
-            lines.append(f"A: {result.answer}")
+            lines.append(f"Quick Answer: {result.quick_answer}")
+            lines.append("")
+            lines.append(f"Citation: {result.citation}")
             if result.source_summary:
                 lines.append(f"   [Source: {result.source_summary}]")
+            lines.append("")
+            lines.append("-" * 60)
             lines.append("")
 
         return "\n".join(lines)
 
     def get_export_content(self) -> str:
         """
-        Get exportable content as string.
+        Get exportable content as CSV string.
 
         Used by DynamicOutputWidget for copy/save operations.
 
         Returns:
-            Formatted text of selected Q&A pairs
+            CSV formatted text of selected Q&A pairs
         """
         exportable = [r for r in self._results if r.include_in_export]
         if not exportable:
             return ""
-        return self._format_export(exportable)
+        return self._format_csv_export(exportable)
 
     def set_followup_callback(self, callback: Callable[[str], QAResult | None]):
         """
@@ -554,6 +701,5 @@ class QAPanel(ctk.CTkFrame):
     def clear(self):
         """Clear all results and reset display."""
         self._results = []
-        self._show_placeholder()
-        self.toggle_tree.delete(*self.toggle_tree.get_children())
+        self.qa_tree.delete(*self.qa_tree.get_children())
         self.info_label.configure(text="")

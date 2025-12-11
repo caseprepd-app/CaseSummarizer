@@ -28,7 +28,7 @@ from src.config import DEBUG_MODE, PROMPTS_DIR
 from src.logging_config import debug_log
 from src.ai import OllamaModelManager
 from src.prompting import PromptTemplateManager
-from src.ui.workers import ProcessingWorker, VocabularyWorker, QAWorker, BriefingWorker
+from src.ui.workers import ProcessingWorker, VocabularyWorker, QAWorker, BriefingWorker, ProgressiveExtractionWorker
 from src.ui.window_layout import WindowLayoutMixin
 from src.vocabulary import get_corpus_registry
 from src.vector_store import VectorStoreBuilder
@@ -76,6 +76,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         self._vocabulary_worker: VocabularyWorker | None = None
         self._qa_worker: QAWorker | None = None
         self._briefing_worker: BriefingWorker | None = None
+        self._progressive_worker: ProgressiveExtractionWorker | None = None  # Session 45
         self._ui_queue: Queue | None = None
         self._queue_poll_id: str | None = None
 
@@ -83,6 +84,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         self._embeddings = None  # Lazy-loaded HuggingFaceEmbeddings
         self._vector_store_path = None  # Path to current session's vector store
         self._qa_results: list = []  # Store QAResult objects
+        self._qa_ready = False  # Session 45: Q&A becomes available after indexing
 
         # Build UI
         self._create_header()
@@ -342,7 +344,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         self._update_generate_button_state()
 
     def _perform_tasks(self):
-        """Execute the selected tasks."""
+        """Execute the selected tasks using progressive three-phase architecture (Session 45)."""
         if not self.processing_results:
             messagebox.showwarning("No Files", "Please add files first.")
             return
@@ -371,13 +373,14 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             'summary': do_summary
         }
         self._completed_tasks = set()
+        self._qa_ready = False
 
-        # Start vocabulary extraction first (if requested)
+        # Session 45: Use progressive extraction for vocabulary (includes Q&A indexing)
         if do_vocab:
-            self._start_vocabulary_extraction()
+            self._start_progressive_extraction()
         elif do_qa:
-            # Use Case Briefing instead of legacy Q&A
-            self._start_briefing_task()
+            # Q&A only (without vocabulary) - use legacy Q&A task
+            self._start_qa_task()
         elif do_summary:
             self._start_summary_task()
         else:
@@ -410,6 +413,12 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         # Create queue for vocab worker
         self._vocab_queue = Queue()
 
+        # Check if LLM extraction is enabled (Session 43)
+        from src.user_preferences import get_user_preferences
+        prefs = get_user_preferences()
+        use_llm = prefs.is_vocab_llm_enabled()
+        debug_log(f"[MainWindow] Vocabulary extraction with LLM: {use_llm}")
+
         # Start vocabulary worker
         self._vocabulary_worker = VocabularyWorker(
             combined_text=combined_text,
@@ -417,7 +426,8 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             exclude_list_path=str(LEGAL_EXCLUDE_LIST_PATH),
             medical_terms_path=str(MEDICAL_TERMS_LIST_PATH),
             user_exclude_path=str(USER_VOCAB_EXCLUDE_PATH),
-            doc_count=len(self.processing_results)
+            doc_count=len(self.processing_results),
+            use_llm=use_llm,  # Session 43: Enable LLM-based extraction
         )
         self._vocabulary_worker.start()
 
@@ -458,7 +468,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             self._on_vocab_complete([])
 
     def _on_vocab_complete(self, vocab_data: list):
-        """Handle vocabulary extraction completion."""
+        """Handle vocabulary extraction completion (legacy - for non-progressive flow)."""
         self._completed_tasks.add('vocab')
 
         # Display results using update_outputs
@@ -476,6 +486,131 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             self._start_summary_task()
         else:
             self._finalize_tasks()
+
+    # =========================================================================
+    # Progressive Extraction (Session 45)
+    # =========================================================================
+
+    def _start_progressive_extraction(self):
+        """
+        Start progressive three-phase extraction (Session 45).
+
+        Phase 1 (NER): Fast, displays results in ~5 seconds
+        Phase 2 (Q&A): Builds vector store, enables Q&A panel
+        Phase 3 (LLM): Slow enhancement, updates table progressively
+        """
+        from src.utils.text_utils import combine_document_texts
+        from src.config import LEGAL_EXCLUDE_LIST_PATH, MEDICAL_TERMS_LIST_PATH, USER_VOCAB_EXCLUDE_PATH
+
+        self.set_status("Starting extraction (NER first, then LLM enhancement)...")
+
+        # Combine text from all processed documents
+        combined_text = combine_document_texts(self.processing_results)
+
+        debug_log(f"[MainWindow] Progressive extraction: {len(combined_text)} chars from {len(self.processing_results)} docs")
+
+        if not combined_text.strip():
+            self.set_status("No text to analyze")
+            debug_log("[MainWindow] WARNING: No text after combining documents!")
+            self._on_tasks_complete(False, "No text to analyze")
+            return
+
+        # Create queue for progressive worker
+        self._progressive_queue = Queue()
+
+        # Start progressive extraction worker
+        self._progressive_worker = ProgressiveExtractionWorker(
+            documents=self.processing_results,
+            combined_text=combined_text,
+            ui_queue=self._progressive_queue,
+            embeddings=self._embeddings,  # Pass existing if available
+            exclude_list_path=str(LEGAL_EXCLUDE_LIST_PATH),
+            medical_terms_path=str(MEDICAL_TERMS_LIST_PATH),
+            user_exclude_path=str(USER_VOCAB_EXCLUDE_PATH),
+        )
+        self._progressive_worker.start()
+
+        # Start polling progressive queue
+        self._poll_progressive_queue()
+
+    def _poll_progressive_queue(self):
+        """Poll the progressive extraction worker queue for messages."""
+        try:
+            while True:
+                msg_type, data = self._progressive_queue.get_nowait()
+                self._handle_progressive_message(msg_type, data)
+        except Empty:
+            pass
+
+        # Continue polling if worker is alive
+        if self._progressive_worker and self._progressive_worker.is_alive():
+            self.after(50, self._poll_progressive_queue)
+        else:
+            # Worker finished - do final poll
+            try:
+                while True:
+                    msg_type, data = self._progressive_queue.get_nowait()
+                    self._handle_progressive_message(msg_type, data)
+            except Empty:
+                pass
+            # Finalize if not already done
+            if 'vocab' not in self._completed_tasks:
+                self._completed_tasks.add('vocab')
+                self._finalize_tasks()
+
+    def _handle_progressive_message(self, msg_type: str, data):
+        """Handle messages from the progressive extraction worker."""
+        if msg_type == "progress":
+            percentage, message = data
+            self.set_status(message)
+
+        elif msg_type == "ner_complete":
+            # Phase 1 complete - display NER results immediately
+            debug_log(f"[MainWindow] NER complete: {len(data)} terms - displaying immediately")
+            self.output_display.update_outputs(vocab_csv_data=data)
+            self.output_display.set_extraction_source("ner")  # Show "Initial results (NER only)"
+            self.set_status(f"NER complete: {len(data)} terms found. LLM enhancement starting...")
+
+        elif msg_type == "qa_ready":
+            # Phase 2 complete - enable Q&A
+            debug_log(f"[MainWindow] Q&A ready: {data.get('chunk_count', 0)} chunks indexed")
+            self._vector_store_path = data.get('vector_store_path')
+            self._embeddings = data.get('embeddings')
+            self._qa_ready = True
+
+            # Mark Q&A as complete if it was requested
+            if self._pending_tasks.get('qa'):
+                self._completed_tasks.add('qa')
+                self.followup_btn.configure(state="normal")
+                self.set_status(f"Q&A ready ({data.get('chunk_count', 0)} chunks). LLM enhancement in progress...")
+
+        elif msg_type == "qa_error":
+            debug_log(f"[MainWindow] Q&A indexing error: {data}")
+            # Continue without Q&A - not fatal
+
+        elif msg_type == "llm_progress":
+            # Phase 3 progress - LLM is processing chunks
+            current, total = data
+            # Status already set by 'progress' message
+
+        elif msg_type == "llm_complete":
+            # Phase 3 complete - update with reconciled results
+            debug_log(f"[MainWindow] LLM complete: {len(data)} reconciled terms")
+            self.output_display.update_outputs(vocab_csv_data=data)
+            self.output_display.set_extraction_source("both")  # Show "Enhanced results (NER + LLM)"
+            self._completed_tasks.add('vocab')
+            self.set_status(f"Complete: {len(data)} names & vocabulary extracted")
+
+            # Continue to summary if requested
+            if self._pending_tasks.get('summary'):
+                self._start_summary_task()
+            else:
+                self._finalize_tasks()
+
+        elif msg_type == "error":
+            self.set_status(f"Error: {data}")
+            messagebox.showerror("Extraction Error", str(data))
+            self._on_tasks_complete(False, str(data))
 
     def _start_qa_task(self):
         """Start Q&A task - build vector store then run questions."""

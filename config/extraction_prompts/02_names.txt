@@ -1,0 +1,24 @@
+Extract all PEOPLE and ORGANIZATIONS mentioned in this legal document chunk.
+
+For each person/organization found, identify:
+- name: The exact name as written in the document
+- role: Their role (e.g., "treating physician", "witness", "plaintiff", "nurse")
+- category: One of PARTY, MEDICAL, WITNESS, or OTHER
+
+CATEGORY DEFINITIONS:
+- PARTY: Plaintiffs and defendants in the case
+- MEDICAL: Healthcare providers (doctors, nurses, hospitals, clinics) NOT being sued
+- WITNESS: People who provide testimony
+- OTHER: Everyone else (attorneys, court personnel, family members, etc.)
+
+RULES:
+- Extract names EXACTLY as written in the document
+- Do NOT extract transcript headers like "CROSS EXAMINATION" or "DIRECT"
+- Do NOT extract legal terms or procedures as names
+- If you find no names in this chunk, return an empty list
+
+Return ONLY valid JSON in this exact format:
+{"names_mentioned": [{"name": "Dr. John Smith", "role": "treating physician", "category": "MEDICAL"}]}
+
+DOCUMENT CHUNK:
+{chunk_text}

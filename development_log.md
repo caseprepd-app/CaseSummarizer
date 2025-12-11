@@ -1,5 +1,231 @@
 # Development Log
 
+## Session 46 - Q&A Async Implementation Verification (2025-12-11)
+
+**Objective:** Verify Q&A async implementation was completed after previous session interruption.
+
+### Investigation Results
+
+**Status:** ✅ COMPLETE - No work required
+
+The Q&A async follow-up implementation was fully completed in Session 45 Part 2. Verified the following components:
+
+| Component | File | Status |
+|-----------|------|--------|
+| Async state variables | `qa_panel.py:96-99` | ✅ `_followup_queue`, `_followup_thread`, `_polling_active` |
+| Background thread execution | `qa_panel.py:487-497` | ✅ `threading.Thread` with queue-based results |
+| Queue polling mechanism | `qa_panel.py:503-532` | ✅ `_poll_followup_result()` with `after(100, ...)` |
+| UI state management | `qa_panel.py:481-482, 526-528` | ✅ Disable/enable during processing |
+| Callback wiring | `dynamic_output.py:628-634` | ✅ Connected to MainWindow |
+| Backend handler | `main_window.py:895-939` | ✅ `_ask_followup_for_qa_panel()` |
+
+No TODOs, FIXMEs, or incomplete code markers found in Q&A-related files.
+
+---
+
+## Session 45 - Streamlined Vocabulary-First Architecture (2025-12-10)
+
+**Objective:** Refocus application on court reporter's core needs (names + vocabulary), implement unified semantic chunking with token enforcement, and simplify UI.
+
+### Business Objective Refocus
+
+Court reporters need to prep for cases. They really need:
+1. **Names of people involved** (parties, witnesses, doctors, attorneys)
+2. **Technical vocabulary** (medical terms, legal terminology)
+
+Everything else (summaries, Q&A) is nice-to-have but not essential.
+
+### Key Changes
+
+#### New: Unified Semantic Chunker (`src/chunking/unified_chunker.py`)
+- **Semantic chunking** with LangChain SemanticChunker (gradient breakpoints)
+- **Token enforcement** via tiktoken (cl100k_base encoding)
+- **Target**: 400-1200 tokens per chunk (900 target)
+- **Single chunking pass** serves both LLM extraction and Q&A indexing
+
+#### Updated: Combined LLM Extraction (`src/extraction/llm_extractor.py`)
+- New `LLMPerson` dataclass for people with roles (plaintiff, defendant, attorney, etc.)
+- Combined extraction prompt extracts **both people and vocabulary** in one LLM call
+- New method `extract_from_unified_chunks()` for UnifiedChunk objects
+- ONE prompt per chunk (not 4 like Case Briefing) - 4x faster
+
+#### Updated: Reconciler (`src/vocabulary/reconciler.py`)
+- New `ReconciledPerson` dataclass for reconciled people
+- New `reconcile_people()` method for NER + LLM people reconciliation
+- `combined_to_csv_data()` method for unified table output
+
+#### Updated: UI Components
+- **widgets.py**: Simplified checkboxes:
+  - "Extract Names & Vocabulary" (ON by default)
+  - "Enable Q&A" (ON by default)
+  - "Generate Summary" (OFF by default)
+- **dynamic_output.py**:
+  - Distinct output pane background color
+  - Dropdown options: "Names & Vocabulary" | "Q&A" | "Summary"
+  - Progress badge: "Initial results (NER only)" → "Enhanced results (NER + LLM)"
+
+#### Updated: Vector Store Builder (`src/vector_store/vector_store_builder.py`)
+- New `create_from_unified_chunks()` method for UnifiedChunk objects
+
+### Files Created
+| File | Purpose |
+|------|---------|
+| `src/chunking/__init__.py` | Chunking module init |
+| `src/chunking/unified_chunker.py` | Semantic chunking + token enforcement |
+| `config/extraction_prompts/combined_extraction.txt` | Combined people + vocabulary prompt |
+
+### Files Modified
+| File | Change |
+|------|--------|
+| `requirements.txt` | Added tiktoken>=0.5.0 |
+| `src/config.py` | Added UNIFIED_CHUNK_* settings |
+| `src/extraction/__init__.py` | Export LLMPerson |
+| `src/extraction/llm_extractor.py` | Combined extraction, UnifiedChunk support |
+| `src/vocabulary/reconciler.py` | People reconciliation, combined output |
+| `src/vector_store/vector_store_builder.py` | UnifiedChunk support |
+| `src/ui/widgets.py` | Simplified checkboxes |
+| `src/ui/dynamic_output.py` | New dropdown, progress badge, distinct color |
+| `PROJECT_OVERVIEW.md` | Session 45 architecture description |
+
+### Session 45 Part 2 - Progressive UI & Async Q&A (Continued)
+
+Implemented the three-phase progressive output architecture and fixed several UI responsiveness issues.
+
+#### Progressive Extraction Worker (`src/ui/workers.py`)
+- New `ProgressiveExtractionWorker` class runs three phases in sequence
+- Phase 1: NER extraction (~5 seconds) - results appear immediately
+- Phase 2: Q&A vector store indexing (background thread, parallel with Phase 3)
+- Phase 3: LLM enhancement (slow, minutes) - updates table when complete
+- Queue-based communication with main thread for UI updates
+
+#### UI Responsiveness Fixes
+| Issue | Cause | Fix |
+|-------|-------|-----|
+| GUI lockup when switching to Q&A mode | `style.theme_use("default")` called repeatedly | Added class-level `_style_configured` flag to only configure style once |
+| Common words in NER results (all, age, are) | `extract_with_llm()` bypassed `_post_process()` filtering | Added `_filter_reconciled_terms()` with frequency rank + blocklist filtering |
+| GUI freeze during Q&A follow-up | `on_ask_followup` callback ran synchronously | Made `_submit_followup()` async with background thread + queue polling |
+
+#### Files Modified
+| File | Change |
+|------|--------|
+| `src/ui/workers.py` | Added ProgressiveExtractionWorker |
+| `src/ui/main_window.py` | Progressive extraction integration, handlers for ner_complete/qa_ready/llm_complete |
+| `src/ui/qa_panel.py` | Async follow-up with threading + queue polling, style caching |
+| `src/ui/dynamic_output.py` | Style caching, clearer Q&A ready message |
+| `src/vocabulary/vocabulary_extractor.py` | Added `_filter_reconciled_terms()` for common word filtering |
+
+### Remaining Work (Next Session)
+- Case Briefing deprecation (hide from UI, keep code for reference)
+- End-to-end testing with sample documents
+
+### Architecture Pattern: Three-Phase Progressive Output
+```
+User clicks "Process Documents"
+    ↓
+[Phase 1: NER] ~5 seconds
+    ↓
+TABLE APPEARS: Initial names + vocabulary (NER-only results)
+    ↓
+[Phase 2: Q&A Indexing] ~10-30 seconds (background)
+    ↓
+Q&A PANEL ACTIVATES: User can ask questions
+    ↓
+[Phase 3: LLM Enhancement] ~2-10 minutes (background)
+    ↓
+TABLE UPDATES: Reconciled results, "Both" items sorted to top
+```
+
+---
+
+## Session 44 - NER+LLM Vocabulary + LlamaIndex Q&A + GUI Refocus (2025-12-09)
+
+**Objective:** Fix NER+LLM vocabulary extraction, add LlamaIndex query transformation for Q&A, and refocus GUI on vocabulary as primary feature.
+
+### Part 1: NER+LLM Vocabulary Extraction Debug & Fix
+
+**Problem Found:** LLM vocabulary extraction was returning 0 terms despite the model producing valid output.
+
+**Root Cause:** The Ollama model (gemma3:1b) sometimes outputs duplicate JSON keys:
+```json
+{"terms": [...], "terms": [...]}
+```
+Python's `json.loads()` keeps only the LAST duplicate key, losing earlier terms.
+
+**Solution:** Added Strategy 0 in `_parse_json_response()` to detect and merge duplicate "terms" arrays before standard JSON parsing.
+
+| Component | Change |
+|-----------|--------|
+| `src/ai/ollama_model_manager.py` | Added duplicate terms merge strategy |
+| `src/vocabulary/vocabulary_extractor.py:321` | Fixed method typo: `_lookup_definition` → `_get_definition` |
+
+**Result:** NER+LLM reconciliation now works correctly:
+- Both: 5 terms (found by both NER and LLM - highest confidence)
+- NER only: 2 terms (John Smith, ORIF)
+- LLM only: 7 terms (medical terminology like "deep vein thrombosis")
+
+### Part 2: LlamaIndex Query Transformation
+
+**Purpose:** Expand vague reporter questions into specific search terms for better retrieval.
+
+**Example:**
+- Input: "What happened to the person?"
+- Output: ["What happened to the person?", "Identify all parties involved", "Explore allegations of liability", "Search for damages and injuries"]
+
+| Component | Change |
+|-----------|--------|
+| `src/retrieval/query_transformer.py` | **NEW** - LlamaIndex + Ollama query expansion |
+| `src/vector_store/qa_retriever.py` | Integrated QueryTransformer in retrieve_context() |
+| `src/config.py` | Added QUERY_TRANSFORM_ENABLED/VARIANTS/TIMEOUT |
+| `requirements.txt` | Added llama-index-core, llama-index-llms-ollama |
+
+**Architecture:** QueryTransformer layers ON TOP of existing BM25+/FAISS retrieval (doesn't replace).
+
+### Part 3: GUI Refocus - Vocabulary First
+
+**Change:** Reordered OutputOptionsWidget to prioritize vocabulary extraction over summaries.
+
+**Before:**
+```
+Summary Length slider (always visible)
+☐ Individual Summaries
+☐ Meta-Summary
+☑ Rare Word List (CSV)
+☐ Q&A (hidden unless experimental)
+```
+
+**After:**
+```
+Primary Outputs:
+☑ Vocabulary List (NER + LLM)  ← First, ON by default
+☐ Document Q&A                  ← Always visible
+
+Summary Options:
+☐ Individual Summaries
+☐ Meta-Summary
+[Summary Length slider]         ← Only visible when summary checked
+```
+
+### Files Modified
+
+| File | Changes |
+|------|---------|
+| `src/ai/ollama_model_manager.py` | Duplicate terms merge strategy |
+| `src/vocabulary/vocabulary_extractor.py` | Method typo fix |
+| `src/retrieval/query_transformer.py` | **NEW** - LlamaIndex query expansion |
+| `src/retrieval/__init__.py` | Export QueryTransformer |
+| `src/vector_store/qa_retriever.py` | Query transformation integration |
+| `src/config.py` | QUERY_TRANSFORM_* settings |
+| `src/ui/widgets.py` | GUI refocus (vocabulary first) |
+| `requirements.txt` | llama-index packages |
+
+### Patterns Established
+
+- **Query Transformation Pattern:** Transform → retrieve for each variant → deduplicate & merge by score
+- **Found By Column:** "Both" > "NER" > "LLM" confidence ordering (Both sorted first)
+- **Conditional UI:** Summary length slider only visible when summary checkbox is selected
+
+---
+
 ## Session 42 - Architecture Decision + Performance Fix (2025-12-03)
 
 **Objective:** Finalize chunking architecture decision and fix Case Briefing performance.

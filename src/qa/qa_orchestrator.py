@@ -36,25 +36,35 @@ class QAResult:
     """
     Single question-answer pair with metadata.
 
+    CSV-style output with three main columns:
+    - Question: The question that was asked
+    - Quick Answer: AI-synthesized answer from Ollama (concise, readable)
+    - Citation: Raw text excerpts from document retrieval (source material)
+
     Attributes:
         question: The question that was asked
-        answer: The generated answer
+        quick_answer: Ollama-generated synthesized answer (or fallback message)
+        citation: Raw retrieved text excerpts from BM25+/vector search
         include_in_export: Whether to include this Q&A in export (default: True)
         source_summary: Human-readable source citation (e.g., "complaint.pdf, page 3")
-        answer_mode: How the answer was generated ("extraction" or "ollama")
         confidence: Relevance score from vector search (0-1)
         retrieval_time_ms: Time taken for vector search
         is_followup: Whether this is a user-asked follow-up question
     """
 
     question: str
-    answer: str
+    quick_answer: str = ""  # AI-synthesized answer from Ollama
+    citation: str = ""  # Raw retrieved text from BM25+/vector search
     include_in_export: bool = True
     source_summary: str = ""
-    answer_mode: Literal["extraction", "ollama"] = "extraction"
     confidence: float = 0.0
     retrieval_time_ms: float = 0.0
     is_followup: bool = False
+
+    @property
+    def answer(self) -> str:
+        """Backward compatibility: returns quick_answer (or citation as fallback)."""
+        return self.quick_answer or self.citation
 
 
 @dataclass
@@ -209,38 +219,72 @@ class QAOrchestrator:
 
     def _ask_single_question(self, question: str, is_followup: bool = False) -> QAResult:
         """
-        Ask a single question and generate answer.
+        Ask a single question and generate both quick_answer and citation.
+
+        Produces CSV-style output with:
+        - citation: Raw text from BM25+/vector retrieval (always populated)
+        - quick_answer: AI-synthesized answer from Ollama (or fallback)
 
         Args:
             question: The question to ask
             is_followup: Whether this is a user-initiated follow-up
 
         Returns:
-            QAResult with answer and metadata
+            QAResult with quick_answer, citation, and metadata
         """
-        # Retrieve relevant context
+        # Retrieve relevant context (this becomes the citation)
         retrieval_result = self.retriever.retrieve_context(question)
 
-        # Generate answer
         if retrieval_result.context:
-            answer = self.answer_generator.generate(question, retrieval_result.context)
+            # Citation: raw retrieved text (truncated for display)
+            citation = retrieval_result.context.strip()
+            if len(citation) > 1000:
+                citation = citation[:1000] + "..."
+
+            # Quick Answer: AI-synthesized from Ollama
+            # Always try Ollama mode for quick_answer, regardless of configured answer_mode
+            quick_answer = self._generate_quick_answer(question, retrieval_result.context)
+
             source_summary = self.retriever.get_relevant_sources_summary(retrieval_result)
             confidence = self._calculate_confidence(retrieval_result)
         else:
-            answer = "No relevant information found in the documents."
+            citation = "No relevant excerpts found in documents."
+            quick_answer = "No relevant information found in the documents."
             source_summary = ""
             confidence = 0.0
 
         return QAResult(
             question=question,
-            answer=answer,
+            quick_answer=quick_answer,
+            citation=citation,
             include_in_export=True,  # Default to included
             source_summary=source_summary,
-            answer_mode=self.answer_mode,
             confidence=confidence,
             retrieval_time_ms=retrieval_result.retrieval_time_ms,
             is_followup=is_followup
         )
+
+    def _generate_quick_answer(self, question: str, context: str) -> str:
+        """
+        Generate a quick AI-synthesized answer using Ollama.
+
+        Falls back to extraction if Ollama is unavailable.
+
+        Args:
+            question: The question to answer
+            context: Retrieved document context
+
+        Returns:
+            Synthesized answer string
+        """
+        # Try Ollama first for best quality
+        from src.qa.answer_generator import AnswerGenerator
+
+        ollama_generator = AnswerGenerator(mode="ollama")
+        answer = ollama_generator.generate(question, context)
+
+        # If Ollama failed or returned empty, the generator already falls back to extraction
+        return answer
 
     def _calculate_confidence(self, retrieval_result: RetrievalResult) -> float:
         """
@@ -290,7 +334,7 @@ class QAOrchestrator:
 
     def export_to_text(self) -> str:
         """
-        Format exportable results as plain text.
+        Format exportable results as plain text (legacy format).
 
         Returns:
             Formatted text string suitable for TXT export
@@ -308,9 +352,43 @@ class QAOrchestrator:
 
         for i, result in enumerate(exportable, 1):
             lines.append(f"Q{i}: {result.question}")
-            lines.append(f"A: {result.answer}")
+            lines.append(f"Quick Answer: {result.quick_answer}")
+            lines.append(f"Citation: {result.citation[:200]}..." if len(result.citation) > 200 else f"Citation: {result.citation}")
             if result.source_summary:
                 lines.append(f"   [Source: {result.source_summary}]")
             lines.append("")
 
         return "\n".join(lines)
+
+    def export_to_csv(self) -> str:
+        """
+        Format exportable results as CSV.
+
+        Columns: Question, Quick Answer, Citation, Source
+
+        Returns:
+            CSV string with headers
+        """
+        import csv
+        import io
+
+        exportable = self.get_exportable_results()
+        if not exportable:
+            return ""
+
+        output = io.StringIO()
+        writer = csv.writer(output)
+
+        # Header row
+        writer.writerow(["Question", "Quick Answer", "Citation", "Source"])
+
+        # Data rows
+        for result in exportable:
+            writer.writerow([
+                result.question,
+                result.quick_answer,
+                result.citation,
+                result.source_summary
+            ])
+
+        return output.getvalue()

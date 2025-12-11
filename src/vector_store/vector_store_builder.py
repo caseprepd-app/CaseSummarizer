@@ -1,5 +1,5 @@
 """
-Vector Store Builder for LocalScribe Q&A System.
+Vector Store Builder for LocalScribe Q&A System (Session 45 Update).
 
 Creates FAISS-based vector stores from processed document chunks.
 Uses file-based persistence for standalone Windows distribution.
@@ -8,6 +8,11 @@ Architecture:
 - Converts document chunks to LangChain Documents with metadata
 - Creates FAISS index using HuggingFaceEmbeddings (reuses existing)
 - Saves index as files (index.faiss + index.pkl) - no database required
+
+Session 45 Update:
+- Added create_from_unified_chunks() for UnifiedChunk objects
+- Unified chunks are shared with LLM extraction for efficiency
+- Single chunking pass serves both Q&A indexing and vocabulary extraction
 
 Integration:
 - Called from WorkflowOrchestrator after document extraction completes
@@ -124,6 +129,119 @@ class VectorStoreBuilder:
 
         if DEBUG_MODE:
             debug_log(f"[VectorStore] Created index with {len(lc_documents)} chunks")
+            debug_log(f"[VectorStore] Saved to: {persist_dir}")
+            debug_log(f"[VectorStore] Build time: {elapsed_ms:.1f}ms")
+
+        return VectorStoreResult(
+            persist_dir=persist_dir,
+            case_id=case_id,
+            chunk_count=len(lc_documents),
+            creation_time_ms=elapsed_ms
+        )
+
+    def create_from_unified_chunks(
+        self,
+        chunks: list,  # list[UnifiedChunk] - avoiding import for type hint
+        embeddings: "HuggingFaceEmbeddings",
+        source_file: str | None = None,
+        persist_dir: Path | None = None,
+        case_id: str | None = None
+    ) -> VectorStoreResult:
+        """
+        Build vector store from UnifiedChunk objects (Session 45).
+
+        This method uses the same chunks that LLM extraction uses,
+        enabling efficient single-pass chunking for the entire pipeline.
+
+        Args:
+            chunks: List of UnifiedChunk objects from unified_chunker
+            embeddings: Already-initialized HuggingFace embeddings model
+            source_file: Source filename for metadata (optional)
+            persist_dir: Where to save vector store files (auto-generated if None)
+            case_id: Unique identifier for this case (auto-generated if None)
+
+        Returns:
+            VectorStoreResult with persistence path, case ID, and stats
+
+        Raises:
+            ValueError: If no valid chunks provided
+        """
+        import time
+        start_time = time.perf_counter()
+
+        from langchain_community.vectorstores import FAISS
+        from langchain_core.documents import Document
+
+        if not chunks:
+            raise ValueError("No chunks provided for vector store creation")
+
+        # Generate case ID if not provided
+        if case_id is None:
+            # Use source file or hash of first chunk for ID
+            if source_file:
+                hash_input = source_file
+            else:
+                hash_input = chunks[0].text[:100] if chunks else "unknown"
+            hash_prefix = hashlib.md5(hash_input.encode()).hexdigest()[:8]
+            date_stamp = datetime.now().strftime('%Y%m%d')
+            case_id = f"{hash_prefix}_{date_stamp}"
+
+        # Generate persist directory if not provided
+        if persist_dir is None:
+            persist_dir = VECTOR_STORE_DIR / case_id
+
+        # Ensure directory exists
+        persist_dir.mkdir(parents=True, exist_ok=True)
+
+        if DEBUG_MODE:
+            debug_log(f"[VectorStore] Building index from {len(chunks)} unified chunks")
+            debug_log(f"[VectorStore] Case ID: {case_id}")
+
+        # Convert UnifiedChunk objects to LangChain Documents
+        lc_documents = []
+        for chunk in chunks:
+            # Handle UnifiedChunk attributes
+            text = chunk.text if hasattr(chunk, 'text') else str(chunk)
+            if not text.strip():
+                continue
+
+            chunk_num = getattr(chunk, 'chunk_num', 0)
+            token_count = getattr(chunk, 'token_count', 0)
+            word_count = getattr(chunk, 'word_count', len(text.split()))
+            section_name = getattr(chunk, 'section_name', None) or 'N/A'
+            chunk_source = getattr(chunk, 'source_file', None) or source_file or 'unknown'
+
+            lc_documents.append(Document(
+                page_content=text,
+                metadata={
+                    'filename': chunk_source,
+                    'chunk_num': chunk_num,
+                    'section_name': section_name,
+                    'word_count': word_count,
+                    'token_count': token_count,  # Session 45: include token count
+                }
+            ))
+
+        if not lc_documents:
+            raise ValueError("No valid chunks found after conversion")
+
+        if DEBUG_MODE:
+            avg_tokens = sum(d.metadata.get('token_count', 0) for d in lc_documents) / len(lc_documents)
+            debug_log(f"[VectorStore] Converting {len(lc_documents)} chunks (avg {avg_tokens:.0f} tokens)")
+
+        # Create FAISS vector store from documents
+        vector_store = FAISS.from_documents(
+            documents=lc_documents,
+            embedding=embeddings
+        )
+
+        # Save to disk as files (index.faiss + index.pkl)
+        vector_store.save_local(str(persist_dir))
+
+        elapsed_ms = (time.perf_counter() - start_time) * 1000
+
+        if DEBUG_MODE:
+            debug_log(f"[VectorStore] Created index with {len(lc_documents)} unified chunks")
             debug_log(f"[VectorStore] Saved to: {persist_dir}")
             debug_log(f"[VectorStore] Build time: {elapsed_ms:.1f}ms")
 

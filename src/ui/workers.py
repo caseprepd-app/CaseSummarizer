@@ -210,8 +210,10 @@ class VocabularyWorker(threading.Thread):
     """
     Background worker for vocabulary extraction (Step 2.5).
     Extracts unusual terms from combined document text asynchronously.
+
+    Session 43: Added use_llm parameter for NER+LLM reconciled extraction.
     """
-    def __init__(self, combined_text, ui_queue, exclude_list_path=None, medical_terms_path=None, user_exclude_path=None, doc_count=1):
+    def __init__(self, combined_text, ui_queue, exclude_list_path=None, medical_terms_path=None, user_exclude_path=None, doc_count=1, use_llm=True):
         super().__init__(daemon=True)
         self.combined_text = combined_text
         self.ui_queue = ui_queue
@@ -219,6 +221,7 @@ class VocabularyWorker(threading.Thread):
         self.medical_terms_path = medical_terms_path or "config/medical_terms.txt"
         self.user_exclude_path = user_exclude_path  # User's personal exclusion list
         self.doc_count = doc_count  # Number of documents (for frequency filtering)
+        self.use_llm = use_llm  # Whether to use LLM extraction (Session 43)
         self._stop_event = threading.Event()  # Event for graceful stopping
 
     def stop(self):
@@ -259,12 +262,29 @@ class VocabularyWorker(threading.Thread):
                 debug_log("[VOCAB WORKER] Cancelled before extraction.")
                 return
 
-            # Update progress - NLP processing is the slow part
-            self.ui_queue.put(('progress', (40, "Running NLP analysis (this may take a while)...")))
+            # Update progress - NLP/LLM processing is the slow part
+            if self.use_llm:
+                self.ui_queue.put(('progress', (40, "Running NER + LLM extraction (this may take a while)...")))
+            else:
+                self.ui_queue.put(('progress', (40, "Running NLP analysis (this may take a while)...")))
 
             # Extract vocabulary - this is the slow part
-            # Pass doc_count for frequency-based filtering
-            vocab_data = extractor.extract(self.combined_text, doc_count=self.doc_count)
+            # Session 43: Use extract_with_llm for reconciled NER+LLM output
+            if self.use_llm:
+                # Progress callback for LLM chunk processing
+                def llm_progress(current, total):
+                    pct = 40 + int((current / total) * 25)  # 40-65% range
+                    self.ui_queue.put(('progress', (pct, f"LLM analyzing chunk {current}/{total}...")))
+
+                vocab_data = extractor.extract_with_llm(
+                    self.combined_text,
+                    doc_count=self.doc_count,
+                    include_llm=True,
+                    progress_callback=llm_progress
+                )
+            else:
+                # Legacy NER-only extraction
+                vocab_data = extractor.extract(self.combined_text, doc_count=self.doc_count)
 
             # Check for cancellation after extraction
             if self._stop_event.is_set():
@@ -648,6 +668,212 @@ class MultiDocSummaryWorker(threading.Thread):
             # Cleanup
             self.strategy.shutdown(wait=False)
             gc.collect()
+
+
+class ProgressiveExtractionWorker(threading.Thread):
+    """
+    Progressive three-phase extraction worker (Session 45).
+
+    Implements the vocabulary-first architecture with progressive output:
+    - Phase 1 (NER): Fast extraction, returns results in ~5 seconds
+    - Phase 2 (Q&A): Builds vector store for Q&A (parallel with Phase 3)
+    - Phase 3 (LLM): Slow LLM extraction, updates progressively
+
+    Signals sent to ui_queue:
+    - ('ner_complete', vocab_data) - Phase 1 complete, display immediately
+    - ('qa_ready', vector_store_path) - Phase 2 complete, enable Q&A
+    - ('llm_progress', (current, total, new_terms)) - LLM chunk processed
+    - ('llm_complete', reconciled_data) - Phase 3 complete, final results
+    - ('error', str) - Error occurred
+
+    Example:
+        worker = ProgressiveExtractionWorker(
+            documents=processed_docs,
+            combined_text=full_text,
+            ui_queue=ui_queue,
+            embeddings=embeddings_model,
+        )
+        worker.start()
+    """
+
+    def __init__(
+        self,
+        documents: list[dict],
+        combined_text: str,
+        ui_queue: Queue,
+        embeddings=None,  # HuggingFaceEmbeddings, lazy-load if None
+        exclude_list_path: str | None = None,
+        medical_terms_path: str | None = None,
+        user_exclude_path: str | None = None,
+    ):
+        """
+        Initialize progressive extraction worker.
+
+        Args:
+            documents: List of document dicts with 'filename' and 'extracted_text'
+            combined_text: Combined text from all documents
+            ui_queue: Queue for UI communication
+            embeddings: HuggingFaceEmbeddings model (lazy-loads if None)
+            exclude_list_path: Path to legal exclusion list
+            medical_terms_path: Path to medical terms list
+            user_exclude_path: Path to user exclusion list
+        """
+        super().__init__(daemon=True)
+        self.documents = documents
+        self.combined_text = combined_text
+        self.ui_queue = ui_queue
+        self.embeddings = embeddings
+        self.exclude_list_path = exclude_list_path
+        self.medical_terms_path = medical_terms_path
+        self.user_exclude_path = user_exclude_path
+        self._stop_event = threading.Event()
+
+    def stop(self):
+        """Signal the worker to stop processing."""
+        debug_log("[PROGRESSIVE WORKER] Stop signal received.")
+        self._stop_event.set()
+
+    def run(self):
+        """Execute three-phase progressive extraction."""
+        try:
+            debug_log("[PROGRESSIVE WORKER] Starting progressive extraction")
+
+            # ===== PHASE 1: NER (Fast - ~5 seconds) =====
+            debug_log("[PROGRESSIVE WORKER] Phase 1: NER extraction starting...")
+            self.ui_queue.put(('progress', (10, "Phase 1: Running NER extraction...")))
+
+            from src.vocabulary import VocabularyExtractor
+
+            extractor = VocabularyExtractor(
+                exclude_list_path=self.exclude_list_path,
+                medical_terms_path=self.medical_terms_path,
+                user_exclude_path=self.user_exclude_path,
+            )
+
+            # NER-only extraction (fast)
+            ner_results = extractor.extract_with_llm(
+                self.combined_text,
+                doc_count=len(self.documents),
+                include_llm=False,  # NER only - fast!
+            )
+
+            debug_log(f"[PROGRESSIVE WORKER] Phase 1 complete: {len(ner_results)} NER terms")
+            self.ui_queue.put(('ner_complete', ner_results))
+
+            if self._stop_event.is_set():
+                return
+
+            # ===== PHASE 2: Q&A Indexing (Fast - ~10-30 seconds) =====
+            # Run in parallel thread while Phase 3 starts
+            qa_thread = threading.Thread(
+                target=self._build_vector_store,
+                daemon=True
+            )
+            qa_thread.start()
+
+            # ===== PHASE 3: LLM Enhancement (Slow - minutes) =====
+            debug_log("[PROGRESSIVE WORKER] Phase 3: LLM extraction starting...")
+            self.ui_queue.put(('progress', (30, "Phase 3: Starting LLM enhancement...")))
+
+            from src.chunking import create_unified_chunker
+            from src.extraction import LLMVocabExtractor
+            from src.vocabulary.reconciler import VocabularyReconciler
+
+            # Get NER candidates for reconciliation
+            ner_candidates = []
+            for algorithm in extractor.algorithms:
+                if algorithm.name == "NER" and algorithm.enabled:
+                    result = algorithm.extract(self.combined_text)
+                    ner_candidates = result.candidates
+                    break
+
+            # Create unified chunks
+            chunker = create_unified_chunker()
+            chunks = chunker.chunk_text(self.combined_text)
+            debug_log(f"[PROGRESSIVE WORKER] Created {len(chunks)} unified chunks")
+
+            # Extract with LLM progressively
+            llm_extractor = LLMVocabExtractor()
+
+            def llm_progress(current, total):
+                if not self._stop_event.is_set():
+                    pct = 30 + int((current / total) * 60)  # 30-90% range
+                    self.ui_queue.put(('progress', (pct, f"LLM analyzing chunk {current}/{total}...")))
+                    self.ui_queue.put(('llm_progress', (current, total)))
+
+            llm_result = llm_extractor.extract_from_unified_chunks(
+                chunks,
+                progress_callback=llm_progress,
+            )
+
+            if self._stop_event.is_set():
+                return
+
+            # Reconcile NER + LLM results
+            debug_log("[PROGRESSIVE WORKER] Reconciling NER + LLM results...")
+            reconciler = VocabularyReconciler()
+
+            # Reconcile people
+            ner_people = [c for c in ner_candidates if getattr(c, 'suggested_type', '') == 'Person']
+            reconciled_people = reconciler.reconcile_people(ner_people, llm_result.people)
+
+            # Reconcile vocabulary terms
+            reconciled_terms = reconciler.reconcile(ner_candidates, llm_result.terms)
+
+            # Convert to unified CSV format
+            final_data = reconciler.combined_to_csv_data(reconciled_people, reconciled_terms)
+
+            debug_log(f"[PROGRESSIVE WORKER] Phase 3 complete: {len(final_data)} reconciled terms")
+            self.ui_queue.put(('llm_complete', final_data))
+            self.ui_queue.put(('progress', (100, f"Complete: {len(final_data)} names & terms found")))
+
+            # Wait for Q&A thread to finish
+            qa_thread.join(timeout=60)
+
+        except Exception as e:
+            error_msg = f"Progressive extraction failed: {str(e)}"
+            debug_log(f"[PROGRESSIVE WORKER] {error_msg}\n{traceback.format_exc()}")
+            self.ui_queue.put(('error', error_msg))
+
+    def _build_vector_store(self):
+        """Build vector store for Q&A (Phase 2) - runs in parallel thread."""
+        try:
+            debug_log("[PROGRESSIVE WORKER] Phase 2: Building vector store...")
+            self.ui_queue.put(('progress', (20, "Phase 2: Building Q&A index...")))
+
+            from src.chunking import create_unified_chunker
+            from src.vector_store import VectorStoreBuilder
+
+            # Lazy-load embeddings if not provided
+            if self.embeddings is None:
+                debug_log("[PROGRESSIVE WORKER] Loading embeddings model...")
+                from langchain_huggingface import HuggingFaceEmbeddings
+                self.embeddings = HuggingFaceEmbeddings(
+                    model_name="all-MiniLM-L6-v2",
+                    model_kwargs={'device': 'cpu'}
+                )
+
+            # Create unified chunks
+            chunker = create_unified_chunker()
+            chunks = chunker.chunk_text(self.combined_text)
+
+            # Build vector store
+            builder = VectorStoreBuilder()
+            result = builder.create_from_unified_chunks(
+                chunks=chunks,
+                embeddings=self.embeddings,
+            )
+
+            debug_log(f"[PROGRESSIVE WORKER] Phase 2 complete: {result.chunk_count} chunks indexed")
+            self.ui_queue.put(('qa_ready', {
+                'vector_store_path': result.persist_dir,
+                'embeddings': self.embeddings,
+                'chunk_count': result.chunk_count,
+            }))
+
+        except Exception as e:
+            debug_log(f"[PROGRESSIVE WORKER] Q&A indexing failed: {e}")
+            self.ui_queue.put(('qa_error', str(e)))
 
 
 class BriefingWorker(threading.Thread):

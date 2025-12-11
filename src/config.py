@@ -334,3 +334,35 @@ RETRIEVAL_MIN_SCORE = 0.1       # Minimum combined score to include chunk
 # Multi-algorithm bonus: extra score when multiple algorithms find the same chunk
 # This reflects higher confidence when both BM25+ and FAISS agree
 RETRIEVAL_MULTI_ALGO_BONUS = 0.1
+
+# ============================================================================
+# Query Transformation Configuration (Session 44 - LlamaIndex Integration)
+# ============================================================================
+# Uses LlamaIndex + Ollama to expand vague queries into specific search terms
+# Example: "What happened?" → ["What happened?", "plaintiff injuries", "defendant actions"]
+
+# Enable/disable query transformation (disable for faster retrieval)
+QUERY_TRANSFORM_ENABLED = True
+
+# Number of query variants to generate (1-5)
+# More variants = broader search but slower
+QUERY_TRANSFORM_VARIANTS = 3
+
+# Maximum time to wait for LLM to generate query variants
+QUERY_TRANSFORM_TIMEOUT = 30.0
+
+# ============================================================================
+# Unified Semantic Chunking Configuration (Session 45)
+# ============================================================================
+# Single chunking pass for all downstream consumers (LLM extraction + Q&A indexing)
+# Uses semantic chunking with token enforcement via tiktoken
+
+# Token limits for chunk sizing (based on 2048 token context window)
+# Budget: 2048 total - 300 prompt - 500 output = ~1200 tokens for chunk
+UNIFIED_CHUNK_MIN_TOKENS = 400      # Minimum tokens (merge smaller chunks)
+UNIFIED_CHUNK_TARGET_TOKENS = 900   # Target tokens per chunk
+UNIFIED_CHUNK_MAX_TOKENS = 1200     # Maximum tokens (split larger chunks)
+
+# tiktoken encoding for token counting
+# cl100k_base is compatible with most modern models (GPT-3.5+, Claude, Llama)
+UNIFIED_CHUNK_ENCODING = "cl100k_base"

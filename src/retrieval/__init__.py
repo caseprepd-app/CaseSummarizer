@@ -29,6 +29,7 @@ from src.retrieval.base import (
 )
 from src.retrieval.chunk_merger import ChunkMerger, MergedChunk
 from src.retrieval.hybrid_retriever import HybridRetriever
+from src.retrieval.query_transformer import QueryTransformer, QueryTransformResult
 
 __all__ = [
     # Base classes
@@ -41,4 +42,7 @@ __all__ = [
     "MergedChunk",
     # Main retriever
     "HybridRetriever",
+    # Query transformation (LlamaIndex)
+    "QueryTransformer",
+    "QueryTransformResult",
 ]

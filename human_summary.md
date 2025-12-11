@@ -3,14 +3,127 @@
 ## Project Status
 
 **Current Branch:** `main`
-**Application State:** ✅ Case Briefing Generator complete with few-shot prompting
-**Tests:** 224 passing
-**Sessions:** 42 completed
-**Last Updated:** 2025-12-03 (Session 42 Part 3)
+**Application State:** ✅ Session 45 infrastructure complete - unified chunking, combined extraction, simplified UI. Q&A async fix verified complete.
+**Tests:** 224 passing (infrastructure changes - integration pending)
+**Sessions:** 46 completed
+**Last Updated:** 2025-12-11 (Session 46)
 
 ---
 
-## Latest Session (Session 42 - Architecture + Performance + Prompt Engineering)
+## Latest Session (Session 45 - Streamlined Vocabulary-First Architecture)
+
+**Focus:** Refocus application on court reporter's core needs (names + vocabulary), implement unified semantic chunking with token enforcement, and simplify UI.
+
+### Business Objective Refocus
+
+Court reporters need to prep for cases. They really need:
+1. **Names of people involved** (parties, witnesses, doctors, attorneys)
+2. **Technical vocabulary** (medical terms, legal terminology)
+
+Everything else (summaries, Q&A) is nice-to-have but not essential.
+
+### Key Infrastructure Changes ✅
+
+#### New: Unified Semantic Chunker (`src/chunking/`)
+- Semantic chunking with LangChain SemanticChunker
+- Token enforcement via tiktoken (cl100k_base)
+- Target: 400-1200 tokens per chunk (900 target)
+- **Single chunking pass** serves both LLM extraction and Q&A indexing
+
+#### Updated: Combined LLM Extraction
+- New `LLMPerson` dataclass for people with roles
+- Combined prompt extracts **both people and vocabulary** in one LLM call
+- ONE prompt per chunk (vs 4 in Case Briefing) - 4x faster
+
+#### Updated: Reconciler
+- `reconcile_people()` method for NER + LLM people reconciliation
+- `combined_to_csv_data()` for unified table output
+
+#### Updated: UI Components
+- **Simplified checkboxes:**
+  - "Extract Names & Vocabulary" (ON by default)
+  - "Enable Q&A" (ON by default)
+  - "Generate Summary" (OFF by default)
+- **Output pane:** Distinct background color, progress badge
+- **Dropdown:** "Names & Vocabulary" | "Q&A" | "Summary"
+
+### Files Created
+| File | Purpose |
+|------|---------|
+| `src/chunking/__init__.py` | Chunking module |
+| `src/chunking/unified_chunker.py` | Semantic chunking + token enforcement |
+| `config/extraction_prompts/combined_extraction.txt` | Combined people + vocabulary prompt |
+
+### Remaining Work (Next Session)
+- Main window workflow integration (connect unified chunker to pipeline)
+- Case Briefing deprecation (hide from UI)
+- End-to-end testing
+
+---
+
+## Previous Session (Session 44 - NER+LLM Vocabulary + LlamaIndex Q&A + GUI Refocus)
+
+**Focus:** Fix NER+LLM vocabulary extraction, add LlamaIndex query transformation for Q&A, and refocus GUI on vocabulary as primary feature.
+
+### Part 1: NER+LLM Vocabulary Extraction Fix ✅
+
+**Problem Found:** LLM vocabulary extraction was returning 0 terms despite the model producing valid output.
+
+**Root Cause:** Ollama model (gemma3:1b) sometimes outputs duplicate JSON keys (`{"terms": [...], "terms": [...]}`). Python's `json.loads()` keeps only the LAST duplicate key, losing earlier terms.
+
+**Solution:** Added Strategy 0 in `_parse_json_response()` to detect and merge duplicate "terms" arrays.
+
+**Result:** NER+LLM reconciliation now works with "Found By" column:
+- **Both: 5** terms (found by both NER and LLM - highest confidence)
+- **NER only: 2** terms (e.g., John Smith, ORIF)
+- **LLM only: 7** terms (medical terminology like "deep vein thrombosis")
+
+### Part 2: LlamaIndex Query Transformation ✅
+
+**Purpose:** Expand vague reporter questions into specific search terms for better Q&A retrieval.
+
+**Example:**
+- Input: "What happened to the person?"
+- Output: ["What happened to the person?", "Identify all parties involved", "Explore allegations of liability", "Search for damages and injuries"]
+
+**New Files:**
+- `src/retrieval/query_transformer.py` - LlamaIndex + Ollama query expansion
+- Config options: `QUERY_TRANSFORM_ENABLED`, `QUERY_TRANSFORM_VARIANTS`, `QUERY_TRANSFORM_TIMEOUT`
+
+**Architecture:** QueryTransformer layers ON TOP of existing BM25+/FAISS retrieval (doesn't replace).
+
+### Part 3: GUI Refocus ✅
+
+**Change:** Reordered OutputOptionsWidget to prioritize vocabulary extraction over summaries.
+
+**New Layout:**
+```
+Primary Outputs:
+☑ Vocabulary List (NER + LLM)  ← First, ON by default
+☐ Document Q&A                  ← Always visible now
+
+Summary Options:
+☐ Individual Summaries
+☐ Meta-Summary
+[Summary Length slider]         ← Only visible when summary checked
+```
+
+### Files Modified
+
+| File | Changes |
+|------|---------|
+| `src/ai/ollama_model_manager.py` | Duplicate terms merge strategy |
+| `src/vocabulary/vocabulary_extractor.py` | Method typo fix |
+| `src/retrieval/query_transformer.py` | **NEW** - LlamaIndex query expansion |
+| `src/retrieval/__init__.py` | Export QueryTransformer |
+| `src/vector_store/qa_retriever.py` | Query transformation integration |
+| `src/config.py` | QUERY_TRANSFORM_* settings |
+| `src/ui/widgets.py` | GUI refocus (vocabulary first) |
+| `requirements.txt` | llama-index packages |
+
+---
+
+## Previous Session (Session 42 - Architecture + Performance + Prompt Engineering)
 
 **Focus:** Finalize chunking architecture, fix performance, and improve extraction accuracy.
 

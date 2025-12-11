@@ -1,0 +1,17 @@
+Extract ALLEGATIONS and DEFENSES from this legal document chunk.
+
+DEFINITIONS:
+- Allegations: Claims made by the plaintiff about what the defendant did wrong
+- Defenses: Arguments raised by the defendant in response to the allegations
+
+RULES:
+- Summarize each allegation/defense in one clear sentence
+- Focus on the substance of the claim, not procedural details
+- Include specific acts of negligence, breach of duty, or wrongdoing
+- If this chunk contains no allegations or defenses, return empty lists
+
+Return ONLY valid JSON in this exact format:
+{"allegations": ["The defendant failed to...", "The defendant negligently..."], "defenses": ["The plaintiff was contributorily negligent...", "The statute of limitations has expired..."]}
+
+DOCUMENT CHUNK:
+{chunk_text}

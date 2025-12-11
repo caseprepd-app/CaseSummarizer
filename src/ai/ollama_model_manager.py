@@ -514,6 +514,7 @@ class OllamaModelManager:
         Parse JSON from LLM response with fallback strategies.
 
         Tries multiple strategies:
+        0. Merge duplicate "terms" arrays (common LLM error)
         1. Direct JSON parsing
         2. Extract JSON object from surrounding text
         3. Extract JSON array from surrounding text
@@ -526,6 +527,28 @@ class OllamaModelManager:
         """
         if not text:
             return None
+
+        # Strategy 0: Fix duplicate "terms" keys (common LLM output error)
+        # Model sometimes outputs: {"terms": [...], "terms": [...]} which is invalid JSON
+        # Python's json.loads keeps only the LAST duplicate key, losing earlier terms
+        if text.count('"terms"') > 1:
+            try:
+                # Extract all "terms" arrays and merge them
+                all_terms = []
+                for match in re.finditer(r'"terms"\s*:\s*\[([^\]]*)\]', text):
+                    array_content = match.group(1)
+                    # Parse individual term objects from the array content
+                    for term_match in re.finditer(r'\{[^{}]+\}', array_content):
+                        try:
+                            term_obj = json.loads(term_match.group())
+                            all_terms.append(term_obj)
+                        except json.JSONDecodeError:
+                            continue
+                if all_terms:
+                    debug_log(f"[OLLAMA STRUCTURED] Merged {len(all_terms)} terms from duplicate arrays")
+                    return {"terms": all_terms}
+            except Exception as e:
+                debug_log(f"[OLLAMA STRUCTURED] Duplicate terms merge failed: {e}")
 
         # Strategy 1: Direct parse (ideal case)
         try:

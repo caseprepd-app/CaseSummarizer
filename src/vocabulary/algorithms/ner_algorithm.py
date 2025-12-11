@@ -35,6 +35,7 @@ from src.config import (
     VOCABULARY_BATCH_SIZE,
     VOCABULARY_RARITY_THRESHOLD,
 )
+from src.categories import get_ner_mapping
 from src.logging_config import debug_log
 from src.vocabulary.algorithms import register_algorithm
 from src.vocabulary.algorithms.base import (
@@ -321,26 +322,29 @@ class NERAlgorithm(BaseExtractionAlgorithm):
         return candidates
 
     def _map_entity_type(self, ent_label: str) -> str:
-        """Map spaCy entity label to our simplified types."""
-        mapping = {
-            "PERSON": "Person",
-            "ORG": "Place",  # Organizations treated as "Place" in our schema
-            "GPE": "Place",
-            "LOC": "Place",
-        }
-        return mapping.get(ent_label, "Technical")
+        """Map spaCy entity label to our simplified types.
+
+        Uses shared categories config from config/categories.json to ensure
+        consistent categorization across NER and LLM extraction methods.
+        """
+        mapping = get_ner_mapping()
+        return mapping.get(ent_label, "Unknown")
 
     def _get_suggested_type(self, token) -> str:
-        """Get suggested type for a single token."""
+        """Get suggested type for a single token.
+
+        Uses shared categories from config/categories.json.
+        """
         lower_text = token.text.lower()
 
         if lower_text in self.medical_terms:
             return "Medical"
 
         if re.fullmatch(r'[A-Z]{2,}', token.text):
-            return "Technical"  # Acronyms
+            return "Technical"  # Acronyms are typically technical/legal terms
 
-        return "Technical"
+        # Default to Unknown for unclassified terms
+        return "Unknown"
 
     # ========================================================================
     # FILTERING METHODS - Moved from VocabularyExtractor

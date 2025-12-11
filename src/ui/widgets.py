@@ -279,57 +279,89 @@ class ModelSelectionWidget(ctk.CTkFrame):
         create_tooltip_func(self.prompt_selector, self._prompt_tooltip_text)
 
 class OutputOptionsWidget(ctk.CTkFrame):
-    """Widget for configuring desired outputs."""
+    """Widget for configuring desired outputs (Session 45 Update).
+
+    Simplified layout focusing on court reporter needs:
+    - Extract Names & Vocabulary (default ON) - primary feature
+    - Enable Q&A (default ON) - secondary feature
+    - Generate Summary (default OFF) - optional
+
+    Session 45: Streamlined to three checkboxes with clear defaults.
+    """
     def __init__(self, master, **kwargs):
         super().__init__(master, **kwargs)
         self.grid_columnconfigure(0, weight=1)
 
         # Reference to generate button (set by quadrant_builder after creation)
         self._generate_btn = None
+        self._row_counter = 0
 
-        # Summary Length
-        length_label = ctk.CTkLabel(self, text="Summary Length (Approx)", font=ctk.CTkFont(weight="bold"))
-        length_label.grid(row=0, column=0, padx=10, pady=(10, 0), sticky="w")
-
-        self.length_slider = ctk.CTkSlider(self, from_=100, to=500, number_of_steps=40)
-        self.length_slider.set(200)
-        self.length_slider.grid(row=1, column=0, padx=10, pady=5, sticky="ew")
-
-        self.length_value_label = ctk.CTkLabel(self, text=f"{self.length_slider.get():.0f} words")
-        self.length_slider.configure(command=lambda v: self.length_value_label.configure(text=f"{v:.0f} words"))
-        self.length_value_label.grid(row=2, column=0, padx=10, pady=(0, 10), sticky="w")
-
-        # Output Type Checkboxes
-        output_type_label = ctk.CTkLabel(self, text="Desired Outputs", font=ctk.CTkFont(weight="bold"))
-        output_type_label.grid(row=3, column=0, padx=10, pady=(10, 0), sticky="w")
-
-        self.individual_summaries_check = ctk.CTkCheckBox(
-            self, text="Individual Summaries",
-            command=self._update_generate_button_text
+        # === OUTPUT OPTIONS (Session 45: Simplified) ===
+        options_label = ctk.CTkLabel(
+            self, text="Output Options",
+            font=ctk.CTkFont(weight="bold")
         )
-        self.individual_summaries_check.grid(row=4, column=0, padx=10, pady=5, sticky="w")
-        self.individual_summaries_check.deselect() # Off by default
+        options_label.grid(row=self._row_counter, column=0, padx=10, pady=(10, 5), sticky="w")
+        self._row_counter += 1
 
-        self.meta_summary_check = ctk.CTkCheckBox(
-            self, text="Meta-Summary of All Documents",
-            command=self._update_generate_button_text
-        )
-        self.meta_summary_check.grid(row=5, column=0, padx=10, pady=5, sticky="w")
-        self.meta_summary_check.deselect()  # Off by default (secondary feature)
-
+        # Names & Vocabulary - PRIMARY feature, ON by default
         self.vocab_csv_check = ctk.CTkCheckBox(
-            self, text="Rare Word List (CSV)",
+            self, text="Extract Names & Vocabulary",
             command=self._update_generate_button_text
         )
-        self.vocab_csv_check.grid(row=6, column=0, padx=10, pady=5, sticky="w")
-        self.vocab_csv_check.select()  # On by default
+        self.vocab_csv_check.grid(row=self._row_counter, column=0, padx=10, pady=5, sticky="w")
+        self.vocab_csv_check.select()  # ON by default - primary feature
+        self._row_counter += 1
 
+        # Document Q&A - ON by default (Session 45)
         self.qa_questions_check = ctk.CTkCheckBox(
-            self, text="Ask Questions of Documents",
+            self, text="Enable Q&A",
             command=self._update_generate_button_text
         )
-        self.qa_questions_check.grid(row=7, column=0, padx=10, pady=5, sticky="w")
-        self.qa_questions_check.deselect()  # Off by default (requires vector store)
+        self.qa_questions_check.grid(row=self._row_counter, column=0, padx=10, pady=5, sticky="w")
+        self.qa_questions_check.select()  # ON by default (Session 45 change)
+        self._row_counter += 1
+
+        # Summary - OFF by default (optional feature)
+        self.summary_check = ctk.CTkCheckBox(
+            self, text="Generate Summary",
+            command=self._on_summary_checkbox_changed
+        )
+        self.summary_check.grid(row=self._row_counter, column=0, padx=10, pady=5, sticky="w")
+        self.summary_check.deselect()  # OFF by default - optional
+        self._row_counter += 1
+
+        # Summary Length - shown only when summary is checked
+        self._summary_length_frame = ctk.CTkFrame(self, fg_color="transparent")
+        self._summary_length_frame.grid_columnconfigure(0, weight=1)
+
+        length_label = ctk.CTkLabel(
+            self._summary_length_frame,
+            text="Summary Length:",
+            font=ctk.CTkFont(size=12)
+        )
+        length_label.grid(row=0, column=0, padx=10, pady=(5, 0), sticky="w")
+
+        self.length_slider = ctk.CTkSlider(
+            self._summary_length_frame,
+            from_=100, to=500,
+            number_of_steps=40
+        )
+        self.length_slider.set(200)
+        self.length_slider.grid(row=1, column=0, padx=10, pady=2, sticky="ew")
+
+        self.length_value_label = ctk.CTkLabel(
+            self._summary_length_frame,
+            text=f"{self.length_slider.get():.0f} words"
+        )
+        self.length_slider.configure(
+            command=lambda v: self.length_value_label.configure(text=f"{v:.0f} words")
+        )
+        self.length_value_label.grid(row=2, column=0, padx=10, pady=(0, 5), sticky="w")
+
+        # Initially hide summary length options
+        self._summary_length_row = self._row_counter
+        self._row_counter += 1
 
         # BM25 Corpus Status Indicator (Session 26)
         self.corpus_status_label = ctk.CTkLabel(
@@ -338,8 +370,35 @@ class OutputOptionsWidget(ctk.CTkFrame):
             text_color="gray",
             font=ctk.CTkFont(size=11)
         )
-        self.corpus_status_label.grid(row=8, column=0, padx=10, pady=(5, 10), sticky="w")
+        self.corpus_status_label.grid(row=self._row_counter, column=0, padx=10, pady=(10, 10), sticky="w")
+        self._row_counter += 1
         self._update_corpus_status()
+
+        # Show/hide summary length based on initial state
+        self._update_summary_length_visibility()
+
+        # Backward compatibility aliases (Session 45)
+        # These allow existing code to work without changes
+        self.individual_summaries_check = self.summary_check
+        self.meta_summary_check = self.summary_check
+
+    def _on_summary_checkbox_changed(self):
+        """Handle summary checkbox state change."""
+        self._update_generate_button_text()
+        self._update_summary_length_visibility()
+
+    def _update_summary_length_visibility(self):
+        """Show summary length options only when summary is checked."""
+        if self.summary_check.get():
+            self._summary_length_frame.grid(
+                row=self._summary_length_row,
+                column=0,
+                padx=0,
+                pady=0,
+                sticky="ew"
+            )
+        else:
+            self._summary_length_frame.grid_forget()
 
     def set_generate_button(self, button):
         """
@@ -403,51 +462,44 @@ class OutputOptionsWidget(ctk.CTkFrame):
 
     def get_output_count(self) -> int:
         """
-        Return the total number of outputs that will be generated.
+        Return the total number of outputs that will be generated (Session 45).
 
-        Individual summaries count = number of documents (not 1).
-        Meta-summary, vocab CSV, and Q&A each count as 1.
+        Names & Vocabulary = 1, Q&A = 1, Summary = 1 per document.
         """
         count = 0
         doc_count = getattr(self, '_document_count', 0)
 
-        if self.individual_summaries_check.get():
-            # Individual summaries = one per document
-            count += max(doc_count, 1)  # At least 1 if checkbox is checked
-        if self.meta_summary_check.get():
-            count += 1
         if self.vocab_csv_check.get():
-            count += 1
+            count += 1  # Names & Vocabulary table
         if self.qa_questions_check.get():
-            count += 1
+            count += 1  # Q&A panel
+        if self.summary_check.get():
+            # Summary = one per document
+            count += max(doc_count, 1)
         return count
 
     def get_checked_count(self) -> int:
         """Return the number of checked checkboxes (not document-aware)."""
         count = 0
-        if self.individual_summaries_check.get():
-            count += 1
-        if self.meta_summary_check.get():
-            count += 1
         if self.vocab_csv_check.get():
             count += 1
         if self.qa_questions_check.get():
+            count += 1
+        if self.summary_check.get():
             count += 1
         return count
 
     def lock_controls(self):
         """Disable all output option controls during processing."""
         self.length_slider.configure(state="disabled")
-        self.individual_summaries_check.configure(state="disabled")
-        self.meta_summary_check.configure(state="disabled")
+        self.summary_check.configure(state="disabled")
         self.vocab_csv_check.configure(state="disabled")
         self.qa_questions_check.configure(state="disabled")
 
     def unlock_controls(self):
         """Re-enable all output option controls after processing completes."""
         self.length_slider.configure(state="normal")
-        self.individual_summaries_check.configure(state="normal")
-        self.meta_summary_check.configure(state="normal")
+        self.summary_check.configure(state="normal")
         self.vocab_csv_check.configure(state="normal")
         self.qa_questions_check.configure(state="normal")
 

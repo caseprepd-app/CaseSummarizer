@@ -39,6 +39,7 @@ from src.vocabulary.algorithms.base import BaseExtractionAlgorithm
 from src.vocabulary.meta_learner import VocabularyMetaLearner, get_meta_learner
 from src.vocabulary.result_merger import MergedTerm, ResultMerger
 from src.vocabulary.role_profiles import RoleDetectionProfile, StenographerProfile
+from src.vocabulary.reconciler import VocabularyReconciler
 
 # Organization indicator words for category detection
 ORGANIZATION_INDICATORS = {
@@ -241,6 +242,105 @@ class VocabularyExtractor:
 
         return vocabulary
 
+    def extract_with_llm(
+        self,
+        text: str,
+        doc_count: int = 1,
+        include_llm: bool = True,
+        progress_callback=None,
+    ) -> list[dict]:
+        """
+        Extract vocabulary using NER and optionally LLM, then reconcile results.
+
+        This method provides a unified extraction pipeline that:
+        1. Runs NER extraction (existing algorithm)
+        2. Optionally runs LLM extraction (single prompt per chunk)
+        3. Reconciles results into unified output with "Found By" column
+
+        Args:
+            text: The document text to analyze
+            doc_count: Number of documents being processed
+            include_llm: Whether to run LLM extraction (default True)
+            progress_callback: Optional callback(current, total) for progress
+
+        Returns:
+            List of vocabulary dictionaries with schema:
+            - Term: The extracted term
+            - Type: Person/Place/Medical/Technical/Unknown
+            - Found By: "Both", "NER", or "LLM"
+            - Frequency: Occurrence count
+            - Quality Score: 0-100 composite score
+            - Definition: WordNet definition (optional)
+        """
+        debug_log(f"[VOCAB] Starting extract_with_llm (include_llm={include_llm})")
+        start_time = time.time()
+
+        # 1. Run NER extraction via existing algorithms
+        debug_log("[VOCAB] Phase 1: Running NER extraction...")
+        ner_candidates = []
+        for algorithm in self.algorithms:
+            if not algorithm.enabled:
+                continue
+            if algorithm.name == "NER":
+                result = algorithm.extract(text)
+                ner_candidates = result.candidates
+                debug_log(f"[VOCAB] NER found {len(ner_candidates)} candidates")
+                break
+
+        # 2. Run LLM extraction if enabled
+        llm_terms = []
+        if include_llm:
+            debug_log("[VOCAB] Phase 2: Running LLM extraction...")
+            try:
+                from src.extraction.llm_extractor import LLMVocabExtractor
+
+                llm_extractor = LLMVocabExtractor()
+                llm_result = llm_extractor.extract(
+                    text,
+                    progress_callback=progress_callback,
+                )
+                llm_terms = llm_result.terms
+                debug_log(
+                    f"[VOCAB] LLM found {len(llm_terms)} terms "
+                    f"in {llm_result.processing_time_ms:.1f}ms"
+                )
+            except Exception as e:
+                debug_log(f"[VOCAB] LLM extraction failed: {e}")
+                # Continue with NER-only results
+
+        # 3. Reconcile results
+        debug_log("[VOCAB] Phase 3: Reconciling NER and LLM results...")
+        reconciler = VocabularyReconciler()
+        reconciled = reconciler.reconcile(ner_candidates, llm_terms)
+        debug_log(f"[VOCAB] Reconciled to {len(reconciled)} unique terms")
+
+        # 3.5 Filter out common words and apply frequency thresholds (Session 45)
+        debug_log("[VOCAB] Phase 3.5: Filtering common words...")
+        filtered_reconciled = self._filter_reconciled_terms(reconciled, doc_count)
+        debug_log(f"[VOCAB] After filtering: {len(filtered_reconciled)} terms (removed {len(reconciled) - len(filtered_reconciled)})")
+        reconciled = filtered_reconciled
+
+        # 4. Add definitions for Medical/Technical terms
+        debug_log("[VOCAB] Phase 4: Adding definitions...")
+        for term in reconciled:
+            if term.type in ("Medical", "Technical") and not term.definition:
+                term.definition = self._get_definition(term.term, term.type)
+
+        # 5. Convert to CSV format
+        csv_data = reconciler.to_csv_data(reconciled, include_definitions=True)
+
+        # 6. Add Role/Relevance using role profile
+        for i, row in enumerate(csv_data):
+            term = reconciled[i].term
+            category = reconciled[i].type
+            role = self._get_role_relevance(term, category, text)
+            row["Role/Relevance"] = role
+
+        total_time = (time.time() - start_time) * 1000
+        debug_log(f"[VOCAB] extract_with_llm complete in {total_time:.1f}ms")
+
+        return csv_data
+
     def _post_process(
         self,
         merged_terms: list[MergedTerm],
@@ -363,6 +463,92 @@ class VocabularyExtractor:
             return "Needs review"
         else:
             return "Technical term"
+
+    def _filter_reconciled_terms(self, reconciled: list, doc_count: int) -> list:
+        """
+        Filter reconciled terms to remove common words and noise (Session 45).
+
+        Applies the same filtering logic as _post_process() but for ReconciledTerm objects.
+        This ensures extract_with_llm() produces clean results like extract().
+
+        Args:
+            reconciled: List of ReconciledTerm objects
+            doc_count: Number of documents being processed
+
+        Returns:
+            Filtered list of ReconciledTerm objects
+        """
+        from src.config import VOCABULARY_MIN_OCCURRENCES
+
+        filtered = []
+        seen_terms = set()
+        frequency_threshold = doc_count * 4  # Same as _post_process
+
+        for term_obj in reconciled:
+            term = term_obj.term
+            lower_term = term.lower()
+            category = term_obj.type
+
+            # Skip duplicates
+            if lower_term in seen_terms:
+                continue
+
+            # Skip if in exclude lists (common legal words)
+            if lower_term in self.exclude_list:
+                debug_log(f"[VOCAB FILTER] Skipping excluded term: {term}")
+                continue
+
+            # Skip if in user exclude list
+            if lower_term in self.user_exclude_list:
+                debug_log(f"[VOCAB FILTER] Skipping user-excluded term: {term}")
+                continue
+
+            # Skip common words based on frequency rank (except Person names)
+            if category != "Person" and self.frequency_rank_map:
+                rank = self.frequency_rank_map.get(lower_term)
+                if rank is not None and rank < self.rarity_threshold:
+                    # Word is too common - in top N most common words
+                    debug_log(f"[VOCAB FILTER] Skipping common word: {term} (rank={rank})")
+                    continue
+
+            # Frequency filtering (PERSON exempt) - skip if too frequent
+            if category != "Person" and term_obj.frequency > frequency_threshold:
+                debug_log(f"[VOCAB FILTER] Skipping high-frequency term: {term} (freq={term_obj.frequency})")
+                continue
+
+            # Minimum occurrence filtering (PERSON exempt) - skip if too rare
+            if category != "Person" and term_obj.frequency < VOCABULARY_MIN_OCCURRENCES:
+                debug_log(f"[VOCAB FILTER] Skipping low-frequency term: {term} (freq={term_obj.frequency})")
+                continue
+
+            # Skip single-character terms
+            if len(term) < 2:
+                continue
+
+            # Skip terms that are just common English words (extra safety check)
+            common_words = {
+                'the', 'a', 'an', 'is', 'are', 'was', 'were', 'be', 'been', 'being',
+                'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could',
+                'should', 'may', 'might', 'must', 'shall', 'can', 'need', 'dare',
+                'ought', 'used', 'to', 'of', 'in', 'for', 'on', 'with', 'at', 'by',
+                'from', 'as', 'into', 'through', 'during', 'before', 'after', 'above',
+                'below', 'between', 'under', 'again', 'further', 'then', 'once',
+                'here', 'there', 'when', 'where', 'why', 'how', 'all', 'each', 'few',
+                'more', 'most', 'other', 'some', 'such', 'no', 'nor', 'not', 'only',
+                'own', 'same', 'so', 'than', 'too', 'very', 'just', 'but', 'and',
+                'if', 'or', 'because', 'until', 'while', 'although', 'though',
+                'this', 'that', 'these', 'those', 'what', 'which', 'who', 'whom',
+                'their', 'them', 'they', 'we', 'us', 'our', 'you', 'your', 'he',
+                'she', 'it', 'its', 'his', 'her', 'him', 'my', 'me', 'i', 'age',
+            }
+            if lower_term in common_words and category != "Person":
+                debug_log(f"[VOCAB FILTER] Skipping common word: {term}")
+                continue
+
+            filtered.append(term_obj)
+            seen_terms.add(lower_term)
+
+        return filtered
 
     def _calculate_quality_score(
         self, category: str, term_count: int, frequency_rank: int, algorithm_count: int

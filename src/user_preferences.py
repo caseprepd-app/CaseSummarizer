@@ -37,6 +37,11 @@ class UserPreferencesManager:
             "last_used_model": None,
             "processing": {
                 "cpu_fraction": 0.5  # Default: 1/2 cores (0.25, 0.5, or 0.75)
+            },
+            # Session 43: Experimental features and LLM extraction settings
+            "experimental": {
+                "briefing_enabled": False,  # Case Briefing (experimental)
+                "vocab_use_llm": True,      # Use LLM for vocabulary extraction
             }
         }
 
@@ -149,6 +154,52 @@ class UserPreferencesManager:
             self._preferences["processing"] = {}
 
         self._preferences["processing"]["cpu_fraction"] = cpu_fraction
+        self._save_preferences()
+
+    # =========================================================================
+    # Experimental Features (Session 43)
+    # =========================================================================
+
+    def is_experimental_briefing_enabled(self) -> bool:
+        """
+        Check if Case Briefing (experimental) is enabled.
+
+        Returns:
+            bool: True if Case Briefing should be shown in UI
+        """
+        return self._preferences.get("experimental", {}).get("briefing_enabled", False)
+
+    def set_experimental_briefing_enabled(self, enabled: bool) -> None:
+        """
+        Enable or disable Case Briefing (experimental).
+
+        Args:
+            enabled: Whether to show Case Briefing in UI
+        """
+        if "experimental" not in self._preferences:
+            self._preferences["experimental"] = {}
+        self._preferences["experimental"]["briefing_enabled"] = enabled
+        self._save_preferences()
+
+    def is_vocab_llm_enabled(self) -> bool:
+        """
+        Check if LLM extraction is enabled for vocabulary.
+
+        Returns:
+            bool: True if LLM should be used alongside NER
+        """
+        return self._preferences.get("experimental", {}).get("vocab_use_llm", True)
+
+    def set_vocab_llm_enabled(self, enabled: bool) -> None:
+        """
+        Enable or disable LLM for vocabulary extraction.
+
+        Args:
+            enabled: Whether to use LLM alongside NER
+        """
+        if "experimental" not in self._preferences:
+            self._preferences["experimental"] = {}
+        self._preferences["experimental"]["vocab_use_llm"] = enabled
         self._save_preferences()
 
     # =========================================================================

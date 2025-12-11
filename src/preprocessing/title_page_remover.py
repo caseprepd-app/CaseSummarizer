@@ -38,6 +38,14 @@ class TitlePageRemover(BasePreprocessor):
     # Score threshold - pages scoring >= this are removed
     REMOVAL_THRESHOLD = 4
 
+    # Maximum percentage of text that can be removed (safety limit)
+    # This prevents over-aggressive removal when processing combined multi-doc text
+    MAX_REMOVAL_PERCENT = 50
+
+    # Only apply percentage limit for documents larger than this (bytes)
+    # Small documents can use the original removal behavior
+    LARGE_DOC_THRESHOLD = 10000  # 10KB
+
     # Patterns and their scores
     TITLE_PAGE_PATTERNS = [
         # Court headers
@@ -183,19 +191,39 @@ class TitlePageRemover(BasePreprocessor):
         kept_pages = []
         removed_count = 0
         removed_scores = []
+        total_input_len = len(text)
+        removed_chars = 0
 
         for i, page in enumerate(pages):
             if i < 3:  # Only analyze first 3 pages
                 score = self._score_page(page)
-                if score >= self.REMOVAL_THRESHOLD:
+
+                # For large documents, apply percentage limit to prevent over-removal
+                # Small documents use original behavior (no limit)
+                would_exceed_limit = False
+                if total_input_len > self.LARGE_DOC_THRESHOLD:
+                    would_exceed_limit = (
+                        (removed_chars + len(page)) / total_input_len * 100
+                    ) > self.MAX_REMOVAL_PERCENT
+
+                if score >= self.REMOVAL_THRESHOLD and not would_exceed_limit:
                     removed_count += 1
                     removed_scores.append(score)
+                    removed_chars += len(page)
                     continue  # Skip this page
 
             kept_pages.append(page)
 
         # Rejoin pages
         result = '\n\n'.join(kept_pages)
+
+        # Safety check: never return empty text if input had content
+        # This prevents over-aggressive removal from destroying all content
+        if not result.strip() and text.strip():
+            # Keep at least the largest page
+            largest_page = max(pages, key=len)
+            result = largest_page
+            removed_count = len(pages) - 1  # All except the one we kept
 
         return PreprocessingResult(
             text=result,

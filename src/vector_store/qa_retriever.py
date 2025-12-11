@@ -22,6 +22,9 @@ from typing import TYPE_CHECKING
 from src.config import (
     DEBUG_MODE,
     QA_RETRIEVAL_K,
+    QUERY_TRANSFORM_ENABLED,
+    QUERY_TRANSFORM_TIMEOUT,
+    QUERY_TRANSFORM_VARIANTS,
     RETRIEVAL_ALGORITHM_WEIGHTS,
     RETRIEVAL_ENABLE_BM25,
     RETRIEVAL_ENABLE_FAISS,
@@ -118,8 +121,13 @@ class QARetriever:
         # Initialize hybrid retriever
         self._hybrid_retriever = self._init_hybrid_retriever()
 
+        # Initialize query transformer (LlamaIndex + Ollama)
+        self._query_transformer = self._init_query_transformer()
+
         if DEBUG_MODE:
             debug_log(f"[QARetriever] Hybrid retriever initialized with {len(self._documents)} chunks")
+            if self._query_transformer:
+                debug_log("[QARetriever] Query transformer enabled")
 
     def _extract_documents_from_faiss(self) -> list[dict]:
         """
@@ -187,6 +195,44 @@ class QARetriever:
 
         return retriever
 
+    def _init_query_transformer(self):
+        """
+        Initialize the query transformer for expanding vague queries.
+
+        Uses LlamaIndex + Ollama to generate query variants.
+
+        Returns:
+            QueryTransformer instance or None if disabled/unavailable
+        """
+        if not QUERY_TRANSFORM_ENABLED:
+            return None
+
+        try:
+            from src.retrieval import QueryTransformer
+
+            transformer = QueryTransformer(
+                variant_count=QUERY_TRANSFORM_VARIANTS,
+                timeout_seconds=QUERY_TRANSFORM_TIMEOUT,
+                enabled=True,
+            )
+
+            # Check if LlamaIndex + Ollama is available
+            if transformer.is_available():
+                return transformer
+            else:
+                if DEBUG_MODE:
+                    debug_log("[QARetriever] Query transformer not available (LlamaIndex/Ollama issue)")
+                return None
+
+        except ImportError as e:
+            if DEBUG_MODE:
+                debug_log(f"[QARetriever] Query transformer import failed: {e}")
+            return None
+        except Exception as e:
+            if DEBUG_MODE:
+                debug_log(f"[QARetriever] Query transformer init failed: {e}")
+            return None
+
     def retrieve_context(
         self,
         question: str,
@@ -196,7 +242,8 @@ class QARetriever:
         """
         Retrieve top-k relevant chunks for a question.
 
-        Uses hybrid search (BM25+ + FAISS) to find the most relevant chunks.
+        Uses query transformation (if available) to expand vague queries,
+        then hybrid search (BM25+ + FAISS) to find the most relevant chunks.
         Filters by minimum relevance score if specified.
 
         Args:
@@ -218,14 +265,39 @@ class QARetriever:
         if DEBUG_MODE:
             debug_log(f"[QARetriever] Query: '{question[:50]}...' (k={k}, min_score={min_score})")
 
-        # Use hybrid retriever
-        merged_result = self._hybrid_retriever.retrieve(question, k=k)
+        # Transform query into variants if transformer is available
+        queries_to_search = [question]
+        if self._query_transformer:
+            transform_result = self._query_transformer.transform(question)
+            if transform_result.success and transform_result.expanded_queries:
+                queries_to_search = transform_result.all_queries
+                if DEBUG_MODE:
+                    debug_log(f"[QARetriever] Query expanded to {len(queries_to_search)} variants")
+
+        # Retrieve for all query variants and merge results
+        all_chunks = {}  # chunk_id -> best chunk result (avoid duplicates)
+
+        for query in queries_to_search:
+            merged_result = self._hybrid_retriever.retrieve(query, k=k)
+
+            for chunk in merged_result.chunks:
+                chunk_key = f"{chunk.filename}_{chunk.chunk_num}"
+
+                # Keep the best score for each chunk
+                if chunk_key not in all_chunks or chunk.combined_score > all_chunks[chunk_key].combined_score:
+                    all_chunks[chunk_key] = chunk
+
+        # Sort all chunks by score descending and take top k
+        sorted_chunks = sorted(all_chunks.values(), key=lambda c: c.combined_score, reverse=True)[:k]
+
+        if DEBUG_MODE and len(queries_to_search) > 1:
+            debug_log(f"[QARetriever] Merged {len(all_chunks)} unique chunks from {len(queries_to_search)} queries")
 
         # Filter by minimum score and build results
         context_parts = []
         sources = []
 
-        for chunk in merged_result.chunks:
+        for chunk in sorted_chunks:
             # Skip low-relevance chunks
             if chunk.combined_score < min_score:
                 if DEBUG_MODE:
