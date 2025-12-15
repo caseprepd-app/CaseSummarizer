@@ -15,12 +15,20 @@ The model learns from features like:
 Training occurs automatically when enough feedback accumulates.
 The trained model persists to disk for use across sessions.
 
-Training Thresholds (from config.py):
+Training Configuration (from config.py):
 - ML_MIN_SAMPLES: Minimum feedback entries before first training (30)
 - ML_RETRAIN_THRESHOLD: New feedback to trigger retraining (10)
+- ML_DECAY_HALF_LIFE_DAYS: Time for sample weight to decay to 50% (365 days)
+- ML_DECAY_WEIGHT_FLOOR: Minimum weight for old samples (0.55)
+
+Time Decay Rationale:
+Most early feedback flags universal false positives (common words incorrectly
+identified as vocabulary). This feedback should persist strongly. Career changes
+that affect preferences (new courthouse, new case types) are infrequent (~years).
 """
 
 import pickle
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -28,7 +36,13 @@ import numpy as np
 from sklearn.linear_model import LogisticRegression
 from sklearn.preprocessing import StandardScaler
 
-from src.config import ML_MIN_SAMPLES, ML_RETRAIN_THRESHOLD, VOCAB_MODEL_PATH
+from src.config import (
+    ML_DECAY_HALF_LIFE_DAYS,
+    ML_DECAY_WEIGHT_FLOOR,
+    ML_MIN_SAMPLES,
+    ML_RETRAIN_THRESHOLD,
+    VOCAB_MODEL_PATH,
+)
 from src.logging_config import debug_log
 from src.vocabulary.feedback_manager import FeedbackManager, get_feedback_manager
 
@@ -139,6 +153,40 @@ class VocabularyMetaLearner:
             is_unknown,
         ])
 
+    def _calculate_sample_weight(self, timestamp_str: str) -> float:
+        """
+        Calculate time-decay weight for a feedback sample.
+
+        Uses exponential decay with a floor to ensure old feedback
+        still contributes meaningfully. Most early feedback flags
+        universal false positives that should persist.
+
+        Formula: weight = max(floor, 0.5^(days_old / half_life))
+
+        Args:
+            timestamp_str: ISO8601 timestamp from feedback record
+
+        Returns:
+            Weight between ML_DECAY_WEIGHT_FLOOR and 1.0
+        """
+        try:
+            # Parse ISO8601 timestamp
+            feedback_time = datetime.fromisoformat(timestamp_str)
+            days_old = (datetime.now() - feedback_time).days
+
+            # Exponential decay: halves every half_life days
+            decay = 0.5 ** (days_old / ML_DECAY_HALF_LIFE_DAYS)
+
+            # Apply floor - old feedback still matters
+            weight = max(decay, ML_DECAY_WEIGHT_FLOOR)
+
+            return weight
+
+        except (ValueError, TypeError):
+            # Malformed timestamp - use moderate weight
+            debug_log(f"[META-LEARNER] Invalid timestamp '{timestamp_str}', using default weight")
+            return 0.75
+
     def train(self, feedback_manager: FeedbackManager | None = None) -> bool:
         """
         Train the model on accumulated feedback data.
@@ -167,9 +215,10 @@ class VocabularyMetaLearner:
 
         debug_log(f"[META-LEARNER] Training on {len(labeled_records)} feedback samples")
 
-        # Extract features and labels
+        # Extract features, labels, and time-decay weights
         X = []
         y = []
+        sample_weights = []
 
         for record in labeled_records:
             features = self._extract_features(record)
@@ -180,8 +229,20 @@ class VocabularyMetaLearner:
             label = 1 if feedback in ("+1", "1") else 0
             y.append(label)
 
+            # Calculate time-decay weight for this sample
+            timestamp = record.get("timestamp", "")
+            weight = self._calculate_sample_weight(timestamp)
+            sample_weights.append(weight)
+
         X = np.array(X)
         y = np.array(y)
+        sample_weights = np.array(sample_weights)
+
+        # Log weight distribution
+        debug_log(
+            f"[META-LEARNER] Sample weights - min: {sample_weights.min():.2f}, "
+            f"max: {sample_weights.max():.2f}, mean: {sample_weights.mean():.2f}"
+        )
 
         # Check for class balance
         pos_count = np.sum(y)
@@ -196,14 +257,14 @@ class VocabularyMetaLearner:
         self._scaler = StandardScaler()
         X_scaled = self._scaler.fit_transform(X)
 
-        # Train logistic regression with balanced class weights
+        # Train logistic regression with balanced class weights and time-decay sample weights
         self._model = LogisticRegression(
             class_weight='balanced',  # Handle class imbalance
             max_iter=1000,
             random_state=42,
             solver='lbfgs'
         )
-        self._model.fit(X_scaled, y)
+        self._model.fit(X_scaled, y, sample_weight=sample_weights)
 
         self._is_trained = True
 

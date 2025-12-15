@@ -44,6 +44,18 @@ DEFAULT_VOCAB_MODEL_PATH = Path(__file__).parent.parent / "config" / "default_vo
 ML_MIN_SAMPLES = 30  # Minimum feedback samples before training
 ML_RETRAIN_THRESHOLD = 10  # New feedback entries to trigger retraining
 
+# ML Time Decay Configuration (Session 47)
+# Older feedback is weighted less to adapt to changing user preferences
+# - Half-life: Tuned so weight reaches floor at 3 years
+# - Floor: Minimum weight (old feedback still matters, just less)
+# Rationale: Most early feedback flags universal false positives (common words)
+# which should persist. Reporters change courthouses ~every few years.
+#
+# Decay curve:
+#   Today: 1.00 → 1 year: 0.82 → 2 years: 0.67 → 3 years: 0.55 (floor)
+ML_DECAY_HALF_LIFE_DAYS = 1270  # ~3.5 years - tuned so weight hits floor at 3 years
+ML_DECAY_WEIGHT_FLOOR = 0.55  # Old feedback retains 55% weight minimum
+
 # Ensure ML directories exist
 for ml_dir in [FEEDBACK_DIR, MODELS_ML_DIR]:
     ml_dir.mkdir(parents=True, exist_ok=True)

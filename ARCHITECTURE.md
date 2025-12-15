@@ -326,6 +326,12 @@ New Terms → MetaLearner (predict) → Quality Score boost/penalty
 
 **Features used:** quality_score, in_case_freq, freq_rank, num_algorithms, has_ner, has_rake, has_bm25, term type (one-hot)
 
+**Time Decay Weighting:**
+Older feedback is weighted less to adapt to changing preferences:
+- Decay: 1.00 → 0.82 (1yr) → 0.67 (2yr) → 0.55 (3yr)
+- Floor: 55% — old feedback always retains significant weight
+- Rationale: Most early feedback flags universal false positives (common words) that should persist. Career changes affecting preferences are infrequent.
+
 **Reset options in Settings:**
 - "Reset Vocabulary Model" — Restore default model, keep feedback history
 - "Reset Model and Clear History" — Complete fresh start
