@@ -1,30 +1,13 @@
 === LocalScribe Debug Log ===
-Started: 2025-11-27T13:20:44.504718
-DEBUG_MODE: False
+Started: 2025-12-13T16:49:13.873883
+DEBUG_MODE: True
 ============================================================
 
-[13:20:44.519] [VOCAB] Loading spaCy model 'en_core_web_sm'...
-[13:20:45.347] [VOCAB] Loaded 4 words from C:\Users\noahc\Dropbox\Not Work\Data Science\CaseSummarizer\tests\test_legal_exclude.txt
-[13:20:45.349] [VOCAB] Loaded 3 words from C:\Users\noahc\Dropbox\Not Work\Data Science\CaseSummarizer\tests\test_medical_terms.txt
-[13:20:45.769] [VOCAB] Error loading frequency dataset: 'VocabularyExtractor' object has no attribute 'rarity_threshold'
-[13:20:45.778] [VOCAB] Downloading NLTK wordnet data...
-[13:20:46.038] [VOCAB] Loading spaCy model 'en_core_web_sm'...
-[13:20:46.755] [VOCAB] Loaded 4 words from C:\Users\noahc\Dropbox\Not Work\Data Science\CaseSummarizer\tests\test_legal_exclude.txt
-[13:20:46.758] [VOCAB] Loaded 3 words from C:\Users\noahc\Dropbox\Not Work\Data Science\CaseSummarizer\tests\test_medical_terms.txt
-[13:20:47.149] [VOCAB] Error loading frequency dataset: 'VocabularyExtractor' object has no attribute 'rarity_threshold'
-[13:20:47.155] [VOCAB] Downloading NLTK wordnet data...
-[13:20:51.926] [VOCAB] Loading spaCy model 'en_core_web_sm'...
-[13:20:52.566] [VOCAB] Loaded 4 words from C:\Users\noahc\Dropbox\Not Work\Data Science\CaseSummarizer\tests\test_legal_exclude.txt
-[13:20:52.566] [VOCAB] Loaded 3 words from C:\Users\noahc\Dropbox\Not Work\Data Science\CaseSummarizer\tests\test_medical_terms.txt
-[13:20:52.894] [VOCAB] Error loading frequency dataset: 'VocabularyExtractor' object has no attribute 'rarity_threshold'
-[13:20:52.894] [VOCAB] Downloading NLTK wordnet data...
-[13:20:52.941] [VOCAB] Loading spaCy model 'en_core_web_sm'...
-[13:20:53.527] [VOCAB] Loaded 4 words from C:\Users\noahc\Dropbox\Not Work\Data Science\CaseSummarizer\tests\test_legal_exclude.txt
-[13:20:53.527] [VOCAB] Loaded 3 words from C:\Users\noahc\Dropbox\Not Work\Data Science\CaseSummarizer\tests\test_medical_terms.txt
-[13:20:53.828] [VOCAB] Error loading frequency dataset: 'VocabularyExtractor' object has no attribute 'rarity_threshold'
-[13:20:53.842] [VOCAB] Downloading NLTK wordnet data...
-[13:20:53.860] [VOCAB] Loading spaCy model 'en_core_web_sm'...
-[13:20:54.460] [VOCAB] Loaded 4 words from C:\Users\noahc\Dropbox\Not Work\Data Science\CaseSummarizer\tests\test_legal_exclude.txt
-[13:20:54.461] [VOCAB] Loaded 3 words from C:\Users\noahc\Dropbox\Not Work\Data Science\CaseSummarizer\tests\test_medical_terms.txt
-[13:20:54.762] [VOCAB] Error loading frequency dataset: 'VocabularyExtractor' object has no attribute 'rarity_threshold'
-[13:20:54.762] [VOCAB] Downloading NLTK wordnet data...
+[16:49:31.318] Successfully connected to Ollama
+[16:49:31.318] [OLLAMA] Connection successful
+[16:49:31.320] [CorpusRegistry] Loaded registry with 1 corpora
+[16:49:32.296] [FEEDBACK] Loaded 5 feedback entries from C:\Users\noahc\AppData\Roaming\LocalScribe\data\feedback\vocab_feedback.csv
+[16:49:34.398] Found 2 available models
+[16:49:34.398] [OLLAMA] Found 2 models: ['gemma3:12b', 'gemma3:1b']
+[16:49:34.398] [MainWindow] Ollama service is accessible
+[16:49:34.399] [MainWindow] Initialized with two-panel layout

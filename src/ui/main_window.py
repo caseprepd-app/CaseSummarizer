@@ -947,8 +947,14 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         """Open the settings dialog."""
         from src.ui.settings.settings_dialog import SettingsDialog
 
-        dialog = SettingsDialog(self, self.model_manager, self.prompt_template_manager)
-        dialog.wait_window()
+        try:
+            dialog = SettingsDialog(parent=self)
+            dialog.wait_window()
+        except Exception as e:
+            from src.logging_config import error as log_error
+            log_error(f"Failed to open settings dialog: {e}")
+            import traceback
+            traceback.print_exc()
 
         # Refresh UI after settings change
         self._refresh_corpus_dropdown()
