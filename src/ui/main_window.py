@@ -243,8 +243,11 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         except Empty:
             pass
 
-        # Continue polling if worker is running
-        if self._processing_worker and self._processing_worker.is_alive():
+        # Continue polling if any worker is running
+        processing_alive = self._processing_worker and self._processing_worker.is_alive()
+        progressive_alive = self._progressive_worker and self._progressive_worker.is_alive()
+
+        if processing_alive or progressive_alive:
             self._queue_poll_id = self.after(50, self._poll_queue)
         else:
             # Final poll to catch any remaining messages
@@ -272,6 +275,41 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             self.set_status(f"Error: {data}")
             messagebox.showerror("Processing Error", str(data))
             self._on_preprocessing_complete([])
+
+        # Progressive Extraction handlers (Session 48)
+        elif msg_type == "ner_complete":
+            term_count = len(data) if data else 0
+            debug_log(f"[MainWindow] NER complete: {term_count} terms - displaying immediately")
+            self.output_display.update_outputs(vocab_csv_data=data)
+            self.output_display.set_extraction_source("ner")
+            self.set_status(f"NER complete: {term_count} terms found. LLM enhancement starting...")
+
+        elif msg_type == "qa_ready":
+            chunk_count = data.get('chunk_count', 0)
+            debug_log(f"[MainWindow] Q&A ready: {chunk_count} chunks indexed")
+            self._vector_store_path = data.get('vector_store_path')
+            self._embeddings = data.get('embeddings')
+            self._qa_ready = True
+            if self._pending_tasks.get('qa'):
+                self._completed_tasks.add('qa')
+                self.followup_btn.configure(state="normal")
+            self.set_status(f"Q&A ready ({chunk_count} chunks). LLM enhancement in progress...")
+
+        elif msg_type == "llm_progress":
+            current, total = data
+            debug_log(f"[MainWindow] LLM progress: {current}/{total}")
+
+        elif msg_type == "llm_complete":
+            term_count = len(data) if data else 0
+            debug_log(f"[MainWindow] LLM complete: {term_count} reconciled terms")
+            self.output_display.update_outputs(vocab_csv_data=data)
+            self.output_display.set_extraction_source("both")
+            self._completed_tasks.add('vocab')
+            self.set_status(f"Complete: {term_count} names & vocabulary extracted")
+            if self._pending_tasks.get('summary'):
+                self._start_summary_task()
+            else:
+                self._finalize_tasks()
 
     def _on_preprocessing_complete(self, results: list[dict]):
         """Handle preprocessing completion."""
@@ -515,14 +553,11 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             self._on_tasks_complete(False, "No text to analyze")
             return
 
-        # Create queue for progressive worker
-        self._progressive_queue = Queue()
-
-        # Start progressive extraction worker
+        # Start progressive extraction worker (uses shared ui_queue)
         self._progressive_worker = ProgressiveExtractionWorker(
             documents=self.processing_results,
             combined_text=combined_text,
-            ui_queue=self._progressive_queue,
+            ui_queue=self._ui_queue,  # Use shared queue for unified message routing
             embeddings=self._embeddings,  # Pass existing if available
             exclude_list_path=str(LEGAL_EXCLUDE_LIST_PATH),
             medical_terms_path=str(MEDICAL_TERMS_LIST_PATH),
@@ -530,87 +565,10 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         )
         self._progressive_worker.start()
 
-        # Start polling progressive queue
-        self._poll_progressive_queue()
-
-    def _poll_progressive_queue(self):
-        """Poll the progressive extraction worker queue for messages."""
-        try:
-            while True:
-                msg_type, data = self._progressive_queue.get_nowait()
-                self._handle_progressive_message(msg_type, data)
-        except Empty:
-            pass
-
-        # Continue polling if worker is alive
-        if self._progressive_worker and self._progressive_worker.is_alive():
-            self.after(50, self._poll_progressive_queue)
-        else:
-            # Worker finished - do final poll
-            try:
-                while True:
-                    msg_type, data = self._progressive_queue.get_nowait()
-                    self._handle_progressive_message(msg_type, data)
-            except Empty:
-                pass
-            # Finalize if not already done
-            if 'vocab' not in self._completed_tasks:
-                self._completed_tasks.add('vocab')
-                self._finalize_tasks()
-
-    def _handle_progressive_message(self, msg_type: str, data):
-        """Handle messages from the progressive extraction worker."""
-        if msg_type == "progress":
-            percentage, message = data
-            self.set_status(message)
-
-        elif msg_type == "ner_complete":
-            # Phase 1 complete - display NER results immediately
-            debug_log(f"[MainWindow] NER complete: {len(data)} terms - displaying immediately")
-            self.output_display.update_outputs(vocab_csv_data=data)
-            self.output_display.set_extraction_source("ner")  # Show "Initial results (NER only)"
-            self.set_status(f"NER complete: {len(data)} terms found. LLM enhancement starting...")
-
-        elif msg_type == "qa_ready":
-            # Phase 2 complete - enable Q&A
-            debug_log(f"[MainWindow] Q&A ready: {data.get('chunk_count', 0)} chunks indexed")
-            self._vector_store_path = data.get('vector_store_path')
-            self._embeddings = data.get('embeddings')
-            self._qa_ready = True
-
-            # Mark Q&A as complete if it was requested
-            if self._pending_tasks.get('qa'):
-                self._completed_tasks.add('qa')
-                self.followup_btn.configure(state="normal")
-                self.set_status(f"Q&A ready ({data.get('chunk_count', 0)} chunks). LLM enhancement in progress...")
-
-        elif msg_type == "qa_error":
-            debug_log(f"[MainWindow] Q&A indexing error: {data}")
-            # Continue without Q&A - not fatal
-
-        elif msg_type == "llm_progress":
-            # Phase 3 progress - LLM is processing chunks
-            current, total = data
-            # Status already set by 'progress' message
-
-        elif msg_type == "llm_complete":
-            # Phase 3 complete - update with reconciled results
-            debug_log(f"[MainWindow] LLM complete: {len(data)} reconciled terms")
-            self.output_display.update_outputs(vocab_csv_data=data)
-            self.output_display.set_extraction_source("both")  # Show "Enhanced results (NER + LLM)"
-            self._completed_tasks.add('vocab')
-            self.set_status(f"Complete: {len(data)} names & vocabulary extracted")
-
-            # Continue to summary if requested
-            if self._pending_tasks.get('summary'):
-                self._start_summary_task()
-            else:
-                self._finalize_tasks()
-
-        elif msg_type == "error":
-            self.set_status(f"Error: {data}")
-            messagebox.showerror("Extraction Error", str(data))
-            self._on_tasks_complete(False, str(data))
+        # Ensure queue polling is running (may have stopped after preprocessing)
+        if self._queue_poll_id:
+            self.after_cancel(self._queue_poll_id)
+        self._poll_queue()
 
     def _start_qa_task(self):
         """Start Q&A task - build vector store then run questions."""

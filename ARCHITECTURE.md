@@ -34,10 +34,10 @@
 - [x] **Unified semantic chunking** — Token enforcement via tiktoken (400-1200 tokens/chunk)
 - [x] **Parallel processing** — Dynamic worker scaling based on CPU/RAM
 - [x] **Settings system** — Registry-based, tabbed dialog
+- [x] **Progressive extraction worker** — Three-phase NER→Q&A→LLM with unified queue routing (Session 48)
 
 ### Partially Implemented ⚡
 
-- [ ] **Progressive extraction worker** — Infrastructure built (`ProgressiveExtractionWorker`), main window wiring pending
 - [ ] **Case Briefing Generator** — Functional but being deprecated from UI
 
 ### Not Yet Built ○
@@ -754,4 +754,4 @@ ruff check src/ --fix
 
 ---
 
-*Last updated: 2025-12-13*
+*Last updated: 2025-12-15*

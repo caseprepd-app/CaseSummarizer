@@ -17,6 +17,10 @@ Message Types Handled:
 - processing_finished: Delegate to orchestrator, then update UI
 - summary_result: Display AI-generated summary
 - error: Show error dialog and reset UI
+- ner_complete: Display initial NER vocabulary results (Session 48)
+- qa_ready: Enable Q&A panel after vector store built (Session 48)
+- llm_progress: Track LLM chunk processing progress (Session 48)
+- llm_complete: Display reconciled NER+LLM results (Session 48)
 
 Performance Optimizations (Session 14):
 - Explicit garbage collection after processing completes
@@ -417,6 +421,101 @@ class QueueMessageHandler:
         self.main_window.status_label.configure(text=f"Q&A Error: {error_msg}")
         debug_log(f"[QUEUE HANDLER] Q&A error: {error_msg}")
 
+    # =========================================================================
+    # Progressive Extraction Handlers (Session 48)
+    # =========================================================================
+
+    def handle_ner_complete(self, data):
+        """
+        Handle 'ner_complete' message - Phase 1 NER extraction complete.
+
+        Displays initial vocabulary results immediately while LLM enhancement
+        continues in background.
+
+        Args:
+            data: List of vocabulary term dictionaries from NER extraction
+        """
+        term_count = len(data) if data else 0
+        debug_log(f"[QUEUE HANDLER] NER complete: {term_count} terms - displaying immediately")
+
+        # Update vocab display with NER-only results
+        self.main_window.output_display.update_outputs(vocab_csv_data=data)
+        self.main_window.output_display.set_extraction_source("ner")
+
+        # Update status
+        self.main_window.status_label.configure(
+            text=f"NER complete: {term_count} terms found. LLM enhancement starting..."
+        )
+
+    def handle_qa_ready(self, data: dict):
+        """
+        Handle 'qa_ready' message - Phase 2 Q&A vector store ready.
+
+        Enables Q&A functionality now that the vector store is built.
+
+        Args:
+            data: Dictionary with 'vector_store_path', 'embeddings', 'chunk_count'
+        """
+        chunk_count = data.get('chunk_count', 0)
+        debug_log(f"[QUEUE HANDLER] Q&A ready: {chunk_count} chunks indexed")
+
+        # Store vector store info on main window
+        self.main_window._vector_store_path = data.get('vector_store_path')
+        self.main_window._embeddings = data.get('embeddings')
+        self.main_window._qa_ready = True
+
+        # Mark Q&A as complete if it was requested
+        if self.main_window._pending_tasks.get('qa'):
+            self.main_window._completed_tasks.add('qa')
+            self.main_window.followup_btn.configure(state="normal")
+
+        # Update status
+        self.main_window.status_label.configure(
+            text=f"Q&A ready ({chunk_count} chunks). LLM enhancement in progress..."
+        )
+
+    def handle_llm_progress(self, data: tuple):
+        """
+        Handle 'llm_progress' message - Phase 3 LLM chunk processing progress.
+
+        Args:
+            data: Tuple of (current_chunk, total_chunks)
+        """
+        current, total = data
+        debug_log(f"[QUEUE HANDLER] LLM progress: {current}/{total}")
+        # Status is already updated by 'progress' message, just log here
+
+    def handle_llm_complete(self, data):
+        """
+        Handle 'llm_complete' message - Phase 3 LLM extraction complete.
+
+        Updates vocabulary display with reconciled NER + LLM results and
+        triggers summary task if pending.
+
+        Args:
+            data: List of reconciled vocabulary term dictionaries
+        """
+        term_count = len(data) if data else 0
+        debug_log(f"[QUEUE HANDLER] LLM complete: {term_count} reconciled terms")
+
+        # Update vocab display with enhanced results
+        self.main_window.output_display.update_outputs(vocab_csv_data=data)
+        self.main_window.output_display.set_extraction_source("both")
+
+        # Mark vocab task complete
+        self.main_window._completed_tasks.add('vocab')
+
+        # Update status
+        self.main_window.status_label.configure(
+            text=f"Complete: {term_count} names & vocabulary extracted"
+        )
+
+        # Continue to summary if requested, otherwise finalize
+        if self.main_window._pending_tasks.get('summary'):
+            self.main_window._start_summary_task()
+        else:
+            self.main_window._finalize_tasks()
+
     def process_message(self, message_type: str, data) -> bool:
         """
         Route a message to the appropriate handler.
@@ -446,6 +545,11 @@ class QueueMessageHandler:
             'qa_complete': self.handle_qa_complete,
             'qa_followup_result': self.handle_qa_followup_result,
             'qa_error': self.handle_qa_error,
+            # Progressive Extraction handlers (Session 48)
+            'ner_complete': self.handle_ner_complete,
+            'qa_ready': self.handle_qa_ready,
+            'llm_progress': self.handle_llm_progress,
+            'llm_complete': self.handle_llm_complete,
         }
 
         handler = handlers.get(message_type)
