@@ -14,6 +14,10 @@ CSV Schema:
 - feedback: +1 (thumbs up) or -1 (thumbs down)
 - type: Category (Person/Place/Medical/Technical/Unknown)
 - algorithms: Comma-separated list of algorithms that detected the term
+- NER_detection: Boolean - whether NER algorithm detected this term
+- RAKE_detection: Boolean - whether RAKE algorithm detected this term
+- BM25_detection: Boolean - whether BM25 algorithm detected this term
+- algo_count: Number of algorithms that detected this term (sum of detection booleans)
 - quality_score: Quality score at time of feedback
 - in_case_freq: Term occurrence count
 - freq_rank: Google frequency rank
@@ -37,6 +41,10 @@ FEEDBACK_COLUMNS = [
     "feedback",
     "type",
     "algorithms",
+    "NER_detection",
+    "RAKE_detection",
+    "BM25_detection",
+    "algo_count",
     "quality_score",
     "in_case_freq",
     "freq_rank",
@@ -176,13 +184,27 @@ class FeedbackManager:
             self._cache[lower_term] = feedback
 
         # Build feedback record
+        # Parse algorithms string to create boolean detection columns
+        algorithms_str = term_data.get("Sources", "")
+        algorithms_upper = [a.strip().upper() for a in algorithms_str.split(",") if a.strip()]
+
+        # Calculate algo_count (sum of detection booleans)
+        ner_detected = "NER" in algorithms_upper
+        rake_detected = "RAKE" in algorithms_upper
+        bm25_detected = "BM25" in algorithms_upper
+        algo_count = sum([ner_detected, rake_detected, bm25_detected])
+
         record = {
             "timestamp": datetime.now().isoformat(),
             "document_id": doc_id,
             "term": term,
             "feedback": feedback,
             "type": term_data.get("Type", "Unknown"),
-            "algorithms": term_data.get("Sources", ""),
+            "algorithms": algorithms_str,
+            "NER_detection": ner_detected,
+            "RAKE_detection": rake_detected,
+            "BM25_detection": bm25_detected,
+            "algo_count": algo_count,
             "quality_score": term_data.get("Quality Score", 0),
             "in_case_freq": term_data.get("In-Case Freq", 1),
             "freq_rank": term_data.get("Freq Rank", 0),
@@ -302,6 +324,35 @@ class FeedbackManager:
         if rating_filter is None:
             return list(self._cache.keys())
         return [term for term, rating in self._cache.items() if rating == rating_filter]
+
+    def clear_all_feedback(self) -> bool:
+        """
+        Clear all feedback data (cache and CSV file).
+
+        Used when user wants to start fresh with vocabulary preferences.
+        This is a destructive operation - all feedback history is lost.
+
+        Returns:
+            True if clear succeeded
+        """
+        try:
+            # Clear in-memory cache
+            self._cache.clear()
+            self._pending_count = 0
+
+            # Delete the feedback CSV file
+            if self.feedback_file.exists():
+                self.feedback_file.unlink()
+                debug_log(f"[FEEDBACK] Deleted feedback file: {self.feedback_file}")
+            else:
+                debug_log("[FEEDBACK] No feedback file to delete")
+
+            debug_log("[FEEDBACK] All feedback cleared successfully")
+            return True
+
+        except Exception as e:
+            debug_log(f"[FEEDBACK] Error clearing feedback: {e}")
+            return False
 
     def export_training_data(self) -> list[dict]:
         """

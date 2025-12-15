@@ -62,6 +62,7 @@ BATCH_INSERT_DELAY_MS = VOCABULARY_BATCH_INSERT_DELAY_MS
 # Session 23: Added Quality Score, In-Case Freq, Freq Rank columns for filtering
 # Session 25: Added feedback columns (Keep/Skip) for ML learning
 # Session 43: Added Found By column for NER/LLM reconciliation
+# Session 47: Added per-algorithm detection columns (NER, RAKE, BM25)
 COLUMN_CONFIG = {
     "Term": {"width": 150, "max_chars": 25},
     "Type": {"width": 80, "max_chars": 12},
@@ -73,6 +74,11 @@ COLUMN_CONFIG = {
     "Definition": {"width": 240, "max_chars": 38},  # Slightly narrower to fit Found By
     "Keep": {"width": 45, "max_chars": 3},
     "Skip": {"width": 45, "max_chars": 3},
+    # Session 47: Per-algorithm detection columns (hidden by default)
+    "NER": {"width": 45, "max_chars": 4},
+    "RAKE": {"width": 50, "max_chars": 4},
+    "BM25": {"width": 50, "max_chars": 4},
+    "Algo Count": {"width": 55, "max_chars": 3},  # Number of algorithms that found term
 }
 
 # Columns visible in the GUI Treeview (confidence columns hidden for cleaner display)
@@ -81,9 +87,13 @@ COLUMN_CONFIG = {
 # Session 43: Added Found By column - terms found by Both (NER+LLM) appear first
 GUI_DISPLAY_COLUMNS = ("Term", "Type", "Found By", "Role/Relevance", "Definition", "Keep", "Skip")
 
+# Session 47: Extended columns with per-algorithm detection (shown via "Show Details" button)
+GUI_DISPLAY_COLUMNS_EXTENDED = ("Term", "Type", "Found By", "NER", "RAKE", "BM25", "Algo Count", "Role/Relevance", "Definition", "Keep", "Skip")
+
 # All columns available for export (includes confidence/filtering columns)
 # Session 43: Added Found By for export
-ALL_EXPORT_COLUMNS = ("Term", "Type", "Found By", "Role/Relevance", "Quality Score", "In-Case Freq", "Freq Rank", "Definition")
+# Session 47: Added NER, RAKE, BM25, Algo Count for detailed export
+ALL_EXPORT_COLUMNS = ("Term", "Type", "Found By", "NER", "RAKE", "BM25", "Algo Count", "Role/Relevance", "Quality Score", "In-Case Freq", "Freq Rank", "Definition")
 
 
 def truncate_text(text: str, max_chars: int) -> str:
@@ -179,6 +189,18 @@ class DynamicOutputWidget(ctk.CTkFrame):
 
         self.save_btn = ctk.CTkButton(self.button_frame, text="Save to File...", command=self.save_to_file)
         self.save_btn.pack(side="left", padx=5)
+
+        # Session 47: Toggle button for showing per-algorithm detection details
+        self._show_details = False
+        self.detail_toggle_btn = ctk.CTkButton(
+            self.button_frame,
+            text="Show Details",
+            command=self._toggle_detail_view,
+            width=100,
+            fg_color="#555555",
+            hover_color="#666666"
+        )
+        self.detail_toggle_btn.pack(side="left", padx=5)
 
         # Internal storage for outputs (Session 45: Updated naming)
         self._outputs = {
@@ -303,6 +325,29 @@ class DynamicOutputWidget(ctk.CTkFrame):
         current = self.output_selector.get()
         if current.startswith("Names & Vocabulary"):
             self._update_progress_badge(source)
+
+    def _toggle_detail_view(self):
+        """
+        Toggle between basic and detailed column view (Session 47).
+
+        When details are shown, displays NER, RAKE, and BM25 columns
+        indicating which algorithms detected each term.
+        """
+        self._show_details = not self._show_details
+        self.detail_toggle_btn.configure(
+            text="Hide Details" if self._show_details else "Show Details"
+        )
+        # Refresh current view to apply new columns
+        current = self.output_selector.get()
+        if current.startswith("Names & Vocabulary"):
+            vocab_data = self._outputs.get("Names & Vocabulary", [])
+            if not vocab_data:
+                vocab_data = self._outputs.get("Rare Word List (CSV)", [])
+            # Force treeview recreation to update columns
+            if self.csv_treeview is not None:
+                self.csv_treeview.destroy()
+                self.csv_treeview = None
+            self._display_csv(vocab_data)
 
     def cleanup(self):
         """
@@ -521,8 +566,9 @@ class DynamicOutputWidget(ctk.CTkFrame):
         self.treeview_frame.grid_columnconfigure(0, weight=1)
         self.treeview_frame.grid_rowconfigure(0, weight=1)
 
-        # Define columns for GUI display (confidence columns hidden)
-        columns = GUI_DISPLAY_COLUMNS
+        # Session 47: Choose columns based on detail view toggle
+        columns = GUI_DISPLAY_COLUMNS_EXTENDED if self._show_details else GUI_DISPLAY_COLUMNS
+        self._current_columns = columns  # Store for use in _async_insert_rows
 
         # Create or reconfigure treeview
         if self.csv_treeview is None:
@@ -696,6 +742,9 @@ class DynamicOutputWidget(ctk.CTkFrame):
             # Insert a batch of rows
             batch_end = min(current_idx + BATCH_INSERT_SIZE, end_idx)
 
+            # Session 47: Use stored columns (may be extended with NER/RAKE/BM25)
+            current_columns = getattr(self, '_current_columns', GUI_DISPLAY_COLUMNS)
+
             for i in range(current_idx, batch_end):
                 item = data[i]
                 rating = 0  # Default no rating
@@ -706,7 +755,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
                     term = item.get("Term", "")
                     rating = self._feedback_manager.get_rating(term)
 
-                    for col in GUI_DISPLAY_COLUMNS:
+                    for col in current_columns:
                         if col == "Keep":
                             values.append(THUMB_UP_FILLED if rating == 1 else THUMB_UP_EMPTY)
                         elif col == "Skip":
@@ -719,7 +768,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
                     # Handle list format (legacy) - apply truncation, default empty feedback
                     raw_values = tuple(item) if len(item) >= 4 else tuple(item) + ("",) * (4 - len(item))
                     values = tuple(
-                        truncate_text(str(v), COLUMN_CONFIG[GUI_DISPLAY_COLUMNS[j]]["max_chars"])
+                        truncate_text(str(v), COLUMN_CONFIG[current_columns[j]]["max_chars"])
                         for j, v in enumerate(raw_values[:4])
                     ) + (THUMB_UP_EMPTY, THUMB_DOWN_EMPTY)
 
@@ -1050,9 +1099,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
         Detects clicks on the Keep or Skip columns and toggles the
         feedback state for that term.
 
-        Column indices (1-based in identify_column):
-        - #1: Term, #2: Type, #3: Role/Relevance, #4: Definition
-        - #5: Keep, #6: Skip
+        Session 47: Column indices are dynamic based on detail view toggle.
         """
         # Identify which column and row was clicked
         column = self.csv_treeview.identify_column(event.x)
@@ -1061,10 +1108,18 @@ class DynamicOutputWidget(ctk.CTkFrame):
         if not item_id:
             return
 
+        # Session 47: Dynamically find Keep and Skip column indices
+        current_columns = getattr(self, '_current_columns', GUI_DISPLAY_COLUMNS)
+        try:
+            keep_idx = current_columns.index("Keep") + 1  # 1-based
+            skip_idx = current_columns.index("Skip") + 1  # 1-based
+        except ValueError:
+            return  # Keep/Skip columns not found
+
         # Check if click was on a feedback column
-        if column == "#5":  # Keep column
+        if column == f"#{keep_idx}":  # Keep column
             self._toggle_feedback(item_id, +1)
-        elif column == "#6":  # Skip column
+        elif column == f"#{skip_idx}":  # Skip column
             self._toggle_feedback(item_id, -1)
 
     def _toggle_feedback(self, item_id: str, feedback_type: int):
@@ -1135,21 +1190,30 @@ class DynamicOutputWidget(ctk.CTkFrame):
             rating: +1 (Keep filled), -1 (Skip filled), 0 (both empty)
         """
         values = list(self.csv_treeview.item(item_id, 'values'))
-        if len(values) < 6:
+
+        # Session 47: Dynamically find Keep and Skip column indices
+        current_columns = getattr(self, '_current_columns', GUI_DISPLAY_COLUMNS)
+        try:
+            keep_idx = current_columns.index("Keep")  # 0-based for list access
+            skip_idx = current_columns.index("Skip")  # 0-based for list access
+        except ValueError:
+            return  # Keep/Skip columns not found
+
+        if len(values) <= max(keep_idx, skip_idx):
             return
 
-        # Update the icon values (columns 5 and 6, indices 4 and 5)
+        # Update the icon values at dynamic positions
         if rating == 1:
-            values[4] = THUMB_UP_FILLED
-            values[5] = THUMB_DOWN_EMPTY
+            values[keep_idx] = THUMB_UP_FILLED
+            values[skip_idx] = THUMB_DOWN_EMPTY
             tag = ('rated_up',)
         elif rating == -1:
-            values[4] = THUMB_UP_EMPTY
-            values[5] = THUMB_DOWN_FILLED
+            values[keep_idx] = THUMB_UP_EMPTY
+            values[skip_idx] = THUMB_DOWN_FILLED
             tag = ('rated_down',)
         else:  # rating == 0
-            values[4] = THUMB_UP_EMPTY
-            values[5] = THUMB_DOWN_EMPTY
+            values[keep_idx] = THUMB_UP_EMPTY
+            values[skip_idx] = THUMB_DOWN_EMPTY
             tag = ()
 
         # Update the item with new values and tag for coloring

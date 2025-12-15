@@ -370,6 +370,112 @@ def _register_all_settings():
         action=_open_corpus_folder,
     ))
 
+    # Session 47: ML Model Reset buttons
+    def _reset_vocab_model():
+        """Reset vocabulary ML model to default (keep feedback history)."""
+        from tkinter import messagebox
+        from src.vocabulary.meta_learner import get_meta_learner
+
+        result = messagebox.askyesno(
+            "Reset Vocabulary Model",
+            "Reset the vocabulary ranking model to default settings?\n\n"
+            "This will undo any personalization from your thumbs up/down "
+            "feedback, but your feedback history will be preserved.\n\n"
+            "You can retrain the model later using your existing feedback.",
+            icon="warning"
+        )
+
+        if result:
+            learner = get_meta_learner()
+            if learner.reset_to_default():
+                messagebox.showinfo(
+                    "Reset Complete",
+                    "Vocabulary model has been reset to default.\n\n"
+                    "Your feedback history is preserved. The model will "
+                    "retrain when you provide more feedback."
+                )
+            else:
+                messagebox.showerror(
+                    "Reset Failed",
+                    "Failed to reset vocabulary model. Check the debug log for details."
+                )
+
+    SettingsRegistry.register(SettingDefinition(
+        key="reset_vocab_model",
+        label="Reset Vocabulary Model",
+        category="Vocabulary",
+        setting_type=SettingType.BUTTON,
+        tooltip=(
+            "Reset the vocabulary ranking model to its default (shipped) state. "
+            "This undoes any personalization from your thumbs up/down feedback, "
+            "but keeps your feedback history so you can retrain later.\n\n"
+            "Use this if the model seems to be ranking terms poorly after "
+            "you've given it feedback."
+        ),
+        default=None,
+        action=_reset_vocab_model,
+    ))
+
+    def _reset_vocab_model_and_history():
+        """Reset vocabulary ML model AND clear all feedback history."""
+        from tkinter import messagebox
+        from src.vocabulary.meta_learner import get_meta_learner
+        from src.vocabulary.feedback_manager import get_feedback_manager
+
+        result = messagebox.askyesno(
+            "Reset Model and Clear History",
+            "⚠️ CAUTION: This will:\n\n"
+            "• Reset the vocabulary ranking model to default\n"
+            "• DELETE all your thumbs up/down feedback history\n\n"
+            "This action cannot be undone. Are you sure?",
+            icon="warning"
+        )
+
+        if result:
+            # Double-check for destructive action
+            confirm = messagebox.askyesno(
+                "Confirm Complete Reset",
+                "Are you absolutely sure?\n\n"
+                "All feedback you've given will be permanently deleted.",
+                icon="warning"
+            )
+
+            if confirm:
+                learner = get_meta_learner()
+                feedback_manager = get_feedback_manager()
+
+                model_ok = learner.reset_to_default()
+                feedback_ok = feedback_manager.clear_all_feedback()
+
+                if model_ok and feedback_ok:
+                    messagebox.showinfo(
+                        "Reset Complete",
+                        "Vocabulary model and feedback history have been reset.\n\n"
+                        "The system is now using default settings."
+                    )
+                else:
+                    messagebox.showerror(
+                        "Reset Partially Failed",
+                        f"Model reset: {'OK' if model_ok else 'FAILED'}\n"
+                        f"Feedback clear: {'OK' if feedback_ok else 'FAILED'}\n\n"
+                        "Check the debug log for details."
+                    )
+
+    SettingsRegistry.register(SettingDefinition(
+        key="reset_vocab_model_and_history",
+        label="Reset Model and Clear History",
+        category="Vocabulary",
+        setting_type=SettingType.BUTTON,
+        tooltip=(
+            "⚠️ COMPLETE RESET: Resets the vocabulary model AND deletes all "
+            "your thumbs up/down feedback history. This cannot be undone.\n\n"
+            "Use this for a complete fresh start if you want to begin "
+            "personalizing from scratch."
+        ),
+        default=None,
+        action=_reset_vocab_model_and_history,
+    ))
+
 
     # ===================================================================
     # Q&A TAB

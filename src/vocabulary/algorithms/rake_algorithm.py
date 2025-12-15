@@ -23,6 +23,7 @@ from typing import Any
 
 from rake_nltk import Rake
 
+from src.config import VOCAB_ALGORITHM_WEIGHTS
 from src.logging_config import debug_log
 from src.vocabulary.algorithms import register_algorithm
 from src.vocabulary.algorithms.base import (
@@ -48,7 +49,7 @@ class RAKEAlgorithm(BaseExtractionAlgorithm):
     """
 
     name = "RAKE"
-    weight = 0.7  # Secondary algorithm - lower weight than NER
+    weight = VOCAB_ALGORITHM_WEIGHTS.get("RAKE", 0.7)  # Secondary algorithm
 
     def __init__(
         self,

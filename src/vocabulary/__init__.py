@@ -36,6 +36,7 @@ from .feedback_manager import FeedbackManager, get_feedback_manager
 from .meta_learner import VocabularyMetaLearner, get_meta_learner
 from .corpus_manager import CorpusManager, CorpusFile, get_corpus_manager
 from .corpus_registry import CorpusRegistry, CorpusInfo, get_corpus_registry
+from .name_deduplicator import deduplicate_names
 
 __all__ = [
     'VocabularyExtractor',
@@ -50,4 +51,6 @@ __all__ = [
     'CorpusRegistry',
     'CorpusInfo',
     'get_corpus_registry',
+    # Name Deduplication
+    'deduplicate_names',
 ]

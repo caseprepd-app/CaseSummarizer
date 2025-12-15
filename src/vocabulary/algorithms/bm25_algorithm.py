@@ -27,7 +27,7 @@ import time
 from collections import Counter
 from typing import Any
 
-from src.config import BM25_MIN_SCORE_THRESHOLD, BM25_WEIGHT
+from src.config import BM25_MIN_SCORE_THRESHOLD, VOCAB_ALGORITHM_WEIGHTS
 from src.logging_config import debug_log
 from src.vocabulary.algorithms import register_algorithm
 from src.vocabulary.algorithms.base import (
@@ -62,7 +62,7 @@ class BM25Algorithm(BaseExtractionAlgorithm):
     """
 
     name = "BM25"
-    weight = BM25_WEIGHT  # Between NER (1.0) and RAKE (0.7)
+    weight = VOCAB_ALGORITHM_WEIGHTS.get("BM25", 0.8)  # Corpus-based importance
 
     # BM25 tuning parameters (standard defaults from literature)
     K1 = 1.2  # Term frequency saturation parameter

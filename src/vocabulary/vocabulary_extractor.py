@@ -234,9 +234,15 @@ class VocabularyExtractor:
         # 3. Post-process: categorize, detect roles, add definitions
         debug_log(f"[VOCAB] Post-processing (doc_count={doc_count})...")
         vocabulary = self._post_process(merged_terms, text, doc_count)
+        debug_log(f"[VOCAB] After post-process: {len(vocabulary)} terms")
+
+        # 4. Deduplicate similar Person names (OCR errors, typos)
+        debug_log("[VOCAB] Deduplicating similar Person names...")
+        from src.vocabulary.name_deduplicator import deduplicate_names
+        vocabulary = deduplicate_names(vocabulary)
         debug_log(f"[VOCAB] Final vocabulary: {len(vocabulary)} terms")
 
-        # 4. Sort by rarity if enabled
+        # 5. Sort by rarity if enabled
         if self.sort_by_rarity and self.frequency_dataset:
             vocabulary = self._sort_by_rarity(vocabulary)
 
@@ -336,6 +342,11 @@ class VocabularyExtractor:
             role = self._get_role_relevance(term, category, text)
             row["Role/Relevance"] = role
 
+        # 7. Deduplicate similar Person names (OCR errors, typos)
+        debug_log("[VOCAB] Phase 7: Deduplicating similar Person names...")
+        from src.vocabulary.name_deduplicator import deduplicate_names
+        csv_data = deduplicate_names(csv_data)
+
         total_time = (time.time() - start_time) * 1000
         debug_log(f"[VOCAB] extract_with_llm complete in {total_time:.1f}ms")
 
@@ -393,6 +404,10 @@ class VocabularyExtractor:
             )
 
             # Build term data for potential ML boost
+            # Create per-algorithm detection flags for detailed tracking
+            sources_upper = [s.upper() for s in merged.sources]
+            algo_count = len(merged.sources)  # Number of algorithms that found this term
+
             term_data = {
                 "Term": term,
                 "Type": category,
@@ -402,6 +417,11 @@ class VocabularyExtractor:
                 "Freq Rank": frequency_rank,
                 "Definition": self._get_definition(term, category),
                 "Sources": ",".join(merged.sources),
+                # Per-algorithm detection flags (Session 47)
+                "NER": "Yes" if "NER" in sources_upper else "No",
+                "RAKE": "Yes" if "RAKE" in sources_upper else "No",
+                "BM25": "Yes" if "BM25" in sources_upper else "No",
+                "Algo Count": algo_count,  # Sum of algorithms that found term
                 # ML feature fields (from feedback CSV schema)
                 "quality_score": base_quality_score,
                 "in_case_freq": merged.frequency,

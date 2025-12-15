@@ -32,6 +32,7 @@ from src.config import (
     SPACY_DOWNLOAD_TIMEOUT_SEC,
     SPACY_SOCKET_TIMEOUT_SEC,
     SPACY_THREAD_TIMEOUT_SEC,
+    VOCAB_ALGORITHM_WEIGHTS,
     VOCABULARY_BATCH_SIZE,
     VOCABULARY_RARITY_THRESHOLD,
 )
@@ -141,7 +142,7 @@ class NERAlgorithm(BaseExtractionAlgorithm):
     """
 
     name = "NER"
-    weight = 1.0  # Primary algorithm - highest weight
+    weight = VOCAB_ALGORITHM_WEIGHTS.get("NER", 1.0)  # Primary algorithm
 
     def __init__(
         self,

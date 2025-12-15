@@ -41,6 +41,7 @@ FEATURE_NAMES = [
     "num_algorithms",
     "has_ner",
     "has_rake",
+    "has_bm25",  # Added in Session 47 for per-algorithm tracking
     "is_person",
     "is_medical",
     "is_technical",
@@ -112,7 +113,8 @@ class VocabularyMetaLearner:
         algorithms = str(term_data.get("algorithms", "")).lower()
         has_ner = 1.0 if "ner" in algorithms else 0.0
         has_rake = 1.0 if "rake" in algorithms else 0.0
-        num_algorithms = has_ner + has_rake  # Count of algorithms that found term
+        has_bm25 = 1.0 if "bm25" in algorithms else 0.0
+        num_algorithms = has_ner + has_rake + has_bm25  # Count of algorithms that found term
 
         # Type features (one-hot encoding)
         term_type = str(term_data.get("type", "Unknown")).lower()
@@ -129,6 +131,7 @@ class VocabularyMetaLearner:
             num_algorithms,
             has_ner,
             has_rake,
+            has_bm25,
             is_person,
             is_medical,
             is_technical,
@@ -331,6 +334,19 @@ class VocabularyMetaLearner:
 
             self._model = model_data.get('model')
             self._scaler = model_data.get('scaler')
+            saved_feature_names = model_data.get('feature_names', [])
+
+            # Check for feature count mismatch (model trained with different features)
+            if len(saved_feature_names) != len(FEATURE_NAMES):
+                debug_log(
+                    f"[META-LEARNER] Feature count mismatch: saved model has "
+                    f"{len(saved_feature_names)} features, current expects {len(FEATURE_NAMES)}. "
+                    f"Model invalidated - will retrain with new features."
+                )
+                self._model = None
+                self._scaler = None
+                self._is_trained = False
+                return False
 
             if self._model is not None and self._scaler is not None:
                 self._is_trained = True
@@ -342,6 +358,52 @@ class VocabularyMetaLearner:
 
         except Exception as e:
             debug_log(f"[META-LEARNER] Failed to load model: {e}")
+            return False
+
+    def reset_to_default(self) -> bool:
+        """
+        Reset the model to the default (shipped) version.
+
+        Copies the bundled default model over the user's personalized model.
+        If no default model exists, deletes the user's model to start fresh.
+
+        Returns:
+            True if reset succeeded
+        """
+        import shutil
+        from src.config import DEFAULT_VOCAB_MODEL_PATH
+
+        try:
+            # Clear current model state
+            self._model = None
+            self._scaler = None
+            self._is_trained = False
+
+            # Check if default model exists (bundled with app)
+            if DEFAULT_VOCAB_MODEL_PATH.exists():
+                # Copy default model to user's model path
+                self.model_path.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(DEFAULT_VOCAB_MODEL_PATH, self.model_path)
+                debug_log(f"[META-LEARNER] Reset to default model from {DEFAULT_VOCAB_MODEL_PATH}")
+
+                # Reload the default model
+                if self._load_model():
+                    debug_log("[META-LEARNER] Default model loaded successfully")
+                    return True
+                else:
+                    debug_log("[META-LEARNER] Warning: Default model exists but failed to load")
+                    return False
+            else:
+                # No default model - just delete user's model to start fresh
+                if self.model_path.exists():
+                    self.model_path.unlink()
+                    debug_log(f"[META-LEARNER] Deleted user model (no default available)")
+                else:
+                    debug_log("[META-LEARNER] No model to reset (already clean)")
+                return True
+
+        except Exception as e:
+            debug_log(f"[META-LEARNER] Failed to reset model: {e}")
             return False
 
 
