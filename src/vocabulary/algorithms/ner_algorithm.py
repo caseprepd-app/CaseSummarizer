@@ -38,6 +38,15 @@ from src.config import (
 )
 from src.categories import get_ner_mapping
 from src.logging_config import debug_log
+from src.utils.pattern_filter import (
+    VARIATION_FILTER,
+    TITLE_ABBREVIATIONS,
+    MIN_ENTITY_LENGTH,
+    MAX_ENTITY_LENGTH,
+    matches_entity_filter,
+    matches_token_filter,
+    is_valid_acronym,
+)
 from src.vocabulary.algorithms import register_algorithm
 from src.vocabulary.algorithms.base import (
     AlgorithmResult,
@@ -48,80 +57,6 @@ from src.vocabulary.algorithms.base import (
 # Constants for spaCy model
 SPACY_MODEL_NAME = "en_core_web_lg"
 SPACY_MODEL_VERSION = "3.8.0"
-
-# ============================================================================
-# FILTER PATTERNS - Moved from vocabulary_extractor.py
-# ============================================================================
-
-# Regex patterns for filtering out word variations
-VARIATION_FILTERS = [
-    r'^[a-z]+\(s\)$',          # plaintiff(s), defendant(s)
-    r'^[a-z]+s\(s\)$',         # defendants(s)
-    r'^[a-z]+\([a-z]+\)$',     # word(variant)
-    r'^[a-z]+\'s$',            # plaintiff's
-    r'^[a-z]+-[a-z]+$',        # hyphenated words
-]
-
-# OCR error patterns
-OCR_ERROR_PATTERNS = [
-    r'^[A-Za-z]+-[A-Z][a-z]',     # Line-break artifacts: "Hos-pital"
-    r'.*[0-9][A-Za-z]{2,}[0-9]',  # Digit-letter-digit: "3ohn5mith"
-]
-
-# Common title abbreviations to exclude
-TITLE_ABBREVIATIONS = {
-    'dr', 'mr', 'mrs', 'ms', 'md', 'phd', 'esq', 'jr', 'sr', 'ii', 'iii', 'iv',
-    'dds', 'dvm', 'od', 'do', 'rn', 'lpn', 'np', 'pa', 'pt', 'ot', 'cpa',
-    'jd', 'llm', 'mba', 'cfa', 'pe', 'ra',
-}
-
-# Legal citation patterns
-LEGAL_CITATION_PATTERNS = [
-    r'^[A-Z]{2,}\s+(?:SS|§)\s*\d+',
-    r'^\w+\s+Law\s+(?:SS|§)\s*\d+',
-    r'^\d+\s+[A-Z]+\s+\d+',
-    r'^[A-Z]{2,}\s+\d+',
-]
-
-# Legal boilerplate phrases
-LEGAL_BOILERPLATE_PATTERNS = [
-    r'Verified\s+(?:Bill|Answer|Complaint|Petition)',
-    r'Notice\s+of\s+Commencement',
-    r'Cause\s+of\s+Action',
-    r'Honorable\s+Court',
-    r'Answering\s+Defendant',
-]
-
-# Case citation pattern (X v. Y)
-CASE_CITATION_PATTERN = r'^[A-Z][a-zA-Z]+\s+v\.?\s+[A-Z][a-zA-Z]+$'
-
-# Geographic code patterns
-GEOGRAPHIC_CODE_PATTERNS = [
-    r'^\d{5}(?:-\d{4})?$',  # ZIP codes
-    r'^[A-Z]{2}\s+\d{5}$',   # State + ZIP
-]
-
-# Address fragment patterns
-ADDRESS_FRAGMENT_PATTERNS = [
-    r'\d+(?:st|nd|rd|th)\s+Floor',
-    r'\b(?:Street|Drive|Avenue|Road|Lane|Court|Boulevard|Place|Way)\b',
-    r'^\d+\s+[A-Z]',
-]
-
-# Document fragment patterns
-DOCUMENT_FRAGMENT_PATTERNS = [
-    r'^(?:SUPREME|CIVIL|FAMILY|DISTRICT)\s+COURT',
-    r'^NOTICE\s+OF',
-    r'Attorneys?\s+for\s+(?:Plaintiff|Defendant)',
-    r'Services?\s+-\s+(?:Plaintiff|Defendant|None)',
-    r"^(?:Plaintiff|Defendant)(?:'s)?$",
-    r'^(?:FIRST|SECOND|THIRD|FOURTH|FIFTH)\s+CAUSE',
-    r'^\d+\s+of\s+\d+$',
-]
-
-# Entity length limits
-MIN_ENTITY_LENGTH = 3
-MAX_ENTITY_LENGTH = 60
 
 
 @register_algorithm("NER")
@@ -341,7 +276,7 @@ class NERAlgorithm(BaseExtractionAlgorithm):
         if lower_text in self.medical_terms:
             return "Medical"
 
-        if re.fullmatch(r'[A-Z]{2,}', token.text):
+        if is_valid_acronym(token.text):
             return "Technical"  # Acronyms are typically technical/legal terms
 
         # Default to Unknown for unclassified terms
@@ -362,35 +297,11 @@ class NERAlgorithm(BaseExtractionAlgorithm):
 
     def _matches_entity_filter(self, entity_text: str) -> bool:
         """Check if an entity should be filtered out based on pattern matching."""
-        if len(entity_text) < MIN_ENTITY_LENGTH:
-            return True
-        if len(entity_text) > MAX_ENTITY_LENGTH:
-            return True
-
-        for pattern in ADDRESS_FRAGMENT_PATTERNS:
-            if re.search(pattern, entity_text, re.IGNORECASE):
-                return True
-
-        for pattern in DOCUMENT_FRAGMENT_PATTERNS:
-            if re.search(pattern, entity_text, re.IGNORECASE):
-                return True
-
-        for pattern in LEGAL_BOILERPLATE_PATTERNS:
-            if re.search(pattern, entity_text, re.IGNORECASE):
-                return True
-
-        if re.match(CASE_CITATION_PATTERN, entity_text):
-            return True
-
-        return False
+        return matches_entity_filter(entity_text)
 
     def _matches_variation_filter(self, word: str) -> bool:
         """Check if a word matches common variation patterns."""
-        lower_word = word.lower()
-        for pattern in VARIATION_FILTERS:
-            if re.match(pattern, lower_word):
-                return True
-        return False
+        return VARIATION_FILTER.matches(word.lower())
 
     def _is_word_rare_enough(self, word: str) -> bool:
         """Check if word is rare enough based on frequency rank."""
@@ -424,24 +335,9 @@ class NERAlgorithm(BaseExtractionAlgorithm):
         if self._matches_variation_filter(token.text):
             return False
 
-        for pattern in LEGAL_CITATION_PATTERNS:
-            if re.match(pattern, token.text):
-                return False
-
-        for pattern in LEGAL_BOILERPLATE_PATTERNS:
-            if re.search(pattern, token.text, re.IGNORECASE):
-                return False
-
-        if re.match(CASE_CITATION_PATTERN, token.text):
+        # Use centralized token filter for pattern matching
+        if matches_token_filter(token.text):
             return False
-
-        for pattern in GEOGRAPHIC_CODE_PATTERNS:
-            if re.match(pattern, token.text):
-                return False
-
-        for pattern in OCR_ERROR_PATTERNS:
-            if re.match(pattern, token.text):
-                return False
 
         # Named entities are always accepted
         if ent_type in ["PERSON", "ORG", "GPE", "LOC"]:
@@ -452,9 +348,7 @@ class NERAlgorithm(BaseExtractionAlgorithm):
             return True
 
         # Acronyms (except title abbreviations)
-        if re.fullmatch(r'[A-Z]{2,}', token.text):
-            if lower_text in TITLE_ABBREVIATIONS:
-                return False
+        if is_valid_acronym(token.text):
             return True
 
         # Frequency-based rarity check

@@ -27,6 +27,7 @@ from typing import Any
 
 from src.config import LEGAL_EXCLUDE_LIST_PATH, MEDICAL_TERMS_LIST_PATH, USER_VOCAB_EXCLUDE_PATH
 from src.logging_config import debug_log
+from src.ui.queue_messages import QueueMessage
 from src.utils.text_utils import combine_document_texts
 
 
@@ -342,7 +343,7 @@ class WorkflowOrchestrator:
 
                 # Update status - embedding model load can take 15-30s on first run
                 if self.state.output_options and self.state.output_options.get('qa_questions', False):
-                    self.main_window.ui_queue.put(('progress', (65, "Loading AI embedding model...")))
+                    self.main_window.ui_queue.put(QueueMessage.progress(65, "Loading AI embedding model..."))
 
                 # Import and initialize embeddings
                 # NOTE: This import triggers torch loading which can take 10-15 seconds
@@ -360,7 +361,7 @@ class WorkflowOrchestrator:
 
                 # Update status now that model is loaded
                 if self.state.output_options and self.state.output_options.get('qa_questions', False):
-                    self.main_window.ui_queue.put(('progress', (75, "Building Q&A search index...")))
+                    self.main_window.ui_queue.put(QueueMessage.progress(75, "Building Q&A search index..."))
 
                 # Build vector store
                 builder = VectorStoreBuilder()
@@ -370,21 +371,19 @@ class WorkflowOrchestrator:
                 )
 
                 # Notify UI that vector store is ready
-                self.main_window.ui_queue.put(('vector_store_ready', {
-                    'path': result.persist_dir,
-                    'case_id': result.case_id,
-                    'chunk_count': result.chunk_count,
-                    'creation_time_ms': result.creation_time_ms
-                }))
+                self.main_window.ui_queue.put(QueueMessage.vector_store_ready(
+                    path=result.persist_dir,
+                    case_id=result.case_id,
+                    chunk_count=result.chunk_count,
+                    creation_time_ms=result.creation_time_ms,
+                ))
 
                 debug_log(f"[ORCHESTRATOR] Vector store ready: {result.case_id} "
                          f"({result.chunk_count} chunks, {result.creation_time_ms:.0f}ms)")
 
             except Exception as e:
                 debug_log(f"[ORCHESTRATOR] Vector store creation failed: {e}")
-                self.main_window.ui_queue.put(('vector_store_error', {
-                    'error': str(e)
-                }))
+                self.main_window.ui_queue.put(QueueMessage.vector_store_error(str(e)))
 
         thread = threading.Thread(target=build_store, daemon=True, name="VectorStoreBuilder")
         thread.start()
@@ -451,9 +450,7 @@ class WorkflowOrchestrator:
         """
         if not self.state.vector_store_ready or not self.state.vector_store_path:
             debug_log("[ORCHESTRATOR] Cannot ask follow-up: vector store not ready")
-            self.main_window.ui_queue.put(('qa_error', {
-                'error': 'Vector store not ready. Process documents first.'
-            }))
+            self.main_window.ui_queue.put(QueueMessage.qa_error('Vector store not ready. Process documents first.'))
             return
 
         def ask_question():
@@ -486,12 +483,12 @@ class WorkflowOrchestrator:
                 result = qa_orchestrator.ask_followup(question)
 
                 # Send result to UI
-                self.main_window.ui_queue.put(('qa_followup_result', result))
+                self.main_window.ui_queue.put(QueueMessage.qa_followup_result(result))
                 debug_log(f"[ORCHESTRATOR] Follow-up answered: {result.answer[:50] if result.answer else 'No answer'}...")
 
             except Exception as e:
                 debug_log(f"[ORCHESTRATOR] Follow-up error: {e}")
-                self.main_window.ui_queue.put(('qa_error', {'error': str(e)}))
+                self.main_window.ui_queue.put(QueueMessage.qa_error(str(e)))
 
         thread = threading.Thread(target=ask_question, daemon=True, name="FollowupQuestion")
         thread.start()

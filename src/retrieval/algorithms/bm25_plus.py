@@ -21,14 +21,14 @@ Reference:
     and knowledge management.
 """
 
-import re
 import time
 from typing import Any
 
 from rank_bm25 import BM25Plus
 
-from src.config import DEBUG_MODE
+from src.config import BM25_K1, BM25_B, BM25_DELTA, DEBUG_MODE
 from src.logging_config import debug_log
+from src.utils.tokenizer import tokenize_simple
 from src.retrieval.algorithms import register_algorithm
 from src.retrieval.base import (
     AlgorithmRetrievalResult,
@@ -36,32 +36,6 @@ from src.retrieval.base import (
     DocumentChunk,
     RetrievedChunk,
 )
-
-
-def simple_tokenize(text: str) -> list[str]:
-    """
-    Simple tokenizer for BM25 indexing.
-
-    Converts text to lowercase, removes punctuation, and splits on whitespace.
-    For legal documents, we preserve hyphenated terms and numbers.
-
-    Args:
-        text: Input text to tokenize
-
-    Returns:
-        List of tokens (words)
-    """
-    # Lowercase
-    text = text.lower()
-
-    # Keep alphanumeric, hyphens (for compound terms), and spaces
-    # Remove other punctuation
-    text = re.sub(r"[^\w\s\-]", " ", text)
-
-    # Split on whitespace and filter empty tokens
-    tokens = [token.strip() for token in text.split() if token.strip()]
-
-    return tokens
 
 
 @register_algorithm
@@ -113,11 +87,11 @@ class BM25PlusRetriever(BaseRetrievalAlgorithm):
         self._chunks = chunks
 
         # Tokenize all chunks
-        self._tokenized_corpus = [simple_tokenize(chunk.text) for chunk in chunks]
+        self._tokenized_corpus = [tokenize_simple(chunk.text) for chunk in chunks]
 
         # Build BM25+ index
-        # BM25Plus parameters: k1=1.5, b=0.75, delta=1 (defaults)
-        # delta=1 is the BM25+ improvement over standard BM25
+        # BM25Plus uses library defaults (k1=1.5, b=0.75, delta=1)
+        # Our config constants match these: BM25_K1, BM25_B, BM25_DELTA
         self._index = BM25Plus(self._tokenized_corpus)
 
         elapsed_ms = (time.perf_counter() - start_time) * 1000
@@ -147,7 +121,7 @@ class BM25PlusRetriever(BaseRetrievalAlgorithm):
             raise RuntimeError("Index not built. Call index_documents() first.")
 
         # Tokenize query
-        query_tokens = simple_tokenize(query)
+        query_tokens = tokenize_simple(query)
 
         if DEBUG_MODE:
             debug_log(f"[BM25+] Query: '{query[:50]}...' -> {len(query_tokens)} tokens")
@@ -226,9 +200,9 @@ class BM25PlusRetriever(BaseRetrievalAlgorithm):
             "index_size": len(self._chunks) if self._chunks else 0,
             "algorithm_variant": "BM25Plus",
             "parameters": {
-                "k1": 1.5,  # BM25+ default
-                "b": 0.75,  # BM25+ default
-                "delta": 1.0,  # BM25+ improvement factor
+                "k1": BM25_K1,
+                "b": BM25_B,
+                "delta": BM25_DELTA,
             }
         })
         return config

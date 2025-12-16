@@ -22,13 +22,13 @@ Example:
         result = bm25.extract(document_text)
 """
 
-import re
 import time
 from collections import Counter
 from typing import Any
 
-from src.config import BM25_MIN_SCORE_THRESHOLD, VOCAB_ALGORITHM_WEIGHTS
+from src.config import BM25_K1, BM25_B, BM25_MIN_SCORE_THRESHOLD, VOCAB_ALGORITHM_WEIGHTS
 from src.logging_config import debug_log
+from src.utils.tokenizer import tokenize, STOPWORDS
 from src.vocabulary.algorithms import register_algorithm
 from src.vocabulary.algorithms.base import (
     AlgorithmResult,
@@ -64,9 +64,9 @@ class BM25Algorithm(BaseExtractionAlgorithm):
     name = "BM25"
     weight = VOCAB_ALGORITHM_WEIGHTS.get("BM25", 0.8)  # Corpus-based importance
 
-    # BM25 tuning parameters (standard defaults from literature)
-    K1 = 1.2  # Term frequency saturation parameter
-    B = 0.75  # Length normalization parameter
+    # BM25 tuning parameters (from unified config)
+    K1 = BM25_K1  # Term frequency saturation parameter
+    B = BM25_B    # Length normalization parameter
 
     # Filtering parameters
     MIN_TERM_LENGTH = 3  # Minimum characters for a term
@@ -92,21 +92,6 @@ class BM25Algorithm(BaseExtractionAlgorithm):
 
         self.corpus_manager = corpus_manager
         self.min_score_threshold = min_score_threshold
-
-        # Stopwords to exclude (common words that aren't interesting)
-        self._stopwords = {
-            'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for',
-            'of', 'with', 'by', 'from', 'as', 'is', 'was', 'are', 'were', 'been',
-            'be', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would',
-            'could', 'should', 'may', 'might', 'must', 'shall', 'can', 'need',
-            'it', 'its', 'this', 'that', 'these', 'those', 'i', 'you', 'he',
-            'she', 'we', 'they', 'me', 'him', 'her', 'us', 'them', 'my', 'your',
-            'his', 'our', 'their', 'what', 'which', 'who', 'whom', 'when',
-            'where', 'why', 'how', 'all', 'each', 'every', 'both', 'few',
-            'more', 'most', 'other', 'some', 'such', 'no', 'not', 'only',
-            'own', 'same', 'so', 'than', 'too', 'very', 'just', 'also',
-            'said', 'then', 'now', 'here', 'there', 'yes', 'no',
-        }
 
     def extract(self, text: str, **kwargs) -> AlgorithmResult:
         """
@@ -220,8 +205,7 @@ class BM25Algorithm(BaseExtractionAlgorithm):
         """
         Tokenize text into lowercase words.
 
-        Simple word tokenization suitable for BM25 calculation.
-        Filters out short tokens, pure numbers, and stopwords.
+        Uses shared tokenizer for consistent processing across BM25 operations.
 
         Args:
             text: Text to tokenize
@@ -229,17 +213,7 @@ class BM25Algorithm(BaseExtractionAlgorithm):
         Returns:
             List of lowercase word tokens
         """
-        # Match words: start with letter, can contain letters/digits/apostrophes/hyphens
-        words = re.findall(
-            r"\b[a-zA-Z][a-zA-Z0-9'-]*[a-zA-Z0-9]\b|\b[a-zA-Z]\b",
-            text.lower()
-        )
-
-        # Filter out stopwords and short words
-        return [
-            w for w in words
-            if len(w) >= self.MIN_TERM_LENGTH and w not in self._stopwords
-        ]
+        return tokenize(text)
 
     def _is_valid_term(self, term: str) -> bool:
         """
@@ -260,7 +234,7 @@ class BM25Algorithm(BaseExtractionAlgorithm):
             return False
 
         # Stopword (already filtered in tokenization, but double-check)
-        if term.lower() in self._stopwords:
+        if term.lower() in STOPWORDS:
             return False
 
         # Contains only repeated characters (e.g., "aaa", "xxxxx")

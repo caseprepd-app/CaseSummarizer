@@ -31,6 +31,7 @@ import gc
 from tkinter import messagebox
 from src.logging_config import debug_log
 from src.ui.processing_timer import format_duration
+from src.ui.queue_messages import MessageType
 
 
 class QueueMessageHandler:
@@ -528,28 +529,28 @@ class QueueMessageHandler:
             True if message was handled successfully, False otherwise
         """
         handlers = {
-            'progress': self.handle_progress,
-            'file_processed': self.handle_file_processed,
-            'meta_summary_generated': self.handle_meta_summary_generated,
-            'vocab_csv_generated': self.handle_vocab_csv_generated,
-            'processing_finished': self.handle_processing_finished,
-            'summary_result': self.handle_summary_result,
-            'multi_doc_result': self.handle_multi_doc_result,
-            'error': self.handle_error,
+            MessageType.PROGRESS: self.handle_progress,
+            MessageType.FILE_PROCESSED: self.handle_file_processed,
+            MessageType.META_SUMMARY_GENERATED: self.handle_meta_summary_generated,
+            MessageType.VOCAB_CSV_GENERATED: self.handle_vocab_csv_generated,
+            MessageType.PROCESSING_FINISHED: self.handle_processing_finished,
+            MessageType.SUMMARY_RESULT: self.handle_summary_result,
+            MessageType.MULTI_DOC_RESULT: self.handle_multi_doc_result,
+            MessageType.ERROR: self.handle_error,
             # Vector Store Q&A handlers (Session 24)
-            'vector_store_ready': self.handle_vector_store_ready,
-            'vector_store_error': self.handle_vector_store_error,
+            MessageType.VECTOR_STORE_READY: self.handle_vector_store_ready,
+            MessageType.VECTOR_STORE_ERROR: self.handle_vector_store_error,
             # Q&A handlers (Session 28)
-            'qa_progress': self.handle_qa_progress,
-            'qa_result': self.handle_qa_result,
-            'qa_complete': self.handle_qa_complete,
-            'qa_followup_result': self.handle_qa_followup_result,
-            'qa_error': self.handle_qa_error,
+            MessageType.QA_PROGRESS: self.handle_qa_progress,
+            MessageType.QA_RESULT: self.handle_qa_result,
+            MessageType.QA_COMPLETE: self.handle_qa_complete,
+            MessageType.QA_FOLLOWUP_RESULT: self.handle_qa_followup_result,
+            MessageType.QA_ERROR: self.handle_qa_error,
             # Progressive Extraction handlers (Session 48)
-            'ner_complete': self.handle_ner_complete,
-            'qa_ready': self.handle_qa_ready,
-            'llm_progress': self.handle_llm_progress,
-            'llm_complete': self.handle_llm_complete,
+            MessageType.NER_COMPLETE: self.handle_ner_complete,
+            MessageType.QA_READY: self.handle_qa_ready,
+            MessageType.LLM_PROGRESS: self.handle_llm_progress,
+            MessageType.LLM_COMPLETE: self.handle_llm_complete,
         }
 
         handler = handlers.get(message_type)

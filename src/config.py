@@ -68,6 +68,13 @@ BM25_ENABLED = True  # User can disable in settings
 BM25_MIN_SCORE_THRESHOLD = 2.0  # Minimum BM25 score to include term
 BM25_WEIGHT = 0.8  # Legacy - kept for backward compatibility
 
+# BM25+ Algorithm Parameters (unified across vocabulary and retrieval)
+# Using BM25+ parameters which are strictly better than standard BM25
+# (delta parameter prevents zero scores for very long documents)
+BM25_K1 = 1.5      # Term frequency saturation (higher = more weight on repeated terms)
+BM25_B = 0.75      # Length normalization (0 = no normalization, 1 = full normalization)
+BM25_DELTA = 1.0   # BM25+ improvement factor (prevents zero scores)
+
 # Vocabulary Extraction Algorithm Weights (Session 47)
 # Centralized weights for multi-algorithm vocabulary extraction
 # Higher weight = more influence on final confidence score

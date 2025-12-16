@@ -9,11 +9,11 @@ Contains threading and multiprocessing workers for document processing:
 Performance Optimizations:
 - Session 14: Non-blocking termination for AI worker
 - Session 18: Parallel document extraction via Strategy Pattern
+- Session 49: DRY refactor - BaseWorker eliminates boilerplate
 """
 
 import gc
 import multiprocessing
-import os
 from pathlib import Path
 import threading
 import traceback
@@ -28,11 +28,13 @@ from src.parallel import (
     ProgressAggregator,
     ThreadPoolStrategy,
 )
+from src.ui.base_worker import BaseWorker, CleanupWorker
 from src.ui.ollama_worker import ollama_generation_worker_process
+from src.ui.queue_messages import QueueMessage
 from src.vocabulary import VocabularyExtractor
 
 
-class ProcessingWorker(threading.Thread):
+class ProcessingWorker(BaseWorker):
     """
     Background worker for parallel document extraction and normalization.
 
@@ -42,6 +44,8 @@ class ProcessingWorker(threading.Thread):
 
     The worker processes multiple documents concurrently (up to PARALLEL_MAX_WORKERS)
     while maintaining responsive UI updates via ProgressAggregator.
+
+    Session 49: Refactored to use BaseWorker.
 
     Attributes:
         file_paths: List of document paths to process.
@@ -80,9 +84,8 @@ class ProcessingWorker(threading.Thread):
             strategy: ExecutorStrategy for execution. Defaults to ThreadPoolStrategy
                      with PARALLEL_MAX_WORKERS from config.
         """
-        super().__init__(daemon=True)
+        super().__init__(ui_queue)
         self.file_paths = file_paths
-        self.ui_queue = ui_queue
         self.jurisdiction = jurisdiction
 
         # Dependency injection: use provided strategy or default ThreadPool
@@ -92,7 +95,6 @@ class ProcessingWorker(threading.Thread):
         self.extractor = RawTextExtractor(jurisdiction=self.jurisdiction)
 
         self.processed_results = []
-        self._stop_event = threading.Event()
         self._runner = None  # Track runner for cancellation
 
     def stop(self):
@@ -102,13 +104,12 @@ class ProcessingWorker(threading.Thread):
         Cancels any pending tasks and shuts down the executor.
         Tasks in progress may complete before shutdown.
         """
-        debug_log("[PROCESSING WORKER] Stop signal received.")
-        self._stop_event.set()
+        super().stop()
         if self._runner:
             self._runner.cancel()
         self.strategy.shutdown(wait=False, cancel_futures=True)
 
-    def run(self):
+    def execute(self):
         """
         Execute parallel document extraction.
 
@@ -116,195 +117,174 @@ class ProcessingWorker(threading.Thread):
         Results are collected in completion order and sent to the UI
         as they finish.
         """
-        try:
-            total_files = len(self.file_paths)
-            self.processed_results = []
+        total_files = len(self.file_paths)
+        self.processed_results = []
 
-            if total_files == 0:
-                self.ui_queue.put(('processing_finished', []))
-                return
+        if total_files == 0:
+            self.ui_queue.put(QueueMessage.processing_finished([]))
+            return
 
-            debug_log(f"[PROCESSING WORKER] Starting parallel extraction of {total_files} documents "
-                     f"(max_workers={self.strategy.max_workers})")
+        debug_log(f"[PROCESSING WORKER] Starting parallel extraction of {total_files} documents "
+                 f"(max_workers={self.strategy.max_workers})")
 
-            # Set up progress aggregation
-            aggregator = ProgressAggregator(self.ui_queue, throttle_ms=100)
-            aggregator.set_total(total_files)
+        # Set up progress aggregation
+        aggregator = ProgressAggregator(self.ui_queue, throttle_ms=100)
+        aggregator.set_total(total_files)
 
-            def process_single_doc(file_path: str) -> dict:
-                """
-                Process a single document (called in thread pool).
+        def process_single_doc(file_path: str) -> dict:
+            """
+            Process a single document (called in thread pool).
 
-                Args:
-                    file_path: Path to the document file.
+            Args:
+                file_path: Path to the document file.
 
-                Returns:
-                    dict: Extraction result from RawTextExtractor.
+            Returns:
+                dict: Extraction result from RawTextExtractor.
 
-                Raises:
-                    InterruptedError: If stop signal received during processing.
-                """
-                if self._stop_event.is_set():
-                    raise InterruptedError("Processing cancelled")
+            Raises:
+                InterruptedError: If stop signal received during processing.
+            """
+            if self.is_stopped:
+                raise InterruptedError("Processing cancelled")
 
-                filename = Path(file_path).name
-                aggregator.update(file_path, f"Extracting {filename}...")
+            filename = Path(file_path).name
+            aggregator.update(file_path, f"Extracting {filename}...")
 
-                # Progress callback that checks for cancellation
-                def progress_callback(msg, pct=0):
-                    if self._stop_event.is_set():
-                        raise InterruptedError("Processing stopped by user.")
-                    # Update aggregator with detailed message
-                    aggregator.update(file_path, msg)
+            # Progress callback that checks for cancellation
+            def progress_callback(msg, pct=0):
+                if self.is_stopped:
+                    raise InterruptedError("Processing stopped by user.")
+                # Update aggregator with detailed message
+                aggregator.update(file_path, msg)
 
-                result = self.extractor.process_document(
-                    file_path,
-                    progress_callback=progress_callback
-                )
-
-                aggregator.complete(file_path)
-                return result
-
-            def on_task_complete(task_id: str, result: dict):
-                """Callback when a document finishes processing."""
-                self.ui_queue.put(('file_processed', result))
-
-            # Create and run the task runner
-            self._runner = ParallelTaskRunner(
-                strategy=self.strategy,
-                on_task_complete=on_task_complete
+            result = self.extractor.process_document(
+                file_path,
+                progress_callback=progress_callback
             )
 
-            # Prepare tasks: (task_id, payload) tuples
-            items = [(fp, fp) for fp in self.file_paths]
+            aggregator.complete(file_path)
+            return result
 
-            # Execute parallel processing
-            results = self._runner.run(process_single_doc, items)
+        def on_task_complete(task_id: str, result: dict):
+            """Callback when a document finishes processing."""
+            self.ui_queue.put(QueueMessage.file_processed(result))
 
-            # Collect successful results
-            for task_result in results:
-                if task_result.success:
-                    self.processed_results.append(task_result.result)
-                else:
-                    # Log errors but continue with other documents
-                    debug_log(f"[PROCESSING WORKER] Document failed: {task_result.task_id} - {task_result.error}")
+        # Create and run the task runner
+        self._runner = ParallelTaskRunner(
+            strategy=self.strategy,
+            on_task_complete=on_task_complete
+        )
 
-            # Send completion message if not cancelled
-            if not self._stop_event.is_set():
-                self.ui_queue.put(('processing_finished', self.processed_results))
-                self.ui_queue.put(('progress', (100, f"Processed {len(self.processed_results)}/{total_files} documents")))
-                debug_log(f"[PROCESSING WORKER] Completed: {len(self.processed_results)}/{total_files} documents")
+        # Prepare tasks: (task_id, payload) tuples
+        items = [(fp, fp) for fp in self.file_paths]
+
+        # Execute parallel processing
+        results = self._runner.run(process_single_doc, items)
+
+        # Collect successful results
+        for task_result in results:
+            if task_result.success:
+                self.processed_results.append(task_result.result)
             else:
-                debug_log("[PROCESSING WORKER] Processing cancelled by user.")
-                self.ui_queue.put(('error', "Document processing cancelled."))
+                # Log errors but continue with other documents
+                debug_log(f"[PROCESSING WORKER] Document failed: {task_result.task_id} - {task_result.error}")
 
-        except Exception as e:
-            debug_log(f"ProcessingWorker encountered a critical error: {e}\n{traceback.format_exc()}")
-            self.ui_queue.put(('error', f"Critical document processing error: {str(e)}"))
-        finally:
-            # Ensure cleanup
-            self.strategy.shutdown(wait=False)
+        # Send completion message if not cancelled
+        if not self.is_stopped:
+            self.ui_queue.put(QueueMessage.processing_finished(self.processed_results))
+            self.send_progress(100, f"Processed {len(self.processed_results)}/{total_files} documents")
+            debug_log(f"[PROCESSING WORKER] Completed: {len(self.processed_results)}/{total_files} documents")
+        else:
+            debug_log("[PROCESSING WORKER] Processing cancelled by user.")
+            self.ui_queue.put(QueueMessage.error("Document processing cancelled."))
+
+    def _cleanup(self):
+        """Clean up strategy on exit."""
+        self.strategy.shutdown(wait=False)
 
 
-class VocabularyWorker(threading.Thread):
+class VocabularyWorker(BaseWorker):
     """
     Background worker for vocabulary extraction (Step 2.5).
     Extracts unusual terms from combined document text asynchronously.
 
     Session 43: Added use_llm parameter for NER+LLM reconciled extraction.
+    Session 49: Refactored to use BaseWorker.
     """
+
     def __init__(self, combined_text, ui_queue, exclude_list_path=None, medical_terms_path=None, user_exclude_path=None, doc_count=1, use_llm=True):
-        super().__init__(daemon=True)
+        super().__init__(ui_queue)
         self.combined_text = combined_text
-        self.ui_queue = ui_queue
         self.exclude_list_path = exclude_list_path or "config/legal_exclude.txt"
         self.medical_terms_path = medical_terms_path or "config/medical_terms.txt"
         self.user_exclude_path = user_exclude_path  # User's personal exclusion list
         self.doc_count = doc_count  # Number of documents (for frequency filtering)
         self.use_llm = use_llm  # Whether to use LLM extraction (Session 43)
-        self._stop_event = threading.Event()  # Event for graceful stopping
 
-    def stop(self):
-        """Signals the worker to stop processing."""
-        self._stop_event.set()
-
-    def run(self):
+    def execute(self):
         """Execute vocabulary extraction in background thread."""
+        self.check_cancelled("Vocabulary extraction cancelled.")
+
+        # Show text size to set user expectations
+        text_len = len(self.combined_text)
+        text_kb = text_len // 1024
+        self.send_progress(30, f"Analyzing {text_kb}KB of text...")
+
+        # Create extractor with graceful fallback for missing files
         try:
-            if self._stop_event.is_set():
-                debug_log("[VOCAB WORKER] Stop signal received before starting. Exiting.")
-                self.ui_queue.put(('error', "Vocabulary extraction cancelled."))
-                return
+            extractor = VocabularyExtractor(
+                exclude_list_path=self.exclude_list_path,
+                medical_terms_path=self.medical_terms_path,
+                user_exclude_path=self.user_exclude_path
+            )
+        except FileNotFoundError as e:
+            # Graceful fallback: create extractor with empty exclude lists
+            debug_log(f"[VOCAB WORKER] Config file missing: {e}. Using empty exclude lists.")
+            extractor = VocabularyExtractor(
+                exclude_list_path=None,  # Will use empty list
+                medical_terms_path=None,  # Will use empty list
+                user_exclude_path=self.user_exclude_path  # Still try user list
+            )
 
-            # Show text size to set user expectations
-            text_len = len(self.combined_text)
-            text_kb = text_len // 1024
-            self.ui_queue.put(('progress', (30, f"Analyzing {text_kb}KB of text...")))
+        # Check for cancellation before heavy processing
+        self.check_cancelled()
 
-            # Create extractor with graceful fallback for missing files
-            try:
-                extractor = VocabularyExtractor(
-                    exclude_list_path=self.exclude_list_path,
-                    medical_terms_path=self.medical_terms_path,
-                    user_exclude_path=self.user_exclude_path
-                )
-            except FileNotFoundError as e:
-                # Graceful fallback: create extractor with empty exclude lists
-                debug_log(f"[VOCAB WORKER] Config file missing: {e}. Using empty exclude lists.")
-                extractor = VocabularyExtractor(
-                    exclude_list_path=None,  # Will use empty list
-                    medical_terms_path=None,  # Will use empty list
-                    user_exclude_path=self.user_exclude_path  # Still try user list
-                )
+        # Update progress - NLP/LLM processing is the slow part
+        if self.use_llm:
+            self.send_progress(40, "Running NER + LLM extraction (this may take a while)...")
+        else:
+            self.send_progress(40, "Running NLP analysis (this may take a while)...")
 
-            # Check for cancellation before heavy processing
-            if self._stop_event.is_set():
-                debug_log("[VOCAB WORKER] Cancelled before extraction.")
-                return
+        # Extract vocabulary - this is the slow part
+        # Session 43: Use extract_with_llm for reconciled NER+LLM output
+        if self.use_llm:
+            # Progress callback for LLM chunk processing
+            def llm_progress(current, total):
+                pct = 40 + int((current / total) * 25)  # 40-65% range
+                self.send_progress(pct, f"LLM analyzing chunk {current}/{total}...")
 
-            # Update progress - NLP/LLM processing is the slow part
-            if self.use_llm:
-                self.ui_queue.put(('progress', (40, "Running NER + LLM extraction (this may take a while)...")))
-            else:
-                self.ui_queue.put(('progress', (40, "Running NLP analysis (this may take a while)...")))
+            vocab_data = extractor.extract_with_llm(
+                self.combined_text,
+                doc_count=self.doc_count,
+                include_llm=True,
+                progress_callback=llm_progress
+            )
+        else:
+            # Legacy NER-only extraction
+            vocab_data = extractor.extract(self.combined_text, doc_count=self.doc_count)
 
-            # Extract vocabulary - this is the slow part
-            # Session 43: Use extract_with_llm for reconciled NER+LLM output
-            if self.use_llm:
-                # Progress callback for LLM chunk processing
-                def llm_progress(current, total):
-                    pct = 40 + int((current / total) * 25)  # 40-65% range
-                    self.ui_queue.put(('progress', (pct, f"LLM analyzing chunk {current}/{total}...")))
+        # Check for cancellation after extraction
+        self.check_cancelled()
 
-                vocab_data = extractor.extract_with_llm(
-                    self.combined_text,
-                    doc_count=self.doc_count,
-                    include_llm=True,
-                    progress_callback=llm_progress
-                )
-            else:
-                # Legacy NER-only extraction
-                vocab_data = extractor.extract(self.combined_text, doc_count=self.doc_count)
+        term_count = len(vocab_data) if vocab_data else 0
+        self.send_progress(70, f"Found {term_count} vocabulary terms")
 
-            # Check for cancellation after extraction
-            if self._stop_event.is_set():
-                debug_log("[VOCAB WORKER] Cancelled after extraction.")
-                return
-
-            term_count = len(vocab_data) if vocab_data else 0
-            self.ui_queue.put(('progress', (70, f"Found {term_count} vocabulary terms")))
-
-            # Send results to GUI
-            self.ui_queue.put(('vocab_csv_generated', vocab_data))
-            debug_log(f"[VOCAB WORKER] Vocabulary extraction completed: {term_count} terms.")
-
-        except Exception as e:
-            error_msg = f"Vocabulary extraction failed: {str(e)}"
-            debug_log(f"[VOCAB WORKER] {error_msg}\n{traceback.format_exc()}")
-            self.ui_queue.put(('error', error_msg))
+        # Send results to GUI
+        self.ui_queue.put(QueueMessage.vocab_csv_generated(vocab_data))
+        debug_log(f"[VOCAB WORKER] Vocabulary extraction completed: {term_count} terms.")
 
 
-class QAWorker(threading.Thread):
+class QAWorker(BaseWorker):
     """
     Background worker for Q&A document querying.
 
@@ -316,6 +296,8 @@ class QAWorker(threading.Thread):
     - ('qa_result', QAResult) - Single result ready
     - ('qa_complete', list[QAResult]) - All questions processed
     - ('error', str) - Error occurred
+
+    Session 49: Refactored to use BaseWorker.
 
     Example:
         worker = QAWorker(
@@ -345,80 +327,61 @@ class QAWorker(threading.Thread):
             answer_mode: "extraction" or "ollama"
             questions: Custom questions to ask (None = use defaults from YAML)
         """
-        super().__init__(daemon=True)
+        super().__init__(ui_queue)
         self.vector_store_path = Path(vector_store_path)
         self.embeddings = embeddings
-        self.ui_queue = ui_queue
         self.answer_mode = answer_mode
         self.custom_questions = questions
-        self._stop_event = threading.Event()
         self.results: list = []
 
-    def stop(self):
-        """Signal the worker to stop processing."""
-        debug_log("[QA WORKER] Stop signal received.")
-        self._stop_event.set()
-
-    def run(self):
+    def execute(self):
         """Execute Q&A in background thread."""
-        try:
-            from src.qa import QAOrchestrator
+        from src.qa import QAOrchestrator
 
-            debug_log(f"[QA WORKER] Starting Q&A with mode: {self.answer_mode}")
+        debug_log(f"[QA WORKER] Starting Q&A with mode: {self.answer_mode}")
 
-            # Initialize orchestrator
-            orchestrator = QAOrchestrator(
-                vector_store_path=self.vector_store_path,
-                embeddings=self.embeddings,
-                answer_mode=self.answer_mode
-            )
+        # Initialize orchestrator
+        orchestrator = QAOrchestrator(
+            vector_store_path=self.vector_store_path,
+            embeddings=self.embeddings,
+            answer_mode=self.answer_mode
+        )
 
-            # Get questions to ask
-            if self.custom_questions:
-                questions = self.custom_questions
-            else:
-                questions = orchestrator.get_default_questions()
+        # Get questions to ask
+        if self.custom_questions:
+            questions = self.custom_questions
+        else:
+            questions = orchestrator.get_default_questions()
 
-            total = len(questions)
-            if total == 0:
-                debug_log("[QA WORKER] No questions to process")
-                self.ui_queue.put(('qa_complete', []))
-                return
+        total = len(questions)
+        if total == 0:
+            debug_log("[QA WORKER] No questions to process")
+            self.ui_queue.put(QueueMessage.qa_complete([]))
+            return
 
-            debug_log(f"[QA WORKER] Processing {total} questions")
+        debug_log(f"[QA WORKER] Processing {total} questions")
 
-            # Process each question
-            self.results = []
-            for i, question in enumerate(questions):
-                if self._stop_event.is_set():
-                    debug_log("[QA WORKER] Cancelled during processing")
-                    return
+        # Process each question
+        self.results = []
+        for i, question in enumerate(questions):
+            self.check_cancelled()
 
-                # Report progress
-                self.ui_queue.put(('qa_progress', (i, total, question[:50] + "..." if len(question) > 50 else question)))
+            # Report progress
+            truncated_q = question[:50] + "..." if len(question) > 50 else question
+            self.ui_queue.put(QueueMessage.qa_progress(i, total, truncated_q))
 
-                # Ask the question
-                result = orchestrator._ask_single_question(question, is_followup=False)
-                self.results.append(result)
+            # Ask the question
+            result = orchestrator._ask_single_question(question, is_followup=False)
+            self.results.append(result)
 
-                # Send individual result
-                self.ui_queue.put(('qa_result', result))
+            # Send individual result
+            self.ui_queue.put(QueueMessage.qa_result(result))
 
-                debug_log(f"[QA WORKER] Q{i + 1}/{total} complete: {len(result.answer)} chars")
+            debug_log(f"[QA WORKER] Q{i + 1}/{total} complete: {len(result.answer)} chars")
 
-            # Send completion signal with all results
-            self.ui_queue.put(('qa_complete', self.results))
-            debug_log(f"[QA WORKER] All {total} questions processed successfully")
-
-        except FileNotFoundError as e:
-            error_msg = f"Vector store not found: {e}"
-            debug_log(f"[QA WORKER] {error_msg}")
-            self.ui_queue.put(('error', error_msg))
-
-        except Exception as e:
-            error_msg = f"Q&A processing failed: {str(e)}"
-            debug_log(f"[QA WORKER] {error_msg}\n{traceback.format_exc()}")
-            self.ui_queue.put(('error', error_msg))
+        # Send completion signal with all results
+        self.ui_queue.put(QueueMessage.qa_complete(self.results))
+        debug_log(f"[QA WORKER] All {total} questions processed successfully")
 
 
 class OllamaAIWorkerManager:
@@ -532,7 +495,7 @@ class OllamaAIWorkerManager:
         return self.process is not None and self.process.is_alive()
 
 
-class MultiDocSummaryWorker(threading.Thread):
+class MultiDocSummaryWorker(CleanupWorker):
     """
     Background worker for multi-document hierarchical summarization.
 
@@ -543,6 +506,8 @@ class MultiDocSummaryWorker(threading.Thread):
 
     This worker runs in a background thread to keep the UI responsive
     during potentially long summarization operations.
+
+    Session 49: Refactored to use CleanupWorker (BaseWorker with gc.collect).
 
     Attributes:
         documents: List of document dicts with 'filename' and 'extracted_text'.
@@ -568,109 +533,99 @@ class MultiDocSummaryWorker(threading.Thread):
             strategy: ExecutorStrategy for parallel execution. Defaults to
                      ThreadPoolStrategy with PARALLEL_MAX_WORKERS.
         """
-        super().__init__(daemon=True)
+        super().__init__(ui_queue)
         self.documents = documents
-        self.ui_queue = ui_queue
         self.ai_params = ai_params
         self.strategy = strategy or ThreadPoolStrategy(max_workers=PARALLEL_MAX_WORKERS)
-        self._stop_event = threading.Event()
         self._orchestrator = None
 
     def stop(self):
         """Signal the worker to stop processing."""
-        debug_log("[MULTI-DOC WORKER] Stop signal received.")
-        self._stop_event.set()
+        super().stop()
         if self._orchestrator:
             self._orchestrator.stop()
         self.strategy.shutdown(wait=False, cancel_futures=True)
 
-    def run(self):
+    def execute(self):
         """Execute multi-document summarization in background thread."""
-        try:
-            doc_count = len(self.documents)
-            debug_log(f"[MULTI-DOC WORKER] Starting summarization of {doc_count} documents")
+        doc_count = len(self.documents)
+        debug_log(f"[MULTI-DOC WORKER] Starting summarization of {doc_count} documents")
 
-            # Import here to avoid circular imports
-            from src.ai import OllamaModelManager
-            from src.prompting import MultiDocPromptAdapter
-            from src.summarization import (
-                MultiDocumentOrchestrator,
-                ProgressiveDocumentSummarizer,
-            )
+        # Import here to avoid circular imports
+        from src.ai import OllamaModelManager
+        from src.prompting import MultiDocPromptAdapter
+        from src.summarization import (
+            MultiDocumentOrchestrator,
+            ProgressiveDocumentSummarizer,
+        )
 
-            # Initialize components
-            model_manager = OllamaModelManager()
+        # Initialize components
+        model_manager = OllamaModelManager()
 
-            # Load specified model if provided
-            model_name = self.ai_params.get('model_name')
-            if model_name:
-                model_manager.load_model(model_name)
+        # Load specified model if provided
+        model_name = self.ai_params.get('model_name')
+        if model_name:
+            model_manager.load_model(model_name)
 
-            # Extract preset_id from ai_params (set by main_window from user selection)
-            preset_id = self.ai_params.get('preset_id', 'factual-summary')
-            debug_log(f"[MULTI-DOC WORKER] Using preset_id: {preset_id}")
+        # Extract preset_id from ai_params (set by main_window from user selection)
+        preset_id = self.ai_params.get('preset_id', 'factual-summary')
+        debug_log(f"[MULTI-DOC WORKER] Using preset_id: {preset_id}")
 
-            # Create prompt adapter for thread-through focus areas
-            # This adapter extracts focus from the user's template and threads
-            # it through all stages of the summarization pipeline
-            prompt_adapter = MultiDocPromptAdapter(
-                template_manager=model_manager.prompt_template_manager,
-                model_manager=model_manager
-            )
+        # Create prompt adapter for thread-through focus areas
+        # This adapter extracts focus from the user's template and threads
+        # it through all stages of the summarization pipeline
+        prompt_adapter = MultiDocPromptAdapter(
+            template_manager=model_manager.prompt_template_manager,
+            model_manager=model_manager
+        )
 
-            doc_summarizer = ProgressiveDocumentSummarizer(
-                model_manager,
-                prompt_adapter=prompt_adapter,
-                preset_id=preset_id
-            )
+        doc_summarizer = ProgressiveDocumentSummarizer(
+            model_manager,
+            prompt_adapter=prompt_adapter,
+            preset_id=preset_id
+        )
 
-            self._orchestrator = MultiDocumentOrchestrator(
-                document_summarizer=doc_summarizer,
-                model_manager=model_manager,
-                strategy=self.strategy,
-                prompt_adapter=prompt_adapter,
-                preset_id=preset_id
-            )
+        self._orchestrator = MultiDocumentOrchestrator(
+            document_summarizer=doc_summarizer,
+            model_manager=model_manager,
+            strategy=self.strategy,
+            prompt_adapter=prompt_adapter,
+            preset_id=preset_id
+        )
 
-            # Progress callback to UI
-            def on_progress(percent: int, message: str):
-                if not self._stop_event.is_set():
-                    self.ui_queue.put(('progress', (percent, message)))
+        # Progress callback to UI
+        def on_progress(percent: int, message: str):
+            self.send_progress(percent, message)
 
-            # Get parameters
-            summary_length = self.ai_params.get('summary_length', 200)
-            meta_length = self.ai_params.get('meta_length', 500)
+        # Get parameters
+        summary_length = self.ai_params.get('summary_length', 200)
+        meta_length = self.ai_params.get('meta_length', 500)
 
-            # Execute summarization
-            result = self._orchestrator.summarize_documents(
-                documents=self.documents,
-                max_words_per_document=summary_length,
-                max_meta_summary_words=meta_length,
-                progress_callback=on_progress,
-                ui_queue=self.ui_queue
-            )
+        # Execute summarization
+        result = self._orchestrator.summarize_documents(
+            documents=self.documents,
+            max_words_per_document=summary_length,
+            max_meta_summary_words=meta_length,
+            progress_callback=on_progress,
+            ui_queue=self.ui_queue
+        )
 
-            # Send result to UI
-            if not self._stop_event.is_set():
-                self.ui_queue.put(('multi_doc_result', result))
-                debug_log(f"[MULTI-DOC WORKER] Completed: {result.documents_processed} documents, "
-                         f"{result.documents_failed} failed, {result.total_processing_time_seconds:.1f}s")
-            else:
-                debug_log("[MULTI-DOC WORKER] Processing cancelled by user.")
-                self.ui_queue.put(('error', "Multi-document summarization cancelled."))
+        # Send result to UI
+        if not self.is_stopped:
+            self.ui_queue.put(QueueMessage.multi_doc_result(result))
+            debug_log(f"[MULTI-DOC WORKER] Completed: {result.documents_processed} documents, "
+                     f"{result.documents_failed} failed, {result.total_processing_time_seconds:.1f}s")
+        else:
+            debug_log("[MULTI-DOC WORKER] Processing cancelled by user.")
+            self.ui_queue.put(QueueMessage.error("Multi-document summarization cancelled."))
 
-        except Exception as e:
-            error_msg = f"Multi-document summarization failed: {str(e)}"
-            debug_log(f"[MULTI-DOC WORKER] {error_msg}\n{traceback.format_exc()}")
-            self.ui_queue.put(('error', error_msg))
-
-        finally:
-            # Cleanup
-            self.strategy.shutdown(wait=False)
-            gc.collect()
+    def _cleanup(self):
+        """Clean up strategy and memory."""
+        self.strategy.shutdown(wait=False)
+        super()._cleanup()  # Calls gc.collect()
 
 
-class ProgressiveExtractionWorker(threading.Thread):
+class ProgressiveExtractionWorker(BaseWorker):
     """
     Progressive three-phase extraction worker (Session 45).
 
@@ -678,6 +633,8 @@ class ProgressiveExtractionWorker(threading.Thread):
     - Phase 1 (NER): Fast extraction, returns results in ~5 seconds
     - Phase 2 (Q&A): Builds vector store for Q&A (parallel with Phase 3)
     - Phase 3 (LLM): Slow LLM extraction, updates progressively
+
+    Session 49: Refactored to use BaseWorker.
 
     Signals sent to ui_queue:
     - ('ner_complete', vocab_data) - Phase 1 complete, display immediately
@@ -718,128 +675,113 @@ class ProgressiveExtractionWorker(threading.Thread):
             medical_terms_path: Path to medical terms list
             user_exclude_path: Path to user exclusion list
         """
-        super().__init__(daemon=True)
+        super().__init__(ui_queue)
         self.documents = documents
         self.combined_text = combined_text
-        self.ui_queue = ui_queue
         self.embeddings = embeddings
         self.exclude_list_path = exclude_list_path
         self.medical_terms_path = medical_terms_path
         self.user_exclude_path = user_exclude_path
-        self._stop_event = threading.Event()
 
-    def stop(self):
-        """Signal the worker to stop processing."""
-        debug_log("[PROGRESSIVE WORKER] Stop signal received.")
-        self._stop_event.set()
-
-    def run(self):
+    def execute(self):
         """Execute three-phase progressive extraction."""
-        try:
-            debug_log("[PROGRESSIVE WORKER] Starting progressive extraction")
+        debug_log("[PROGRESSIVE WORKER] Starting progressive extraction")
 
-            # ===== PHASE 1: NER (Fast - ~5 seconds) =====
-            debug_log("[PROGRESSIVE WORKER] Phase 1: NER extraction starting...")
-            self.ui_queue.put(('progress', (10, "Phase 1: Running NER extraction...")))
+        # ===== PHASE 1: NER (Fast - ~5 seconds) =====
+        debug_log("[PROGRESSIVE WORKER] Phase 1: NER extraction starting...")
+        self.send_progress(10, "Phase 1: Running NER extraction...")
 
-            from src.vocabulary import VocabularyExtractor
+        from src.vocabulary import VocabularyExtractor
 
-            extractor = VocabularyExtractor(
-                exclude_list_path=self.exclude_list_path,
-                medical_terms_path=self.medical_terms_path,
-                user_exclude_path=self.user_exclude_path,
-            )
+        extractor = VocabularyExtractor(
+            exclude_list_path=self.exclude_list_path,
+            medical_terms_path=self.medical_terms_path,
+            user_exclude_path=self.user_exclude_path,
+        )
 
-            # NER-only extraction (fast)
-            ner_results = extractor.extract_with_llm(
-                self.combined_text,
-                doc_count=len(self.documents),
-                include_llm=False,  # NER only - fast!
-            )
+        # NER-only extraction (fast)
+        ner_results = extractor.extract_with_llm(
+            self.combined_text,
+            doc_count=len(self.documents),
+            include_llm=False,  # NER only - fast!
+        )
 
-            debug_log(f"[PROGRESSIVE WORKER] Phase 1 complete: {len(ner_results)} NER terms")
-            self.ui_queue.put(('ner_complete', ner_results))
+        debug_log(f"[PROGRESSIVE WORKER] Phase 1 complete: {len(ner_results)} NER terms")
+        self.ui_queue.put(QueueMessage.ner_complete(ner_results))
 
-            if self._stop_event.is_set():
-                return
+        self.check_cancelled()
 
-            # ===== PHASE 2: Q&A Indexing (Fast - ~10-30 seconds) =====
-            # Run in parallel thread while Phase 3 starts
-            qa_thread = threading.Thread(
-                target=self._build_vector_store,
-                daemon=True
-            )
-            qa_thread.start()
+        # ===== PHASE 2: Q&A Indexing (Fast - ~10-30 seconds) =====
+        # Run in parallel thread while Phase 3 starts
+        qa_thread = threading.Thread(
+            target=self._build_vector_store,
+            daemon=True
+        )
+        qa_thread.start()
 
-            # ===== PHASE 3: LLM Enhancement (Slow - minutes) =====
-            debug_log("[PROGRESSIVE WORKER] Phase 3: LLM extraction starting...")
-            self.ui_queue.put(('progress', (30, "Phase 3: Starting LLM enhancement...")))
+        # ===== PHASE 3: LLM Enhancement (Slow - minutes) =====
+        debug_log("[PROGRESSIVE WORKER] Phase 3: LLM extraction starting...")
+        self.send_progress(30, "Phase 3: Starting LLM enhancement...")
 
-            from src.chunking import create_unified_chunker
-            from src.extraction import LLMVocabExtractor
-            from src.vocabulary.reconciler import VocabularyReconciler
+        from src.chunking import create_unified_chunker
+        from src.extraction import LLMVocabExtractor
+        from src.vocabulary.reconciler import VocabularyReconciler
 
-            # Get NER candidates for reconciliation
-            ner_candidates = []
-            for algorithm in extractor.algorithms:
-                if algorithm.name == "NER" and algorithm.enabled:
-                    result = algorithm.extract(self.combined_text)
-                    ner_candidates = result.candidates
-                    break
+        # Get NER candidates for reconciliation
+        ner_candidates = []
+        for algorithm in extractor.algorithms:
+            if algorithm.name == "NER" and algorithm.enabled:
+                result = algorithm.extract(self.combined_text)
+                ner_candidates = result.candidates
+                break
 
-            # Create unified chunks
-            chunker = create_unified_chunker()
-            chunks = chunker.chunk_text(self.combined_text)
-            debug_log(f"[PROGRESSIVE WORKER] Created {len(chunks)} unified chunks")
+        # Create unified chunks
+        chunker = create_unified_chunker()
+        chunks = chunker.chunk_text(self.combined_text)
+        debug_log(f"[PROGRESSIVE WORKER] Created {len(chunks)} unified chunks")
 
-            # Extract with LLM progressively
-            llm_extractor = LLMVocabExtractor()
+        # Extract with LLM progressively
+        llm_extractor = LLMVocabExtractor()
 
-            def llm_progress(current, total):
-                if not self._stop_event.is_set():
-                    pct = 30 + int((current / total) * 60)  # 30-90% range
-                    self.ui_queue.put(('progress', (pct, f"LLM analyzing chunk {current}/{total}...")))
-                    self.ui_queue.put(('llm_progress', (current, total)))
+        def llm_progress(current, total):
+            if not self.is_stopped:
+                pct = 30 + int((current / total) * 60)  # 30-90% range
+                self.send_progress(pct, f"LLM analyzing chunk {current}/{total}...")
+                self.ui_queue.put(QueueMessage.llm_progress(current, total))
 
-            llm_result = llm_extractor.extract_from_unified_chunks(
-                chunks,
-                progress_callback=llm_progress,
-            )
+        llm_result = llm_extractor.extract_from_unified_chunks(
+            chunks,
+            progress_callback=llm_progress,
+        )
 
-            if self._stop_event.is_set():
-                return
+        self.check_cancelled()
 
-            # Reconcile NER + LLM results
-            debug_log("[PROGRESSIVE WORKER] Reconciling NER + LLM results...")
-            reconciler = VocabularyReconciler()
+        # Reconcile NER + LLM results
+        debug_log("[PROGRESSIVE WORKER] Reconciling NER + LLM results...")
+        reconciler = VocabularyReconciler()
 
-            # Reconcile people
-            ner_people = [c for c in ner_candidates if getattr(c, 'suggested_type', '') == 'Person']
-            reconciled_people = reconciler.reconcile_people(ner_people, llm_result.people)
+        # Reconcile people
+        ner_people = [c for c in ner_candidates if getattr(c, 'suggested_type', '') == 'Person']
+        reconciled_people = reconciler.reconcile_people(ner_people, llm_result.people)
 
-            # Reconcile vocabulary terms
-            reconciled_terms = reconciler.reconcile(ner_candidates, llm_result.terms)
+        # Reconcile vocabulary terms
+        reconciled_terms = reconciler.reconcile(ner_candidates, llm_result.terms)
 
-            # Convert to unified CSV format
-            final_data = reconciler.combined_to_csv_data(reconciled_people, reconciled_terms)
+        # Convert to unified CSV format
+        final_data = reconciler.combined_to_csv_data(reconciled_people, reconciled_terms)
 
-            debug_log(f"[PROGRESSIVE WORKER] Phase 3 complete: {len(final_data)} reconciled terms")
-            self.ui_queue.put(('llm_complete', final_data))
-            self.ui_queue.put(('progress', (100, f"Complete: {len(final_data)} names & terms found")))
+        debug_log(f"[PROGRESSIVE WORKER] Phase 3 complete: {len(final_data)} reconciled terms")
+        self.ui_queue.put(QueueMessage.llm_complete(final_data))
+        self.send_progress(100, f"Complete: {len(final_data)} names & terms found")
 
-            # Wait for Q&A thread to finish
-            qa_thread.join(timeout=60)
-
-        except Exception as e:
-            error_msg = f"Progressive extraction failed: {str(e)}"
-            debug_log(f"[PROGRESSIVE WORKER] {error_msg}\n{traceback.format_exc()}")
-            self.ui_queue.put(('error', error_msg))
+        # Wait for Q&A thread to finish
+        qa_thread.join(timeout=60)
 
     def _build_vector_store(self):
         """Build vector store for Q&A (Phase 2) - runs in parallel thread."""
         try:
             debug_log("[PROGRESSIVE WORKER] Phase 2: Building vector store...")
-            self.ui_queue.put(('progress', (20, "Phase 2: Building Q&A index...")))
+            self.ui_queue.put(QueueMessage.progress(20, "Phase 2: Building Q&A index..."))
 
             from src.chunking import create_unified_chunker
             from src.vector_store import VectorStoreBuilder
@@ -865,23 +807,25 @@ class ProgressiveExtractionWorker(threading.Thread):
             )
 
             debug_log(f"[PROGRESSIVE WORKER] Phase 2 complete: {result.chunk_count} chunks indexed")
-            self.ui_queue.put(('qa_ready', {
-                'vector_store_path': result.persist_dir,
-                'embeddings': self.embeddings,
-                'chunk_count': result.chunk_count,
-            }))
+            self.ui_queue.put(QueueMessage.qa_ready(
+                vector_store_path=result.persist_dir,
+                embeddings=self.embeddings,
+                chunk_count=result.chunk_count,
+            ))
 
         except Exception as e:
             debug_log(f"[PROGRESSIVE WORKER] Q&A indexing failed: {e}")
-            self.ui_queue.put(('qa_error', str(e)))
+            self.ui_queue.put(QueueMessage.qa_error(str(e)))
 
 
-class BriefingWorker(threading.Thread):
+class BriefingWorker(CleanupWorker):
     """
     Background worker for Case Briefing Sheet generation.
 
     Uses the BriefingOrchestrator to process documents through the
     Map-Reduce pipeline (chunk → extract → aggregate → synthesize → format).
+
+    Session 49: Refactored to use CleanupWorker (BaseWorker with gc.collect).
 
     Signals sent to ui_queue:
     - ('briefing_progress', (phase, current, total, message)) - Phase progress
@@ -908,83 +852,61 @@ class BriefingWorker(threading.Thread):
             documents: List of document dicts with 'filename' and 'extracted_text'
             ui_queue: Queue for UI communication
         """
-        super().__init__(daemon=True)
+        super().__init__(ui_queue)
         self.documents = documents
-        self.ui_queue = ui_queue
-        self._stop_event = threading.Event()
         self._orchestrator = None
 
-    def stop(self):
-        """Signal the worker to stop processing."""
-        debug_log("[BRIEFING WORKER] Stop signal received.")
-        self._stop_event.set()
-
-    def run(self):
+    def execute(self):
         """Execute briefing generation in background thread."""
-        try:
-            debug_log(f"[BRIEFING WORKER] Starting briefing for {len(self.documents)} documents")
+        debug_log(f"[BRIEFING WORKER] Starting briefing for {len(self.documents)} documents")
 
-            # Import briefing components
-            from src.briefing import BriefingOrchestrator, BriefingFormatter
+        # Import briefing components
+        from src.briefing import BriefingOrchestrator, BriefingFormatter
 
-            # Initialize orchestrator
-            self._orchestrator = BriefingOrchestrator()
+        # Initialize orchestrator
+        self._orchestrator = BriefingOrchestrator()
 
-            # Check if ready
-            if not self._orchestrator.is_ready():
-                self.ui_queue.put(('error', "Ollama is not available. Please start Ollama and try again."))
-                return
+        # Check if ready
+        if not self._orchestrator.is_ready():
+            self.ui_queue.put(QueueMessage.error("Ollama is not available. Please start Ollama and try again."))
+            return
 
-            # Prepare documents for briefing (rename key)
-            briefing_docs = []
-            for doc in self.documents:
-                if doc.get('status') != 'success':
-                    continue
-                briefing_docs.append({
-                    'filename': doc.get('filename', 'unknown'),
-                    'text': doc.get('extracted_text', ''),
-                })
+        # Prepare documents for briefing (rename key)
+        briefing_docs = []
+        for doc in self.documents:
+            if doc.get('status') != 'success':
+                continue
+            briefing_docs.append({
+                'filename': doc.get('filename', 'unknown'),
+                'text': doc.get('extracted_text', ''),
+            })
 
-            if not briefing_docs:
-                self.ui_queue.put(('error', "No valid documents to process."))
-                return
+        if not briefing_docs:
+            self.ui_queue.put(QueueMessage.error("No valid documents to process."))
+            return
 
-            debug_log(f"[BRIEFING WORKER] Prepared {len(briefing_docs)} documents for briefing")
+        debug_log(f"[BRIEFING WORKER] Prepared {len(briefing_docs)} documents for briefing")
 
-            # Progress callback
-            def progress_callback(phase: str, current: int, total: int, message: str):
-                if not self._stop_event.is_set():
-                    self.ui_queue.put(('briefing_progress', (phase, current, total, message)))
+        # Progress callback
+        def progress_callback(phase: str, current: int, total: int, message: str):
+            if not self.is_stopped:
+                self.ui_queue.put(QueueMessage.briefing_progress(phase, current, total, message))
 
-            # Run the briefing pipeline
-            result = self._orchestrator.generate_briefing(
-                documents=briefing_docs,
-                progress_callback=progress_callback
-            )
+        # Run the briefing pipeline
+        result = self._orchestrator.generate_briefing(
+            documents=briefing_docs,
+            progress_callback=progress_callback
+        )
 
-            # Check for cancellation
-            if self._stop_event.is_set():
-                debug_log("[BRIEFING WORKER] Cancelled during processing")
-                self.ui_queue.put(('error', "Briefing generation cancelled."))
-                return
+        # Check for cancellation
+        self.check_cancelled("Briefing generation cancelled.")
 
-            # Format the result
-            formatter = BriefingFormatter(include_metadata=True)
-            formatted = formatter.format(result)
+        # Format the result
+        formatter = BriefingFormatter(include_metadata=True)
+        formatted = formatter.format(result)
 
-            # Send completion with both result and formatted output
-            self.ui_queue.put(('briefing_complete', {
-                'result': result,
-                'formatted': formatted,
-            }))
+        # Send completion with both result and formatted output
+        self.ui_queue.put(QueueMessage.briefing_complete(result, formatted))
 
-            debug_log(f"[BRIEFING WORKER] Complete: {result.total_time_seconds:.1f}s, "
-                     f"success={result.success}")
-
-        except Exception as e:
-            error_msg = f"Briefing generation failed: {str(e)}"
-            debug_log(f"[BRIEFING WORKER] {error_msg}\n{traceback.format_exc()}")
-            self.ui_queue.put(('error', error_msg))
-
-        finally:
-            gc.collect()
+        debug_log(f"[BRIEFING WORKER] Complete: {result.total_time_seconds:.1f}s, "
+                 f"success={result.success}")

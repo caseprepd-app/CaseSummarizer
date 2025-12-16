@@ -479,21 +479,56 @@ except Exception as e:
 
 ### Worker Thread Pattern
 
-Background workers use queue-based communication:
+Background workers extend `BaseWorker` for consistent error handling and cancellation:
 
 ```python
-class SomeWorker(threading.Thread):
-    def __init__(self, ui_queue):
-        super().__init__(daemon=True)
-        self.ui_queue = ui_queue
+from src.ui.base_worker import BaseWorker
+from src.ui.queue_messages import QueueMessage
 
-    def run(self):
-        try:
-            result = do_work()
-            self.ui_queue.put(('result_type', result))
-        except Exception as e:
-            self.ui_queue.put(('error', str(e)))
+class SomeWorker(BaseWorker):
+    def __init__(self, data, ui_queue):
+        super().__init__(ui_queue)
+        self.data = data
+
+    def execute(self):
+        # Check for cancellation at safe points
+        self.check_cancelled()
+        self.send_progress(50, "Working...")
+
+        result = do_work(self.data)
+        self.ui_queue.put(QueueMessage.some_result(result))
+
+    def _cleanup(self):
+        # Optional: cleanup resources (called in finally block)
+        pass
 ```
+
+`BaseWorker` provides:
+- `stop()` — Signal worker to stop
+- `is_stopped` — Check if stop requested
+- `check_cancelled()` — Raise InterruptedError if stopped
+- `send_progress(pct, msg)` — Send progress update if not stopped
+- `send_error(op, exc)` — Log and send error message
+
+For memory-intensive workers, extend `CleanupWorker` which adds automatic garbage collection.
+
+### QueueMessage Factory Pattern
+
+Type-safe queue message construction:
+
+```python
+from src.ui.queue_messages import QueueMessage
+
+# Instead of raw tuples:
+# ui_queue.put(('progress', (50, 'Working...')))
+
+# Use factory methods:
+ui_queue.put(QueueMessage.progress(50, 'Working...'))
+ui_queue.put(QueueMessage.error('Something failed'))
+ui_queue.put(QueueMessage.file_processed(result))
+```
+
+All message types are defined in `src/ui/queue_messages.py` with `MessageType` constants.
 
 ### Registry Pattern (Algorithms)
 
@@ -614,7 +649,9 @@ src/
 │   ├── qa_panel.py              # Q&A panel
 │   ├── qa_question_editor.py    # Edit questions dialog
 │   ├── corpus_dialog.py         # Corpus management
-│   ├── workers.py               # Background workers
+│   ├── base_worker.py           # BaseWorker/CleanupWorker classes
+│   ├── queue_messages.py        # QueueMessage factory + MessageType
+│   ├── workers.py               # Background workers (extend BaseWorker)
 │   ├── workflow_orchestrator.py # State machine
 │   ├── queue_message_handler.py # Message routing
 │   ├── processing_timer.py      # Elapsed time
@@ -627,7 +664,9 @@ src/
 │
 └── utils/
     ├── logger.py                # Backward-compat wrapper
-    └── text_utils.py            # Text utilities
+    ├── text_utils.py            # Text utilities
+    ├── tokenizer.py             # Shared BM25 tokenization
+    └── pattern_filter.py        # Regex pattern matching for NER
 ```
 
 ### Configuration (`config/`)
@@ -754,4 +793,4 @@ ruff check src/ --fix
 
 ---
 
-*Last updated: 2025-12-15*
+*Last updated: 2025-12-16*

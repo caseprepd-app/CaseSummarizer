@@ -20,7 +20,6 @@ import hashlib
 import json
 import math
 import os
-import re
 import time
 from collections import Counter
 from dataclasses import dataclass
@@ -30,6 +29,7 @@ from typing import Any
 
 from src.config import CACHE_DIR
 from src.logging_config import debug_log
+from src.utils.tokenizer import tokenize, TokenizerConfig
 
 
 @dataclass
@@ -285,8 +285,7 @@ class CorpusManager:
         """
         Tokenize text into lowercase words.
 
-        Simple word tokenization suitable for IDF calculation.
-        Filters out short tokens and pure numbers.
+        Uses shared tokenizer for consistent processing with BM25Algorithm.
 
         Args:
             text: Text to tokenize
@@ -294,25 +293,7 @@ class CorpusManager:
         Returns:
             List of lowercase word tokens
         """
-        # Simple word tokenization
-        words = re.findall(r'\b[a-zA-Z][a-zA-Z0-9\'-]*[a-zA-Z0-9]\b|\b[a-zA-Z]\b', text.lower())
-
-        # Filter out very short tokens and common stopwords
-        min_length = 2
-        stopwords = {
-            'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for',
-            'of', 'with', 'by', 'from', 'as', 'is', 'was', 'are', 'were', 'been',
-            'be', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would',
-            'could', 'should', 'may', 'might', 'must', 'shall', 'can', 'need',
-            'it', 'its', 'this', 'that', 'these', 'those', 'i', 'you', 'he',
-            'she', 'we', 'they', 'me', 'him', 'her', 'us', 'them', 'my', 'your',
-            'his', 'our', 'their', 'what', 'which', 'who', 'whom', 'when',
-            'where', 'why', 'how', 'all', 'each', 'every', 'both', 'few',
-            'more', 'most', 'other', 'some', 'such', 'no', 'not', 'only',
-            'own', 'same', 'so', 'than', 'too', 'very', 'just', 'also',
-        }
-
-        return [w for w in words if len(w) >= min_length and w not in stopwords]
+        return tokenize(text)
 
     def _compute_corpus_hash(self) -> str:
         """
