@@ -659,10 +659,13 @@ class DynamicOutputWidget(ctk.CTkFrame):
             self.summary_text_display.delete("0.0", "end")
             self.summary_text_display.insert(
                 "0.0",
-                "Q&A is ready to use.\n\n"
-                "Click 'Ask More Questions' below to ask questions about your documents.\n\n"
-                "The Q&A system uses semantic search to find relevant passages "
-                "and answer your questions."
+                "Q&A System\n\n"
+                "To use Q&A:\n"
+                "1. Add document files\n"
+                "2. Ensure the 'Q&A' checkbox is checked\n"
+                "3. Click 'Perform Tasks'\n"
+                "4. Wait for 'Q&A ready' status message\n\n"
+                "Once ready, you can ask questions using the input field at the bottom of the window."
             )
             return
 

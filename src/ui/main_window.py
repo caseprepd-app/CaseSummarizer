@@ -236,18 +236,24 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
 
     def _poll_queue(self):
         """Poll the UI queue for worker messages."""
+        # Process up to 10 messages per poll to avoid blocking UI
+        messages_processed = 0
+        max_messages_per_poll = 10
+
         try:
-            while True:
+            while messages_processed < max_messages_per_poll:
                 msg_type, data = self._ui_queue.get_nowait()
                 self._handle_queue_message(msg_type, data)
+                messages_processed += 1
         except Empty:
             pass
 
-        # Continue polling if any worker is running
+        # Continue polling if any worker is running OR if we hit the message limit (more messages may be waiting)
         processing_alive = self._processing_worker and self._processing_worker.is_alive()
         progressive_alive = self._progressive_worker and self._progressive_worker.is_alive()
+        more_messages_likely = messages_processed >= max_messages_per_poll
 
-        if processing_alive or progressive_alive:
+        if processing_alive or progressive_alive or more_messages_likely:
             self._queue_poll_id = self.after(50, self._poll_queue)
         else:
             # Final poll to catch any remaining messages
@@ -295,6 +301,12 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
                 self.followup_btn.configure(state="normal")
             self.set_status(f"Q&A ready ({chunk_count} chunks). LLM enhancement in progress...")
 
+        elif msg_type == "qa_error":
+            error_msg = data.get('error', 'Unknown Q&A error') if isinstance(data, dict) else str(data)
+            debug_log(f"[MainWindow] Q&A indexing error: {error_msg}")
+            self.set_status(f"Q&A unavailable: {error_msg[:50]}...")
+            # Q&A won't be available but vocab extraction can continue
+
         elif msg_type == "llm_progress":
             current, total = data
             debug_log(f"[MainWindow] LLM progress: {current}/{total}")
@@ -310,6 +322,10 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
                 self._start_summary_task()
             else:
                 self._finalize_tasks()
+
+        else:
+            # Log unhandled messages for debugging
+            debug_log(f"[MainWindow] Unhandled message type: {msg_type}")
 
     def _on_preprocessing_complete(self, results: list[dict]):
         """Handle preprocessing completion."""
@@ -820,7 +836,16 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
 
         # Check prerequisites
         if not self._vector_store_path or not self._embeddings:
-            messagebox.showwarning("Not Ready", "Please run Q&A first to enable follow-up questions.")
+            messagebox.showwarning(
+                "Q&A Not Ready",
+                "Q&A system is not initialized yet.\n\n"
+                "To use Q&A:\n"
+                "1. Add document files\n"
+                "2. Ensure the 'Q&A' checkbox is checked\n"
+                "3. Click 'Perform Tasks'\n"
+                "4. Wait for 'Q&A ready' status message\n\n"
+                "The Q&A system will be ready once the vector index is built."
+            )
             return
 
         # Clear entry
