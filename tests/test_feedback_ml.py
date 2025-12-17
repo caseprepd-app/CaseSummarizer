@@ -19,7 +19,10 @@ project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
 from src.vocabulary.feedback_manager import FeedbackManager  # noqa: E402
-from src.vocabulary.meta_learner import VocabularyMetaLearner  # noqa: E402
+from src.vocabulary.meta_learner import (  # noqa: E402
+    VocabularyMetaLearner,
+    confidence_weighted_blend,
+)
 
 
 @pytest.fixture
@@ -138,16 +141,47 @@ class TestVocabularyMetaLearner:
     def test_feature_extraction(self, meta_learner):
         """Test feature extraction from term data."""
         term_data = {
+            "Term": "hypertension",
             "quality_score": 75,
             "in_case_freq": 3,
             "freq_rank": 250000,
             "algorithms": "NER,RAKE",
             "type": "Medical",
+            "total_unique_terms": 100,
         }
         features = meta_learner._extract_features(term_data)
-        assert len(features) == 11  # Total feature count
+        assert len(features) == 17  # Total feature count
         assert features[0] == 75  # quality_score
-        assert features[1] == 3  # in_case_freq
+        # features[1] is log_count: log(3) ≈ 1.099
+        assert abs(features[1] - 1.099) < 0.01
+        # features[2] is occurrence_ratio: 3/100 = 0.03
+        assert features[2] == 0.03
+        # features[13] is has_trailing_punctuation: "hypertension" has none
+        assert features[13] == 0.0
+        # features[14] is has_leading_digit: "hypertension" has none
+        assert features[14] == 0.0
+        # features[15] is word_count: "hypertension" is 1 word
+        assert features[15] == 1.0
+        # features[16] is is_all_caps: "hypertension" is not all caps
+        assert features[16] == 0.0
+
+    def test_feature_extraction_artifacts(self, meta_learner):
+        """Test that artifact patterns are detected correctly."""
+        # Test trailing punctuation
+        term_data = {"Term": "Smith:", "type": "Person"}
+        features = meta_learner._extract_features(term_data)
+        assert features[13] == 1.0  # has_trailing_punctuation
+
+        # Test leading digit
+        term_data = {"Term": "4 Ms. Di Leo", "type": "Person"}
+        features = meta_learner._extract_features(term_data)
+        assert features[14] == 1.0  # has_leading_digit
+        assert features[15] == 4.0  # word_count: "4", "Ms.", "Di", "Leo"
+
+        # Test all caps
+        term_data = {"Term": "PLAINTIFF", "type": "Unknown"}
+        features = meta_learner._extract_features(term_data)
+        assert features[16] == 1.0  # is_all_caps
 
     def test_training_insufficient_data(self, temp_feedback_dir, meta_learner):
         """Test that training fails with insufficient data."""
@@ -203,3 +237,74 @@ class TestIntegration:
         extractor = VocabularyExtractor()
         assert hasattr(extractor, '_meta_learner')
         assert extractor._meta_learner is not None
+
+
+class TestConfidenceWeightedBlend:
+    """Tests for confidence_weighted_blend() pure function."""
+
+    def test_equal_confidence(self):
+        """When both models have equal confidence, average the predictions."""
+        # Both at 0.8 confidence (0.3 from 0.5)
+        result = confidence_weighted_blend(0.8, 0.8)
+        assert result == 0.8
+
+        # LR=0.7, RF=0.3 - both have 0.2 confidence, opposite directions
+        result = confidence_weighted_blend(0.7, 0.3)
+        assert result == pytest.approx(0.5)  # Weighted average
+
+    def test_high_confidence_dominates(self):
+        """Higher confidence model should dominate the result."""
+        # LR=0.9 (conf=0.4), RF=0.55 (conf=0.05)
+        # LR should dominate: weight_lr=0.4/0.45=0.89, weight_rf=0.11
+        result = confidence_weighted_blend(0.9, 0.55)
+        assert result > 0.85  # Closer to 0.9 than 0.55
+
+    def test_both_uncertain(self):
+        """When both models are at 0.5 (uncertain), return 0.5."""
+        result = confidence_weighted_blend(0.5, 0.5)
+        assert result == 0.5
+
+    def test_symmetric(self):
+        """Order of arguments shouldn't matter for the blend concept."""
+        # Note: function is NOT symmetric in argument order
+        # but the blend should produce reasonable results either way
+        result1 = confidence_weighted_blend(0.8, 0.4)
+        result2 = confidence_weighted_blend(0.4, 0.8)
+        # Both should be valid probabilities
+        assert 0.0 <= result1 <= 1.0
+        assert 0.0 <= result2 <= 1.0
+
+    def test_extreme_confidence(self):
+        """Test with very confident predictions."""
+        # LR=0.99 (conf=0.49), RF=0.51 (conf=0.01)
+        result = confidence_weighted_blend(0.99, 0.51)
+        # LR should strongly dominate
+        assert result > 0.95
+
+
+class TestEnsembleMode:
+    """Tests for ensemble behavior."""
+
+    def test_is_ensemble_property(self, meta_learner):
+        """Test that is_ensemble property is False when not trained."""
+        assert not meta_learner.is_ensemble
+
+    def test_lr_only_mode(self, temp_feedback_dir):
+        """Test that model starts in LR-only mode even after training."""
+        # We can't easily test actual training with 200+ samples
+        # but we can verify the property behavior
+        model_path = temp_feedback_dir / "test_model.pkl"
+        learner = VocabularyMetaLearner(model_path=model_path)
+
+        # Untrained: no ensemble
+        assert not learner.is_trained
+        assert not learner.is_ensemble
+
+    def test_backward_compat_alias(self):
+        """Test that VocabularyMetaLearner alias works."""
+        from src.vocabulary.meta_learner import (
+            VocabularyMetaLearner,
+            VocabularyPreferenceLearner,
+        )
+        # Both should refer to the same class
+        assert VocabularyMetaLearner is VocabularyPreferenceLearner

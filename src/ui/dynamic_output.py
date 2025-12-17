@@ -118,9 +118,6 @@ def truncate_text(text: str, max_chars: int) -> str:
 class DynamicOutputWidget(ctk.CTkFrame):
     """Widget to dynamically display Names & Vocabulary, Q&A, or Summary outputs (Session 45)."""
 
-    # Class-level flag to track if style has been configured (Session 45)
-    _style_configured = False
-
     def __init__(self, master, **kwargs):
         # Session 45: Set distinct background color for output pane
         # Slightly darker/different than other panes to distinguish
@@ -433,21 +430,16 @@ class DynamicOutputWidget(ctk.CTkFrame):
         options = []
 
         # Session 45: Primary output - Names & Vocabulary
-        vocab_data = self._outputs.get("Names & Vocabulary")
-        if vocab_data is None:
-            # Fall back to legacy key
-            vocab_data = self._outputs.get("Rare Word List (CSV)")
+        vocab_data = self._outputs.get("Names & Vocabulary") or self._outputs.get("Rare Word List (CSV)")
 
-        if vocab_data is not None:
+        if vocab_data:  # Only show if there are actual items (not empty list)
             vocab_count = len(vocab_data)
             options.append(f"Names & Vocabulary ({vocab_count} items)")
 
-        # Session 45: Q&A is shown when available
-        qa_data = self._outputs.get("Q&A")
-        if qa_data is None:
-            qa_data = self._outputs.get("Q&A Results")
+        # Session 45: Q&A is shown when available (only if actually has results)
+        qa_data = self._outputs.get("Q&A") or self._outputs.get("Q&A Results")
 
-        if qa_data is not None:
+        if qa_data:  # Only show if there are actual results (not empty list)
             qa_count = len(qa_data)
             options.append(f"Q&A ({qa_count} results)")
 
@@ -478,60 +470,6 @@ class DynamicOutputWidget(ctk.CTkFrame):
             self.output_selector.set("No outputs yet")
             self._on_output_selection("No outputs yet")
 
-    def _create_treeview_style(self):
-        """Create and configure the Treeview style (Session 45: only once to avoid UI lockup)."""
-        # Only configure style once to prevent UI lockup from repeated theme_use calls
-        if DynamicOutputWidget._style_configured:
-            return
-
-        style = ttk.Style()
-        # Note: theme_use("default") can cause layout thrashing, only do once
-        style.theme_use("default")
-
-        # Main treeview styling - dark theme
-        # Row height 25px is tight but prevents text wrapping issues
-        # Text truncation handles overflow (see truncate_text function)
-        style.configure(
-            "Vocab.Treeview",
-            background="#2b2b2b",
-            foreground="white",
-            fieldbackground="#2b2b2b",
-            borderwidth=0,
-            rowheight=25,
-            font=('Segoe UI', 10)
-        )
-        style.map('Vocab.Treeview', background=[('selected', '#3470b6')])
-
-        # Header styling - slightly lighter, bold
-        style.configure(
-            "Vocab.Treeview.Heading",
-            background="#404040",
-            foreground="white",
-            relief="flat",
-            font=('Segoe UI', 10, 'bold'),
-            padding=(8, 4)
-        )
-        style.map("Vocab.Treeview.Heading", background=[('active', '#505050')])
-
-        # Scrollbar styling
-        style.configure(
-            "Vocab.Vertical.TScrollbar",
-            background="#404040",
-            troughcolor="#2b2b2b",
-            borderwidth=0,
-            arrowcolor="white"
-        )
-        style.configure(
-            "Vocab.Horizontal.TScrollbar",
-            background="#404040",
-            troughcolor="#2b2b2b",
-            borderwidth=0,
-            arrowcolor="white"
-        )
-
-        DynamicOutputWidget._style_configured = True
-        debug_log("[DynamicOutput] Treeview style configured")
-
     def _display_csv(self, data: list):
         """
         Displays vocabulary data in an Excel-like Treeview with frozen headers.
@@ -554,9 +492,6 @@ class DynamicOutputWidget(ctk.CTkFrame):
         self._vocab_display_offset = 0
         self._vocab_total_items = len(data)
         self._is_loading = False
-
-        # Create style if not already done
-        self._create_treeview_style()
 
         # Create frame to hold treeview and scrollbars
         if self.treeview_frame is None:

@@ -41,7 +41,8 @@ VOCAB_MODEL_PATH = MODELS_ML_DIR / "vocab_meta_learner.pkl"
 DEFAULT_VOCAB_MODEL_PATH = Path(__file__).parent.parent / "config" / "default_vocab_model.pkl"
 
 # ML Training Thresholds
-ML_MIN_SAMPLES = 30  # Minimum feedback samples before training
+ML_MIN_SAMPLES = 30  # Minimum feedback samples before training (LR only)
+ML_ENSEMBLE_MIN_SAMPLES = 200  # Minimum samples to enable ensemble (LR + RF)
 ML_RETRAIN_THRESHOLD = 10  # New feedback entries to trigger retraining
 
 # ML Time Decay Configuration (Session 47)

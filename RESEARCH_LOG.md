@@ -6,6 +6,65 @@
 
 ---
 
+## GUI Style Centralization — 2025-12-17
+
+**Question:** First view switch from vocabulary to Q&A causes ~30 second GUI freeze. Subsequent switches are instant.
+
+**Decision:** Move all `ttk.Style().theme_use("default")` calls to app startup in centralized `src/ui/styles.py`.
+
+**Root Cause:** The expensive `theme_use("default")` call was happening lazily when QAPanel or Treeview widgets were first created. This Tkinter internal call triggers layout recalculation across the entire window.
+
+**Implementation:**
+- New `src/ui/styles.py` with single `initialize_all_styles()` function
+- Called once in `MainWindow.__init__()` before any UI is built
+- Configures all 4 Treeview styles: Vocab, QATable, FileReview, QuestionList
+- Removed redundant style code from: `dynamic_output.py`, `qa_panel.py`, `widgets.py`, `qa_question_editor.py`
+
+**Why:** App may take 1-2 seconds longer to start (acceptable), but view switching is instant from the beginning.
+
+---
+
+## Ensemble Learning for Vocabulary ML — 2025-12-17
+
+**Question:** Should we add Random Forest alongside Logistic Regression for better vocabulary preference learning?
+
+**Decision:** Yes, with graduated training and confidence-weighted blending.
+
+**Implementation:**
+- 30+ samples: Train Logistic Regression only
+- 200+ samples: Add Random Forest (23 trees for speed)
+- Blending: Each model's prediction weighted by confidence (distance from 0.5)
+- Example: LR=0.9 (conf 0.4), RF=0.55 (conf 0.05) → LR gets ~89% weight
+
+**Why confidence-weighted blend over winner-takes-all:** Smoother handling of uncertain predictions. When both models are uncertain (near 0.5), their outputs blend smoothly. When one is highly confident, it dominates appropriately.
+
+**New features added (17 total):**
+- `log_count` replaces `in_case_freq` — better discrimination at low counts
+- `occurrence_ratio` — document-relative frequency
+- Artifact detection: `has_trailing_punctuation`, `has_leading_digit`, `word_count`, `is_all_caps`
+
+---
+
+## Artifact Filter for Vocabulary — 2025-12-17
+
+**Question:** How to handle false positives like "Ms. Di Leo:" and "4 Ms. Di Leo" when "Ms. Di Leo" is correct?
+
+**Decision:** Substring containment filter removes terms that contain high-frequency canonical terms.
+
+**Implementation:** `src/vocabulary/artifact_filter.py`
+1. Sort terms by frequency, take top N as canonical (default: top 5% or at least 10)
+2. For each non-canonical term, check if any canonical term is a substring
+3. If so, remove the containing term (it's likely an artifact with extra punctuation/digits)
+
+**Example:**
+- Canonical: "Ms. Di Leo" (high frequency)
+- Removed: "Ms. Di Leo:" (contains canonical + trailing punctuation)
+- Removed: "4 Ms. Di Leo" (contains canonical + leading digit)
+
+**Why:** NER often picks up artifacts with line numbers or punctuation attached. Filtering by substring containment with canonical terms is simpler and more reliable than complex regex patterns.
+
+---
+
 ## DRY Refactoring — 2025-12-16
 
 **Question:** How to eliminate ~495 lines of duplicated code across workers, tokenization, and pattern matching?

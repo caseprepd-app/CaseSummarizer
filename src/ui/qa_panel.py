@@ -67,9 +67,6 @@ class QAPanel(ctk.CTkFrame):
         panel.set_followup_callback(lambda q: orchestrator.ask_followup(q))
     """
 
-    # Class-level flag to track if style has been configured (Session 45)
-    _style_configured = False
-
     def __init__(
         self,
         master,
@@ -107,9 +104,6 @@ class QAPanel(ctk.CTkFrame):
         self._create_table_area()
         self._create_button_bar()
         self._create_followup_pane()
-
-        # Apply Treeview styling
-        self._create_table_style()
 
         if DEBUG_MODE:
             debug_log("[QAPanel] Initialized with CSV-style table layout")
@@ -196,58 +190,6 @@ class QAPanel(ctk.CTkFrame):
 
         # Bind double-click to show full text
         self.qa_tree.bind("<Double-1>", self._on_double_click)
-
-    def _create_table_style(self):
-        """Create Treeview style for Q&A table (Session 45: only once to avoid UI lockup)."""
-        # Only configure style once to prevent UI lockup from repeated theme_use calls
-        if QAPanel._style_configured:
-            return
-
-        style = ttk.Style()
-        # Note: theme_use("default") can cause layout thrashing, only do once
-        style.theme_use("default")
-
-        # Main treeview styling - dark theme
-        style.configure(
-            "QATable.Treeview",
-            background="#2b2b2b",
-            foreground="white",
-            fieldbackground="#2b2b2b",
-            borderwidth=0,
-            rowheight=28,
-            font=('Segoe UI', 10)
-        )
-        style.map('QATable.Treeview', background=[('selected', '#3470b6')])
-
-        # Header styling
-        style.configure(
-            "QATable.Treeview.Heading",
-            background="#404040",
-            foreground="white",
-            relief="flat",
-            font=('Segoe UI', 10, 'bold'),
-            padding=(8, 4)
-        )
-        style.map("QATable.Treeview.Heading", background=[('active', '#505050')])
-
-        # Scrollbar styling
-        style.configure(
-            "QATable.Vertical.TScrollbar",
-            background="#404040",
-            troughcolor="#2b2b2b",
-            borderwidth=0,
-            arrowcolor="white"
-        )
-        style.configure(
-            "QATable.Horizontal.TScrollbar",
-            background="#404040",
-            troughcolor="#2b2b2b",
-            borderwidth=0,
-            arrowcolor="white"
-        )
-
-        QAPanel._style_configured = True
-        debug_log("[QAPanel] Table style configured")
 
     def _create_button_bar(self):
         """Create action buttons bar."""

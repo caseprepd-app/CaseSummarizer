@@ -162,6 +162,7 @@ flowchart TB
 |-----------|------|---------|
 | `MainWindow` | `ui/main_window.py` | Central coordinator, business logic |
 | `WindowLayoutMixin` | `ui/window_layout.py` | Layout creation (separated from logic) |
+| `initialize_all_styles` | `ui/styles.py` | Centralized ttk style config (prevents UI freeze) |
 | `FileReviewTable` | `ui/widgets.py` | File list with status/confidence |
 | `ModelSelectionWidget` | `ui/widgets.py` | Model + prompt dropdown |
 | `OutputOptionsWidget` | `ui/widgets.py` | Task checkboxes, word count slider |
@@ -316,15 +317,29 @@ Each term tracks which algorithms detected it:
 
 ### ML Preference Learning
 
-User feedback (thumbs up/down) trains a logistic regression model:
+User feedback (thumbs up/down) trains an ensemble model:
 
 ```
-User Feedback → FeedbackManager (CSV) → MetaLearner (train)
+User Feedback → FeedbackManager (CSV) → VocabularyPreferenceLearner (train)
                                               ↓
-New Terms → MetaLearner (predict) → Quality Score boost/penalty
+New Terms → VocabularyPreferenceLearner (predict) → Quality Score boost/penalty
 ```
 
-**Features used:** quality_score, in_case_freq, freq_rank, num_algorithms, has_ner, has_rake, has_bm25, term type (one-hot)
+**Graduated Training:**
+- 30+ samples: Logistic Regression only
+- 200+ samples: Ensemble mode (LR + Random Forest with 23 trees)
+
+**Ensemble Blending:** When both models are active, predictions use confidence-weighted blending. Each model's vote is weighted by its confidence (distance from 0.5), so more certain predictions have more influence.
+
+**Features used (17 total):**
+- `quality_score` — Base quality from algorithm weights
+- `log_count` — Log-transformed in-case frequency (better low-count discrimination)
+- `occurrence_ratio` — Document-relative frequency
+- `freq_rank_normalized` — Rank among all terms
+- `num_algorithms` — Count of algorithms that found term
+- `has_ner`, `has_rake`, `has_bm25` — Algorithm presence flags
+- `is_person`, `is_medical`, `is_technical`, `is_place`, `is_unknown` — Term type (one-hot)
+- `has_trailing_punctuation`, `has_leading_digit`, `word_count`, `is_all_caps` — Artifact detection
 
 **Time Decay Weighting:**
 Older feedback is weighted less to adapt to changing preferences:
@@ -588,9 +603,10 @@ src/
 │   ├── reconciler.py            # NER + LLM merge
 │   ├── result_merger.py         # Algorithm result combination
 │   ├── name_deduplicator.py     # Person name deduplication (artifacts + fuzzy)
+│   ├── artifact_filter.py       # Substring containment artifact removal
 │   ├── role_profiles.py         # Role detection
 │   ├── feedback_manager.py      # User feedback CSV
-│   ├── meta_learner.py          # ML preference learning
+│   ├── meta_learner.py          # ML preference learning (LR + RF ensemble)
 │   ├── corpus_manager.py        # BM25 corpus
 │   ├── corpus_registry.py       # Multi-corpus management
 │   └── algorithms/
@@ -644,6 +660,7 @@ src/
 ├── ui/                          # User interface
 │   ├── main_window.py           # Business logic
 │   ├── window_layout.py         # Layout mixin
+│   ├── styles.py                # Centralized ttk style config
 │   ├── widgets.py               # FileTable, ModelSelector, etc.
 │   ├── dynamic_output.py        # Results display
 │   ├── qa_panel.py              # Q&A panel
@@ -793,4 +810,4 @@ ruff check src/ --fix
 
 ---
 
-*Last updated: 2025-12-16*
+*Last updated: 2025-12-17*

@@ -120,10 +120,7 @@ class QAQuestionEditor(ctk.CTkToplevel):
         list_frame.grid_columnconfigure(0, weight=1)
         list_frame.grid_rowconfigure(0, weight=1)
 
-        # Create Treeview style
-        self._create_list_style()
-
-        # Treeview for questions
+        # Treeview for questions (style configured in src/ui/styles.py)
         self.question_tree = ttk.Treeview(
             list_frame,
             columns=("num", "category", "question"),
@@ -244,31 +241,6 @@ class QAQuestionEditor(ctk.CTkToplevel):
             text_color="#aaaaaa"
         )
         self.status_label.pack(side="left")
-
-    def _create_list_style(self):
-        """Create Treeview style for question list."""
-        style = ttk.Style()
-        style.theme_use("default")
-
-        style.configure(
-            "QuestionList.Treeview",
-            background="#2b2b2b",
-            foreground="white",
-            fieldbackground="#2b2b2b",
-            borderwidth=0,
-            rowheight=28,
-            font=('Segoe UI', 10)
-        )
-        style.map('QuestionList.Treeview', background=[('selected', '#3470b6')])
-
-        style.configure(
-            "QuestionList.Treeview.Heading",
-            background="#404040",
-            foreground="white",
-            relief="flat",
-            font=('Segoe UI', 10, 'bold')
-        )
-        style.map("QuestionList.Treeview.Heading", background=[('active', '#505050')])
 
     def _load_questions(self):
         """Load questions from YAML file."""

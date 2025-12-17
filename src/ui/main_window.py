@@ -28,6 +28,7 @@ from src.config import DEBUG_MODE, PROMPTS_DIR
 from src.logging_config import debug_log
 from src.ai import OllamaModelManager
 from src.prompting import PromptTemplateManager
+from src.ui.styles import initialize_all_styles
 from src.ui.workers import ProcessingWorker, VocabularyWorker, QAWorker, BriefingWorker, ProgressiveExtractionWorker
 from src.ui.window_layout import WindowLayoutMixin
 from src.vocabulary import get_corpus_registry
@@ -85,6 +86,9 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         self._vector_store_path = None  # Path to current session's vector store
         self._qa_results: list = []  # Store QAResult objects
         self._qa_ready = False  # Session 45: Q&A becomes available after indexing
+
+        # Initialize all ttk styles once at startup (prevents freeze on first view switch)
+        initialize_all_styles()
 
         # Build UI
         self._create_header()
@@ -896,7 +900,8 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             debug_log("[MainWindow] Follow-up unavailable: no vector store or embeddings")
             return None
 
-        self.set_status(f"Asking: {question[:40]}...")
+        # NOTE: This method runs in a background thread (from QAPanel._submit_followup)
+        # Do NOT call GUI methods like set_status() here - it causes freezes!
 
         try:
             # Import and use QAOrchestrator for follow-up
@@ -912,14 +917,14 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             result = orchestrator.ask_followup(question)
 
             # Add to internal results list (so it persists across view changes)
+            # Thread-safe: append is atomic in CPython
             self._qa_results.append(result)
-            self.set_status(f"Follow-up answered: {len(result.answer)} chars")
 
+            debug_log(f"[MainWindow] Follow-up answered: {len(result.answer)} chars")
             return result
 
         except Exception as e:
             debug_log(f"[MainWindow] Follow-up error: {e}")
-            self.set_status(f"Error: {str(e)[:50]}")
             return None
 
     # =========================================================================

@@ -37,23 +37,7 @@ class FileReviewTable(ctk.CTkFrame):
 
     def _create_treeview(self):
         """Create the Treeview widget."""
-        style = ttk.Style()
-        style.theme_use("default")
-
-        # Configure Treeview colors to match CustomTkinter theme
-        style.configure("Treeview",
-                        background="#2b2b2b",
-                        foreground="white",
-                        fieldbackground="#2b2b2b",
-                        borderwidth=0)
-        style.map('Treeview', background=[('selected', '#3470b6')])
-
-        style.configure("Treeview.Heading",
-                        background="#565b5e",
-                        foreground="white",
-                        relief="flat")
-        style.map("Treeview.Heading", background=[('active', '#6c757d')])
-
+        # Style configured centrally in src/ui/styles.py at app startup
         self.tree = ttk.Treeview(self,
                                  columns=list(self.column_map.keys()),
                                  show="headings")

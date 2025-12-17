@@ -240,9 +240,15 @@ class VocabularyExtractor:
         debug_log("[VOCAB] Deduplicating similar Person names...")
         from src.vocabulary.name_deduplicator import deduplicate_names
         vocabulary = deduplicate_names(vocabulary)
+        debug_log(f"[VOCAB] After deduplication: {len(vocabulary)} terms")
+
+        # 5. Filter substring artifacts (e.g., "Ms. Di Leo:" when "Ms. Di Leo" exists)
+        debug_log("[VOCAB] Filtering substring artifacts...")
+        from src.vocabulary.artifact_filter import filter_substring_artifacts
+        vocabulary = filter_substring_artifacts(vocabulary)
         debug_log(f"[VOCAB] Final vocabulary: {len(vocabulary)} terms")
 
-        # 5. Sort by rarity if enabled
+        # 6. Sort by rarity if enabled
         if self.sort_by_rarity and self.frequency_dataset:
             vocabulary = self._sort_by_rarity(vocabulary)
 
@@ -346,9 +352,15 @@ class VocabularyExtractor:
         debug_log("[VOCAB] Phase 7: Deduplicating similar Person names...")
         from src.vocabulary.name_deduplicator import deduplicate_names
         csv_data = deduplicate_names(csv_data)
+        debug_log(f"[VOCAB] After deduplication: {len(csv_data)} terms")
+
+        # 8. Filter substring artifacts (e.g., "Ms. Di Leo:" when "Ms. Di Leo" exists)
+        debug_log("[VOCAB] Phase 8: Filtering substring artifacts...")
+        from src.vocabulary.artifact_filter import filter_substring_artifacts
+        csv_data = filter_substring_artifacts(csv_data)
 
         total_time = (time.time() - start_time) * 1000
-        debug_log(f"[VOCAB] extract_with_llm complete in {total_time:.1f}ms")
+        debug_log(f"[VOCAB] extract_with_llm complete in {total_time:.1f}ms, {len(csv_data)} terms")
 
         return csv_data
 
@@ -372,6 +384,8 @@ class VocabularyExtractor:
         vocabulary = []
         seen_terms = set()
         frequency_threshold = doc_count * 4
+        # Total unique terms for ML occurrence_ratio feature
+        total_unique_terms = len(merged_terms)
 
         for merged in merged_terms:
             term = merged.term
@@ -428,6 +442,7 @@ class VocabularyExtractor:
                 "freq_rank": frequency_rank,
                 "algorithms": ",".join(merged.sources),
                 "type": category,
+                "total_unique_terms": total_unique_terms,  # For ML occurrence_ratio
             }
 
             # Apply ML boost if meta-learner is trained (Session 25)
