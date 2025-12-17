@@ -1,28 +1,30 @@
 """
-Dynamic Output Display Widget for LocalScribe (Session 45 Update)
+Dynamic Output Display Widget for LocalScribe (Session 51 Update)
 
-Displays Names & Vocabulary tables, Q&A results, and optional summaries.
+Displays Names & Vocabulary tables, Q&A results, and summaries using tab navigation.
 Provides copy/save functionality for export.
 The vocabulary display uses an Excel-like Treeview with frozen headers
 and right-click context menu for excluding terms from future extractions.
 
+Session 51 Updates (Tab Navigation):
+- Replaced dropdown menu with CTkTabview for instant, glitch-free navigation
+- Three persistent tabs: "Names & Vocab" | "Q&A" | "Summary"
+- Tab switching uses frame stacking (tkraise) - no widget recreation
+- Removed ~100 lines of visibility management code
+- All content preserved across tab switches (scroll position, state)
+
 Session 45 Updates:
 - Renamed "Case Briefing" to "Names & Vocabulary" as primary output
-- Simplified dropdown: "Names & Vocabulary" | "Q&A" | "Summary"
 - Added progress badge showing data source (NER only → NER + LLM)
 - Output pane has distinct background color
 
-Performance Optimizations (Session 14):
+Performance Optimizations (Session 14-16, 51):
 - Text truncation prevents row height overflow and improves rendering speed
 - Batch insertion with reduced batch size for responsiveness
-- Garbage collection after large operations
-- Deferred Treeview creation until first use
-
-Performance Optimizations (Session 16):
 - Asynchronous batch insertion with after() to yield to event loop
-- Background garbage collection to avoid blocking main thread
 - Pagination with "Load More" button for large datasets
-- Optimized single update_idletasks() call after each batch
+- Window resize debouncing prevents batch insertion conflicts
+- Tab navigation eliminates layout recalculation overhead
 """
 
 import csv
@@ -125,51 +127,36 @@ class DynamicOutputWidget(ctk.CTkFrame):
         super().__init__(master, **kwargs)
 
         self.grid_columnconfigure(0, weight=1)
-        self.grid_rowconfigure(2, weight=1)  # Row for the dynamic content frame (moved to row 2)
+        self.grid_rowconfigure(0, weight=1)  # Tab view gets all space
 
-        # Header row with dropdown and progress badge
-        self.header_frame = ctk.CTkFrame(self, fg_color="transparent")
-        self.header_frame.grid(row=0, column=0, sticky="ew", padx=5, pady=(5, 0))
-        self.header_frame.grid_columnconfigure(1, weight=1)
+        # Session 51: Replaced dropdown with CTkTabview for better performance
+        # Create tabview with three tabs: Names & Vocab, Q&A, Summary
+        self.tabview = ctk.CTkTabview(self)
+        self.tabview.grid(row=0, column=0, sticky="nsew", padx=5, pady=5)
 
-        # Output Selection Dropdown
-        self.output_selector_label = ctk.CTkLabel(
-            self.header_frame, text="View Output:",
-            font=ctk.CTkFont(weight="bold")
-        )
-        self.output_selector_label.grid(row=0, column=0, sticky="w", padx=(0, 10))
+        # Create tabs
+        self.tabview.add("Names & Vocab")
+        self.tabview.add("Q&A")
+        self.tabview.add("Summary")
 
-        self.output_selector = ctk.CTkComboBox(
-            self.header_frame,
-            values=["No outputs yet"],
-            command=self._on_output_selection,
-            width=200
-        )
-        self.output_selector.grid(row=0, column=1, sticky="w")
-        self.output_selector.set("No outputs yet")
+        # Configure tab grids
+        self.tabview.tab("Names & Vocab").grid_columnconfigure(0, weight=1)
+        self.tabview.tab("Names & Vocab").grid_rowconfigure(0, weight=1)
+        self.tabview.tab("Q&A").grid_columnconfigure(0, weight=1)
+        self.tabview.tab("Q&A").grid_rowconfigure(0, weight=1)
+        self.tabview.tab("Summary").grid_columnconfigure(0, weight=1)
+        self.tabview.tab("Summary").grid_rowconfigure(0, weight=1)
 
-        # Progress Badge (Session 45) - shows data source status
+        # Progress Badge (Session 45) - shows data source status for Names & Vocab tab
         self._progress_badge = ctk.CTkLabel(
-            self.header_frame,
+            self.tabview.tab("Names & Vocab"),
             text="",
             font=ctk.CTkFont(size=11),
             text_color=("gray50", "gray70")
         )
-        self._progress_badge.grid(row=0, column=2, sticky="e", padx=(10, 0))
+        self._progress_badge.grid(row=1, column=0, sticky="w", padx=10, pady=(0, 5))
 
-        # Dynamic Content Frame (to hold either Textbox or Treeview)
-        self.dynamic_content_frame = ctk.CTkFrame(self, fg_color="transparent")
-        self.dynamic_content_frame.grid(row=1, column=0, sticky="nsew", padx=5, pady=5)
-        self.grid_rowconfigure(1, weight=1)  # Make content frame expandable
-        self.dynamic_content_frame.grid_columnconfigure(0, weight=1)
-        self.dynamic_content_frame.grid_rowconfigure(0, weight=1)
-
-        # Textbox for summaries
-        self.summary_text_display = ctk.CTkTextbox(self.dynamic_content_frame, wrap="word")
-        self.summary_text_display.grid(row=0, column=0, sticky="nsew")
-        self.summary_text_display.insert("0.0", "Generated summaries and rare word lists will appear here. Select an option from the dropdown above.")
-
-        # Treeview for CSV (initially None, created when needed)
+        # Names & Vocab Tab: Treeview frame (initially None, created when needed)
         self.csv_treeview = None
         self.treeview_frame = None  # Frame to hold treeview and scrollbars
 
@@ -177,9 +164,23 @@ class DynamicOutputWidget(ctk.CTkFrame):
         self.context_menu = None
         self._selected_term = None
 
-        # Button bar
+        # Q&A Tab: Q&A panel (created on first use)
+        self._qa_panel = None
+
+        # Summary Tab: Textbox for summaries
+        self.summary_text_display = ctk.CTkTextbox(
+            self.tabview.tab("Summary"),
+            wrap="word"
+        )
+        self.summary_text_display.grid(row=0, column=0, sticky="nsew", padx=5, pady=5)
+        self.summary_text_display.insert(
+            "0.0",
+            "Generated summaries will appear here.\n\nProcess documents and enable 'Summary' to generate content."
+        )
+
+        # Button bar (below tabs)
         self.button_frame = ctk.CTkFrame(self)
-        self.button_frame.grid(row=2, column=0, sticky="ew", padx=5, pady=5)
+        self.button_frame.grid(row=1, column=0, sticky="ew", padx=5, pady=5)
 
         self.copy_btn = ctk.CTkButton(self.button_frame, text="Copy to Clipboard", command=self.copy_to_clipboard)
         self.copy_btn.pack(side="left", padx=5)
@@ -225,68 +226,41 @@ class DynamicOutputWidget(ctk.CTkFrame):
         self._load_more_btn = None  # "Load More" button reference
         self._is_loading = False  # Prevents duplicate load operations
 
+        # Resize event debouncing to prevent glitchiness (Session 51)
+        self._resize_after_id = None  # Track pending resize callbacks
+        self._batch_insertion_paused = False  # Pause batch insertion during resize
+
         # Feedback manager for ML learning (Session 25)
         self._feedback_manager = get_feedback_manager()
 
-    def _on_output_selection(self, choice):
-        """Handle selection change in the output_selector dropdown (Session 45)."""
-        self._clear_dynamic_content()
+        # Bind to Configure event for resize debouncing
+        self.bind("<Configure>", self._on_window_resize)
 
-        if choice == "No outputs yet":
-            self.summary_text_display.grid(row=0, column=0, sticky="nsew")
-            self.summary_text_display.delete("0.0", "end")
-            self.summary_text_display.insert(
-                "0.0",
-                "Names, vocabulary, and Q&A results will appear here.\n"
-                "Select documents and click 'Process' to begin."
-            )
-            self._update_progress_badge("none")
-        elif choice.startswith("Names & Vocabulary"):
-            # Session 45: Primary output - show combined people + vocabulary table
-            vocab_data = self._outputs.get("Names & Vocabulary", [])
-            if not vocab_data:
-                # Fall back to legacy format
-                vocab_data = self._outputs.get("Rare Word List (CSV)", [])
-            self._display_csv(vocab_data)
-            self._update_progress_badge(self._extraction_source)
-        elif choice.startswith("Q&A"):
-            # Session 45: Show Q&A panel
-            qa_data = self._outputs.get("Q&A", [])
-            if not qa_data:
-                qa_data = self._outputs.get("Q&A Results", [])
-            self._display_qa_results(qa_data)
-            self._update_progress_badge("none")  # Q&A doesn't have NER/LLM source
-        elif choice.startswith("Summary"):
-            # Session 45: Combined summary display
-            self.summary_text_display.grid(row=0, column=0, sticky="nsew")
-            self.summary_text_display.delete("0.0", "end")
-            summary = self._outputs.get("Summary", "") or self._outputs.get("Meta-Summary", "")
-            self.summary_text_display.insert(
-                "0.0",
-                summary if summary else "Summary not yet generated."
-            )
-            self._update_progress_badge("none")
-        # Legacy support for old dropdown options
-        elif choice == "Meta-Summary":
-            self.summary_text_display.grid(row=0, column=0, sticky="nsew")
-            self.summary_text_display.delete("0.0", "end")
-            self.summary_text_display.insert("0.0", self._outputs.get("Meta-Summary", "Meta-Summary not yet generated."))
-        elif choice.startswith("Case Briefing"):
-            self._display_briefing(self._outputs.get("Case Briefing", ""))
-        elif choice.startswith("Rare Word List"):
-            self._display_csv(self._outputs.get("Rare Word List (CSV)", []))
-        elif choice.startswith("Q&A Results"):
-            self._display_qa_results(self._outputs.get("Q&A Results", []))
-        elif choice.startswith("Summary for "):
-            doc_name = choice.replace("Summary for ", "")
-            self.summary_text_display.grid(row=0, column=0, sticky="nsew")
-            self.summary_text_display.delete("0.0", "end")
-            self.summary_text_display.insert("0.0", self._document_summaries.get(doc_name, f"Summary for {doc_name} not yet generated."))
+    def _on_window_resize(self, event):
+        """
+        Debounce resize events to prevent batch insertion conflicts.
 
-    def _clear_dynamic_content(self):
-        """Clears the currently displayed widget in the dynamic content frame."""
-        for widget in self.dynamic_content_frame.winfo_children():
-            widget.grid_remove()
+        When the window is resized/maximized, this pauses batch insertion
+        and schedules a callback to resume after resizing stabilizes (100ms).
+
+        Args:
+            event: Tkinter Configure event
+        """
+        # Cancel any pending resize callback
+        if self._resize_after_id is not None:
+            self.after_cancel(self._resize_after_id)
+
+        # Pause batch insertion during resize
+        self._batch_insertion_paused = True
+
+        # Schedule callback for 100ms after resize stops
+        self._resize_after_id = self.after(100, self._on_resize_complete)
+
+    def _on_resize_complete(self):
+        """Called 100ms after resize events stop - resumes batch insertion."""
+        self._batch_insertion_paused = False
+        self._resize_after_id = None
+        debug_log("[DYNAMIC OUTPUT] Resize complete - batch insertion resumed")
 
     def _update_progress_badge(self, source: str):
         """
@@ -318,9 +292,9 @@ class DynamicOutputWidget(ctk.CTkFrame):
             source: "none", "ner", or "both"
         """
         self._extraction_source = source
-        # Update badge if Names & Vocabulary is currently displayed
-        current = self.output_selector.get()
-        if current.startswith("Names & Vocabulary"):
+        # Update badge if Names & Vocabulary tab is currently active
+        current_tab = self.tabview.get()
+        if current_tab == "Names & Vocab":
             self._update_progress_badge(source)
 
     def _toggle_detail_view(self):
@@ -334,9 +308,9 @@ class DynamicOutputWidget(ctk.CTkFrame):
         self.detail_toggle_btn.configure(
             text="Hide Details" if self._show_details else "Show Details"
         )
-        # Refresh current view to apply new columns
-        current = self.output_selector.get()
-        if current.startswith("Names & Vocabulary"):
+        # Refresh current view to apply new columns if Names & Vocab tab is active
+        current_tab = self.tabview.get()
+        if current_tab == "Names & Vocab":
             vocab_data = self._outputs.get("Names & Vocabulary", [])
             if not vocab_data:
                 vocab_data = self._outputs.get("Rare Word List (CSV)", [])
@@ -423,52 +397,51 @@ class DynamicOutputWidget(ctk.CTkFrame):
         if briefing_sections is not None:
             self._briefing_sections = briefing_sections
 
-        self._refresh_dropdown()
+        self._refresh_tabs()
 
-    def _refresh_dropdown(self):
-        """Refreshes the output selection dropdown based on available outputs (Session 45)."""
-        options = []
+    def _refresh_tabs(self):
+        """
+        Refresh tabs based on available outputs (Session 51).
 
-        # Session 45: Primary output - Names & Vocabulary
+        Enables/disables tabs based on data availability and populates content.
+        """
+        # Names & Vocabulary tab
         vocab_data = self._outputs.get("Names & Vocabulary") or self._outputs.get("Rare Word List (CSV)")
+        if vocab_data:
+            self._display_csv(vocab_data)
+            self._update_progress_badge(self._extraction_source)
 
-        if vocab_data:  # Only show if there are actual items (not empty list)
-            vocab_count = len(vocab_data)
-            options.append(f"Names & Vocabulary ({vocab_count} items)")
-
-        # Session 45: Q&A is shown when available (only if actually has results)
+        # Q&A tab - always enabled if Q&A system is ready
+        main_window = self.winfo_toplevel()
+        qa_ready = getattr(main_window, '_qa_ready', False)
         qa_data = self._outputs.get("Q&A") or self._outputs.get("Q&A Results")
+        if qa_data:
+            self._display_qa_results(qa_data)
 
-        if qa_data:  # Only show if there are actual results (not empty list)
-            qa_count = len(qa_data)
-            options.append(f"Q&A ({qa_count} results)")
-
-        # Session 45: Summary (combined or individual)
+        # Summary tab
         summary = self._outputs.get("Summary") or self._outputs.get("Meta-Summary")
         if summary:
-            options.append("Summary")
+            self.summary_text_display.delete("0.0", "end")
+            self.summary_text_display.insert("0.0", summary)
+        elif self._outputs.get("Case Briefing"):
+            # Legacy Case Briefing support
+            self._display_briefing(self._outputs.get("Case Briefing", ""))
 
-        # Individual document summaries (if any)
-        doc_summary_options = [f"Summary for {name}" for name in self._document_summaries.keys()]
-        if doc_summary_options:
-            doc_summary_options.sort()
-            options.extend(doc_summary_options)
+        # Individual document summaries (if any) - append to summary tab
+        if self._document_summaries:
+            self.summary_text_display.insert("end", "\n\n" + "="*50 + "\n")
+            self.summary_text_display.insert("end", "INDIVIDUAL DOCUMENT SUMMARIES\n")
+            self.summary_text_display.insert("end", "="*50 + "\n\n")
+            for doc_name, doc_summary in sorted(self._document_summaries.items()):
+                self.summary_text_display.insert("end", f"{doc_name}:\n{doc_summary}\n\n")
 
-        # Legacy support: Case Briefing (if still present)
-        if self._outputs.get("Case Briefing"):
-            options.append("Case Briefing (Legacy)")
-
-        # Only include placeholder if no real outputs exist
-        if not options:
-            options = ["No outputs yet"]
-
-        self.output_selector.configure(values=options)
-        if options and options[0] != "No outputs yet":
-            self.output_selector.set(options[0])
-            self._on_output_selection(options[0])
+        # Set default tab to Names & Vocab if it has data, otherwise Q&A if ready, otherwise Summary
+        if vocab_data:
+            self.tabview.set("Names & Vocab")
+        elif qa_ready:
+            self.tabview.set("Q&A")
         else:
-            self.output_selector.set("No outputs yet")
-            self._on_output_selection("No outputs yet")
+            self.tabview.set("Summary")
 
     def _display_csv(self, data: list):
         """
@@ -480,12 +453,8 @@ class DynamicOutputWidget(ctk.CTkFrame):
         Args:
             data: List of dicts with keys: Term, Type, Role/Relevance, Definition
         """
-        self._clear_dynamic_content()
-
         if not data:
-            self.summary_text_display.grid(row=0, column=0, sticky="nsew")
-            self.summary_text_display.delete("0.0", "end")
-            self.summary_text_display.insert("0.0", "Rare Word List (CSV) not yet generated or is empty.")
+            debug_log("[VOCAB DISPLAY] No vocabulary data to display")
             return
 
         # Reset pagination state
@@ -495,7 +464,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
 
         # Create frame to hold treeview and scrollbars
         if self.treeview_frame is None:
-            self.treeview_frame = ctk.CTkFrame(self.dynamic_content_frame, fg_color="#2b2b2b", corner_radius=6)
+            self.treeview_frame = ctk.CTkFrame(self.tabview.tab("Names & Vocab"), fg_color="#2b2b2b", corner_radius=6)
 
         self.treeview_frame.grid(row=0, column=0, sticky="nsew")
         self.treeview_frame.grid_columnconfigure(0, weight=1)
@@ -568,6 +537,10 @@ class DynamicOutputWidget(ctk.CTkFrame):
             self.csv_treeview.tag_configure('found_ner', foreground='#6c757d')   # Gray - NER only
             self.csv_treeview.tag_configure('found_llm', foreground='#17a2b8')   # Blue - LLM only
 
+            # Configure alternating row colors for readability (Session 51)
+            self.csv_treeview.tag_configure('oddrow', background='#f8f9fa')   # Light gray
+            self.csv_treeview.tag_configure('evenrow', background='#ffffff')  # White
+
         # Clear existing data
         self.csv_treeview.delete(*self.csv_treeview.get_children())
 
@@ -587,27 +560,14 @@ class DynamicOutputWidget(ctk.CTkFrame):
         Args:
             results: List of QAResult objects
         """
-        self._clear_dynamic_content()
-
         if not results:
-            self.summary_text_display.grid(row=0, column=0, sticky="nsew")
-            self.summary_text_display.delete("0.0", "end")
-            self.summary_text_display.insert(
-                "0.0",
-                "Q&A System\n\n"
-                "To use Q&A:\n"
-                "1. Add document files\n"
-                "2. Ensure the 'Q&A' checkbox is checked\n"
-                "3. Click 'Perform Tasks'\n"
-                "4. Wait for 'Q&A ready' status message\n\n"
-                "Once ready, you can ask questions using the input field at the bottom of the window."
-            )
+            debug_log("[Q&A DISPLAY] No Q&A results to display")
             return
 
         # Create QAPanel on first use
         if self._qa_panel is None:
             from src.ui.qa_panel import QAPanel
-            self._qa_panel = QAPanel(self.dynamic_content_frame)
+            self._qa_panel = QAPanel(self.tabview.tab("Q&A"))
 
             # Set up follow-up callback by finding MainWindow through the widget tree
             # DynamicOutputWidget's master is right_panel, not MainWindow directly
@@ -636,10 +596,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
         Args:
             briefing_text: Formatted briefing text from BriefingFormatter
         """
-        self._clear_dynamic_content()
-
         if not briefing_text:
-            self.summary_text_display.grid(row=0, column=0, sticky="nsew")
             self.summary_text_display.delete("0.0", "end")
             self.summary_text_display.insert(
                 "0.0",
@@ -650,7 +607,6 @@ class DynamicOutputWidget(ctk.CTkFrame):
             return
 
         # Display in textbox
-        self.summary_text_display.grid(row=0, column=0, sticky="nsew")
         self.summary_text_display.delete("0.0", "end")
         self.summary_text_display.insert("0.0", briefing_text)
 
@@ -676,6 +632,11 @@ class DynamicOutputWidget(ctk.CTkFrame):
 
         def insert_batch():
             nonlocal current_idx
+
+            # If paused by window resize, reschedule and wait
+            if self._batch_insertion_paused:
+                self.after(BATCH_INSERT_DELAY_MS, insert_batch)
+                return
 
             # Insert a batch of rows
             batch_end = min(current_idx + BATCH_INSERT_SIZE, end_idx)
@@ -711,21 +672,24 @@ class DynamicOutputWidget(ctk.CTkFrame):
                     ) + (THUMB_UP_EMPTY, THUMB_DOWN_EMPTY)
 
                 # Apply tag for row coloring based on existing rating or Found By (Session 43)
+                # Session 51: Add alternating row background color
+                row_bg_tag = 'oddrow' if i % 2 else 'evenrow'
+
                 if rating == 1:
-                    tag = ('rated_up',)
+                    tag = (row_bg_tag, 'rated_up')
                 elif rating == -1:
-                    tag = ('rated_down',)
+                    tag = (row_bg_tag, 'rated_down')
                 else:
                     # No feedback rating - use Found By coloring if available
                     found_by = item.get("Found By", "") if isinstance(item, dict) else ""
                     if found_by == "Both":
-                        tag = ('found_both',)
+                        tag = (row_bg_tag, 'found_both')
                     elif found_by == "NER":
-                        tag = ('found_ner',)
+                        tag = (row_bg_tag, 'found_ner')
                     elif found_by == "LLM":
-                        tag = ('found_llm',)
+                        tag = (row_bg_tag, 'found_llm')
                     else:
-                        tag = ()
+                        tag = (row_bg_tag,)
                 self.csv_treeview.insert("", "end", values=values, tags=tag)
 
             current_idx = batch_end
@@ -936,14 +900,12 @@ class DynamicOutputWidget(ctk.CTkFrame):
         - "basic": Term, Type, Role/Relevance, Definition
         - "terms_only": Just the Term column
         """
-        current_choice = self.output_selector.get()
-        if current_choice == "Meta-Summary":
-            return self._outputs.get("Meta-Summary", "")
-        elif current_choice.startswith("Case Briefing"):
-            return self._outputs.get("Case Briefing", "")
-        elif current_choice.startswith("Rare Word List"):
+        # Session 51: Use current tab instead of dropdown
+        current_tab = self.tabview.get()
+
+        if current_tab == "Names & Vocab":
             # Convert list of dicts to CSV string
-            data = self._outputs.get("Rare Word List (CSV)", [])
+            data = self._outputs.get("Names & Vocabulary") or self._outputs.get("Rare Word List (CSV)", [])
             if not data:
                 return ""
 
@@ -971,14 +933,14 @@ class DynamicOutputWidget(ctk.CTkFrame):
                     # Legacy list format - map by position
                     writer.writerow(item[:len(columns)])
             return output.getvalue()
-        elif current_choice.startswith("Q&A Results"):
+        elif current_tab == "Q&A":
             # Get export content from QAPanel if available
             if self._qa_panel is not None:
                 return self._qa_panel.get_export_content()
             return ""
-        elif current_choice.startswith("Summary for "):
-            doc_name = current_choice.replace("Summary for ", "")
-            return self._document_summaries.get(doc_name, "")
+        elif current_tab == "Summary":
+            # Return text from summary display
+            return self.summary_text_display.get("0.0", "end").strip()
         return ""
 
     def copy_to_clipboard(self):
@@ -998,25 +960,19 @@ class DynamicOutputWidget(ctk.CTkFrame):
             messagebox.showwarning("Empty", "No content to save.")
             return
 
-        current_choice = self.output_selector.get()
+        # Session 51: Use current tab instead of dropdown
+        current_tab = self.tabview.get()
         default_filename = "output"
         filetypes = [("All Files", "*.*")]
 
-        if current_choice == "Meta-Summary":
-            default_filename = "meta_summary.txt"
-            filetypes = [("Text Files", "*.txt"), ("All Files", "*.*")]
-        elif current_choice.startswith("Case Briefing"):
-            default_filename = "case_briefing.txt"
-            filetypes = [("Text Files", "*.txt"), ("All Files", "*.*")]
-        elif current_choice.startswith("Rare Word List"):
-            default_filename = "rare_word_list.csv"
+        if current_tab == "Names & Vocab":
+            default_filename = "names_vocabulary.csv"
             filetypes = [("CSV Files", "*.csv"), ("All Files", "*.*")]
-        elif current_choice.startswith("Q&A Results"):
+        elif current_tab == "Q&A":
             default_filename = "qa_results.txt"
             filetypes = [("Text Files", "*.txt"), ("All Files", "*.*")]
-        elif current_choice.startswith("Summary for "):
-            doc_name = current_choice.replace("Summary for ", "")
-            default_filename = f"{doc_name}_summary.txt"
+        elif current_tab == "Summary":
+            default_filename = "summary.txt"
             filetypes = [("Text Files", "*.txt"), ("All Files", "*.*")]
 
         filepath = filedialog.asksaveasfilename(

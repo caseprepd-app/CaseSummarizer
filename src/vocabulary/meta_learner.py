@@ -101,6 +101,7 @@ FEATURE_NAMES = [
     # Character/format features for artifact detection
     "has_trailing_punctuation",  # "Smith:", "Di Leo." - likely artifacts
     "has_leading_digit",  # "4 Ms. Di Leo", "17 SMITH" - line numbers
+    "has_trailing_digit",  # "Smith 17", "Di Leo 2" - page/line number suffixes
     "word_count",  # 1-3 words = good, 4+ = suspicious over-extraction
     "is_all_caps",  # "PLAINTIFF'S EXHIBIT" - headers, not vocabulary
 ]
@@ -216,6 +217,9 @@ class VocabularyPreferenceLearner:
         # Leading digit ("4 Ms. Di Leo", "17 SMITH") - line numbers/page refs
         has_leading_digit = 1.0 if term and term[0].isdigit() else 0.0
 
+        # Trailing digit ("Smith 17", "Di Leo 2") - page/line number suffixes
+        has_trailing_digit = 1.0 if term and term[-1].isdigit() else 0.0
+
         # Word count - 1-3 words normal, 4+ suspicious (over-extraction)
         word_count = float(len(term.split())) if term else 1.0
 
@@ -240,6 +244,7 @@ class VocabularyPreferenceLearner:
             is_unknown,
             has_trailing_punctuation,
             has_leading_digit,
+            has_trailing_digit,
             word_count,
             is_all_caps,
         ])

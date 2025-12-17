@@ -465,6 +465,10 @@ class QueueMessageHandler:
         self.main_window._embeddings = data.get('embeddings')
         self.main_window._qa_ready = True
 
+        # Refresh tabs to show Q&A option now that it's ready (Session 51)
+        self.main_window.output_display._refresh_tabs()
+        debug_log("[QUEUE HANDLER] Refreshed tabs - Q&A tab should now be accessible")
+
         # Mark Q&A as complete if it was requested
         if self.main_window._pending_tasks.get('qa'):
             self.main_window._completed_tasks.add('qa')

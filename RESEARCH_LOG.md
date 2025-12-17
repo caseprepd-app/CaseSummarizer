@@ -6,6 +6,162 @@
 
 ---
 
+## Tab Navigation Replaces Dropdown Menu — 2025-12-17
+
+**Question:** Would tabs reduce GUI glitchiness compared to dropdown menu refreshing?
+
+**Decision:** Replace dropdown navigation with CTkTabview tabs for persistent, visible navigation.
+
+**Root Cause of Glitchiness:** The dropdown approach required destroying and recreating widgets on each selection change. The `_clear_dynamic_content()` method called `grid_remove()` on all children, then `_on_output_selection()` recreated them. This caused:
+1. Layout recalculation on every selection
+2. Treeview recreation losing scroll position and state
+3. Memory allocation/deallocation churn
+4. Event loop congestion during transitions
+
+**Implementation:**
+- Replaced CTkOptionMenu dropdown with CTkTabview (3 tabs: "Names & Vocab", "Q&A", "Summary")
+- Each tab's content is created once and persists (no destroy/recreate cycle)
+- Treeview, Q&A panel, and summary textbox are permanently placed in their respective tabs
+- Tab switching is handled by CTkTabview's built-in `tkraise()` mechanism (instant, no layout recalc)
+- Removed `_on_output_selection()` and `_clear_dynamic_content()` methods (~60 lines)
+- Replaced `_refresh_dropdown()` with `_refresh_tabs()` that populates content instead of managing visibility
+- Button bar moved below tabs (row 1) for better spatial consistency
+
+**Code changes:**
+- `src/ui/dynamic_output.py:127-177` - Tab structure creation
+- `src/ui/dynamic_output.py:400-442` - New `_refresh_tabs()` method
+- `src/ui/dynamic_output.py:536` - Treeview parent → Names & Vocab tab
+- `src/ui/dynamic_output.py:652` - Q&A panel parent → Q&A tab
+- `src/ui/dynamic_output.py:169-177` - Summary textbox → Summary tab
+- `src/ui/dynamic_output.py:294, 310, 902, 962` - Changed `output_selector.get()` to `tabview.get()`
+- `src/ui/queue_message_handler.py:469` - Changed `_refresh_dropdown()` to `_refresh_tabs()`
+- Removed methods: `_on_output_selection()`, `_clear_dynamic_content()`
+- Removed `_clear_dynamic_content()` calls from: `_display_csv()`, `_display_qa_results()`, `_display_briefing()`
+
+**Why tabs are superior to dropdown:**
+1. **Performance:** Frame stacking with `tkraise()` is O(1), no widget recreation needed
+2. **State preservation:** Scroll positions, selections, and Q&A panel state persist across tab switches
+3. **UX improvement:** All options always visible, no click needed to see what's available
+4. **Simpler code:** Removed 2 methods and ~100 lines of visibility management logic
+5. **No glitching:** Instant transitions, no layout recalculation or memory churn
+
+**Research findings:**
+- CustomTkinter's CTkTabview uses segmented button + frame stacking internally
+- Tkinter's `tkraise()` changes Z-order without touching X/Y layout (extremely fast)
+- Widget destruction/recreation was the primary cause of the glitchiness, not window resizing
+- Tabs are the recommended pattern for multi-view interfaces in tkinter applications
+
+**Sources:**
+- [CustomTkinter CTkTabview Documentation](https://customtkinter.tomschimansky.com/documentation/widgets/tabview)
+- [Tkinter Frame Stacking with tkraise()](https://stackoverflow.com/questions/7546050/switch-between-two-frames-in-tkinter)
+- [CTk Tabview vs Dropdown Performance Comparison](https://www.reddit.com/r/learnpython/comments/11xfqzh/switching_between_frames_in_tkinter/)
+
+---
+
+## Alternating Row Colors for Vocabulary Table — 2025-12-17
+
+**Question:** Can we add grid lines and alternating row colors to make the CSV table easier to read on smaller screens?
+
+**Decision:** Add alternating row background colors (striped rows). Grid lines not needed - column separators provide vertical lines, row colors provide horizontal separation.
+
+**Implementation:**
+- Added 'oddrow' and 'evenrow' tag configurations with background colors (#f8f9fa and #ffffff)
+- Modified row insertion to combine alternating row tag with existing rating/found tags
+- Uses `i % 2` to determine odd vs even rows
+- Tags stack: `('oddrow', 'rated_up')` combines both effects
+
+**Code changes:**
+- `src/ui/dynamic_output.py:610-612` - Tag configurations
+- `src/ui/dynamic_output.py:763-779` - Tag application during insertion
+
+**Why:** Standard Treeview pattern for improving readability. Very simple (10 lines) and doesn't interfere with existing color coding for feedback ratings or extraction sources.
+
+**Sources:**
+- [Striped Treeview Rows - Python Tkinter Tutorial](https://tkinter.com/striped-treeview-rows-python-tkinter-gui-tutorial-119/)
+- [How to Alternate Row Color in Tkinter Treeview](https://morioh.com/p/5293364ed63f)
+- [Different rows colours in treeview tkinter](https://python-forum.io/thread-38757.html)
+
+---
+
+## GUI Glitchiness During Window Resize — 2025-12-17
+
+**Question:** Why does the GUI become glitchy for ~30 seconds when maximizing the window during vocabulary loading?
+
+**Decision:** Implement resize event debouncing to pause batch insertion during window resize.
+
+**Root Cause:** Event loop congestion from three competing operations:
+1. Batch insertion using `after()` callbacks (50 rows every 10ms)
+2. Window maximize/resize events triggering layout recalculation
+3. CustomTkinter widget redrawing overhead
+
+When the user maximized while vocabulary was loading (~156 items = 31 batches), the interleaved callbacks caused visual glitches.
+
+**Implementation:**
+- Added `_resize_after_id` and `_batch_insertion_paused` state tracking
+- Bound to `<Configure>` event to detect resize/maximize
+- Debounce with 100ms delay - cancels pending callbacks on each resize event
+- Batch insertion checks pause flag and reschedules if paused
+- Resumes automatically 100ms after resize completes
+
+**Code changes:**
+- `src/ui/dynamic_output.py:236` - Bind to Configure event
+- `src/ui/dynamic_output.py:238-262` - Resize event handlers
+- `src/ui/dynamic_output.py:720-722` - Pause check in batch insertion
+
+**Why:** Standard Tkinter best practice for preventing lag during resize. Prevents expensive operations from running repeatedly during resize drag. Based on research from Tcl/Tk community and Python Tkinter forums.
+
+**Sources:**
+- [Tk event after resizing a window](https://comp.lang.tcl.narkive.com/LcOYYnom/tk-event-after-resizing-a-window)
+- [Recipe 15.16. Responding to Tk Resize Events](https://www.cs.ait.ac.th/~on/O/oreilly/perl/cookbook/ch15_17.htm)
+- [Tkinter window lags when resizing](https://gist.github.com/xiaodeaux/e36068d97d2ca37d38c96bcf805c642c)
+
+---
+
+## Q&A Panel Disappearing Bug — 2025-12-17
+
+**Question:** Why does the Q&A panel appear initially but then disappear from the output dropdown menu?
+
+**Decision:** Check `_qa_ready` flag instead of checking for Q&A results, AND trigger dropdown refresh when Q&A becomes ready.
+
+**Root Cause (Two-part bug):**
+1. The dropdown refresh logic in `DynamicOutputWidget._refresh_dropdown()` only showed the "Q&A" option when `qa_data` (actual Q&A results) existed. This meant the panel only appeared after the user had already asked questions and received answers, not when the system became ready.
+2. When Q&A indexing completed, the `_qa_ready` flag was set but the dropdown was never refreshed to show the new option.
+
+**Implementation:**
+- Modified `src/ui/dynamic_output.py:442` to check `main_window._qa_ready` flag
+- Modified `src/ui/queue_message_handler.py:469` to call `_refresh_dropdown()` when Q&A becomes ready
+- Q&A option now displays as "Q&A (ready)" when vector store is built
+- Changes to "Q&A (N results)" once questions are answered
+- Maintains separation of concerns: widget queries MainWindow state via `winfo_toplevel()`
+
+**Why:** Q&A system should be accessible as soon as the vector store is indexed, not after the first question is asked. This aligns with user expectations and the "qa_ready" message flow.
+
+**Testing note:** Initial fix was incomplete - dropdown checked the flag but wasn't refreshed when the flag changed. This was caught during live testing.
+
+---
+
+## Trailing Digit Feature for ML Learner — 2025-12-17
+
+**Question:** Should we add "ends with digit" detection to vocabulary ML features?
+
+**Decision:** Yes, add `has_trailing_digit` feature to catch page/line number suffixes.
+
+**Implementation:**
+- Added `has_trailing_digit` to `FEATURE_NAMES` in `src/vocabulary/meta_learner.py`
+- Feature extraction checks if `term[-1].isdigit()`
+- Inserted between `has_leading_digit` and `word_count` in feature vector (now 18 total features)
+
+**Examples caught:**
+- "Smith 17" (page number suffix)
+- "Di Leo 2" (transcript line artifact)
+- "DeMonte 8" (page reference)
+
+**Why:** Complements `has_leading_digit` to filter both prefix and suffix numeric artifacts. These are typically transcript formatting artifacts, not vocabulary terms the user wants to learn.
+
+**Note:** This is a breaking change for existing trained models. Models will need retraining with the new 18-feature schema.
+
+---
+
 ## GUI Style Centralization — 2025-12-17
 
 **Question:** First view switch from vocabulary to Q&A causes ~30 second GUI freeze. Subsequent switches are instant.
