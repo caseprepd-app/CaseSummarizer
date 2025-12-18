@@ -13,7 +13,7 @@
 - [User Interface Layer](#3-user-interface-layer)
 - [Processing Pipeline](#4-processing-pipeline)
 - [Vocabulary Extraction](#5-vocabulary-extraction)
-- [Q&A System](#6-qa-system)
+- [Questions & Answers System](#6-questions--answers-system)
 - [Summarization](#7-summarization)
 - [Code Patterns](#8-code-patterns)
 - [File Directory](#9-file-directory)
@@ -29,7 +29,7 @@
 - [x] **Character sanitization** — 6-stage pipeline (mojibake, Unicode, transliteration, redactions, control chars, whitespace)
 - [x] **Smart preprocessing** — Title page, headers/footers, line numbers, Q&A notation removal
 - [x] **Vocabulary extraction** — Dual NER + LLM extraction with reconciliation, "Found By" column
-- [x] **Q&A system** — Hybrid BM25+ / FAISS retrieval, LlamaIndex query expansion
+- [x] **Questions & Answers system** — Hybrid BM25+ / FAISS retrieval, LlamaIndex query expansion
 - [x] **Progressive summarization** — Chunked map-reduce with focus threading
 - [x] **Unified semantic chunking** — Token enforcement via tiktoken (400-1200 tokens/chunk)
 - [x] **Parallel processing** — Dynamic worker scaling based on CPU/RAM
@@ -57,7 +57,7 @@ flowchart TB
     subgraph USER["User Input"]
         Files["PDF/TXT/RTF Files"]
         Settings["Settings & Preferences"]
-        Questions["Q&A Questions"]
+        Questions["Default Questions"]
     end
 
     subgraph UI["UI LAYER (CustomTkinter)"]
@@ -83,7 +83,7 @@ flowchart TB
         Reconciler["Reconciler<br/>Merge NER + LLM"]
     end
 
-    subgraph QA["Q&A SYSTEM"]
+    subgraph QA["QUESTIONS & ANSWERS"]
         VectorStore["VectorStoreBuilder<br/>FAISS index"]
         Retriever["HybridRetriever<br/>BM25+ + FAISS"]
         AnswerGen["AnswerGenerator"]
@@ -166,8 +166,8 @@ flowchart TB
 | `FileReviewTable` | `ui/widgets.py` | File list with status/confidence |
 | `ModelSelectionWidget` | `ui/widgets.py` | Model + prompt dropdown |
 | `OutputOptionsWidget` | `ui/widgets.py` | Task checkboxes, word count slider |
-| `DynamicOutputWidget` | `ui/dynamic_output.py` | Tabbed results (Vocab/Q&A/Summary) |
-| `QAPanel` | `ui/qa_panel.py` | Q&A results with follow-up |
+| `DynamicOutputWidget` | `ui/dynamic_output.py` | Tabbed results (Vocab/Questions/Summary) |
+| `QAPanel` | `ui/qa_panel.py` | Questions & answers with follow-up |
 | `QueueMessageHandler` | `ui/queue_message_handler.py` | Routes worker messages to UI |
 | `WorkflowOrchestrator` | `ui/workflow_orchestrator.py` | Processing state machine |
 
@@ -178,7 +178,7 @@ flowchart TB
 | `progress` | `handle_progress()` | Progress bar + status |
 | `file_processed` | `handle_file_processed()` | FileTable row update |
 | `ner_complete` | `handle_ner_complete()` | Initial vocab table |
-| `qa_ready` | `handle_qa_ready()` | Enable Q&A panel |
+| `qa_ready` | `handle_qa_ready()` | Enable Questions panel |
 | `llm_complete` | `handle_llm_complete()` | Enhanced vocab table |
 | `summary_result` | `handle_summary_result()` | Summary display |
 | `error` | `handle_error()` | Error dialog |
@@ -264,7 +264,7 @@ flowchart TB
         NERResult["Initial names + vocab"]
     end
 
-    subgraph Phase2["PHASE 2: Q&A Indexing (parallel)"]
+    subgraph Phase2["PHASE 2: Question Indexing (parallel)"]
         Index["Build FAISS index"]
     end
 
@@ -278,7 +278,7 @@ flowchart TB
     Start --> Phase1
     Phase1 --> NERResult
     NERResult -->|"Table appears"| Phase2
-    Phase2 -->|"Q&A panel activates"| Phase3
+    Phase2 -->|"Questions panel activates"| Phase3
     Phase3 --> Output
 ```
 
@@ -360,7 +360,7 @@ Results show source of each term:
 
 ---
 
-## 6. Q&A System
+## 6. Questions & Answers System
 
 ### Hybrid Retrieval Architecture
 
@@ -395,7 +395,7 @@ flowchart LR
     Bonus --> Answer
 ```
 
-### Q&A Components
+### Questions & Answers Components
 
 | Component | File | Purpose |
 |-----------|------|---------|

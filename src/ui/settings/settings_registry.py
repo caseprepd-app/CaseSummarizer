@@ -478,13 +478,13 @@ def _register_all_settings():
 
 
     # ===================================================================
-    # Q&A TAB
+    # QUESTIONS TAB
     # ===================================================================
 
     SettingsRegistry.register(SettingDefinition(
         key="qa_answer_mode",
         label="Answer generation mode",
-        category="Q&A",
+        category="Questions",
         setting_type=SettingType.DROPDOWN,
         tooltip=(
             "How to generate answers from retrieved document context.\n\n"
@@ -507,12 +507,12 @@ def _register_all_settings():
     SettingsRegistry.register(SettingDefinition(
         key="qa_auto_run",
         label="Auto-run default questions",
-        category="Q&A",
+        category="Questions",
         setting_type=SettingType.CHECKBOX,
         tooltip=(
             "Automatically run the default questions after document processing "
-            "completes. Disable this if you prefer to manually trigger Q&A "
-            "or if processing large documents where Q&A adds overhead."
+            "completes. Disable this if you prefer to manually trigger questions "
+            "or if processing large documents where questions add overhead."
         ),
         default=True,
         getter=lambda: prefs.get("qa_auto_run", True),
@@ -538,7 +538,7 @@ def _register_all_settings():
     SettingsRegistry.register(SettingDefinition(
         key="qa_edit_questions",
         label="Edit Default Questions",
-        category="Q&A",
+        category="Questions",
         setting_type=SettingType.BUTTON,
         tooltip=(
             "Customize the questions that are automatically asked for every "
@@ -547,6 +547,61 @@ def _register_all_settings():
         ),
         default=None,
         action=_open_question_editor,
+    ))
+
+    def _open_default_questions_editor(parent_widget=None):
+        """Open text editor for default questions file."""
+        from pathlib import Path
+        import subprocess
+        import platform
+
+        questions_file = Path(__file__).parent.parent.parent.parent / "config" / "qa_default_questions.txt"
+
+        # Ensure file exists
+        if not questions_file.exists():
+            questions_file.parent.mkdir(parents=True, exist_ok=True)
+            questions_file.write_text(
+                "# Default Q&A Questions\n"
+                "# One question per line. Lines starting with # are comments.\n\n"
+                "What is this case about?\n"
+                "What are the main allegations?\n",
+                encoding='utf-8'
+            )
+
+        # Open in system default text editor
+        try:
+            if platform.system() == 'Windows':
+                subprocess.run(['notepad.exe', str(questions_file)])
+            elif platform.system() == 'Darwin':  # macOS
+                subprocess.run(['open', '-t', str(questions_file)])
+            else:  # Linux
+                subprocess.run(['xdg-open', str(questions_file)])
+
+            # Refresh the checkbox label in main window after editing
+            # Find main window and refresh label
+            widget = parent_widget
+            while widget:
+                if hasattr(widget, 'refresh_default_questions_label'):
+                    widget.refresh_default_questions_label()
+                    break
+                widget = widget.master if hasattr(widget, 'master') else None
+
+        except Exception as e:
+            from tkinter import messagebox
+            messagebox.showerror("Error", f"Could not open file: {e}")
+
+    SettingsRegistry.register(SettingDefinition(
+        key="qa_edit_auto_questions",
+        label="Edit Auto Questions (TXT)",
+        category="Questions",
+        setting_type=SettingType.BUTTON,
+        tooltip=(
+            "Edit the simple text file of questions that are automatically asked "
+            "after document processing completes. One question per line. "
+            "Changes are saved to config/qa_default_questions.txt."
+        ),
+        default=None,
+        action=_open_default_questions_editor,
     ))
 
     # ===================================================================

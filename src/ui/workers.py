@@ -315,7 +315,8 @@ class QAWorker(BaseWorker):
         embeddings,
         ui_queue: Queue,
         answer_mode: str = "extraction",
-        questions: list[str] | None = None
+        questions: list[str] | None = None,
+        use_default_questions: bool = False
     ):
         """
         Initialize Q&A worker.
@@ -326,12 +327,14 @@ class QAWorker(BaseWorker):
             ui_queue: Queue for UI communication
             answer_mode: "extraction" or "ollama"
             questions: Custom questions to ask (None = use defaults from YAML)
+            use_default_questions: If True, load questions from qa_default_questions.txt
         """
         super().__init__(ui_queue)
         self.vector_store_path = Path(vector_store_path)
         self.embeddings = embeddings
         self.answer_mode = answer_mode
         self.custom_questions = questions
+        self.use_default_questions = use_default_questions
         self.results: list = []
 
     def execute(self):
@@ -347,11 +350,20 @@ class QAWorker(BaseWorker):
             answer_mode=self.answer_mode
         )
 
-        # Get questions to ask
-        if self.custom_questions:
+        # Determine which questions to ask and whether they are default questions
+        if self.use_default_questions:
+            # Load from qa_default_questions.txt
+            questions = orchestrator.load_default_questions_from_txt()
+            is_default = True
+            if DEBUG_MODE:
+                debug_log(f"[QA WORKER] Using {len(questions)} default questions from txt file")
+        elif self.custom_questions:
             questions = self.custom_questions
+            is_default = False
         else:
+            # Use questions from qa_questions.yaml (branching flow)
             questions = orchestrator.get_default_questions()
+            is_default = False
 
         total = len(questions)
         if total == 0:
@@ -370,8 +382,12 @@ class QAWorker(BaseWorker):
             truncated_q = question[:50] + "..." if len(question) > 50 else question
             self.ui_queue.put(QueueMessage.qa_progress(i, total, truncated_q))
 
-            # Ask the question
-            result = orchestrator._ask_single_question(question, is_followup=False)
+            # Ask the question with default flag
+            result = orchestrator._ask_single_question(
+                question,
+                is_followup=False,
+                is_default=is_default
+            )
             self.results.append(result)
 
             # Send individual result
@@ -795,14 +811,21 @@ class ProgressiveExtractionWorker(BaseWorker):
                     model_kwargs={'device': 'cpu'}
                 )
 
-            # Create unified chunks
+            # Create unified chunks from each document with source attribution
+            # This ensures each chunk knows which document it came from
             chunker = create_unified_chunker()
-            chunks = chunker.chunk_text(self.combined_text)
+            all_chunks = []
+            for doc in self.documents:
+                filename = doc.get('filename', 'unknown')
+                text = doc.get('extracted_text', '')
+                if text.strip():
+                    doc_chunks = chunker.chunk_text(text, source_file=filename)
+                    all_chunks.extend(doc_chunks)
 
             # Build vector store
             builder = VectorStoreBuilder()
             result = builder.create_from_unified_chunks(
-                chunks=chunks,
+                chunks=all_chunks,
                 embeddings=self.embeddings,
             )
 
@@ -811,6 +834,13 @@ class ProgressiveExtractionWorker(BaseWorker):
                 vector_store_path=result.persist_dir,
                 embeddings=self.embeddings,
                 chunk_count=result.chunk_count,
+            ))
+
+            # Trigger default questions if enabled
+            debug_log("[PROGRESSIVE WORKER] Triggering default Q&A check")
+            self.ui_queue.put(QueueMessage.trigger_default_qa(
+                vector_store_path=result.persist_dir,
+                embeddings=self.embeddings,
             ))
 
         except Exception as e:

@@ -51,6 +51,7 @@ class MessageType:
     QA_COMPLETE = 'qa_complete'
     QA_FOLLOWUP_RESULT = 'qa_followup_result'
     QA_ERROR = 'qa_error'
+    TRIGGER_DEFAULT_QA = 'trigger_default_qa'
 
     # Progressive Extraction (Session 48)
     NER_COMPLETE = 'ner_complete'
@@ -268,6 +269,23 @@ class QueueMessage:
             error: Error message
         """
         return (MessageType.QA_ERROR, {'error': error})
+
+    @staticmethod
+    def trigger_default_qa(
+        vector_store_path: str,
+        embeddings: Any
+    ) -> tuple[str, dict]:
+        """
+        Signal to trigger default Q&A questions.
+
+        Args:
+            vector_store_path: Path to vector store
+            embeddings: HuggingFaceEmbeddings instance
+        """
+        return (MessageType.TRIGGER_DEFAULT_QA, {
+            'vector_store_path': vector_store_path,
+            'embeddings': embeddings,
+        })
 
     # =========================================================================
     # Progressive Extraction (Session 48)

@@ -19,7 +19,7 @@ This module uses Ollama as the primary AI backend for several key reasons:
    and support multiple backends if needed in the future.
 
 Deprecated Managers:
-- ONNXModelManager: See development_log.md for details on Phi-3 token corruption bug
+- ONNXModelManager: Removed due to Phi-3 token corruption bug (ONNX tokenizer mismatch)
 - LlamaCppModelManager: Legacy implementation kept for reference only
 """
 

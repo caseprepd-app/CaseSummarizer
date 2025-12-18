@@ -29,6 +29,7 @@ from src.vector_store.qa_retriever import QARetriever, RetrievalResult
 
 # Default questions YAML path (relative to this file: src/qa/ -> config/)
 DEFAULT_QUESTIONS_PATH = Path(__file__).parent.parent.parent / "config" / "qa_questions.yaml"
+DEFAULT_QUESTIONS_TXT_PATH = Path(__file__).parent.parent.parent / "config" / "qa_default_questions.txt"
 
 
 @dataclass
@@ -50,6 +51,7 @@ class QAResult:
         confidence: Relevance score from vector search (0-1)
         retrieval_time_ms: Time taken for vector search
         is_followup: Whether this is a user-asked follow-up question
+        is_default_question: Whether this question came from the default questions list
     """
 
     question: str
@@ -60,6 +62,7 @@ class QAResult:
     confidence: float = 0.0
     retrieval_time_ms: float = 0.0
     is_followup: bool = False
+    is_default_question: bool = False  # NEW: Marks questions from default list
 
     @property
     def answer(self) -> str:
@@ -165,6 +168,39 @@ class QAOrchestrator:
         except Exception as e:
             debug_log(f"[QAOrchestrator] Error loading questions: {e}")
 
+    def load_default_questions_from_txt(self) -> list[str]:
+        """
+        Load default questions from simple text file.
+
+        Reads config/qa_default_questions.txt where each line is a question.
+        Skips blank lines and lines starting with #.
+
+        Returns:
+            List of question strings (one per line)
+        """
+        if not DEFAULT_QUESTIONS_TXT_PATH.exists():
+            if DEBUG_MODE:
+                debug_log(f"[QAOrchestrator] Default questions file not found: {DEFAULT_QUESTIONS_TXT_PATH}")
+            return []
+
+        questions = []
+        try:
+            with open(DEFAULT_QUESTIONS_TXT_PATH, 'r', encoding='utf-8') as f:
+                for line in f:
+                    line = line.strip()
+                    # Skip blank lines and comments
+                    if line and not line.startswith('#'):
+                        questions.append(line)
+
+            if DEBUG_MODE:
+                debug_log(f"[QAOrchestrator] Loaded {len(questions)} default questions from txt file")
+
+            return questions
+
+        except Exception as e:
+            debug_log(f"[QAOrchestrator] Error loading default questions: {e}")
+            return []
+
     def get_default_questions(self) -> list[str]:
         """
         Get list of default question texts.
@@ -217,7 +253,12 @@ class QAOrchestrator:
         self.results.append(result)
         return result
 
-    def _ask_single_question(self, question: str, is_followup: bool = False) -> QAResult:
+    def _ask_single_question(
+        self,
+        question: str,
+        is_followup: bool = False,
+        is_default: bool = False
+    ) -> QAResult:
         """
         Ask a single question and generate both quick_answer and citation.
 
@@ -228,6 +269,7 @@ class QAOrchestrator:
         Args:
             question: The question to ask
             is_followup: Whether this is a user-initiated follow-up
+            is_default: Whether this question is from the default questions list
 
         Returns:
             QAResult with quick_answer, citation, and metadata
@@ -261,7 +303,8 @@ class QAOrchestrator:
             source_summary=source_summary,
             confidence=confidence,
             retrieval_time_ms=retrieval_result.retrieval_time_ms,
-            is_followup=is_followup
+            is_followup=is_followup,
+            is_default_question=is_default  # NEW field
         )
 
     def _generate_quick_answer(self, question: str, context: str) -> str:

@@ -8,7 +8,7 @@ and right-click context menu for excluding terms from future extractions.
 
 Session 51 Updates (Tab Navigation):
 - Replaced dropdown menu with CTkTabview for instant, glitch-free navigation
-- Three persistent tabs: "Names & Vocab" | "Q&A" | "Summary"
+- Three persistent tabs: "Names & Vocab" | "Ask Questions" | "Summary"
 - Tab switching uses frame stacking (tkraise) - no widget recreation
 - Removed ~100 lines of visibility management code
 - All content preserved across tab switches (scroll position, state)
@@ -136,14 +136,14 @@ class DynamicOutputWidget(ctk.CTkFrame):
 
         # Create tabs
         self.tabview.add("Names & Vocab")
-        self.tabview.add("Q&A")
+        self.tabview.add("Ask Questions")
         self.tabview.add("Summary")
 
         # Configure tab grids
         self.tabview.tab("Names & Vocab").grid_columnconfigure(0, weight=1)
         self.tabview.tab("Names & Vocab").grid_rowconfigure(0, weight=1)
-        self.tabview.tab("Q&A").grid_columnconfigure(0, weight=1)
-        self.tabview.tab("Q&A").grid_rowconfigure(0, weight=1)
+        self.tabview.tab("Ask Questions").grid_columnconfigure(0, weight=1)
+        self.tabview.tab("Ask Questions").grid_rowconfigure(0, weight=1)
         self.tabview.tab("Summary").grid_columnconfigure(0, weight=1)
         self.tabview.tab("Summary").grid_rowconfigure(0, weight=1)
 
@@ -203,7 +203,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
         # Internal storage for outputs (Session 45: Updated naming)
         self._outputs = {
             "Names & Vocabulary": [],  # Session 45: Primary output - people + terms
-            "Q&A": [],  # Q&A results (replaces "Q&A Results")
+            "Ask Questions": [],  # Q&A results (replaces "Q&A Results")
             "Summary": "",  # Combined summary (replaces "Meta-Summary")
             # Backward compatibility keys
             "Meta-Summary": "",
@@ -391,7 +391,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
             self._document_summaries.update(document_summaries)
         if qa_results is not None:
             self._outputs["Q&A Results"] = qa_results
-            self._outputs["Q&A"] = qa_results
+            self._outputs["Ask Questions"] = qa_results
         if briefing_text:
             self._outputs["Case Briefing"] = briefing_text
         if briefing_sections is not None:
@@ -414,7 +414,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
         # Q&A tab - always enabled if Q&A system is ready
         main_window = self.winfo_toplevel()
         qa_ready = getattr(main_window, '_qa_ready', False)
-        qa_data = self._outputs.get("Q&A") or self._outputs.get("Q&A Results")
+        qa_data = self._outputs.get("Ask Questions") or self._outputs.get("Q&A Results")
         if qa_data:
             self._display_qa_results(qa_data)
 
@@ -439,7 +439,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
         if vocab_data:
             self.tabview.set("Names & Vocab")
         elif qa_ready:
-            self.tabview.set("Q&A")
+            self.tabview.set("Ask Questions")
         else:
             self.tabview.set("Summary")
 
@@ -567,7 +567,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
         # Create QAPanel on first use
         if self._qa_panel is None:
             from src.ui.qa_panel import QAPanel
-            self._qa_panel = QAPanel(self.tabview.tab("Q&A"))
+            self._qa_panel = QAPanel(self.tabview.tab("Ask Questions"))
 
             # Set up follow-up callback by finding MainWindow through the widget tree
             # DynamicOutputWidget's master is right_panel, not MainWindow directly
@@ -933,7 +933,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
                     # Legacy list format - map by position
                     writer.writerow(item[:len(columns)])
             return output.getvalue()
-        elif current_tab == "Q&A":
+        elif current_tab == "Ask Questions":
             # Get export content from QAPanel if available
             if self._qa_panel is not None:
                 return self._qa_panel.get_export_content()
@@ -968,7 +968,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
         if current_tab == "Names & Vocab":
             default_filename = "names_vocabulary.csv"
             filetypes = [("CSV Files", "*.csv"), ("All Files", "*.*")]
-        elif current_tab == "Q&A":
+        elif current_tab == "Ask Questions":
             default_filename = "qa_results.txt"
             filetypes = [("Text Files", "*.txt"), ("All Files", "*.*")]
         elif current_tab == "Summary":

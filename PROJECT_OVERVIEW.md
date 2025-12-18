@@ -41,7 +41,7 @@ Build a **100% offline, private, commercial Windows desktop application** for co
 2. **Technical vocabulary** — medical terms, legal terminology, unusual words for prep
 
 ### Secondary Output (Default ON)
-3. **Document Q&A** — Ask questions, get answers with source citations. Results serve as handoff documents for colleagues.
+3. **Ask Questions of Your Documents** — Ask questions, get answers with source citations. Results serve as handoff documents for colleagues.
 
 ### Optional Output (Default OFF)
 4. **AI-generated summaries** — Comprehensive case synthesis. Off by default due to 30+ minute processing time.
@@ -68,7 +68,7 @@ Build a **100% offline, private, commercial Windows desktop application** for co
 | Case prep time | < 30 minutes from documents to ready |
 | Name extraction accuracy | > 95% of parties/witnesses identified |
 | Vocabulary usefulness | Technical terms a layperson would need defined |
-| Q&A answer quality | Answers cite specific document sources |
+| Question answer quality | Answers cite specific document sources |
 | OCR error filtering | False positives (typos, scan artifacts) filtered out |
 
 ---
@@ -97,8 +97,8 @@ Build a **100% offline, private, commercial Windows desktop application** for co
 1. FILE INGEST      → User selects documents (PDF, TXT, RTF)
 2. PRE-PROCESSING   → App extracts text, provides OCR confidence scores
 3. FILE SELECTION   → User reviews quality scores, chooses which to include
-4. AI PROCESSING    → Extraction, Q&A indexing, optional summarization
-5. OUTPUT DISPLAY   → Names & Vocabulary table, Q&A panel, optional Summary
+4. AI PROCESSING    → Extraction, question indexing, optional summarization
+5. OUTPUT DISPLAY   → Names & Vocabulary table, Questions panel, optional Summary
 ```
 
 ---

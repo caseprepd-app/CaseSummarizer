@@ -1,0 +1,9 @@
+# Default Q&A Questions
+# One question per line. Lines starting with # are comments.
+# These questions will be automatically asked after document processing if enabled.
+
+What is this case about?
+What are the main allegations?
+Who are the plaintiffs?
+Who are the defendants?
+What is the date of the incident?

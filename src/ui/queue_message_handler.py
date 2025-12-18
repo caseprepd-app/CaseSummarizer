@@ -479,6 +479,42 @@ class QueueMessageHandler:
             text=f"Q&A ready ({chunk_count} chunks). LLM enhancement in progress..."
         )
 
+    def handle_trigger_default_qa(self, data: dict):
+        """
+        Handle 'trigger_default_qa' message - Auto-trigger default Q&A questions.
+
+        Checks if default questions checkbox is enabled and spawns QAWorker if so.
+
+        Args:
+            data: Dictionary with 'vector_store_path' and 'embeddings'
+        """
+        # Check if checkbox is enabled
+        if not self.main_window.ask_default_questions_check.get():
+            if debug_log:
+                debug_log("[QUEUE HANDLER] Default questions disabled, skipping")
+            return
+
+        # Spawn QAWorker with default questions
+        from src.ui.workers import QAWorker
+        from src.settings import get_setting
+
+        vector_store_path = data['vector_store_path']
+        embeddings = data['embeddings']
+
+        debug_log("[QUEUE HANDLER] Spawning QAWorker for default questions")
+
+        qa_worker = QAWorker(
+            vector_store_path=vector_store_path,
+            embeddings=embeddings,
+            ui_queue=self.main_window._ui_queue,
+            answer_mode=get_setting('qa_answer_mode', 'extraction'),
+            questions=None,
+            use_default_questions=True  # NEW parameter
+        )
+
+        qa_worker.start()
+        debug_log("[QUEUE HANDLER] Default questions worker started")
+
     def handle_llm_progress(self, data: tuple):
         """
         Handle 'llm_progress' message - Phase 3 LLM chunk processing progress.

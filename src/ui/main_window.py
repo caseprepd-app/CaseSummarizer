@@ -100,6 +100,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         self._refresh_corpus_dropdown()
         self._update_corpus_banner()
         self._update_generate_button_state()
+        self._update_default_questions_label()  # Set initial question count
 
         # Startup checks
         self._check_ollama_service()
@@ -303,13 +304,35 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             if self._pending_tasks.get('qa'):
                 self._completed_tasks.add('qa')
                 self.followup_btn.configure(state="normal")
-            self.set_status(f"Q&A ready ({chunk_count} chunks). LLM enhancement in progress...")
+            self.set_status(f"Questions and answers ready ({chunk_count} chunks). LLM enhancement in progress...")
 
         elif msg_type == "qa_error":
             error_msg = data.get('error', 'Unknown Q&A error') if isinstance(data, dict) else str(data)
             debug_log(f"[MainWindow] Q&A indexing error: {error_msg}")
-            self.set_status(f"Q&A unavailable: {error_msg[:50]}...")
+            self.set_status(f"Questions and answers unavailable: {error_msg[:50]}...")
             # Q&A won't be available but vocab extraction can continue
+
+        elif msg_type == "trigger_default_qa":
+            # Check if default questions checkbox is enabled
+            if not self.ask_default_questions_check.get():
+                debug_log("[MainWindow] Default questions disabled, skipping")
+            else:
+                # Spawn QAWorker with default questions
+                from src.ui.workers import QAWorker
+                from src.settings import get_setting
+
+                debug_log("[MainWindow] Spawning QAWorker for default questions")
+
+                qa_worker = QAWorker(
+                    vector_store_path=data['vector_store_path'],
+                    embeddings=data['embeddings'],
+                    ui_queue=self._ui_queue,
+                    answer_mode=get_setting('qa_answer_mode', 'extraction'),
+                    questions=None,
+                    use_default_questions=True
+                )
+                qa_worker.start()
+                debug_log("[MainWindow] Default questions worker started")
 
         elif msg_type == "llm_progress":
             current, total = data
@@ -400,6 +423,54 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
                 self.summary_check.deselect()
 
         self._update_generate_button_state()
+
+    def _load_default_question_count(self) -> int:
+        """
+        Get count of default questions from config file.
+
+        Returns:
+            Number of questions in qa_default_questions.txt
+        """
+        try:
+            from pathlib import Path
+            questions_file = Path(__file__).parent.parent.parent / "config" / "qa_default_questions.txt"
+
+            if not questions_file.exists():
+                return 0
+
+            count = 0
+            with open(questions_file, 'r', encoding='utf-8') as f:
+                for line in f:
+                    line = line.strip()
+                    if line and not line.startswith('#'):
+                        count += 1
+
+            return count
+
+        except Exception as e:
+            debug_log(f"[MainWindow] Error loading default question count: {e}")
+            return 0
+
+    def _update_default_questions_label(self):
+        """Update checkbox text with current question count."""
+        count = self._load_default_question_count()
+        question_word = "question" if count == 1 else "questions"
+        self.ask_default_questions_check.configure(
+            text=f"  Ask {count} default {question_word}"  # Leading spaces for indent
+        )
+
+    def _on_default_questions_toggled(self):
+        """Handle default questions checkbox state change."""
+        # Just update button state - no other action needed here
+        self._update_generate_button_state()
+
+        if DEBUG_MODE:
+            state = "enabled" if self.ask_default_questions_check.get() else "disabled"
+            debug_log(f"[MainWindow] Default questions {state}")
+
+    def refresh_default_questions_label(self):
+        """Refresh the default questions checkbox label. Called after editing questions."""
+        self._update_default_questions_label()
 
     def _perform_tasks(self):
         """Execute the selected tasks using progressive three-phase architecture (Session 45)."""
@@ -594,7 +665,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         """Start Q&A task - build vector store then run questions."""
         import threading
 
-        self.set_status("Q&A: Loading embeddings model (this may take a moment)...")
+        self.set_status("Questions and answers: Loading embeddings model (this may take a moment)...")
 
         # Run the heavy initialization in a background thread
         def initialize_qa():
@@ -634,7 +705,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
     def _qa_init_complete(self, success: bool, error: str | None):
         """Called when Q&A initialization (embeddings + vector store) completes."""
         if not success:
-            self.set_status(f"Q&A error: {error[:50] if error else 'Unknown'}...")
+            self.set_status(f"Questions and answers error: {error[:50] if error else 'Unknown'}...")
             self._completed_tasks.add('qa')
             if self._pending_tasks.get('summary'):
                 self._start_summary_task()
@@ -642,7 +713,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
                 self._finalize_tasks()
             return
 
-        self.set_status("Q&A: Building vector store...")
+        self.set_status("Questions and answers: Building vector store...")
 
         # Create Q&A queue and worker
         self._qa_queue = Queue()
@@ -655,7 +726,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         self._qa_worker.start()
 
         # Start polling Q&A queue
-        self.set_status("Q&A: Processing questions...")
+        self.set_status("Questions and answers: Processing questions...")
         self._poll_qa_queue()
 
     def _poll_qa_queue(self):
@@ -665,7 +736,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
                 msg_type, data = self._qa_queue.get_nowait()
                 if msg_type == "qa_progress":
                     current, total, question = data
-                    self.set_status(f"Q&A: Processing question {current + 1}/{total}...")
+                    self.set_status(f"Questions and answers: Processing question {current + 1}/{total}...")
                 elif msg_type == "qa_result":
                     # Individual result - could update incrementally
                     pass
@@ -673,7 +744,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
                     self._on_qa_complete(data)
                     return
                 elif msg_type == "error":
-                    self.set_status(f"Q&A error: {data}")
+                    self.set_status(f"Questions and answers error: {data}")
                     self._on_qa_complete([])
                     return
         except Empty:
@@ -703,11 +774,11 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         # Display results using update_outputs
         if qa_results:
             self.output_display.update_outputs(qa_results=qa_results)
-            self.set_status(f"Q&A: {len(qa_results)} questions answered")
+            self.set_status(f"Questions and answers: {len(qa_results)} questions answered")
             # Enable follow-up button
             self.followup_btn.configure(state="normal")
         else:
-            self.set_status("Q&A complete (no results)")
+            self.set_status("Questions and answers complete (no results)")
 
         # Continue to next task
         if self._pending_tasks.get('summary'):
@@ -841,14 +912,14 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         # Check prerequisites
         if not self._vector_store_path or not self._embeddings:
             messagebox.showwarning(
-                "Q&A Not Ready",
-                "Q&A system is not initialized yet.\n\n"
-                "To use Q&A:\n"
+                "Questions Not Ready",
+                "Question system is not initialized yet.\n\n"
+                "To ask questions:\n"
                 "1. Add document files\n"
-                "2. Ensure the 'Q&A' checkbox is checked\n"
+                "2. Ensure the 'Ask Questions' checkbox is checked\n"
                 "3. Click 'Perform Tasks'\n"
-                "4. Wait for 'Q&A ready' status message\n\n"
-                "The Q&A system will be ready once the vector index is built."
+                "4. Wait for 'Questions and answers ready' status message\n\n"
+                "The question system will be ready once the vector index is built."
             )
             return
 

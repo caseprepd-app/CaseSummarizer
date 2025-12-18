@@ -203,11 +203,20 @@ class WindowLayoutMixin:
         # Q&A checkbox (default ON)
         self.qa_check = ctk.CTkCheckBox(
             task_frame,
-            text="Questions & Answers",
+            text="Ask Questions",
             command=self._update_generate_button_state
         )
         self.qa_check.pack(anchor="w", pady=2)
         self.qa_check.select()  # ON by default
+
+        # Default questions sub-checkbox (indented under Q&A)
+        self.ask_default_questions_check = ctk.CTkCheckBox(
+            task_frame,
+            text="  Ask 0 default questions",  # Initial text with indent
+            command=self._on_default_questions_toggled
+        )
+        self.ask_default_questions_check.pack(anchor="w", pady=(0, 2))
+        self.ask_default_questions_check.select()  # ON by default
 
         # Vocabulary checkbox (default ON)
         self.vocab_check = ctk.CTkCheckBox(

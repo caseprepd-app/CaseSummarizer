@@ -1,14 +1,15 @@
 """
 Q&A Panel Widget for LocalScribe.
 
-Displays Q&A results in a CSV-style table with three columns:
+Displays Q&A results in plain text format:
 - Question: The question asked
-- Quick Answer: AI-synthesized answer from Ollama
+- Answer: AI-synthesized answer from Ollama
 - Citation: Raw text excerpts from BM25+/vector retrieval
+- Source: Formatted source metadata (document names, sections)
 
 Features:
-- Excel-like Treeview table with frozen headers
-- Per-result include/exclude toggles (checkbox column)
+- Plain text scrollable display (full text, no truncation)
+- Include/exclude toggles for export (Select All/Deselect All)
 - Export to CSV or TXT
 - Collapsible follow-up question input pane
 """
@@ -17,7 +18,7 @@ import csv
 import io
 import queue
 import threading
-from tkinter import filedialog, messagebox, ttk
+from tkinter import filedialog, messagebox
 from typing import Callable
 
 import customtkinter as ctk
@@ -26,36 +27,14 @@ from src.config import DEBUG_MODE
 from src.logging_config import debug_log
 from src.qa.qa_orchestrator import QAResult
 
-# Unicode checkbox icons for toggle display
-CHECK_ICON = "☑"  # U+2611 Ballot Box with Check
-UNCHECK_ICON = "☐"  # U+2610 Ballot Box
-
-# Column configuration for Q&A table
-QA_COLUMN_CONFIG = {
-    "Include": {"width": 50, "max_chars": 3},
-    "Question": {"width": 180, "max_chars": 35},
-    "Quick Answer": {"width": 250, "max_chars": 50},
-    "Citation": {"width": 300, "max_chars": 60},
-}
-
-
-def truncate_text(text: str, max_chars: int) -> str:
-    """Truncate text with ellipsis for table display."""
-    if not text:
-        return ""
-    text = str(text).replace('\n', ' ').replace('\r', '').strip()
-    if len(text) <= max_chars:
-        return text
-    return text[:max_chars - 3] + "..."
-
 
 class QAPanel(ctk.CTkFrame):
     """
-    Q&A display panel with CSV-style table layout.
+    Q&A display panel with plain text layout.
 
     Features:
-    - 3-column table: Question | Quick Answer | Citation
-    - Include/exclude checkboxes for export
+    - Plain text display with full content (no truncation)
+    - Include/exclude controls for export (Select All/Deselect All)
     - Export to CSV or TXT
     - Follow-up question input pane
 
@@ -101,12 +80,12 @@ class QAPanel(ctk.CTkFrame):
 
         # Build UI components
         self._create_header()
-        self._create_table_area()
+        self._create_text_display()
         self._create_button_bar()
         self._create_followup_pane()
 
         if DEBUG_MODE:
-            debug_log("[QAPanel] Initialized with CSV-style table layout")
+            debug_log("[QAPanel] Initialized with plain text layout")
 
     def _create_header(self):
         """Create header with title and info."""
@@ -115,7 +94,7 @@ class QAPanel(ctk.CTkFrame):
 
         title = ctk.CTkLabel(
             header,
-            text="Document Q&A (CSV Format)",
+            text="Questions & Answers",
             font=ctk.CTkFont(size=14, weight="bold")
         )
         title.pack(side="left")
@@ -128,68 +107,34 @@ class QAPanel(ctk.CTkFrame):
         )
         self.info_label.pack(side="right")
 
-    def _create_table_area(self):
-        """Create main CSV-style table display."""
-        # Frame for table with dark theme
-        table_frame = ctk.CTkFrame(self, fg_color="#2b2b2b", corner_radius=6)
-        table_frame.grid(row=1, column=0, sticky="nsew", padx=5, pady=5)
-        table_frame.grid_columnconfigure(0, weight=1)
-        table_frame.grid_rowconfigure(0, weight=1)
+    def _create_text_display(self):
+        """Create main plain text display area."""
+        # Frame for text display with dark theme
+        display_frame = ctk.CTkFrame(self, fg_color="#2b2b2b", corner_radius=6)
+        display_frame.grid(row=1, column=0, sticky="nsew", padx=5, pady=5)
+        display_frame.grid_columnconfigure(0, weight=1)
+        display_frame.grid_rowconfigure(0, weight=1)
 
-        # Define columns
-        columns = ("Include", "Question", "Quick Answer", "Citation")
-
-        # Create Treeview
-        self.qa_tree = ttk.Treeview(
-            table_frame,
-            columns=columns,
-            show="headings",
-            style="QATable.Treeview",
-            selectmode="browse"
+        # Create scrollable textbox
+        self.text_display = ctk.CTkTextbox(
+            display_frame,
+            wrap="word",
+            font=ctk.CTkFont(size=12),
+            fg_color="#1e1e1e",
+            text_color="#e0e0e0",
+            scrollbar_button_color="#3d3d3d",
+            scrollbar_button_hover_color="#4d4d4d"
         )
+        self.text_display.grid(row=0, column=0, sticky="nsew", padx=2, pady=2)
 
-        # Configure column headings and widths
-        for col in columns:
-            col_config = QA_COLUMN_CONFIG.get(col, {"width": 100})
-            self.qa_tree.heading(col, text=col, anchor='w')
-            # Citation column stretches to fill remaining space
-            stretch = True if col == "Citation" else False
-            self.qa_tree.column(
-                col,
-                width=col_config["width"],
-                minwidth=50,
-                anchor='w',
-                stretch=stretch
-            )
-
-        # Add vertical scrollbar
-        vsb = ttk.Scrollbar(
-            table_frame,
-            orient="vertical",
-            command=self.qa_tree.yview,
-            style="QATable.Vertical.TScrollbar"
-        )
-        self.qa_tree.configure(yscrollcommand=vsb.set)
-
-        # Add horizontal scrollbar
-        hsb = ttk.Scrollbar(
-            table_frame,
-            orient="horizontal",
-            command=self.qa_tree.xview,
-            style="QATable.Horizontal.TScrollbar"
-        )
-        self.qa_tree.configure(xscrollcommand=hsb.set)
-
-        # Grid layout
-        self.qa_tree.grid(row=0, column=0, sticky="nsew")
-        vsb.grid(row=0, column=1, sticky="ns")
-        hsb.grid(row=1, column=0, sticky="ew")
-
-        # Bind click for Include column toggle
-        self.qa_tree.bind("<Button-1>", self._on_table_click)
-
-        # Bind double-click to show full text
-        self.qa_tree.bind("<Double-1>", self._on_double_click)
+        # Configure text tags for formatting
+        self.text_display.tag_config("question", foreground="#5dade2", font=ctk.CTkFont(size=13, weight="bold"))
+        self.text_display.tag_config("question_default", foreground="#7dacd6", font=ctk.CTkFont(size=13, weight="bold", slant="italic"))
+        self.text_display.tag_config("label", foreground="#85929e", font=ctk.CTkFont(size=11, weight="bold"))
+        self.text_display.tag_config("answer", foreground="#aed6f1")
+        self.text_display.tag_config("citation", foreground="#d7dbdd")
+        self.text_display.tag_config("source", foreground="#52be80", slant="italic")
+        self.text_display.tag_config("separator", foreground="#566573")
 
     def _create_button_bar(self):
         """Create action buttons bar."""
@@ -280,102 +225,53 @@ class QAPanel(ctk.CTkFrame):
 
     def display_results(self, results: list[QAResult]):
         """
-        Display Q&A results in the table.
+        Display Q&A results as plain text.
 
         Args:
             results: List of QAResult objects to display
         """
         self._results = results
 
-        # Clear existing items
-        self.qa_tree.delete(*self.qa_tree.get_children())
+        # Clear existing content
+        self.text_display.configure(state="normal")
+        self.text_display.delete("1.0", "end")
 
-        # Insert rows
-        for i, result in enumerate(results):
-            include_icon = CHECK_ICON if result.include_in_export else UNCHECK_ICON
-            question = truncate_text(result.question, QA_COLUMN_CONFIG["Question"]["max_chars"])
-            quick_answer = truncate_text(result.quick_answer, QA_COLUMN_CONFIG["Quick Answer"]["max_chars"])
-            citation = truncate_text(result.citation, QA_COLUMN_CONFIG["Citation"]["max_chars"])
+        # Format and insert each Q&A pair
+        for i, result in enumerate(results, 1):
+            # Question number and text - use different tag for defaults
+            question_tag = "question_default" if result.is_default_question else "question"
+            self.text_display.insert("end", f"Question {i}:\n", question_tag)
+            self.text_display.insert("end", f"{result.question}\n\n", "answer")
 
-            self.qa_tree.insert(
-                "",
-                "end",
-                iid=str(i),
-                values=(include_icon, question, quick_answer, citation)
-            )
+            # Answer label and text
+            self.text_display.insert("end", "Answer:\n", "label")
+            self.text_display.insert("end", f"{result.quick_answer}\n\n", "answer")
+
+            # Citation label and text
+            self.text_display.insert("end", "Citation:\n", "label")
+            citation_text = result.citation if result.citation else "(no citation available)"
+            self.text_display.insert("end", f"{citation_text}\n\n", "citation")
+
+            # Source label and text
+            self.text_display.insert("end", "Source:\n", "label")
+            source_text = result.source_summary if result.source_summary else "(source unknown)"
+            self.text_display.insert("end", f"{source_text}\n\n", "source")
+
+            # Separator between Q&A pairs (except after last one)
+            if i < len(results):
+                separator = "─" * 80 + "\n\n"
+                self.text_display.insert("end", separator, "separator")
+
+        # Make read-only
+        self.text_display.configure(state="disabled")
 
         # Update info label
         included = sum(1 for r in results if r.include_in_export)
         self.info_label.configure(text=f"{included}/{len(results)} selected for export")
 
         if DEBUG_MODE:
-            debug_log(f"[QAPanel] Displaying {len(results)} results in table")
+            debug_log(f"[QAPanel] Displaying {len(results)} results in plain text format")
 
-    def _on_table_click(self, event):
-        """Handle click on table to toggle include/exclude."""
-        # Check if click was on Include column
-        column = self.qa_tree.identify_column(event.x)
-        item_id = self.qa_tree.identify_row(event.y)
-
-        if not item_id:
-            return
-
-        # Only toggle if clicking the Include column (#1)
-        if column == "#1":
-            try:
-                index = int(item_id)
-                if 0 <= index < len(self._results):
-                    # Toggle the flag
-                    result = self._results[index]
-                    result.include_in_export = not result.include_in_export
-
-                    # Update display
-                    icon = CHECK_ICON if result.include_in_export else UNCHECK_ICON
-                    values = list(self.qa_tree.item(item_id, 'values'))
-                    values[0] = icon
-                    self.qa_tree.item(item_id, values=tuple(values))
-
-                    # Update info label
-                    included = sum(1 for r in self._results if r.include_in_export)
-                    self.info_label.configure(text=f"{included}/{len(self._results)} selected for export")
-
-                    if DEBUG_MODE:
-                        debug_log(f"[QAPanel] Toggled Q{index + 1}: include={result.include_in_export}")
-
-            except (ValueError, IndexError):
-                pass
-
-    def _on_double_click(self, event):
-        """Handle double-click to show full text in a popup."""
-        column = self.qa_tree.identify_column(event.x)
-        item_id = self.qa_tree.identify_row(event.y)
-
-        if not item_id:
-            return
-
-        try:
-            index = int(item_id)
-            if 0 <= index < len(self._results):
-                result = self._results[index]
-
-                # Determine which column was clicked
-                if column == "#2":  # Question
-                    title = "Full Question"
-                    content = result.question
-                elif column == "#3":  # Quick Answer
-                    title = "Full Quick Answer"
-                    content = result.quick_answer
-                elif column == "#4":  # Citation
-                    title = "Full Citation"
-                    content = result.citation
-                else:
-                    return
-
-                # Show in messagebox (simple approach)
-                messagebox.showinfo(title, content)
-
-        except (ValueError, IndexError):
-            pass
 
     def _set_all_include(self, include: bool):
         """Set include_in_export for all results."""
@@ -498,7 +394,7 @@ class QAPanel(ctk.CTkFrame):
         filepath = filedialog.asksaveasfilename(
             defaultextension=".csv",
             filetypes=[("CSV files", "*.csv"), ("All files", "*.*")],
-            initialfile="document_qa.csv",
+            initialfile="document_questions.csv",
             title="Export Q&A Results"
         )
 
@@ -532,7 +428,7 @@ class QAPanel(ctk.CTkFrame):
         filepath = filedialog.asksaveasfilename(
             defaultextension=".txt",
             filetypes=[("Text files", "*.txt"), ("All files", "*.*")],
-            initialfile="document_qa.txt",
+            initialfile="document_questions.txt",
             title="Export Q&A Results"
         )
 
@@ -590,7 +486,7 @@ class QAPanel(ctk.CTkFrame):
         """
         lines = [
             "=" * 60,
-            "DOCUMENT Q&A SUMMARY",
+            "DOCUMENT QUESTIONS & ANSWERS",
             "=" * 60,
             ""
         ]
@@ -643,5 +539,7 @@ class QAPanel(ctk.CTkFrame):
     def clear(self):
         """Clear all results and reset display."""
         self._results = []
-        self.qa_tree.delete(*self.qa_tree.get_children())
+        self.text_display.configure(state="normal")
+        self.text_display.delete("1.0", "end")
+        self.text_display.configure(state="disabled")
         self.info_label.configure(text="")
