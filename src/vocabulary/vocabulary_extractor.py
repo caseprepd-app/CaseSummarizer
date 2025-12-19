@@ -31,9 +31,10 @@ from src.config import (
     VOCABULARY_MAX_TEXT_KB,
     VOCABULARY_MIN_OCCURRENCES,
     VOCABULARY_RARITY_THRESHOLD,
-    VOCABULARY_SORT_BY_RARITY,
+    VOCABULARY_SORT_METHOD,
 )
 from src.logging_config import debug_log
+from src.user_preferences import get_user_preferences
 from src.vocabulary.algorithms import create_default_algorithms
 from src.vocabulary.algorithms.base import BaseExtractionAlgorithm
 from src.vocabulary.meta_learner import VocabularyMetaLearner, get_meta_learner
@@ -107,7 +108,9 @@ class VocabularyExtractor:
         # Load frequency dataset
         self.frequency_dataset, self.frequency_rank_map = self._load_frequency_dataset()
         self.rarity_threshold = VOCABULARY_RARITY_THRESHOLD
-        self.sort_by_rarity = VOCABULARY_SORT_BY_RARITY
+        # Get sort method from user preferences (falls back to config default)
+        prefs = get_user_preferences()
+        self.sort_method = prefs.get("vocab_sort_method", VOCABULARY_SORT_METHOD)
 
         # Store user exclude path for adding new exclusions
         self.user_exclude_path = user_exclude_path
@@ -248,9 +251,8 @@ class VocabularyExtractor:
         vocabulary = filter_substring_artifacts(vocabulary)
         debug_log(f"[VOCAB] Final vocabulary: {len(vocabulary)} terms")
 
-        # 6. Sort by rarity if enabled
-        if self.sort_by_rarity and self.frequency_dataset:
-            vocabulary = self._sort_by_rarity(vocabulary)
+        # 6. Sort vocabulary based on configured method
+        vocabulary = self._sort_vocabulary(vocabulary)
 
         return vocabulary
 
@@ -395,26 +397,25 @@ class VocabularyExtractor:
             if lower_term in seen_terms:
                 continue
 
-            # Validate and refine category
-            category = self._validate_category(term, merged.final_type)
-            if category is None:
+            # Determine if NER detected this as a Person entity
+            # This is the only reliable type information we track
+            is_person = merged.final_type == "Person"
+
+            # Frequency filtering (Person names exempt - they're always relevant)
+            if not is_person and merged.frequency > frequency_threshold:
                 continue
 
-            # Frequency filtering (PERSON exempt)
-            if category != "Person" and merged.frequency > frequency_threshold:
-                continue
-
-            # Minimum occurrence filtering (PERSON exempt)
-            if category != "Person" and merged.frequency < VOCABULARY_MIN_OCCURRENCES:
+            # Minimum occurrence filtering (Person names exempt)
+            if not is_person and merged.frequency < VOCABULARY_MIN_OCCURRENCES:
                 continue
 
             # Detect role/relevance using profession-specific profile
-            role_relevance = self._get_role_relevance(term, category, full_text)
+            role_relevance = self._get_role_relevance(term, is_person, full_text)
 
             # Calculate quality score
             frequency_rank = self._get_term_frequency_rank(term)
             base_quality_score = self._calculate_quality_score(
-                category, merged.frequency, frequency_rank, len(merged.sources)
+                is_person, merged.frequency, frequency_rank, len(merged.sources)
             )
 
             # Build term data for potential ML boost
@@ -422,15 +423,19 @@ class VocabularyExtractor:
             sources_upper = [s.upper() for s in merged.sources]
             algo_count = len(merged.sources)  # Number of algorithms that found this term
 
+            # Build "Found By" display string from sources
+            found_by = ", ".join(merged.sources)  # e.g., "NER, RAKE" or "NER, RAKE, BM25"
+
             term_data = {
                 "Term": term,
-                "Type": category,
+                "Is Person": "Yes" if is_person else "No",  # Session 52: Replaced Type
+                "Found By": found_by,  # Session 52: Show which algorithms found this term
                 "Role/Relevance": role_relevance,
                 "Quality Score": base_quality_score,
                 "In-Case Freq": merged.frequency,
                 "Freq Rank": frequency_rank,
-                "Definition": self._get_definition(term, category),
-                "Sources": ",".join(merged.sources),
+                "Definition": self._get_definition(term, is_person),
+                "Sources": ",".join(merged.sources),  # Keep for backward compatibility
                 # Per-algorithm detection flags (Session 47)
                 "NER": "Yes" if "NER" in sources_upper else "No",
                 "RAKE": "Yes" if "RAKE" in sources_upper else "No",
@@ -441,7 +446,7 @@ class VocabularyExtractor:
                 "in_case_freq": merged.frequency,
                 "freq_rank": frequency_rank,
                 "algorithms": ",".join(merged.sources),
-                "type": category,
+                "is_person": 1 if is_person else 0,  # Session 52: Binary flag for ML
                 "total_unique_terms": total_unique_terms,  # For ML occurrence_ratio
             }
 
@@ -486,18 +491,13 @@ class VocabularyExtractor:
 
         return suggested_type or "Technical"
 
-    def _get_role_relevance(self, term: str, category: str, full_text: str) -> str:
+    def _get_role_relevance(self, term: str, is_person: bool, full_text: str) -> str:
         """Get role/relevance description for a term."""
-        if category == "Person":
+        if is_person:
             return self.role_profile.detect_person_role(term, full_text)
-        elif category == "Place":
-            return self.role_profile.detect_place_relevance(term, full_text)
-        elif category == "Medical":
-            return "Medical term"
-        elif category == "Unknown":
-            return "Needs review"
         else:
-            return "Technical term"
+            # For non-person terms, detect based on term characteristics
+            return "Vocabulary term"
 
     def _filter_reconciled_terms(self, reconciled: list, doc_count: int) -> list:
         """
@@ -586,7 +586,7 @@ class VocabularyExtractor:
         return filtered
 
     def _calculate_quality_score(
-        self, category: str, term_count: int, frequency_rank: int, algorithm_count: int
+        self, is_person: bool, term_count: int, frequency_rank: int, algorithm_count: int
     ) -> float:
         """
         Calculate composite quality score (0-100).
@@ -594,7 +594,7 @@ class VocabularyExtractor:
         Higher score = more likely to be a useful, high-quality term.
 
         Args:
-            category: Term category
+            is_person: Whether NER detected this as a person name
             term_count: Number of occurrences
             frequency_rank: Google frequency rank
             algorithm_count: Number of algorithms that found this term
@@ -616,17 +616,11 @@ class VocabularyExtractor:
         elif frequency_rank > 180000:
             score += 10
 
-        # Boost for reliable categories (max +10)
-        category_boost = {
-            'Person': 10,
-            'Place': 10,
-            'Medical': 8,
-            'Technical': 5,
-            'Unknown': 0
-        }
-        score += category_boost.get(category, 0)
+        # Boost for person names (NER is reliable for these) (+10)
+        if is_person:
+            score += 10
 
-        # NEW: Boost for multi-algorithm agreement (max +10)
+        # Boost for multi-algorithm agreement (max +10)
         # Terms found by multiple algorithms are more trustworthy
         if algorithm_count >= 2:
             score += min(algorithm_count * 3, 10)
@@ -676,10 +670,10 @@ class VocabularyExtractor:
             debug_log(f"[ML] Error applying boost: {e}")
             return base_score
 
-    def _get_definition(self, term: str, category: str) -> str:
-        """Get definition for medical/technical terms only."""
-        if category in ["Person", "Place", "Unknown"]:
-            return "—"
+    def _get_definition(self, term: str, is_person: bool) -> str:
+        """Get definition for non-person terms only."""
+        if is_person:
+            return "—"  # Person names don't need definitions
 
         lower_term = term.lower()
         synsets = wordnet.synsets(lower_term)
@@ -695,6 +689,45 @@ class VocabularyExtractor:
     def _get_term_frequency_rank(self, term: str) -> int:
         """Get Google frequency rank for a term."""
         return self.frequency_rank_map.get(term.lower(), 0)
+
+    def _sort_vocabulary(self, vocabulary: list[dict]) -> list[dict]:
+        """
+        Sort vocabulary based on configured method.
+
+        Args:
+            vocabulary: List of term dictionaries
+
+        Returns:
+            Sorted vocabulary list
+        """
+        if self.sort_method == "quality_score":
+            debug_log("[VOCAB] Sorting by Quality Score (highest first)")
+            return self._sort_by_quality_score(vocabulary)
+        elif self.sort_method == "rarity" and self.frequency_dataset:
+            debug_log("[VOCAB] Sorting by rarity (rarest first)")
+            return self._sort_by_rarity(vocabulary)
+        else:
+            debug_log("[VOCAB] No sorting applied")
+            return vocabulary
+
+    def _sort_by_quality_score(self, vocabulary: list[dict]) -> list[dict]:
+        """
+        Sort vocabulary by Quality Score (highest first).
+
+        This puts ML-boosted terms at the top. Terms the model predicts
+        the user will approve get higher scores and appear first.
+
+        Args:
+            vocabulary: List of term dictionaries
+
+        Returns:
+            Sorted vocabulary list (highest Quality Score first)
+        """
+        return sorted(
+            vocabulary,
+            key=lambda x: float(x.get("Quality Score", 0) or 0),
+            reverse=True
+        )
 
     def _sort_by_rarity(self, vocabulary: list[dict]) -> list[dict]:
         """Sort vocabulary list by rarity (rarest first)."""

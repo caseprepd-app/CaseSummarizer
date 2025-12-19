@@ -214,8 +214,13 @@ GOOGLE_WORD_FREQUENCY_FILE = Path(__file__).parent.parent / "data" / "frequency"
 # Examples: "medical" (rank 501) FILTERED, "adenocarcinoma" (rank >180K) EXTRACTED
 # Set to -1 to disable frequency-based filtering (use WordNet only)
 VOCABULARY_RARITY_THRESHOLD = 180000
-# When enabled, sort CSV results by rarity (words not in dataset first, then lowest frequency count)
-VOCABULARY_SORT_BY_RARITY = True
+# Vocabulary sort method: "quality_score" (ML-boosted, default) or "rarity" (rare words first)
+# "quality_score": Sorts by Quality Score descending - ML predictions push good terms up
+# "rarity": Sorts by word frequency (rare words first) - useful before ML model is trained
+VOCABULARY_SORT_METHOD = "quality_score"
+
+# Legacy setting for backwards compatibility (deprecated - use VOCABULARY_SORT_METHOD)
+VOCABULARY_SORT_BY_RARITY = VOCABULARY_SORT_METHOD == "rarity"
 
 # Minimum occurrences for term extraction (filters single-occurrence OCR errors/typos)
 # Set to 1 to disable (extract all terms regardless of frequency)

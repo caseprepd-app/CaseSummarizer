@@ -84,6 +84,8 @@ def confidence_weighted_blend(prob_lr: float, prob_rf: float) -> float:
 
 
 # Feature indices for interpretability
+# Session 52: Removed unreliable type features (is_medical, is_technical, is_place, is_unknown)
+# Only is_person is reliable (NER person detection)
 FEATURE_NAMES = [
     "quality_score",
     "log_count",  # Replaces in_case_freq - better low-count discrimination
@@ -93,11 +95,7 @@ FEATURE_NAMES = [
     "has_ner",
     "has_rake",
     "has_bm25",  # Added in Session 47 for per-algorithm tracking
-    "is_person",
-    "is_medical",
-    "is_technical",
-    "is_place",
-    "is_unknown",
+    "is_person",  # NER person detection - the only reliable type info
     # Character/format features for artifact detection
     "has_trailing_punctuation",  # "Smith:", "Di Leo." - likely artifacts
     "has_leading_digit",  # "4 Ms. Di Leo", "17 SMITH" - line numbers
@@ -199,13 +197,12 @@ class VocabularyPreferenceLearner:
         has_bm25 = 1.0 if "bm25" in algorithms else 0.0
         num_algorithms = has_ner + has_rake + has_bm25  # Count of algorithms that found term
 
-        # Type features (one-hot encoding)
-        term_type = str(term_data.get("type", "Unknown")).lower()
-        is_person = 1.0 if term_type == "person" else 0.0
-        is_medical = 1.0 if term_type == "medical" else 0.0
-        is_technical = 1.0 if term_type == "technical" else 0.0
-        is_place = 1.0 if term_type == "place" else 0.0
-        is_unknown = 1.0 if term_type == "unknown" else 0.0
+        # Session 52: Simplified to just is_person (NER detection)
+        # Other type features were unreliable and removed
+        is_person_val = term_data.get("is_person", 0)
+        is_person = float(is_person_val) if isinstance(is_person_val, (int, float)) else (
+            1.0 if str(is_person_val).lower() in ("1", "yes", "true") else 0.0
+        )
 
         # Character/format features for artifact detection
         term = str(term_data.get("Term", "") or term_data.get("term", "") or "")
@@ -237,11 +234,7 @@ class VocabularyPreferenceLearner:
             has_ner,
             has_rake,
             has_bm25,
-            is_person,
-            is_medical,
-            is_technical,
-            is_place,
-            is_unknown,
+            is_person,  # Session 52: Only reliable type feature
             has_trailing_punctuation,
             has_leading_digit,
             has_trailing_digit,

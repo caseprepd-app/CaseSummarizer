@@ -428,24 +428,25 @@ class QueueMessageHandler:
 
     def handle_ner_complete(self, data):
         """
-        Handle 'ner_complete' message - Phase 1 NER extraction complete.
+        Handle 'ner_complete' message - Phase 1 local algorithm extraction complete.
 
+        Phase 1 runs NER, RAKE, and BM25 (if corpus available).
         Displays initial vocabulary results immediately while LLM enhancement
         continues in background.
 
         Args:
-            data: List of vocabulary term dictionaries from NER extraction
+            data: List of vocabulary term dictionaries from local algorithms
         """
         term_count = len(data) if data else 0
-        debug_log(f"[QUEUE HANDLER] NER complete: {term_count} terms - displaying immediately")
+        debug_log(f"[QUEUE HANDLER] Phase 1 complete: {term_count} terms - displaying immediately")
 
-        # Update vocab display with NER-only results
+        # Update vocab display with local algorithm results
         self.main_window.output_display.update_outputs(vocab_csv_data=data)
         self.main_window.output_display.set_extraction_source("ner")
 
         # Update status
         self.main_window.status_label.configure(
-            text=f"NER complete: {term_count} terms found. LLM enhancement starting..."
+            text=f"Phase 1 complete: {term_count} terms found. LLM enhancement starting..."
         )
 
     def handle_qa_ready(self, data: dict):

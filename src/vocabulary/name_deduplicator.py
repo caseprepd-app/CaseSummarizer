@@ -55,7 +55,7 @@ def deduplicate_names(terms: list[dict], similarity_threshold: float = NAME_SIMI
     Args:
         terms: List of vocabulary term dicts. Expected keys:
             - Term: The term string
-            - Category: "Person", "Medical", etc.
+            - Is Person: "Yes" or "No" (NER person detection)
             - In-Case Freq: Occurrence count (int)
         similarity_threshold: Minimum similarity ratio for fuzzy grouping (0.0-1.0)
 
@@ -65,9 +65,9 @@ def deduplicate_names(terms: list[dict], similarity_threshold: float = NAME_SIMI
     if not terms:
         return terms
 
-    # Separate Person terms from others
-    person_terms = [t for t in terms if t.get("Category") == "Person"]
-    other_terms = [t for t in terms if t.get("Category") != "Person"]
+    # Separate Person terms from others (check "Is Person" field)
+    person_terms = [t for t in terms if t.get("Is Person") == "Yes"]
+    other_terms = [t for t in terms if t.get("Is Person") != "Yes"]
 
     if not person_terms:
         return terms

@@ -294,10 +294,13 @@ class QueueMessage:
     @staticmethod
     def ner_complete(vocab_data: list[dict]) -> tuple[str, list[dict]]:
         """
-        Create NER extraction complete message (Phase 1).
+        Create local algorithm extraction complete message (Phase 1).
+
+        Phase 1 runs NER, RAKE, and BM25 (if corpus available) - all local,
+        fast algorithms without LLM calls.
 
         Args:
-            vocab_data: List of NER-extracted vocabulary terms
+            vocab_data: List of vocabulary terms from local algorithms
         """
         return (MessageType.NER_COMPLETE, vocab_data)
 

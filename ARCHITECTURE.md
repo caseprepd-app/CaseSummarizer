@@ -259,9 +259,12 @@ The `UnifiedChunker` uses semantic chunking with token enforcement:
 flowchart TB
     Start["User clicks Process"]
 
-    subgraph Phase1["PHASE 1: NER (~5 seconds)"]
+    subgraph Phase1["PHASE 1: Local Algorithms (~5 seconds)"]
         NER["spaCy NER<br/>en_core_web_lg"]
-        NERResult["Initial names + vocab"]
+        RAKE["RAKE Keywords"]
+        BM25["BM25 Corpus<br/>(if 5+ docs)"]
+        Merger["ResultMerger"]
+        Phase1Result["Initial names + vocab"]
     end
 
     subgraph Phase2["PHASE 2: Question Indexing (parallel)"]
@@ -270,14 +273,17 @@ flowchart TB
 
     subgraph Phase3["PHASE 3: LLM Enhancement (~minutes)"]
         LLMExtract["Ollama extraction<br/>per chunk"]
-        Reconcile["Reconciler<br/>merge NER + LLM"]
+        Reconcile["Reconciler<br/>merge with LLM"]
     end
 
     Output["Final table with<br/>'Found By' column"]
 
     Start --> Phase1
-    Phase1 --> NERResult
-    NERResult -->|"Table appears"| Phase2
+    NER --> Merger
+    RAKE --> Merger
+    BM25 --> Merger
+    Merger --> Phase1Result
+    Phase1Result -->|"Table appears"| Phase2
     Phase2 -->|"Questions panel activates"| Phase3
     Phase3 --> Output
 ```
@@ -331,15 +337,15 @@ New Terms → VocabularyPreferenceLearner (predict) → Quality Score boost/pena
 
 **Ensemble Blending:** When both models are active, predictions use confidence-weighted blending. Each model's vote is weighted by its confidence (distance from 0.5), so more certain predictions have more influence.
 
-**Features used (17 total):**
+**Features used (14 total):**
 - `quality_score` — Base quality from algorithm weights
 - `log_count` — Log-transformed in-case frequency (better low-count discrimination)
 - `occurrence_ratio` — Document-relative frequency
 - `freq_rank_normalized` — Rank among all terms
 - `num_algorithms` — Count of algorithms that found term
 - `has_ner`, `has_rake`, `has_bm25` — Algorithm presence flags
-- `is_person`, `is_medical`, `is_technical`, `is_place`, `is_unknown` — Term type (one-hot)
-- `has_trailing_punctuation`, `has_leading_digit`, `word_count`, `is_all_caps` — Artifact detection
+- `is_person` — NER person detection (only reliable type signal)
+- `has_trailing_punctuation`, `has_leading_digit`, `has_trailing_digit`, `word_count`, `is_all_caps` — Artifact detection
 
 **Time Decay Weighting:**
 Older feedback is weighted less to adapt to changing preferences:
@@ -353,10 +359,13 @@ Older feedback is weighted less to adapt to changing preferences:
 
 ### "Found By" Column
 
-Results show source of each term:
-- **Both** — Found by NER and LLM (highest confidence, sorted first)
+Results show which algorithms detected each term:
+- **NER, RAKE, BM25** — Found by all three algorithms (highest confidence)
+- **NER, RAKE** — Found by NER and RAKE
 - **NER** — Found only by spaCy NER
-- **LLM** — Found only by Ollama extraction
+- **RAKE** — Found only by RAKE keyword extraction
+
+Terms found by more algorithms rank higher in quality score.
 
 ---
 
@@ -810,4 +819,4 @@ ruff check src/ --fix
 
 ---
 
-*Last updated: 2025-12-17*
+*Last updated: 2025-12-19*

@@ -105,6 +105,9 @@ class RAKEAlgorithm(BaseExtractionAlgorithm):
         """
         start_time = time.time()
 
+        # Keep original text for frequency counting
+        original_text_lower = text.lower()
+
         # Clean text for RAKE processing
         cleaned_text = self._preprocess_text(text)
 
@@ -115,11 +118,17 @@ class RAKEAlgorithm(BaseExtractionAlgorithm):
         ranked_phrases = self.rake.get_ranked_phrases_with_scores()
 
         candidates = []
-        phrase_counts: dict[str, int] = {}
+        seen_phrases: set[str] = set()
+
+        # Track filtering stats for debugging
+        filtered_by_score = 0
+        filtered_by_invalid = 0
+        filtered_by_frequency = 0
 
         for score, phrase in ranked_phrases:
             # Skip low-scoring phrases
             if score < self.min_score:
+                filtered_by_score += 1
                 continue
 
             # Skip if we've hit our limit
@@ -129,18 +138,21 @@ class RAKEAlgorithm(BaseExtractionAlgorithm):
             # Clean and validate the phrase
             cleaned_phrase = self._clean_phrase(phrase)
             if not cleaned_phrase:
-                continue
-
-            # Track frequency (RAKE may find same phrase multiple times)
-            lower_phrase = cleaned_phrase.lower()
-            phrase_counts[lower_phrase] = phrase_counts.get(lower_phrase, 0) + 1
-
-            # Skip if below minimum frequency
-            if phrase_counts[lower_phrase] < self.min_frequency:
+                filtered_by_invalid += 1
                 continue
 
             # Skip if already added (dedup)
-            if any(c.term.lower() == lower_phrase for c in candidates):
+            lower_phrase = cleaned_phrase.lower()
+            if lower_phrase in seen_phrases:
+                continue
+            seen_phrases.add(lower_phrase)
+
+            # Count actual occurrences in original text (case-insensitive)
+            actual_frequency = self._count_phrase_occurrences(lower_phrase, original_text_lower)
+
+            # Skip if below minimum frequency
+            if actual_frequency < self.min_frequency:
+                filtered_by_frequency += 1
                 continue
 
             # Calculate confidence from RAKE score (normalize to 0-1)
@@ -152,7 +164,7 @@ class RAKEAlgorithm(BaseExtractionAlgorithm):
                 source_algorithm=self.name,
                 confidence=confidence,
                 suggested_type="Technical",  # RAKE primarily finds technical phrases
-                frequency=phrase_counts[lower_phrase],
+                frequency=actual_frequency,
                 metadata={
                     "rake_score": score,
                     "word_count": len(cleaned_phrase.split()),
@@ -163,7 +175,9 @@ class RAKEAlgorithm(BaseExtractionAlgorithm):
 
         debug_log(
             f"[RAKE] Extracted {len(candidates)} phrases from "
-            f"{len(ranked_phrases)} raw candidates in {processing_time_ms:.1f}ms"
+            f"{len(ranked_phrases)} raw (filtered: {filtered_by_score} low-score, "
+            f"{filtered_by_frequency} low-freq, {filtered_by_invalid} invalid) "
+            f"in {processing_time_ms:.1f}ms"
         )
 
         return AlgorithmResult(
@@ -172,6 +186,9 @@ class RAKEAlgorithm(BaseExtractionAlgorithm):
             metadata={
                 "raw_phrases_found": len(ranked_phrases),
                 "filtered_candidates": len(candidates),
+                "filtered_by_score": filtered_by_score,
+                "filtered_by_frequency": filtered_by_frequency,
+                "filtered_by_invalid": filtered_by_invalid,
                 "min_score_threshold": self.min_score,
             }
         )
@@ -203,6 +220,26 @@ class RAKEAlgorithm(BaseExtractionAlgorithm):
         cleaned = re.sub(r'\s+', ' ', cleaned)
 
         return cleaned.strip()
+
+    def _count_phrase_occurrences(self, phrase_lower: str, text_lower: str) -> int:
+        """
+        Count actual occurrences of a phrase in text.
+
+        Uses word boundary matching to avoid partial matches.
+        For example, "spinal" shouldn't match inside "transpedicular spinal fusion".
+
+        Args:
+            phrase_lower: Lowercase phrase to search for
+            text_lower: Lowercase text to search in
+
+        Returns:
+            Number of times phrase appears in text
+        """
+        # Use word boundaries for accurate counting
+        # \b matches word boundaries (start/end of word)
+        pattern = r'\b' + re.escape(phrase_lower) + r'\b'
+        matches = re.findall(pattern, text_lower)
+        return len(matches)
 
     def _clean_phrase(self, phrase: str) -> str:
         """

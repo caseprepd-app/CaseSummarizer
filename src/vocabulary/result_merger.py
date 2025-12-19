@@ -127,9 +127,8 @@ class ResultMerger:
         Returns:
             Single MergedTerm combining all candidate information
         """
-        # Canonical term: use the first occurrence's casing
-        # (could also use most frequent casing if we tracked that)
-        canonical_term = candidates[0].term
+        # Canonical term: use the most frequent capitalization variant
+        canonical_term = self._select_canonical_casing(candidates)
 
         # Collect unique sources (which algorithms found this term)
         sources = list(set(c.source_algorithm for c in candidates))
@@ -219,6 +218,45 @@ class ResultMerger:
                 best_type = candidate.suggested_type
 
         return best_type
+
+    def _select_canonical_casing(self, candidates: list[CandidateTerm]) -> str:
+        """
+        Select the most frequent capitalization variant as the canonical form.
+
+        Tracks each unique casing variant weighted by its occurrence frequency.
+        Returns the variant that appears most often across the document.
+
+        Example:
+            "JAMES LUCAS" (freq 2), "James Lucas" (freq 10), "james lucas" (freq 1)
+            → Returns "James Lucas" (highest frequency)
+
+        Args:
+            candidates: All candidates for the same normalized term
+
+        Returns:
+            The most frequently occurring capitalization variant
+        """
+        if len(candidates) == 1:
+            return candidates[0].term
+
+        # Count frequency of each capitalization variant
+        casing_counts: dict[str, int] = {}
+        for candidate in candidates:
+            term = candidate.term
+            freq = candidate.frequency
+            casing_counts[term] = casing_counts.get(term, 0) + freq
+
+        # Return the variant with highest frequency
+        # Tie-breaker: prefer mixed case over ALL CAPS (more readable)
+        def sort_key(item):
+            term, count = item
+            # Primary: highest count
+            # Secondary: prefer mixed case (not all upper, not all lower)
+            is_mixed = not term.isupper() and not term.islower()
+            return (count, is_mixed, term)
+
+        sorted_variants = sorted(casing_counts.items(), key=sort_key, reverse=True)
+        return sorted_variants[0][0]
 
     def update_weights(self, new_weights: dict[str, float]) -> None:
         """

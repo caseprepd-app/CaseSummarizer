@@ -173,7 +173,7 @@ def _register_all_settings():
         USER_DEFINED_MAX_WORKER_COUNT,
         VOCABULARY_DISPLAY_LIMIT,
         VOCABULARY_DISPLAY_MAX,
-        VOCABULARY_SORT_BY_RARITY,
+        VOCABULARY_SORT_METHOD,
         DEFAULT_SUMMARY_WORDS,
         MIN_SUMMARY_WORDS,
         MAX_SUMMARY_WORDS,
@@ -285,18 +285,20 @@ def _register_all_settings():
     ))
 
     SettingsRegistry.register(SettingDefinition(
-        key="vocab_sort_by_rarity",
-        label="Sort vocabulary by rarity",
+        key="vocab_sort_method",
+        label="Sort vocabulary by",
         category="Vocabulary",
-        setting_type=SettingType.CHECKBOX,
+        setting_type=SettingType.DROPDOWN,
         tooltip=(
-            "When enabled, vocabulary lists show the rarest (most unusual) "
-            "terms first. Disable for alphabetical order. Rarity is based "
-            "on word frequency in the Google Books corpus."
+            "Controls how vocabulary terms are sorted in the results table.\n\n"
+            "• Quality Score: Terms the ML model predicts you'll approve appear first. "
+            "This improves as you rate more terms.\n\n"
+            "• Rarity: Unusual/rare words appear first (based on Google Books corpus)."
         ),
-        default=VOCABULARY_SORT_BY_RARITY,
-        getter=lambda: prefs.get("vocab_sort_by_rarity", VOCABULARY_SORT_BY_RARITY),
-        setter=lambda v: prefs.set("vocab_sort_by_rarity", v),
+        options=["Quality Score", "Rarity"],
+        default="Quality Score" if VOCABULARY_SORT_METHOD == "quality_score" else "Rarity",
+        getter=lambda: "Quality Score" if prefs.get("vocab_sort_method", VOCABULARY_SORT_METHOD) == "quality_score" else "Rarity",
+        setter=lambda v: prefs.set("vocab_sort_method", "quality_score" if v == "Quality Score" else "rarity"),
     ))
 
     # Session 23: CSV export column format setting

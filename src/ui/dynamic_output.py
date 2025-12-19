@@ -65,15 +65,16 @@ BATCH_INSERT_DELAY_MS = VOCABULARY_BATCH_INSERT_DELAY_MS
 # Session 25: Added feedback columns (Keep/Skip) for ML learning
 # Session 43: Added Found By column for NER/LLM reconciliation
 # Session 47: Added per-algorithm detection columns (NER, RAKE, BM25)
+# Session 52: Removed Type column (unreliable), added Is Person (NER detection)
 COLUMN_CONFIG = {
     "Term": {"width": 150, "max_chars": 25},
-    "Type": {"width": 80, "max_chars": 12},
-    "Found By": {"width": 60, "max_chars": 6},  # Both, NER, or LLM
+    "Is Person": {"width": 65, "max_chars": 4},  # Yes/No - NER person detection
+    "Found By": {"width": 110, "max_chars": 18},  # Algorithm names: NER, RAKE, BM25
     "Role/Relevance": {"width": 120, "max_chars": 18},
     "Quality Score": {"width": 85, "max_chars": 8},
     "In-Case Freq": {"width": 80, "max_chars": 8},
     "Freq Rank": {"width": 80, "max_chars": 10},
-    "Definition": {"width": 240, "max_chars": 38},  # Slightly narrower to fit Found By
+    "Definition": {"width": 240, "max_chars": 38},
     "Keep": {"width": 45, "max_chars": 3},
     "Skip": {"width": 45, "max_chars": 3},
     # Session 47: Per-algorithm detection columns (hidden by default)
@@ -87,15 +88,18 @@ COLUMN_CONFIG = {
 # Session 23: Users can export all columns via CSV, but GUI shows only essential info
 # Session 25: Added feedback columns for ML learning
 # Session 43: Added Found By column - terms found by Both (NER+LLM) appear first
-GUI_DISPLAY_COLUMNS = ("Term", "Type", "Found By", "Role/Relevance", "Definition", "Keep", "Skip")
+# Session 52: Replaced Type with Is Person (cleaner, more accurate)
+GUI_DISPLAY_COLUMNS = ("Term", "Is Person", "Found By", "Role/Relevance", "Definition", "Keep", "Skip")
 
 # Session 47: Extended columns with per-algorithm detection (shown via "Show Details" button)
-GUI_DISPLAY_COLUMNS_EXTENDED = ("Term", "Type", "Found By", "NER", "RAKE", "BM25", "Algo Count", "Role/Relevance", "Definition", "Keep", "Skip")
+# Session 52: Removed Type, added Is Person
+GUI_DISPLAY_COLUMNS_EXTENDED = ("Term", "Is Person", "Found By", "NER", "RAKE", "BM25", "Algo Count", "Role/Relevance", "Definition", "Keep", "Skip")
 
 # All columns available for export (includes confidence/filtering columns)
 # Session 43: Added Found By for export
 # Session 47: Added NER, RAKE, BM25, Algo Count for detailed export
-ALL_EXPORT_COLUMNS = ("Term", "Type", "Found By", "NER", "RAKE", "BM25", "Algo Count", "Role/Relevance", "Quality Score", "In-Case Freq", "Freq Rank", "Definition")
+# Session 52: Removed Type, added Is Person
+ALL_EXPORT_COLUMNS = ("Term", "Is Person", "Found By", "NER", "RAKE", "BM25", "Algo Count", "Role/Relevance", "Quality Score", "In-Case Freq", "Freq Rank", "Definition")
 
 
 def truncate_text(text: str, max_chars: int) -> str:

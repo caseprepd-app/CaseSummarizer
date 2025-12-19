@@ -251,9 +251,9 @@ class VocabularyWorker(BaseWorker):
 
         # Update progress - NLP/LLM processing is the slow part
         if self.use_llm:
-            self.send_progress(40, "Running NER + LLM extraction (this may take a while)...")
+            self.send_progress(40, "Running local + LLM extraction (this may take a while)...")
         else:
-            self.send_progress(40, "Running NLP analysis (this may take a while)...")
+            self.send_progress(40, "Running local extraction (NER, RAKE)...")
 
         # Extract vocabulary - this is the slow part
         # Session 43: Use extract_with_llm for reconciled NER+LLM output
@@ -703,9 +703,21 @@ class ProgressiveExtractionWorker(BaseWorker):
         """Execute three-phase progressive extraction."""
         debug_log("[PROGRESSIVE WORKER] Starting progressive extraction")
 
-        # ===== PHASE 1: NER (Fast - ~5 seconds) =====
-        debug_log("[PROGRESSIVE WORKER] Phase 1: NER extraction starting...")
-        self.send_progress(10, "Phase 1: Running NER extraction...")
+        # ===== PHASE 1: Local Algorithms (Fast - ~5 seconds) =====
+        # Runs NER, RAKE, and BM25 (if corpus has 5+ documents)
+        debug_log("[PROGRESSIVE WORKER] Phase 1: Local algorithm extraction starting...")
+
+        # Check which algorithms will run for accurate status message
+        from src.vocabulary.corpus_manager import get_corpus_manager
+        from src.config import CORPUS_MIN_DOCUMENTS
+        corpus_manager = get_corpus_manager()
+        bm25_active = corpus_manager.is_corpus_ready(min_docs=CORPUS_MIN_DOCUMENTS)
+
+        if bm25_active:
+            algo_list = "NER, RAKE, BM25"
+        else:
+            algo_list = "NER, RAKE"
+        self.send_progress(10, f"Phase 1: Running local extraction ({algo_list})...")
 
         from src.vocabulary import VocabularyExtractor
 
@@ -715,14 +727,14 @@ class ProgressiveExtractionWorker(BaseWorker):
             user_exclude_path=self.user_exclude_path,
         )
 
-        # NER-only extraction (fast)
-        ner_results = extractor.extract_with_llm(
+        # Local algorithms only (NER, RAKE, BM25) - fast, no LLM
+        # Use extract() which runs all enabled algorithms, not extract_with_llm()
+        ner_results = extractor.extract(
             self.combined_text,
             doc_count=len(self.documents),
-            include_llm=False,  # NER only - fast!
         )
 
-        debug_log(f"[PROGRESSIVE WORKER] Phase 1 complete: {len(ner_results)} NER terms")
+        debug_log(f"[PROGRESSIVE WORKER] Phase 1 complete: {len(ner_results)} terms from local algorithms")
         self.ui_queue.put(QueueMessage.ner_complete(ner_results))
 
         self.check_cancelled()

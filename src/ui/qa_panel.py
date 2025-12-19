@@ -128,9 +128,10 @@ class QAPanel(ctk.CTkFrame):
         self.text_display.grid(row=0, column=0, sticky="nsew", padx=2, pady=2)
 
         # Configure text tags for formatting
-        self.text_display.tag_config("question", foreground="#5dade2", font=ctk.CTkFont(size=13, weight="bold"))
-        self.text_display.tag_config("question_default", foreground="#7dacd6", font=ctk.CTkFont(size=13, weight="bold", slant="italic"))
-        self.text_display.tag_config("label", foreground="#85929e", font=ctk.CTkFont(size=11, weight="bold"))
+        # Note: tag_config is a Tkinter method, so we use tuple font specs instead of CTkFont
+        self.text_display.tag_config("question", foreground="#5dade2", font=("Segoe UI", 13, "bold"))
+        self.text_display.tag_config("question_default", foreground="#7dacd6", font=("Segoe UI", 13, "bold italic"))
+        self.text_display.tag_config("label", foreground="#85929e", font=("Segoe UI", 11, "bold"))
         self.text_display.tag_config("answer", foreground="#aed6f1")
         self.text_display.tag_config("citation", foreground="#d7dbdd")
         self.text_display.tag_config("source", foreground="#52be80", slant="italic")

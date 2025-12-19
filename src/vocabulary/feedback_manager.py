@@ -12,7 +12,7 @@ CSV Schema:
 - document_id: Hash/ID of the document being processed
 - term: The vocabulary term
 - feedback: +1 (thumbs up) or -1 (thumbs down)
-- type: Category (Person/Place/Medical/Technical/Unknown)
+- is_person: 1 if NER detected as person name, 0 otherwise (Session 52)
 - algorithms: Comma-separated list of algorithms that detected the term
 - NER_detection: Boolean - whether NER algorithm detected this term
 - RAKE_detection: Boolean - whether RAKE algorithm detected this term
@@ -34,12 +34,13 @@ from src.config import FEEDBACK_DIR, ML_MIN_SAMPLES, ML_RETRAIN_THRESHOLD, VOCAB
 from src.logging_config import debug_log
 
 # CSV columns
+# Session 52: Replaced "type" with "is_person" (binary flag, more reliable)
 FEEDBACK_COLUMNS = [
     "timestamp",
     "document_id",
     "term",
     "feedback",
-    "type",
+    "is_person",  # 1 if NER detected as person, 0 otherwise
     "algorithms",
     "NER_detection",
     "RAKE_detection",
@@ -194,12 +195,16 @@ class FeedbackManager:
         bm25_detected = "BM25" in algorithms_upper
         algo_count = sum([ner_detected, rake_detected, bm25_detected])
 
+        # Session 52: Use is_person (binary) instead of unreliable type
+        is_person_val = term_data.get("Is Person", "No")
+        is_person = 1 if str(is_person_val).lower() in ("yes", "1", "true") else 0
+
         record = {
             "timestamp": datetime.now().isoformat(),
             "document_id": doc_id,
             "term": term,
             "feedback": feedback,
-            "type": term_data.get("Type", "Unknown"),
+            "is_person": is_person,
             "algorithms": algorithms_str,
             "NER_detection": ner_detected,
             "RAKE_detection": rake_detected,
