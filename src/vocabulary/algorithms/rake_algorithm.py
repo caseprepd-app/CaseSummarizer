@@ -13,6 +13,18 @@ RAKE works by:
 
 This complements NER by finding key phrases that aren't named entities.
 
+FILTERING SCOPE:
+This algorithm handles basic validation only:
+- Score threshold (min RAKE score)
+- Phrase length (2-50 characters)
+- Stopword removal for single-word results
+- Invalid phrase filtering (numbers only, etc.)
+
+Multi-word PHRASE filtering (based on component word commonality) is done
+CENTRALLY by rarity_filter.py after all algorithms contribute their candidates.
+This is important because RAKE may extract phrases like "the same" or "left side"
+that score well algorithmically but contain only common words.
+
 Reference:
 Rose, S., et al. (2010). "Automatic Keyword Extraction from Individual Documents"
 """
@@ -25,6 +37,7 @@ from rake_nltk import Rake
 
 from src.config import VOCAB_ALGORITHM_WEIGHTS
 from src.logging_config import debug_log
+from src.utils.tokenizer import STOPWORDS
 from src.vocabulary.algorithms import register_algorithm
 from src.vocabulary.algorithms.base import (
     AlgorithmResult,
@@ -274,7 +287,13 @@ class RAKEAlgorithm(BaseExtractionAlgorithm):
             for j in junk_starts:
                 if lower_cleaned.startswith(j + ' '):
                     cleaned = cleaned[len(j) + 1:]
+                    lower_cleaned = cleaned.lower()
                     break
+
+        # Session 53: Filter single-word results that are common stopwords
+        # RAKE sometimes returns single common words like "same", "left", "also"
+        if ' ' not in cleaned and lower_cleaned in STOPWORDS:
+            return ""
 
         # Capitalize first letter for consistency
         if cleaned and cleaned[0].islower():

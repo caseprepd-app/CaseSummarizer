@@ -229,6 +229,33 @@ VOCABULARY_SORT_BY_RARITY = VOCABULARY_SORT_METHOD == "rarity"
 # Note: PERSON entities are exempt (party names may appear once but are important)
 VOCABULARY_MIN_OCCURRENCES = 2
 
+# Phrase Component Rarity Filtering (Session 53)
+# Filters multi-word phrases where ALL component words are too common.
+# Example: "the same", "left side" - high RAKE scores but no vocabulary value.
+#
+# KEY INSIGHT: If a phrase has even ONE rare word, it might be worth keeping.
+# We only filter when ALL words are common.
+#
+# Commonality scores are 0.0-1.0 (log-scaled from Google word frequency):
+#   0.0 = extremely rare (not in dataset)
+#   0.5 = moderately common
+#   1.0 = extremely common ("the", "and", "is")
+#
+# MAX threshold: Filters if the RAREST word (min commonality) exceeds this.
+#   If even the rarest word is above this, ALL words are common -> filter
+#   0.85 = permissive (only filter if rarest word is very common)
+#   0.75 = balanced
+#   0.65 = aggressive (filter more phrases)
+#
+# MEAN threshold: Filters if the AVERAGE word commonality exceeds this.
+#   0.70 = permissive
+#   0.65 = balanced
+#   0.55 = aggressive
+#
+# Person names are exempt (names like "John Smith" use common words but are valuable)
+PHRASE_MAX_COMMONALITY_THRESHOLD = 0.75   # Filter if rarest word is this common
+PHRASE_MEAN_COMMONALITY_THRESHOLD = 0.65  # Filter if average word is this common
+
 # GUI Display Limits for Vocabulary Table
 # Based on tkinter Treeview performance testing:
 # - < 100 rows: Excellent performance

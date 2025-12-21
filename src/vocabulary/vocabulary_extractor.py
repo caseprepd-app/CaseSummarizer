@@ -2,12 +2,21 @@
 Vocabulary Extractor Orchestrator
 
 Orchestrates multiple extraction algorithms and produces final vocabulary output.
+
+FILTERING STRATEGY:
+- Algorithm-level: Each algorithm (NER, RAKE, BM25) handles single-word filtering
+  (stopwords, rarity threshold, exclude lists)
+- Centralized: Multi-word phrase filtering is done ONCE by rarity_filter.py
+  after all algorithms have contributed, before displaying to the user
+
 This module coordinates:
-1. Running multiple extraction algorithms (NER, RAKE, etc.)
+1. Running multiple extraction algorithms (NER, RAKE, BM25)
 2. Merging and deduplicating results via ResultMerger
-3. Role detection (via RoleDetectionProfile)
-4. Quality scoring and definition lookup
-5. Final output formatting
+3. Post-processing: frequency filtering, ML boost, role detection
+4. Name deduplication (fuzzy matching for OCR variants)
+5. Artifact filtering (substring containment)
+6. Phrase rarity filtering (filter phrases with all-common words)
+7. Quality scoring and final output formatting
 
 The extraction algorithms are pluggable via dependency injection.
 """
@@ -35,6 +44,7 @@ from src.config import (
 )
 from src.logging_config import debug_log
 from src.user_preferences import get_user_preferences
+from src.utils.tokenizer import STOPWORDS
 from src.vocabulary.algorithms import create_default_algorithms
 from src.vocabulary.algorithms.base import BaseExtractionAlgorithm
 from src.vocabulary.meta_learner import VocabularyMetaLearner, get_meta_learner
@@ -249,9 +259,16 @@ class VocabularyExtractor:
         debug_log("[VOCAB] Filtering substring artifacts...")
         from src.vocabulary.artifact_filter import filter_substring_artifacts
         vocabulary = filter_substring_artifacts(vocabulary)
+        debug_log(f"[VOCAB] After artifact filter: {len(vocabulary)} terms")
+
+        # 6. Filter phrases with overly common component words
+        # (e.g., "the same", "left side" - high RAKE scores but no vocab value)
+        debug_log("[VOCAB] Filtering common phrase components...")
+        from src.vocabulary.rarity_filter import filter_common_phrases
+        vocabulary = filter_common_phrases(vocabulary)
         debug_log(f"[VOCAB] Final vocabulary: {len(vocabulary)} terms")
 
-        # 6. Sort vocabulary based on configured method
+        # 7. Sort vocabulary based on configured method
         vocabulary = self._sort_vocabulary(vocabulary)
 
         return vocabulary
@@ -360,6 +377,13 @@ class VocabularyExtractor:
         debug_log("[VOCAB] Phase 8: Filtering substring artifacts...")
         from src.vocabulary.artifact_filter import filter_substring_artifacts
         csv_data = filter_substring_artifacts(csv_data)
+
+        # 9. Filter phrases with overly common component words
+        # (e.g., "the same", "left side" - high RAKE scores but no vocab value)
+        debug_log("[VOCAB] Phase 9: Filtering common phrase components...")
+        from src.vocabulary.rarity_filter import filter_common_phrases
+        csv_data = filter_common_phrases(csv_data)
+        debug_log(f"[VOCAB] After phrase filter: {len(csv_data)} terms")
 
         total_time = (time.time() - start_time) * 1000
         debug_log(f"[VOCAB] extract_with_llm complete in {total_time:.1f}ms, {len(csv_data)} terms")
@@ -501,10 +525,17 @@ class VocabularyExtractor:
 
     def _filter_reconciled_terms(self, reconciled: list, doc_count: int) -> list:
         """
-        Filter reconciled terms to remove common words and noise (Session 45).
+        Filter reconciled terms for single-word noise (Session 45).
 
-        Applies the same filtering logic as _post_process() but for ReconciledTerm objects.
-        This ensures extract_with_llm() produces clean results like extract().
+        This handles SINGLE-WORD filtering only:
+        - Exclude lists (legal/user)
+        - Rarity threshold check
+        - Frequency bounds (too rare = OCR error, too common = noise)
+        - Stopwords
+
+        MULTI-WORD phrase filtering is done CENTRALLY by rarity_filter.py
+        in the main pipeline (see extract_with_llm phase 9). This separation
+        ensures consistent filtering across all algorithms.
 
         Args:
             reconciled: List of ReconciledTerm objects
@@ -560,24 +591,10 @@ class VocabularyExtractor:
             if len(term) < 2:
                 continue
 
-            # Skip terms that are just common English words (extra safety check)
-            common_words = {
-                'the', 'a', 'an', 'is', 'are', 'was', 'were', 'be', 'been', 'being',
-                'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could',
-                'should', 'may', 'might', 'must', 'shall', 'can', 'need', 'dare',
-                'ought', 'used', 'to', 'of', 'in', 'for', 'on', 'with', 'at', 'by',
-                'from', 'as', 'into', 'through', 'during', 'before', 'after', 'above',
-                'below', 'between', 'under', 'again', 'further', 'then', 'once',
-                'here', 'there', 'when', 'where', 'why', 'how', 'all', 'each', 'few',
-                'more', 'most', 'other', 'some', 'such', 'no', 'nor', 'not', 'only',
-                'own', 'same', 'so', 'than', 'too', 'very', 'just', 'but', 'and',
-                'if', 'or', 'because', 'until', 'while', 'although', 'though',
-                'this', 'that', 'these', 'those', 'what', 'which', 'who', 'whom',
-                'their', 'them', 'they', 'we', 'us', 'our', 'you', 'your', 'he',
-                'she', 'it', 'its', 'his', 'her', 'him', 'my', 'me', 'i', 'age',
-            }
-            if lower_term in common_words and category != "Person":
-                debug_log(f"[VOCAB FILTER] Skipping common word: {term}")
+            # Skip single-word terms that are stopwords (uses shared STOPWORDS)
+            # Note: Multi-word phrase filtering is done centrally by rarity_filter.py
+            if len(term.split()) == 1 and lower_term in STOPWORDS and category != "Person":
+                debug_log(f"[VOCAB FILTER] Skipping stopword: {term}")
                 continue
 
             filtered.append(term_obj)

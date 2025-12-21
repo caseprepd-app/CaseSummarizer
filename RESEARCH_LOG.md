@@ -6,6 +6,111 @@
 
 ---
 
+## Phrase Component Rarity Filtering — 2025-12-21
+
+**Question:** Why does RAKE return useless multi-word phrases like "the same", "left side", "read copy"?
+
+**Decision:** Filter multi-word phrases based on the commonality of their component words, using log-scaled Google word frequency data.
+
+**Root Cause:**
+RAKE scores phrases by how often words appear together, not by whether the individual words are unusual. Phrases like "the same" score well because they co-occur frequently, but both words are extremely common and provide no vocabulary prep value.
+
+**Implementation:**
+New module `src/vocabulary/rarity_filter.py` with centralized filtering:
+
+1. **Log-scaled frequency scoring** — Converts raw Google word counts to 0.0-1.0 range
+   - Formula: `log(count + 1) / log(max_count + 1)`
+   - Preserves relative frequency differences (rank-based ordering loses this)
+   - 0.0 = rare/unknown, 1.0 = extremely common ("the")
+
+2. **Component word analysis** — For multi-word phrases, calculates:
+   - `min_commonality`: LOWEST score (the rarest word) — if this is high, ALL words are common
+   - `mean_commonality`: Average score (catches phrases where words are generally common)
+
+3. **Configurable thresholds** in `config.py`:
+   - `PHRASE_MAX_COMMONALITY_THRESHOLD = 0.75` — Filter if RAREST word exceeds (all words common)
+   - `PHRASE_MEAN_COMMONALITY_THRESHOLD = 0.65` — Filter if average exceeds
+
+4. **Exemptions:**
+   - Single words (handled by NER rarity check, stopwords)
+   - Person names (names like "John Smith" use common words but are valuable)
+
+**Why log scaling instead of rank:**
+- Rank only tells position, not magnitude
+- "the" vs "a" are ranks 1 and 2, but "the" appears 2x as often — rank hides this
+- Log scaling compresses the extreme range while preserving relative differences
+
+**Code changes:**
+- New: `src/vocabulary/rarity_filter.py` — `filter_common_phrases()`, `calculate_phrase_component_scores()`
+- `src/config.py:232-257` — Threshold constants with documentation
+- `src/vocabulary/vocabulary_extractor.py:254-259` — Integration point (step 6)
+- `src/vocabulary/vocabulary_extractor.py:371-376` — Integration in `extract_with_llm` (phase 9)
+- Removed duplicate hardcoded `common_words` set, now uses shared `STOPWORDS`
+- Updated module docstrings in NER, RAKE, BM25 to clarify filtering scope
+- Added "Filtering Strategy" section to ARCHITECTURE.md
+
+**Test results:**
+| Phrase | Min (rarest) | Mean | Result |
+|--------|--------------|------|--------|
+| "the same" | 0.81 | 0.90 | FILTER |
+| "left side" | 0.79 | 0.79 | FILTER |
+| "cervical spine" | 0.62 | 0.64 | KEEP |
+| "medical records" | 0.77 | 0.78 | FILTER |
+| "lumbar radiculopathy" | 0.45 | 0.52 | KEEP |
+| "bilateral effusion" | 0.53 | 0.58 | KEEP |
+
+---
+
+## Stopword Filtering for Vocabulary Extraction — 2025-12-21
+
+**Question:** Why are common words like "same", "left", "bill", "copy", "read" appearing in vocabulary results?
+
+**Decision:** Implement unified stopword filtering across NER and RAKE algorithms using a shared, expanded stopwords list.
+
+**Root Cause (Two issues):**
+1. **RAKE algorithm** used `rake_nltk`'s internal stopwords, which differ from our shared list. Single-word results that slipped through weren't being filtered.
+2. **NER algorithm** only applied rarity checks to non-PERSON entities. spaCy sometimes tags common words like "bill" as PERSON entities (could be a name), bypassing the rarity check entirely.
+
+**Implementation:**
+- Expanded `STOPWORDS` in `src/utils/tokenizer.py` from ~109 to ~250 words
+- Added categories: common verbs, nouns, adjectives, legal document terms
+- RAKE: Filter single-word results against STOPWORDS in `_clean_phrase()`
+- NER: Filter ALL single-word entities (including PERSON) against STOPWORDS
+- NER: Stopword check added to `_is_unusual()` for non-entity tokens
+
+**Code changes:**
+- `src/utils/tokenizer.py` - Expanded STOPWORDS set
+- `src/vocabulary/algorithms/rake_algorithm.py:280-283` - Single-word stopword filter
+- `src/vocabulary/algorithms/ner_algorithm.py:201-208` - Entity stopword filter (all types)
+- `src/vocabulary/algorithms/ner_algorithm.py:327-328` - Token stopword filter
+
+**Why this approach:**
+- Single source of truth for stopwords (shared tokenizer module)
+- Filtering at extraction time is more efficient than post-processing
+- Applies to both entity extraction and unusual token detection
+- Doesn't affect multi-word phrases (e.g., "left shoulder" still extracted)
+
+---
+
+## Vocabulary Table Tag Colors for Algorithm Sources — 2025-12-21
+
+**Question:** Why are RAKE results invisible in the vocabulary table until clicked?
+
+**Decision:** Add color tags for all algorithm sources and update tag selection logic.
+
+**Root Cause:** Session 52 changed "Found By" values from "Both"/"NER"/"LLM" to actual algorithm names like "RAKE", "NER, RAKE", "BM25". The tag logic only handled old values, so RAKE/BM25 results got no foreground color tag (invisible default).
+
+**Implementation:**
+- Added tags: `found_rake` (purple #8e44ad), `found_bm25` (orange #e67e22), `found_multi` (green #28a745)
+- Updated tag selection to parse comma-separated algorithm names
+- Multiple algorithms (2+) get green, single algorithms get their specific color
+
+**Code changes:**
+- `src/ui/dynamic_output.py:539-545` - Tag configurations
+- `src/ui/dynamic_output.py:691-705` - Tag selection logic
+
+---
+
 ## Tab Navigation Replaces Dropdown Menu — 2025-12-17
 
 **Question:** Would tabs reduce GUI glitchiness compared to dropdown menu refreshing?

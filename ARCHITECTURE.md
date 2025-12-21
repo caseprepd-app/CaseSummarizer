@@ -299,8 +299,28 @@ flowchart TB
 | `LLMExtractor` | `extraction/llm_extractor.py` | Ollama-based extraction |
 | `Reconciler` | `vocabulary/reconciler.py` | Merge NER + LLM results |
 | `ResultMerger` | `vocabulary/result_merger.py` | Weighted confidence combination |
+| `RarityFilter` | `vocabulary/rarity_filter.py` | Filter common phrase components |
 | `FeedbackManager` | `vocabulary/feedback_manager.py` | User feedback storage |
 | `MetaLearner` | `vocabulary/meta_learner.py` | ML preference learning |
+
+### Filtering Strategy
+
+Filtering is split between algorithm-level and centralized:
+
+**Algorithm-level (single-word filtering):**
+- NER: Stopwords, rarity threshold, exclude lists, pattern matching
+- RAKE: Score threshold, phrase length, stopword removal for single words
+- BM25: Score threshold, stopwords, basic validation
+
+**Centralized (multi-word phrase filtering):**
+After all algorithms contribute, `rarity_filter.py` filters phrases where ALL component words are common. This catches phrases like "the same" or "left side" that score well algorithmically but provide no vocabulary value.
+
+**Filter pipeline order:**
+1. **Post-process** — Frequency thresholds, ML boost, deduplication
+2. **Name deduplication** — Fuzzy matching for OCR variants
+3. **Artifact filter** — Substring containment removal
+4. **Phrase rarity filter** — Filter if rarest word is still common
+5. **Sort** — By quality score or rarity
 
 ### Algorithm Weights
 
@@ -613,6 +633,7 @@ src/
 │   ├── result_merger.py         # Algorithm result combination
 │   ├── name_deduplicator.py     # Person name deduplication (artifacts + fuzzy)
 │   ├── artifact_filter.py       # Substring containment artifact removal
+│   ├── rarity_filter.py         # Filter phrases with common component words
 │   ├── role_profiles.py         # Role detection
 │   ├── feedback_manager.py      # User feedback CSV
 │   ├── meta_learner.py          # ML preference learning (LR + RF ensemble)
@@ -819,4 +840,4 @@ ruff check src/ --fix
 
 ---
 
-*Last updated: 2025-12-19*
+*Last updated: 2025-12-21*

@@ -12,6 +12,15 @@ are RARE in the corpus but FREQUENT in the current document are likely case-spec
 
 Privacy: All processing is local - no documents or data are sent externally.
 
+FILTERING SCOPE:
+This algorithm handles SINGLE-WORD filtering only:
+- BM25 score threshold (min score to include)
+- Stopwords (shared STOPWORDS from tokenizer.py)
+- Basic term validation (min length, no pure digits)
+
+Multi-word PHRASE filtering is done CENTRALLY by rarity_filter.py after all
+algorithms contribute their candidates. This ensures consistent filtering.
+
 Example:
     from src.vocabulary.algorithms import get_algorithm
     from src.vocabulary.corpus_manager import get_corpus_manager

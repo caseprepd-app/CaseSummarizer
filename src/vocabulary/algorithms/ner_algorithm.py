@@ -8,8 +8,15 @@ This is the primary extraction algorithm, identifying:
 - Acronyms (all-caps words)
 - Rare/unusual words (not in common vocabulary)
 
-This algorithm was refactored from the original VocabularyExtractor to support
-the multi-algorithm framework.
+FILTERING SCOPE:
+This algorithm handles SINGLE-WORD filtering only:
+- Stopwords (shared STOPWORDS from tokenizer.py)
+- Rarity threshold (Google word frequency rank)
+- Exclude lists (legal terms, user exclusions)
+- Pattern matching (legal boilerplate, variations)
+
+Multi-word PHRASE filtering is done CENTRALLY by rarity_filter.py after all
+algorithms contribute their candidates. This ensures consistent filtering.
 """
 
 import os
@@ -38,6 +45,7 @@ from src.config import (
 )
 from src.categories import get_ner_mapping
 from src.logging_config import debug_log
+from src.utils.tokenizer import STOPWORDS
 from src.utils.pattern_filter import (
     VARIATION_FILTER,
     TITLE_ABBREVIATIONS,
@@ -196,10 +204,15 @@ class NERAlgorithm(BaseExtractionAlgorithm):
                 if self._matches_entity_filter(term_text):
                     continue
 
-                # Single-word non-PERSON entities need rarity check
+                # Single-word entities need additional filtering
                 words = term_text.split()
-                if len(words) == 1 and ent.label_ != "PERSON":
-                    if not self._is_word_rare_enough(term_text):
+                if len(words) == 1:
+                    # Session 53: Filter stopwords for ALL single-word entities
+                    # (spaCy sometimes tags common words like "bill" as PERSON)
+                    if term_text.lower() in STOPWORDS:
+                        continue
+                    # Non-PERSON entities also need rarity check
+                    if ent.label_ != "PERSON" and not self._is_word_rare_enough(term_text):
                         continue
 
                 lower_term = term_text.lower()
@@ -322,6 +335,10 @@ class NERAlgorithm(BaseExtractionAlgorithm):
             return False
 
         lower_text = token.text.lower()
+
+        # Session 53: Filter common stopwords early
+        if lower_text in STOPWORDS:
+            return False
 
         if lower_text in self.exclude_list:
             return False
