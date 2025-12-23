@@ -169,10 +169,10 @@ class WorkflowOrchestrator:
         # SEQUENTIAL: Start vocabulary extraction FIRST if requested
         # AI generation will start AFTER vocab completes (in on_vocab_complete)
         if self.state.output_options.get('vocab_csv', False):
-            combined_text, doc_count = self._get_combined_text(extracted_documents)
+            combined_text, doc_count, doc_confidence = self._get_combined_text(extracted_documents)
             actions_taken['combined_text'] = combined_text
             actions_taken['vocab_extraction_started'] = True
-            self._start_vocab_extraction(combined_text, doc_count)
+            self._start_vocab_extraction(combined_text, doc_count, doc_confidence)
             debug_log("[ORCHESTRATOR] Started vocabulary extraction (AI will start after).")
             # Do NOT start AI here - wait for vocab to complete
             return actions_taken
@@ -197,22 +197,28 @@ class WorkflowOrchestrator:
             extracted_documents: List of document result dictionaries
 
         Returns:
-            Tuple of (combined_text, doc_count)
+            Tuple of (combined_text, doc_count, doc_confidence)
         """
         # Disable preprocessing for vocabulary - we want raw text for NER
         combined = combine_document_texts(extracted_documents, include_headers=False, preprocess=False)
         doc_count = sum(1 for d in extracted_documents if d.get('extracted_text'))
-        debug_log(f"[ORCHESTRATOR] Combined {doc_count} documents "
-                  f"({len(combined)} characters total).")
-        return combined, doc_count
 
-    def _start_vocab_extraction(self, combined_text: str, doc_count: int = 1):
+        # Calculate minimum confidence (Session 54)
+        confidences = [d.get('confidence', 100) for d in extracted_documents if d.get('confidence') is not None]
+        doc_confidence = min(confidences) if confidences else 100.0
+
+        debug_log(f"[ORCHESTRATOR] Combined {doc_count} documents "
+                  f"({len(combined)} characters total, confidence={doc_confidence:.1f}%).")
+        return combined, doc_count, doc_confidence
+
+    def _start_vocab_extraction(self, combined_text: str, doc_count: int = 1, doc_confidence: float = 100.0):
         """
         Start vocabulary extraction worker thread.
 
         Args:
             combined_text: Combined text from all documents
             doc_count: Number of documents being processed (for frequency filtering)
+            doc_confidence: Aggregate OCR confidence (0-100) for ML feature (Session 54)
         """
         # Import here to avoid circular imports
         from src.ui.workers import VocabularyWorker
@@ -223,10 +229,11 @@ class WorkflowOrchestrator:
             exclude_list_path=str(LEGAL_EXCLUDE_LIST_PATH),
             medical_terms_path=str(MEDICAL_TERMS_LIST_PATH),
             user_exclude_path=str(USER_VOCAB_EXCLUDE_PATH),
-            doc_count=doc_count
+            doc_count=doc_count,
+            doc_confidence=doc_confidence,  # Session 54: OCR quality for ML
         )
         self.vocab_worker.start()
-        debug_log(f"[ORCHESTRATOR] VocabularyWorker thread started (doc_count={doc_count}).")
+        debug_log(f"[ORCHESTRATOR] VocabularyWorker thread started (doc_count={doc_count}, confidence={doc_confidence:.1f}%).")
 
     def _start_ai_generation(self, extracted_documents: list[dict], ai_params: dict):
         """

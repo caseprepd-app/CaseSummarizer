@@ -269,9 +269,13 @@ class RawTextExtractor:
                     text = f.read()
                 method = 'direct_read'
 
+            # Calculate actual text quality confidence
+            confidence = self._calculate_dictionary_confidence(text)
+            debug(f"Text file dictionary confidence: {confidence:.1f}%")
+
             return {
                 'method': method,
-                'confidence': 100,
+                'confidence': int(confidence),
                 'extracted_text': text,
                 'status': 'success'
             }
@@ -308,7 +312,7 @@ class RawTextExtractor:
             debug("Using digital text extraction")
             return {
                 'method': 'digital_text',
-                'confidence': 100,
+                'confidence': int(dictionary_confidence),
                 'extracted_text': text,
                 'page_count': page_count,
                 'status': 'success'

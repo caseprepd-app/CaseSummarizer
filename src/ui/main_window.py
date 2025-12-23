@@ -548,6 +548,11 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         use_llm = prefs.is_vocab_llm_enabled()
         debug_log(f"[MainWindow] Vocabulary extraction with LLM: {use_llm}")
 
+        # Calculate aggregate document confidence (Session 54)
+        # Use minimum confidence - terms from the worst document are most suspect
+        doc_confidence = self._calculate_aggregate_confidence(self.processing_results)
+        debug_log(f"[MainWindow] Aggregate document confidence: {doc_confidence:.1f}%")
+
         # Start vocabulary worker
         self._vocabulary_worker = VocabularyWorker(
             combined_text=combined_text,
@@ -557,6 +562,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             user_exclude_path=str(USER_VOCAB_EXCLUDE_PATH),
             doc_count=len(self.processing_results),
             use_llm=use_llm,  # Session 43: Enable LLM-based extraction
+            doc_confidence=doc_confidence,  # Session 54: OCR quality for ML
         )
         self._vocabulary_worker.start()
 
@@ -644,6 +650,10 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             self._on_tasks_complete(False, "No text to analyze")
             return
 
+        # Calculate aggregate document confidence (Session 54)
+        doc_confidence = self._calculate_aggregate_confidence(self.processing_results)
+        debug_log(f"[MainWindow] Aggregate document confidence: {doc_confidence:.1f}%")
+
         # Start progressive extraction worker (uses shared ui_queue)
         self._progressive_worker = ProgressiveExtractionWorker(
             documents=self.processing_results,
@@ -653,6 +663,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             exclude_list_path=str(LEGAL_EXCLUDE_LIST_PATH),
             medical_terms_path=str(MEDICAL_TERMS_LIST_PATH),
             user_exclude_path=str(USER_VOCAB_EXCLUDE_PATH),
+            doc_confidence=doc_confidence,  # Session 54: OCR quality for ML
         )
         self._progressive_worker.start()
 
@@ -1051,6 +1062,33 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         minutes = int(seconds // 60)
         secs = int(seconds % 60)
         self.timer_label.configure(text=f"⏱ {minutes}:{secs:02d}")
+
+    def _calculate_aggregate_confidence(self, documents: list[dict]) -> float:
+        """
+        Calculate aggregate confidence from processed documents (Session 54).
+
+        Uses minimum confidence across all documents because terms extracted
+        from any document could be affected by that document's OCR quality.
+        The ML model will learn to weight this signal appropriately.
+
+        Args:
+            documents: List of document dicts with 'confidence' field (0-100)
+
+        Returns:
+            Minimum confidence value, or 100.0 if no documents have confidence
+        """
+        confidences = []
+        for doc in documents:
+            conf = doc.get('confidence')
+            if conf is not None:
+                confidences.append(float(conf))
+
+        if not confidences:
+            return 100.0  # Default to 100% if no confidence data
+
+        min_conf = min(confidences)
+        debug_log(f"[MainWindow] Document confidences: {confidences} -> min={min_conf:.1f}%")
+        return min_conf
 
     # =========================================================================
     # Status Bar

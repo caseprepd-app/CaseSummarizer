@@ -193,13 +193,15 @@ class VocabularyExtractor:
                     self._nlp = spacy.load("en_core_web_sm")
         return self._nlp
 
-    def extract(self, text: str, doc_count: int = 1) -> list[dict[str, str]]:
+    def extract(self, text: str, doc_count: int = 1, doc_confidence: float = 100.0) -> list[dict[str, str]]:
         """
         Extract vocabulary using all enabled algorithms.
 
         Args:
             text: The document text to analyze
             doc_count: Number of documents being processed (for frequency filtering)
+            doc_confidence: Average/min confidence score of source documents (0-100).
+                           Used as ML feature to weight terms from OCR-heavy documents.
 
         Returns:
             List of vocabulary dictionaries with standard schema:
@@ -245,8 +247,8 @@ class VocabularyExtractor:
         debug_log(f"[VOCAB] After merge: {len(merged_terms)} unique terms")
 
         # 3. Post-process: categorize, detect roles, add definitions
-        debug_log(f"[VOCAB] Post-processing (doc_count={doc_count})...")
-        vocabulary = self._post_process(merged_terms, text, doc_count)
+        debug_log(f"[VOCAB] Post-processing (doc_count={doc_count}, doc_confidence={doc_confidence:.1f}%)...")
+        vocabulary = self._post_process(merged_terms, text, doc_count, doc_confidence)
         debug_log(f"[VOCAB] After post-process: {len(vocabulary)} terms")
 
         # 4. Deduplicate similar Person names (OCR errors, typos)
@@ -394,7 +396,8 @@ class VocabularyExtractor:
         self,
         merged_terms: list[MergedTerm],
         full_text: str,
-        doc_count: int
+        doc_count: int,
+        doc_confidence: float = 100.0
     ) -> list[dict[str, str]]:
         """
         Post-process merged terms: categorize, detect roles, add definitions.
@@ -403,6 +406,7 @@ class VocabularyExtractor:
             merged_terms: List of MergedTerm from merger
             full_text: Complete document text for role detection
             doc_count: Number of documents being processed
+            doc_confidence: Average/min confidence of source documents (0-100)
 
         Returns:
             Final vocabulary list with all metadata
@@ -472,6 +476,7 @@ class VocabularyExtractor:
                 "algorithms": ",".join(merged.sources),
                 "is_person": 1 if is_person else 0,  # Session 52: Binary flag for ML
                 "total_unique_terms": total_unique_terms,  # For ML occurrence_ratio
+                "source_doc_confidence": doc_confidence,  # Session 54: OCR quality for ML
             }
 
             # Apply ML boost if meta-learner is trained (Session 25)

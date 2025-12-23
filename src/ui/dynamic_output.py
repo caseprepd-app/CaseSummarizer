@@ -66,40 +66,36 @@ BATCH_INSERT_DELAY_MS = VOCABULARY_BATCH_INSERT_DELAY_MS
 # Session 43: Added Found By column for NER/LLM reconciliation
 # Session 47: Added per-algorithm detection columns (NER, RAKE, BM25)
 # Session 52: Removed Type column (unreliable), added Is Person (NER detection)
+# Session 54: Removed Definition/Role (useless), added Score for ML transparency
 COLUMN_CONFIG = {
-    "Term": {"width": 150, "max_chars": 25},
+    "Term": {"width": 180, "max_chars": 30},
+    "Score": {"width": 55, "max_chars": 5},  # Quality Score - ML ranking value
     "Is Person": {"width": 65, "max_chars": 4},  # Yes/No - NER person detection
-    "Found By": {"width": 110, "max_chars": 18},  # Algorithm names: NER, RAKE, BM25
-    "Role/Relevance": {"width": 120, "max_chars": 18},
-    "Quality Score": {"width": 85, "max_chars": 8},
-    "In-Case Freq": {"width": 80, "max_chars": 8},
-    "Freq Rank": {"width": 80, "max_chars": 10},
-    "Definition": {"width": 240, "max_chars": 38},
+    "Found By": {"width": 120, "max_chars": 20},  # Algorithm names: NER, RAKE, BM25
     "Keep": {"width": 45, "max_chars": 3},
     "Skip": {"width": 45, "max_chars": 3},
-    # Session 47: Per-algorithm detection columns (hidden by default)
+    # Extended view columns (Session 47)
     "NER": {"width": 45, "max_chars": 4},
     "RAKE": {"width": 50, "max_chars": 4},
     "BM25": {"width": 50, "max_chars": 4},
     "Algo Count": {"width": 55, "max_chars": 3},  # Number of algorithms that found term
+    # Export-only columns (not shown in GUI)
+    "Quality Score": {"width": 85, "max_chars": 8},
+    "In-Case Freq": {"width": 80, "max_chars": 8},
+    "Freq Rank": {"width": 80, "max_chars": 10},
 }
 
-# Columns visible in the GUI Treeview (confidence columns hidden for cleaner display)
-# Session 23: Users can export all columns via CSV, but GUI shows only essential info
-# Session 25: Added feedback columns for ML learning
-# Session 43: Added Found By column - terms found by Both (NER+LLM) appear first
-# Session 52: Replaced Type with Is Person (cleaner, more accurate)
-GUI_DISPLAY_COLUMNS = ("Term", "Is Person", "Found By", "Role/Relevance", "Definition", "Keep", "Skip")
+# Columns visible in the GUI Treeview
+# Session 54: Simplified - removed Definition/Role, added Score for ML transparency
+GUI_DISPLAY_COLUMNS = ("Term", "Score", "Is Person", "Found By", "Keep", "Skip")
 
 # Session 47: Extended columns with per-algorithm detection (shown via "Show Details" button)
-# Session 52: Removed Type, added Is Person
-GUI_DISPLAY_COLUMNS_EXTENDED = ("Term", "Is Person", "Found By", "NER", "RAKE", "BM25", "Algo Count", "Role/Relevance", "Definition", "Keep", "Skip")
+# Session 54: Removed Definition/Role, added Score
+GUI_DISPLAY_COLUMNS_EXTENDED = ("Term", "Score", "Is Person", "Found By", "NER", "RAKE", "BM25", "Algo Count", "Keep", "Skip")
 
-# All columns available for export (includes confidence/filtering columns)
-# Session 43: Added Found By for export
-# Session 47: Added NER, RAKE, BM25, Algo Count for detailed export
-# Session 52: Removed Type, added Is Person
-ALL_EXPORT_COLUMNS = ("Term", "Is Person", "Found By", "NER", "RAKE", "BM25", "Algo Count", "Role/Relevance", "Quality Score", "In-Case Freq", "Freq Rank", "Definition")
+# All columns available for export (includes ML feature columns)
+# Session 54: Removed Definition, kept Quality Score for full data export
+ALL_EXPORT_COLUMNS = ("Term", "Quality Score", "Is Person", "Found By", "NER", "RAKE", "BM25", "Algo Count", "In-Case Freq", "Freq Rank")
 
 
 def truncate_text(text: str, max_chars: int) -> str:
@@ -455,7 +451,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
         Initial load shows ROWS_PER_PAGE items, "Load More" button adds more.
 
         Args:
-            data: List of dicts with keys: Term, Type, Role/Relevance, Definition
+            data: List of dicts with keys: Term, Quality Score, Is Person, Found By
         """
         if not data:
             debug_log("[VOCAB DISPLAY] No vocabulary data to display")
@@ -497,7 +493,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
                     width=col_config["width"],
                     minwidth=60,
                     anchor='w',
-                    stretch=True if col == "Definition" else False
+                    stretch=True if col == "Term" else False  # Term stretches to fill space
                 )
 
             # Add vertical scrollbar
@@ -536,10 +532,13 @@ class DynamicOutputWidget(ctk.CTkFrame):
             self.csv_treeview.tag_configure('rated_up', foreground='#28a745')  # Green
             self.csv_treeview.tag_configure('rated_down', foreground='#dc3545')  # Red
 
-            # Configure Found By tags for visual distinction (Session 43)
-            self.csv_treeview.tag_configure('found_both', foreground='#28a745')  # Green - highest confidence
-            self.csv_treeview.tag_configure('found_ner', foreground='#6c757d')   # Gray - NER only
-            self.csv_treeview.tag_configure('found_llm', foreground='#17a2b8')   # Blue - LLM only
+            # Configure Found By tags for visual distinction (Session 43, updated Session 53)
+            # Session 53: Added RAKE/BM25 tags and 'found_multi' for multiple algorithms
+            self.csv_treeview.tag_configure('found_multi', foreground='#28a745')  # Green - multiple algorithms
+            self.csv_treeview.tag_configure('found_ner', foreground='#2c3e50')    # Dark slate - NER only
+            self.csv_treeview.tag_configure('found_rake', foreground='#8e44ad')   # Purple - RAKE only
+            self.csv_treeview.tag_configure('found_bm25', foreground='#e67e22')   # Orange - BM25 only
+            self.csv_treeview.tag_configure('found_llm', foreground='#17a2b8')    # Blue - LLM only
 
             # Configure alternating row colors for readability (Session 51)
             self.csv_treeview.tag_configure('oddrow', background='#f8f9fa')   # Light gray
@@ -663,8 +662,12 @@ class DynamicOutputWidget(ctk.CTkFrame):
                             values.append(THUMB_UP_FILLED if rating == 1 else THUMB_UP_EMPTY)
                         elif col == "Skip":
                             values.append(THUMB_DOWN_FILLED if rating == -1 else THUMB_DOWN_EMPTY)
+                        elif col == "Score":
+                            # Map "Score" display column to "Quality Score" data field
+                            score = item.get("Quality Score", "")
+                            values.append(truncate_text(str(score), COLUMN_CONFIG[col]["max_chars"]))
                         else:
-                            values.append(truncate_text(item.get(col, ""), COLUMN_CONFIG[col]["max_chars"]))
+                            values.append(truncate_text(str(item.get(col, "")), COLUMN_CONFIG[col]["max_chars"]))
 
                     values = tuple(values)
                 else:
@@ -685,12 +688,18 @@ class DynamicOutputWidget(ctk.CTkFrame):
                     tag = (row_bg_tag, 'rated_down')
                 else:
                     # No feedback rating - use Found By coloring if available
+                    # Session 53: Handle comma-separated algorithm names (e.g., "NER, RAKE")
                     found_by = item.get("Found By", "") if isinstance(item, dict) else ""
-                    if found_by == "Both":
-                        tag = (row_bg_tag, 'found_both')
-                    elif found_by == "NER":
+                    algos = [a.strip() for a in found_by.split(",")] if found_by else []
+                    if len(algos) >= 2:
+                        tag = (row_bg_tag, 'found_multi')  # Multiple algorithms = high confidence
+                    elif "NER" in algos:
                         tag = (row_bg_tag, 'found_ner')
-                    elif found_by == "LLM":
+                    elif "RAKE" in algos:
+                        tag = (row_bg_tag, 'found_rake')
+                    elif "BM25" in algos:
+                        tag = (row_bg_tag, 'found_bm25')
+                    elif "LLM" in algos:
                         tag = (row_bg_tag, 'found_llm')
                     else:
                         tag = (row_bg_tag,)
@@ -821,16 +830,15 @@ class DynamicOutputWidget(ctk.CTkFrame):
                     self.context_menu.grab_release()
 
     def _on_double_click(self, event):
-        """Handle double-click to copy the full definition."""
+        """Handle double-click to copy the term."""
         item_id = self.csv_treeview.identify_row(event.y)
         if item_id:
             values = self.csv_treeview.item(item_id, 'values')
-            if values and len(values) >= 4:
-                definition = values[3]  # Definition is fourth column
-                if definition and definition != "N/A":
+            if values and len(values) >= 1:
+                term = values[0]  # Term is first column
+                if term:
                     self.clipboard_clear()
-                    self.clipboard_append(definition)
-                    # Brief visual feedback could be added here
+                    self.clipboard_append(term)
 
     def _exclude_selected_term(self):
         """Exclude the selected term from future vocabulary extractions."""
@@ -901,7 +909,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
 
         For vocabulary CSV, respects the vocab_export_format setting:
         - "all": All columns including Quality Score, In-Case Freq, Freq Rank
-        - "basic": Term, Type, Role/Relevance, Definition
+        - "basic": Term, Score, Is Person, Found By
         - "terms_only": Just the Term column
         """
         # Session 51: Use current tab instead of dropdown
@@ -929,10 +937,16 @@ class DynamicOutputWidget(ctk.CTkFrame):
             writer = csv.writer(output)
             # Write header
             writer.writerow(columns)
-            # Write data
+            # Write data - map "Score" column to "Quality Score" data field
             for item in data:
                 if isinstance(item, dict):
-                    writer.writerow([item.get(col, "") for col in columns])
+                    row = []
+                    for col in columns:
+                        if col == "Score":
+                            row.append(item.get("Quality Score", ""))
+                        else:
+                            row.append(item.get(col, ""))
+                    writer.writerow(row)
                 else:
                     # Legacy list format - map by position
                     writer.writerow(item[:len(columns)])

@@ -210,9 +210,10 @@ class VocabularyWorker(BaseWorker):
 
     Session 43: Added use_llm parameter for NER+LLM reconciled extraction.
     Session 49: Refactored to use BaseWorker.
+    Session 54: Added doc_confidence for ML feature (OCR quality signal).
     """
 
-    def __init__(self, combined_text, ui_queue, exclude_list_path=None, medical_terms_path=None, user_exclude_path=None, doc_count=1, use_llm=True):
+    def __init__(self, combined_text, ui_queue, exclude_list_path=None, medical_terms_path=None, user_exclude_path=None, doc_count=1, use_llm=True, doc_confidence=100.0):
         super().__init__(ui_queue)
         self.combined_text = combined_text
         self.exclude_list_path = exclude_list_path or "config/legal_exclude.txt"
@@ -220,6 +221,7 @@ class VocabularyWorker(BaseWorker):
         self.user_exclude_path = user_exclude_path  # User's personal exclusion list
         self.doc_count = doc_count  # Number of documents (for frequency filtering)
         self.use_llm = use_llm  # Whether to use LLM extraction (Session 43)
+        self.doc_confidence = doc_confidence  # Session 54: Aggregate OCR confidence for ML
 
     def execute(self):
         """Execute vocabulary extraction in background thread."""
@@ -271,7 +273,7 @@ class VocabularyWorker(BaseWorker):
             )
         else:
             # Legacy NER-only extraction
-            vocab_data = extractor.extract(self.combined_text, doc_count=self.doc_count)
+            vocab_data = extractor.extract(self.combined_text, doc_count=self.doc_count, doc_confidence=self.doc_confidence)
 
         # Check for cancellation after extraction
         self.check_cancelled()
@@ -678,6 +680,7 @@ class ProgressiveExtractionWorker(BaseWorker):
         exclude_list_path: str | None = None,
         medical_terms_path: str | None = None,
         user_exclude_path: str | None = None,
+        doc_confidence: float = 100.0,
     ):
         """
         Initialize progressive extraction worker.
@@ -690,6 +693,7 @@ class ProgressiveExtractionWorker(BaseWorker):
             exclude_list_path: Path to legal exclusion list
             medical_terms_path: Path to medical terms list
             user_exclude_path: Path to user exclusion list
+            doc_confidence: Aggregate OCR confidence (0-100) for ML feature (Session 54)
         """
         super().__init__(ui_queue)
         self.documents = documents
@@ -698,6 +702,7 @@ class ProgressiveExtractionWorker(BaseWorker):
         self.exclude_list_path = exclude_list_path
         self.medical_terms_path = medical_terms_path
         self.user_exclude_path = user_exclude_path
+        self.doc_confidence = doc_confidence  # Session 54: OCR quality for ML
 
     def execute(self):
         """Execute three-phase progressive extraction."""
@@ -732,6 +737,7 @@ class ProgressiveExtractionWorker(BaseWorker):
         ner_results = extractor.extract(
             self.combined_text,
             doc_count=len(self.documents),
+            doc_confidence=self.doc_confidence,  # Session 54: OCR quality for ML
         )
 
         debug_log(f"[PROGRESSIVE WORKER] Phase 1 complete: {len(ner_results)} terms from local algorithms")

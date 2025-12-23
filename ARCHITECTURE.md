@@ -341,6 +341,23 @@ Each term tracks which algorithms detected it:
 - **Algo Count** — Sum of algorithms that found the term
 - UI has "Show Details" toggle to display these columns
 
+### GUI Display Columns
+
+**Standard view:** Term | Score | Is Person | Found By | Keep | Skip
+
+**Extended view (Show Details):** Adds NER, RAKE, BM25, Algo Count columns
+
+The Score column displays the ML-adjusted Quality Score (0-100) that determines term ranking. Users see exactly what the model uses to sort terms.
+
+### Document Confidence
+
+Document confidence measures OCR/extraction quality (0-100%):
+- Digital PDFs: Based on % of words found in English dictionary
+- OCR PDFs: Based on OCR engine confidence
+- TXT/RTF: Based on dictionary word percentage
+
+This confidence propagates to vocabulary extraction as an ML feature, helping the model learn to down-weight terms from poorly-read documents.
+
 ### ML Preference Learning
 
 User feedback (thumbs up/down) trains an ensemble model:
@@ -357,7 +374,7 @@ New Terms → VocabularyPreferenceLearner (predict) → Quality Score boost/pena
 
 **Ensemble Blending:** When both models are active, predictions use confidence-weighted blending. Each model's vote is weighted by its confidence (distance from 0.5), so more certain predictions have more influence.
 
-**Features used (14 total):**
+**Features used (15 total):**
 - `quality_score` — Base quality from algorithm weights
 - `log_count` — Log-transformed in-case frequency (better low-count discrimination)
 - `occurrence_ratio` — Document-relative frequency
@@ -366,6 +383,7 @@ New Terms → VocabularyPreferenceLearner (predict) → Quality Score boost/pena
 - `has_ner`, `has_rake`, `has_bm25` — Algorithm presence flags
 - `is_person` — NER person detection (only reliable type signal)
 - `has_trailing_punctuation`, `has_leading_digit`, `has_trailing_digit`, `word_count`, `is_all_caps` — Artifact detection
+- `source_doc_confidence` — OCR/extraction quality of source documents (Session 54)
 
 **Time Decay Weighting:**
 Older feedback is weighted less to adapt to changing preferences:

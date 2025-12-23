@@ -86,6 +86,7 @@ def confidence_weighted_blend(prob_lr: float, prob_rf: float) -> float:
 # Feature indices for interpretability
 # Session 52: Removed unreliable type features (is_medical, is_technical, is_place, is_unknown)
 # Only is_person is reliable (NER person detection)
+# Session 54: Added source_doc_confidence to weight terms by OCR quality
 FEATURE_NAMES = [
     "quality_score",
     "log_count",  # Replaces in_case_freq - better low-count discrimination
@@ -102,6 +103,8 @@ FEATURE_NAMES = [
     "has_trailing_digit",  # "Smith 17", "Di Leo 2" - page/line number suffixes
     "word_count",  # 1-3 words = good, 4+ = suspicious over-extraction
     "is_all_caps",  # "PLAINTIFF'S EXHIBIT" - headers, not vocabulary
+    # Document quality feature (Session 54)
+    "source_doc_confidence",  # OCR/extraction confidence (0-100) - lower = more OCR errors
 ]
 
 
@@ -225,6 +228,12 @@ class VocabularyPreferenceLearner:
         alpha_chars = [c for c in term if c.isalpha()]
         is_all_caps = 1.0 if alpha_chars and all(c.isupper() for c in alpha_chars) else 0.0
 
+        # Source document confidence (Session 54)
+        # Normalized to 0-1 range (original is 0-100)
+        # Default to 1.0 (100%) for legacy data without this field
+        source_doc_confidence_raw = float(term_data.get("source_doc_confidence", 100) or 100)
+        source_doc_confidence = source_doc_confidence_raw / 100.0
+
         return np.array([
             quality_score,
             log_count,
@@ -240,6 +249,7 @@ class VocabularyPreferenceLearner:
             has_trailing_digit,
             word_count,
             is_all_caps,
+            source_doc_confidence,  # Session 54: OCR quality signal
         ])
 
     def _calculate_sample_weight(self, timestamp_str: str) -> float:
