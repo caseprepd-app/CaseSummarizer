@@ -6,6 +6,146 @@
 
 ---
 
+## OUTSTANDING BUG: Q&A Follow-up Font Scaling Error — 2025-12-25
+
+**Problem:** When asking a follow-up question in the Q&A tab, users get:
+```
+Failed to process follow-up: font' option forbidden, because would be incompatible with scaling
+```
+
+**Root Cause:** CustomTkinter's scaling system conflicts with font configuration somewhere in the Q&A display path.
+
+**Attempted Fix (Session 55):**
+- Changed `CTkFont(size=12)` to tuple `("Segoe UI", 12)` in `qa_panel.py:123`
+- This did NOT fully resolve the issue
+
+**Investigation Needed:**
+1. The error occurs in `_ask_followup()` at `main_window.py:961` when calling `update_outputs()`
+2. The call chain: `_ask_followup` → `update_outputs` → `_display_qa_results` → `QAPanel.display_results`
+3. Likely culprits:
+   - Other `CTkFont` usages in `qa_panel.py` (lines 98, 105)
+   - Font configuration during widget creation inside CTkTabview tab
+   - CTkTextbox `tag_config` font settings (lines 132-134)
+4. The 10-second hang when first switching to Q&A tab may be related
+
+**Files to investigate:**
+- `src/ui/qa_panel.py` — QAPanel widget creation and display
+- `src/ui/dynamic_output.py` — `_display_qa_results()` creates QAPanel lazily
+- `src/ui/main_window.py` — `_ask_followup()` catches and displays the error
+
+---
+
+## OCR Error and Gibberish Detection — 2025-12-23
+
+**Question:** How to filter OCR errors and gibberish that slip through frequency-based filtering?
+
+**Decision:** Two-layer defense:
+1. **Expanded pattern filter** — Regex patterns for obvious OCR artifacts (digits in words, punctuation errors)
+2. **Gibberish detector** — Spell-check based detection for nonsense strings (non-PERSON entities only)
+
+**Research Findings:**
+
+Libraries evaluated:
+- **gibberish-detector** — Character n-gram Markov model, requires training a model file
+- **nostril** — Nonsense String Evaluator, 99%+ accuracy, fast (30-50μs/string)
+- **symspellpy** — Fast spell checker (1M+ times faster than standard), frequency dictionary
+- **pyspellchecker** — Pure Python, built-in dictionary, simple API ✓ CHOSEN
+- **OCRfixr** — BERT-based contextual spellchecker (inactive project, 558 weekly downloads)
+
+**Why pyspellchecker:**
+- Built-in English dictionary (no training required)
+- Simple API: `spell.unknown()`, `spell.candidates()`
+- Distinguishes gibberish from typos: gibberish has NO corrections, typos have corrections
+- Lightweight, no ML model dependencies
+
+**Implementation:**
+
+New module `src/utils/gibberish_filter.py`:
+- Word is gibberish if: unknown to dictionary AND has no spelling corrections
+- Multi-word phrases: gibberish if ANY word is gibberish
+- PERSON entities exempt (foreign names like "Nguyen", "Xiaoqing" would incorrectly trigger)
+
+Expanded `OCR_ERROR_FILTER` in `src/utils/pattern_filter.py`:
+```python
+patterns=(
+    r'^[A-Za-z]+-[A-Z][a-z]',     # Line-break artifacts: "Hos-pital"
+    r'.*[0-9][A-Za-z]{2,}[0-9]',  # Digit-letter-digit: "3ohn5mith"
+    r'[A-Za-z]+[0-9]+[A-Za-z]+',  # NEW: Digit(s) embedded: "Joh3n", "sp1ne"
+    r'^[0-9]+[A-Za-z]+',          # NEW: Leading digit(s): "1earn", "3ohn"
+    r'[A-Za-z]+[0-9]+$',          # NEW: Trailing digit(s): "learn1"
+    r'[A-Za-z]+[;:][A-Za-z]+',    # NEW: Punctuation errors: "John;Smith"
+)
+```
+
+**Test results:**
+| Input | Type | Result |
+|-------|------|--------|
+| "xkjwqr" | Random letters | FILTERED (gibberish) |
+| "asdfgh" | Keyboard mash | FILTERED (gibberish) |
+| "Joh3n" | OCR digit error | FILTERED (pattern) |
+| "cervical" | Medical term | KEPT |
+| "Nguyen" | Foreign name | KEPT (in dictionary) |
+| "thier" | Typo | KEPT (has corrections) |
+
+**Code changes:**
+- New: `src/utils/gibberish_filter.py` — GibberishFilter class, is_gibberish() function
+- Modified: `src/utils/pattern_filter.py:93-104` — Expanded OCR_ERROR_FILTER patterns
+- Modified: `src/vocabulary/vocabulary_extractor.py:273-289` — Integration in extract() step 7
+- Modified: `src/vocabulary/vocabulary_extractor.py:390-407` — Integration in extract_with_llm() phase 10
+- Modified: `requirements.txt` — Added pyspellchecker>=0.8.0
+
+**Sources:**
+- [pyspellchecker PyPI](https://pypi.org/project/pyspellchecker/)
+- [gibberish-detector PyPI](https://pypi.org/project/gibberish-detector/)
+- [Nostril GitHub](https://github.com/casics/nostril)
+- [symspellpy Documentation](https://symspellpy.readthedocs.io/en/latest/)
+
+---
+
+## Graduated ML Weight + Source-Based Training — 2025-12-23
+
+**Question:** Should ML have more influence on vocabulary scores once the model is trained with sufficient data?
+
+**Decision:** Two related changes:
+1. **Graduated ML Weight** — ML influence on score increases with training corpus size
+2. **Source-Based Training** — User feedback weighted higher than shipped default data
+
+**Rationale:**
+The ML model already incorporates all rule-based features (quality_score, frequency, rarity, algorithm count) PLUS additional artifact detection features. Once trained, it has strictly more information than the rule-based score alone. The previous ±15 point cap underutilized the model's learning.
+
+**Graduated ML Weight (Scoring):**
+| User Samples | ML Weight | Effect |
+|--------------|-----------|--------|
+| < 30 | 0% | Rules only |
+| 30-50 | 45% | Blend |
+| 51-99 | 60% | ML-leaning |
+| 100-199 | 70% | ML-dominant |
+| 200+ | 85% | Near-full ML |
+
+Formula: `score = base_score * (1 - ml_weight) + ml_prob * 100 * ml_weight`
+
+**Source Weighting (Training):**
+| User Samples | Default Weight | User Weight | Ratio |
+|--------------|----------------|-------------|-------|
+| < 30 | 1.0 | 1.0 | Equal |
+| 30-99 | 1.0 | 1.3 | User 1.3x |
+| 100+ | 1.0 | 2.0 | User 2x |
+
+The conservative user weights (max 2x) reflect healthy skepticism — users may have idiosyncratic preferences, and default data provides stable baseline.
+
+**Two-File Feedback System:**
+- `config/default_feedback.csv` — Ships with app (developer's training data)
+- `%APPDATA%/LocalScribe/data/feedback/user_feedback.csv` — User's own
+
+**Code changes:**
+- `src/config.py:68-88` — ML_WEIGHT_THRESHOLDS, ML_SOURCE_WEIGHTS, file paths
+- `src/vocabulary/feedback_manager.py` — Two-file support, export_training_data with source tags
+- `src/vocabulary/meta_learner.py` — get_ml_weight(), source weighting in _calculate_sample_weight, sample count storage in pickle
+- `src/vocabulary/vocabulary_extractor.py:652-706` — Graduated blend formula in _apply_ml_boost
+- `config/default_feedback.csv` — New placeholder file
+
+---
+
 ## Phrase Component Rarity Filtering — 2025-12-21
 
 **Question:** Why does RAKE return useless multi-word phrases like "the same", "left side", "read copy"?
