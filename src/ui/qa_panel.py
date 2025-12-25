@@ -116,10 +116,11 @@ class QAPanel(ctk.CTkFrame):
         display_frame.grid_rowconfigure(0, weight=1)
 
         # Create scrollable textbox
+        # Note: Use tuple font spec instead of CTkFont to avoid scaling conflicts
         self.text_display = ctk.CTkTextbox(
             display_frame,
             wrap="word",
-            font=ctk.CTkFont(size=12),
+            font=("Segoe UI", 12),
             fg_color="#1e1e1e",
             text_color="#e0e0e0",
             scrollbar_button_color="#3d3d3d",

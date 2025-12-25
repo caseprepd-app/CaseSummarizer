@@ -19,7 +19,7 @@ import threading
 import traceback
 from queue import Empty, Queue
 
-from src.config import PARALLEL_MAX_WORKERS
+from src.config import DEBUG_MODE, PARALLEL_MAX_WORKERS
 from src.extraction import RawTextExtractor
 from src.logging_config import debug_log
 from src.parallel import (

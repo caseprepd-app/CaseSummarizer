@@ -497,20 +497,21 @@ class QueueMessageHandler:
 
         # Spawn QAWorker with default questions
         from src.ui.workers import QAWorker
-        from src.settings import get_setting
+        from src.user_preferences import get_user_preferences
 
         vector_store_path = data['vector_store_path']
         embeddings = data['embeddings']
 
         debug_log("[QUEUE HANDLER] Spawning QAWorker for default questions")
+        prefs = get_user_preferences()
 
         qa_worker = QAWorker(
             vector_store_path=vector_store_path,
             embeddings=embeddings,
             ui_queue=self.main_window._ui_queue,
-            answer_mode=get_setting('qa_answer_mode', 'extraction'),
+            answer_mode=prefs.get('qa_answer_mode', 'extraction'),
             questions=None,
-            use_default_questions=True  # NEW parameter
+            use_default_questions=True
         )
 
         qa_worker.start()

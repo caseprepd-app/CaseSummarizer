@@ -273,6 +273,9 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         """Handle a message from the worker queue."""
         if msg_type == "progress":
             percentage, message = data
+            # Append Q&A status if ready (prevents status from hiding Q&A readiness)
+            if self._qa_ready and "Q&A ready" not in message and "Questions" not in message:
+                message = f"{message} (Q&A ready)"
             self.set_status(message)
 
         elif msg_type == "file_processed":
@@ -319,15 +322,16 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             else:
                 # Spawn QAWorker with default questions
                 from src.ui.workers import QAWorker
-                from src.settings import get_setting
+                from src.user_preferences import get_user_preferences
 
                 debug_log("[MainWindow] Spawning QAWorker for default questions")
+                prefs = get_user_preferences()
 
                 qa_worker = QAWorker(
                     vector_store_path=data['vector_store_path'],
                     embeddings=data['embeddings'],
                     ui_queue=self._ui_queue,
-                    answer_mode=get_setting('qa_answer_mode', 'extraction'),
+                    answer_mode=prefs.get('qa_answer_mode', 'extraction'),
                     questions=None,
                     use_default_questions=True
                 )
