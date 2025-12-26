@@ -297,7 +297,7 @@ flowchart TB
 | `RAKEAlgorithm` | `vocabulary/algorithms/rake_algorithm.py` | Keyword extraction |
 | `BM25Algorithm` | `vocabulary/algorithms/bm25_algorithm.py` | Corpus-based TF-IDF |
 | `LLMExtractor` | `extraction/llm_extractor.py` | Ollama-based extraction |
-| `Reconciler` | `vocabulary/reconciler.py` | Merge NER + LLM results |
+| `Reconciler` | `vocabulary/reconciler.py` | Merge NER + RAKE + BM25 + LLM results |
 | `ResultMerger` | `vocabulary/result_merger.py` | Weighted confidence combination |
 | `RarityFilter` | `vocabulary/rarity_filter.py` | Filter common phrase components |
 | `FeedbackManager` | `vocabulary/feedback_manager.py` | User feedback storage |
@@ -320,7 +320,8 @@ After all algorithms contribute, `rarity_filter.py` filters phrases where ALL co
 2. **Name deduplication** — Fuzzy matching for OCR variants
 3. **Artifact filter** — Substring containment removal
 4. **Phrase rarity filter** — Filter if rarest word is still common
-5. **Sort** — By quality score or rarity
+5. **Gibberish filter** — Spell-check based nonsense detection (non-persons only)
+6. **Sort** — By quality score or rarity
 
 ### Algorithm Weights
 
@@ -365,8 +366,32 @@ User feedback (thumbs up/down) trains an ensemble model:
 ```
 User Feedback → FeedbackManager (CSV) → VocabularyPreferenceLearner (train)
                                               ↓
-New Terms → VocabularyPreferenceLearner (predict) → Quality Score boost/penalty
+New Terms → VocabularyPreferenceLearner (predict) → Quality Score blend
 ```
+
+**Two-File Feedback System (Session 55):**
+- `config/default_feedback.csv` — Ships with app (developer's training data)
+- `%APPDATA%/LocalScribe/data/feedback/user_feedback.csv` — User's own feedback
+
+**Graduated ML Weight (Session 55):**
+ML influence on final score increases with user's training corpus:
+
+| User Samples | ML Weight | Formula |
+|--------------|-----------|---------|
+| < 30 | 0% | `score = base_score` |
+| 30-50 | 45% | `score = base * 0.55 + ml_prob * 100 * 0.45` |
+| 51-99 | 60% | `score = base * 0.40 + ml_prob * 100 * 0.60` |
+| 100-199 | 70% | `score = base * 0.30 + ml_prob * 100 * 0.70` |
+| 200+ | 85% | `score = base * 0.15 + ml_prob * 100 * 0.85` |
+
+**Source-Based Training Weights (Session 55):**
+User feedback weighted higher than default data once user has enough samples:
+
+| User Samples | Default Weight | User Weight | Ratio |
+|--------------|----------------|-------------|-------|
+| < 30 | 1.0 | 1.0 | Equal |
+| 30-99 | 1.0 | 1.3 | User 1.3x |
+| 100+ | 1.0 | 2.0 | User 2x |
 
 **Graduated Training:**
 - 30+ samples: Logistic Regression only
@@ -463,9 +488,25 @@ flowchart LR
 RETRIEVAL_ALGORITHM_WEIGHTS = {"BM25+": 1.0, "FAISS": 0.5}
 RETRIEVAL_MIN_SCORE = 0.1
 RETRIEVAL_MULTI_ALGO_BONUS = 0.1
+QA_RETRIEVAL_K = None           # None = search ALL chunks, or integer for top-K
+QA_CONTEXT_WINDOW = 4096        # Max tokens for LLM context
 ```
 
+**Full-Corpus Retrieval (Session 56):**
+- `QA_RETRIEVAL_K = None` means ALL chunks are scored and ranked by relevance
+- Prevents hallucination from incomplete context (e.g., only seeing document headers)
+- Context window protection: Top-ranked chunks are included until 80% of context window is filled
+- LLM receives the most relevant chunks from the ENTIRE document corpus, not just top-4
+
 **Why BM25+ is primary:** The embedding model (`all-MiniLM-L6-v2`) isn't trained on legal terminology, so semantic search alone often returns "no information found."
+
+### Answer Generation
+
+Two modes available:
+- **Extraction mode** — Fast, deterministic sentence extraction from retrieved context
+- **Ollama mode** — AI-synthesized answers using local LLM (default)
+
+**Important:** Ollama mode can hallucinate if retrieved context doesn't contain the answer. The LLM may fill gaps with plausible-sounding but incorrect information. Full-corpus retrieval mitigates this by ensuring the most relevant chunks are always included.
 
 ---
 
@@ -731,7 +772,8 @@ src/
     ├── logger.py                # Backward-compat wrapper
     ├── text_utils.py            # Text utilities
     ├── tokenizer.py             # Shared BM25 tokenization
-    └── pattern_filter.py        # Regex pattern matching for NER
+    ├── pattern_filter.py        # Regex pattern matching for NER/OCR errors
+    └── gibberish_filter.py      # Spell-check based gibberish detection
 ```
 
 ### Configuration (`config/`)
@@ -858,4 +900,4 @@ ruff check src/ --fix
 
 ---
 
-*Last updated: 2025-12-21*
+*Last updated: 2025-12-26 (Session 56)*

@@ -89,13 +89,17 @@ VARIATION_FILTER = PatternFilter(
     case_sensitive=True,  # These patterns expect lowercase
 )
 
-# OCR error patterns (line breaks, digit-letter mixups)
+# OCR error patterns (line breaks, digit-letter mixups, punctuation errors)
 OCR_ERROR_FILTER = PatternFilter(
     patterns=(
         r'^[A-Za-z]+-[A-Z][a-z]',     # Line-break artifacts: "Hos-pital"
         r'.*[0-9][A-Za-z]{2,}[0-9]',  # Digit-letter-digit: "3ohn5mith"
+        r'[A-Za-z]+[0-9]+[A-Za-z]+',  # Digit(s) embedded: "Joh3n", "sp1ne"
+        r'^[0-9]+[A-Za-z]+',          # Leading digit(s): "1earn", "3ohn"
+        r'[A-Za-z]+[0-9]+$',          # Trailing digit(s): "learn1"
+        r'[A-Za-z]+[;:][A-Za-z]+',    # Punctuation errors: "John;Smith"
     ),
-    method=MatchMethod.MATCH,
+    method=MatchMethod.SEARCH,
     case_sensitive=True,
 )
 

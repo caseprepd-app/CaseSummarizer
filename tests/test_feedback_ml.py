@@ -150,38 +150,43 @@ class TestVocabularyMetaLearner:
             "total_unique_terms": 100,
         }
         features = meta_learner._extract_features(term_data)
-        assert len(features) == 17  # Total feature count
+        # Session 52 reduced to 15 features (removed unreliable type features)
+        assert len(features) == 15  # Total feature count
         assert features[0] == 75  # quality_score
         # features[1] is log_count: log(3) ≈ 1.099
         assert abs(features[1] - 1.099) < 0.01
         # features[2] is occurrence_ratio: 3/100 = 0.03
         assert features[2] == 0.03
-        # features[13] is has_trailing_punctuation: "hypertension" has none
+        # features[9] is has_trailing_punctuation: "hypertension" has none
+        assert features[9] == 0.0
+        # features[10] is has_leading_digit: "hypertension" has none
+        assert features[10] == 0.0
+        # features[12] is word_count: "hypertension" is 1 word
+        assert features[12] == 1.0
+        # features[13] is is_all_caps: "hypertension" is not all caps
         assert features[13] == 0.0
-        # features[14] is has_leading_digit: "hypertension" has none
-        assert features[14] == 0.0
-        # features[15] is word_count: "hypertension" is 1 word
-        assert features[15] == 1.0
-        # features[16] is is_all_caps: "hypertension" is not all caps
-        assert features[16] == 0.0
 
     def test_feature_extraction_artifacts(self, meta_learner):
         """Test that artifact patterns are detected correctly."""
+        # Feature indices (Session 52: reduced to 15 features):
+        # 9: has_trailing_punctuation, 10: has_leading_digit,
+        # 11: has_trailing_digit, 12: word_count, 13: is_all_caps
+
         # Test trailing punctuation
         term_data = {"Term": "Smith:", "type": "Person"}
         features = meta_learner._extract_features(term_data)
-        assert features[13] == 1.0  # has_trailing_punctuation
+        assert features[9] == 1.0  # has_trailing_punctuation
 
         # Test leading digit
         term_data = {"Term": "4 Ms. Di Leo", "type": "Person"}
         features = meta_learner._extract_features(term_data)
-        assert features[14] == 1.0  # has_leading_digit
-        assert features[15] == 4.0  # word_count: "4", "Ms.", "Di", "Leo"
+        assert features[10] == 1.0  # has_leading_digit
+        assert features[12] == 4.0  # word_count: "4", "Ms.", "Di", "Leo"
 
         # Test all caps
         term_data = {"Term": "PLAINTIFF", "type": "Unknown"}
         features = meta_learner._extract_features(term_data)
-        assert features[16] == 1.0  # is_all_caps
+        assert features[13] == 1.0  # is_all_caps
 
     def test_training_insufficient_data(self, temp_feedback_dir, meta_learner):
         """Test that training fails with insufficient data."""

@@ -4,8 +4,13 @@ Vocabulary Feedback Manager
 Manages user feedback (thumbs up/down) on vocabulary terms.
 Stores feedback in CSV format for ML training.
 
+Two-File System (Session 55):
+- Default feedback: Ships with app (developer's training data)
+- User feedback: Collected during normal use
+
 The feedback data is used to train a meta-learner that adapts
-to user preferences over time.
+to user preferences over time. User feedback is weighted higher
+than default feedback once the user has enough samples.
 
 CSV Schema:
 - timestamp: ISO8601 datetime when feedback was recorded
@@ -30,7 +35,12 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from src.config import FEEDBACK_DIR, ML_MIN_SAMPLES, ML_RETRAIN_THRESHOLD, VOCAB_FEEDBACK_CSV
+from src.config import (
+    DEFAULT_FEEDBACK_CSV,
+    FEEDBACK_DIR,
+    ML_MIN_SAMPLES,
+    ML_RETRAIN_THRESHOLD,
+)
 from src.logging_config import debug_log
 
 # CSV columns
@@ -56,10 +66,14 @@ class FeedbackManager:
     """
     Manages user feedback on vocabulary terms.
 
+    Two-File System (Session 55):
+    - Default feedback: Ships with app (developer's training data)
+    - User feedback: Collected during normal use, stored in user's AppData
+
     Provides:
     - Recording feedback (thumbs up/down) for terms
-    - Persisting feedback to CSV file
-    - Loading feedback history for ML training
+    - Persisting feedback to user's CSV file
+    - Loading combined feedback history for ML training (with source tags)
     - Caching feedback state for UI display
 
     The feedback is keyed by normalized term (lowercase) for
@@ -76,13 +90,19 @@ class FeedbackManager:
         Initialize feedback manager.
 
         Args:
-            feedback_dir: Directory to store feedback files.
+            feedback_dir: Directory to store user feedback files.
                          Defaults to %APPDATA%/LocalScribe/feedback/
         """
         self.feedback_dir = Path(feedback_dir) if feedback_dir else FEEDBACK_DIR
-        self.feedback_file = self.feedback_dir / "vocab_feedback.csv"
+
+        # Two-file system: default (shipped) + user (collected)
+        # Default file is always from app installation (shipped data)
+        self.default_feedback_file = DEFAULT_FEEDBACK_CSV
+        # User file goes in the feedback_dir (which may be overridden for testing)
+        self.user_feedback_file = self.feedback_dir / "user_feedback.csv"
 
         # In-memory cache: normalized_term -> rating (+1, -1, or 0)
+        # Only tracks USER feedback for display purposes
         self._cache: dict[str, int] = {}
 
         # Track pending feedback count (for retraining threshold)
@@ -94,7 +114,7 @@ class FeedbackManager:
         # Ensure directory exists
         self._ensure_directory()
 
-        # Load existing feedback into cache
+        # Load existing user feedback into cache
         self._load_cache()
 
     def _ensure_directory(self):
@@ -102,13 +122,13 @@ class FeedbackManager:
         self.feedback_dir.mkdir(parents=True, exist_ok=True)
 
     def _load_cache(self):
-        """Load existing feedback from CSV into cache."""
-        if not self.feedback_file.exists():
-            debug_log("[FEEDBACK] No existing feedback file, starting fresh")
+        """Load existing user feedback from CSV into cache."""
+        if not self.user_feedback_file.exists():
+            debug_log("[FEEDBACK] No existing user feedback file, starting fresh")
             return
 
         try:
-            with open(self.feedback_file, 'r', encoding='utf-8', newline='') as f:
+            with open(self.user_feedback_file, 'r', encoding='utf-8', newline='') as f:
                 reader = csv.DictReader(f)
                 for row in reader:
                     term = row.get("term", "").lower().strip()
@@ -119,9 +139,9 @@ class FeedbackManager:
                     except ValueError:
                         continue
 
-            debug_log(f"[FEEDBACK] Loaded {len(self._cache)} feedback entries from {self.feedback_file}")
+            debug_log(f"[FEEDBACK] Loaded {len(self._cache)} user feedback entries")
         except Exception as e:
-            debug_log(f"[FEEDBACK] Error loading feedback: {e}")
+            debug_log(f"[FEEDBACK] Error loading user feedback: {e}")
 
     def set_document_id(self, doc_id: str):
         """
@@ -215,11 +235,11 @@ class FeedbackManager:
             "freq_rank": term_data.get("Freq Rank", 0),
         }
 
-        # Append to CSV
+        # Append to user feedback CSV
         try:
-            file_exists = self.feedback_file.exists()
+            file_exists = self.user_feedback_file.exists()
 
-            with open(self.feedback_file, 'a', encoding='utf-8', newline='') as f:
+            with open(self.user_feedback_file, 'a', encoding='utf-8', newline='') as f:
                 writer = csv.DictWriter(f, fieldnames=FEEDBACK_COLUMNS)
                 if not file_exists:
                     writer.writeheader()
@@ -267,26 +287,59 @@ class FeedbackManager:
             return True
         return False
 
-    def get_all_feedback(self) -> list[dict]:
+    def _load_feedback_from_file(self, filepath: Path) -> list[dict]:
         """
-        Load all feedback from CSV for ML training.
+        Load feedback records from a CSV file.
+
+        Args:
+            filepath: Path to feedback CSV file
 
         Returns:
             List of feedback records as dictionaries
         """
-        if not self.feedback_file.exists():
+        if not filepath.exists():
             return []
 
         try:
-            with open(self.feedback_file, 'r', encoding='utf-8', newline='') as f:
+            with open(filepath, 'r', encoding='utf-8', newline='') as f:
                 reader = csv.DictReader(f)
                 return list(reader)
         except Exception as e:
-            debug_log(f"[FEEDBACK] Error loading all feedback: {e}")
+            debug_log(f"[FEEDBACK] Error loading feedback from {filepath}: {e}")
             return []
 
+    def get_all_user_feedback(self) -> list[dict]:
+        """
+        Load all user feedback from CSV.
+
+        Returns:
+            List of user feedback records as dictionaries
+        """
+        return self._load_feedback_from_file(self.user_feedback_file)
+
+    def get_all_default_feedback(self) -> list[dict]:
+        """
+        Load all default (shipped) feedback from CSV.
+
+        Returns:
+            List of default feedback records as dictionaries
+        """
+        return self._load_feedback_from_file(self.default_feedback_file)
+
     def get_feedback_count(self) -> int:
-        """Get total number of feedback entries in cache."""
+        """Get total number of user feedback entries in cache."""
+        return len(self._cache)
+
+    def get_user_feedback_count(self) -> int:
+        """
+        Get count of user feedback entries.
+
+        This is used for ML weight calculations - determines how much
+        to weight user feedback vs default feedback during training.
+
+        Returns:
+            Number of unique user feedback entries
+        """
         return len(self._cache)
 
     def get_pending_count(self) -> int:
@@ -332,10 +385,10 @@ class FeedbackManager:
 
     def clear_all_feedback(self) -> bool:
         """
-        Clear all feedback data (cache and CSV file).
+        Clear all user feedback data (cache and CSV file).
 
         Used when user wants to start fresh with vocabulary preferences.
-        This is a destructive operation - all feedback history is lost.
+        This only clears USER feedback - default (shipped) feedback is preserved.
 
         Returns:
             True if clear succeeded
@@ -345,14 +398,14 @@ class FeedbackManager:
             self._cache.clear()
             self._pending_count = 0
 
-            # Delete the feedback CSV file
-            if self.feedback_file.exists():
-                self.feedback_file.unlink()
-                debug_log(f"[FEEDBACK] Deleted feedback file: {self.feedback_file}")
+            # Delete the user feedback CSV file (not the default file)
+            if self.user_feedback_file.exists():
+                self.user_feedback_file.unlink()
+                debug_log(f"[FEEDBACK] Deleted user feedback file: {self.user_feedback_file}")
             else:
-                debug_log("[FEEDBACK] No feedback file to delete")
+                debug_log("[FEEDBACK] No user feedback file to delete")
 
-            debug_log("[FEEDBACK] All feedback cleared successfully")
+            debug_log("[FEEDBACK] User feedback cleared successfully")
             return True
 
         except Exception as e:
@@ -361,24 +414,46 @@ class FeedbackManager:
 
     def export_training_data(self) -> list[dict]:
         """
-        Export feedback data formatted for ML training.
+        Export combined feedback data formatted for ML training.
 
-        Aggregates feedback by term (uses most recent feedback for duplicates).
+        Combines default (shipped) and user feedback with source tags.
+        Aggregates feedback by term (most recent user feedback wins over default).
 
         Returns:
-            List of training records with features and labels
+            List of training records with features, labels, and source tags
         """
-        # Load all feedback records
-        all_feedback = self.get_all_feedback()
+        # Load default feedback (shipped with app)
+        default_feedback = self.get_all_default_feedback()
+        for record in default_feedback:
+            record["source"] = "default"
 
-        # Aggregate by term (most recent wins)
+        # Load user feedback
+        user_feedback = self.get_all_user_feedback()
+        for record in user_feedback:
+            record["source"] = "user"
+
+        # Combine with user feedback taking precedence
+        # (user feedback for same term overwrites default)
         term_feedback: dict[str, dict] = {}
-        for record in all_feedback:
+
+        # First, add all default feedback
+        for record in default_feedback:
             term = record.get("term", "").lower().strip()
             if term:
                 term_feedback[term] = record
 
-        return list(term_feedback.values())
+        # Then, add/overwrite with user feedback
+        for record in user_feedback:
+            term = record.get("term", "").lower().strip()
+            if term:
+                term_feedback[term] = record
+
+        result = list(term_feedback.values())
+        default_count = sum(1 for r in result if r.get("source") == "default")
+        user_count = sum(1 for r in result if r.get("source") == "user")
+        debug_log(f"[FEEDBACK] Exported training data: {default_count} default, {user_count} user")
+
+        return result
 
 
 # Global singleton instance

@@ -80,21 +80,19 @@ def test_algorithms_initialized(extractor):
 
 def test_get_definition(extractor):
     """Test WordNet definition lookup."""
-    # WordNet definition for Technical term
-    definition = extractor._get_definition("cat", category="Technical")
+    # Session 52: API changed to use is_person instead of category
+
+    # WordNet definition for non-person term
+    definition = extractor._get_definition("cat", is_person=False)
     assert "feline" in definition.lower()  # Check for part of the definition
 
     # No WordNet definition
-    definition_no_def = extractor._get_definition("asdfghjkl", category="Technical")
+    definition_no_def = extractor._get_definition("asdfghjkl", is_person=False)
     assert definition_no_def == "—"
 
-    # Person category - no definition needed
-    definition_person = extractor._get_definition("John Smith", category="Person")
+    # Person - no definition needed
+    definition_person = extractor._get_definition("John Smith", is_person=True)
     assert definition_person == "—"
-
-    # Place category - no definition needed
-    definition_place = extractor._get_definition("Mayo Clinic", category="Place")
-    assert definition_place == "—"
 
 
 def test_extract(extractor):
@@ -106,21 +104,19 @@ def test_extract(extractor):
 
     vocabulary = extractor.extract(test_text)
 
-    # Expected terms (using new simplified API: Type and Role/Relevance)
-    # Note: Some classifications may vary based on spaCy model version and NER context
-    # Session 23: Added Quality Score, In-Case Freq, Freq Rank columns
-    # Session 25: Added Sources column for algorithm tracking
+    # Session 52: Changed from Type to Is Person (binary flag)
+    # Expected terms with Is Person flag and Role/Relevance
     expected_terms_single = {
-        "john doe": {"Type": "Person", "Role/Relevance": "Person in case"},
-        "cardiomyopathy": {"Type": "Medical", "Role/Relevance": "Medical term"},
-        "jane smith": {"Type": "Person", "Role/Relevance": "Medical professional"},
+        "john doe": {"Is Person": "Yes", "Role/Relevance": "Person in case"},
+        "cardiomyopathy": {"Is Person": "No", "Role/Relevance": "Vocabulary term"},
+        "jane smith": {"Is Person": "Yes", "Role/Relevance": "Medical professional"},
     }
 
     found_terms = {item["Term"].lower(): item for item in vocabulary}
 
     for term, expected_data in expected_terms_single.items():
         assert term in found_terms, f"Term '{term}' not found in extracted vocabulary"
-        assert found_terms[term]["Type"] == expected_data["Type"]
+        assert found_terms[term]["Is Person"] == expected_data["Is Person"]
         # Support multiple acceptable Role/Relevance values for flexible NER classification
         expected_roles = expected_data["Role/Relevance"]
         if isinstance(expected_roles, list):
@@ -128,8 +124,8 @@ def test_extract(extractor):
                 f"Role/Relevance '{found_terms[term]['Role/Relevance']}' not in expected {expected_roles}"
         else:
             assert found_terms[term]["Role/Relevance"] == expected_roles
-        # Definition check: Person/Place should be "—", Medical/Technical should have definition or "—"
-        if expected_data["Type"] in ["Person", "Place"]:
+        # Definition check: Person should be "—", non-Person may have definition or "—"
+        if expected_data["Is Person"] == "Yes":
             assert found_terms[term]["Definition"] == "—"
         # Session 23: Verify new confidence columns exist
         assert "Quality Score" in found_terms[term], "Missing Quality Score column"
@@ -150,10 +146,11 @@ def test_extract_deduplication(extractor):
     vocabulary_dup = extractor.extract(test_text_dup)
 
     # Expected for duplicated term: cardiomyopathy
+    # Session 52: Changed from Type to Is Person
     found_cardiomyopathy = next((item for item in vocabulary_dup if item["Term"].lower() == "cardiomyopathy"), None)
     assert found_cardiomyopathy is not None
-    assert found_cardiomyopathy["Type"] == "Medical"
-    assert found_cardiomyopathy["Role/Relevance"] == "Medical term"
+    assert found_cardiomyopathy["Is Person"] == "No"  # Medical term, not a person
+    assert found_cardiomyopathy["Role/Relevance"] == "Vocabulary term"
     assert found_cardiomyopathy["Definition"] != "—"  # Should have a definition
     assert sum(1 for item in vocabulary_dup if item["Term"].lower() == "cardiomyopathy") == 1  # Only one entry
 

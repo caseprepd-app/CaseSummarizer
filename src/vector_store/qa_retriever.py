@@ -21,6 +21,7 @@ from typing import TYPE_CHECKING
 
 from src.config import (
     DEBUG_MODE,
+    QA_CONTEXT_WINDOW,
     QA_RETRIEVAL_K,
     QUERY_TRANSFORM_ENABLED,
     QUERY_TRANSFORM_TIMEOUT,
@@ -248,7 +249,7 @@ class QARetriever:
 
         Args:
             question: The user's question
-            k: Number of chunks to retrieve (default: QA_RETRIEVAL_K from config)
+            k: Number of chunks to retrieve. None = all chunks (from config or explicit)
             min_score: Minimum relevance score (0-1) to include (default: from config)
 
         Returns:
@@ -258,8 +259,16 @@ class QARetriever:
 
         start_time = time.perf_counter()
 
-        # Use config defaults if not specified
-        k = k or QA_RETRIEVAL_K
+        # Use config default if not specified
+        if k is None:
+            k = QA_RETRIEVAL_K
+
+        # If k is still None (config says use all), use total chunk count
+        if k is None:
+            k = self.get_chunk_count()
+            if DEBUG_MODE:
+                debug_log(f"[QARetriever] Using all {k} chunks for retrieval")
+
         min_score = min_score if min_score is not None else RETRIEVAL_MIN_SCORE
 
         if DEBUG_MODE:
@@ -294,14 +303,19 @@ class QARetriever:
             debug_log(f"[QARetriever] Merged {len(all_chunks)} unique chunks from {len(queries_to_search)} queries")
 
         # Filter by minimum score and build results
+        # Track token count to stay within context window (approx 1 word = 1.3 tokens)
         context_parts = []
         sources = []
+        estimated_tokens = 0
+        max_context_tokens = int(QA_CONTEXT_WINDOW * 0.8)  # Reserve 20% for prompt + answer
+        chunks_included = 0
+        chunks_skipped_score = 0
+        chunks_skipped_limit = 0
 
         for chunk in sorted_chunks:
             # Skip low-relevance chunks
             if chunk.combined_score < min_score:
-                if DEBUG_MODE:
-                    debug_log(f"[QARetriever] Skipped chunk (score {chunk.combined_score:.3f} < {min_score})")
+                chunks_skipped_score += 1
                 continue
 
             # Format source citation for context
@@ -310,9 +324,20 @@ class QARetriever:
                 source_cite += f", {chunk.section_name}"
             source_cite += "]:"
 
-            context_parts.append(f"{source_cite}\n{chunk.text}")
-
+            chunk_text = f"{source_cite}\n{chunk.text}"
             word_count = len(chunk.text.split())
+            chunk_tokens = int(word_count * 1.3)  # Approximate token count
+
+            # Check if adding this chunk would exceed context window
+            if estimated_tokens + chunk_tokens > max_context_tokens:
+                chunks_skipped_limit += 1
+                if DEBUG_MODE and chunks_skipped_limit == 1:
+                    debug_log(f"[QARetriever] Context window limit reached ({estimated_tokens} tokens)")
+                continue
+
+            context_parts.append(chunk_text)
+            estimated_tokens += chunk_tokens
+            chunks_included += 1
 
             sources.append(SourceInfo(
                 filename=chunk.filename,
@@ -325,6 +350,10 @@ class QARetriever:
 
         # Combine context parts with separator
         context = "\n\n---\n\n".join(context_parts) if context_parts else ""
+
+        if DEBUG_MODE and (chunks_skipped_score > 0 or chunks_skipped_limit > 0):
+            debug_log(f"[QARetriever] Chunks: {chunks_included} included, "
+                      f"{chunks_skipped_score} below min_score, {chunks_skipped_limit} exceeded context limit")
 
         elapsed_ms = (time.perf_counter() - start_time) * 1000
 

@@ -18,7 +18,7 @@ The trained model persists to disk for use across sessions.
 Training Configuration (from config.py):
 - ML_MIN_SAMPLES: Minimum feedback entries before first training (30)
 - ML_RETRAIN_THRESHOLD: New feedback to trigger retraining (10)
-- ML_DECAY_HALF_LIFE_DAYS: Time for sample weight to decay to 50% (365 days)
+- ML_DECAY_HALF_LIFE_DAYS: Time for sample weight to decay to 50% (~1270 days / 3.5 years)
 - ML_DECAY_WEIGHT_FLOOR: Minimum weight for old samples (0.55)
 
 Time Decay Rationale:
@@ -44,6 +44,8 @@ from src.config import (
     ML_ENSEMBLE_MIN_SAMPLES,
     ML_MIN_SAMPLES,
     ML_RETRAIN_THRESHOLD,
+    ML_SOURCE_WEIGHTS,
+    ML_WEIGHT_THRESHOLDS,
     VOCAB_MODEL_PATH,
 )
 from src.logging_config import debug_log
@@ -146,6 +148,10 @@ class VocabularyPreferenceLearner:
         self._is_trained = False
         self._ensemble_enabled = False
 
+        # Sample counts for graduated ML weight (Session 55)
+        self._user_sample_count = 0
+        self._total_sample_count = 0
+
         # Load existing model if available
         self._load_model()
 
@@ -158,6 +164,32 @@ class VocabularyPreferenceLearner:
     def is_ensemble(self) -> bool:
         """Check if ensemble mode is active (both LR and RF trained)."""
         return self._ensemble_enabled and self._rf_model is not None
+
+    @property
+    def user_sample_count(self) -> int:
+        """Get the number of user samples the model was trained on."""
+        return self._user_sample_count
+
+    def get_ml_weight(self) -> float:
+        """
+        Get the ML weight based on user sample count.
+
+        The ML weight determines how much influence the ML prediction has
+        on the final score vs the rule-based base score.
+
+        Returns:
+            Weight between 0.0 and 1.0
+        """
+        if not self.is_trained:
+            return 0.0
+
+        # Find the appropriate weight based on user sample count
+        for threshold, weight in ML_WEIGHT_THRESHOLDS:
+            if self._user_sample_count < threshold:
+                return weight
+
+        # Fallback (shouldn't reach here due to inf threshold)
+        return ML_WEIGHT_THRESHOLDS[-1][1]
 
     def _extract_features(self, term_data: dict[str, Any]) -> np.ndarray:
         """
@@ -252,24 +284,28 @@ class VocabularyPreferenceLearner:
             source_doc_confidence,  # Session 54: OCR quality signal
         ])
 
-    def _calculate_sample_weight(self, timestamp_str: str) -> float:
+    def _calculate_sample_weight(
+        self, timestamp_str: str, source: str = "user", user_sample_count: int = 0
+    ) -> float:
         """
-        Calculate time-decay weight for a feedback sample.
+        Calculate combined weight for a feedback sample.
 
-        Uses exponential decay with a floor to ensure old feedback
-        still contributes meaningfully. Most early feedback flags
-        universal false positives that should persist.
+        Combines time-decay with source-based weighting (Session 55).
+        User feedback is weighted higher than default feedback once
+        the user has enough samples.
 
-        Formula: weight = max(floor, 0.5^(days_old / half_life))
+        Formula: weight = time_decay * source_weight
 
         Args:
             timestamp_str: ISO8601 timestamp from feedback record
+            source: "user" or "default" - where the feedback came from
+            user_sample_count: Number of user samples (for source weight lookup)
 
         Returns:
-            Weight between ML_DECAY_WEIGHT_FLOOR and 1.0
+            Combined weight (time_decay * source_weight)
         """
+        # Calculate time decay
         try:
-            # Parse ISO8601 timestamp
             feedback_time = datetime.fromisoformat(timestamp_str)
             days_old = (datetime.now() - feedback_time).days
 
@@ -277,14 +313,21 @@ class VocabularyPreferenceLearner:
             decay = 0.5 ** (days_old / ML_DECAY_HALF_LIFE_DAYS)
 
             # Apply floor - old feedback still matters
-            weight = max(decay, ML_DECAY_WEIGHT_FLOOR)
-
-            return weight
+            time_weight = max(decay, ML_DECAY_WEIGHT_FLOOR)
 
         except (ValueError, TypeError):
             # Malformed timestamp - use moderate weight
             debug_log(f"[META-LEARNER] Invalid timestamp '{timestamp_str}', using default weight")
-            return 0.75
+            time_weight = 0.75
+
+        # Calculate source weight based on user sample count
+        source_weight = 1.0
+        for threshold, default_w, user_w in ML_SOURCE_WEIGHTS:
+            if user_sample_count < threshold:
+                source_weight = user_w if source == "user" else default_w
+                break
+
+        return time_weight * source_weight
 
     def train(self, feedback_manager: FeedbackManager | None = None) -> bool:
         """
@@ -312,9 +355,21 @@ class VocabularyPreferenceLearner:
             debug_log(f"[META-LEARNER] Insufficient training data: {len(labeled_records)} < {ML_MIN_SAMPLES}")
             return False
 
-        debug_log(f"[META-LEARNER] Training on {len(labeled_records)} feedback samples")
+        # Count user samples for source weighting (Session 55)
+        user_sample_count = sum(
+            1 for r in labeled_records if r.get("source") == "user"
+        )
+        default_sample_count = len(labeled_records) - user_sample_count
+        debug_log(
+            f"[META-LEARNER] Training on {len(labeled_records)} feedback samples "
+            f"({user_sample_count} user, {default_sample_count} default)"
+        )
 
-        # Extract features, labels, and time-decay weights
+        # Store for graduated ML weight calculation
+        self._user_sample_count = user_sample_count
+        self._total_sample_count = len(labeled_records)
+
+        # Extract features, labels, and combined weights (time-decay + source)
         X = []
         y = []
         sample_weights = []
@@ -328,9 +383,10 @@ class VocabularyPreferenceLearner:
             label = 1 if feedback in ("+1", "1") else 0
             y.append(label)
 
-            # Calculate time-decay weight for this sample
+            # Calculate combined weight (time-decay + source weighting)
             timestamp = record.get("timestamp", "")
-            weight = self._calculate_sample_weight(timestamp)
+            source = record.get("source", "user")  # Default to user if not specified
+            weight = self._calculate_sample_weight(timestamp, source, user_sample_count)
             sample_weights.append(weight)
 
         X = np.array(X)
@@ -506,13 +562,16 @@ class VocabularyPreferenceLearner:
             # Ensure directory exists
             self.model_path.parent.mkdir(parents=True, exist_ok=True)
 
-            # Save both models, scaler, and state
+            # Save both models, scaler, state, and sample counts
             model_data = {
                 'lr_model': self._lr_model,
                 'rf_model': self._rf_model,  # May be None if not enough data
                 'scaler': self._scaler,
                 'ensemble_enabled': self._ensemble_enabled,
                 'feature_names': FEATURE_NAMES,
+                # Session 55: Sample counts for graduated ML weight
+                'user_sample_count': self._user_sample_count,
+                'total_sample_count': self._total_sample_count,
             }
 
             with open(self.model_path, 'wb') as f:
@@ -556,6 +615,10 @@ class VocabularyPreferenceLearner:
             self._scaler = model_data.get('scaler')
             saved_feature_names = model_data.get('feature_names', [])
 
+            # Session 55: Load sample counts (default to 0 for old models)
+            self._user_sample_count = model_data.get('user_sample_count', 0)
+            self._total_sample_count = model_data.get('total_sample_count', 0)
+
             # Check for feature count mismatch (model trained with different features)
             if len(saved_feature_names) != len(FEATURE_NAMES):
                 debug_log(
@@ -573,7 +636,11 @@ class VocabularyPreferenceLearner:
             if self._lr_model is not None and self._scaler is not None:
                 self._is_trained = True
                 mode = "ensemble" if self._ensemble_enabled else "LR-only"
-                debug_log(f"[PREF-LEARNER] Model loaded ({mode}) from {self.model_path}")
+                ml_weight = self.get_ml_weight()
+                debug_log(
+                    f"[PREF-LEARNER] Model loaded ({mode}) from {self.model_path} "
+                    f"({self._user_sample_count} user samples, ML weight: {ml_weight:.0%})"
+                )
                 return True
             else:
                 debug_log("[PREF-LEARNER] Invalid model data in file")
@@ -603,6 +670,8 @@ class VocabularyPreferenceLearner:
             self._scaler = None
             self._is_trained = False
             self._ensemble_enabled = False
+            self._user_sample_count = 0
+            self._total_sample_count = 0
 
             # Check if default model exists (bundled with app)
             if DEFAULT_VOCAB_MODEL_PATH.exists():

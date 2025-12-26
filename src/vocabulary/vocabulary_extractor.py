@@ -268,9 +268,27 @@ class VocabularyExtractor:
         debug_log("[VOCAB] Filtering common phrase components...")
         from src.vocabulary.rarity_filter import filter_common_phrases
         vocabulary = filter_common_phrases(vocabulary)
+        debug_log(f"[VOCAB] After phrase filter: {len(vocabulary)} terms")
+
+        # 7. Filter gibberish/nonsense terms (OCR artifacts, random strings)
+        # NOTE: Person names are EXEMPT - foreign names may look unusual to English model
+        debug_log("[VOCAB] Filtering gibberish terms...")
+        from src.utils.gibberish_filter import is_gibberish
+        gibberish_filtered = []
+        for term_data in vocabulary:
+            # Person names bypass gibberish check (foreign names look unusual)
+            if term_data.get("Is Person") == "Yes":
+                gibberish_filtered.append(term_data)
+                continue
+            # Check if term text is gibberish
+            if is_gibberish(term_data["Term"]):
+                debug_log(f"[VOCAB] Filtered gibberish: '{term_data['Term']}'")
+                continue
+            gibberish_filtered.append(term_data)
+        vocabulary = gibberish_filtered
         debug_log(f"[VOCAB] Final vocabulary: {len(vocabulary)} terms")
 
-        # 7. Sort vocabulary based on configured method
+        # 8. Sort vocabulary based on configured method
         vocabulary = self._sort_vocabulary(vocabulary)
 
         return vocabulary
@@ -386,6 +404,25 @@ class VocabularyExtractor:
         from src.vocabulary.rarity_filter import filter_common_phrases
         csv_data = filter_common_phrases(csv_data)
         debug_log(f"[VOCAB] After phrase filter: {len(csv_data)} terms")
+
+        # 10. Filter gibberish/nonsense terms (OCR artifacts, random strings)
+        # NOTE: Person names are EXEMPT - foreign names may look unusual to English model
+        debug_log("[VOCAB] Phase 10: Filtering gibberish terms...")
+        from src.utils.gibberish_filter import is_gibberish
+        gibberish_filtered = []
+        for row in csv_data:
+            # Person names bypass gibberish check (foreign names look unusual)
+            term_type = row.get("Type", "")
+            if term_type == "Person":
+                gibberish_filtered.append(row)
+                continue
+            # Check if term text is gibberish
+            if is_gibberish(row["Term"]):
+                debug_log(f"[VOCAB] Filtered gibberish: '{row['Term']}'")
+                continue
+            gibberish_filtered.append(row)
+        csv_data = gibberish_filtered
+        debug_log(f"[VOCAB] After gibberish filter: {len(csv_data)} terms")
 
         total_time = (time.time() - start_time) * 1000
         debug_log(f"[VOCAB] extract_with_llm complete in {total_time:.1f}ms, {len(csv_data)} terms")
@@ -651,40 +688,53 @@ class VocabularyExtractor:
 
     def _apply_ml_boost(self, term_data: dict, base_score: float) -> float:
         """
-        Apply ML-based boost to quality score if meta-learner is trained.
+        Apply graduated ML-based scoring if meta-learner is trained.
 
-        The meta-learner predicts a probability [0, 1] that the user would
-        approve this term. This is converted to a boost/penalty:
-        - Probability > 0.5: Positive boost (max +15 at probability 1.0)
-        - Probability < 0.5: Negative penalty (max -15 at probability 0.0)
-        - Probability = 0.5: No change (neutral/untrained)
+        Session 55: Uses graduated weight based on user sample count.
+        Formula: score = base_score * (1 - ml_weight) + ml_prob * 100 * ml_weight
+
+        The ml_weight increases with training corpus size:
+        - < 30 samples: 0% (rules only)
+        - 30-50 samples: 45%
+        - 51-99 samples: 60%
+        - 100-199 samples: 70%
+        - 200+ samples: 85%
 
         Args:
             term_data: Dictionary with term features for ML prediction
             base_score: Rule-based quality score
 
         Returns:
-            Final quality score with ML boost applied
+            Final quality score blending rules and ML based on weight
         """
         if not self._meta_learner.is_trained:
             return base_score
 
         try:
+            # Get ML weight based on user sample count
+            ml_weight = self._meta_learner.get_ml_weight()
+
+            # If weight is 0, just use base score (not enough training data)
+            if ml_weight == 0:
+                return base_score
+
             # Get ML prediction (probability of user approval)
             preference_prob = self._meta_learner.predict_preference(term_data)
 
-            # Convert probability to boost/penalty
-            # 0.5 -> 0, 1.0 -> +15, 0.0 -> -15
-            ml_boost = (preference_prob - 0.5) * 30
-
-            final_score = base_score + ml_boost
+            # Blend base score with ML prediction
+            # ML prob * 100 converts probability to 0-100 scale
+            ml_score = preference_prob * 100
+            final_score = base_score * (1 - ml_weight) + ml_score * ml_weight
             final_score = min(100.0, max(0.0, round(final_score, 1)))
 
             # Log significant ML adjustments for debugging
-            if abs(ml_boost) > 5:
+            score_diff = final_score - base_score
+            if abs(score_diff) > 5:
                 term = term_data.get("Term", "?")
-                debug_log(f"[ML] '{term}': prob={preference_prob:.2f}, boost={ml_boost:+.1f} "
-                         f"({base_score:.1f} -> {final_score:.1f})")
+                debug_log(
+                    f"[ML] '{term}': prob={preference_prob:.2f}, weight={ml_weight:.0%}, "
+                    f"base={base_score:.1f} -> final={final_score:.1f} ({score_diff:+.1f})"
+                )
 
             return final_score
 

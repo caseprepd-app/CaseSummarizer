@@ -92,17 +92,19 @@ class QAPanel(ctk.CTkFrame):
         header = ctk.CTkFrame(self, fg_color="transparent")
         header.grid(row=0, column=0, sticky="ew", padx=5, pady=(5, 0))
 
+        # Note: Use tuple font specs instead of CTkFont to avoid scaling conflicts
+        # when QAPanel is created lazily inside CTkTabview
         title = ctk.CTkLabel(
             header,
             text="Questions & Answers",
-            font=ctk.CTkFont(size=14, weight="bold")
+            font=("Segoe UI", 14, "bold")
         )
         title.pack(side="left")
 
         self.info_label = ctk.CTkLabel(
             header,
             text="",
-            font=ctk.CTkFont(size=11),
+            font=("Segoe UI", 11),
             text_color="#aaaaaa"
         )
         self.info_label.pack(side="right")
@@ -129,14 +131,16 @@ class QAPanel(ctk.CTkFrame):
         self.text_display.grid(row=0, column=0, sticky="nsew", padx=2, pady=2)
 
         # Configure text tags for formatting
-        # Note: tag_config is a Tkinter method, so we use tuple font specs instead of CTkFont
-        self.text_display.tag_config("question", foreground="#5dade2", font=("Segoe UI", 13, "bold"))
-        self.text_display.tag_config("question_default", foreground="#7dacd6", font=("Segoe UI", 13, "bold italic"))
-        self.text_display.tag_config("label", foreground="#85929e", font=("Segoe UI", 11, "bold"))
-        self.text_display.tag_config("answer", foreground="#aed6f1")
-        self.text_display.tag_config("citation", foreground="#d7dbdd")
-        self.text_display.tag_config("source", foreground="#52be80", slant="italic")
-        self.text_display.tag_config("separator", foreground="#566573")
+        # IMPORTANT: CTkTextbox forbids 'font' parameter in tag_config() due to scaling conflicts.
+        # Workaround: Use cnf dictionary parameter instead of keyword arguments.
+        # See: https://github.com/TomSchimansky/CustomTkinter/discussions/2463
+        self.text_display.tag_config("question", cnf={"foreground": "#5dade2", "font": ("Segoe UI", 13, "bold")})
+        self.text_display.tag_config("question_default", cnf={"foreground": "#7dacd6", "font": ("Segoe UI", 13, "bold italic")})
+        self.text_display.tag_config("label", cnf={"foreground": "#85929e", "font": ("Segoe UI", 11, "bold")})
+        self.text_display.tag_config("answer", cnf={"foreground": "#aed6f1"})
+        self.text_display.tag_config("citation", cnf={"foreground": "#d7dbdd"})
+        self.text_display.tag_config("source", cnf={"foreground": "#52be80", "font": ("Segoe UI", 12, "italic")})
+        self.text_display.tag_config("separator", cnf={"foreground": "#566573"})
 
     def _create_button_bar(self):
         """Create action buttons bar."""

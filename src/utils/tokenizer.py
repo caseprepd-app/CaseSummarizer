@@ -65,10 +65,41 @@ STOPWORDS: frozenset[str] = frozenset({
     # Adverbs
     'only', 'own', 'same', 'than', 'too', 'very', 'just', 'also',
     'now', 'here', 'there', 'then', 'once', 'again', 'further',
+    'well', 'back', 'even', 'still', 'already', 'always', 'never',
+    # Directional/positional (common in medical/legal but not technical)
+    'left', 'right', 'within', 'without', 'upon', 'around', 'along',
     # Common verbs
-    'said', 'says', 'say',
+    'said', 'says', 'say', 'made', 'make', 'making', 'get', 'got', 'give', 'gave',
+    'take', 'took', 'taken', 'put', 'read', 'went', 'come', 'came', 'know', 'knew',
+    'think', 'thought', 'see', 'saw', 'seen', 'look', 'looked', 'use', 'used',
+    'find', 'found', 'tell', 'told', 'ask', 'asked', 'seem', 'seemed', 'feel',
+    'try', 'tried', 'leave', 'call', 'called', 'keep', 'kept', 'let', 'begin',
+    'show', 'shown', 'hear', 'heard', 'play', 'run', 'move', 'moved', 'live',
+    'believe', 'hold', 'held', 'bring', 'brought', 'happen', 'write', 'written',
+    'provide', 'sit', 'stand', 'lose', 'lost', 'pay', 'paid', 'meet', 'met',
+    'include', 'included', 'continue', 'set', 'learn', 'change', 'lead', 'led',
+    'understand', 'watch', 'follow', 'stop', 'create', 'speak', 'allow', 'add',
+    'spend', 'grow', 'open', 'walk', 'win', 'offer', 'remember', 'consider',
+    'appear', 'buy', 'wait', 'serve', 'die', 'send', 'sent', 'expect', 'build',
+    'stay', 'fall', 'fell', 'cut', 'reach', 'kill', 'remain', 'suggest', 'raise',
+    'pass', 'sell', 'require', 'report', 'decide', 'pull',
     # Other common words
-    'if', 'because', 'until', 'while',
+    'if', 'because', 'until', 'while', 'like', 'way', 'thing', 'things',
+    'time', 'times', 'year', 'years', 'day', 'days', 'week', 'weeks', 'month',
+    'people', 'person', 'man', 'men', 'woman', 'women', 'child', 'children',
+    'world', 'life', 'hand', 'hands', 'part', 'parts', 'place', 'case', 'cases',
+    'point', 'points', 'fact', 'facts', 'home', 'water', 'room', 'mother',
+    'area', 'money', 'story', 'number', 'numbers', 'lot', 'far', 'away',
+    'small', 'large', 'big', 'long', 'little', 'old', 'new', 'good', 'great',
+    'high', 'different', 'important', 'young', 'national', 'next', 'early',
+    'last', 'first', 'second', 'third', 'certain', 'able', 'best', 'better',
+    'full', 'sure', 'enough', 'late', 'hard', 'real', 'whole', 'clear',
+    'recent', 'possible', 'free', 'several', 'less', 'public', 'bad', 'true',
+    # Legal document common words (not terms)
+    'copy', 'copies', 'page', 'pages', 'line', 'lines', 'file', 'filed',
+    'date', 'dated', 'regarding', 'regarding', 'matter', 'order', 'ordered',
+    'pursuant', 'thereof', 'herein', 'hereby', 'wherein', 'therefore',
+    'attached', 'exhibit', 'exhibits', 'document', 'documents',
 })
 
 

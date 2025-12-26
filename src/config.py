@@ -29,11 +29,19 @@ for directory in [APPDATA_DIR, MODELS_DIR, CACHE_DIR, LOGS_DIR, CONFIG_DIR, DATA
 # Processing Metrics CSV (for future ML prediction of processing time)
 PROCESSING_METRICS_CSV = DATA_DIR / "processing_metrics.csv"
 
-# Feedback and ML Configuration (Session 25)
+# Feedback and ML Configuration (Session 25, updated Session 55)
 FEEDBACK_DIR = DATA_DIR / "feedback"
 MODELS_ML_DIR = DATA_DIR / "models"  # ML models (separate from Ollama models)
-VOCAB_FEEDBACK_CSV = FEEDBACK_DIR / "vocab_feedback.csv"
 VOCAB_MODEL_PATH = MODELS_ML_DIR / "vocab_meta_learner.pkl"
+
+# Two-file feedback system (Session 55)
+# - Default feedback ships with app (developer's training data)
+# - User feedback is collected during normal use
+DEFAULT_FEEDBACK_CSV = Path(__file__).parent.parent / "config" / "default_feedback.csv"
+USER_FEEDBACK_CSV = FEEDBACK_DIR / "user_feedback.csv"
+
+# Legacy path - kept for backward compatibility detection only
+VOCAB_FEEDBACK_CSV = FEEDBACK_DIR / "vocab_feedback.csv"
 
 # Default model path (bundled with app for reset functionality)
 # This model is trained by the developer and shipped with the app
@@ -56,6 +64,28 @@ ML_RETRAIN_THRESHOLD = 10  # New feedback entries to trigger retraining
 #   Today: 1.00 → 1 year: 0.82 → 2 years: 0.67 → 3 years: 0.55 (floor)
 ML_DECAY_HALF_LIFE_DAYS = 1270  # ~3.5 years - tuned so weight hits floor at 3 years
 ML_DECAY_WEIGHT_FLOOR = 0.55  # Old feedback retains 55% weight minimum
+
+# Graduated ML Weight (Session 55)
+# ML influence on final score increases with user's training corpus size.
+# Formula: score = base_score * (1 - ml_weight) + ml_probability * 100 * ml_weight
+# Thresholds: (min_samples, weight) - finds first threshold where user_count < min_samples
+ML_WEIGHT_THRESHOLDS = [
+    (30, 0.0),              # < 30 samples: rules only (0% ML)
+    (51, 0.45),             # 30-50 samples: 45% ML
+    (100, 0.60),            # 51-99 samples: 60% ML
+    (200, 0.70),            # 100-199 samples: 70% ML
+    (float('inf'), 0.85),   # 200+ samples: 85% ML
+]
+
+# Source-Based Training Weights (Session 55)
+# User feedback is weighted higher than shipped default data once user has enough samples.
+# This personalizes the model to the user while keeping defaults as a stable baseline.
+# Thresholds: (min_user_samples, default_weight, user_weight)
+ML_SOURCE_WEIGHTS = [
+    (30, 1.0, 1.0),             # < 30 user samples: equal weight
+    (100, 1.0, 1.3),            # 30-99 user samples: user 1.3x more influential
+    (float('inf'), 1.0, 2.0),   # 100+ user samples: user 2x more influential
+]
 
 # Ensure ML directories exist
 for ml_dir in [FEEDBACK_DIR, MODELS_ML_DIR]:
@@ -359,7 +389,9 @@ VECTOR_STORE_DIR = APPDATA_DIR / "vector_stores"
 VECTOR_STORE_DIR.mkdir(parents=True, exist_ok=True)
 
 # Q&A Retrieval Settings
-QA_RETRIEVAL_K = 4              # Number of chunks to retrieve per question
+# Set to None to retrieve ALL chunks (searches entire document corpus)
+# Set to a number to limit retrieval to top-K chunks
+QA_RETRIEVAL_K = None           # None = all chunks, or integer for top-K
 QA_MAX_TOKENS = 300             # Maximum tokens for generated answer
 QA_TEMPERATURE = 0.1            # Low temperature for factual, consistent answers
 QA_SIMILARITY_THRESHOLD = 0.5   # Minimum relevance score for chunks

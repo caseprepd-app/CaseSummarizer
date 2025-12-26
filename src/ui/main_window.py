@@ -919,7 +919,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         self.set_status(message)
 
     def _ask_followup(self):
-        """Ask a follow-up question using the Q&A system."""
+        """Ask a follow-up question using the Q&A system (async version)."""
         question = self.followup_entry.get().strip()
         if not question:
             return
@@ -938,32 +938,77 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             )
             return
 
-        # Clear entry
+        # Prevent duplicate submissions
+        if hasattr(self, '_followup_thread') and self._followup_thread is not None and self._followup_thread.is_alive():
+            debug_log("[MainWindow] Follow-up already in progress, ignoring")
+            return
+
+        # Clear entry and disable controls while processing
         self.followup_entry.delete(0, "end")
+        self.followup_btn.configure(state="disabled", text="Asking...")
+        self.followup_entry.configure(state="disabled")
 
         self.set_status(f"Asking: {question[:40]}...")
 
+        # Run Q&A in background thread to keep GUI responsive
+        import queue
+        import threading
+
+        self._followup_queue = queue.Queue()
+
+        def run_followup():
+            try:
+                from src.qa import QAOrchestrator
+                orchestrator = QAOrchestrator(
+                    vector_store_path=self._vector_store_path,
+                    embeddings=self._embeddings,
+                    answer_mode="extraction"
+                )
+                result = orchestrator.ask_followup(question)
+                self._followup_queue.put(("success", result))
+            except Exception as e:
+                self._followup_queue.put(("error", str(e)))
+                debug_log(f"[MainWindow] Follow-up thread error: {e}")
+
+        self._followup_thread = threading.Thread(target=run_followup, daemon=True)
+        self._followup_thread.start()
+
+        # Start polling for results
+        self._poll_followup_result()
+
+    def _poll_followup_result(self):
+        """Poll for follow-up result from background thread."""
+        import queue
+
         try:
-            # Import and use QAOrchestrator for follow-up
-            from src.qa import QAOrchestrator
+            msg_type, data = self._followup_queue.get_nowait()
+        except queue.Empty:
+            # No result yet, keep polling
+            self.after(100, self._poll_followup_result)
+            return
 
-            orchestrator = QAOrchestrator(
-                vector_store_path=self._vector_store_path,
-                embeddings=self._embeddings,
-                answer_mode="extraction"
-            )
+        # Got a result - re-enable controls
+        self.followup_btn.configure(state="normal", text="Ask")
+        self.followup_entry.configure(state="normal")
+        self.followup_entry.focus()
 
-            # Ask the follow-up question
-            result = orchestrator.ask_followup(question)
-
-            # Add to existing results and refresh display
-            self._qa_results.append(result)
-            self.output_display.update_outputs(qa_results=self._qa_results)
-            self.set_status(f"Follow-up answered: {len(result.answer)} chars")
-
+        try:
+            if msg_type == "success" and data is not None:
+                # Add to existing results and refresh display
+                self._qa_results.append(data)
+                self.output_display.update_outputs(qa_results=self._qa_results)
+                # Note: QAResult uses 'quick_answer', not 'answer'
+                answer_len = len(data.quick_answer) if data.quick_answer else 0
+                self.set_status(f"Follow-up answered: {answer_len} chars")
+                debug_log(f"[MainWindow] Follow-up result displayed successfully")
+            elif msg_type == "error":
+                self.set_status("Follow-up failed")
+                messagebox.showerror("Error", f"Failed to process follow-up: {data}")
         except Exception as e:
-            debug_log(f"[MainWindow] Follow-up error: {e}")
-            messagebox.showerror("Error", f"Failed to process follow-up: {str(e)}")
+            # Catch any errors during result processing
+            debug_log(f"[MainWindow] Error processing follow-up result: {e}")
+            self.set_status("Follow-up error - check logs")
+            messagebox.showerror("Error", f"Error displaying result: {str(e)}")
 
     def _ask_followup_for_qa_panel(self, question: str):
         """

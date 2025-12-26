@@ -236,17 +236,18 @@ class NERAlgorithm(BaseExtractionAlgorithm):
 
         # Extract unusual single tokens not part of entities
         for token in doc:
+            # Skip tokens that are part of ANY entity span (even if entity was filtered)
+            # This prevents common words like "leg" from bypassing rarity check
+            # when spaCy tagged them as entities but they were filtered for being too common
+            is_part_of_entity = any(
+                ent.start <= token.i < ent.end
+                for ent in doc.ents
+            )
+            if is_part_of_entity:
+                continue
+
             if self._is_unusual(token, ent_type=token.ent_type_):
                 term_text = token.text
-
-                # Skip if part of already-extracted entity
-                is_part_of_entity = any(
-                    ent.start <= token.i < ent.end and ent.text.lower() in term_frequencies
-                    for ent in doc.ents
-                )
-
-                if is_part_of_entity:
-                    continue
 
                 if term_text.lower() in self.exclude_list:
                     continue

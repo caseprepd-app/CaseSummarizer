@@ -45,6 +45,7 @@ from src.config import (
 from src.logging_config import debug_log
 from src.user_preferences import get_user_preferences
 from src.vocabulary.feedback_manager import get_feedback_manager
+from src.ui.qa_panel import QAPanel
 
 # Feedback icons (Unicode for cross-platform compatibility)
 # Using checkmark (✓) and X (✗) for clearer approve/reject semantics
@@ -148,10 +149,11 @@ class DynamicOutputWidget(ctk.CTkFrame):
         self.tabview.tab("Summary").grid_rowconfigure(0, weight=1)
 
         # Progress Badge (Session 45) - shows data source status for Names & Vocab tab
+        # Note: Use tuple font spec for consistency with lazily-created widgets
         self._progress_badge = ctk.CTkLabel(
             self.tabview.tab("Names & Vocab"),
             text="",
-            font=ctk.CTkFont(size=11),
+            font=("Segoe UI", 11),
             text_color=("gray50", "gray70")
         )
         self._progress_badge.grid(row=1, column=0, sticky="w", padx=10, pady=(0, 5))
@@ -164,8 +166,10 @@ class DynamicOutputWidget(ctk.CTkFrame):
         self.context_menu = None
         self._selected_term = None
 
-        # Q&A Tab: Q&A panel (created on first use)
-        self._qa_panel = None
+        # Q&A Tab: Q&A panel (created eagerly to prevent tab switching artifacts)
+        # See: https://github.com/TomSchimansky/CustomTkinter/issues/1508
+        self._qa_panel = QAPanel(self.tabview.tab("Ask Questions"))
+        self._qa_panel.grid(row=0, column=0, sticky="nsew")
 
         # Summary Tab: Textbox for summaries
         self.summary_text_display = ctk.CTkTextbox(
@@ -216,9 +220,6 @@ class DynamicOutputWidget(ctk.CTkFrame):
 
         # Session 45: Data source tracking for progress badge
         self._extraction_source = "none"  # "none", "ner", "both"
-
-        # Q&A panel (created on first use)
-        self._qa_panel = None
 
         # Pagination state for vocabulary display
         self._vocab_display_offset = 0  # Current offset into vocabulary data
@@ -567,14 +568,9 @@ class DynamicOutputWidget(ctk.CTkFrame):
             debug_log("[Q&A DISPLAY] No Q&A results to display")
             return
 
-        # Create QAPanel on first use
-        if self._qa_panel is None:
-            from src.ui.qa_panel import QAPanel
-            self._qa_panel = QAPanel(self.tabview.tab("Ask Questions"))
-
-            # Set up follow-up callback by finding MainWindow through the widget tree
-            # DynamicOutputWidget's master is right_panel, not MainWindow directly
-            # Use winfo_toplevel() to get the root window (MainWindow)
+        # Set up follow-up callback if not already done
+        # (must be done after MainWindow is fully initialized, not in __init__)
+        if self._qa_panel.on_ask_followup is None:
             main_window = self.winfo_toplevel()
             if hasattr(main_window, '_ask_followup_for_qa_panel'):
                 self._qa_panel.set_followup_callback(main_window._ask_followup_for_qa_panel)
@@ -582,7 +578,6 @@ class DynamicOutputWidget(ctk.CTkFrame):
 
         # Display results
         self._qa_panel.display_results(results)
-        self._qa_panel.grid(row=0, column=0, sticky="nsew")
 
         debug_log(f"[Q&A DISPLAY] Showing {len(results)} Q&A results")
 
@@ -753,11 +748,13 @@ class DynamicOutputWidget(ctk.CTkFrame):
             self._load_more_btn.grid(row=2, column=0, columnspan=2, sticky="ew", padx=10, pady=5)
 
             # Update info label
+            # Note: Use tuple font spec instead of CTkFont to avoid scaling conflicts
+            # when label is created lazily during pagination
             if not hasattr(self, 'vocab_info_label'):
                 self.vocab_info_label = ctk.CTkLabel(
                     self.treeview_frame,
                     text="",
-                    font=ctk.CTkFont(size=11),
+                    font=("Segoe UI", 11),
                     text_color="#aaaaaa"
                 )
             self.vocab_info_label.configure(

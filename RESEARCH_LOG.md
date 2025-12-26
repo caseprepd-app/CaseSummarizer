@@ -35,6 +35,37 @@ Failed to process follow-up: font' option forbidden, because would be incompatib
 
 ---
 
+## Full-Corpus Q&A Retrieval — 2025-12-26
+
+**Problem:** Q&A system was hallucinating answers. User asked "What is the accident in this case?" about a slip-and-fall case, but the LLM answered with fabricated details about a "motor vehicle collision."
+
+**Root Cause:** `QA_RETRIEVAL_K = 4` meant only 4 chunks were retrieved per question. The BM25+/FAISS algorithms scored early document chunks (jury instructions, appearances) higher than the actual case facts buried deeper in the transcript. The LLM only saw those 4 irrelevant chunks and hallucinated an answer.
+
+**Decision:** Change to full-corpus retrieval with context window protection.
+
+**Implementation:**
+1. `QA_RETRIEVAL_K = None` — Retrieve and rank ALL chunks by relevance
+2. Context window protection — Include top-ranked chunks until 80% of `QA_CONTEXT_WINDOW` (4096 tokens) is filled
+3. Remaining chunks skipped with debug logging
+
+**Code changes:**
+- `src/config.py:392-394` — `QA_RETRIEVAL_K = None` with documentation
+- `src/vector_store/qa_retriever.py:261-269` — Handle `K=None` by using total chunk count
+- `src/vector_store/qa_retriever.py:296-356` — Token tracking and context window enforcement
+
+**Why this approach:**
+- All chunks are scored and ranked, so the most relevant content is always considered
+- Context window limit prevents overwhelming the LLM (stays within 4096 tokens)
+- Chunks are still ordered by relevance — best matches come first
+- Performance impact is minimal (retrieval is fast; LLM time is the bottleneck)
+
+**Trade-offs:**
+- Slightly longer retrieval time (~500ms more for 100 chunks)
+- Same or slightly longer LLM time (context is similar size due to window limit)
+- Much better answer quality — LLM sees the most relevant content from entire corpus
+
+---
+
 ## OCR Error and Gibberish Detection — 2025-12-23
 
 **Question:** How to filter OCR errors and gibberish that slip through frequency-based filtering?
