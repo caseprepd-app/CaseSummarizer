@@ -478,6 +478,43 @@ def _register_all_settings():
         action=_reset_vocab_model_and_history,
     ))
 
+    # Session 59: Vocabulary filtering thresholds (user-configurable)
+    SettingsRegistry.register(SettingDefinition(
+        key="single_word_rarity_threshold",
+        label="Single-word filtering threshold",
+        category="Vocabulary",
+        setting_type=SettingType.SLIDER,
+        tooltip=(
+            "Filter single words in the top X% of English vocabulary. "
+            "Lower = more aggressive filtering, Higher = keep more words.\n\n"
+            "Example: 0.50 filters the most common 50% of English words."
+        ),
+        default=0.50,
+        min_value=0.10,
+        max_value=0.90,
+        step=0.05,
+        getter=lambda: prefs.get("single_word_rarity_threshold", 0.50),
+        setter=lambda v: prefs.set("single_word_rarity_threshold", float(v)),
+    ))
+
+    SettingsRegistry.register(SettingDefinition(
+        key="phrase_rarity_threshold",
+        label="Phrase filtering threshold",
+        category="Vocabulary",
+        setting_type=SettingType.SLIDER,
+        tooltip=(
+            "Filter multi-word phrases where all words are in the top X% of English. "
+            "Lower = more aggressive filtering, Higher = keep more phrases.\n\n"
+            "Example: 0.50 filters phrases where every word is in the top 50%."
+        ),
+        default=0.50,
+        min_value=0.10,
+        max_value=0.90,
+        step=0.05,
+        getter=lambda: prefs.get("phrase_rarity_threshold", 0.50),
+        setter=lambda v: prefs.set("phrase_rarity_threshold", float(v)),
+    ))
+
 
     # ===================================================================
     # QUESTIONS TAB

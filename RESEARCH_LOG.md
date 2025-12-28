@@ -6,6 +6,36 @@
 
 ---
 
+## GUI-Configurable Vocabulary Filtering Thresholds — 2025-12-28
+
+**Problem:** The vocabulary filtering thresholds (Session 58) were hardcoded in `config.py`. Users couldn't adjust them without editing code.
+
+**Decision:** Add GUI controls in Settings → Vocabulary tab to let users adjust:
+
+| Setting | Default | Range | Description |
+|---------|---------|-------|-------------|
+| Single-word filtering threshold | 0.50 | 0.10-0.90 | Filter single words in top X% of English |
+| Phrase filtering threshold | 0.50 | 0.10-0.90 | Filter phrases where all words are in top X% |
+
+**Implementation:**
+
+1. **`settings_registry.py`** — Registered 2 new `SettingType.SLIDER` definitions with tooltips explaining what they do
+2. **`user_preferences.py`** — Added validation (0.1-0.9 range) for the new keys
+3. **`rarity_filter.py`** — `should_filter_phrase()` now reads from `get_user_preferences()` instead of hardcoded config constants
+
+**User experience:**
+- Sliders in Settings → Vocabulary with 0.05 increments
+- Changes saved when user clicks "Save" button
+- Persists to `%APPDATA%/LocalScribe/config/user_preferences.json`
+- Falls back to config.py values if no preference set (backward compatible)
+
+**Why this approach:**
+- Separation of concerns: `rarity_filter.py` doesn't know about UI
+- Single source of truth: `UserPreferencesManager` handles persistence
+- Validation at boundaries: Invalid values rejected before saving
+
+---
+
 ## Vocabulary Filtering: Rank-Based Scoring & Expanded STOPWORDS — 2025-12-28
 
 **Problem:** Common words like "age" were appearing in vocabulary results despite filters. Investigation revealed two issues:

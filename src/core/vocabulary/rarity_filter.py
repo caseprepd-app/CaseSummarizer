@@ -64,6 +64,7 @@ from src.config import (
     SINGLE_WORD_COMMONALITY_THRESHOLD,
 )
 from src.logging_config import debug_log
+from src.user_preferences import get_user_preferences
 
 
 # Module-level cache for scaled frequencies (loaded once)
@@ -216,7 +217,7 @@ def should_filter_phrase(phrase: str, is_person: bool = False) -> bool:
     Lower score = more common word = should be filtered
 
     For SINGLE words:
-        - Filter if score < SINGLE_WORD_COMMONALITY_THRESHOLD (word is too common)
+        - Filter if score < threshold (word is too common)
         - Example: "age" (score 0.0017) < 0.50 threshold -> FILTERED
 
     For MULTI-word phrases:
@@ -236,10 +237,19 @@ def should_filter_phrase(phrase: str, is_person: bool = False) -> bool:
         - Person names: Never filter (names like "John Smith" or "Lee")
         - Single words: Filter if score < threshold (in top X% of vocabulary)
         - Multi-word phrases: Filter if even the rarest word is in top X%
+
+    Session 59: Thresholds now read from user preferences for GUI configurability.
     """
     # Person names are exempt - "John Smith" or "Lee" uses common words but is valuable
     if is_person:
         return False
+
+    # Get thresholds from user preferences (Session 59)
+    # Fall back to config.py values if not set
+    prefs = get_user_preferences()
+    single_threshold = prefs.get("single_word_rarity_threshold", SINGLE_WORD_COMMONALITY_THRESHOLD)
+    phrase_threshold = prefs.get("phrase_rarity_threshold", PHRASE_MAX_COMMONALITY_THRESHOLD)
+    phrase_mean_threshold = prefs.get("phrase_mean_rarity_threshold", PHRASE_MEAN_COMMONALITY_THRESHOLD)
 
     min_common, mean_common, word_count = calculate_phrase_component_scores(phrase)
 
@@ -252,9 +262,9 @@ def should_filter_phrase(phrase: str, is_person: bool = False) -> bool:
     # Lower score = more common (rank-based: 0.0 = most common)
     # Filter if word is in the top X% (score < threshold)
     if word_count == 1:
-        if min_common < SINGLE_WORD_COMMONALITY_THRESHOLD:
+        if min_common < single_threshold:
             debug_log(f"[RARITY] Filtering single word '{phrase}': "
-                      f"rank_pct={min_common:.4f} < {SINGLE_WORD_COMMONALITY_THRESHOLD} (top {min_common*100:.1f}%)")
+                      f"rank_pct={min_common:.4f} < {single_threshold} (top {min_common*100:.1f}%)")
             return True
         return False
 
@@ -262,15 +272,15 @@ def should_filter_phrase(phrase: str, is_person: bool = False) -> bool:
     # Filter if even the RAREST word is too common (in top X%)
     # min_common = score of the RAREST word in the phrase
     # If this is < threshold, ALL words are in the top X% -> filter
-    if min_common < PHRASE_MAX_COMMONALITY_THRESHOLD:
+    if min_common < phrase_threshold:
         debug_log(f"[RARITY] Filtering '{phrase}': min_rank_pct={min_common:.4f} "
-                  f"< {PHRASE_MAX_COMMONALITY_THRESHOLD} (all words in top {min_common*100:.1f}%)")
+                  f"< {phrase_threshold} (all words in top {min_common*100:.1f}%)")
         return True
 
     # Filter if the average word is too common
-    if mean_common < PHRASE_MEAN_COMMONALITY_THRESHOLD:
+    if mean_common < phrase_mean_threshold:
         debug_log(f"[RARITY] Filtering '{phrase}': mean_rank_pct={mean_common:.4f} "
-                  f"< {PHRASE_MEAN_COMMONALITY_THRESHOLD}")
+                  f"< {phrase_mean_threshold}")
         return True
 
     return False

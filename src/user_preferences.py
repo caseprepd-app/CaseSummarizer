@@ -260,6 +260,17 @@ class UserPreferencesManager:
                 raise ValueError(
                     f"resource_usage_pct must be 25-100, got {value}"
                 )
+        # Session 59: Vocabulary filtering threshold validation
+        elif key == "single_word_rarity_threshold":
+            if not isinstance(value, (int, float)) or value < 0.1 or value > 0.9:
+                raise ValueError(
+                    f"single_word_rarity_threshold must be 0.1-0.9, got {value}"
+                )
+        elif key == "phrase_rarity_threshold":
+            if not isinstance(value, (int, float)) or value < 0.1 or value > 0.9:
+                raise ValueError(
+                    f"phrase_rarity_threshold must be 0.1-0.9, got {value}"
+                )
 
         self._preferences[key] = value
         self._save_preferences()
