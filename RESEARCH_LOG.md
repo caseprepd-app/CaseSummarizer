@@ -10,7 +10,7 @@
 
 **Problem:** The vocabulary filtering thresholds (Session 58) were hardcoded in `config.py`. Users couldn't adjust them without editing code.
 
-**Decision:** Add GUI controls in Settings → Vocabulary tab to let users adjust:
+**Decision:** Add GUI controls in Settings → **Advanced** tab to let users adjust:
 
 | Setting | Default | Range | Description |
 |---------|---------|-------|-------------|
@@ -19,20 +19,26 @@
 
 **Implementation:**
 
-1. **`settings_registry.py`** — Registered 2 new `SettingType.SLIDER` definitions with tooltips explaining what they do
+1. **`settings_registry.py`** — Registered 2 new `SettingType.SLIDER` definitions in "Advanced" category
 2. **`user_preferences.py`** — Added validation (0.1-0.9 range) for the new keys
 3. **`rarity_filter.py`** — `should_filter_phrase()` now reads from `get_user_preferences()` instead of hardcoded config constants
 
+**Bugs fixed during implementation:**
+
+1. **Settings dialog crashed** — `vocab_sort_method` dropdown used plain strings instead of tuples, causing `ValueError` that stopped all tabs after Vocabulary from being created
+2. **Float sliders showed "0"** — `SliderSetting` widget used `int(value)` which truncated 0.50 to 0. Fixed with float-aware formatting.
+3. **Dialog too narrow** — Widened from 650px to 750px to fit all 6 tabs
+
 **User experience:**
-- Sliders in Settings → Vocabulary with 0.05 increments
+- Settings → **Advanced** tab with dedicated rarity threshold sliders
+- Sliders show proper decimal values (0.50, not 0)
 - Changes saved when user clicks "Save" button
 - Persists to `%APPDATA%/LocalScribe/config/user_preferences.json`
-- Falls back to config.py values if no preference set (backward compatible)
 
-**Why this approach:**
-- Separation of concerns: `rarity_filter.py` doesn't know about UI
-- Single source of truth: `UserPreferencesManager` handles persistence
-- Validation at boundaries: Invalid values rejected before saving
+**Why Advanced tab:**
+- Separates power-user settings from common vocabulary options
+- Easier to find than buried at bottom of Vocabulary tab
+- Room for future advanced settings
 
 ---
 
