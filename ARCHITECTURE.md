@@ -11,13 +11,14 @@
 - [Implementation Status](#1-implementation-status)
 - [High-Level Overview](#2-high-level-overview)
 - [User Interface Layer](#3-user-interface-layer)
-- [Processing Pipeline](#4-processing-pipeline)
-- [Vocabulary Extraction](#5-vocabulary-extraction)
-- [Questions & Answers System](#6-questions--answers-system)
-- [Summarization](#7-summarization)
-- [Code Patterns](#8-code-patterns)
-- [File Directory](#9-file-directory)
-- [Development Setup](#10-development-setup)
+- [Services Layer](#4-services-layer) ← NEW
+- [Processing Pipeline](#5-processing-pipeline)
+- [Vocabulary Extraction](#6-vocabulary-extraction)
+- [Questions & Answers System](#7-questions--answers-system)
+- [Summarization](#8-summarization)
+- [Code Patterns](#9-code-patterns)
+- [File Directory](#10-file-directory)
+- [Development Setup](#11-development-setup)
 
 ---
 
@@ -25,20 +26,26 @@
 
 ### Fully Implemented ✓
 
+- [x] **GUI/Logic Separation** — All business logic in `src/core/`, services layer in `src/services/` (Session 57)
 - [x] **Document extraction** — PDF (digital + OCR), TXT, RTF via pdfplumber, pytesseract
 - [x] **Character sanitization** — 6-stage pipeline (mojibake, Unicode, transliteration, redactions, control chars, whitespace)
 - [x] **Smart preprocessing** — Title page, headers/footers, line numbers, Q&A notation removal
 - [x] **Vocabulary extraction** — Dual NER + LLM extraction with reconciliation, "Found By" column
 - [x] **Questions & Answers system** — Hybrid BM25+ / FAISS retrieval, LlamaIndex query expansion
 - [x] **Progressive summarization** — Chunked map-reduce with focus threading
-- [x] **Unified semantic chunking** — Token enforcement via tiktoken (400-1200 tokens/chunk)
+- [x] **Unified semantic chunking** — Token enforcement via tiktoken (400-1200 tokens/chunk) — CANONICAL
 - [x] **Parallel processing** — Dynamic worker scaling based on CPU/RAM
 - [x] **Settings system** — Registry-based, tabbed dialog
 - [x] **Progressive extraction worker** — Three-phase NER→Q&A→LLM with unified queue routing (Session 48)
+- [x] **Shared config loader** — DRY utility for YAML loading (`src/core/config/loader.py`)
 
 ### Partially Implemented ⚡
 
 - [ ] **Case Briefing Generator** — Functional but being deprecated from UI
+
+### Deprecated ⚠️
+
+- [x] **ChunkingEngine** — Legacy chunker, use `UnifiedChunker` instead (deprecation warning added)
 
 ### Not Yet Built ○
 
@@ -52,6 +59,37 @@
 
 ## 2. High-Level Overview
 
+### Layered Architecture (Session 57 Refactoring)
+
+The codebase follows a strict **GUI/Logic Separation** pattern:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  USER INPUT                                                 │
+│  PDF/TXT/RTF Files, Settings, Questions                     │
+└──────────────────────────┬──────────────────────────────────┘
+                           ▼
+┌─────────────────────────────────────────────────────────────┐
+│  src/ui/                 UI LAYER                           │
+│  MainWindow, Widgets, QAPanel, DynamicOutput                │
+│  (CustomTkinter - NO business logic)                        │
+└──────────────────────────┬──────────────────────────────────┘
+                           ▼
+┌─────────────────────────────────────────────────────────────┐
+│  src/services/           SERVICES LAYER                     │
+│  DocumentService, VocabularyService, QAService, Settings    │
+│  (Clean API - thin wrappers coordinating Core modules)      │
+└──────────────────────────┬──────────────────────────────────┘
+                           ▼
+┌─────────────────────────────────────────────────────────────┐
+│  src/core/               CORE LAYER                         │
+│  All business logic: extraction, vocabulary, Q&A, etc.      │
+│  (15 packages - testable without UI)                        │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Data Flow Diagram
+
 ```mermaid
 flowchart TB
     subgraph USER["User Input"]
@@ -60,58 +98,65 @@ flowchart TB
         Questions["Default Questions"]
     end
 
-    subgraph UI["UI LAYER (CustomTkinter)"]
+    subgraph UI["UI LAYER (src/ui/)"]
         MainWindow["MainWindow"]
         Widgets["FileTable, ModelSelector"]
         Output["DynamicOutput"]
         QAPanel["QAPanel"]
     end
 
-    subgraph EXTRACT["EXTRACTION"]
-        RawText["RawTextExtractor<br/>PDF/TXT/RTF → text"]
-        Sanitize["CharacterSanitizer<br/>Unicode/mojibake fixes"]
-        Preprocess["PreprocessingPipeline<br/>Headers/footers removal"]
+    subgraph SERVICES["SERVICES LAYER (src/services/)"]
+        DocService["DocumentService"]
+        VocabService["VocabularyService"]
+        QAService["QAService"]
+        SettingsService["SettingsService"]
     end
 
-    subgraph CHUNK["CHUNKING"]
-        Unified["UnifiedChunker<br/>Semantic + token enforcement"]
-    end
-
-    subgraph VOCAB["VOCABULARY"]
-        NER["NER Algorithm<br/>spaCy en_core_web_lg"]
-        LLM["LLM Extractor<br/>Ollama"]
-        Reconciler["Reconciler<br/>Merge NER + LLM"]
-    end
-
-    subgraph QA["QUESTIONS & ANSWERS"]
-        VectorStore["VectorStoreBuilder<br/>FAISS index"]
-        Retriever["HybridRetriever<br/>BM25+ + FAISS"]
-        AnswerGen["AnswerGenerator"]
-    end
-
-    subgraph SUMMARY["SUMMARIZATION"]
-        DocSum["DocumentSummarizer"]
-        MultiDoc["MultiDocOrchestrator"]
+    subgraph CORE["CORE LAYER (src/core/)"]
+        subgraph EXTRACT["extraction/"]
+            RawText["RawTextExtractor"]
+        end
+        subgraph SANIT["sanitization/"]
+            Sanitize["CharacterSanitizer"]
+        end
+        subgraph PREPROC["preprocessing/"]
+            Preprocess["PreprocessingPipeline"]
+        end
+        subgraph CHUNK["chunking/"]
+            Unified["UnifiedChunker"]
+        end
+        subgraph VOCAB["vocabulary/"]
+            VocabExtract["VocabularyExtractor"]
+            Reconciler["Reconciler"]
+        end
+        subgraph QA["qa/ + vector_store/"]
+            VectorStore["VectorStoreBuilder"]
+            Retriever["HybridRetriever"]
+            AnswerGen["AnswerGenerator"]
+        end
     end
 
     Files --> UI
-    UI --> EXTRACT
-    EXTRACT --> CHUNK
-    CHUNK --> VOCAB
-    CHUNK --> QA
-    CHUNK --> SUMMARY
-    VOCAB --> Output
-    QA --> QAPanel
-    SUMMARY --> Output
+    UI --> SERVICES
+    SERVICES --> CORE
+    DocService --> EXTRACT
+    DocService --> SANIT
+    DocService --> PREPROC
+    VocabService --> VOCAB
+    QAService --> QA
+    QAService --> CHUNK
 ```
 
 ### Core Design Principles
 
 | Principle | Implementation |
 |-----------|----------------|
-| **Non-blocking UI** | All heavy processing in background threads |
+| **GUI/Logic Separation** | UI layer has no business logic; all processing in `src/core/` |
+| **Services as Interface** | `src/services/` provides clean API between UI and Core |
+| **Non-blocking UI** | All heavy processing in background threads (workers) |
 | **Queue-based messaging** | Workers communicate via `ui_queue` |
 | **Pluggable algorithms** | Registry pattern for vocabulary/retrieval algorithms |
+| **DRY** | Shared utilities in `src/core/config/loader.py` |
 | **Graceful degradation** | Fallbacks at every stage if components fail |
 
 ---
@@ -162,6 +207,7 @@ flowchart TB
 |-----------|------|---------|
 | `MainWindow` | `ui/main_window.py` | Central coordinator, business logic |
 | `WindowLayoutMixin` | `ui/window_layout.py` | Layout creation (separated from logic) |
+| `FONTS, COLORS, BUTTON_STYLES` | `ui/theme.py` | Centralized theme (fonts, colors, style presets) |
 | `initialize_all_styles` | `ui/styles.py` | Centralized ttk style config (prevents UI freeze) |
 | `FileReviewTable` | `ui/widgets.py` | File list with status/confidence |
 | `ModelSelectionWidget` | `ui/widgets.py` | Model + prompt dropdown |
@@ -185,7 +231,49 @@ flowchart TB
 
 ---
 
-## 4. Processing Pipeline
+## 4. Services Layer
+
+The services layer (`src/services/`) provides a clean API between the UI and Core layers. Each service is a thin wrapper that coordinates multiple core modules.
+
+### Available Services
+
+| Service | Module | Purpose |
+|---------|--------|---------|
+| `DocumentService` | `document_service.py` | Document extraction, sanitization, preprocessing |
+| `VocabularyService` | `vocabulary_service.py` | Vocabulary extraction with feedback tracking |
+| `QAService` | `qa_service.py` | Vector index building, question answering |
+| `SettingsService` | `settings_service.py` | User preferences with convenience properties |
+
+### Usage Example
+
+```python
+from src.services import DocumentService, VocabularyService, QAService
+
+# Process documents
+doc_service = DocumentService()
+results = doc_service.process_documents(file_paths)
+combined_text = doc_service.combine_texts(results)
+
+# Extract vocabulary
+vocab_service = VocabularyService()
+vocab_data = vocab_service.extract_vocabulary(combined_text)
+
+# Build Q&A index and ask questions
+qa_service = QAService()
+qa_service.build_index(combined_text)
+answer = qa_service.ask_question("Who is the plaintiff?")
+```
+
+### Design Rationale
+
+1. **Simplifies UI code** — UI components call one method instead of coordinating multiple modules
+2. **Encapsulates complexity** — Services hide the details of module interactions
+3. **Enables testing** — Services can be unit tested without UI dependencies
+4. **Future-proofs the API** — Internal changes don't affect UI code if the service interface stays stable
+
+---
+
+## 5. Processing Pipeline
 
 ### Document Processing Stages
 
@@ -251,7 +339,7 @@ The `UnifiedChunker` uses semantic chunking with token enforcement:
 
 ---
 
-## 5. Vocabulary Extraction
+## 6. Vocabulary Extraction
 
 ### Three-Phase Progressive Architecture
 
@@ -432,7 +520,7 @@ Terms found by more algorithms rank higher in quality score.
 
 ---
 
-## 6. Questions & Answers System
+## 7. Questions & Answers System
 
 ### Hybrid Retrieval Architecture
 
@@ -510,7 +598,7 @@ Two modes available:
 
 ---
 
-## 7. Summarization
+## 8. Summarization
 
 ### Map-Reduce Architecture
 
@@ -558,7 +646,7 @@ User's selected prompt template guides every stage:
 
 ---
 
-## 8. Code Patterns
+## 9. Code Patterns
 
 ### Transformation Pipeline Logging
 
@@ -650,9 +738,14 @@ class MyNewAlgorithm(BaseAlgorithm):
 
 ---
 
-## 9. File Directory
+## 10. File Directory
 
 ### Source Code (`src/`)
+
+**Architecture Pattern:** GUI/Logic Separation
+- `src/core/` - All business logic (AI, extraction, processing)
+- `src/services/` - Interface layer between UI and Core
+- `src/ui/` - User interface only (no business logic)
 
 ```
 src/
@@ -661,94 +754,102 @@ src/
 ├── logging_config.py            # Debug logging setup
 ├── user_preferences.py          # User settings persistence
 ├── system_resources.py          # CPU/RAM detection for worker scaling
-│
-├── ai/                          # Ollama integration
-│   ├── ollama_model_manager.py  # REST API client
-│   ├── prompt_formatter.py      # Model-specific formatting
-│   └── summary_post_processor.py # Length enforcement
-│
-├── extraction/                  # Document extraction
-│   ├── raw_text_extractor.py    # PDF/TXT/RTF → text
-│   └── llm_extractor.py         # Ollama-based extraction
-│
-├── sanitization/
-│   └── character_sanitizer.py   # 6-stage Unicode cleanup
-│
-├── preprocessing/               # Text cleanup
-│   ├── base.py                  # BasePreprocessor ABC
-│   ├── title_page_remover.py
-│   ├── header_footer_remover.py
-│   ├── line_number_remover.py
-│   └── qa_converter.py          # Q./A. → Question:/Answer:
-│
-├── chunking/                    # Text chunking
-│   └── unified_chunker.py       # Semantic + token enforcement
-├── chunking_engine.py           # Legacy chunker
+├── categories.py                # Category definitions
+├── chunking_engine.py           # Legacy chunker (deprecated)
 ├── progressive_summarizer.py    # Chunked summarization
 │
-├── vocabulary/                  # Vocabulary extraction
-│   ├── vocabulary_extractor.py  # Main orchestrator
-│   ├── reconciler.py            # NER + LLM merge
-│   ├── result_merger.py         # Algorithm result combination
-│   ├── name_deduplicator.py     # Person name deduplication (artifacts + fuzzy)
-│   ├── artifact_filter.py       # Substring containment artifact removal
-│   ├── rarity_filter.py         # Filter phrases with common component words
-│   ├── role_profiles.py         # Role detection
-│   ├── feedback_manager.py      # User feedback CSV
-│   ├── meta_learner.py          # ML preference learning (LR + RF ensemble)
-│   ├── corpus_manager.py        # BM25 corpus
-│   ├── corpus_registry.py       # Multi-corpus management
-│   └── algorithms/
-│       ├── base.py              # ABC + CandidateTerm
-│       ├── ner_algorithm.py     # spaCy NER
-│       ├── rake_algorithm.py    # RAKE keywords
-│       └── bm25_algorithm.py    # Corpus TF-IDF
+├── core/                        # ALL BUSINESS LOGIC
+│   ├── config/                  # Shared configuration loading
+│   │   └── loader.py            # load_yaml(), load_yaml_with_fallback()
+│   │
+│   ├── ai/                      # Ollama integration
+│   │   ├── ollama_model_manager.py  # REST API client
+│   │   ├── prompt_formatter.py      # Model-specific formatting
+│   │   └── summary_post_processor.py # Length enforcement
+│   │
+│   ├── extraction/              # Document extraction
+│   │   ├── raw_text_extractor.py    # PDF/TXT/RTF → text
+│   │   └── llm_extractor.py         # Ollama-based extraction
+│   │
+│   ├── sanitization/
+│   │   └── character_sanitizer.py   # 6-stage Unicode cleanup
+│   │
+│   ├── preprocessing/           # Text cleanup
+│   │   ├── base.py              # BasePreprocessor ABC
+│   │   ├── title_page_remover.py
+│   │   ├── header_footer_remover.py
+│   │   ├── line_number_remover.py
+│   │   └── qa_converter.py      # Q./A. → Question:/Answer:
+│   │
+│   ├── chunking/                # Text chunking
+│   │   └── unified_chunker.py   # Semantic + token enforcement (CANONICAL)
+│   │
+│   ├── vocabulary/              # Vocabulary extraction
+│   │   ├── vocabulary_extractor.py  # Main orchestrator
+│   │   ├── reconciler.py            # NER + LLM merge
+│   │   ├── result_merger.py         # Algorithm result combination
+│   │   ├── name_deduplicator.py     # Person name deduplication
+│   │   ├── artifact_filter.py       # Substring containment removal
+│   │   ├── rarity_filter.py         # Filter common phrases
+│   │   ├── role_profiles.py         # Role detection
+│   │   ├── feedback_manager.py      # User feedback CSV
+│   │   ├── meta_learner.py          # ML preference learning
+│   │   ├── corpus_manager.py        # BM25 corpus
+│   │   ├── corpus_registry.py       # Multi-corpus management
+│   │   └── algorithms/
+│   │       ├── base.py              # ABC + CandidateTerm
+│   │       ├── ner_algorithm.py     # spaCy NER
+│   │       ├── rake_algorithm.py    # RAKE keywords
+│   │       └── bm25_algorithm.py    # Corpus TF-IDF
+│   │
+│   ├── retrieval/               # Q&A retrieval
+│   │   ├── base.py              # ABC + dataclasses
+│   │   ├── hybrid_retriever.py  # Coordinates algorithms
+│   │   ├── chunk_merger.py      # Weighted combination
+│   │   ├── query_transformer.py # LlamaIndex expansion
+│   │   └── algorithms/
+│   │       ├── bm25_plus.py     # BM25+ lexical
+│   │       └── faiss_semantic.py # FAISS semantic
+│   │
+│   ├── vector_store/            # FAISS indexes
+│   │   ├── vector_store_builder.py  # Create indexes
+│   │   ├── qa_retriever.py          # Retrieve context
+│   │   └── question_flow.py         # Branching questions
+│   │
+│   ├── qa/                      # Q&A orchestration
+│   │   ├── qa_orchestrator.py   # Coordinates flow
+│   │   └── answer_generator.py  # Generate answers
+│   │
+│   ├── summarization/           # Multi-doc summarization
+│   │   ├── result_types.py      # Dataclasses
+│   │   ├── document_summarizer.py   # Single doc
+│   │   └── multi_document_orchestrator.py
+│   │
+│   ├── prompting/               # Prompt management
+│   │   ├── template_manager.py  # Load templates
+│   │   ├── focus_extractor.py   # AI focus extraction
+│   │   ├── adapters.py          # Stage-specific prompts
+│   │   └── config.py            # Prompt parameters
+│   │
+│   ├── parallel/                # Parallel processing
+│   │   ├── executor_strategy.py # Strategy pattern
+│   │   ├── task_runner.py       # Task orchestration
+│   │   └── progress_aggregator.py # Throttled updates
+│   │
+│   └── briefing/                # Case Briefing (deprecated)
+│       ├── chunker.py, extractor.py, aggregator.py
+│       ├── synthesizer.py, orchestrator.py, formatter.py
 │
-├── retrieval/                   # Q&A retrieval
-│   ├── base.py                  # ABC + dataclasses
-│   ├── hybrid_retriever.py      # Coordinates algorithms
-│   ├── chunk_merger.py          # Weighted combination
-│   ├── query_transformer.py     # LlamaIndex expansion
-│   └── algorithms/
-│       ├── bm25_plus.py         # BM25+ lexical
-│       └── faiss_semantic.py    # FAISS semantic
+├── services/                    # INTERFACE LAYER (UI → Core)
+│   ├── document_service.py      # Document processing
+│   ├── vocabulary_service.py    # Vocabulary extraction
+│   ├── qa_service.py            # Q&A operations
+│   └── settings_service.py      # User preferences
 │
-├── vector_store/                # FAISS indexes
-│   ├── vector_store_builder.py  # Create indexes
-│   ├── qa_retriever.py          # Retrieve context
-│   └── question_flow.py         # Branching questions
-│
-├── qa/                          # Q&A orchestration
-│   ├── qa_orchestrator.py       # Coordinates flow
-│   └── answer_generator.py      # Generate answers
-│
-├── summarization/               # Multi-doc summarization
-│   ├── result_types.py          # Dataclasses
-│   ├── document_summarizer.py   # Single doc
-│   └── multi_document_orchestrator.py
-│
-├── prompting/                   # Prompt management
-│   ├── template_manager.py      # Load templates
-│   ├── focus_extractor.py       # AI focus extraction
-│   ├── adapters.py              # Stage-specific prompts
-│   └── config.py                # Prompt parameters
-│
-├── parallel/                    # Parallel processing
-│   ├── executor_strategy.py     # Strategy pattern
-│   ├── task_runner.py           # Task orchestration
-│   └── progress_aggregator.py   # Throttled updates
-│
-├── briefing/                    # Case Briefing (deprecated)
-│   ├── chunker.py               # Section-aware splitting
-│   ├── extractor.py             # Per-chunk extraction
-│   ├── aggregator.py            # Merge/deduplicate
-│   ├── synthesizer.py           # Narrative generation
-│   ├── orchestrator.py          # Pipeline coordinator
-│   └── formatter.py             # Output formatting
-│
-├── ui/                          # User interface
-│   ├── main_window.py           # Business logic
+├── ui/                          # USER INTERFACE ONLY
+│   ├── main_window.py           # Main window
 │   ├── window_layout.py         # Layout mixin
+│   ├── theme.py                 # Centralized fonts, colors, style presets
 │   ├── styles.py                # Centralized ttk style config
 │   ├── widgets.py               # FileTable, ModelSelector, etc.
 │   ├── dynamic_output.py        # Results display
@@ -830,7 +931,7 @@ tests/
 
 ---
 
-## 10. Development Setup
+## 11. Development Setup
 
 ### Prerequisites
 
@@ -900,4 +1001,4 @@ ruff check src/ --fix
 
 ---
 
-*Last updated: 2025-12-26 (Session 56)*
+*Last updated: 2025-12-27 (Session 57)*

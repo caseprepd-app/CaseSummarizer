@@ -3,7 +3,7 @@ Quick test script to verify prompt template system works.
 """
 
 from pathlib import Path
-from src.prompting import PromptTemplateManager
+from src.core.prompting import PromptTemplateManager
 from src.config import PROMPTS_DIR
 
 def test_template_system():

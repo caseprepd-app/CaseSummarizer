@@ -13,14 +13,16 @@ import time
 from dataclasses import dataclass
 from pathlib import Path
 
-import yaml
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_core.documents import Document
 from langchain_experimental.text_splitter import SemanticChunker
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
+import warnings
+
 from src.config import CHUNK_OVERLAP_FRACTION
+from src.core.config import load_yaml
 from src.logging_config import debug_log, debug_timing, error, info
 
 
@@ -55,9 +57,20 @@ class ChunkingEngine:
         """
         Initialize chunking engine.
 
+        .. deprecated::
+            ChunkingEngine is deprecated. Use UnifiedChunker from
+            src.core.chunking.unified_chunker for token-aware semantic chunking.
+
         Args:
             config_path: Path to chunking_config.yaml. If None, uses default.
         """
+        warnings.warn(
+            "ChunkingEngine is deprecated. Use UnifiedChunker from "
+            "src.core.chunking.unified_chunker for token-aware semantic chunking.",
+            DeprecationWarning,
+            stacklevel=2
+        )
+
         if config_path is None:
             config_path = Path(__file__).parent.parent / "config" / "chunking_config.yaml"
 
@@ -88,14 +101,7 @@ class ChunkingEngine:
 
     def _load_config(self, config_path: Path) -> dict:
         """Load configuration from YAML file."""
-        try:
-            with open(config_path) as f:
-                config = yaml.safe_load(f)
-            debug_log(f"Loaded chunking config from {config_path}")
-            return config
-        except Exception as e:
-            error(f"Failed to load config from {config_path}: {e}")
-            raise
+        return load_yaml(config_path, log_prefix="[ChunkingEngine]")
 
     def _load_patterns(self) -> list[str]:
         """Load regex patterns from patterns file."""

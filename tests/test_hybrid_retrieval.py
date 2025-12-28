@@ -10,15 +10,15 @@ Tests the multi-algorithm retrieval architecture:
 
 import pytest
 
-from src.retrieval.base import (
+from src.core.retrieval.base import (
     BaseRetrievalAlgorithm,
     DocumentChunk,
     RetrievedChunk,
     AlgorithmRetrievalResult,
 )
-from src.retrieval.algorithms import get_all_algorithms, BM25PlusRetriever
-from src.retrieval.chunk_merger import ChunkMerger, MergedChunk
-from src.retrieval import HybridRetriever
+from src.core.retrieval.algorithms import get_all_algorithms, BM25PlusRetriever
+from src.core.retrieval.chunk_merger import ChunkMerger, MergedChunk
+from src.core.retrieval import HybridRetriever
 
 
 # Test data - simulated legal document chunks

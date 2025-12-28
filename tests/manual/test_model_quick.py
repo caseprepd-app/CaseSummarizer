@@ -18,7 +18,7 @@ if sys.platform == 'win32':
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent))
 
-from src.ai import ModelManager
+from src.core.ai import ModelManager
 from src.config import DEBUG_MODE
 
 def test_model_loading():

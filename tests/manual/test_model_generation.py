@@ -7,7 +7,7 @@ If this works, the issue is in the UI/worker integration.
 """
 
 import time
-from src.ai import ModelManager
+from src.core.ai import ModelManager
 
 print("=" * 60)
 print("Direct Model Generation Test")

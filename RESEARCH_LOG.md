@@ -6,32 +6,155 @@
 
 ---
 
-## OUTSTANDING BUG: Q&A Follow-up Font Scaling Error — 2025-12-25
+## Major Codebase Refactoring: GUI/Logic Separation — 2025-12-28
 
-**Problem:** When asking a follow-up question in the Q&A tab, users get:
+**Problem:** The codebase had accumulated technical debt:
+1. Business logic scattered throughout UI components (main_window.py was 1,196 lines)
+2. No clear separation between GUI and core logic
+3. Duplicate code patterns (9 identical `_load_config()` implementations)
+4. Root directory cluttered with temp files and misplaced modules
+5. Three different chunking implementations causing confusion
+
+**Decision:** Complete architectural refactoring with layered separation.
+
+**Implementation:**
+
+### New Architecture Pattern
 ```
-Failed to process follow-up: font' option forbidden, because would be incompatible with scaling
+src/
+├── core/           # ALL business logic (15 packages)
+├── services/       # Interface layer (UI → Core)
+└── ui/             # User interface only
 ```
 
-**Root Cause:** CustomTkinter's scaling system conflicts with font configuration somewhere in the Q&A display path.
+### Phase 0: Root Directory Cleanup
+- Deleted temp files: `=0.5.0`, `nul`, `debug_flow.txt`, `*.tmp.*`
+- Moved test files to `tests/`: `test_import.py`, `test_imports.py`, `test_qa_metadata.py`
+- Moved debug scripts to `scripts/`: `run_debug.py`
 
-**Attempted Fix (Session 55):**
-- Changed `CTkFont(size=12)` to tuple `("Segoe UI", 12)` in `qa_panel.py:123`
-- This did NOT fully resolve the issue
+### Phase 1: DRY - Shared Config Loader
+Created `src/core/config/loader.py` with:
+- `load_yaml()` - Consistent YAML loading with error handling
+- `load_yaml_with_fallback()` - Returns fallback on error
+- `save_yaml()` - Consistent YAML saving
 
-**Investigation Needed:**
-1. The error occurs in `_ask_followup()` at `main_window.py:961` when calling `update_outputs()`
-2. The call chain: `_ask_followup` → `update_outputs` → `_display_qa_results` → `QAPanel.display_results`
-3. Likely culprits:
-   - Other `CTkFont` usages in `qa_panel.py` (lines 98, 105)
-   - Font configuration during widget creation inside CTkTabview tab
-   - CTkTextbox `tag_config` font settings (lines 132-134)
-4. The 10-second hang when first switching to Q&A tab may be related
+Replaced 9 duplicate implementations across: `question_flow.py`, `qa_orchestrator.py`, `qa_question_editor.py`, `vocabulary_extractor.py`, `prompt_config.py`, `chunking_config.py`, etc.
 
-**Files to investigate:**
-- `src/ui/qa_panel.py` — QAPanel widget creation and display
-- `src/ui/dynamic_output.py` — `_display_qa_results()` creates QAPanel lazily
-- `src/ui/main_window.py` — `_ask_followup()` catches and displays the error
+### Phase 2: Chunking Consolidation
+- **UnifiedChunker** designated as CANONICAL (token-aware via tiktoken)
+- **ChunkingEngine** deprecated with warning (legacy, will be removed)
+- Removed `briefing/chunker.py` (part of deprecated briefing system)
+
+### Phase 3: Business Logic to `src/core/`
+Moved all domain packages:
+```
+src/ai/           → src/core/ai/
+src/extraction/   → src/core/extraction/
+src/vocabulary/   → src/core/vocabulary/
+src/chunking/     → src/core/chunking/
+src/qa/           → src/core/qa/
+src/retrieval/    → src/core/retrieval/
+src/vector_store/ → src/core/vector_store/
+src/prompting/    → src/core/prompting/
+src/summarization/→ src/core/summarization/
+src/preprocessing/→ src/core/preprocessing/
+src/sanitization/ → src/core/sanitization/
+src/parallel/     → src/core/parallel/
+src/briefing/     → src/core/briefing/
+src/utils/        → src/core/utils/
+```
+
+Updated all imports from `from src.xxx` to `from src.core.xxx`.
+Fixed relative path calculations (`Path(__file__).parent.parent.parent` → `.parent.parent.parent.parent`).
+
+### Phase 4: Services Layer
+Created `src/services/` as interface between UI and Core:
+
+| Service | Purpose |
+|---------|---------|
+| `DocumentService` | Document extraction, sanitization, preprocessing |
+| `VocabularyService` | Vocabulary extraction with feedback tracking |
+| `QAService` | Vector indexing, question answering |
+| `SettingsService` | User preferences with convenience properties |
+
+### Phase 5: UI Cleanup
+- Removed temp files from `src/ui/`
+- Prepared directory structure for future file splitting
+- Updated imports to use `src.core.*` paths
+
+### Phase 6: Documentation
+- Updated ARCHITECTURE.md with new directory structure
+- Added this RESEARCH_LOG entry
+
+**Test Results:** 228 tests passing (97.9%), 5 pre-existing failures unrelated to refactoring.
+
+**Benefits:**
+1. Clear separation of concerns — UI knows nothing about business logic internals
+2. Testability — Core modules can be tested without UI
+3. Maintainability — Changes to logic don't require touching UI code
+4. DRY — Shared utilities prevent code duplication
+5. Discoverability — Logical package structure makes code easier to find
+
+**Trade-offs:**
+- Import paths are longer (`from src.core.extraction` vs `from src.extraction`)
+- One-time migration effort for any external scripts
+
+---
+
+## UI Theme Consolidation — 2025-12-27
+
+**Problem:** Font and color definitions were scattered across 12+ UI files as hardcoded `ctk.CTkFont()` calls and raw hex color strings. This made styling inconsistent and difficult to maintain.
+
+**Decision:** Create a centralized theme system in `src/ui/theme.py`.
+
+**Implementation:**
+1. Created `theme.py` with:
+   - `FONTS` — 16 font definitions as tuples (not CTkFont objects)
+   - `COLORS` — 43 semantic color definitions
+   - `BUTTON_STYLES` — 5 style presets (primary, secondary, tertiary, danger, disabled)
+   - `FRAME_STYLES`, `QA_TEXT_TAGS`, `VOCAB_TABLE_TAGS`, `FILE_STATUS_TAGS`
+
+2. Updated all UI files to import from theme:
+   - `window_layout.py`, `widgets.py`, `dialogs.py`
+   - `processing_timer.py`, `tooltip_helper.py`, `quadrant_builder.py`
+   - `system_monitor.py`, `qa_question_editor.py`, `corpus_dialog.py`
+   - `settings/settings_dialog.py`, `settings/settings_widgets.py`
+
+**Why tuples instead of CTkFont objects:**
+- CTkFont objects cause issues with `tag_config()` in CTkTextbox
+- Tuple fonts `("Segoe UI", 12, "bold")` work universally
+- Avoids the font scaling bug documented in the Q&A follow-up entry below
+
+**Result:** All fonts and colors now in one location. Changes to styling require editing only `theme.py`.
+
+---
+
+## RESOLVED: Q&A Follow-up Font Scaling Error — 2025-12-27
+
+**Problem:** When asking a follow-up question in the Q&A tab, users got:
+```
+Failed to process follow-up: 'font' option forbidden, because would be incompatible with scaling
+```
+
+**Root Cause:** CTkTextbox.tag_config() intercepts the `font` keyword argument and raises an error. The Session 55 fix was actually complete, but not verified.
+
+**Solution (Session 55, verified Session 57):**
+1. Changed `CTkFont(size=12)` to tuple `("Segoe UI", 12)` in widget constructors
+2. Used `cnf={}` parameter for tag_config() to bypass CTkTextbox's font restriction:
+   ```python
+   # Instead of: tag_config("name", font=(...))  # FAILS
+   # Use:        tag_config("name", cnf={"font": (...)})  # WORKS
+   ```
+
+**Why the workaround works:**
+- CTkTextbox.tag_config() only checks `if "font" in kwargs`
+- The `cnf={}` parameter puts font in a nested dict, bypassing the check
+- The underlying tkinter Text widget receives and applies the font correctly
+
+**Verification (Session 57):**
+- Created test scripts that mimic the exact LocalScribe follow-up flow
+- Both simple and realistic tests passed without errors
+- The bug was already fixed; RESEARCH_LOG entry was outdated
 
 ---
 

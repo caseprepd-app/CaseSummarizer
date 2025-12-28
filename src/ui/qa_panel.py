@@ -25,7 +25,8 @@ import customtkinter as ctk
 
 from src.config import DEBUG_MODE
 from src.logging_config import debug_log
-from src.qa.qa_orchestrator import QAResult
+from src.core.qa.qa_orchestrator import QAResult
+from src.ui.theme import FONTS, COLORS, BUTTON_STYLES, FRAME_STYLES, QA_TEXT_TAGS
 
 
 class QAPanel(ctk.CTkFrame):
@@ -89,68 +90,58 @@ class QAPanel(ctk.CTkFrame):
 
     def _create_header(self):
         """Create header with title and info."""
-        header = ctk.CTkFrame(self, fg_color="transparent")
+        header = ctk.CTkFrame(self, **FRAME_STYLES["transparent"])
         header.grid(row=0, column=0, sticky="ew", padx=5, pady=(5, 0))
 
-        # Note: Use tuple font specs instead of CTkFont to avoid scaling conflicts
-        # when QAPanel is created lazily inside CTkTabview
         title = ctk.CTkLabel(
             header,
             text="Questions & Answers",
-            font=("Segoe UI", 14, "bold")
+            font=FONTS["heading"]
         )
         title.pack(side="left")
 
         self.info_label = ctk.CTkLabel(
             header,
             text="",
-            font=("Segoe UI", 11),
-            text_color="#aaaaaa"
+            font=FONTS["small"],
+            text_color=COLORS["text_secondary"]
         )
         self.info_label.pack(side="right")
 
     def _create_text_display(self):
         """Create main plain text display area."""
-        # Frame for text display with dark theme
-        display_frame = ctk.CTkFrame(self, fg_color="#2b2b2b", corner_radius=6)
+        display_frame = ctk.CTkFrame(self, **FRAME_STYLES["card"])
         display_frame.grid(row=1, column=0, sticky="nsew", padx=5, pady=5)
         display_frame.grid_columnconfigure(0, weight=1)
         display_frame.grid_rowconfigure(0, weight=1)
 
         # Create scrollable textbox
-        # Note: Use tuple font spec instead of CTkFont to avoid scaling conflicts
         self.text_display = ctk.CTkTextbox(
             display_frame,
             wrap="word",
-            font=("Segoe UI", 12),
-            fg_color="#1e1e1e",
-            text_color="#e0e0e0",
-            scrollbar_button_color="#3d3d3d",
-            scrollbar_button_hover_color="#4d4d4d"
+            font=FONTS["body"],
+            fg_color=COLORS["bg_darker"],
+            text_color=COLORS["text_primary"],
+            scrollbar_button_color=COLORS["bg_input"],
+            scrollbar_button_hover_color=COLORS["bg_hover"]
         )
         self.text_display.grid(row=0, column=0, sticky="nsew", padx=2, pady=2)
 
         # Configure text tags for formatting
-        # IMPORTANT: CTkTextbox forbids 'font' parameter in tag_config() due to scaling conflicts.
-        # Workaround: Use cnf dictionary parameter instead of keyword arguments.
-        # See: https://github.com/TomSchimansky/CustomTkinter/discussions/2463
-        self.text_display.tag_config("question", cnf={"foreground": "#5dade2", "font": ("Segoe UI", 13, "bold")})
-        self.text_display.tag_config("question_default", cnf={"foreground": "#7dacd6", "font": ("Segoe UI", 13, "bold italic")})
-        self.text_display.tag_config("label", cnf={"foreground": "#85929e", "font": ("Segoe UI", 11, "bold")})
-        self.text_display.tag_config("answer", cnf={"foreground": "#aed6f1"})
-        self.text_display.tag_config("citation", cnf={"foreground": "#d7dbdd"})
-        self.text_display.tag_config("source", cnf={"foreground": "#52be80", "font": ("Segoe UI", 12, "italic")})
-        self.text_display.tag_config("separator", cnf={"foreground": "#566573"})
+        # IMPORTANT: CTkTextbox forbids 'font' kwarg in tag_config() - use cnf={} instead
+        # See RESEARCH_LOG.md "Q&A Follow-up Font Scaling Error"
+        for tag_name, tag_config in QA_TEXT_TAGS.items():
+            self.text_display.tag_config(tag_name, cnf=tag_config)
 
     def _create_button_bar(self):
         """Create action buttons bar."""
-        button_frame = ctk.CTkFrame(self, fg_color="transparent")
+        button_frame = ctk.CTkFrame(self, **FRAME_STYLES["transparent"])
         button_frame.grid(row=2, column=0, sticky="ew", padx=5, pady=5)
 
         # Edit Questions button
         self.edit_btn = ctk.CTkButton(
             button_frame,
-            text="⚙ Edit Questions",
+            text="Edit Questions",
             command=self._on_edit_click,
             width=130
         )
@@ -180,7 +171,7 @@ class QAPanel(ctk.CTkFrame):
             text="Export TXT",
             command=self._export_to_txt,
             width=90,
-            fg_color="#555555"
+            **BUTTON_STYLES["secondary"]
         )
         self.export_txt_btn.pack(side="right", padx=5)
 
@@ -190,7 +181,7 @@ class QAPanel(ctk.CTkFrame):
             text="Select All",
             command=lambda: self._set_all_include(True),
             width=80,
-            fg_color="#2d5a87"
+            **BUTTON_STYLES["primary"]
         )
         self.select_all_btn.pack(side="right", padx=5)
 
@@ -199,13 +190,13 @@ class QAPanel(ctk.CTkFrame):
             text="Deselect All",
             command=lambda: self._set_all_include(False),
             width=90,
-            fg_color="#555555"
+            **BUTTON_STYLES["secondary"]
         )
         self.deselect_all_btn.pack(side="right", padx=5)
 
     def _create_followup_pane(self):
         """Create collapsible follow-up question input pane."""
-        self.followup_frame = ctk.CTkFrame(self, fg_color="#333333", corner_radius=6)
+        self.followup_frame = ctk.CTkFrame(self, **FRAME_STYLES["input_area"])
         # Initially hidden
         self.followup_visible = False
 

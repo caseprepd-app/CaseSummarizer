@@ -22,9 +22,9 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 
 import customtkinter as ctk
 
-# CRITICAL: Import src.ai BEFORE UI framework to avoid DirectML DLL conflicts on Windows
+# CRITICAL: Import src.core.ai BEFORE UI framework to avoid DirectML DLL conflicts on Windows
 # This pre-loads onnxruntime_genai before UI framework initializes
-import src.ai  # noqa: F401
+import src.core.ai  # noqa: F401
 from src.config import LOGS_DIR
 from src.ui.main_window import MainWindow
 

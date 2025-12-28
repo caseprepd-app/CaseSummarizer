@@ -1,13 +1,1603 @@
 === LocalScribe Debug Log ===
-Started: 2025-12-13T16:49:13.873883
-DEBUG_MODE: True
+Started: 2025-12-28T00:50:50.495625
+DEBUG_MODE: False
 ============================================================
 
-[16:49:31.318] Successfully connected to Ollama
-[16:49:31.318] [OLLAMA] Connection successful
-[16:49:31.320] [CorpusRegistry] Loaded registry with 1 corpora
-[16:49:32.296] [FEEDBACK] Loaded 5 feedback entries from C:\Users\noahc\AppData\Roaming\LocalScribe\data\feedback\vocab_feedback.csv
-[16:49:34.398] Found 2 available models
-[16:49:34.398] [OLLAMA] Found 2 models: ['gemma3:12b', 'gemma3:1b']
-[16:49:34.398] [MainWindow] Ollama service is accessible
-[16:49:34.399] [MainWindow] Initialized with two-panel layout
+[00:50:50.915] [CATEGORIES] Loaded 5 categories from config
+[00:50:58.195] [BM25] Building IDF index from corpus...
+[00:50:58.195] [BM25] No documents found in corpus folder
+[00:50:58.211] [BM25] Building IDF index from corpus...
+[00:50:58.211] Starting RawTextExtractor initialization...
+[00:50:58.211] Loading legal keywords for jurisdiction: ny
+[00:50:58.211] Loaded 20 legal keywords
+[00:50:58.211] Loading NLTK English words corpus
+[00:50:58.290] Loaded 234377 English words
+[00:50:58.291] RawTextExtractor initialization took 80 ms
+[00:50:58.291] [BM25] Error extracting doc0.txt: 'RawTextExtractor' object has no attribute 'extract'
+[00:50:58.299] Starting RawTextExtractor initialization...
+[00:50:58.299] Loading legal keywords for jurisdiction: ny
+[00:50:58.299] Loaded 20 legal keywords
+[00:50:58.299] Loading NLTK English words corpus
+[00:50:58.375] Loaded 234377 English words
+[00:50:58.375] RawTextExtractor initialization took 76 ms
+[00:50:58.375] [BM25] Error extracting doc1.txt: 'RawTextExtractor' object has no attribute 'extract'
+[00:50:58.384] Starting RawTextExtractor initialization...
+[00:50:58.384] Loading legal keywords for jurisdiction: ny
+[00:50:58.384] Loaded 20 legal keywords
+[00:50:58.384] Loading NLTK English words corpus
+[00:50:58.458] Loaded 234377 English words
+[00:50:58.458] RawTextExtractor initialization took 74 ms
+[00:50:58.458] [BM25] Error extracting doc2.txt: 'RawTextExtractor' object has no attribute 'extract'
+[00:50:58.467] Starting RawTextExtractor initialization...
+[00:50:58.467] Loading legal keywords for jurisdiction: ny
+[00:50:58.467] Loaded 20 legal keywords
+[00:50:58.467] Loading NLTK English words corpus
+[00:50:58.550] Loaded 234377 English words
+[00:50:58.550] RawTextExtractor initialization took 83 ms
+[00:50:58.550] [BM25] Error extracting doc3.txt: 'RawTextExtractor' object has no attribute 'extract'
+[00:50:58.558] Starting RawTextExtractor initialization...
+[00:50:58.559] Loading legal keywords for jurisdiction: ny
+[00:50:58.559] Loaded 20 legal keywords
+[00:50:58.559] Loading NLTK English words corpus
+[00:50:58.654] Loaded 234377 English words
+[00:50:58.654] RawTextExtractor initialization took 95 ms
+[00:50:58.654] [BM25] Error extracting doc4.txt: 'RawTextExtractor' object has no attribute 'extract'
+[00:50:58.663] [BM25] No documents could be processed
+[00:50:58.665] [BM25] Building IDF index from corpus...
+[00:50:58.666] Starting RawTextExtractor initialization...
+[00:50:58.666] Loading legal keywords for jurisdiction: ny
+[00:50:58.666] Loaded 20 legal keywords
+[00:50:58.666] Loading NLTK English words corpus
+[00:50:58.757] Loaded 234377 English words
+[00:50:58.757] RawTextExtractor initialization took 91 ms
+[00:50:58.757] [BM25] Error extracting doc0.txt: 'RawTextExtractor' object has no attribute 'extract'
+[00:50:58.765] Starting RawTextExtractor initialization...
+[00:50:58.765] Loading legal keywords for jurisdiction: ny
+[00:50:58.765] Loaded 20 legal keywords
+[00:50:58.766] Loading NLTK English words corpus
+[00:50:58.849] Loaded 234377 English words
+[00:50:58.850] RawTextExtractor initialization took 84 ms
+[00:50:58.850] [BM25] Error extracting doc1.txt: 'RawTextExtractor' object has no attribute 'extract'
+[00:50:58.858] Starting RawTextExtractor initialization...
+[00:50:58.859] Loading legal keywords for jurisdiction: ny
+[00:50:58.859] Loaded 20 legal keywords
+[00:50:58.859] Loading NLTK English words corpus
+[00:50:58.939] Loaded 234377 English words
+[00:50:58.939] RawTextExtractor initialization took 81 ms
+[00:50:58.939] [BM25] Error extracting doc2.txt: 'RawTextExtractor' object has no attribute 'extract'
+[00:50:58.947] Starting RawTextExtractor initialization...
+[00:50:58.947] Loading legal keywords for jurisdiction: ny
+[00:50:58.947] Loaded 20 legal keywords
+[00:50:58.947] Loading NLTK English words corpus
+[00:50:59.027] Loaded 234377 English words
+[00:50:59.028] RawTextExtractor initialization took 80 ms
+[00:50:59.028] [BM25] Error extracting doc3.txt: 'RawTextExtractor' object has no attribute 'extract'
+[00:50:59.036] Starting RawTextExtractor initialization...
+[00:50:59.037] Loading legal keywords for jurisdiction: ny
+[00:50:59.037] Loaded 20 legal keywords
+[00:50:59.037] Loading NLTK English words corpus
+[00:50:59.122] Loaded 234377 English words
+[00:50:59.122] RawTextExtractor initialization took 85 ms
+[00:50:59.122] [BM25] Error extracting doc4.txt: 'RawTextExtractor' object has no attribute 'extract'
+[00:50:59.130] Starting RawTextExtractor initialization...
+[00:50:59.130] Loading legal keywords for jurisdiction: ny
+[00:50:59.130] Loaded 20 legal keywords
+[00:50:59.130] Loading NLTK English words corpus
+[00:50:59.218] Loaded 234377 English words
+[00:50:59.219] RawTextExtractor initialization took 90 ms
+[00:50:59.219] [BM25] Error extracting doc5.txt: 'RawTextExtractor' object has no attribute 'extract'
+[00:50:59.227] [BM25] No documents could be processed
+[00:50:59.238] [BM25] Skipped: insufficient corpus (0/5 documents)
+[00:50:59.245] [BM25] Building IDF index from corpus...
+[00:50:59.246] Starting RawTextExtractor initialization...
+[00:50:59.246] Loading legal keywords for jurisdiction: ny
+[00:50:59.246] Loaded 20 legal keywords
+[00:50:59.246] Loading NLTK English words corpus
+[00:50:59.326] Loaded 234377 English words
+[00:50:59.326] RawTextExtractor initialization took 80 ms
+[00:50:59.326] [BM25] Error extracting doc0.txt: 'RawTextExtractor' object has no attribute 'extract'
+[00:50:59.335] Starting RawTextExtractor initialization...
+[00:50:59.335] Loading legal keywords for jurisdiction: ny
+[00:50:59.335] Loaded 20 legal keywords
+[00:50:59.335] Loading NLTK English words corpus
+[00:50:59.418] Loaded 234377 English words
+[00:50:59.419] RawTextExtractor initialization took 84 ms
+[00:50:59.419] [BM25] Error extracting doc1.txt: 'RawTextExtractor' object has no attribute 'extract'
+[00:50:59.427] Starting RawTextExtractor initialization...
+[00:50:59.427] Loading legal keywords for jurisdiction: ny
+[00:50:59.427] Loaded 20 legal keywords
+[00:50:59.427] Loading NLTK English words corpus
+[00:50:59.512] Loaded 234377 English words
+[00:50:59.512] RawTextExtractor initialization took 86 ms
+[00:50:59.512] [BM25] Error extracting doc2.txt: 'RawTextExtractor' object has no attribute 'extract'
+[00:50:59.521] Starting RawTextExtractor initialization...
+[00:50:59.521] Loading legal keywords for jurisdiction: ny
+[00:50:59.521] Loaded 20 legal keywords
+[00:50:59.521] Loading NLTK English words corpus
+[00:50:59.609] Loaded 234377 English words
+[00:50:59.609] RawTextExtractor initialization took 87 ms
+[00:50:59.610] [BM25] Error extracting doc3.txt: 'RawTextExtractor' object has no attribute 'extract'
+[00:50:59.618] Starting RawTextExtractor initialization...
+[00:50:59.618] Loading legal keywords for jurisdiction: ny
+[00:50:59.618] Loaded 20 legal keywords
+[00:50:59.618] Loading NLTK English words corpus
+[00:50:59.708] Loaded 234377 English words
+[00:50:59.709] RawTextExtractor initialization took 91 ms
+[00:50:59.709] [BM25] Error extracting doc4.txt: 'RawTextExtractor' object has no attribute 'extract'
+[00:50:59.717] [BM25] No documents could be processed
+[00:50:59.719] [BM25] Building IDF index from corpus...
+[00:50:59.719] Starting RawTextExtractor initialization...
+[00:50:59.719] Loading legal keywords for jurisdiction: ny
+[00:50:59.719] Loaded 20 legal keywords
+[00:50:59.719] Loading NLTK English words corpus
+[00:50:59.810] Loaded 234377 English words
+[00:50:59.810] RawTextExtractor initialization took 91 ms
+[00:50:59.810] [BM25] Error extracting doc0.txt: 'RawTextExtractor' object has no attribute 'extract'
+[00:50:59.819] Starting RawTextExtractor initialization...
+[00:50:59.819] Loading legal keywords for jurisdiction: ny
+[00:50:59.819] Loaded 20 legal keywords
+[00:50:59.819] Loading NLTK English words corpus
+[00:50:59.905] Loaded 234377 English words
+[00:50:59.905] RawTextExtractor initialization took 86 ms
+[00:50:59.905] [BM25] Error extracting doc1.txt: 'RawTextExtractor' object has no attribute 'extract'
+[00:50:59.914] Starting RawTextExtractor initialization...
+[00:50:59.915] Loading legal keywords for jurisdiction: ny
+[00:50:59.915] Loaded 20 legal keywords
+[00:50:59.915] Loading NLTK English words corpus
+[00:51:00.007] Loaded 234377 English words
+[00:51:00.007] RawTextExtractor initialization took 92 ms
+[00:51:00.007] [BM25] Error extracting doc2.txt: 'RawTextExtractor' object has no attribute 'extract'
+[00:51:00.016] Starting RawTextExtractor initialization...
+[00:51:00.017] Loading legal keywords for jurisdiction: ny
+[00:51:00.017] Loaded 20 legal keywords
+[00:51:00.017] Loading NLTK English words corpus
+[00:51:00.108] Loaded 234377 English words
+[00:51:00.108] RawTextExtractor initialization took 91 ms
+[00:51:00.108] [BM25] Error extracting doc3.txt: 'RawTextExtractor' object has no attribute 'extract'
+[00:51:00.117] Starting RawTextExtractor initialization...
+[00:51:00.117] Loading legal keywords for jurisdiction: ny
+[00:51:00.117] Loaded 20 legal keywords
+[00:51:00.117] Loading NLTK English words corpus
+[00:51:00.201] Loaded 234377 English words
+[00:51:00.201] RawTextExtractor initialization took 83 ms
+[00:51:00.201] [BM25] Error extracting doc4.txt: 'RawTextExtractor' object has no attribute 'extract'
+[00:51:00.210] [BM25] No documents could be processed
+[00:51:00.210] [BM25] Processing document: 10 tokens, 10 unique terms
+[00:51:00.211] [BM25] Building IDF index from corpus...
+[00:51:00.212] Starting RawTextExtractor initialization...
+[00:51:00.212] Loading legal keywords for jurisdiction: ny
+[00:51:00.212] Loaded 20 legal keywords
+[00:51:00.212] Loading NLTK English words corpus
+[00:51:00.293] Loaded 234377 English words
+[00:51:00.293] RawTextExtractor initialization took 81 ms
+[00:51:00.293] [BM25] Error extracting doc0.txt: 'RawTextExtractor' object has no attribute 'extract'
+[00:51:00.301] Starting RawTextExtractor initialization...
+[00:51:00.301] Loading legal keywords for jurisdiction: ny
+[00:51:00.301] Loaded 20 legal keywords
+[00:51:00.301] Loading NLTK English words corpus
+[00:51:00.379] Loaded 234377 English words
+[00:51:00.379] RawTextExtractor initialization took 78 ms
+[00:51:00.379] [BM25] Error extracting doc1.txt: 'RawTextExtractor' object has no attribute 'extract'
+[00:51:00.388] Starting RawTextExtractor initialization...
+[00:51:00.388] Loading legal keywords for jurisdiction: ny
+[00:51:00.388] Loaded 20 legal keywords
+[00:51:00.388] Loading NLTK English words corpus
+[00:51:00.468] Loaded 234377 English words
+[00:51:00.469] RawTextExtractor initialization took 81 ms
+[00:51:00.469] [BM25] Error extracting doc2.txt: 'RawTextExtractor' object has no attribute 'extract'
+[00:51:00.476] Starting RawTextExtractor initialization...
+[00:51:00.476] Loading legal keywords for jurisdiction: ny
+[00:51:00.476] Loaded 20 legal keywords
+[00:51:00.476] Loading NLTK English words corpus
+[00:51:00.561] Loaded 234377 English words
+[00:51:00.561] RawTextExtractor initialization took 84 ms
+[00:51:00.561] [BM25] Error extracting doc3.txt: 'RawTextExtractor' object has no attribute 'extract'
+[00:51:00.569] Starting RawTextExtractor initialization...
+[00:51:00.569] Loading legal keywords for jurisdiction: ny
+[00:51:00.569] Loaded 20 legal keywords
+[00:51:00.569] Loading NLTK English words corpus
+[00:51:00.661] Loaded 234377 English words
+[00:51:00.661] RawTextExtractor initialization took 92 ms
+[00:51:00.661] [BM25] Error extracting doc4.txt: 'RawTextExtractor' object has no attribute 'extract'
+[00:51:00.670] [BM25] No documents could be processed
+[00:51:00.671] [BM25] Building IDF index from corpus...
+[00:51:00.672] Starting RawTextExtractor initialization...
+[00:51:00.672] Loading legal keywords for jurisdiction: ny
+[00:51:00.672] Loaded 20 legal keywords
+[00:51:00.672] Loading NLTK English words corpus
+[00:51:00.757] Loaded 234377 English words
+[00:51:00.757] RawTextExtractor initialization took 85 ms
+[00:51:00.757] [BM25] Error extracting doc0.txt: 'RawTextExtractor' object has no attribute 'extract'
+[00:51:00.768] Starting RawTextExtractor initialization...
+[00:51:00.768] Loading legal keywords for jurisdiction: ny
+[00:51:00.768] Loaded 20 legal keywords
+[00:51:00.768] Loading NLTK English words corpus
+[00:51:00.850] Loaded 234377 English words
+[00:51:00.851] RawTextExtractor initialization took 83 ms
+[00:51:00.851] [BM25] Error extracting doc1.txt: 'RawTextExtractor' object has no attribute 'extract'
+[00:51:00.858] Starting RawTextExtractor initialization...
+[00:51:00.858] Loading legal keywords for jurisdiction: ny
+[00:51:00.858] Loaded 20 legal keywords
+[00:51:00.858] Loading NLTK English words corpus
+[00:51:00.944] Loaded 234377 English words
+[00:51:00.945] RawTextExtractor initialization took 87 ms
+[00:51:00.945] [BM25] Error extracting doc2.txt: 'RawTextExtractor' object has no attribute 'extract'
+[00:51:00.952] Starting RawTextExtractor initialization...
+[00:51:00.952] Loading legal keywords for jurisdiction: ny
+[00:51:00.952] Loaded 20 legal keywords
+[00:51:00.952] Loading NLTK English words corpus
+[00:51:01.034] Loaded 234377 English words
+[00:51:01.035] RawTextExtractor initialization took 83 ms
+[00:51:01.035] [BM25] Error extracting doc3.txt: 'RawTextExtractor' object has no attribute 'extract'
+[00:51:01.043] Starting RawTextExtractor initialization...
+[00:51:01.043] Loading legal keywords for jurisdiction: ny
+[00:51:01.043] Loaded 20 legal keywords
+[00:51:01.043] Loading NLTK English words corpus
+[00:51:01.126] Loaded 234377 English words
+[00:51:01.126] RawTextExtractor initialization took 83 ms
+[00:51:01.126] [BM25] Error extracting doc4.txt: 'RawTextExtractor' object has no attribute 'extract'
+[00:51:01.134] [BM25] No documents could be processed
+[00:51:01.136] [BM25] Building IDF index from corpus...
+[00:51:01.136] Starting RawTextExtractor initialization...
+[00:51:01.136] Loading legal keywords for jurisdiction: ny
+[00:51:01.136] Loaded 20 legal keywords
+[00:51:01.136] Loading NLTK English words corpus
+[00:51:01.214] Loaded 234377 English words
+[00:51:01.214] RawTextExtractor initialization took 78 ms
+[00:51:01.214] [BM25] Error extracting doc0.txt: 'RawTextExtractor' object has no attribute 'extract'
+[00:51:01.221] Starting RawTextExtractor initialization...
+[00:51:01.221] Loading legal keywords for jurisdiction: ny
+[00:51:01.221] Loaded 20 legal keywords
+[00:51:01.221] Loading NLTK English words corpus
+[00:51:01.299] Loaded 234377 English words
+[00:51:01.299] RawTextExtractor initialization took 78 ms
+[00:51:01.299] [BM25] Error extracting doc1.txt: 'RawTextExtractor' object has no attribute 'extract'
+[00:51:01.306] Starting RawTextExtractor initialization...
+[00:51:01.306] Loading legal keywords for jurisdiction: ny
+[00:51:01.306] Loaded 20 legal keywords
+[00:51:01.306] Loading NLTK English words corpus
+[00:51:01.386] Loaded 234377 English words
+[00:51:01.386] RawTextExtractor initialization took 80 ms
+[00:51:01.386] [BM25] Error extracting doc2.txt: 'RawTextExtractor' object has no attribute 'extract'
+[00:51:01.394] Starting RawTextExtractor initialization...
+[00:51:01.394] Loading legal keywords for jurisdiction: ny
+[00:51:01.394] Loaded 20 legal keywords
+[00:51:01.394] Loading NLTK English words corpus
+[00:51:01.472] Loaded 234377 English words
+[00:51:01.472] RawTextExtractor initialization took 78 ms
+[00:51:01.472] [BM25] Error extracting doc3.txt: 'RawTextExtractor' object has no attribute 'extract'
+[00:51:01.480] Starting RawTextExtractor initialization...
+[00:51:01.480] Loading legal keywords for jurisdiction: ny
+[00:51:01.480] Loaded 20 legal keywords
+[00:51:01.480] Loading NLTK English words corpus
+[00:51:01.564] Loaded 234377 English words
+[00:51:01.564] RawTextExtractor initialization took 84 ms
+[00:51:01.564] [BM25] Error extracting doc4.txt: 'RawTextExtractor' object has no attribute 'extract'
+[00:51:01.572] [BM25] No documents could be processed
+[00:51:01.575] [BM25] Building IDF index from corpus...
+[00:51:01.576] Starting RawTextExtractor initialization...
+[00:51:01.576] Loading legal keywords for jurisdiction: ny
+[00:51:01.576] Loaded 20 legal keywords
+[00:51:01.576] Loading NLTK English words corpus
+[00:51:01.677] Loaded 234377 English words
+[00:51:01.677] RawTextExtractor initialization took 101 ms
+[00:51:01.677] [BM25] Error extracting doc0.txt: 'RawTextExtractor' object has no attribute 'extract'
+[00:51:01.686] Starting RawTextExtractor initialization...
+[00:51:01.686] Loading legal keywords for jurisdiction: ny
+[00:51:01.686] Loaded 20 legal keywords
+[00:51:01.686] Loading NLTK English words corpus
+[00:51:01.805] Loaded 234377 English words
+[00:51:01.805] RawTextExtractor initialization took 120 ms
+[00:51:01.805] [BM25] Error extracting doc1.txt: 'RawTextExtractor' object has no attribute 'extract'
+[00:51:01.815] Starting RawTextExtractor initialization...
+[00:51:01.815] Loading legal keywords for jurisdiction: ny
+[00:51:01.815] Loaded 20 legal keywords
+[00:51:01.816] Loading NLTK English words corpus
+[00:51:01.924] Loaded 234377 English words
+[00:51:01.924] RawTextExtractor initialization took 109 ms
+[00:51:01.924] [BM25] Error extracting doc2.txt: 'RawTextExtractor' object has no attribute 'extract'
+[00:51:01.933] Starting RawTextExtractor initialization...
+[00:51:01.934] Loading legal keywords for jurisdiction: ny
+[00:51:01.934] Loaded 20 legal keywords
+[00:51:01.934] Loading NLTK English words corpus
+[00:51:02.045] Loaded 234377 English words
+[00:51:02.046] RawTextExtractor initialization took 111 ms
+[00:51:02.046] [BM25] Error extracting doc3.txt: 'RawTextExtractor' object has no attribute 'extract'
+[00:51:02.054] Starting RawTextExtractor initialization...
+[00:51:02.055] Loading legal keywords for jurisdiction: ny
+[00:51:02.055] Loaded 20 legal keywords
+[00:51:02.055] Loading NLTK English words corpus
+[00:51:02.156] Loaded 234377 English words
+[00:51:02.156] RawTextExtractor initialization took 101 ms
+[00:51:02.156] [BM25] Error extracting doc4.txt: 'RawTextExtractor' object has no attribute 'extract'
+[00:51:02.166] [BM25] No documents could be processed
+[00:51:02.168] [BM25] Building IDF index from corpus...
+[00:51:02.169] Starting RawTextExtractor initialization...
+[00:51:02.169] Loading legal keywords for jurisdiction: ny
+[00:51:02.169] Loaded 20 legal keywords
+[00:51:02.169] Loading NLTK English words corpus
+[00:51:02.274] Loaded 234377 English words
+[00:51:02.274] RawTextExtractor initialization took 105 ms
+[00:51:02.274] [BM25] Error extracting doc0.txt: 'RawTextExtractor' object has no attribute 'extract'
+[00:51:02.287] Starting RawTextExtractor initialization...
+[00:51:02.287] Loading legal keywords for jurisdiction: ny
+[00:51:02.287] Loaded 20 legal keywords
+[00:51:02.287] Loading NLTK English words corpus
+[00:51:02.389] Loaded 234377 English words
+[00:51:02.389] RawTextExtractor initialization took 102 ms
+[00:51:02.389] [BM25] Error extracting doc1.txt: 'RawTextExtractor' object has no attribute 'extract'
+[00:51:02.398] Starting RawTextExtractor initialization...
+[00:51:02.398] Loading legal keywords for jurisdiction: ny
+[00:51:02.398] Loaded 20 legal keywords
+[00:51:02.398] Loading NLTK English words corpus
+[00:51:02.499] Loaded 234377 English words
+[00:51:02.499] RawTextExtractor initialization took 101 ms
+[00:51:02.499] [BM25] Error extracting doc2.txt: 'RawTextExtractor' object has no attribute 'extract'
+[00:51:02.507] Starting RawTextExtractor initialization...
+[00:51:02.507] Loading legal keywords for jurisdiction: ny
+[00:51:02.507] Loaded 20 legal keywords
+[00:51:02.507] Loading NLTK English words corpus
+[00:51:02.614] Loaded 234377 English words
+[00:51:02.614] RawTextExtractor initialization took 107 ms
+[00:51:02.614] [BM25] Error extracting doc3.txt: 'RawTextExtractor' object has no attribute 'extract'
+[00:51:02.627] Starting RawTextExtractor initialization...
+[00:51:02.627] Loading legal keywords for jurisdiction: ny
+[00:51:02.627] Loaded 20 legal keywords
+[00:51:02.627] Loading NLTK English words corpus
+[00:51:02.751] Loaded 234377 English words
+[00:51:02.751] RawTextExtractor initialization took 124 ms
+[00:51:02.751] [BM25] Error extracting doc4.txt: 'RawTextExtractor' object has no attribute 'extract'
+[00:51:02.762] [BM25] No documents could be processed
+[00:51:02.763] [BM25] Building IDF index from corpus...
+[00:51:02.764] Starting RawTextExtractor initialization...
+[00:51:02.764] Loading legal keywords for jurisdiction: ny
+[00:51:02.764] Loaded 20 legal keywords
+[00:51:02.764] Loading NLTK English words corpus
+[00:51:02.861] Loaded 234377 English words
+[00:51:02.862] RawTextExtractor initialization took 98 ms
+[00:51:02.862] [BM25] Error extracting doc0.txt: 'RawTextExtractor' object has no attribute 'extract'
+[00:51:02.871] Starting RawTextExtractor initialization...
+[00:51:02.871] Loading legal keywords for jurisdiction: ny
+[00:51:02.871] Loaded 20 legal keywords
+[00:51:02.871] Loading NLTK English words corpus
+[00:51:02.979] Loaded 234377 English words
+[00:51:02.979] RawTextExtractor initialization took 109 ms
+[00:51:02.979] [BM25] Error extracting doc1.txt: 'RawTextExtractor' object has no attribute 'extract'
+[00:51:02.988] Starting RawTextExtractor initialization...
+[00:51:02.988] Loading legal keywords for jurisdiction: ny
+[00:51:02.988] Loaded 20 legal keywords
+[00:51:02.988] Loading NLTK English words corpus
+[00:51:03.087] Loaded 234377 English words
+[00:51:03.087] RawTextExtractor initialization took 99 ms
+[00:51:03.087] [BM25] Error extracting doc2.txt: 'RawTextExtractor' object has no attribute 'extract'
+[00:51:03.095] Starting RawTextExtractor initialization...
+[00:51:03.095] Loading legal keywords for jurisdiction: ny
+[00:51:03.095] Loaded 20 legal keywords
+[00:51:03.095] Loading NLTK English words corpus
+[00:51:03.187] Loaded 234377 English words
+[00:51:03.187] RawTextExtractor initialization took 93 ms
+[00:51:03.187] [BM25] Error extracting doc3.txt: 'RawTextExtractor' object has no attribute 'extract'
+[00:51:03.195] Starting RawTextExtractor initialization...
+[00:51:03.195] Loading legal keywords for jurisdiction: ny
+[00:51:03.195] Loaded 20 legal keywords
+[00:51:03.195] Loading NLTK English words corpus
+[00:51:03.287] Loaded 234377 English words
+[00:51:03.287] RawTextExtractor initialization took 92 ms
+[00:51:03.287] [BM25] Error extracting doc4.txt: 'RawTextExtractor' object has no attribute 'extract'
+[00:51:03.297] [BM25] No documents could be processed
+[00:51:03.298] [BM25] Building IDF index from corpus...
+[00:51:03.299] Starting RawTextExtractor initialization...
+[00:51:03.299] Loading legal keywords for jurisdiction: ny
+[00:51:03.299] Loaded 20 legal keywords
+[00:51:03.299] Loading NLTK English words corpus
+[00:51:03.404] Loaded 234377 English words
+[00:51:03.405] RawTextExtractor initialization took 106 ms
+[00:51:03.405] [BM25] Error extracting doc0.txt: 'RawTextExtractor' object has no attribute 'extract'
+[00:51:03.417] Starting RawTextExtractor initialization...
+[00:51:03.417] Loading legal keywords for jurisdiction: ny
+[00:51:03.417] Loaded 20 legal keywords
+[00:51:03.417] Loading NLTK English words corpus
+[00:51:03.509] Loaded 234377 English words
+[00:51:03.509] RawTextExtractor initialization took 92 ms
+[00:51:03.509] [BM25] Error extracting doc1.txt: 'RawTextExtractor' object has no attribute 'extract'
+[00:51:03.518] Starting RawTextExtractor initialization...
+[00:51:03.518] Loading legal keywords for jurisdiction: ny
+[00:51:03.518] Loaded 20 legal keywords
+[00:51:03.518] Loading NLTK English words corpus
+[00:51:03.618] Loaded 234377 English words
+[00:51:03.618] RawTextExtractor initialization took 100 ms
+[00:51:03.618] [BM25] Error extracting doc2.txt: 'RawTextExtractor' object has no attribute 'extract'
+[00:51:03.629] Starting RawTextExtractor initialization...
+[00:51:03.629] Loading legal keywords for jurisdiction: ny
+[00:51:03.629] Loaded 20 legal keywords
+[00:51:03.629] Loading NLTK English words corpus
+[00:51:03.736] Loaded 234377 English words
+[00:51:03.736] RawTextExtractor initialization took 107 ms
+[00:51:03.736] [BM25] Error extracting doc3.txt: 'RawTextExtractor' object has no attribute 'extract'
+[00:51:03.745] Starting RawTextExtractor initialization...
+[00:51:03.746] Loading legal keywords for jurisdiction: ny
+[00:51:03.746] Loaded 20 legal keywords
+[00:51:03.746] Loading NLTK English words corpus
+[00:51:03.846] Loaded 234377 English words
+[00:51:03.846] RawTextExtractor initialization took 100 ms
+[00:51:03.847] [BM25] Error extracting doc4.txt: 'RawTextExtractor' object has no attribute 'extract'
+[00:51:03.857] [BM25] No documents could be processed
+[00:51:03.859] [BM25] Building IDF index from corpus...
+[00:51:03.860] Starting RawTextExtractor initialization...
+[00:51:03.860] Loading legal keywords for jurisdiction: ny
+[00:51:03.860] Loaded 20 legal keywords
+[00:51:03.860] Loading NLTK English words corpus
+[00:51:03.954] Loaded 234377 English words
+[00:51:03.955] RawTextExtractor initialization took 95 ms
+[00:51:03.955] [BM25] Error extracting doc0.txt: 'RawTextExtractor' object has no attribute 'extract'
+[00:51:03.966] Starting RawTextExtractor initialization...
+[00:51:03.966] Loading legal keywords for jurisdiction: ny
+[00:51:03.966] Loaded 20 legal keywords
+[00:51:03.966] Loading NLTK English words corpus
+[00:51:04.059] Loaded 234377 English words
+[00:51:04.060] RawTextExtractor initialization took 94 ms
+[00:51:04.060] [BM25] Error extracting doc1.txt: 'RawTextExtractor' object has no attribute 'extract'
+[00:51:04.069] Starting RawTextExtractor initialization...
+[00:51:04.069] Loading legal keywords for jurisdiction: ny
+[00:51:04.069] Loaded 20 legal keywords
+[00:51:04.069] Loading NLTK English words corpus
+[00:51:04.160] Loaded 234377 English words
+[00:51:04.160] RawTextExtractor initialization took 91 ms
+[00:51:04.160] [BM25] Error extracting doc2.txt: 'RawTextExtractor' object has no attribute 'extract'
+[00:51:04.167] Starting RawTextExtractor initialization...
+[00:51:04.168] Loading legal keywords for jurisdiction: ny
+[00:51:04.168] Loaded 20 legal keywords
+[00:51:04.168] Loading NLTK English words corpus
+[00:51:04.260] Loaded 234377 English words
+[00:51:04.260] RawTextExtractor initialization took 91 ms
+[00:51:04.260] [BM25] Error extracting doc3.txt: 'RawTextExtractor' object has no attribute 'extract'
+[00:51:04.269] Starting RawTextExtractor initialization...
+[00:51:04.269] Loading legal keywords for jurisdiction: ny
+[00:51:04.269] Loaded 20 legal keywords
+[00:51:04.269] Loading NLTK English words corpus
+[00:51:04.357] Loaded 234377 English words
+[00:51:04.357] RawTextExtractor initialization took 89 ms
+[00:51:04.357] [BM25] Error extracting doc4.txt: 'RawTextExtractor' object has no attribute 'extract'
+[00:51:04.368] [BM25] No documents could be processed
+[00:51:04.370] [BM25] Building IDF index from corpus...
+[00:51:04.370] Starting RawTextExtractor initialization...
+[00:51:04.370] Loading legal keywords for jurisdiction: ny
+[00:51:04.370] Loaded 20 legal keywords
+[00:51:04.370] Loading NLTK English words corpus
+[00:51:04.463] Loaded 234377 English words
+[00:51:04.463] RawTextExtractor initialization took 94 ms
+[00:51:04.463] [BM25] Error extracting doc0.txt: 'RawTextExtractor' object has no attribute 'extract'
+[00:51:04.471] Starting RawTextExtractor initialization...
+[00:51:04.472] Loading legal keywords for jurisdiction: ny
+[00:51:04.472] Loaded 20 legal keywords
+[00:51:04.472] Loading NLTK English words corpus
+[00:51:04.566] Loaded 234377 English words
+[00:51:04.567] RawTextExtractor initialization took 95 ms
+[00:51:04.567] [BM25] Error extracting doc1.txt: 'RawTextExtractor' object has no attribute 'extract'
+[00:51:04.575] Starting RawTextExtractor initialization...
+[00:51:04.576] Loading legal keywords for jurisdiction: ny
+[00:51:04.576] Loaded 20 legal keywords
+[00:51:04.576] Loading NLTK English words corpus
+[00:51:04.676] Loaded 234377 English words
+[00:51:04.676] RawTextExtractor initialization took 100 ms
+[00:51:04.676] [BM25] Error extracting doc2.txt: 'RawTextExtractor' object has no attribute 'extract'
+[00:51:04.685] Starting RawTextExtractor initialization...
+[00:51:04.685] Loading legal keywords for jurisdiction: ny
+[00:51:04.685] Loaded 20 legal keywords
+[00:51:04.685] Loading NLTK English words corpus
+[00:51:04.783] Loaded 234377 English words
+[00:51:04.783] RawTextExtractor initialization took 98 ms
+[00:51:04.783] [BM25] Error extracting doc3.txt: 'RawTextExtractor' object has no attribute 'extract'
+[00:51:04.792] Starting RawTextExtractor initialization...
+[00:51:04.792] Loading legal keywords for jurisdiction: ny
+[00:51:04.792] Loaded 20 legal keywords
+[00:51:04.792] Loading NLTK English words corpus
+[00:51:04.889] Loaded 234377 English words
+[00:51:04.889] RawTextExtractor initialization took 97 ms
+[00:51:04.889] [BM25] Error extracting doc4.txt: 'RawTextExtractor' object has no attribute 'extract'
+[00:51:04.897] [BM25] No documents could be processed
+[00:51:04.898] [BM25] Building IDF index from corpus...
+[00:51:04.899] Starting RawTextExtractor initialization...
+[00:51:04.899] Loading legal keywords for jurisdiction: ny
+[00:51:04.899] Loaded 20 legal keywords
+[00:51:04.899] Loading NLTK English words corpus
+[00:51:04.995] Loaded 234377 English words
+[00:51:04.995] RawTextExtractor initialization took 96 ms
+[00:51:04.995] [BM25] Error extracting doc0.txt: 'RawTextExtractor' object has no attribute 'extract'
+[00:51:05.003] Starting RawTextExtractor initialization...
+[00:51:05.003] Loading legal keywords for jurisdiction: ny
+[00:51:05.003] Loaded 20 legal keywords
+[00:51:05.003] Loading NLTK English words corpus
+[00:51:05.095] Loaded 234377 English words
+[00:51:05.095] RawTextExtractor initialization took 92 ms
+[00:51:05.095] [BM25] Error extracting doc1.txt: 'RawTextExtractor' object has no attribute 'extract'
+[00:51:05.103] Starting RawTextExtractor initialization...
+[00:51:05.103] Loading legal keywords for jurisdiction: ny
+[00:51:05.103] Loaded 20 legal keywords
+[00:51:05.103] Loading NLTK English words corpus
+[00:51:05.195] Loaded 234377 English words
+[00:51:05.195] RawTextExtractor initialization took 92 ms
+[00:51:05.195] [BM25] Error extracting doc2.txt: 'RawTextExtractor' object has no attribute 'extract'
+[00:51:05.203] Starting RawTextExtractor initialization...
+[00:51:05.204] Loading legal keywords for jurisdiction: ny
+[00:51:05.204] Loaded 20 legal keywords
+[00:51:05.204] Loading NLTK English words corpus
+[00:51:05.290] Loaded 234377 English words
+[00:51:05.290] RawTextExtractor initialization took 87 ms
+[00:51:05.290] [BM25] Error extracting doc3.txt: 'RawTextExtractor' object has no attribute 'extract'
+[00:51:05.299] Starting RawTextExtractor initialization...
+[00:51:05.299] Loading legal keywords for jurisdiction: ny
+[00:51:05.299] Loaded 20 legal keywords
+[00:51:05.299] Loading NLTK English words corpus
+[00:51:05.383] Loaded 234377 English words
+[00:51:05.383] RawTextExtractor initialization took 84 ms
+[00:51:05.383] [BM25] Error extracting doc4.txt: 'RawTextExtractor' object has no attribute 'extract'
+[00:51:05.392] [BM25] No documents could be processed
+[00:51:05.394] [BM25] Found 10 candidates (threshold: 2.0) in 5675.3ms
+[00:51:05.404] [BM25] Building IDF index from corpus...
+[00:51:05.404] Starting RawTextExtractor initialization...
+[00:51:05.404] Loading legal keywords for jurisdiction: ny
+[00:51:05.404] Loaded 20 legal keywords
+[00:51:05.404] Loading NLTK English words corpus
+[00:51:05.486] Loaded 234377 English words
+[00:51:05.486] RawTextExtractor initialization took 82 ms
+[00:51:05.486] [BM25] Error extracting doc0.txt: 'RawTextExtractor' object has no attribute 'extract'
+[00:51:05.495] Starting RawTextExtractor initialization...
+[00:51:05.495] Loading legal keywords for jurisdiction: ny
+[00:51:05.495] Loaded 20 legal keywords
+[00:51:05.495] Loading NLTK English words corpus
+[00:51:05.584] Loaded 234377 English words
+[00:51:05.584] RawTextExtractor initialization took 89 ms
+[00:51:05.584] [BM25] Error extracting doc1.txt: 'RawTextExtractor' object has no attribute 'extract'
+[00:51:05.592] Starting RawTextExtractor initialization...
+[00:51:05.592] Loading legal keywords for jurisdiction: ny
+[00:51:05.592] Loaded 20 legal keywords
+[00:51:05.592] Loading NLTK English words corpus
+[00:51:05.690] Loaded 234377 English words
+[00:51:05.690] RawTextExtractor initialization took 98 ms
+[00:51:05.690] [BM25] Error extracting doc2.txt: 'RawTextExtractor' object has no attribute 'extract'
+[00:51:05.700] Starting RawTextExtractor initialization...
+[00:51:05.700] Loading legal keywords for jurisdiction: ny
+[00:51:05.700] Loaded 20 legal keywords
+[00:51:05.700] Loading NLTK English words corpus
+[00:51:05.791] Loaded 234377 English words
+[00:51:05.791] RawTextExtractor initialization took 91 ms
+[00:51:05.792] [BM25] Error extracting doc3.txt: 'RawTextExtractor' object has no attribute 'extract'
+[00:51:05.800] Starting RawTextExtractor initialization...
+[00:51:05.800] Loading legal keywords for jurisdiction: ny
+[00:51:05.801] Loaded 20 legal keywords
+[00:51:05.801] Loading NLTK English words corpus
+[00:51:05.901] Loaded 234377 English words
+[00:51:05.901] RawTextExtractor initialization took 101 ms
+[00:51:05.901] [BM25] Error extracting doc4.txt: 'RawTextExtractor' object has no attribute 'extract'
+[00:51:05.909] [BM25] No documents could be processed
+[00:51:05.912] [BM25] Building IDF index from corpus...
+[00:51:05.912] Starting RawTextExtractor initialization...
+[00:51:05.912] Loading legal keywords for jurisdiction: ny
+[00:51:05.912] Loaded 20 legal keywords
+[00:51:05.912] Loading NLTK English words corpus
+[00:51:06.003] Loaded 234377 English words
+[00:51:06.003] RawTextExtractor initialization took 91 ms
+[00:51:06.003] [BM25] Error extracting doc0.txt: 'RawTextExtractor' object has no attribute 'extract'
+[00:51:06.012] Starting RawTextExtractor initialization...
+[00:51:06.012] Loading legal keywords for jurisdiction: ny
+[00:51:06.012] Loaded 20 legal keywords
+[00:51:06.012] Loading NLTK English words corpus
+[00:51:06.102] Loaded 234377 English words
+[00:51:06.102] RawTextExtractor initialization took 90 ms
+[00:51:06.102] [BM25] Error extracting doc1.txt: 'RawTextExtractor' object has no attribute 'extract'
+[00:51:06.113] Starting RawTextExtractor initialization...
+[00:51:06.114] Loading legal keywords for jurisdiction: ny
+[00:51:06.114] Loaded 20 legal keywords
+[00:51:06.114] Loading NLTK English words corpus
+[00:51:06.204] Loaded 234377 English words
+[00:51:06.204] RawTextExtractor initialization took 90 ms
+[00:51:06.204] [BM25] Error extracting doc2.txt: 'RawTextExtractor' object has no attribute 'extract'
+[00:51:06.213] Starting RawTextExtractor initialization...
+[00:51:06.213] Loading legal keywords for jurisdiction: ny
+[00:51:06.213] Loaded 20 legal keywords
+[00:51:06.213] Loading NLTK English words corpus
+[00:51:06.298] Loaded 234377 English words
+[00:51:06.298] RawTextExtractor initialization took 86 ms
+[00:51:06.298] [BM25] Error extracting doc3.txt: 'RawTextExtractor' object has no attribute 'extract'
+[00:51:06.306] Starting RawTextExtractor initialization...
+[00:51:06.306] Loading legal keywords for jurisdiction: ny
+[00:51:06.306] Loaded 20 legal keywords
+[00:51:06.306] Loading NLTK English words corpus
+[00:51:06.390] Loaded 234377 English words
+[00:51:06.390] RawTextExtractor initialization took 84 ms
+[00:51:06.390] [BM25] Error extracting doc4.txt: 'RawTextExtractor' object has no attribute 'extract'
+[00:51:06.399] [BM25] No documents could be processed
+[00:51:06.399] [BM25] Processing document: 5 tokens, 5 unique terms
+[00:51:06.400] [BM25] Building IDF index from corpus...
+[00:51:06.401] Starting RawTextExtractor initialization...
+[00:51:06.401] Loading legal keywords for jurisdiction: ny
+[00:51:06.401] Loaded 20 legal keywords
+[00:51:06.401] Loading NLTK English words corpus
+[00:51:06.483] Loaded 234377 English words
+[00:51:06.483] RawTextExtractor initialization took 82 ms
+[00:51:06.483] [BM25] Error extracting doc0.txt: 'RawTextExtractor' object has no attribute 'extract'
+[00:51:06.491] Starting RawTextExtractor initialization...
+[00:51:06.491] Loading legal keywords for jurisdiction: ny
+[00:51:06.491] Loaded 20 legal keywords
+[00:51:06.491] Loading NLTK English words corpus
+[00:51:06.577] Loaded 234377 English words
+[00:51:06.577] RawTextExtractor initialization took 85 ms
+[00:51:06.577] [BM25] Error extracting doc1.txt: 'RawTextExtractor' object has no attribute 'extract'
+[00:51:06.586] Starting RawTextExtractor initialization...
+[00:51:06.586] Loading legal keywords for jurisdiction: ny
+[00:51:06.586] Loaded 20 legal keywords
+[00:51:06.586] Loading NLTK English words corpus
+[00:51:06.675] Loaded 234377 English words
+[00:51:06.675] RawTextExtractor initialization took 89 ms
+[00:51:06.675] [BM25] Error extracting doc2.txt: 'RawTextExtractor' object has no attribute 'extract'
+[00:51:06.686] Starting RawTextExtractor initialization...
+[00:51:06.686] Loading legal keywords for jurisdiction: ny
+[00:51:06.686] Loaded 20 legal keywords
+[00:51:06.687] Loading NLTK English words corpus
+[00:51:06.776] Loaded 234377 English words
+[00:51:06.776] RawTextExtractor initialization took 91 ms
+[00:51:06.776] [BM25] Error extracting doc3.txt: 'RawTextExtractor' object has no attribute 'extract'
+[00:51:06.785] Starting RawTextExtractor initialization...
+[00:51:06.785] Loading legal keywords for jurisdiction: ny
+[00:51:06.785] Loaded 20 legal keywords
+[00:51:06.785] Loading NLTK English words corpus
+[00:51:06.877] Loaded 234377 English words
+[00:51:06.877] RawTextExtractor initialization took 92 ms
+[00:51:06.877] [BM25] Error extracting doc4.txt: 'RawTextExtractor' object has no attribute 'extract'
+[00:51:06.886] [BM25] No documents could be processed
+[00:51:06.887] [BM25] Building IDF index from corpus...
+[00:51:06.888] Starting RawTextExtractor initialization...
+[00:51:06.888] Loading legal keywords for jurisdiction: ny
+[00:51:06.888] Loaded 20 legal keywords
+[00:51:06.888] Loading NLTK English words corpus
+[00:51:06.984] Loaded 234377 English words
+[00:51:06.984] RawTextExtractor initialization took 96 ms
+[00:51:06.984] [BM25] Error extracting doc0.txt: 'RawTextExtractor' object has no attribute 'extract'
+[00:51:06.992] Starting RawTextExtractor initialization...
+[00:51:06.992] Loading legal keywords for jurisdiction: ny
+[00:51:06.992] Loaded 20 legal keywords
+[00:51:06.992] Loading NLTK English words corpus
+[00:51:07.083] Loaded 234377 English words
+[00:51:07.083] RawTextExtractor initialization took 92 ms
+[00:51:07.083] [BM25] Error extracting doc1.txt: 'RawTextExtractor' object has no attribute 'extract'
+[00:51:07.092] Starting RawTextExtractor initialization...
+[00:51:07.092] Loading legal keywords for jurisdiction: ny
+[00:51:07.092] Loaded 20 legal keywords
+[00:51:07.092] Loading NLTK English words corpus
+[00:51:07.178] Loaded 234377 English words
+[00:51:07.178] RawTextExtractor initialization took 86 ms
+[00:51:07.178] [BM25] Error extracting doc2.txt: 'RawTextExtractor' object has no attribute 'extract'
+[00:51:07.186] Starting RawTextExtractor initialization...
+[00:51:07.186] Loading legal keywords for jurisdiction: ny
+[00:51:07.186] Loaded 20 legal keywords
+[00:51:07.186] Loading NLTK English words corpus
+[00:51:07.267] Loaded 234377 English words
+[00:51:07.267] RawTextExtractor initialization took 81 ms
+[00:51:07.267] [BM25] Error extracting doc3.txt: 'RawTextExtractor' object has no attribute 'extract'
+[00:51:07.274] Starting RawTextExtractor initialization...
+[00:51:07.275] Loading legal keywords for jurisdiction: ny
+[00:51:07.275] Loaded 20 legal keywords
+[00:51:07.275] Loading NLTK English words corpus
+[00:51:07.357] Loaded 234377 English words
+[00:51:07.358] RawTextExtractor initialization took 83 ms
+[00:51:07.358] [BM25] Error extracting doc4.txt: 'RawTextExtractor' object has no attribute 'extract'
+[00:51:07.365] [BM25] No documents could be processed
+[00:51:07.367] [BM25] Building IDF index from corpus...
+[00:51:07.367] Starting RawTextExtractor initialization...
+[00:51:07.367] Loading legal keywords for jurisdiction: ny
+[00:51:07.367] Loaded 20 legal keywords
+[00:51:07.367] Loading NLTK English words corpus
+[00:51:07.449] Loaded 234377 English words
+[00:51:07.449] RawTextExtractor initialization took 82 ms
+[00:51:07.449] [BM25] Error extracting doc0.txt: 'RawTextExtractor' object has no attribute 'extract'
+[00:51:07.456] Starting RawTextExtractor initialization...
+[00:51:07.456] Loading legal keywords for jurisdiction: ny
+[00:51:07.456] Loaded 20 legal keywords
+[00:51:07.456] Loading NLTK English words corpus
+[00:51:07.535] Loaded 234377 English words
+[00:51:07.535] RawTextExtractor initialization took 79 ms
+[00:51:07.535] [BM25] Error extracting doc1.txt: 'RawTextExtractor' object has no attribute 'extract'
+[00:51:07.543] Starting RawTextExtractor initialization...
+[00:51:07.543] Loading legal keywords for jurisdiction: ny
+[00:51:07.543] Loaded 20 legal keywords
+[00:51:07.543] Loading NLTK English words corpus
+[00:51:07.626] Loaded 234377 English words
+[00:51:07.626] RawTextExtractor initialization took 83 ms
+[00:51:07.626] [BM25] Error extracting doc2.txt: 'RawTextExtractor' object has no attribute 'extract'
+[00:51:07.634] Starting RawTextExtractor initialization...
+[00:51:07.634] Loading legal keywords for jurisdiction: ny
+[00:51:07.634] Loaded 20 legal keywords
+[00:51:07.634] Loading NLTK English words corpus
+[00:51:07.725] Loaded 234377 English words
+[00:51:07.725] RawTextExtractor initialization took 90 ms
+[00:51:07.725] [BM25] Error extracting doc3.txt: 'RawTextExtractor' object has no attribute 'extract'
+[00:51:07.733] Starting RawTextExtractor initialization...
+[00:51:07.733] Loading legal keywords for jurisdiction: ny
+[00:51:07.733] Loaded 20 legal keywords
+[00:51:07.733] Loading NLTK English words corpus
+[00:51:07.820] Loaded 234377 English words
+[00:51:07.820] RawTextExtractor initialization took 86 ms
+[00:51:07.820] [BM25] Error extracting doc4.txt: 'RawTextExtractor' object has no attribute 'extract'
+[00:51:07.828] [BM25] No documents could be processed
+[00:51:07.830] [BM25] Building IDF index from corpus...
+[00:51:07.830] Starting RawTextExtractor initialization...
+[00:51:07.830] Loading legal keywords for jurisdiction: ny
+[00:51:07.830] Loaded 20 legal keywords
+[00:51:07.830] Loading NLTK English words corpus
+[00:51:07.919] Loaded 234377 English words
+[00:51:07.919] RawTextExtractor initialization took 90 ms
+[00:51:07.919] [BM25] Error extracting doc0.txt: 'RawTextExtractor' object has no attribute 'extract'
+[00:51:07.927] Starting RawTextExtractor initialization...
+[00:51:07.928] Loading legal keywords for jurisdiction: ny
+[00:51:07.928] Loaded 20 legal keywords
+[00:51:07.928] Loading NLTK English words corpus
+[00:51:08.009] Loaded 234377 English words
+[00:51:08.009] RawTextExtractor initialization took 80 ms
+[00:51:08.009] [BM25] Error extracting doc1.txt: 'RawTextExtractor' object has no attribute 'extract'
+[00:51:08.018] Starting RawTextExtractor initialization...
+[00:51:08.019] Loading legal keywords for jurisdiction: ny
+[00:51:08.019] Loaded 20 legal keywords
+[00:51:08.019] Loading NLTK English words corpus
+[00:51:08.099] Loaded 234377 English words
+[00:51:08.099] RawTextExtractor initialization took 80 ms
+[00:51:08.099] [BM25] Error extracting doc2.txt: 'RawTextExtractor' object has no attribute 'extract'
+[00:51:08.107] Starting RawTextExtractor initialization...
+[00:51:08.107] Loading legal keywords for jurisdiction: ny
+[00:51:08.107] Loaded 20 legal keywords
+[00:51:08.107] Loading NLTK English words corpus
+[00:51:08.189] Loaded 234377 English words
+[00:51:08.189] RawTextExtractor initialization took 82 ms
+[00:51:08.189] [BM25] Error extracting doc3.txt: 'RawTextExtractor' object has no attribute 'extract'
+[00:51:08.197] Starting RawTextExtractor initialization...
+[00:51:08.197] Loading legal keywords for jurisdiction: ny
+[00:51:08.197] Loaded 20 legal keywords
+[00:51:08.197] Loading NLTK English words corpus
+[00:51:08.274] Loaded 234377 English words
+[00:51:08.274] RawTextExtractor initialization took 78 ms
+[00:51:08.274] [BM25] Error extracting doc4.txt: 'RawTextExtractor' object has no attribute 'extract'
+[00:51:08.281] [BM25] No documents could be processed
+[00:51:08.283] [BM25] Building IDF index from corpus...
+[00:51:08.283] Starting RawTextExtractor initialization...
+[00:51:08.283] Loading legal keywords for jurisdiction: ny
+[00:51:08.283] Loaded 20 legal keywords
+[00:51:08.283] Loading NLTK English words corpus
+[00:51:08.359] Loaded 234377 English words
+[00:51:08.360] RawTextExtractor initialization took 77 ms
+[00:51:08.360] [BM25] Error extracting doc0.txt: 'RawTextExtractor' object has no attribute 'extract'
+[00:51:08.369] Starting RawTextExtractor initialization...
+[00:51:08.369] Loading legal keywords for jurisdiction: ny
+[00:51:08.369] Loaded 20 legal keywords
+[00:51:08.369] Loading NLTK English words corpus
+[00:51:08.449] Loaded 234377 English words
+[00:51:08.449] RawTextExtractor initialization took 80 ms
+[00:51:08.449] [BM25] Error extracting doc1.txt: 'RawTextExtractor' object has no attribute 'extract'
+[00:51:08.457] Starting RawTextExtractor initialization...
+[00:51:08.457] Loading legal keywords for jurisdiction: ny
+[00:51:08.457] Loaded 20 legal keywords
+[00:51:08.457] Loading NLTK English words corpus
+[00:51:08.532] Loaded 234377 English words
+[00:51:08.532] RawTextExtractor initialization took 76 ms
+[00:51:08.532] [BM25] Error extracting doc2.txt: 'RawTextExtractor' object has no attribute 'extract'
+[00:51:08.540] Starting RawTextExtractor initialization...
+[00:51:08.540] Loading legal keywords for jurisdiction: ny
+[00:51:08.540] Loaded 20 legal keywords
+[00:51:08.540] Loading NLTK English words corpus
+[00:51:08.624] Loaded 234377 English words
+[00:51:08.624] RawTextExtractor initialization took 84 ms
+[00:51:08.624] [BM25] Error extracting doc3.txt: 'RawTextExtractor' object has no attribute 'extract'
+[00:51:08.633] Starting RawTextExtractor initialization...
+[00:51:08.633] Loading legal keywords for jurisdiction: ny
+[00:51:08.633] Loaded 20 legal keywords
+[00:51:08.633] Loading NLTK English words corpus
+[00:51:08.719] Loaded 234377 English words
+[00:51:08.720] RawTextExtractor initialization took 86 ms
+[00:51:08.720] [BM25] Error extracting doc4.txt: 'RawTextExtractor' object has no attribute 'extract'
+[00:51:08.729] [BM25] No documents could be processed
+[00:51:08.731] [BM25] Found 5 candidates (threshold: 0.1) in 2818.6ms
+[00:51:08.739] [VOCAB] Loaded 126 words from C:\Users\noahc\Dropbox\Not Work\Data Science\CaseSummarizer\config\common_medical_legal.txt
+[00:51:08.959] [VOCAB] Loaded 333333 words from frequency dataset
+[00:51:09.158] [VOCAB] Built rank map for 333333 words
+[00:51:09.177] [VOCAB] BM25 skipped: corpus has 0/5 documents
+[00:51:11.478] [PREF-LEARNER] No existing model found
+[00:51:11.495] [VOCAB] Loaded 126 words from C:\Users\noahc\Dropbox\Not Work\Data Science\CaseSummarizer\config\common_medical_legal.txt
+[00:51:11.704] [VOCAB] Loaded 333333 words from frequency dataset
+[00:51:11.807] [VOCAB] Built rank map for 333333 words
+[00:51:11.814] [VOCAB] BM25 disabled by user preference
+[00:51:11.866] [FEEDBACK] No existing user feedback file, starting fresh
+[00:51:11.867] [FEEDBACK] Recorded + for 'adenocarcinoma'
+[00:51:11.869] [FEEDBACK] No existing user feedback file, starting fresh
+[00:51:11.870] [FEEDBACK] Recorded - for 'the'
+[00:51:11.871] [FEEDBACK] No existing user feedback file, starting fresh
+[00:51:11.872] [FEEDBACK] Recorded + for 'spondylosis'
+[00:51:11.872] [FEEDBACK] Recorded - for 'spondylosis'
+[00:51:11.874] [FEEDBACK] No existing user feedback file, starting fresh
+[00:51:11.875] [FEEDBACK] Recorded + for 'cardiomyopathy'
+[00:51:11.876] [FEEDBACK] Recorded - for 'cardiomyopathy'
+[00:51:11.878] [FEEDBACK] No existing user feedback file, starting fresh
+[00:51:11.879] [FEEDBACK] Recorded + for 'HIPAA'
+[00:51:11.883] [FEEDBACK] No existing user feedback file, starting fresh
+[00:51:11.886] [FEEDBACK] No existing user feedback file, starting fresh
+[00:51:11.886] [FEEDBACK] Recorded + for 'persistent_term'
+[00:51:11.886] [FEEDBACK] Loaded 1 user feedback entries
+[00:51:11.889] [FEEDBACK] No existing user feedback file, starting fresh
+[00:51:11.889] [FEEDBACK] Recorded + for 'term1'
+[00:51:11.890] [FEEDBACK] Recorded - for 'term2'
+[00:51:11.892] [FEEDBACK] No existing user feedback file, starting fresh
+[00:51:11.895] [PREF-LEARNER] No existing model found
+[00:51:11.897] [PREF-LEARNER] No existing model found
+[00:51:11.899] [PREF-LEARNER] No existing model found
+[00:51:11.901] [PREF-LEARNER] No existing model found
+[00:51:11.902] [FEEDBACK] No existing user feedback file, starting fresh
+[00:51:11.902] [FEEDBACK] Recorded + for 'term0'
+[00:51:11.902] [FEEDBACK] Recorded - for 'term1'
+[00:51:11.902] [FEEDBACK] Recorded + for 'term2'
+[00:51:11.903] [FEEDBACK] Recorded - for 'term3'
+[00:51:11.903] [FEEDBACK] Recorded + for 'term4'
+[00:51:11.904] [FEEDBACK] Exported training data: 0 default, 5 user
+[00:51:11.904] [META-LEARNER] Insufficient training data: 5 < 30
+[00:51:11.906] [PREF-LEARNER] No existing model found
+[00:51:11.906] [PREF-LEARNER] No existing model found
+[00:51:11.908] [FEEDBACK] No existing user feedback file, starting fresh
+[00:51:11.908] [PREF-LEARNER] No existing model found
+[00:51:11.912] [VOCAB] Loaded 126 words from C:\Users\noahc\Dropbox\Not Work\Data Science\CaseSummarizer\config\common_medical_legal.txt
+[00:51:12.120] [VOCAB] Loaded 333333 words from frequency dataset
+[00:51:12.211] [VOCAB] Built rank map for 333333 words
+[00:51:12.219] [VOCAB] BM25 skipped: corpus has 0/5 documents
+[00:51:12.233] [PREF-LEARNER] No existing model found
+[00:51:12.236] [PREF-LEARNER] No existing model found
+[00:51:12.298] Successfully connected to Ollama
+[00:51:12.298] [OLLAMA] Connection successful
+[00:51:12.298] Generating text (max_tokens=100, temp=0.3, top_p=0.9)
+[00:51:12.298] 
+[OLLAMA GENERATE] Starting text generation
+[00:51:12.298] [OLLAMA GENERATE] Model: gemma3:1b
+[00:51:12.298] [OLLAMA GENERATE] Max tokens: 100
+[00:51:12.298] [OLLAMA GENERATE] Prompt length: 11 chars
+[00:51:12.298] [OLLAMA GENERATE] Temperature: 0.3, Top P: 0.9
+[00:51:12.298] [PROMPT FORMAT] Detected model type: gemma3 (full name: gemma3:1b)
+[00:51:12.298] [PROMPT FORMAT] Applied Gemma format (raw prompt, no wrapping)
+[00:51:12.298] [OLLAMA GENERATE] Wrapped prompt length: 11 chars
+[00:51:12.298] [OLLAMA GENERATE] ===== ORIGINAL PROMPT START =====
+[00:51:12.298] Test prompt
+[00:51:12.298] [OLLAMA GENERATE] ===== ORIGINAL PROMPT END =====
+[00:51:12.298] [OLLAMA GENERATE] ===== WRAPPED PROMPT START =====
+[00:51:12.298] Test prompt
+[00:51:12.298] [OLLAMA GENERATE] ===== WRAPPED PROMPT END =====
+[00:51:12.298] [OLLAMA GENERATE] Generation complete: 10 tokens in 0.00s
+[00:51:12.298] [OLLAMA GENERATE] Output length: 12 chars
+[00:51:12.298] [OLLAMA GENERATE] Output preview (first 100 chars): Test summary
+[00:51:12.300] Successfully connected to Ollama
+[00:51:12.300] [OLLAMA] Connection successful
+[00:51:12.300] Generating text (max_tokens=100, temp=0.3, top_p=0.9)
+[00:51:12.300] 
+[OLLAMA GENERATE] Starting text generation
+[00:51:12.300] [OLLAMA GENERATE] Model: gemma3:1b
+[00:51:12.300] [OLLAMA GENERATE] Max tokens: 100
+[00:51:12.300] [OLLAMA GENERATE] Prompt length: 7500 chars
+[00:51:12.300] [OLLAMA GENERATE] Temperature: 0.3, Top P: 0.9
+[00:51:12.300] [PROMPT FORMAT] Detected model type: gemma3 (full name: gemma3:1b)
+[00:51:12.300] [PROMPT FORMAT] Applied Gemma format (raw prompt, no wrapping)
+[00:51:12.300] [OLLAMA GENERATE] Wrapped prompt length: 7500 chars
+[00:51:12.301] [OLLAMA GENERATE] WARNING: Prompt may exceed context window!
+[00:51:12.301] [OLLAMA GENERATE] ===== ORIGINAL PROMPT START =====
+[00:51:12.301] word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word 
+[00:51:12.301] [OLLAMA GENERATE] ===== ORIGINAL PROMPT END =====
+[00:51:12.301] [OLLAMA GENERATE] ===== WRAPPED PROMPT START =====
+[00:51:12.301] word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word 
+[00:51:12.301] [OLLAMA GENERATE] ===== WRAPPED PROMPT END =====
+[00:51:12.301] [OLLAMA GENERATE] Generation complete: 10 tokens in 0.00s
+[00:51:12.301] [OLLAMA GENERATE] Output length: 7 chars
+[00:51:12.301] [OLLAMA GENERATE] Output preview (first 100 chars): Summary
+[00:51:12.303] Successfully connected to Ollama
+[00:51:12.303] [OLLAMA] Connection successful
+[00:51:12.303] Generating text (max_tokens=100, temp=0.3, top_p=0.9)
+[00:51:12.303] 
+[OLLAMA GENERATE] Starting text generation
+[00:51:12.303] [OLLAMA GENERATE] Model: gemma3:1b
+[00:51:12.303] [OLLAMA GENERATE] Max tokens: 100
+[00:51:12.303] [OLLAMA GENERATE] Prompt length: 26 chars
+[00:51:12.303] [OLLAMA GENERATE] Temperature: 0.3, Top P: 0.9
+[00:51:12.303] [PROMPT FORMAT] Detected model type: gemma3 (full name: gemma3:1b)
+[00:51:12.303] [PROMPT FORMAT] Applied Gemma format (raw prompt, no wrapping)
+[00:51:12.303] [OLLAMA GENERATE] Wrapped prompt length: 26 chars
+[00:51:12.303] [OLLAMA GENERATE] ===== ORIGINAL PROMPT START =====
+[00:51:12.303] Summarize this short text.
+[00:51:12.303] [OLLAMA GENERATE] ===== ORIGINAL PROMPT END =====
+[00:51:12.303] [OLLAMA GENERATE] ===== WRAPPED PROMPT START =====
+[00:51:12.303] Summarize this short text.
+[00:51:12.303] [OLLAMA GENERATE] ===== WRAPPED PROMPT END =====
+[00:51:12.303] [OLLAMA GENERATE] Generation complete: 10 tokens in 0.00s
+[00:51:12.303] [OLLAMA GENERATE] Output length: 7 chars
+[00:51:12.303] [OLLAMA GENERATE] Output preview (first 100 chars): Summary
+[00:51:12.457] [PREPROCESSING] Starting pipeline with 4 enabled preprocessors on 0KB text
+[00:51:12.457] [PREPROCESSING] Title Page Remover: 0 changes in 0.0ms
+[00:51:12.457] [PREPROCESSING] Header/Footer Remover: 0 changes in 0.0ms
+[00:51:12.458] [PREPROCESSING] Line Number Remover: 2 changes in 0.0ms
+[00:51:12.458] [PREPROCESSING] Q/A Converter: 2 changes in 0.0ms
+[00:51:12.458] [PREPROCESSING] Pipeline complete: 4 total changes in 1.0ms, output 0KB
+[00:51:12.459] [PREPROCESSING] Starting pipeline with 4 enabled preprocessors on 0KB text
+[00:51:12.459] [PREPROCESSING] Title Page Remover: 0 changes in 0.0ms
+[00:51:12.459] [PREPROCESSING] Header/Footer Remover: 0 changes in 0.0ms
+[00:51:12.459] [PREPROCESSING] Line Number Remover: 2 changes in 0.0ms
+[00:51:12.459] [PREPROCESSING] Q/A Converter: 2 changes in 0.0ms
+[00:51:12.459] [PREPROCESSING] Pipeline complete: 4 total changes in 0.0ms, output 0KB
+[00:51:12.460] [PREPROCESSING] Starting pipeline with 1 enabled preprocessors on 0KB text
+[00:51:12.460] [PREPROCESSING] Line Number Remover: 0 changes in 0.0ms
+[00:51:12.460] [PREPROCESSING] Skipping disabled: Q/A Converter
+[00:51:12.460] [PREPROCESSING] Pipeline complete: 0 total changes in 0.0ms, output 0KB
+[00:51:12.462] [PREPROCESSING] Starting pipeline with 4 enabled preprocessors on 0KB text
+[00:51:12.462] [PREPROCESSING] Title Page Remover: 0 changes in 0.0ms
+[00:51:12.462] [PREPROCESSING] Header/Footer Remover: 0 changes in 0.0ms
+[00:51:12.462] [PREPROCESSING] Line Number Remover: 0 changes in 0.0ms
+[00:51:12.462] [PREPROCESSING] Q/A Converter: 2 changes in 0.0ms
+[00:51:12.462] [PREPROCESSING] Pipeline complete: 2 total changes in 0.0ms, output 0KB
+[00:51:12.466] [ProgressiveSummarizer] Loaded config from C:\Users\noahc\AppData\Local\Temp\pytest-of-noahc\pytest-114\test_generate_summary_metadata0\config\chunking_config.yaml
+[00:51:12.472] [ProgressiveSummarizer] Loaded config from C:\Users\noahc\AppData\Local\Temp\pytest-of-noahc\pytest-114\test_generate_summary_metadata1\config\chunking_config.yaml
+[00:51:12.476] [ProgressiveSummarizer] Loaded config from C:\Users\noahc\AppData\Local\Temp\pytest-of-noahc\pytest-114\test_generate_summary_metadata2\config\chunking_config.yaml
+[00:51:12.484] [ProgressiveSummarizer] Loaded config from C:\Users\noahc\AppData\Local\Temp\pytest-of-noahc\pytest-114\test_generate_summary_metadata3\config\chunking_config.yaml
+[00:51:12.489] [FOCUS] Cache cleared
+[00:51:12.489] [FOCUS] Extracting focus from 'test-preset' via AI...
+[00:51:12.489] [FOCUS] Extracted emphasis: injuries, medical treatment, timeline, damages
+[00:51:12.491] [FOCUS] Cache cleared
+[00:51:12.491] [FOCUS] Extracting focus from 'preset-a' via AI...
+[00:51:12.491] [FOCUS] Extracted emphasis: test focus
+[00:51:12.491] [FOCUS] Using cached focus for 'preset-b' (hash: df3cf034)
+[00:51:12.491] [FOCUS] Cache cleared
+[00:51:12.491] [FOCUS] Extracting focus from 'preset' via AI...
+[00:51:12.491] [FOCUS] Extracted emphasis: test
+[00:51:12.491] [FOCUS] Extracting focus from 'preset' via AI...
+[00:51:12.491] [FOCUS] Extracted emphasis: test
+[00:51:12.494] [FOCUS] Cache cleared
+[00:51:12.494] [FOCUS] Extracting focus from 'test-preset' via AI...
+[00:51:12.494] [ERROR] [FOCUS] AI extraction failed for 'test-preset': Model error
+[00:51:12.494] [FOCUS] Using generic fallback due to error
+[00:51:12.494] [FOCUS] Extracted emphasis: key facts, parties involved, timeline, outcomes, and signifi...
+[00:51:12.495] [FOCUS] Cache cleared
+[00:51:12.495] [FOCUS] Extracting focus from 'preset' via AI...
+[00:51:12.495] [FOCUS] Extracted emphasis: medical records, injury severity, treatment costs, recovery ...
+[00:51:12.496] [FOCUS] Cache cleared
+[00:51:12.496] [FOCUS] Extracting focus from 'preset' via AI...
+[00:51:12.496] [FOCUS] Extracted emphasis: test
+[00:51:12.500] [FOCUS] Cache cleared
+[00:51:12.500] [FOCUS] Extracting focus from 'injuries-focus' via AI...
+[00:51:12.500] [FOCUS] Extracted emphasis: injuries, medical treatment, timeline, damages
+[00:51:12.500] [PROMPT ADAPTER] Cached focus for 'phi-3-mini/injuries-focus'
+[00:51:12.501] [FOCUS] Cache cleared
+[00:51:12.502] [FOCUS] Extracting focus from 'injuries-focus' via AI...
+[00:51:12.502] [FOCUS] Extracted emphasis: injuries, medical treatment, timeline, damages
+[00:51:12.502] [PROMPT ADAPTER] Cached focus for 'phi-3-mini/injuries-focus'
+[00:51:12.503] [FOCUS] Cache cleared
+[00:51:12.503] [FOCUS] Extracting focus from 'injuries-focus' via AI...
+[00:51:12.504] [FOCUS] Extracted emphasis: injuries, medical treatment, timeline, damages
+[00:51:12.504] [PROMPT ADAPTER] Cached focus for 'phi-3-mini/injuries-focus'
+[00:51:12.505] [FOCUS] Cache cleared
+[00:51:12.505] [FOCUS] Extracting focus from 'preset-a' via AI...
+[00:51:12.505] [FOCUS] Extracted emphasis: injuries, medical treatment, timeline, damages
+[00:51:12.505] [PROMPT ADAPTER] Cached focus for 'model-1/preset-a'
+[00:51:12.507] [PROMPT ADAPTER] Cached focus for 'any/any'
+[00:51:12.508] [FOCUS] Cache cleared
+[00:51:12.508] [FOCUS] Extracting focus from 'test' via AI...
+[00:51:12.508] [FOCUS] Extracted emphasis: injuries, medical treatment, timeline, damages
+[00:51:12.508] [PROMPT ADAPTER] Cached focus for 'model/test'
+[00:51:12.508] [PROMPT ADAPTER] Focus cache cleared
+[00:51:12.509] [FOCUS] Cache cleared
+[00:51:12.509] [FOCUS] Extracting focus from 'test' via AI...
+[00:51:12.509] [FOCUS] Extracted emphasis: injuries, medical treatment, timeline, damages
+[00:51:12.509] [PROMPT ADAPTER] Cached focus for 'model/test'
+[00:51:12.528] [QAOrchestrator] Loaded config from C:\Users\noahc\AppData\Local\Temp\pytest-of-noahc\pytest-114\test_question_loading_from_yam0\test_questions.yaml
+[00:51:12.536] [QAOrchestrator] Loaded config from C:\Users\noahc\Dropbox\Not Work\Data Science\CaseSummarizer\config\qa_questions.yaml
+[00:51:12.545] [QAOrchestrator] Loaded config from C:\Users\noahc\Dropbox\Not Work\Data Science\CaseSummarizer\config\qa_questions.yaml
+[00:51:12.553] [QAOrchestrator] Loaded config from C:\Users\noahc\Dropbox\Not Work\Data Science\CaseSummarizer\config\qa_questions.yaml
+[00:51:12.563] [QAOrchestrator] Loaded config from C:\Users\noahc\Dropbox\Not Work\Data Science\CaseSummarizer\config\qa_questions.yaml
+[00:51:12.573] [QAOrchestrator] Loaded config from C:\Users\noahc\Dropbox\Not Work\Data Science\CaseSummarizer\config\qa_questions.yaml
+[00:51:12.577] [QA WORKER] Stop signal received.
+[00:51:12.579] Starting RawTextExtractor initialization...
+[00:51:12.579] Loading legal keywords for jurisdiction: ny
+[00:51:12.579] Loaded 20 legal keywords
+[00:51:12.579] Loading NLTK English words corpus
+[00:51:12.664] Loaded 234377 English words
+[00:51:12.664] RawTextExtractor initialization took 86 ms
+[00:51:12.674] Starting RawTextExtractor initialization...
+[00:51:12.674] Loading legal keywords for jurisdiction: ny
+[00:51:12.674] Loaded 20 legal keywords
+[00:51:12.674] Loading NLTK English words corpus
+[00:51:12.781] Loaded 234377 English words
+[00:51:12.781] RawTextExtractor initialization took 107 ms
+[00:51:12.790] Starting RawTextExtractor initialization...
+[00:51:12.790] Loading legal keywords for jurisdiction: ny
+[00:51:12.790] Loaded 20 legal keywords
+[00:51:12.790] Loading NLTK English words corpus
+[00:51:12.882] Loaded 234377 English words
+[00:51:12.883] RawTextExtractor initialization took 93 ms
+[00:51:12.892] Starting RawTextExtractor initialization...
+[00:51:12.892] Loading legal keywords for jurisdiction: ny
+[00:51:12.892] Loaded 20 legal keywords
+[00:51:12.892] Loading NLTK English words corpus
+[00:51:12.978] Loaded 234377 English words
+[00:51:12.978] RawTextExtractor initialization took 87 ms
+[00:51:12.979] Applying text normalization rules
+[00:51:12.979]   Stage 1: De-hyphenation
+[00:51:12.980]     ✅ SUCCESS (0.001s) - Rejoin hyphenated words
+[00:51:12.980]        Input: 70 | Output: 70 | Delta: +0
+[00:51:12.980]   Stage 2: Page number removal
+[00:51:12.980]     ✅ SUCCESS (0.000s) - Removed 0 page markers
+[00:51:12.980]        Input: 70 | Output: 70 | Delta: +0
+[00:51:12.980]   Stage 3: Line filtering
+[00:51:12.980]     ✅ SUCCESS (0.000s) - Filtered 1 lines
+[00:51:12.980]        Input: 70 | Output: 64 | Delta: -6
+[00:51:12.980]   Stage 4: Whitespace normalization
+[00:51:12.980]     ✅ SUCCESS (0.000s) - Normalize whitespace
+[00:51:12.980]        Input: 64 | Output: 64 | Delta: +0
+[00:51:12.989] Starting RawTextExtractor initialization...
+[00:51:12.989] Loading legal keywords for jurisdiction: ny
+[00:51:12.989] Loaded 20 legal keywords
+[00:51:12.989] Loading NLTK English words corpus
+[00:51:13.081] Loaded 234377 English words
+[00:51:13.081] RawTextExtractor initialization took 92 ms
+[00:51:13.082] Applying text normalization rules
+[00:51:13.082]   Stage 1: De-hyphenation
+[00:51:13.082]     ✅ SUCCESS (0.000s) - Rejoin hyphenated words
+[00:51:13.082]        Input: 52 | Output: 52 | Delta: +0
+[00:51:13.082]   Stage 2: Page number removal
+[00:51:13.082]     ✅ SUCCESS (0.000s) - Removed 0 page markers
+[00:51:13.082]        Input: 52 | Output: 52 | Delta: +0
+[00:51:13.082]   Stage 3: Line filtering
+[00:51:13.082]     ✅ SUCCESS (0.000s) - Filtered 0 lines
+[00:51:13.082]        Input: 52 | Output: 52 | Delta: +0
+[00:51:13.082]   Stage 4: Whitespace normalization
+[00:51:13.082]     ✅ SUCCESS (0.000s) - Normalize whitespace
+[00:51:13.082]        Input: 52 | Output: 52 | Delta: +0
+[00:51:13.091] Starting RawTextExtractor initialization...
+[00:51:13.091] Loading legal keywords for jurisdiction: ny
+[00:51:13.091] Loaded 20 legal keywords
+[00:51:13.092] Loading NLTK English words corpus
+[00:51:13.191] Loaded 234377 English words
+[00:51:13.191] RawTextExtractor initialization took 100 ms
+[00:51:13.192] Applying text normalization rules
+[00:51:13.192]   Stage 1: De-hyphenation
+[00:51:13.192]     ✅ SUCCESS (0.000s) - Rejoin hyphenated words
+[00:51:13.192]        Input: 34 | Output: 32 | Delta: -2
+[00:51:13.192]   Stage 2: Page number removal
+[00:51:13.192]     ✅ SUCCESS (0.000s) - Removed 0 page markers
+[00:51:13.192]        Input: 32 | Output: 32 | Delta: +0
+[00:51:13.192]   Stage 3: Line filtering
+[00:51:13.192]     ✅ SUCCESS (0.000s) - Filtered 0 lines
+[00:51:13.192]        Input: 32 | Output: 32 | Delta: +0
+[00:51:13.192]   Stage 4: Whitespace normalization
+[00:51:13.192]     ✅ SUCCESS (0.000s) - Normalize whitespace
+[00:51:13.192]        Input: 32 | Output: 32 | Delta: +0
+[00:51:13.201] Starting RawTextExtractor initialization...
+[00:51:13.202] Loading legal keywords for jurisdiction: ny
+[00:51:13.202] Loaded 20 legal keywords
+[00:51:13.202] Loading NLTK English words corpus
+[00:51:13.288] Loaded 234377 English words
+[00:51:13.288] RawTextExtractor initialization took 85 ms
+[00:51:13.288] Applying text normalization rules
+[00:51:13.289]   Stage 1: De-hyphenation
+[00:51:13.289]     ✅ SUCCESS (0.000s) - Rejoin hyphenated words
+[00:51:13.289]        Input: 17 | Output: 17 | Delta: +0
+[00:51:13.289]   Stage 2: Page number removal
+[00:51:13.289]     ✅ SUCCESS (0.000s) - Removed 0 page markers
+[00:51:13.289]        Input: 17 | Output: 17 | Delta: +0
+[00:51:13.289]   Stage 3: Line filtering
+[00:51:13.289]     ✅ SUCCESS (0.000s) - Filtered 6 lines
+[00:51:13.289]        Input: 17 | Output: 0 | Delta: -17
+[00:51:13.289]   Stage 4: Whitespace normalization
+[00:51:13.289]     ✅ SUCCESS (0.000s) - Normalize whitespace
+[00:51:13.289]        Input: 0 | Output: 0 | Delta: +0
+[00:51:13.299] Starting RawTextExtractor initialization...
+[00:51:13.300] Loading legal keywords for jurisdiction: ny
+[00:51:13.300] Loaded 20 legal keywords
+[00:51:13.300] Loading NLTK English words corpus
+[00:51:13.383] Loaded 234377 English words
+[00:51:13.384] RawTextExtractor initialization took 85 ms
+[00:51:13.384] [INFO] Processing document: nonexistent_file.pdf
+[00:51:13.384] Starting Processing nonexistent_file.pdf...
+[00:51:13.384] [ERROR] File not found: nonexistent_file.pdf
+[00:51:13.384] Processing nonexistent_file.pdf took 0 ms
+[00:51:13.394] Starting RawTextExtractor initialization...
+[00:51:13.394] Loading legal keywords for jurisdiction: ny
+[00:51:13.394] Loaded 20 legal keywords
+[00:51:13.394] Loading NLTK English words corpus
+[00:51:13.477] Loaded 234377 English words
+[00:51:13.477] RawTextExtractor initialization took 83 ms
+[00:51:13.479] [INFO] Processing document: test.docx
+[00:51:13.479] Starting Processing test.docx...
+[00:51:13.479] [ERROR] Unsupported file type: .docx. Supported formats: PDF, TXT, RTF
+[00:51:13.479] Processing test.docx took 0 ms
+[00:51:13.488] Starting RawTextExtractor initialization...
+[00:51:13.488] Loading legal keywords for jurisdiction: ny
+[00:51:13.488] Loaded 20 legal keywords
+[00:51:13.488] Loading NLTK English words corpus
+[00:51:13.568] Loaded 234377 English words
+[00:51:13.568] RawTextExtractor initialization took 79 ms
+[00:51:13.573] [INFO] Processing document: test.txt
+[00:51:13.574] Starting Processing test.txt...
+[00:51:13.574] Processing as text file: test.txt
+[00:51:13.574] Text file dictionary confidence: 78.6%
+[00:51:13.574] Starting Text normalization...
+[00:51:13.574] Applying text normalization rules
+[00:51:13.574]   Stage 1: De-hyphenation
+[00:51:13.574]     ✅ SUCCESS (0.000s) - Rejoin hyphenated words
+[00:51:13.574]        Input: 97 | Output: 97 | Delta: +0
+[00:51:13.574]   Stage 2: Page number removal
+[00:51:13.574]     ✅ SUCCESS (0.000s) - Removed 0 page markers
+[00:51:13.574]        Input: 97 | Output: 97 | Delta: +0
+[00:51:13.574]   Stage 3: Line filtering
+[00:51:13.574]     ✅ SUCCESS (0.000s) - Filtered 0 lines
+[00:51:13.574]        Input: 97 | Output: 97 | Delta: +0
+[00:51:13.574]   Stage 4: Whitespace normalization
+[00:51:13.574]     ✅ SUCCESS (0.000s) - Normalize whitespace
+[00:51:13.574]        Input: 97 | Output: 97 | Delta: +0
+[00:51:13.574] Text normalization took 0 ms
+[00:51:13.574] Starting Character sanitization...
+[00:51:13.575] Character sanitization took 1 ms
+[00:51:13.575] DEBUG_EXTRACTOR: Final result for test.txt - file_size: 99, page_count: None
+[00:51:13.575] Processing test.txt took 1 ms
+[00:51:13.584] Starting RawTextExtractor initialization...
+[00:51:13.584] Loading legal keywords for jurisdiction: ny
+[00:51:13.584] Loaded 20 legal keywords
+[00:51:13.584] Loading NLTK English words corpus
+[00:51:13.679] Loaded 234377 English words
+[00:51:13.679] RawTextExtractor initialization took 95 ms
+[00:51:13.680] Applying text normalization rules
+[00:51:13.680]   Stage 1: De-hyphenation
+[00:51:13.680]     ✅ SUCCESS (0.000s) - Rejoin hyphenated words
+[00:51:13.680]        Input: 44 | Output: 44 | Delta: +0
+[00:51:13.680]   Stage 2: Page number removal
+[00:51:13.680]     Removed page number: Page 1
+[00:51:13.680]     ✅ SUCCESS (0.000s) - Removed 1 page markers
+[00:51:13.680]        Input: 44 | Output: 37 | Delta: -7
+[00:51:13.680]   Stage 3: Line filtering
+[00:51:13.680]     ✅ SUCCESS (0.000s) - Filtered 0 lines
+[00:51:13.680]        Input: 37 | Output: 37 | Delta: +0
+[00:51:13.680]   Stage 4: Whitespace normalization
+[00:51:13.680]     ✅ SUCCESS (0.000s) - Normalize whitespace
+[00:51:13.680]        Input: 37 | Output: 37 | Delta: +0
+[00:51:13.689] Starting RawTextExtractor initialization...
+[00:51:13.689] Loading legal keywords for jurisdiction: ny
+[00:51:13.689] Loaded 20 legal keywords
+[00:51:13.689] Loading NLTK English words corpus
+[00:51:13.788] Loaded 234377 English words
+[00:51:13.788] RawTextExtractor initialization took 99 ms
+[00:51:13.789] Applying text normalization rules
+[00:51:13.789]   Stage 1: De-hyphenation
+[00:51:13.789]     ✅ SUCCESS (0.000s) - Rejoin hyphenated words
+[00:51:13.789]        Input: 44 | Output: 44 | Delta: +0
+[00:51:13.789]   Stage 2: Page number removal
+[00:51:13.789]     Removed page number: Page 1 of 10
+[00:51:13.789]     ✅ SUCCESS (0.000s) - Removed 1 page markers
+[00:51:13.789]        Input: 44 | Output: 31 | Delta: -13
+[00:51:13.789]   Stage 3: Line filtering
+[00:51:13.789]     ✅ SUCCESS (0.000s) - Filtered 2 lines
+[00:51:13.789]        Input: 31 | Output: 0 | Delta: -31
+[00:51:13.789]   Stage 4: Whitespace normalization
+[00:51:13.789]     ✅ SUCCESS (0.000s) - Normalize whitespace
+[00:51:13.789]        Input: 0 | Output: 0 | Delta: +0
+[00:51:13.799] Starting RawTextExtractor initialization...
+[00:51:13.799] Loading legal keywords for jurisdiction: ny
+[00:51:13.799] Loaded 20 legal keywords
+[00:51:13.799] Loading NLTK English words corpus
+[00:51:13.892] Loaded 234377 English words
+[00:51:13.892] RawTextExtractor initialization took 93 ms
+[00:51:13.893] Applying text normalization rules
+[00:51:13.893]   Stage 1: De-hyphenation
+[00:51:13.893]     ✅ SUCCESS (0.000s) - Rejoin hyphenated words
+[00:51:13.893]        Input: 40 | Output: 40 | Delta: +0
+[00:51:13.893]   Stage 2: Page number removal
+[00:51:13.893]     Removed page number: - 5 -
+[00:51:13.893]     ✅ SUCCESS (0.000s) - Removed 1 page markers
+[00:51:13.893]        Input: 40 | Output: 34 | Delta: -6
+[00:51:13.893]   Stage 3: Line filtering
+[00:51:13.893]     ✅ SUCCESS (0.000s) - Filtered 0 lines
+[00:51:13.893]        Input: 34 | Output: 34 | Delta: +0
+[00:51:13.893]   Stage 4: Whitespace normalization
+[00:51:13.893]     ✅ SUCCESS (0.000s) - Normalize whitespace
+[00:51:13.893]        Input: 34 | Output: 34 | Delta: +0
+[00:51:13.902] Starting RawTextExtractor initialization...
+[00:51:13.902] Loading legal keywords for jurisdiction: ny
+[00:51:13.902] Loaded 20 legal keywords
+[00:51:13.902] Loading NLTK English words corpus
+[00:51:13.993] Loaded 234377 English words
+[00:51:13.993] RawTextExtractor initialization took 91 ms
+[00:51:13.994] Applying text normalization rules
+[00:51:13.994]   Stage 1: De-hyphenation
+[00:51:13.994]     ✅ SUCCESS (0.000s) - Rejoin hyphenated words
+[00:51:13.994]        Input: 54 | Output: 54 | Delta: +0
+[00:51:13.994]   Stage 2: Page number removal
+[00:51:13.994]     Removed page number: 42
+[00:51:13.994]     ✅ SUCCESS (0.000s) - Removed 1 page markers
+[00:51:13.994]        Input: 54 | Output: 51 | Delta: -3
+[00:51:13.994]   Stage 3: Line filtering
+[00:51:13.994]     ✅ SUCCESS (0.000s) - Filtered 0 lines
+[00:51:13.994]        Input: 51 | Output: 51 | Delta: +0
+[00:51:13.994]   Stage 4: Whitespace normalization
+[00:51:13.994]     ✅ SUCCESS (0.000s) - Normalize whitespace
+[00:51:13.994]        Input: 51 | Output: 51 | Delta: +0
+[00:51:14.004] Starting RawTextExtractor initialization...
+[00:51:14.004] Loading legal keywords for jurisdiction: ny
+[00:51:14.004] Loaded 20 legal keywords
+[00:51:14.004] Loading NLTK English words corpus
+[00:51:14.104] Loaded 234377 English words
+[00:51:14.104] RawTextExtractor initialization took 101 ms
+[00:51:14.114] Starting RawTextExtractor initialization...
+[00:51:14.114] Loading legal keywords for jurisdiction: ny
+[00:51:14.114] Loaded 20 legal keywords
+[00:51:14.114] Loading NLTK English words corpus
+[00:51:14.203] Loaded 234377 English words
+[00:51:14.203] RawTextExtractor initialization took 89 ms
+[00:51:14.213] Starting RawTextExtractor initialization...
+[00:51:14.213] Loading legal keywords for jurisdiction: ny
+[00:51:14.213] Loaded 20 legal keywords
+[00:51:14.213] Loading NLTK English words corpus
+[00:51:14.304] Loaded 234377 English words
+[00:51:14.305] RawTextExtractor initialization took 92 ms
+[00:51:14.314] Starting RawTextExtractor initialization...
+[00:51:14.314] Loading legal keywords for jurisdiction: ny
+[00:51:14.315] Loaded 20 legal keywords
+[00:51:14.315] Loading NLTK English words corpus
+[00:51:14.404] Loaded 234377 English words
+[00:51:14.405] RawTextExtractor initialization took 91 ms
+[00:51:14.407] [INFO] Processing document: test.txt
+[00:51:14.407] Starting Processing test.txt...
+[00:51:14.407] Processing as text file: test.txt
+[00:51:14.408] Text file dictionary confidence: 88.9%
+[00:51:14.408] Found case numbers: ['Index No. 654321/2024']
+[00:51:14.408] Starting Text normalization...
+[00:51:14.408] Applying text normalization rules
+[00:51:14.408]   Stage 1: De-hyphenation
+[00:51:14.408]     ✅ SUCCESS (0.000s) - Rejoin hyphenated words
+[00:51:14.408]        Input: 69 | Output: 69 | Delta: +0
+[00:51:14.408]   Stage 2: Page number removal
+[00:51:14.408]     ✅ SUCCESS (0.000s) - Removed 0 page markers
+[00:51:14.408]        Input: 69 | Output: 69 | Delta: +0
+[00:51:14.408]   Stage 3: Line filtering
+[00:51:14.408]     ✅ SUCCESS (0.000s) - Filtered 1 lines
+[00:51:14.408]        Input: 69 | Output: 47 | Delta: -22
+[00:51:14.408]   Stage 4: Whitespace normalization
+[00:51:14.408]     ✅ SUCCESS (0.000s) - Normalize whitespace
+[00:51:14.408]        Input: 47 | Output: 47 | Delta: +0
+[00:51:14.408] Text normalization took 0 ms
+[00:51:14.408] Starting Character sanitization...
+[00:51:14.408] Character sanitization took 0 ms
+[00:51:14.408] DEBUG_EXTRACTOR: Final result for test.txt - file_size: 71, page_count: None
+[00:51:14.408] Processing test.txt took 1 ms
+[00:51:14.416] Starting RawTextExtractor initialization...
+[00:51:14.416] Loading legal keywords for jurisdiction: ny
+[00:51:14.416] Loaded 20 legal keywords
+[00:51:14.416] Loading NLTK English words corpus
+[00:51:14.502] Loaded 234377 English words
+[00:51:14.502] RawTextExtractor initialization took 86 ms
+[00:51:14.504] [INFO] Processing document: test.txt
+[00:51:14.504] Starting Processing test.txt...
+[00:51:14.506] Processing as text file: test.txt
+[00:51:14.506] Text file dictionary confidence: 80.0%
+[00:51:14.506] Starting Text normalization...
+[00:51:14.506] Applying text normalization rules
+[00:51:14.506]   Stage 1: De-hyphenation
+[00:51:14.506]     ✅ SUCCESS (0.000s) - Rejoin hyphenated words
+[00:51:14.506]        Input: 35 | Output: 35 | Delta: +0
+[00:51:14.506]   Stage 2: Page number removal
+[00:51:14.506]     ✅ SUCCESS (0.000s) - Removed 0 page markers
+[00:51:14.506]        Input: 35 | Output: 35 | Delta: +0
+[00:51:14.506]   Stage 3: Line filtering
+[00:51:14.506]     ✅ SUCCESS (0.000s) - Filtered 0 lines
+[00:51:14.506]        Input: 35 | Output: 35 | Delta: +0
+[00:51:14.506]   Stage 4: Whitespace normalization
+[00:51:14.506]     ✅ SUCCESS (0.000s) - Normalize whitespace
+[00:51:14.506]        Input: 35 | Output: 35 | Delta: +0
+[00:51:14.506] Text normalization took 0 ms
+[00:51:14.506] Starting Character sanitization...
+[00:51:14.506] Character sanitization took 0 ms
+[00:51:14.506] DEBUG_EXTRACTOR: Final result for test.txt - file_size: 35, page_count: None
+[00:51:14.506] Processing test.txt took 1 ms
+[00:51:14.514] Starting RawTextExtractor initialization...
+[00:51:14.514] Loading legal keywords for jurisdiction: ny
+[00:51:14.514] Loaded 20 legal keywords
+[00:51:14.514] Loading NLTK English words corpus
+[00:51:14.601] Loaded 234377 English words
+[00:51:14.601] RawTextExtractor initialization took 87 ms
+[00:51:14.606] [INFO] Processing document: test.txt
+[00:51:14.607] Starting Processing test.txt...
+[00:51:14.607] Processing as text file: test.txt
+[00:51:14.607] Text file dictionary confidence: 80.0%
+[00:51:14.607] Starting Text normalization...
+[00:51:14.607] Applying text normalization rules
+[00:51:14.607]   Stage 1: De-hyphenation
+[00:51:14.607]     ✅ SUCCESS (0.000s) - Rejoin hyphenated words
+[00:51:14.607]        Input: 99 | Output: 99 | Delta: +0
+[00:51:14.607]   Stage 2: Page number removal
+[00:51:14.607]     ✅ SUCCESS (0.000s) - Removed 0 page markers
+[00:51:14.607]        Input: 99 | Output: 99 | Delta: +0
+[00:51:14.607]   Stage 3: Line filtering
+[00:51:14.615]     ✅ SUCCESS (0.008s) - Filtered 0 lines
+[00:51:14.615]        Input: 99 | Output: 99 | Delta: +0
+[00:51:14.615]   Stage 4: Whitespace normalization
+[00:51:14.615]     ✅ SUCCESS (0.000s) - Normalize whitespace
+[00:51:14.615]        Input: 99 | Output: 99 | Delta: +0
+[00:51:14.615] Text normalization took 8 ms
+[00:51:14.615] Starting Character sanitization...
+[00:51:14.615] Character sanitization took 0 ms
+[00:51:14.615] DEBUG_EXTRACTOR: Final result for test.txt - file_size: 99, page_count: None
+[00:51:14.615] Processing test.txt took 8 ms
+[00:51:14.625] Starting RawTextExtractor initialization...
+[00:51:14.625] Loading legal keywords for jurisdiction: ny
+[00:51:14.625] Loaded 20 legal keywords
+[00:51:14.625] Loading NLTK English words corpus
+[00:51:14.731] Loaded 234377 English words
+[00:51:14.731] RawTextExtractor initialization took 105 ms
+[00:51:14.733] [INFO] Processing document: test.docx
+[00:51:14.734] Starting Processing test.docx...
+[00:51:14.734] [ERROR] Unsupported file type: .docx. Supported formats: PDF, TXT, RTF
+[00:51:14.734] Processing test.docx took 0 ms
+[00:51:14.744] Starting RawTextExtractor initialization...
+[00:51:14.745] Loading legal keywords for jurisdiction: ny
+[00:51:14.745] Loaded 20 legal keywords
+[00:51:14.745] Loading NLTK English words corpus
+[00:51:14.841] Loaded 234377 English words
+[00:51:14.841] RawTextExtractor initialization took 96 ms
+[00:51:14.845] [INFO] Processing document: test.rtf
+[00:51:14.846] Starting Processing test.rtf...
+[00:51:14.846] Processing as text file: test.rtf
+[00:51:14.855] Extracted 112 characters from RTF
+[00:51:14.855] Text file dictionary confidence: 94.7%
+[00:51:14.855] Starting Text normalization...
+[00:51:14.855] Applying text normalization rules
+[00:51:14.855]   Stage 1: De-hyphenation
+[00:51:14.855]     ✅ SUCCESS (0.000s) - Rejoin hyphenated words
+[00:51:14.855]        Input: 112 | Output: 112 | Delta: +0
+[00:51:14.855]   Stage 2: Page number removal
+[00:51:14.855]     ✅ SUCCESS (0.000s) - Removed 0 page markers
+[00:51:14.855]        Input: 112 | Output: 112 | Delta: +0
+[00:51:14.855]   Stage 3: Line filtering
+[00:51:14.855]     ✅ SUCCESS (0.000s) - Filtered 2 lines
+[00:51:14.855]        Input: 112 | Output: 110 | Delta: -2
+[00:51:14.855]   Stage 4: Whitespace normalization
+[00:51:14.855]     ✅ SUCCESS (0.000s) - Normalize whitespace
+[00:51:14.855]        Input: 110 | Output: 110 | Delta: +0
+[00:51:14.855] Text normalization took 0 ms
+[00:51:14.855] Starting Character sanitization...
+[00:51:14.855] Character sanitization took 0 ms
+[00:51:14.855] DEBUG_EXTRACTOR: Final result for test.rtf - file_size: 201, page_count: None
+[00:51:14.855] Processing test.rtf took 9 ms
+[00:51:14.865] Starting RawTextExtractor initialization...
+[00:51:14.865] Loading legal keywords for jurisdiction: ny
+[00:51:14.865] Loaded 20 legal keywords
+[00:51:14.865] Loading NLTK English words corpus
+[00:51:14.968] Loaded 234377 English words
+[00:51:14.968] RawTextExtractor initialization took 103 ms
+[00:51:14.972] [INFO] Processing document: test_special.rtf
+[00:51:14.972] Starting Processing test_special.rtf...
+[00:51:14.972] Processing as text file: test_special.rtf
+[00:51:14.973] Extracted 78 characters from RTF
+[00:51:14.973] Text file dictionary confidence: 92.3%
+[00:51:14.973] Starting Text normalization...
+[00:51:14.973] Applying text normalization rules
+[00:51:14.973]   Stage 1: De-hyphenation
+[00:51:14.973]     ✅ SUCCESS (0.000s) - Rejoin hyphenated words
+[00:51:14.973]        Input: 78 | Output: 78 | Delta: +0
+[00:51:14.973]   Stage 2: Page number removal
+[00:51:14.974]     ✅ SUCCESS (0.000s) - Removed 0 page markers
+[00:51:14.974]        Input: 78 | Output: 78 | Delta: +0
+[00:51:14.974]   Stage 3: Line filtering
+[00:51:14.974]     ✅ SUCCESS (0.000s) - Filtered 1 lines
+[00:51:14.974]        Input: 78 | Output: 77 | Delta: -1
+[00:51:14.974]   Stage 4: Whitespace normalization
+[00:51:14.974]     ✅ SUCCESS (0.000s) - Normalize whitespace
+[00:51:14.974]        Input: 77 | Output: 77 | Delta: +0
+[00:51:14.974] Text normalization took 1 ms
+[00:51:14.974] Starting Character sanitization...
+[00:51:14.975] Character sanitization stats: {'chars_removed': 0, 'mojibake_fixed': 3, 'control_chars_removed': 0, 'redactions_replaced': 0, 'private_use_removed': 0, 'transliterations': 0}
+[00:51:14.975]   - Stage 1: Mojibake recovery (ftfy)
+[00:51:14.975]   - Fixed 3 mojibake/encoding corruption characters
+[00:51:14.975]   -   ✅ SUCCESS (0.000s) - Fixed 3 chars
+[00:51:14.975]   -      Input: 77 | Output: 77 | Delta: +0
+[00:51:14.975]   - Stage 2: Unicode normalization (NFKC)
+[00:51:14.975]   -   ✅ SUCCESS (0.000s)
+[00:51:14.975]   -      Input: 77 | Output: 77 | Delta: +0
+[00:51:14.975]   - Stage 3: Transliteration (accent conversion)
+[00:51:14.975]   -   ✅ SUCCESS (0.000s) - Transliterated 0 chars
+[00:51:14.975]   -      Input: 77 | Output: 77 | Delta: +0
+[00:51:14.975]   - Stage 4: Redaction handling
+[00:51:14.975]   -   ✅ SUCCESS (0.000s) - Replaced 0 redaction chars
+[00:51:14.975]   -      Input: 77 | Output: 77 | Delta: +0
+[00:51:14.975]   - Stage 5: Problematic character removal
+[00:51:14.975]   -   ✅ SUCCESS (0.001s) - Removed 0 control + 0 private-use chars
+[00:51:14.975]   -      Input: 77 | Output: 77 | Delta: +0
+[00:51:14.975]   - Stage 6: Whitespace normalization
+[00:51:14.975]   -   ✅ SUCCESS (0.000s)
+[00:51:14.975]   -      Input: 77 | Output: 77 | Delta: +0
+[00:51:14.975] Character sanitization took 1 ms
+[00:51:14.975] DEBUG_EXTRACTOR: Final result for test_special.rtf - file_size: 129, page_count: None
+[00:51:14.975] Processing test_special.rtf took 3 ms
+[00:51:14.985] Starting RawTextExtractor initialization...
+[00:51:14.985] Loading legal keywords for jurisdiction: ny
+[00:51:14.985] Loaded 20 legal keywords
+[00:51:14.985] Loading NLTK English words corpus
+[00:51:15.090] Loaded 234377 English words
+[00:51:15.090] RawTextExtractor initialization took 105 ms
+[00:51:15.091] [INFO] Processing document: test_motion.rtf
+[00:51:15.092] Starting Processing test_motion.rtf...
+[00:51:15.092] Processing as text file: test_motion.rtf
+[00:51:15.094] Extracted 1921 characters from RTF
+[00:51:15.095] Text file dictionary confidence: 87.4%
+[00:51:15.095] Found case numbers: ['Index No. 54321/2024']
+[00:51:15.095] Starting Text normalization...
+[00:51:15.095] Applying text normalization rules
+[00:51:15.095]   Stage 1: De-hyphenation
+[00:51:15.095]     ✅ SUCCESS (0.000s) - Rejoin hyphenated words
+[00:51:15.095]        Input: 1921 | Output: 1918 | Delta: -3
+[00:51:15.095]   Stage 2: Page number removal
+[00:51:15.096]     ✅ SUCCESS (0.001s) - Removed 0 page markers
+[00:51:15.096]        Input: 1918 | Output: 1918 | Delta: +0
+[00:51:15.096]   Stage 3: Line filtering
+[00:51:15.096]     ✅ SUCCESS (0.000s) - Filtered 34 lines
+[00:51:15.096]        Input: 1918 | Output: 1663 | Delta: -255
+[00:51:15.096]   Stage 4: Whitespace normalization
+[00:51:15.096]     ✅ SUCCESS (0.000s) - Normalize whitespace
+[00:51:15.096]        Input: 1663 | Output: 1663 | Delta: +0
+[00:51:15.097] Text normalization took 2 ms
+[00:51:15.097] Starting Character sanitization...
+[00:51:15.099] Character sanitization stats: {'chars_removed': 0, 'mojibake_fixed': 4, 'control_chars_removed': 0, 'redactions_replaced': 0, 'private_use_removed': 0, 'transliterations': 0}
+[00:51:15.099]   - Stage 1: Mojibake recovery (ftfy)
+[00:51:15.099]   - Fixed 4 mojibake/encoding corruption characters
+[00:51:15.099]   -   ✅ SUCCESS (0.001s) - Fixed 4 chars
+[00:51:15.099]   -      Input: 1663 | Output: 1663 | Delta: +0
+[00:51:15.099]   - Stage 2: Unicode normalization (NFKC)
+[00:51:15.099]   -   ✅ SUCCESS (0.000s)
+[00:51:15.099]   -      Input: 1663 | Output: 1663 | Delta: +0
+[00:51:15.099]   - Stage 3: Transliteration (accent conversion)
+[00:51:15.099]   -   ✅ SUCCESS (0.000s) - Transliterated 0 chars
+[00:51:15.099]   -      Input: 1663 | Output: 1663 | Delta: +0
+[00:51:15.099]   - Stage 4: Redaction handling
+[00:51:15.099]   -   ✅ SUCCESS (0.000s) - Replaced 0 redaction chars
+[00:51:15.099]   -      Input: 1663 | Output: 1663 | Delta: +0
+[00:51:15.099]   - Stage 5: Problematic character removal
+[00:51:15.099]   -   ✅ SUCCESS (0.000s) - Removed 0 control + 0 private-use chars
+[00:51:15.099]   -      Input: 1663 | Output: 1663 | Delta: +0
+[00:51:15.099]   - Stage 6: Whitespace normalization
+[00:51:15.099]   -   ✅ SUCCESS (0.001s)
+[00:51:15.099]   -      Input: 1663 | Output: 1654 | Delta: -9
+[00:51:15.099] Character sanitization took 2 ms
+[00:51:15.099] DEBUG_EXTRACTOR: Final result for test_motion.rtf - file_size: 2470, page_count: None
+[00:51:15.099] Processing test_motion.rtf took 7 ms
+[00:51:15.116] [VOCAB] Loaded 4 words from C:\Users\noahc\Dropbox\Not Work\Data Science\CaseSummarizer\tests\test_legal_exclude.txt
+[00:51:15.117] [VOCAB] Loaded 3 words from C:\Users\noahc\Dropbox\Not Work\Data Science\CaseSummarizer\tests\test_medical_terms.txt
+[00:51:15.118] [VOCAB] Loaded 126 words from C:\Users\noahc\Dropbox\Not Work\Data Science\CaseSummarizer\config\common_medical_legal.txt
+[00:51:15.385] [VOCAB] Loaded 333333 words from frequency dataset
+[00:51:15.522] [VOCAB] Built rank map for 333333 words
+[00:51:15.531] [VOCAB] BM25 skipped: corpus has 0/5 documents
+[00:51:15.543] [VOCAB] Loaded 4 words from C:\Users\noahc\Dropbox\Not Work\Data Science\CaseSummarizer\tests\test_legal_exclude.txt
+[00:51:15.544] [VOCAB] Loaded 3 words from C:\Users\noahc\Dropbox\Not Work\Data Science\CaseSummarizer\tests\test_medical_terms.txt
+[00:51:15.545] [VOCAB] Loaded 126 words from C:\Users\noahc\Dropbox\Not Work\Data Science\CaseSummarizer\config\common_medical_legal.txt
+[00:51:15.832] [VOCAB] Loaded 333333 words from frequency dataset
+[00:51:15.943] [VOCAB] Built rank map for 333333 words
+[00:51:15.951] [VOCAB] BM25 skipped: corpus has 0/5 documents
+[00:51:15.963] [VOCAB] Loaded 4 words from C:\Users\noahc\Dropbox\Not Work\Data Science\CaseSummarizer\tests\test_legal_exclude.txt
+[00:51:15.964] [VOCAB] Loaded 3 words from C:\Users\noahc\Dropbox\Not Work\Data Science\CaseSummarizer\tests\test_medical_terms.txt
+[00:51:15.964] [VOCAB] Loaded 126 words from C:\Users\noahc\Dropbox\Not Work\Data Science\CaseSummarizer\config\common_medical_legal.txt
+[00:51:16.199] [VOCAB] Loaded 333333 words from frequency dataset
+[00:51:16.295] [VOCAB] Built rank map for 333333 words
+[00:51:16.303] [VOCAB] BM25 skipped: corpus has 0/5 documents
+[00:51:16.315] [VOCAB] Loaded 4 words from C:\Users\noahc\Dropbox\Not Work\Data Science\CaseSummarizer\tests\test_legal_exclude.txt
+[00:51:16.315] [VOCAB] Loaded 3 words from C:\Users\noahc\Dropbox\Not Work\Data Science\CaseSummarizer\tests\test_medical_terms.txt
+[00:51:16.316] [VOCAB] Loaded 126 words from C:\Users\noahc\Dropbox\Not Work\Data Science\CaseSummarizer\config\common_medical_legal.txt
+[00:51:16.523] [VOCAB] Loaded 333333 words from frequency dataset
+[00:51:16.621] [VOCAB] Built rank map for 333333 words
+[00:51:16.631] [VOCAB] BM25 skipped: corpus has 0/5 documents
+[00:51:16.632] [VOCAB] Starting multi-algorithm extraction on 0KB document
+[00:51:16.632] [VOCAB] Running NER algorithm...
+[00:51:17.886] [NER] Loaded spaCy model: en_core_web_lg
+[00:51:17.902] [VOCAB] NER: 6 candidates in 1270.1ms
+[00:51:17.902] [VOCAB] Running RAKE algorithm...
+[00:51:18.096] [RAKE] Extracted 6 phrases from 16 raw (filtered: 9 low-score, 0 low-freq, 0 invalid) in 194.3ms
+[00:51:18.096] [VOCAB] RAKE: 6 candidates in 194.3ms
+[00:51:18.096] [VOCAB] Merging results from 2 algorithms...
+[00:51:18.096] [VOCAB] After merge: 8 unique terms
+[00:51:18.096] [VOCAB] Post-processing (doc_count=1, doc_confidence=100.0%)...
+[00:51:18.101] [VOCAB] After post-process: 4 terms
+[00:51:18.102] [VOCAB] Deduplicating similar Person names...
+[00:51:18.102] [DEDUP] Processing 2 Person terms for deduplication
+[00:51:18.102] [VOCAB] After deduplication: 4 terms
+[00:51:18.102] [VOCAB] Filtering substring artifacts...
+[00:51:18.103] [ARTIFACT-FILTER] Using 4 canonical terms
+[00:51:18.103] [ARTIFACT-FILTER] Removed 0 artifacts, 4 terms remaining
+[00:51:18.103] [VOCAB] After artifact filter: 4 terms
+[00:51:18.103] [VOCAB] Filtering common phrase components...
+[00:51:18.403] [RARITY] Loaded 333333 words, max freq: 23,135,851,162
+[00:51:18.407] [RARITY] Filtering 'Mayo clinic': mean_common=0.67 > 0.65
+[00:51:18.407] [RARITY] Filtered 1/4 phrases with common component words
+[00:51:18.407] [VOCAB] After phrase filter: 3 terms
+[00:51:18.407] [VOCAB] Filtering gibberish terms...
+[00:51:19.798] [VOCAB] Filtered gibberish: 'cardiomyopathy'
+[00:51:19.798] [VOCAB] Final vocabulary: 2 terms
+[00:51:19.798] [VOCAB] Sorting by Quality Score (highest first)
+[00:51:19.813] [VOCAB] Loaded 4 words from C:\Users\noahc\Dropbox\Not Work\Data Science\CaseSummarizer\tests\test_legal_exclude.txt
+[00:51:19.814] [VOCAB] Loaded 3 words from C:\Users\noahc\Dropbox\Not Work\Data Science\CaseSummarizer\tests\test_medical_terms.txt
+[00:51:19.814] [VOCAB] Loaded 126 words from C:\Users\noahc\Dropbox\Not Work\Data Science\CaseSummarizer\config\common_medical_legal.txt
+[00:51:20.021] [VOCAB] Loaded 333333 words from frequency dataset
+[00:51:20.132] [VOCAB] Built rank map for 333333 words
+[00:51:20.140] [VOCAB] BM25 skipped: corpus has 0/5 documents
+[00:51:20.141] [VOCAB] Starting multi-algorithm extraction on 0KB document
+[00:51:20.141] [VOCAB] Running NER algorithm...
+[00:51:21.381] [NER] Loaded spaCy model: en_core_web_lg
+[00:51:21.392] [VOCAB] NER: 3 candidates in 1250.7ms
+[00:51:21.392] [VOCAB] Running RAKE algorithm...
+[00:51:21.393] [RAKE] Extracted 2 phrases from 6 raw (filtered: 4 low-score, 0 low-freq, 0 invalid) in 1.0ms
+[00:51:21.393] [VOCAB] RAKE: 2 candidates in 1.0ms
+[00:51:21.393] [VOCAB] Merging results from 2 algorithms...
+[00:51:21.393] [VOCAB] After merge: 3 unique terms
+[00:51:21.393] [VOCAB] Post-processing (doc_count=1, doc_confidence=100.0%)...
+[00:51:21.393] [VOCAB] After post-process: 1 terms
+[00:51:21.393] [VOCAB] Deduplicating similar Person names...
+[00:51:21.393] [DEDUP] Processing 1 Person terms for deduplication
+[00:51:21.394] [VOCAB] After deduplication: 1 terms
+[00:51:21.394] [VOCAB] Filtering substring artifacts...
+[00:51:21.394] [ARTIFACT-FILTER] Using 1 canonical terms
+[00:51:21.394] [ARTIFACT-FILTER] Removed 0 artifacts, 1 terms remaining
+[00:51:21.394] [VOCAB] After artifact filter: 1 terms
+[00:51:21.394] [VOCAB] Filtering common phrase components...
+[00:51:21.394] [VOCAB] After phrase filter: 1 terms
+[00:51:21.394] [VOCAB] Filtering gibberish terms...
+[00:51:21.394] [VOCAB] Final vocabulary: 1 terms
+[00:51:21.394] [VOCAB] Sorting by Quality Score (highest first)
+[00:51:21.408] [VOCAB] Loaded 4 words from C:\Users\noahc\Dropbox\Not Work\Data Science\CaseSummarizer\tests\test_legal_exclude.txt
+[00:51:21.408] [VOCAB] Loaded 3 words from C:\Users\noahc\Dropbox\Not Work\Data Science\CaseSummarizer\tests\test_medical_terms.txt
+[00:51:21.409] [VOCAB] Loaded 126 words from C:\Users\noahc\Dropbox\Not Work\Data Science\CaseSummarizer\config\common_medical_legal.txt
+[00:51:21.631] [VOCAB] Loaded 333333 words from frequency dataset
+[00:51:21.756] [VOCAB] Built rank map for 333333 words
+[00:51:21.769] [VOCAB] BM25 skipped: corpus has 0/5 documents
+[00:51:21.770] [VOCAB] Starting multi-algorithm extraction on 0KB document
+[00:51:21.770] [VOCAB] Running NER algorithm...
+[00:51:23.066] [NER] Loaded spaCy model: en_core_web_lg
+[00:51:23.075] [VOCAB] NER: 3 candidates in 1305.4ms
+[00:51:23.075] [VOCAB] Running RAKE algorithm...
+[00:51:23.076] [RAKE] Extracted 2 phrases from 7 raw (filtered: 5 low-score, 0 low-freq, 0 invalid) in 1.0ms
+[00:51:23.076] [VOCAB] RAKE: 2 candidates in 1.0ms
+[00:51:23.076] [VOCAB] Merging results from 2 algorithms...
+[00:51:23.076] [VOCAB] After merge: 4 unique terms
+[00:51:23.076] [VOCAB] Post-processing (doc_count=1, doc_confidence=100.0%)...
+[00:51:23.076] [VOCAB] After post-process: 2 terms
+[00:51:23.076] [VOCAB] Deduplicating similar Person names...
+[00:51:23.076] [DEDUP] Processing 1 Person terms for deduplication
+[00:51:23.076] [VOCAB] After deduplication: 2 terms
+[00:51:23.076] [VOCAB] Filtering substring artifacts...
+[00:51:23.076] [ARTIFACT-FILTER] Using 2 canonical terms
+[00:51:23.076] [ARTIFACT-FILTER] Removed 0 artifacts, 2 terms remaining
+[00:51:23.076] [VOCAB] After artifact filter: 2 terms
+[00:51:23.076] [VOCAB] Filtering common phrase components...
+[00:51:23.076] [VOCAB] After phrase filter: 2 terms
+[00:51:23.076] [VOCAB] Filtering gibberish terms...
+[00:51:24.422] [VOCAB] Filtered gibberish: 'cardiomyopathy'
+[00:51:24.422] [VOCAB] Final vocabulary: 1 terms
+[00:51:24.422] [VOCAB] Sorting by Quality Score (highest first)
+[00:51:24.437] [VOCAB] Loaded 4 words from C:\Users\noahc\Dropbox\Not Work\Data Science\CaseSummarizer\tests\test_legal_exclude.txt
+[00:51:24.438] [VOCAB] Loaded 3 words from C:\Users\noahc\Dropbox\Not Work\Data Science\CaseSummarizer\tests\test_medical_terms.txt
+[00:51:24.438] [VOCAB] Loaded 126 words from C:\Users\noahc\Dropbox\Not Work\Data Science\CaseSummarizer\config\common_medical_legal.txt
+[00:51:24.631] [VOCAB] Loaded 333333 words from frequency dataset
+[00:51:24.772] [VOCAB] Built rank map for 333333 words
+[00:51:24.789] [VOCAB] BM25 skipped: corpus has 0/5 documents
+[00:51:24.789] [VOCAB] Starting multi-algorithm extraction on 0KB document
+[00:51:24.790] [VOCAB] Running NER algorithm...
+[00:51:26.097] [NER] Loaded spaCy model: en_core_web_lg
+[00:51:26.105] [VOCAB] NER: 2 candidates in 1314.3ms
+[00:51:26.106] [VOCAB] Running RAKE algorithm...
+[00:51:26.106] [RAKE] Extracted 2 phrases from 7 raw (filtered: 5 low-score, 0 low-freq, 0 invalid) in 0.0ms
+[00:51:26.106] [VOCAB] RAKE: 2 candidates in 0.0ms
+[00:51:26.106] [VOCAB] Merging results from 2 algorithms...
+[00:51:26.106] [VOCAB] After merge: 4 unique terms
+[00:51:26.106] [VOCAB] Post-processing (doc_count=1, doc_confidence=100.0%)...
+[00:51:26.107] [VOCAB] After post-process: 2 terms
+[00:51:26.107] [VOCAB] Deduplicating similar Person names...
+[00:51:26.107] [DEDUP] Processing 2 Person terms for deduplication
+[00:51:26.107] [VOCAB] After deduplication: 2 terms
+[00:51:26.107] [VOCAB] Filtering substring artifacts...
+[00:51:26.107] [ARTIFACT-FILTER] Using 2 canonical terms
+[00:51:26.107] [ARTIFACT-FILTER] Removed 0 artifacts, 2 terms remaining
+[00:51:26.107] [VOCAB] After artifact filter: 2 terms
+[00:51:26.107] [VOCAB] Filtering common phrase components...
+[00:51:26.107] [VOCAB] After phrase filter: 2 terms
+[00:51:26.107] [VOCAB] Filtering gibberish terms...
+[00:51:26.107] [VOCAB] Final vocabulary: 2 terms
+[00:51:26.107] [VOCAB] Sorting by Quality Score (highest first)

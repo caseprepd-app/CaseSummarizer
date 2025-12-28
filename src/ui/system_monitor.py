@@ -15,6 +15,7 @@ from src.config import (
     SYSTEM_MONITOR_THRESHOLD_GREEN,
     SYSTEM_MONITOR_THRESHOLD_YELLOW,
 )
+from src.ui.theme import FONTS, COLORS
 
 
 class SystemMonitor(ctk.CTkFrame):
@@ -60,29 +61,29 @@ class SystemMonitor(ctk.CTkFrame):
         self.logical_cores = psutil.cpu_count(logical=True) or 1
 
         # Create separate frames for CPU and RAM with independent colors
-        self.cpu_frame = ctk.CTkFrame(self, fg_color="#1a3a1a", corner_radius=4)
+        self.cpu_frame = ctk.CTkFrame(self, fg_color=COLORS["monitor_bg"], corner_radius=4)
         self.cpu_frame.pack(side="left", padx=(5, 2), pady=3)
 
         self.cpu_label = ctk.CTkLabel(
             self.cpu_frame,
             text="CPU: 0%",
-            font=ctk.CTkFont(size=10),
-            text_color="#90EE90"
+            font=FONTS["tiny"],
+            text_color=COLORS["success_light"]
         )
         self.cpu_label.pack(padx=6, pady=2)
 
         # Separator
-        separator = ctk.CTkLabel(self, text="|", font=ctk.CTkFont(size=10), text_color="#666666")
+        separator = ctk.CTkLabel(self, text="|", font=FONTS["tiny"], text_color=COLORS["text_disabled"])
         separator.pack(side="left", padx=2)
 
-        self.ram_frame = ctk.CTkFrame(self, fg_color="#1a3a1a", corner_radius=4)
+        self.ram_frame = ctk.CTkFrame(self, fg_color=COLORS["monitor_bg"], corner_radius=4)
         self.ram_frame.pack(side="left", padx=(2, 5), pady=3)
 
         self.ram_label = ctk.CTkLabel(
             self.ram_frame,
             text="RAM: 0%",
-            font=ctk.CTkFont(size=10),
-            text_color="#90EE90"
+            font=FONTS["tiny"],
+            text_color=COLORS["success_light"]
         )
         self.ram_label.pack(padx=6, pady=2)
 
@@ -284,7 +285,7 @@ class SystemMonitor(ctk.CTkFrame):
                 text_color=("white", "white"),
                 corner_radius=5,
                 wraplength=280,
-                font=ctk.CTkFont(size=10),
+                font=FONTS["tiny"],
                 justify="left"
             )
             label.pack(padx=8, pady=8)

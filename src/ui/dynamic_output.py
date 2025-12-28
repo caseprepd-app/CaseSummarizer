@@ -44,8 +44,9 @@ from src.config import (
 )
 from src.logging_config import debug_log
 from src.user_preferences import get_user_preferences
-from src.vocabulary.feedback_manager import get_feedback_manager
+from src.core.vocabulary.feedback_manager import get_feedback_manager
 from src.ui.qa_panel import QAPanel
+from src.ui.theme import FONTS, COLORS, BUTTON_STYLES, FRAME_STYLES, VOCAB_TABLE_TAGS
 
 # Feedback icons (Unicode for cross-platform compatibility)
 # Using checkmark (✓) and X (✗) for clearer approve/reject semantics
@@ -149,11 +150,10 @@ class DynamicOutputWidget(ctk.CTkFrame):
         self.tabview.tab("Summary").grid_rowconfigure(0, weight=1)
 
         # Progress Badge (Session 45) - shows data source status for Names & Vocab tab
-        # Note: Use tuple font spec for consistency with lazily-created widgets
         self._progress_badge = ctk.CTkLabel(
             self.tabview.tab("Names & Vocab"),
             text="",
-            font=("Segoe UI", 11),
+            font=FONTS["small"],
             text_color=("gray50", "gray70")
         )
         self._progress_badge.grid(row=1, column=0, sticky="w", padx=10, pady=(0, 5))
@@ -199,8 +199,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
             text="Show Details",
             command=self._toggle_detail_view,
             width=100,
-            fg_color="#555555",
-            hover_color="#666666"
+            **BUTTON_STYLES["secondary"]
         )
         self.detail_toggle_btn.pack(side="left", padx=5)
 
@@ -465,7 +464,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
 
         # Create frame to hold treeview and scrollbars
         if self.treeview_frame is None:
-            self.treeview_frame = ctk.CTkFrame(self.tabview.tab("Names & Vocab"), fg_color="#2b2b2b", corner_radius=6)
+            self.treeview_frame = ctk.CTkFrame(self.tabview.tab("Names & Vocab"), **FRAME_STYLES["card"])
 
         self.treeview_frame.grid(row=0, column=0, sticky="nsew")
         self.treeview_frame.grid_columnconfigure(0, weight=1)
@@ -529,21 +528,9 @@ class DynamicOutputWidget(ctk.CTkFrame):
             # Create context menu
             self._create_context_menu()
 
-            # Configure feedback icon tags for coloring
-            self.csv_treeview.tag_configure('rated_up', foreground='#28a745')  # Green
-            self.csv_treeview.tag_configure('rated_down', foreground='#dc3545')  # Red
-
-            # Configure Found By tags for visual distinction (Session 43, updated Session 53)
-            # Session 53: Added RAKE/BM25 tags and 'found_multi' for multiple algorithms
-            self.csv_treeview.tag_configure('found_multi', foreground='#28a745')  # Green - multiple algorithms
-            self.csv_treeview.tag_configure('found_ner', foreground='#2c3e50')    # Dark slate - NER only
-            self.csv_treeview.tag_configure('found_rake', foreground='#8e44ad')   # Purple - RAKE only
-            self.csv_treeview.tag_configure('found_bm25', foreground='#e67e22')   # Orange - BM25 only
-            self.csv_treeview.tag_configure('found_llm', foreground='#17a2b8')    # Blue - LLM only
-
-            # Configure alternating row colors for readability (Session 51)
-            self.csv_treeview.tag_configure('oddrow', background='#f8f9fa')   # Light gray
-            self.csv_treeview.tag_configure('evenrow', background='#ffffff')  # White
+            # Configure all vocabulary table tags from centralized theme
+            for tag_name, tag_config in VOCAB_TABLE_TAGS.items():
+                self.csv_treeview.tag_configure(tag_name, **tag_config)
 
         # Clear existing data
         self.csv_treeview.delete(*self.csv_treeview.get_children())
@@ -737,9 +724,8 @@ class DynamicOutputWidget(ctk.CTkFrame):
                     self.treeview_frame,
                     text="",
                     command=lambda: self._load_more_rows(data),
-                    fg_color="#2d5a87",
-                    hover_color="#3d6a97",
-                    height=28
+                    height=28,
+                    **BUTTON_STYLES["primary"]
                 )
 
             self._load_more_btn.configure(
@@ -748,14 +734,12 @@ class DynamicOutputWidget(ctk.CTkFrame):
             self._load_more_btn.grid(row=2, column=0, columnspan=2, sticky="ew", padx=10, pady=5)
 
             # Update info label
-            # Note: Use tuple font spec instead of CTkFont to avoid scaling conflicts
-            # when label is created lazily during pagination
             if not hasattr(self, 'vocab_info_label'):
                 self.vocab_info_label = ctk.CTkLabel(
                     self.treeview_frame,
                     text="",
-                    font=("Segoe UI", 11),
-                    text_color="#aaaaaa"
+                    font=FONTS["small"],
+                    text_color=COLORS["text_secondary"]
                 )
             self.vocab_info_label.configure(
                 text=f"Showing {displayed_items} of {total_items} terms • Full list available via 'Save to File'"

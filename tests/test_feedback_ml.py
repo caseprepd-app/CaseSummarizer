@@ -18,8 +18,8 @@ import pytest
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
-from src.vocabulary.feedback_manager import FeedbackManager  # noqa: E402
-from src.vocabulary.meta_learner import (  # noqa: E402
+from src.core.vocabulary.feedback_manager import FeedbackManager  # noqa: E402
+from src.core.vocabulary.meta_learner import (  # noqa: E402
     VocabularyMetaLearner,
     confidence_weighted_blend,
 )
@@ -226,7 +226,7 @@ class TestIntegration:
 
     def test_full_pipeline_import(self):
         """Test that all components can be imported together."""
-        from src.vocabulary import (
+        from src.core.vocabulary import (
             VocabularyExtractor,
             get_feedback_manager,
             get_meta_learner,
@@ -238,7 +238,7 @@ class TestIntegration:
 
     def test_extractor_has_meta_learner(self):
         """Test that VocabularyExtractor has meta-learner integration."""
-        from src.vocabulary import VocabularyExtractor
+        from src.core.vocabulary import VocabularyExtractor
         extractor = VocabularyExtractor()
         assert hasattr(extractor, '_meta_learner')
         assert extractor._meta_learner is not None
@@ -307,7 +307,7 @@ class TestEnsembleMode:
 
     def test_backward_compat_alias(self):
         """Test that VocabularyMetaLearner alias works."""
-        from src.vocabulary.meta_learner import (
+        from src.core.vocabulary.meta_learner import (
             VocabularyMetaLearner,
             VocabularyPreferenceLearner,
         )

@@ -17,8 +17,8 @@ if sys.platform == 'win32':
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent))
 
-from src.prompting import get_prompt_config
-from src.ai import ModelManager
+from src.core.prompting import get_prompt_config
+from src.core.ai import ModelManager
 
 print("=" * 70)
 print("LocalScribe - Slider Configuration Test")

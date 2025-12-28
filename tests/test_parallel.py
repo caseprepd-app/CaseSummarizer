@@ -21,7 +21,7 @@ import pytest
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
-from src.parallel import (
+from src.core.parallel import (
     ExecutorStrategy,
     ParallelTaskRunner,
     ProgressAggregator,

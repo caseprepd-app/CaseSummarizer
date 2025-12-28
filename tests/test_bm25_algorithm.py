@@ -21,7 +21,7 @@ class TestCorpusManager:
 
     def test_initialization_creates_directories(self, tmp_path):
         """CorpusManager should create corpus and cache directories."""
-        from src.vocabulary.corpus_manager import CorpusManager
+        from src.core.vocabulary.corpus_manager import CorpusManager
 
         corpus_dir = tmp_path / "corpus"
         cache_dir = tmp_path / "cache"
@@ -33,7 +33,7 @@ class TestCorpusManager:
 
     def test_empty_corpus_returns_zero_documents(self, tmp_path):
         """Empty corpus folder should return document count of 0."""
-        from src.vocabulary.corpus_manager import CorpusManager
+        from src.core.vocabulary.corpus_manager import CorpusManager
 
         manager = CorpusManager(corpus_dir=tmp_path / "corpus", cache_dir=tmp_path / "cache")
 
@@ -41,7 +41,7 @@ class TestCorpusManager:
 
     def test_is_corpus_ready_false_when_empty(self, tmp_path):
         """is_corpus_ready should return False when corpus has < 5 documents."""
-        from src.vocabulary.corpus_manager import CorpusManager
+        from src.core.vocabulary.corpus_manager import CorpusManager
 
         manager = CorpusManager(corpus_dir=tmp_path / "corpus", cache_dir=tmp_path / "cache")
 
@@ -50,7 +50,7 @@ class TestCorpusManager:
 
     def test_counts_supported_file_extensions(self, tmp_path):
         """Document count should include PDF, TXT, and RTF files."""
-        from src.vocabulary.corpus_manager import CorpusManager
+        from src.core.vocabulary.corpus_manager import CorpusManager
 
         corpus_dir = tmp_path / "corpus"
         corpus_dir.mkdir()
@@ -68,7 +68,7 @@ class TestCorpusManager:
 
     def test_is_corpus_ready_true_when_enough_documents(self, tmp_path):
         """is_corpus_ready should return True when corpus has >= 5 documents."""
-        from src.vocabulary.corpus_manager import CorpusManager
+        from src.core.vocabulary.corpus_manager import CorpusManager
 
         corpus_dir = tmp_path / "corpus"
         corpus_dir.mkdir()
@@ -84,7 +84,7 @@ class TestCorpusManager:
 
     def test_get_idf_returns_high_score_for_oov_terms(self, tmp_path):
         """OOV (out-of-vocabulary) terms should get high IDF score."""
-        from src.vocabulary.corpus_manager import CorpusManager
+        from src.core.vocabulary.corpus_manager import CorpusManager
 
         manager = CorpusManager(corpus_dir=tmp_path / "corpus", cache_dir=tmp_path / "cache")
 
@@ -94,7 +94,7 @@ class TestCorpusManager:
 
     def test_tokenize_filters_stopwords(self, tmp_path):
         """Tokenizer should filter out common stopwords."""
-        from src.vocabulary.corpus_manager import CorpusManager
+        from src.core.vocabulary.corpus_manager import CorpusManager
 
         manager = CorpusManager(corpus_dir=tmp_path / "corpus", cache_dir=tmp_path / "cache")
 
@@ -108,7 +108,7 @@ class TestCorpusManager:
 
     def test_tokenize_filters_short_words(self, tmp_path):
         """Tokenizer should filter out words shorter than 2 characters."""
-        from src.vocabulary.corpus_manager import CorpusManager
+        from src.core.vocabulary.corpus_manager import CorpusManager
 
         manager = CorpusManager(corpus_dir=tmp_path / "corpus", cache_dir=tmp_path / "cache")
 
@@ -122,7 +122,7 @@ class TestCorpusManager:
 
     def test_corpus_stats_returns_expected_fields(self, tmp_path):
         """get_corpus_stats should return expected metadata fields."""
-        from src.vocabulary.corpus_manager import CorpusManager
+        from src.core.vocabulary.corpus_manager import CorpusManager
 
         manager = CorpusManager(corpus_dir=tmp_path / "corpus", cache_dir=tmp_path / "cache")
 
@@ -135,7 +135,7 @@ class TestCorpusManager:
 
     def test_cache_invalidation_on_corpus_change(self, tmp_path):
         """Cache should be invalidated when corpus folder changes."""
-        from src.vocabulary.corpus_manager import CorpusManager
+        from src.core.vocabulary.corpus_manager import CorpusManager
 
         corpus_dir = tmp_path / "corpus"
         corpus_dir.mkdir()
@@ -166,8 +166,8 @@ class TestBM25Algorithm:
 
     def test_initialization_with_corpus_manager(self, tmp_path):
         """BM25Algorithm should accept a corpus manager."""
-        from src.vocabulary.algorithms.bm25_algorithm import BM25Algorithm
-        from src.vocabulary.corpus_manager import CorpusManager
+        from src.core.vocabulary.algorithms.bm25_algorithm import BM25Algorithm
+        from src.core.vocabulary.corpus_manager import CorpusManager
 
         manager = CorpusManager(corpus_dir=tmp_path / "corpus", cache_dir=tmp_path / "cache")
         bm25 = BM25Algorithm(corpus_manager=manager)
@@ -178,8 +178,8 @@ class TestBM25Algorithm:
 
     def test_extract_returns_empty_when_corpus_insufficient(self, tmp_path):
         """extract() should return empty result when corpus has < 5 documents."""
-        from src.vocabulary.algorithms.bm25_algorithm import BM25Algorithm
-        from src.vocabulary.corpus_manager import CorpusManager
+        from src.core.vocabulary.algorithms.bm25_algorithm import BM25Algorithm
+        from src.core.vocabulary.corpus_manager import CorpusManager
 
         manager = CorpusManager(corpus_dir=tmp_path / "corpus", cache_dir=tmp_path / "cache")
         bm25 = BM25Algorithm(corpus_manager=manager)
@@ -192,8 +192,8 @@ class TestBM25Algorithm:
 
     def test_extract_returns_candidates_when_corpus_ready(self, tmp_path):
         """extract() should return candidates when corpus is ready."""
-        from src.vocabulary.algorithms.bm25_algorithm import BM25Algorithm
-        from src.vocabulary.corpus_manager import CorpusManager
+        from src.core.vocabulary.algorithms.bm25_algorithm import BM25Algorithm
+        from src.core.vocabulary.corpus_manager import CorpusManager
 
         corpus_dir = tmp_path / "corpus"
         corpus_dir.mkdir()
@@ -222,7 +222,7 @@ class TestBM25Algorithm:
 
     def test_tokenize_filters_stopwords(self):
         """BM25 tokenizer should filter stopwords."""
-        from src.vocabulary.algorithms.bm25_algorithm import BM25Algorithm
+        from src.core.vocabulary.algorithms.bm25_algorithm import BM25Algorithm
 
         bm25 = BM25Algorithm()
 
@@ -236,7 +236,7 @@ class TestBM25Algorithm:
 
     def test_is_valid_term_filters_short_terms(self):
         """_is_valid_term should filter terms shorter than MIN_TERM_LENGTH."""
-        from src.vocabulary.algorithms.bm25_algorithm import BM25Algorithm
+        from src.core.vocabulary.algorithms.bm25_algorithm import BM25Algorithm
 
         bm25 = BM25Algorithm()
 
@@ -246,7 +246,7 @@ class TestBM25Algorithm:
 
     def test_is_valid_term_filters_digits(self):
         """_is_valid_term should filter pure digit strings."""
-        from src.vocabulary.algorithms.bm25_algorithm import BM25Algorithm
+        from src.core.vocabulary.algorithms.bm25_algorithm import BM25Algorithm
 
         bm25 = BM25Algorithm()
 
@@ -256,8 +256,8 @@ class TestBM25Algorithm:
 
     def test_candidates_have_bm25_metadata(self, tmp_path):
         """Candidates should include BM25-specific metadata."""
-        from src.vocabulary.algorithms.bm25_algorithm import BM25Algorithm
-        from src.vocabulary.corpus_manager import CorpusManager
+        from src.core.vocabulary.algorithms.bm25_algorithm import BM25Algorithm
+        from src.core.vocabulary.corpus_manager import CorpusManager
 
         corpus_dir = tmp_path / "corpus"
         corpus_dir.mkdir()
@@ -282,8 +282,8 @@ class TestBM25Algorithm:
 
     def test_get_config_includes_corpus_info(self, tmp_path):
         """get_config should include corpus readiness info."""
-        from src.vocabulary.algorithms.bm25_algorithm import BM25Algorithm
-        from src.vocabulary.corpus_manager import CorpusManager
+        from src.core.vocabulary.algorithms.bm25_algorithm import BM25Algorithm
+        from src.core.vocabulary.corpus_manager import CorpusManager
 
         manager = CorpusManager(corpus_dir=tmp_path / "corpus", cache_dir=tmp_path / "cache")
         bm25 = BM25Algorithm(corpus_manager=manager)
@@ -302,7 +302,7 @@ class TestBM25Integration:
 
     def test_vocabulary_extractor_skips_bm25_when_corpus_empty(self, tmp_path):
         """VocabularyExtractor should not include BM25 when corpus is insufficient."""
-        from src.vocabulary import VocabularyExtractor
+        from src.core.vocabulary import VocabularyExtractor
 
         # Default extractor with empty corpus
         extractor = VocabularyExtractor()
@@ -316,7 +316,7 @@ class TestBM25Integration:
 
     def test_vocabulary_extractor_skips_bm25_when_disabled(self, tmp_path):
         """VocabularyExtractor should skip BM25 when disabled in preferences."""
-        from src.vocabulary import VocabularyExtractor
+        from src.core.vocabulary import VocabularyExtractor
         from src.user_preferences import get_user_preferences
 
         # Create corpus with enough documents

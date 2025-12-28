@@ -12,6 +12,8 @@ from tkinter import ttk
 
 import customtkinter as ctk
 
+from src.ui.theme import FONTS, COLORS, FILE_STATUS_TAGS
+
 
 class FileReviewTable(ctk.CTkFrame):
     """
@@ -64,10 +66,8 @@ class FileReviewTable(ctk.CTkFrame):
             self.file_item_map[filename] = item_id
 
         # Configure colors for tags
-        self.tree.tag_configure('green', foreground='#28a745')
-        self.tree.tag_configure('yellow', foreground='#ffc107')
-        self.tree.tag_configure('red', foreground='#dc3545')
-        self.tree.tag_configure('pending', foreground='gray')
+        for tag_name, tag_config in FILE_STATUS_TAGS.items():
+            self.tree.tag_configure(tag_name, **tag_config)
 
 
     def _prepare_result_for_display(self, result):
@@ -136,17 +136,17 @@ class ModelSelectionWidget(ctk.CTkFrame):
         self.grid_columnconfigure(0, weight=1)
 
         # Model Selection
-        model_label = ctk.CTkLabel(self, text="Model Selection (Ollama)", font=ctk.CTkFont(weight="bold"))
+        model_label = ctk.CTkLabel(self, text="Model Selection (Ollama)", font=FONTS["body_bold"])
         model_label.grid(row=0, column=0, padx=10, pady=(10, 0), sticky="w")
 
         self.model_selector = ctk.CTkComboBox(self, values=["Loading..."], command=self._on_model_changed)
         self.model_selector.grid(row=1, column=0, padx=10, pady=5, sticky="ew")
 
-        self.local_model_info_label = ctk.CTkLabel(self, text="Models run locally and offline.", text_color="gray", font=ctk.CTkFont(size=11))
+        self.local_model_info_label = ctk.CTkLabel(self, text="Models run locally and offline.", text_color=COLORS["text_secondary"], font=FONTS["small"])
         self.local_model_info_label.grid(row=2, column=0, padx=10, pady=(0, 5), sticky="w")
 
         # Prompt Style Selection
-        prompt_label = ctk.CTkLabel(self, text="Prompt Style", font=ctk.CTkFont(weight="bold"))
+        prompt_label = ctk.CTkLabel(self, text="Prompt Style", font=FONTS["body_bold"])
         prompt_label.grid(row=3, column=0, padx=10, pady=(5, 0), sticky="w")
 
         self.prompt_selector = ctk.CTkComboBox(self, values=["Loading..."])
@@ -159,8 +159,8 @@ class ModelSelectionWidget(ctk.CTkFrame):
         self.prompt_info_label = ctk.CTkLabel(
             self,
             text="See _README.txt in prompts folder for custom prompt guide.",
-            text_color="gray",
-            font=ctk.CTkFont(size=11)
+            text_color=COLORS["text_secondary"],
+            font=FONTS["small"]
         )
         self.prompt_info_label.grid(row=5, column=0, padx=10, pady=(0, 10), sticky="w")
 
@@ -283,7 +283,7 @@ class OutputOptionsWidget(ctk.CTkFrame):
         # === OUTPUT OPTIONS (Session 45: Simplified) ===
         options_label = ctk.CTkLabel(
             self, text="Output Options",
-            font=ctk.CTkFont(weight="bold")
+            font=FONTS["body_bold"]
         )
         options_label.grid(row=self._row_counter, column=0, padx=10, pady=(10, 5), sticky="w")
         self._row_counter += 1
@@ -322,7 +322,7 @@ class OutputOptionsWidget(ctk.CTkFrame):
         length_label = ctk.CTkLabel(
             self._summary_length_frame,
             text="Summary Length:",
-            font=ctk.CTkFont(size=12)
+            font=FONTS["body"]
         )
         length_label.grid(row=0, column=0, padx=10, pady=(5, 0), sticky="w")
 
@@ -351,8 +351,8 @@ class OutputOptionsWidget(ctk.CTkFrame):
         self.corpus_status_label = ctk.CTkLabel(
             self,
             text="",
-            text_color="gray",
-            font=ctk.CTkFont(size=11)
+            text_color=COLORS["text_secondary"],
+            font=FONTS["small"]
         )
         self.corpus_status_label.grid(row=self._row_counter, column=0, padx=10, pady=(10, 10), sticky="w")
         self._row_counter += 1
@@ -495,7 +495,7 @@ class OutputOptionsWidget(ctk.CTkFrame):
         more documents are needed to activate it.
         """
         try:
-            from src.vocabulary.corpus_manager import get_corpus_manager
+            from src.core.vocabulary.corpus_manager import get_corpus_manager
             from src.user_preferences import get_user_preferences
 
             prefs = get_user_preferences()

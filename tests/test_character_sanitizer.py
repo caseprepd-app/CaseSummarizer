@@ -7,7 +7,7 @@ including mojibake, control characters, redacted content, and encoding issues.
 
 import pytest
 
-from src.sanitization import CharacterSanitizer
+from src.core.sanitization import CharacterSanitizer
 
 
 class TestMojibakeFix:

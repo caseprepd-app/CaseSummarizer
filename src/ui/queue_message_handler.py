@@ -181,7 +181,7 @@ class QueueMessageHandler:
             data: MultiDocumentSummaryResult with individual_summaries and meta_summary
         """
         # Import here to avoid circular imports
-        from src.summarization import MultiDocumentSummaryResult
+        from src.core.summarization import MultiDocumentSummaryResult
 
         debug_log(f"[QUEUE HANDLER] Multi-doc result received: "
                  f"{data.documents_processed} processed, {data.documents_failed} failed")

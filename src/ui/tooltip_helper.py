@@ -14,6 +14,8 @@ Best practices implemented:
 
 import customtkinter as ctk
 
+from src.ui.theme import FONTS
+
 
 def create_tooltip(widget, text, delay_ms=500, offset_x=15, offset_y=10):
     """
@@ -85,7 +87,7 @@ def create_tooltip(widget, text, delay_ms=500, offset_x=15, offset_y=10):
             text_color=("white", "white"),
             corner_radius=5,
             wraplength=250,
-            font=ctk.CTkFont(size=11),
+            font=FONTS["small"],
             justify="left"
         )
         label.pack(padx=8, pady=6)
@@ -231,7 +233,7 @@ def create_tooltip_for_frame(frame, text, child_widgets=None, delay_ms=500, offs
             text_color=("white", "white"),
             corner_radius=5,
             wraplength=250,
-            font=ctk.CTkFont(size=11),
+            font=FONTS["small"],
             justify="left"
         )
         label.pack(padx=8, pady=6)

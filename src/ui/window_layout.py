@@ -19,6 +19,8 @@ Usage:
 
 import customtkinter as ctk
 
+from src.ui.theme import FONTS, COLORS, BUTTON_STYLES, FRAME_STYLES
+
 
 class WindowLayoutMixin:
     """
@@ -57,27 +59,27 @@ class WindowLayoutMixin:
         self.title_label = ctk.CTkLabel(
             self.header_frame,
             text="LocalScribe",
-            font=ctk.CTkFont(size=20, weight="bold")
+            font=FONTS["heading_xl"]
         )
         self.title_label.pack(side="left", padx=15, pady=10)
 
         # Settings button (right)
         self.settings_btn = ctk.CTkButton(
             self.header_frame,
-            text="⚙ Settings",
+            text="Settings",
             width=100,
             command=self._open_settings
         )
         self.settings_btn.pack(side="right", padx=15, pady=10)
 
         # Corpus dropdown (right of title)
-        self.corpus_frame = ctk.CTkFrame(self.header_frame, fg_color="transparent")
+        self.corpus_frame = ctk.CTkFrame(self.header_frame, **FRAME_STYLES["transparent"])
         self.corpus_frame.pack(side="right", padx=10, pady=10)
 
         corpus_label = ctk.CTkLabel(
             self.corpus_frame,
             text="Corpus:",
-            font=ctk.CTkFont(size=12)
+            font=FONTS["body"]
         )
         corpus_label.pack(side="left", padx=(0, 5))
 
@@ -111,13 +113,13 @@ class WindowLayoutMixin:
         self.banner_frame.pack_propagate(False)
 
         warning_text = (
-            "⚠️ No corpus configured. Set up a corpus to improve vocabulary detection. "
+            "No corpus configured. Set up a corpus to improve vocabulary detection. "
             "Your corpus stays 100% local and offline."
         )
         self.banner_label = ctk.CTkLabel(
             self.banner_frame,
             text=warning_text,
-            font=ctk.CTkFont(size=12),
+            font=FONTS["body"],
             text_color=("#856404", "#d4b833")
         )
         self.banner_label.pack(side="left", padx=15, pady=10)
@@ -132,7 +134,7 @@ class WindowLayoutMixin:
 
     def _create_main_panels(self):
         """Create the two-panel main content area."""
-        self.main_frame = ctk.CTkFrame(self, fg_color="transparent")
+        self.main_frame = ctk.CTkFrame(self, **FRAME_STYLES["transparent"])
         self.main_frame.pack(fill="both", expand=True, padx=10, pady=10)
 
         # Configure grid for two panels
@@ -159,8 +161,8 @@ class WindowLayoutMixin:
         # Section header
         docs_header = ctk.CTkLabel(
             self.left_panel,
-            text="📁 SESSION DOCUMENTS",
-            font=ctk.CTkFont(size=14, weight="bold")
+            text="SESSION DOCUMENTS",
+            font=FONTS["heading"]
         )
         docs_header.grid(row=0, column=0, sticky="w", padx=10, pady=(10, 5))
 
@@ -169,7 +171,7 @@ class WindowLayoutMixin:
         self.file_table.grid(row=1, column=0, sticky="nsew", padx=10, pady=5)
 
         # File buttons
-        file_btn_frame = ctk.CTkFrame(self.left_panel, fg_color="transparent")
+        file_btn_frame = ctk.CTkFrame(self.left_panel, **FRAME_STYLES["transparent"])
         file_btn_frame.grid(row=2, column=0, sticky="ew", padx=10, pady=5)
 
         self.add_files_btn = ctk.CTkButton(
@@ -193,11 +195,11 @@ class WindowLayoutMixin:
         task_header = ctk.CTkLabel(
             self.left_panel,
             text="TASKS",
-            font=ctk.CTkFont(size=12, weight="bold")
+            font=FONTS["body_bold"]
         )
         task_header.grid(row=3, column=0, sticky="w", padx=10, pady=(15, 5))
 
-        task_frame = ctk.CTkFrame(self.left_panel, fg_color="transparent")
+        task_frame = ctk.CTkFrame(self.left_panel, **FRAME_STYLES["transparent"])
         task_frame.grid(row=4, column=0, sticky="ew", padx=10, pady=0)
 
         # Q&A checkbox (default ON)
@@ -240,7 +242,7 @@ class WindowLayoutMixin:
         self.generate_btn = ctk.CTkButton(
             self.left_panel,
             text="Perform 2 Tasks",
-            font=ctk.CTkFont(size=14, weight="bold"),
+            font=FONTS["heading"],
             height=40,
             command=self._perform_tasks
         )
@@ -263,7 +265,7 @@ class WindowLayoutMixin:
         results_label = ctk.CTkLabel(
             results_header,
             text="📋 RESULTS",
-            font=ctk.CTkFont(size=14, weight="bold")
+            font=FONTS["heading"]
         )
         results_label.pack(side="left")
 
@@ -303,7 +305,7 @@ class WindowLayoutMixin:
         self.status_label = ctk.CTkLabel(
             self.status_frame,
             text="Ready",
-            font=ctk.CTkFont(size=11)
+            font=FONTS["small"]
         )
         self.status_label.pack(side="left", padx=10, pady=5)
 
@@ -311,7 +313,7 @@ class WindowLayoutMixin:
         self.timer_label = ctk.CTkLabel(
             self.status_frame,
             text="⏱ 0:00",
-            font=ctk.CTkFont(size=11)
+            font=FONTS["small"]
         )
         self.timer_label.pack(side="right", padx=10, pady=5)
 
@@ -319,7 +321,7 @@ class WindowLayoutMixin:
         self.corpus_info_label = ctk.CTkLabel(
             self.status_frame,
             text="",
-            font=ctk.CTkFont(size=11),
-            text_color=("gray50", "gray60")
+            font=FONTS["small"],
+            text_color=COLORS["text_secondary"]
         )
         self.corpus_info_label.pack(side="right", padx=20, pady=5)

@@ -5,6 +5,8 @@ import time
 
 import customtkinter as ctk
 
+from src.ui.theme import FONTS
+
 
 class ModelLoadProgressDialog(ctk.CTkToplevel):
     """
@@ -21,7 +23,7 @@ class ModelLoadProgressDialog(ctk.CTkToplevel):
 
         self.grid_columnconfigure(0, weight=1)
 
-        title_label = ctk.CTkLabel(self, text=f"Loading {self.model_name} Model", font=ctk.CTkFont(size=14, weight="bold"))
+        title_label = ctk.CTkLabel(self, text=f"Loading {self.model_name} Model", font=FONTS["heading"])
         title_label.grid(row=0, column=0, padx=20, pady=(20, 10))
 
         info_label = ctk.CTkLabel(self, text="This may take 30-60 seconds depending on your hardware.", wraplength=350)

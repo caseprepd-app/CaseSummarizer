@@ -24,7 +24,9 @@ import customtkinter as ctk
 import yaml
 
 from src.config import DEBUG_MODE
+from src.core.config import load_yaml_with_fallback
 from src.logging_config import debug_log
+from src.ui.theme import FONTS, COLORS, BUTTON_STYLES
 
 # Default questions YAML path
 DEFAULT_QUESTIONS_PATH = Path(__file__).parent.parent.parent / "config" / "qa_questions.yaml"
@@ -102,15 +104,15 @@ class QAQuestionEditor(ctk.CTkToplevel):
         title = ctk.CTkLabel(
             header,
             text="Default Questions",
-            font=ctk.CTkFont(size=16, weight="bold")
+            font=FONTS["heading_lg"]
         )
         title.pack(side="left")
 
         description = ctk.CTkLabel(
             header,
             text="These questions are asked automatically for every document.",
-            font=ctk.CTkFont(size=11),
-            text_color="#aaaaaa"
+            font=FONTS["small"],
+            text_color=COLORS["text_secondary"]
         )
         description.pack(side="left", padx=20)
 
@@ -177,8 +179,7 @@ class QAQuestionEditor(ctk.CTkToplevel):
             text="Delete Selected",
             command=self._delete_selected,
             width=110,
-            fg_color="#994444",
-            hover_color="#bb5555"
+            **BUTTON_STYLES["danger"]
         )
         self.delete_btn.pack(side="left", padx=5)
 
@@ -187,8 +188,7 @@ class QAQuestionEditor(ctk.CTkToplevel):
             text="Reset to Defaults",
             command=self._reset_to_defaults,
             width=120,
-            fg_color="#555555",
-            hover_color="#666666"
+            **BUTTON_STYLES["secondary"]
         )
         self.reset_btn.pack(side="right", padx=5)
 
@@ -198,7 +198,7 @@ class QAQuestionEditor(ctk.CTkToplevel):
             text="↑ Move Up",
             command=self._move_up,
             width=80,
-            fg_color="#444444"
+            **BUTTON_STYLES["tertiary"]
         )
         self.move_up_btn.pack(side="right", padx=5)
 
@@ -207,7 +207,7 @@ class QAQuestionEditor(ctk.CTkToplevel):
             text="↓ Move Down",
             command=self._move_down,
             width=90,
-            fg_color="#444444"
+            **BUTTON_STYLES["tertiary"]
         )
         self.move_down_btn.pack(side="right", padx=5)
 
@@ -220,8 +220,7 @@ class QAQuestionEditor(ctk.CTkToplevel):
             text="Cancel",
             command=self._on_close,
             width=100,
-            fg_color="#555555",
-            hover_color="#666666"
+            **BUTTON_STYLES["secondary"]
         )
         self.cancel_btn.pack(side="right", padx=(5, 0))
 
@@ -237,47 +236,39 @@ class QAQuestionEditor(ctk.CTkToplevel):
         self.status_label = ctk.CTkLabel(
             bottom_frame,
             text="",
-            font=ctk.CTkFont(size=11),
-            text_color="#aaaaaa"
+            font=FONTS["small"],
+            text_color=COLORS["text_secondary"]
         )
         self.status_label.pack(side="left")
 
     def _load_questions(self):
         """Load questions from YAML file."""
-        if not self.yaml_path.exists():
-            debug_log(f"[QAQuestionEditor] YAML not found: {self.yaml_path}")
+        import copy
+
+        config = load_yaml_with_fallback(
+            self.yaml_path,
+            fallback={},
+            log_prefix="[QAQuestionEditor]"
+        )
+
+        if not config or "questions" not in config:
             self._questions = []
-            self._original_questions = []
-            return
-
-        try:
-            with open(self.yaml_path, 'r', encoding='utf-8') as f:
-                config = yaml.safe_load(f)
-
-            if not config or "questions" not in config:
-                self._questions = []
-            else:
-                # Extract simplified question list
-                self._questions = []
-                for q in config.get("questions", []):
-                    self._questions.append({
-                        "id": q.get("id", ""),
-                        "text": q.get("text", ""),
-                        "category": q.get("category", "General"),
-                        "type": q.get("type", "extraction")
-                    })
-
-            # Store original for reset/cancel
-            import copy
-            self._original_questions = copy.deepcopy(self._questions)
-
-            self._refresh_list()
-            self.status_label.configure(text=f"{len(self._questions)} questions loaded")
-
-        except Exception as e:
-            debug_log(f"[QAQuestionEditor] Load error: {e}")
-            messagebox.showerror("Load Error", f"Failed to load questions: {e}")
+        else:
+            # Extract simplified question list
             self._questions = []
+            for q in config.get("questions", []):
+                self._questions.append({
+                    "id": q.get("id", ""),
+                    "text": q.get("text", ""),
+                    "category": q.get("category", "General"),
+                    "type": q.get("type", "extraction")
+                })
+
+        # Store original for reset/cancel
+        self._original_questions = copy.deepcopy(self._questions)
+
+        self._refresh_list()
+        self.status_label.configure(text=f"{len(self._questions)} questions loaded")
 
     def _refresh_list(self):
         """Refresh the Treeview with current questions."""
@@ -426,11 +417,11 @@ class QAQuestionEditor(ctk.CTkToplevel):
         """
         try:
             # Load existing config to preserve structure
-            if self.yaml_path.exists():
-                with open(self.yaml_path, 'r', encoding='utf-8') as f:
-                    config = yaml.safe_load(f) or {}
-            else:
-                config = {"version": "1.0", "entry_point": "is_court_case"}
+            config = load_yaml_with_fallback(
+                self.yaml_path,
+                fallback={"version": "1.0", "entry_point": "is_court_case"},
+                log_prefix="[QAQuestionEditor]"
+            )
 
             # Update questions in config
             config["questions"] = []
@@ -543,7 +534,7 @@ class QuestionEditDialog(ctk.CTkToplevel):
             text="Cancel",
             command=self.destroy,
             width=100,
-            fg_color="#555555"
+            **BUTTON_STYLES["secondary"]
         )
         cancel_btn.pack(side="right", padx=(5, 0))
 

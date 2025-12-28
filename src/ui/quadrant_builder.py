@@ -7,6 +7,8 @@ Separates UI layout construction from window orchestration.
 
 import customtkinter as ctk
 
+from src.ui.theme import FONTS, COLORS
+
 from src.ui.dynamic_output import DynamicOutputWidget
 from src.ui.tooltip_helper import create_tooltip
 from src.ui.widgets import FileReviewTable, ModelSelectionWidget, OutputOptionsWidget
@@ -23,7 +25,7 @@ def build_document_selection_quadrant(parent_frame):
     files_label = ctk.CTkLabel(
         parent_frame,
         text="📄 Document Selection",
-        font=ctk.CTkFont(size=17, weight="bold")
+        font=FONTS["heading_lg"]
     )
     files_label.grid(row=0, column=0, sticky="ew", padx=10, pady=(10, 8))
 
@@ -61,7 +63,7 @@ def build_model_selection_quadrant(parent_frame, model_manager, prompt_template_
     model_label = ctk.CTkLabel(
         parent_frame,
         text="🤖 Model & Prompt Selection",
-        font=ctk.CTkFont(size=17, weight="bold")
+        font=FONTS["heading_lg"]
     )
     model_label.grid(row=0, column=0, sticky="ew", padx=10, pady=(10, 8))
 
@@ -98,7 +100,7 @@ def build_output_display_quadrant(parent_frame):
     output_display_label = ctk.CTkLabel(
         parent_frame,
         text="📝 Generated Outputs",
-        font=ctk.CTkFont(size=17, weight="bold")
+        font=FONTS["heading_lg"]
     )
     output_display_label.grid(row=0, column=0, sticky="ew", padx=10, pady=(10, 8))
 
@@ -131,7 +133,7 @@ def build_output_options_quadrant(parent_frame):
     output_options_label = ctk.CTkLabel(
         parent_frame,
         text="⚙️ Output Options",
-        font=ctk.CTkFont(size=17, weight="bold")
+        font=FONTS["heading_lg"]
     )
     output_options_label.grid(row=0, column=0, sticky="ew", padx=10, pady=(10, 8))
 
@@ -149,7 +151,7 @@ def build_output_options_quadrant(parent_frame):
     generate_btn = ctk.CTkButton(
         parent_frame,
         text="Generate 2 Outputs",  # Default: meta-summary + vocab (2 checked by default)
-        font=ctk.CTkFont(size=12, weight="bold")
+        font=FONTS["body_bold"]
     )
     generate_btn.grid(row=2, column=0, sticky="ew", padx=10, pady=(5, 5))
     generate_btn.configure(state="disabled")
@@ -162,9 +164,9 @@ def build_output_options_quadrant(parent_frame):
     cancel_btn = ctk.CTkButton(
         parent_frame,
         text="Cancel Processing",
-        font=ctk.CTkFont(size=12, weight="bold"),
-        fg_color="#6c757d",  # Grey when disabled (will change to red when enabled)
-        hover_color="#5a6268",
+        font=FONTS["body_bold"],
+        fg_color=COLORS["btn_disabled"],
+        hover_color=COLORS["btn_disabled_hover"],
         state="disabled"  # Disabled by default
     )
     cancel_btn.grid(row=3, column=0, sticky="ew", padx=10, pady=(5, 10))

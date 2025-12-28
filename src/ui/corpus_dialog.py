@@ -22,7 +22,8 @@ import customtkinter as ctk
 
 from src.config import DEBUG_MODE
 from src.logging_config import debug_log
-from src.vocabulary import (
+from src.ui.theme import FONTS, COLORS
+from src.core.vocabulary import (
     CorpusRegistry,
     CorpusInfo,
     CorpusManager,
@@ -121,7 +122,7 @@ class CorpusDialog(ctk.CTkToplevel):
         title = ctk.CTkLabel(
             title_frame,
             text="📚 What is a Corpus?",
-            font=ctk.CTkFont(size=18, weight="bold"),
+            font=FONTS["heading_xl"],
             anchor="w"
         )
         title.pack(anchor="w")
@@ -133,7 +134,7 @@ class CorpusDialog(ctk.CTkToplevel):
                 "A corpus is a collection of YOUR past transcripts that helps LocalScribe\n"
                 "understand which words are common in your work vs. unusual for a specific case."
             ),
-            font=ctk.CTkFont(size=13),
+            font=FONTS["heading_sm"],
             anchor="w",
             justify="left"
         )
@@ -146,8 +147,8 @@ class CorpusDialog(ctk.CTkToplevel):
         check1 = ctk.CTkLabel(
             privacy_frame,
             text="✓ 100% local and offline - never leaves your machine",
-            font=ctk.CTkFont(size=12),
-            text_color=("green", "#90EE90")
+            font=FONTS["body"],
+            text_color=(COLORS["success"], COLORS["success_light"])
         )
         check1.pack(anchor="w")
 
@@ -158,15 +159,15 @@ class CorpusDialog(ctk.CTkToplevel):
         check2 = ctk.CTkLabel(
             link_frame,
             text="✓ Powers the BM25 vocabulary algorithm",
-            font=ctk.CTkFont(size=12),
-            text_color=("green", "#90EE90")
+            font=FONTS["body"],
+            text_color=(COLORS["success"], COLORS["success_light"])
         )
         check2.pack(side="left")
 
         learn_more = ctk.CTkButton(
             link_frame,
             text="Learn more ↗",
-            font=ctk.CTkFont(size=11),
+            font=FONTS["small"],
             fg_color="transparent",
             text_color=("#1f6aa5", "#3B8ED0"),
             hover_color=("gray80", "gray30"),
@@ -183,8 +184,8 @@ class CorpusDialog(ctk.CTkToplevel):
                 "💡 Most users need only ONE corpus. Power users may want separate\n"
                 "     corpora for different case types (e.g., Criminal vs. Civil)."
             ),
-            font=ctk.CTkFont(size=12),
-            text_color=("gray50", "gray60"),
+            font=FONTS["body"],
+            text_color=COLORS["text_secondary"],
             anchor="w",
             justify="left"
         )
@@ -199,7 +200,7 @@ class CorpusDialog(ctk.CTkToplevel):
         label = ctk.CTkLabel(
             section_header,
             text="Your Corpora",
-            font=ctk.CTkFont(size=14, weight="bold")
+            font=FONTS["heading"]
         )
         label.pack(side="left")
 
@@ -299,7 +300,7 @@ class CorpusDialog(ctk.CTkToplevel):
         self.doc_label = ctk.CTkLabel(
             self.doc_header,
             text="Documents in Corpus",
-            font=ctk.CTkFont(size=14, weight="bold")
+            font=FONTS["heading"]
         )
         self.doc_label.pack(side="left")
 
@@ -375,8 +376,8 @@ class CorpusDialog(ctk.CTkToplevel):
         self.status_label = ctk.CTkLabel(
             footer,
             text="",
-            font=ctk.CTkFont(size=12),
-            text_color=("gray50", "gray60"),
+            font=FONTS["body"],
+            text_color=COLORS["text_secondary"],
             anchor="w"
         )
         self.status_label.grid(row=0, column=0, sticky="w")

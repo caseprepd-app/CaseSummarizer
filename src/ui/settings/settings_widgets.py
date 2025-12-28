@@ -17,6 +17,8 @@ from typing import Any, Callable
 
 import customtkinter as ctk
 
+from src.ui.theme import FONTS, COLORS
+
 
 class TooltipIcon(ctk.CTkLabel):
     """
@@ -43,8 +45,8 @@ class TooltipIcon(ctk.CTkLabel):
         super().__init__(
             parent,
             text="\u24d8",  # Unicode circled i
-            font=ctk.CTkFont(size=14),
-            text_color=("gray50", "gray60"),
+            font=FONTS["heading"],
+            text_color=COLORS["text_secondary"],
             cursor="hand2",
             **kwargs
         )
@@ -165,7 +167,7 @@ class SettingRow(ctk.CTkFrame):
             self,
             text=label,
             anchor="w",
-            font=ctk.CTkFont(size=13)
+            font=FONTS["heading_sm"]
         )
         self.label_widget.grid(row=0, column=0, sticky="w", padx=(0, 5))
 
@@ -226,7 +228,7 @@ class SliderSetting(SettingRow):
             self,
             text="",
             width=50,
-            font=ctk.CTkFont(size=13)
+            font=FONTS["heading_sm"]
         )
         self.value_label.grid(row=0, column=3, sticky="e", padx=(10, 0))
 
@@ -432,7 +434,7 @@ class SpinboxSetting(SettingRow):
             width=32,
             height=28,
             command=self._decrement,
-            font=ctk.CTkFont(size=16, weight="bold")
+            font=FONTS["heading_lg"]
         )
         self.minus_btn.pack(side="left")
 
@@ -441,7 +443,7 @@ class SpinboxSetting(SettingRow):
             spinbox_frame,
             text=str(self.value),
             width=45,
-            font=ctk.CTkFont(size=14)
+            font=FONTS["heading"]
         )
         self.value_label.pack(side="left", padx=8)
 
@@ -452,7 +454,7 @@ class SpinboxSetting(SettingRow):
             width=32,
             height=28,
             command=self._increment,
-            font=ctk.CTkFont(size=16, weight="bold")
+            font=FONTS["heading_lg"]
         )
         self.plus_btn.pack(side="left")
 
@@ -531,7 +533,7 @@ class ButtonSetting(SettingRow):
             command=self._on_click,
             width=180,
             height=28,
-            font=ctk.CTkFont(size=12)
+            font=FONTS["body"]
         )
         self.button.grid(row=0, column=2, sticky="w")
 

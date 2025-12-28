@@ -13,8 +13,8 @@ Uses mock model_manager to avoid actual Ollama calls during testing.
 import pytest
 from unittest.mock import Mock, MagicMock, patch
 
-from src.prompting import FocusExtractor, AIFocusExtractor
-from src.prompting import PromptAdapter, MultiDocPromptAdapter
+from src.core.prompting import FocusExtractor, AIFocusExtractor
+from src.core.prompting import PromptAdapter, MultiDocPromptAdapter
 
 
 class TestFocusExtractorABC:
@@ -346,19 +346,19 @@ class TestIntegrationImports:
 
     def test_focus_extractor_imports(self):
         """FocusExtractor components import correctly."""
-        from src.prompting import FocusExtractor, AIFocusExtractor
+        from src.core.prompting import FocusExtractor, AIFocusExtractor
         assert FocusExtractor is not None
         assert AIFocusExtractor is not None
 
     def test_prompt_adapter_imports(self):
         """PromptAdapter components import correctly."""
-        from src.prompting import PromptAdapter, MultiDocPromptAdapter
+        from src.core.prompting import PromptAdapter, MultiDocPromptAdapter
         assert PromptAdapter is not None
         assert MultiDocPromptAdapter is not None
 
     def test_summarizer_accepts_adapter_params(self):
         """ProgressiveDocumentSummarizer accepts adapter parameters."""
-        from src.summarization import ProgressiveDocumentSummarizer
+        from src.core.summarization import ProgressiveDocumentSummarizer
 
         mock_model = Mock()
         mock_adapter = Mock()
@@ -375,7 +375,7 @@ class TestIntegrationImports:
 
     def test_orchestrator_accepts_adapter_params(self):
         """MultiDocumentOrchestrator accepts adapter parameters."""
-        from src.summarization import MultiDocumentOrchestrator, ProgressiveDocumentSummarizer
+        from src.core.summarization import MultiDocumentOrchestrator, ProgressiveDocumentSummarizer
 
         mock_model = Mock()
         mock_adapter = Mock()

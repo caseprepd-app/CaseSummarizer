@@ -2,7 +2,7 @@ import multiprocessing
 import time
 import traceback
 
-from src.ai.ollama_model_manager import OllamaModelManager
+from src.core.ai.ollama_model_manager import OllamaModelManager
 from src.config import QUEUE_TIMEOUT_SECONDS
 from src.logging_config import debug_log
 

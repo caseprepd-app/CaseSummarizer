@@ -26,6 +26,7 @@ from typing import Callable
 import customtkinter as ctk
 
 from src.config import PROCESSING_METRICS_CSV
+from src.ui.theme import FONTS
 from src.logging_config import debug_log
 
 
@@ -86,7 +87,7 @@ class ProcessingTimer(ctk.CTkLabel):
         """
         # Set default styling for visibility
         kwargs.setdefault('text', '')
-        kwargs.setdefault('font', ctk.CTkFont(size=14, weight='bold'))
+        kwargs.setdefault('font', FONTS["heading"])
         kwargs.setdefault('text_color', '#00D4FF')  # Cyan - visible on dark bg
 
         super().__init__(master, **kwargs)

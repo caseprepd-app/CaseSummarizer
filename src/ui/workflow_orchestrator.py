@@ -28,7 +28,7 @@ from typing import Any
 from src.config import LEGAL_EXCLUDE_LIST_PATH, MEDICAL_TERMS_LIST_PATH, USER_VOCAB_EXCLUDE_PATH
 from src.logging_config import debug_log
 from src.ui.queue_messages import QueueMessage
-from src.utils.text_utils import combine_document_texts
+from src.core.utils.text_utils import combine_document_texts
 
 
 @dataclass
@@ -355,7 +355,7 @@ class WorkflowOrchestrator:
                 # Import and initialize embeddings
                 # NOTE: This import triggers torch loading which can take 10-15 seconds
                 from langchain_huggingface import HuggingFaceEmbeddings
-                from src.vector_store import VectorStoreBuilder
+                from src.core.vector_store import VectorStoreBuilder
 
                 # Initialize embeddings (reusing the same model as ChunkingEngine)
                 # Note: First run downloads model (~90MB), subsequent runs use cache
@@ -463,7 +463,7 @@ class WorkflowOrchestrator:
         def ask_question():
             try:
                 from langchain_huggingface import HuggingFaceEmbeddings
-                from src.qa.qa_orchestrator import QAOrchestrator
+                from src.core.qa.qa_orchestrator import QAOrchestrator
                 from src.user_preferences import get_user_preferences
 
                 debug_log(f"[ORCHESTRATOR] Asking follow-up: {question[:50]}...")

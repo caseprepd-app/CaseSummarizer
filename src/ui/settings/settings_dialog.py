@@ -19,6 +19,7 @@ Usage:
 
 import customtkinter as ctk
 
+from src.ui.theme import FONTS, COLORS
 from .settings_registry import SettingsRegistry, SettingType
 from .settings_widgets import (
     SliderSetting,
@@ -96,15 +97,15 @@ class SettingsDialog(ctk.CTkToplevel):
         title = ctk.CTkLabel(
             title_frame,
             text="Application Settings",
-            font=ctk.CTkFont(size=20, weight="bold")
+            font=FONTS["heading_xl"]
         )
         title.pack(anchor="w")
 
         subtitle = ctk.CTkLabel(
             title_frame,
             text="Configure LocalScribe behavior and performance",
-            font=ctk.CTkFont(size=12),
-            text_color=("gray50", "gray60")
+            font=FONTS["body"],
+            text_color=COLORS["text_secondary"]
         )
         subtitle.pack(anchor="w")
 
@@ -121,7 +122,7 @@ class SettingsDialog(ctk.CTkToplevel):
 
         # Make tab buttons larger and bolder
         self.tabview._segmented_button.configure(
-            font=ctk.CTkFont(size=14, weight="bold"),
+            font=FONTS["heading"],
             height=36
         )
 
@@ -171,8 +172,8 @@ class SettingsDialog(ctk.CTkToplevel):
         empty_label = ctk.CTkLabel(
             self,
             text="No settings available.",
-            font=ctk.CTkFont(size=14),
-            text_color="gray"
+            font=FONTS["heading"],
+            text_color=COLORS["text_secondary"]
         )
         empty_label.grid(row=1, column=0, pady=50)
 

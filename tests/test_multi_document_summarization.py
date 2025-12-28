@@ -13,13 +13,13 @@ import pytest
 from unittest.mock import Mock, MagicMock, patch
 from queue import Queue
 
-from src.summarization import (
+from src.core.summarization import (
     DocumentSummaryResult,
     MultiDocumentSummaryResult,
     ProgressiveDocumentSummarizer,
     MultiDocumentOrchestrator,
 )
-from src.parallel import SequentialStrategy
+from src.core.parallel import SequentialStrategy
 
 
 class TestDocumentSummaryResult:
@@ -240,7 +240,7 @@ class TestIntegrationImports:
 
     def test_all_summarization_exports(self):
         """All public components are exported from package."""
-        from src.summarization import (
+        from src.core.summarization import (
             DocumentSummaryResult,
             MultiDocumentSummaryResult,
             DocumentSummarizer,

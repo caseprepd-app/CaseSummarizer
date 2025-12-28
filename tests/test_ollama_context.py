@@ -86,7 +86,7 @@ class TestChunkingConfig:
 class TestOllamaPayload:
     """Test that Ollama API payload includes context window."""
 
-    @patch('src.ai.ollama_model_manager.requests.post')
+    @patch('src.core.ai.ollama_model_manager.requests.post')
     def test_num_ctx_in_payload(self, mock_post):
         """Verify num_ctx is included in Ollama API calls."""
         # Setup mock response
@@ -99,13 +99,13 @@ class TestOllamaPayload:
         mock_post.return_value = mock_response
 
         # Also mock the connection check
-        with patch('src.ai.ollama_model_manager.requests.get') as mock_get:
+        with patch('src.core.ai.ollama_model_manager.requests.get') as mock_get:
             mock_get_response = MagicMock()
             mock_get_response.status_code = 200
             mock_get_response.json.return_value = {'models': []}
             mock_get.return_value = mock_get_response
 
-            from src.ai.ollama_model_manager import OllamaModelManager
+            from src.core.ai.ollama_model_manager import OllamaModelManager
 
             manager = OllamaModelManager()
             manager.is_connected = True
@@ -131,9 +131,9 @@ class TestOllamaPayload:
 class TestTruncationWarning:
     """Test that truncation warnings are issued appropriately."""
 
-    @patch('src.ai.ollama_model_manager.warning')
-    @patch('src.ai.ollama_model_manager.requests.post')
-    @patch('src.ai.ollama_model_manager.requests.get')
+    @patch('src.core.ai.ollama_model_manager.warning')
+    @patch('src.core.ai.ollama_model_manager.requests.post')
+    @patch('src.core.ai.ollama_model_manager.requests.get')
     def test_warning_on_large_prompt(self, mock_get, mock_post, mock_warning):
         """Verify warning is issued when prompt approaches context limit."""
         # Setup mocks
@@ -147,7 +147,7 @@ class TestTruncationWarning:
         mock_post_response.json.return_value = {'response': 'Summary', 'eval_count': 10}
         mock_post.return_value = mock_post_response
 
-        from src.ai.ollama_model_manager import OllamaModelManager
+        from src.core.ai.ollama_model_manager import OllamaModelManager
 
         manager = OllamaModelManager()
         manager.is_connected = True
@@ -166,9 +166,9 @@ class TestTruncationWarning:
             f"Warning should mention truncation risk: {warning_msg}"
         )
 
-    @patch('src.ai.ollama_model_manager.warning')
-    @patch('src.ai.ollama_model_manager.requests.post')
-    @patch('src.ai.ollama_model_manager.requests.get')
+    @patch('src.core.ai.ollama_model_manager.warning')
+    @patch('src.core.ai.ollama_model_manager.requests.post')
+    @patch('src.core.ai.ollama_model_manager.requests.get')
     def test_no_warning_on_small_prompt(self, mock_get, mock_post, mock_warning):
         """Verify no warning for prompts well under context limit."""
         # Setup mocks
@@ -182,7 +182,7 @@ class TestTruncationWarning:
         mock_post_response.json.return_value = {'response': 'Summary', 'eval_count': 10}
         mock_post.return_value = mock_post_response
 
-        from src.ai.ollama_model_manager import OllamaModelManager
+        from src.core.ai.ollama_model_manager import OllamaModelManager
 
         manager = OllamaModelManager()
         manager.is_connected = True

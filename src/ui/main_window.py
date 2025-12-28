@@ -26,13 +26,13 @@ import customtkinter as ctk
 
 from src.config import DEBUG_MODE, PROMPTS_DIR
 from src.logging_config import debug_log
-from src.ai import OllamaModelManager
-from src.prompting import PromptTemplateManager
+from src.core.ai import OllamaModelManager
+from src.core.prompting import PromptTemplateManager
 from src.ui.styles import initialize_all_styles
 from src.ui.workers import ProcessingWorker, VocabularyWorker, QAWorker, BriefingWorker, ProgressiveExtractionWorker
 from src.ui.window_layout import WindowLayoutMixin
-from src.vocabulary import get_corpus_registry
-from src.vector_store import VectorStoreBuilder
+from src.core.vocabulary import get_corpus_registry
+from src.core.vector_store import VectorStoreBuilder
 
 
 class MainWindow(WindowLayoutMixin, ctk.CTk):
@@ -521,7 +521,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
 
     def _start_vocabulary_extraction(self):
         """Start vocabulary extraction task."""
-        from src.utils.text_utils import combine_document_texts
+        from src.core.utils.text_utils import combine_document_texts
         from src.config import LEGAL_EXCLUDE_LIST_PATH, MEDICAL_TERMS_LIST_PATH, USER_VOCAB_EXCLUDE_PATH
 
         self.set_status("Extracting vocabulary...")
@@ -638,7 +638,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         Phase 2 (Q&A): Builds vector store, enables Q&A panel
         Phase 3 (LLM): Slow enhancement, updates table progressively
         """
-        from src.utils.text_utils import combine_document_texts
+        from src.core.utils.text_utils import combine_document_texts
         from src.config import LEGAL_EXCLUDE_LIST_PATH, MEDICAL_TERMS_LIST_PATH, USER_VOCAB_EXCLUDE_PATH
 
         self.set_status("Starting extraction (NER first, then LLM enhancement)...")
@@ -958,7 +958,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
 
         def run_followup():
             try:
-                from src.qa import QAOrchestrator
+                from src.core.qa import QAOrchestrator
                 orchestrator = QAOrchestrator(
                     vector_store_path=self._vector_store_path,
                     embeddings=self._embeddings,
@@ -1036,7 +1036,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
 
         try:
             # Import and use QAOrchestrator for follow-up
-            from src.qa import QAOrchestrator
+            from src.core.qa import QAOrchestrator
 
             orchestrator = QAOrchestrator(
                 vector_store_path=self._vector_store_path,

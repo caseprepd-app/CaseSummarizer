@@ -15,9 +15,9 @@ from datetime import datetime
 from pathlib import Path
 
 import pandas as pd
-import yaml
 
 from src.chunking_engine import Chunk, ChunkingEngine
+from src.core.config import load_yaml
 from src.logging_config import debug_log, debug_timing, error, info
 
 
@@ -85,14 +85,7 @@ class ProgressiveSummarizer:
 
     def _load_config(self, config_path: Path) -> dict:
         """Load configuration from YAML file."""
-        try:
-            with open(config_path) as f:
-                config = yaml.safe_load(f)
-            debug_log(f"Loaded config from {config_path}")
-            return config
-        except Exception as e:
-            error(f"Failed to load config: {e}")
-            raise
+        return load_yaml(config_path, log_prefix="[ProgressiveSummarizer]")
 
     def _get_batch_boundaries(self, total_chunks: int) -> list[int]:
         """

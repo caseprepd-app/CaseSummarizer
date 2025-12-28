@@ -4,7 +4,7 @@ Tests for the Smart Preprocessing Pipeline
 Tests each preprocessor in isolation and the pipeline as a whole.
 """
 
-from src.preprocessing import (
+from src.core.preprocessing import (
     HeaderFooterRemover,
     LineNumberRemover,
     PreprocessingPipeline,

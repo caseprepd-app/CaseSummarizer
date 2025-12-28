@@ -22,8 +22,8 @@ sys.path.insert(0, str(Path(__file__).parent))
 # Enable debug mode
 os.environ['DEBUG'] = 'true'
 
-from src.ai import ModelManager
-from src.utils.logger import debug
+from src.core.ai import ModelManager
+from src.core.utils.logger import debug
 
 # Sample case text for testing
 SAMPLE_CASE = """

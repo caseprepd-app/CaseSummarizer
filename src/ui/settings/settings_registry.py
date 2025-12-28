@@ -376,7 +376,7 @@ def _register_all_settings():
     def _reset_vocab_model():
         """Reset vocabulary ML model to default (keep feedback history)."""
         from tkinter import messagebox
-        from src.vocabulary.meta_learner import get_meta_learner
+        from src.core.vocabulary.meta_learner import get_meta_learner
 
         result = messagebox.askyesno(
             "Reset Vocabulary Model",
@@ -421,8 +421,8 @@ def _register_all_settings():
     def _reset_vocab_model_and_history():
         """Reset vocabulary ML model AND clear all feedback history."""
         from tkinter import messagebox
-        from src.vocabulary.meta_learner import get_meta_learner
-        from src.vocabulary.feedback_manager import get_feedback_manager
+        from src.core.vocabulary.meta_learner import get_meta_learner
+        from src.core.vocabulary.feedback_manager import get_feedback_manager
 
         result = messagebox.askyesno(
             "Reset Model and Clear History",

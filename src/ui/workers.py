@@ -20,9 +20,9 @@ import traceback
 from queue import Empty, Queue
 
 from src.config import DEBUG_MODE, PARALLEL_MAX_WORKERS
-from src.extraction import RawTextExtractor
+from src.core.extraction import RawTextExtractor
 from src.logging_config import debug_log
-from src.parallel import (
+from src.core.parallel import (
     ExecutorStrategy,
     ParallelTaskRunner,
     ProgressAggregator,
@@ -31,7 +31,7 @@ from src.parallel import (
 from src.ui.base_worker import BaseWorker, CleanupWorker
 from src.ui.ollama_worker import ollama_generation_worker_process
 from src.ui.queue_messages import QueueMessage
-from src.vocabulary import VocabularyExtractor
+from src.core.vocabulary import VocabularyExtractor
 
 
 class ProcessingWorker(BaseWorker):
@@ -60,7 +60,7 @@ class ProcessingWorker(BaseWorker):
         worker.start()
 
         # Testing (sequential, deterministic)
-        from src.parallel import SequentialStrategy
+        from src.core.parallel import SequentialStrategy
         worker = ProcessingWorker(
             file_paths, ui_queue,
             strategy=SequentialStrategy()
@@ -341,7 +341,7 @@ class QAWorker(BaseWorker):
 
     def execute(self):
         """Execute Q&A in background thread."""
-        from src.qa import QAOrchestrator
+        from src.core.qa import QAOrchestrator
 
         debug_log(f"[QA WORKER] Starting Q&A with mode: {self.answer_mode}")
 
@@ -570,9 +570,9 @@ class MultiDocSummaryWorker(CleanupWorker):
         debug_log(f"[MULTI-DOC WORKER] Starting summarization of {doc_count} documents")
 
         # Import here to avoid circular imports
-        from src.ai import OllamaModelManager
-        from src.prompting import MultiDocPromptAdapter
-        from src.summarization import (
+        from src.core.ai import OllamaModelManager
+        from src.core.prompting import MultiDocPromptAdapter
+        from src.core.summarization import (
             MultiDocumentOrchestrator,
             ProgressiveDocumentSummarizer,
         )
@@ -713,7 +713,7 @@ class ProgressiveExtractionWorker(BaseWorker):
         debug_log("[PROGRESSIVE WORKER] Phase 1: Local algorithm extraction starting...")
 
         # Check which algorithms will run for accurate status message
-        from src.vocabulary.corpus_manager import get_corpus_manager
+        from src.core.vocabulary.corpus_manager import get_corpus_manager
         from src.config import CORPUS_MIN_DOCUMENTS
         corpus_manager = get_corpus_manager()
         bm25_active = corpus_manager.is_corpus_ready(min_docs=CORPUS_MIN_DOCUMENTS)
@@ -724,7 +724,7 @@ class ProgressiveExtractionWorker(BaseWorker):
             algo_list = "NER, RAKE"
         self.send_progress(10, f"Phase 1: Running local extraction ({algo_list})...")
 
-        from src.vocabulary import VocabularyExtractor
+        from src.core.vocabulary import VocabularyExtractor
 
         extractor = VocabularyExtractor(
             exclude_list_path=self.exclude_list_path,
@@ -757,9 +757,9 @@ class ProgressiveExtractionWorker(BaseWorker):
         debug_log("[PROGRESSIVE WORKER] Phase 3: LLM extraction starting...")
         self.send_progress(30, "Phase 3: Starting LLM enhancement...")
 
-        from src.chunking import create_unified_chunker
-        from src.extraction import LLMVocabExtractor
-        from src.vocabulary.reconciler import VocabularyReconciler
+        from src.core.chunking import create_unified_chunker
+        from src.core.extraction import LLMVocabExtractor
+        from src.core.vocabulary.reconciler import VocabularyReconciler
 
         # Get NER candidates for reconciliation
         ner_candidates = []
@@ -817,8 +817,8 @@ class ProgressiveExtractionWorker(BaseWorker):
             debug_log("[PROGRESSIVE WORKER] Phase 2: Building vector store...")
             self.ui_queue.put(QueueMessage.progress(20, "Phase 2: Building Q&A index..."))
 
-            from src.chunking import create_unified_chunker
-            from src.vector_store import VectorStoreBuilder
+            from src.core.chunking import create_unified_chunker
+            from src.core.vector_store import VectorStoreBuilder
 
             # Lazy-load embeddings if not provided
             if self.embeddings is None:
@@ -909,7 +909,7 @@ class BriefingWorker(CleanupWorker):
         debug_log(f"[BRIEFING WORKER] Starting briefing for {len(self.documents)} documents")
 
         # Import briefing components
-        from src.briefing import BriefingOrchestrator, BriefingFormatter
+        from src.core.briefing import BriefingOrchestrator, BriefingFormatter
 
         # Initialize orchestrator
         self._orchestrator = BriefingOrchestrator()

@@ -19,7 +19,7 @@ class TestQAResult:
 
     def test_qaresult_defaults(self):
         """QAResult should have sensible defaults."""
-        from src.qa import QAResult
+        from src.core.qa import QAResult
 
         result = QAResult(
             question="Who is the plaintiff?",
@@ -39,7 +39,7 @@ class TestQAResult:
 
     def test_qaresult_full_initialization(self):
         """QAResult should accept all fields."""
-        from src.qa import QAResult
+        from src.core.qa import QAResult
 
         result = QAResult(
             question="What damages are sought?",
@@ -66,7 +66,7 @@ class TestAnswerGenerator:
 
     def test_initialization_with_extraction_mode(self):
         """AnswerGenerator should initialize with extraction mode."""
-        from src.qa import AnswerGenerator, AnswerMode
+        from src.core.qa import AnswerGenerator, AnswerMode
 
         generator = AnswerGenerator(mode="extraction")
 
@@ -74,7 +74,7 @@ class TestAnswerGenerator:
 
     def test_initialization_with_ollama_mode(self):
         """AnswerGenerator should initialize with ollama mode."""
-        from src.qa import AnswerGenerator, AnswerMode
+        from src.core.qa import AnswerGenerator, AnswerMode
 
         generator = AnswerGenerator(mode="ollama")
 
@@ -82,7 +82,7 @@ class TestAnswerGenerator:
 
     def test_generate_returns_message_for_empty_context(self):
         """generate() should return appropriate message for empty context."""
-        from src.qa import AnswerGenerator
+        from src.core.qa import AnswerGenerator
 
         generator = AnswerGenerator(mode="extraction")
         result = generator.generate("Who is the plaintiff?", "")
@@ -91,7 +91,7 @@ class TestAnswerGenerator:
 
     def test_extraction_mode_extracts_from_context(self):
         """Extraction mode should find relevant sentences from context."""
-        from src.qa import AnswerGenerator
+        from src.core.qa import AnswerGenerator
 
         generator = AnswerGenerator(mode="extraction")
 
@@ -108,7 +108,7 @@ class TestAnswerGenerator:
 
     def test_extraction_mode_handles_no_matches(self):
         """Extraction mode should handle case with no keyword matches."""
-        from src.qa import AnswerGenerator
+        from src.core.qa import AnswerGenerator
 
         generator = AnswerGenerator(mode="extraction")
 
@@ -121,7 +121,7 @@ class TestAnswerGenerator:
 
     def test_keyword_extraction_filters_stopwords(self):
         """_extract_keywords should filter common stopwords."""
-        from src.qa import AnswerGenerator
+        from src.core.qa import AnswerGenerator
 
         generator = AnswerGenerator()
 
@@ -136,7 +136,7 @@ class TestAnswerGenerator:
 
     def test_split_sentences_handles_abbreviations(self):
         """_split_sentences should handle common abbreviations."""
-        from src.qa import AnswerGenerator
+        from src.core.qa import AnswerGenerator
 
         generator = AnswerGenerator()
 
@@ -149,7 +149,7 @@ class TestAnswerGenerator:
 
     def test_set_mode_changes_mode(self):
         """set_mode should change the generation mode."""
-        from src.qa import AnswerGenerator, AnswerMode
+        from src.core.qa import AnswerGenerator, AnswerMode
 
         generator = AnswerGenerator(mode="extraction")
         assert generator.mode == AnswerMode.EXTRACTION
@@ -163,7 +163,7 @@ class TestQAOrchestrator:
 
     def test_default_questions_path_exists(self):
         """DEFAULT_QUESTIONS_PATH should point to existing file."""
-        from src.qa.qa_orchestrator import DEFAULT_QUESTIONS_PATH
+        from src.core.qa.qa_orchestrator import DEFAULT_QUESTIONS_PATH
 
         # The config/qa_questions.yaml should exist in the project
         assert DEFAULT_QUESTIONS_PATH.exists()
@@ -187,8 +187,8 @@ questions:
         yaml_path.write_text(yaml_content)
 
         # Mock the QARetriever to avoid needing actual vector store
-        with patch('src.qa.qa_orchestrator.QARetriever'):
-            from src.qa import QAOrchestrator
+        with patch('src.core.qa.qa_orchestrator.QARetriever'):
+            from src.core.qa import QAOrchestrator
 
             orchestrator = QAOrchestrator(
                 vector_store_path=tmp_path,
@@ -204,11 +204,11 @@ questions:
 
     def test_get_exportable_results_filters_by_flag(self):
         """get_exportable_results should only return included items."""
-        from src.qa import QAResult
+        from src.core.qa import QAResult
 
         # Create mock orchestrator results
-        with patch('src.qa.qa_orchestrator.QARetriever'):
-            from src.qa import QAOrchestrator
+        with patch('src.core.qa.qa_orchestrator.QARetriever'):
+            from src.core.qa import QAOrchestrator
 
             orchestrator = QAOrchestrator(
                 vector_store_path=Path("."),
@@ -229,10 +229,10 @@ questions:
 
     def test_toggle_export_changes_flag(self):
         """toggle_export should flip the include_in_export flag."""
-        from src.qa import QAResult
+        from src.core.qa import QAResult
 
-        with patch('src.qa.qa_orchestrator.QARetriever'):
-            from src.qa import QAOrchestrator
+        with patch('src.core.qa.qa_orchestrator.QARetriever'):
+            from src.core.qa import QAOrchestrator
 
             orchestrator = QAOrchestrator(
                 vector_store_path=Path("."),
@@ -255,10 +255,10 @@ questions:
 
     def test_export_to_text_format(self):
         """export_to_text should produce properly formatted text."""
-        from src.qa import QAResult
+        from src.core.qa import QAResult
 
-        with patch('src.qa.qa_orchestrator.QARetriever'):
-            from src.qa import QAOrchestrator
+        with patch('src.core.qa.qa_orchestrator.QARetriever'):
+            from src.core.qa import QAOrchestrator
 
             orchestrator = QAOrchestrator(
                 vector_store_path=Path("."),
@@ -284,10 +284,10 @@ questions:
 
     def test_export_to_text_excludes_unchecked(self):
         """export_to_text should only include checked items."""
-        from src.qa import QAResult
+        from src.core.qa import QAResult
 
-        with patch('src.qa.qa_orchestrator.QARetriever'):
-            from src.qa import QAOrchestrator
+        with patch('src.core.qa.qa_orchestrator.QARetriever'):
+            from src.core.qa import QAOrchestrator
 
             orchestrator = QAOrchestrator(
                 vector_store_path=Path("."),
@@ -306,10 +306,10 @@ questions:
 
     def test_clear_results(self):
         """clear_results should empty the results list."""
-        from src.qa import QAResult
+        from src.core.qa import QAResult
 
-        with patch('src.qa.qa_orchestrator.QARetriever'):
-            from src.qa import QAOrchestrator
+        with patch('src.core.qa.qa_orchestrator.QARetriever'):
+            from src.core.qa import QAOrchestrator
 
             orchestrator = QAOrchestrator(
                 vector_store_path=Path("."),
