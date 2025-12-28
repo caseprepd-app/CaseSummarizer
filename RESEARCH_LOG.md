@@ -6,6 +6,53 @@
 
 ---
 
+## Vocabulary Filtering: Rank-Based Scoring & Expanded STOPWORDS — 2025-12-28
+
+**Problem:** Common words like "age" were appearing in vocabulary results despite filters. Investigation revealed two issues:
+
+1. **RAKE gap:** RAKE only filtered single words against STOPWORDS (~180 words). Words like "age" not in STOPWORDS passed through unchecked.
+
+2. **Log scaling was unintuitive:** The existing log-based commonality scoring compressed the high end—"age" (0.784) looked similar to "the" (1.0) even though "the" is 175x more common. This made threshold tuning difficult.
+
+**Decision:** Two-part fix:
+
+### Part 1: Centralized Single-Word Filtering
+Extended `rarity_filter.py` to filter single words (previously only filtered multi-word phrases). This catches common words that individual algorithms miss.
+
+### Part 2: Rank-Based Scoring (replacing log-based)
+Changed from `log(count+1) / log(max+1)` to `rank / total_words`:
+
+| Approach | "the" | "age" | "radiculopathy" |
+|----------|-------|-------|-----------------|
+| **Log-based** | 1.000 | 0.784 | 0.446 |
+| **Rank-based** | 0.0000 | 0.0017 | 0.4990 |
+
+Rank-based scoring directly answers: "What percentage of English words are more common than this?"
+- 0.0 = most common word
+- 0.5 = median word
+- 1.0 = rarest word
+
+**Threshold:** 0.50 (filter top 50% of English vocabulary). Court reporters know common English; they need only specialized terms.
+
+### Part 3: Expanded STOPWORDS
+Expanded from ~180 to **581 words**:
+- Basic body parts: age, body, head, leg, arm, side, etc.
+- Transcript fillers: okay, um, correct, yeah, etc.
+- Time words: hour, morning, yesterday, etc.
+- Common nouns: state, office, question, answer, etc.
+
+**Code changes:**
+- `src/config.py` — Updated thresholds for rank-based system
+- `src/core/vocabulary/rarity_filter.py` — Rank-based `_load_scaled_frequencies()`, flipped comparison operators
+- `src/core/utils/tokenizer.py` — Expanded STOPWORDS from 180 to 581
+
+**Trade-offs:**
+- 50% threshold is aggressive—even "radiculopathy" (rank ~166,000) is at the boundary
+- Threshold easily adjustable in `config.py:SINGLE_WORD_COMMONALITY_THRESHOLD`
+- Multi-word phrases like "lumbar radiculopathy" may still pass through
+
+---
+
 ## Major Codebase Refactoring: GUI/Logic Separation — 2025-12-28
 
 **Problem:** The codebase had accumulated technical debt:

@@ -30,6 +30,7 @@ TOKEN_PATTERN = re.compile(
 
 # Unified stopwords (merged from all BM25 implementations)
 # These are common words that don't carry meaning for search/extraction
+# Session 58: Expanded with body parts, transcript fillers, and more common nouns
 STOPWORDS: frozenset[str] = frozenset({
     # Articles
     'a', 'an', 'the',
@@ -100,6 +101,41 @@ STOPWORDS: frozenset[str] = frozenset({
     'date', 'dated', 'regarding', 'regarding', 'matter', 'order', 'ordered',
     'pursuant', 'thereof', 'herein', 'hereby', 'wherein', 'therefore',
     'attached', 'exhibit', 'exhibits', 'document', 'documents',
+    # === Session 58 additions ===
+    # Basic body parts (not medical terms - those are valuable)
+    'age', 'body', 'head', 'face', 'eye', 'eyes', 'ear', 'ears', 'nose', 'mouth',
+    'arm', 'arms', 'leg', 'legs', 'foot', 'feet', 'knee', 'knees', 'side', 'sides',
+    'neck', 'shoulder', 'shoulders', 'chest', 'stomach', 'hip', 'hips',
+    'finger', 'fingers', 'thumb', 'toe', 'toes', 'wrist', 'ankle', 'elbow',
+    # Transcript filler words and common responses
+    'okay', 'ok', 'um', 'uh', 'yeah', 'yep', 'nope', 'alright', 'correct',
+    'incorrect', 'true', 'false', 'fair', 'fine', 'sorry', 'please', 'thank',
+    'thanks', 'welcome', 'hello', 'hi', 'bye', 'goodbye',
+    # Time-related common words
+    'hour', 'hours', 'minute', 'minutes', 'second', 'seconds', 'moment',
+    'today', 'yesterday', 'tomorrow', 'morning', 'afternoon', 'evening', 'night',
+    'months', 'ago', 'later', 'soon', 'sometime', 'sometimes', 'often', 'usually',
+    # More common nouns
+    'state', 'states', 'city', 'town', 'county', 'country', 'street', 'road',
+    'office', 'building', 'floor', 'door', 'window', 'car', 'vehicle', 'phone',
+    'job', 'work', 'business', 'company', 'name', 'names', 'address', 'email',
+    'question', 'questions', 'answer', 'answers', 'problem', 'problems',
+    'issue', 'issues', 'reason', 'reasons', 'result', 'results', 'example',
+    'information', 'idea', 'ideas', 'kind', 'type', 'types', 'sort', 'level',
+    'record', 'records', 'note', 'notes', 'letter', 'letters', 'form', 'forms',
+    'service', 'services', 'system', 'process', 'program', 'group', 'family',
+    'father', 'brother', 'sister', 'son', 'daughter', 'husband', 'wife', 'friend',
+    # More common adjectives
+    'wrong', 'right', 'same', 'similar', 'normal', 'regular', 'general',
+    'specific', 'particular', 'main', 'major', 'minor', 'basic', 'simple',
+    'special', 'common', 'local', 'current', 'previous', 'prior', 'former',
+    'above', 'entire', 'complete', 'total', 'final', 'original', 'additional',
+    # More common verbs
+    'going', 'saying', 'getting', 'looking', 'coming', 'taking', 'making',
+    'working', 'trying', 'using', 'talking', 'thinking', 'asking', 'telling',
+    'helping', 'turning', 'starting', 'ending', 'beginning', 'finishing',
+    'sitting', 'standing', 'walking', 'running', 'driving', 'living',
+    'happening', 'causing', 'causing', 'meaning', 'feeling', 'becoming',
 })
 
 

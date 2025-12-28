@@ -267,24 +267,37 @@ VOCABULARY_MIN_OCCURRENCES = 2
 # We only filter when ALL words are common.
 #
 # Commonality scores are 0.0-1.0 (log-scaled from Google word frequency):
-#   0.0 = extremely rare (not in dataset)
-#   0.5 = moderately common
-#   1.0 = extremely common ("the", "and", "is")
+# RANK-BASED SCORING (Session 58):
+# Score = rank / total_words (percentile position)
+#   0.0 = most common word ("the", rank 1)
+#   0.5 = median word (top 50%)
+#   1.0 = rarest word in dataset
 #
-# MAX threshold: Filters if the RAREST word (min commonality) exceeds this.
-#   If even the rarest word is above this, ALL words are common -> filter
-#   0.85 = permissive (only filter if rarest word is very common)
-#   0.75 = balanced
-#   0.65 = aggressive (filter more phrases)
+# This answers: "What percentage of English words are more common than this?"
+# Court reporters know common English; they need only specialized terms.
 #
-# MEAN threshold: Filters if the AVERAGE word commonality exceeds this.
-#   0.70 = permissive
-#   0.65 = balanced
-#   0.55 = aggressive
+# PHRASE MAX threshold: Filter if even the RAREST word is in top X%
+#   0.50 = balanced (filter if all words in top 50%)
+#   0.30 = aggressive (filter if all words in top 30%)
+#
+# PHRASE MEAN threshold: Filter if AVERAGE word is in top X%
+#   0.40 = balanced
+#   0.30 = aggressive
+#
+# SINGLE WORD threshold: Filter if word is in top X%
+#   0.50 = filter top 50% of English vocabulary
 #
 # Person names are exempt (names like "John Smith" use common words but are valuable)
-PHRASE_MAX_COMMONALITY_THRESHOLD = 0.75   # Filter if rarest word is this common
-PHRASE_MEAN_COMMONALITY_THRESHOLD = 0.65  # Filter if average word is this common
+PHRASE_MAX_COMMONALITY_THRESHOLD = 0.50   # Filter if rarest word in top 50%
+PHRASE_MEAN_COMMONALITY_THRESHOLD = 0.40  # Filter if average word in top 40%
+
+# Single-word rarity threshold (Session 58 - rank-based)
+# Filter words in the top X% as "too common for vocabulary prep"
+# Examples with 0.50 threshold:
+#   "age" (rank 579, score 0.0017) < 0.50 -> FILTERED (top 0.17%)
+#   "cervical" (rank ~50000, score 0.15) < 0.50 -> FILTERED (top 15%)
+#   "radiculopathy" (rank ~250000, score 0.75) > 0.50 -> KEPT (bottom 25%)
+SINGLE_WORD_COMMONALITY_THRESHOLD = 0.50  # Filter top 50% of vocabulary
 
 # GUI Display Limits for Vocabulary Table
 # Based on tkinter Treeview performance testing:
