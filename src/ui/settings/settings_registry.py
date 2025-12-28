@@ -295,10 +295,13 @@ def _register_all_settings():
             "This improves as you rate more terms.\n\n"
             "• Rarity: Unusual/rare words appear first (based on Google Books corpus)."
         ),
-        options=["Quality Score", "Rarity"],
-        default="Quality Score" if VOCABULARY_SORT_METHOD == "quality_score" else "Rarity",
-        getter=lambda: "Quality Score" if prefs.get("vocab_sort_method", VOCABULARY_SORT_METHOD) == "quality_score" else "Rarity",
-        setter=lambda v: prefs.set("vocab_sort_method", "quality_score" if v == "Quality Score" else "rarity"),
+        options=[
+            ("Quality Score", "quality_score"),
+            ("Rarity", "rarity"),
+        ],
+        default="quality_score" if VOCABULARY_SORT_METHOD == "quality_score" else "rarity",
+        getter=lambda: prefs.get("vocab_sort_method", VOCABULARY_SORT_METHOD),
+        setter=lambda v: prefs.set("vocab_sort_method", v),
     ))
 
     # Session 23: CSV export column format setting
@@ -479,10 +482,11 @@ def _register_all_settings():
     ))
 
     # Session 59: Vocabulary filtering thresholds (user-configurable)
+    # Moved to Advanced tab for power users
     SettingsRegistry.register(SettingDefinition(
         key="single_word_rarity_threshold",
         label="Single-word filtering threshold",
-        category="Vocabulary",
+        category="Advanced",
         setting_type=SettingType.SLIDER,
         tooltip=(
             "Filter single words in the top X% of English vocabulary. "
@@ -500,7 +504,7 @@ def _register_all_settings():
     SettingsRegistry.register(SettingDefinition(
         key="phrase_rarity_threshold",
         label="Phrase filtering threshold",
-        category="Vocabulary",
+        category="Advanced",
         setting_type=SettingType.SLIDER,
         tooltip=(
             "Filter multi-word phrases where all words are in the top X% of English. "

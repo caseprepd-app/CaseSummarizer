@@ -253,7 +253,11 @@ class SliderSetting(SettingRow):
 
     def _on_slider_change(self, value):
         """Handle slider value change."""
-        self.value_label.configure(text=str(int(value)))
+        # Format floats with decimals, integers without
+        if isinstance(value, float) and value != int(value):
+            self.value_label.configure(text=f"{value:.2f}")
+        else:
+            self.value_label.configure(text=str(int(value)))
         if self.on_change:
             self.on_change(value)
 
@@ -264,7 +268,11 @@ class SliderSetting(SettingRow):
     def set_value(self, value: float) -> None:
         """Set slider to specified value."""
         self.slider.set(value)
-        self.value_label.configure(text=str(int(value)))
+        # Format floats with decimals, integers without
+        if isinstance(value, float) and value != int(value):
+            self.value_label.configure(text=f"{value:.2f}")
+        else:
+            self.value_label.configure(text=str(int(value)))
 
 
 class CheckboxSetting(SettingRow):
