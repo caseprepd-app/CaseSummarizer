@@ -102,11 +102,156 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         self._update_generate_button_state()
         self._update_default_questions_label()  # Set initial question count
 
-        # Startup checks
+        # Startup checks and status updates
         self._check_ollama_service()
+        self._update_ollama_status()
+        self._update_model_display()
 
         if DEBUG_MODE:
             debug_log("[MainWindow] Initialized with two-panel layout")
+
+    # =========================================================================
+    # Ollama Status & Model Display
+    # =========================================================================
+
+    def _update_ollama_status(self):
+        """
+        Update the Ollama status indicator in the status bar.
+
+        Shows green dot if connected, red dot if disconnected.
+        Adds tooltip with troubleshooting info when disconnected.
+        """
+        from src.ui.theme import COLORS
+
+        if self.model_manager.is_connected:
+            # Connected - green dot
+            self.ollama_status_dot.configure(text_color=COLORS["success"])
+            self.ollama_status_label.configure(text="Ollama")
+            # Remove tooltip bindings
+            self._clear_ollama_tooltip()
+        else:
+            # Disconnected - red dot
+            self.ollama_status_dot.configure(text_color=COLORS["danger"])
+            self.ollama_status_label.configure(text="Ollama (disconnected)")
+            # Add tooltip with troubleshooting info
+            self._setup_ollama_tooltip()
+
+        if DEBUG_MODE:
+            status = "connected" if self.model_manager.is_connected else "disconnected"
+            debug_log(f"[MainWindow] Ollama status: {status}")
+
+    def _setup_ollama_tooltip(self):
+        """Set up hover tooltip for disconnected Ollama status."""
+        tooltip_text = (
+            "Ollama is not running.\n\n"
+            "To fix:\n"
+            "• Ensure Ollama is installed (ollama.ai)\n"
+            "• Run 'ollama serve' in a terminal\n"
+            "• Check if port 11434 is available"
+        )
+
+        def show_tooltip(event):
+            # Create tooltip window
+            self._ollama_tooltip = tooltip = ctk.CTkToplevel(self)
+            tooltip.wm_overrideredirect(True)
+            tooltip.wm_geometry(f"+{event.x_root + 10}+{event.y_root + 10}")
+
+            label = ctk.CTkLabel(
+                tooltip,
+                text=tooltip_text,
+                font=("Segoe UI", 10),
+                fg_color=("#2b2b2b", "#2b2b2b"),
+                corner_radius=6,
+                padx=10,
+                pady=8,
+                justify="left"
+            )
+            label.pack()
+
+        def hide_tooltip(event):
+            if hasattr(self, '_ollama_tooltip') and self._ollama_tooltip:
+                self._ollama_tooltip.destroy()
+                self._ollama_tooltip = None
+
+        # Bind to both dot and label
+        self.ollama_status_dot.bind("<Enter>", show_tooltip)
+        self.ollama_status_dot.bind("<Leave>", hide_tooltip)
+        self.ollama_status_label.bind("<Enter>", show_tooltip)
+        self.ollama_status_label.bind("<Leave>", hide_tooltip)
+
+    def _clear_ollama_tooltip(self):
+        """Remove tooltip bindings when Ollama is connected."""
+        # Unbind events
+        self.ollama_status_dot.unbind("<Enter>")
+        self.ollama_status_dot.unbind("<Leave>")
+        self.ollama_status_label.unbind("<Enter>")
+        self.ollama_status_label.unbind("<Leave>")
+
+        # Destroy any existing tooltip
+        if hasattr(self, '_ollama_tooltip') and self._ollama_tooltip:
+            self._ollama_tooltip.destroy()
+            self._ollama_tooltip = None
+
+    def _update_model_display(self):
+        """
+        Update the model display in the header.
+
+        Shows model name and parameter count (e.g., "gemma3:1b (1B params)").
+        """
+        model_name = self.model_manager.model_name
+
+        # Format display text with parameter count if available
+        display_text = self._format_model_display(model_name)
+        self.model_name_label.configure(text=display_text)
+
+        if DEBUG_MODE:
+            debug_log(f"[MainWindow] Model display updated: {display_text}")
+
+    def _format_model_display(self, model_name: str) -> str:
+        """
+        Format model name with parameter count for display.
+
+        Args:
+            model_name: Raw model name (e.g., "gemma3:1b", "llama3.2:3b")
+
+        Returns:
+            Formatted string (e.g., "gemma3:1b (1B params)")
+        """
+        if not model_name:
+            return "No model selected"
+
+        # Extract parameter count from model name if present
+        # Common patterns: gemma3:1b, llama3.2:3b, mistral:7b
+        param_info = ""
+        name_lower = model_name.lower()
+
+        # Look for parameter patterns in the model name
+        import re
+        param_match = re.search(r':(\d+\.?\d*)b', name_lower)
+        if param_match:
+            param_size = param_match.group(1)
+            param_info = f" ({param_size}B params)"
+
+        return f"{model_name}{param_info}"
+
+    def _open_model_settings(self):
+        """Open the settings dialog directly to the Questions tab (model config)."""
+        from src.ui.settings.settings_dialog import SettingsDialog
+
+        try:
+            dialog = SettingsDialog(parent=self, initial_tab="Questions")
+            dialog.wait_window()
+        except Exception as e:
+            from src.logging_config import error as log_error
+            log_error(f"Failed to open settings dialog: {e}")
+            import traceback
+            traceback.print_exc()
+
+        # Refresh UI after settings change
+        self._refresh_corpus_dropdown()
+        self._update_corpus_banner()
+        self._update_model_display()
+        self._update_ollama_status()
 
     # =========================================================================
     # Corpus Management
@@ -1078,6 +1223,8 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         # Refresh UI after settings change
         self._refresh_corpus_dropdown()
         self._update_corpus_banner()
+        self._update_model_display()
+        self._update_ollama_status()
 
     # =========================================================================
     # Timer

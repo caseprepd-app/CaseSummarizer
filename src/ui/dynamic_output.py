@@ -671,10 +671,12 @@ class DynamicOutputWidget(ctk.CTkFrame):
                 else:
                     # No feedback rating - use Found By coloring if available
                     # Session 53: Handle comma-separated algorithm names (e.g., "NER, RAKE")
+                    # Session 61: Also handle legacy "Both" value
                     found_by = item.get("Found By", "") if isinstance(item, dict) else ""
                     algos = [a.strip() for a in found_by.split(",")] if found_by else []
-                    if len(algos) >= 2:
-                        tag = (row_bg_tag, 'found_multi')  # Multiple algorithms = high confidence
+                    if len(algos) >= 2 or "Both" in algos:
+                        # Multiple algorithms = high confidence (includes legacy "Both")
+                        tag = (row_bg_tag, 'found_multi')
                     elif "NER" in algos:
                         tag = (row_bg_tag, 'found_ner')
                     elif "RAKE" in algos:
@@ -684,7 +686,8 @@ class DynamicOutputWidget(ctk.CTkFrame):
                     elif "LLM" in algos:
                         tag = (row_bg_tag, 'found_llm')
                     else:
-                        tag = (row_bg_tag,)
+                        # Fallback: use multi color for visibility (better than invisible)
+                        tag = (row_bg_tag, 'found_multi')
                 self.csv_treeview.insert("", "end", values=values, tags=tag)
 
             current_idx = batch_end

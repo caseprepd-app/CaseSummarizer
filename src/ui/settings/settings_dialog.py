@@ -43,13 +43,14 @@ class SettingsDialog(ctk.CTkToplevel):
         widgets: Dict mapping setting keys to widget instances.
     """
 
-    def __init__(self, parent=None, on_save_callback=None):
+    def __init__(self, parent=None, on_save_callback=None, initial_tab: str | None = None):
         """
         Initialize the settings dialog.
 
         Args:
             parent: Parent window (dialog will be modal to this).
             on_save_callback: Optional callback after settings are saved.
+            initial_tab: Optional tab name to open initially (e.g., "Questions").
         """
         super().__init__(parent)
         self.title("Settings")
@@ -60,6 +61,7 @@ class SettingsDialog(ctk.CTkToplevel):
 
         self.on_save_callback = on_save_callback
         self.widgets: dict[str, ctk.CTkFrame] = {}
+        self._initial_tab = initial_tab
 
         self._setup_ui()
         self._load_current_values()
@@ -138,9 +140,12 @@ class SettingsDialog(ctk.CTkToplevel):
             tab.grid_columnconfigure(0, weight=1)
             self._populate_tab(tab, category)
 
-        # Set first tab as default
+        # Set initial tab (user-specified or first tab)
         if categories:
-            self.tabview.set(categories[0])
+            if self._initial_tab and self._initial_tab in categories:
+                self.tabview.set(self._initial_tab)
+            else:
+                self.tabview.set(categories[0])
 
         # Button frame
         btn_frame = ctk.CTkFrame(self, fg_color="transparent")

@@ -42,7 +42,8 @@ from src.logging_config import debug_log
 
 
 # Type alias for found_by values
-FoundBy = Literal["Both", "LLM", "NER"]
+# Session 61: Changed from Literal to str to support comma-separated algorithms
+FoundBy = str  # e.g., "NER", "LLM", "NER, LLM", "NER, RAKE, BM25"
 
 # Similarity threshold for fuzzy matching
 DEFAULT_SIMILARITY_THRESHOLD = 0.85
@@ -68,11 +69,12 @@ class ReconciledPerson:
 
     @property
     def combined_confidence(self) -> float:
-        """Calculate combined confidence from both methods."""
-        if self.found_by == "Both":
+        """Calculate combined confidence from methods that found this item."""
+        # Session 61: Check for multiple algorithms via comma
+        if "," in self.found_by:
             # Average of both, with bonus for agreement
             return min(1.0, (self.ner_confidence + self.llm_confidence) / 2 + 0.1)
-        elif self.found_by == "NER":
+        elif "NER" in self.found_by:
             return self.ner_confidence
         else:
             return self.llm_confidence
@@ -102,11 +104,12 @@ class ReconciledTerm:
 
     @property
     def combined_confidence(self) -> float:
-        """Calculate combined confidence from both methods."""
-        if self.found_by == "Both":
+        """Calculate combined confidence from methods that found this item."""
+        # Session 61: Check for multiple algorithms via comma
+        if "," in self.found_by:
             # Average of both, with bonus for agreement
             return min(1.0, (self.ner_confidence + self.llm_confidence) / 2 + 0.1)
-        elif self.found_by == "NER":
+        elif "NER" in self.found_by:
             return self.ner_confidence
         else:
             return self.llm_confidence
@@ -191,7 +194,7 @@ class VocabularyReconciler:
                 results.append(ReconciledPerson(
                     name=ner_data["name"],  # Use NER's canonical form
                     role=role,
-                    found_by="Both",
+                    found_by="NER, LLM",  # Session 61: List algorithms instead of "Both"
                     ner_confidence=ner_data["confidence"],
                     llm_confidence=llm_data["confidence"],
                 ))
@@ -216,17 +219,21 @@ class VocabularyReconciler:
                     llm_confidence=llm_data["confidence"],
                 ))
 
-        # Sort results: "Both" first, then alphabetically by name
-        sorted_results = sorted(results, key=lambda p: (p.found_by, p.name.lower()))
+        # Sort results: multiple algorithms first, then alphabetically by name
+        # Session 61: Sort by comma count (more commas = more algorithms = higher priority)
+        sorted_results = sorted(
+            results,
+            key=lambda p: (-p.found_by.count(","), p.name.lower())
+        )
 
-        # Log summary
-        both_count = sum(1 for r in sorted_results if r.found_by == "Both")
+        # Log summary - Session 61: Updated to handle comma-separated found_by
+        multi_count = sum(1 for r in sorted_results if "," in r.found_by)
         ner_only = sum(1 for r in sorted_results if r.found_by == "NER")
         llm_only = sum(1 for r in sorted_results if r.found_by == "LLM")
 
         debug_log(
             f"[Reconciler] People complete: {len(sorted_results)} unique people "
-            f"(Both: {both_count}, NER only: {ner_only}, LLM only: {llm_only})"
+            f"(Multiple: {multi_count}, NER only: {ner_only}, LLM only: {llm_only})"
         )
 
         return sorted_results
@@ -319,7 +326,7 @@ class VocabularyReconciler:
                 results.append(ReconciledTerm(
                     term=ner_data["term"],  # Use NER's canonical form
                     type=self._resolve_type(ner_data["type"], llm_data["type"]),
-                    found_by="Both",
+                    found_by="NER, LLM",  # Session 61: List algorithms instead of "Both"
                     frequency=ner_data["frequency"] + llm_data["frequency"],
                     ner_confidence=ner_data["confidence"],
                     llm_confidence=llm_data["confidence"],
@@ -350,14 +357,14 @@ class VocabularyReconciler:
         # Sort results
         sorted_results = self._sort_results(results)
 
-        # Log summary
-        both_count = sum(1 for r in sorted_results if r.found_by == "Both")
+        # Log summary - Session 61: Updated to handle comma-separated found_by
+        multi_count = sum(1 for r in sorted_results if "," in r.found_by)
         ner_only = sum(1 for r in sorted_results if r.found_by == "NER")
         llm_only = sum(1 for r in sorted_results if r.found_by == "LLM")
 
         debug_log(
             f"[Reconciler] Complete: {len(sorted_results)} unique terms "
-            f"(Both: {both_count}, NER only: {ner_only}, LLM only: {llm_only})"
+            f"(Multiple: {multi_count}, NER only: {ner_only}, LLM only: {llm_only})"
         )
 
         return sorted_results
@@ -500,19 +507,18 @@ class VocabularyReconciler:
 
     def _sort_results(self, terms: list[ReconciledTerm]) -> list[ReconciledTerm]:
         """
-        Sort results by Found By (Both first), then Term alphabetically.
+        Sort results by algorithm count (most first), then Term alphabetically.
 
-        "Both" sorts first because B comes before L and N alphabetically,
-        which aligns with the user's request for alphabetical sorting
-        that puts "Both" first.
+        Session 61: Updated to sort by comma count - more commas means more
+        algorithms found the term, indicating higher confidence.
 
         Args:
             terms: Unsorted list of reconciled terms
 
         Returns:
-            Sorted list
+            Sorted list with multi-algorithm terms first
         """
-        return sorted(terms, key=lambda t: (t.found_by, t.term.lower()))
+        return sorted(terms, key=lambda t: (-t.found_by.count(","), t.term.lower()))
 
     def to_csv_data(
         self,
@@ -578,37 +584,44 @@ class VocabularyReconciler:
         """
         Combine people and vocabulary into unified table format (Session 45).
 
-        Creates a combined table with Name/Term, Type/Role, Found By, and Confidence.
-        People are listed first (sorted by confidence), then vocabulary terms.
+        Session 61: Updated to match GUI_DISPLAY_COLUMNS expected keys:
+        - "Term" (was "Name/Term")
+        - "Is Person" Yes/No (was "Type"/"Category")
+        - "Quality Score" (was "Confidence")
+        - "Found By" (unchanged)
 
         Args:
             people: List of ReconciledPerson objects
             terms: List of ReconciledTerm objects
 
         Returns:
-            List of dicts with unified CSV column data
+            List of dicts with unified CSV column data matching GUI expectations
         """
         csv_data = []
 
         # Add people first (they're the primary output)
         for person in people:
             row = {
-                "Name/Term": person.name,
-                "Type": person.role.replace("_", " ").title(),
-                "Category": "Person",
+                "Term": person.name,
+                "Is Person": "Yes",  # People are always persons
                 "Found By": person.found_by,
-                "Confidence": round(person.combined_confidence * 100, 1),
+                "Quality Score": round(person.combined_confidence * 100, 1),
+                # Keep legacy fields for backward compatibility
+                "Role/Relevance": person.role.replace("_", " ").title(),
             }
             csv_data.append(row)
 
         # Add vocabulary terms
         for term in terms:
+            # Determine if this term is a person based on type
+            is_person = term.type.lower() in ("person", "people", "name")
             row = {
-                "Name/Term": term.term,
-                "Type": term.type,
-                "Category": "Vocabulary",
+                "Term": term.term,
+                "Is Person": "Yes" if is_person else "No",
                 "Found By": term.found_by,
-                "Confidence": round(term.combined_confidence * 100, 1),
+                "Quality Score": round(term.combined_confidence * 100, 1),
+                # Keep legacy fields for backward compatibility
+                "Type": term.type,
             }
             csv_data.append(row)
 

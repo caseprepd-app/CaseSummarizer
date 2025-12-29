@@ -6,6 +6,59 @@
 
 ---
 
+## Session 61: GUI Enhancements & Vocabulary Display Fix — 2025-12-29
+
+**Changes Made:**
+
+### 1. Ollama Status Indicator (Status Bar)
+Added a small, less prominent Ollama connection indicator in the status bar:
+- **Green dot** — Ollama connected and responding
+- **Red dot + "(disconnected)"** — Ollama not reachable
+- **Tooltip on disconnect** — Hover shows troubleshooting tips ("Is Ollama running?", "Check localhost:11434")
+
+**Files:**
+- `src/ui/window_layout.py:312-330` — Widget creation
+- `src/ui/main_window.py` — `_update_ollama_status()`, `_setup_ollama_tooltip()`, `_clear_ollama_tooltip()`
+
+### 2. Model Display in Header
+Added model name display with parameter count in header bar:
+- **Format:** `🤖 gemma3:1b (1B params)`
+- **Configure button** — Opens Settings dialog directly to Questions tab
+- **Auto-updates** — Refreshes when model changes
+
+**Files:**
+- `src/ui/window_layout.py:69-96` — Widget creation
+- `src/ui/main_window.py` — `_update_model_display()`, `_format_model_display()`, `_open_model_settings()`
+- `src/ui/settings/settings_dialog.py` — Added `initial_tab` parameter
+
+### 3. Vocabulary Table Invisible Text Bug (Critical Fix)
+
+**Problem:** After LLM phase completed, vocabulary table showed "1688 names & terms found" but all rows appeared blank. Only the "Found By" column showed "Both" when a row was selected.
+
+**Root Cause:** The `combined_to_csv_data()` method in `reconciler.py` output dictionary keys that didn't match what the GUI expected:
+
+| Reconciler Output | GUI Expected |
+|------------------|--------------|
+| `"Name/Term"` | `"Term"` |
+| `"Type"` | `"Is Person"` |
+| `"Confidence"` | `"Quality Score"` |
+| `"Found By"` | `"Found By"` ✓ |
+
+Only "Found By" matched, which is why only "Both" was visible when selecting a row.
+
+**Fix:** Updated `combined_to_csv_data()` to output correct keys matching `GUI_DISPLAY_COLUMNS`.
+
+**Additional fix:** Changed `found_by="Both"` to `found_by="NER, LLM"` to properly list algorithms (legacy "Both" value was from before multi-algorithm support).
+
+**Files:**
+- `src/core/vocabulary/reconciler.py:combined_to_csv_data()` — Key mapping fix
+- `src/ui/dynamic_output.py` — Handle legacy "Both" as multiple algorithms
+- `src/ui/theme.py` — Brightened algorithm colors for dark mode visibility
+
+**Why this happened:** The NER-only phase and LLM phase used different code paths to format output. NER phase used `vocabulary_extractor`'s format (correct keys), while post-LLM used `reconciler.combined_to_csv_data()` (wrong keys).
+
+---
+
 ## Hallucination Verification for Q&A Answers — 2025-12-28
 
 **Problem:** The Q&A feature was hallucinating plausible-sounding data. When asked "What were the vital signs?", Gemma 3:1b fabricated specific values (98.6°F, 92 bpm, 130/85 mmHg) that weren't in the source documents. Small LLMs (1B params) are prone to fabrication when they don't know the answer.

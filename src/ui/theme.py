@@ -106,16 +106,18 @@ COLORS = {
     "qa_separator": "#566573",                   # Section separators
 
     # Algorithm detection colors (vocabulary table)
-    "algo_multi": "#28a745",                     # Multiple algorithms (green)
-    "algo_ner": "#2c3e50",                       # NER only (dark slate)
-    "algo_rake": "#8e44ad",                      # RAKE only (purple)
-    "algo_bm25": "#e67e22",                      # BM25 only (orange)
-    "algo_llm": "#17a2b8",                       # LLM only (blue)
+    # Updated Session 61: Brighter colors for dark mode visibility
+    "algo_multi": "#5dde77",                     # Multiple algorithms (bright green)
+    "algo_ner": "#7ec8e3",                       # NER only (light blue) - was dark slate, invisible
+    "algo_rake": "#c792ea",                      # RAKE only (light purple)
+    "algo_bm25": "#ffb347",                      # BM25 only (light orange)
+    "algo_llm": "#4dd0e1",                       # LLM only (cyan)
 
-    # Table rows
-    "row_odd": "#f8f9fa",                        # Odd row (light mode)
-    "row_even": "#ffffff",                       # Even row (light mode)
+    # Table rows - Session 61: Dark mode colors (light mode values caused invisible text)
+    "row_odd": "#2b2b2b",                        # Odd row (same as treeview bg)
+    "row_even": "#353535",                       # Even row (slightly lighter for alternation)
     "row_selected": "#3470b6",                   # Selected row
+    "row_text": "#e0e0e0",                       # Default row text (light gray for dark mode)
 
     # Output pane (Session 45)
     "output_pane": ("#e8e8e8", "#1a1a2e"),       # Light/dark mode pair
@@ -279,8 +281,9 @@ VOCAB_TABLE_TAGS = {
     "found_rake": {"foreground": COLORS["algo_rake"]},
     "found_bm25": {"foreground": COLORS["algo_bm25"]},
     "found_llm": {"foreground": COLORS["algo_llm"]},
-    "oddrow": {"background": COLORS["row_odd"]},
-    "evenrow": {"background": COLORS["row_even"]},
+    # Session 61: Added foreground to ensure text visibility in dark mode
+    "oddrow": {"background": COLORS["row_odd"], "foreground": COLORS["row_text"]},
+    "evenrow": {"background": COLORS["row_even"], "foreground": COLORS["row_text"]},
 }
 
 
