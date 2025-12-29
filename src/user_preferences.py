@@ -271,6 +271,20 @@ class UserPreferencesManager:
                 raise ValueError(
                     f"phrase_rarity_threshold must be 0.1-0.9, got {value}"
                 )
+        # Session 62: New settings validation
+        elif key == "ollama_model":
+            if not isinstance(value, str) or not value:
+                raise ValueError("ollama_model must be a non-empty string")
+        elif key == "vocab_min_occurrences":
+            if not isinstance(value, int) or value < 1 or value > 5:
+                raise ValueError(
+                    f"vocab_min_occurrences must be 1-5, got {value}"
+                )
+        elif key == "phrase_mean_rarity_threshold":
+            if not isinstance(value, (int, float)) or value < 0.1 or value > 0.9:
+                raise ValueError(
+                    f"phrase_mean_rarity_threshold must be 0.1-0.9, got {value}"
+                )
 
         self._preferences[key] = value
         self._save_preferences()

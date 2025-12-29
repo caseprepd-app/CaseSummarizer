@@ -519,10 +519,107 @@ def _register_all_settings():
         setter=lambda v: prefs.set("phrase_rarity_threshold", float(v)),
     ))
 
+    # Session 62: Additional vocabulary filtering controls
+    SettingsRegistry.register(SettingDefinition(
+        key="vocab_min_occurrences",
+        label="Minimum term occurrences",
+        category="Advanced",
+        setting_type=SettingType.SPINBOX,
+        tooltip=(
+            "Filter terms appearing fewer than N times in your documents.\n\n"
+            "Higher values filter more aggressively, removing OCR errors and "
+            "one-off terms. Value of 1 keeps all terms.\n\n"
+            "Note: Person names are exempt from this filter."
+        ),
+        default=2,
+        min_value=1,
+        max_value=5,
+        getter=lambda: prefs.get("vocab_min_occurrences", 2),
+        setter=lambda v: prefs.set("vocab_min_occurrences", int(v)),
+    ))
+
+    SettingsRegistry.register(SettingDefinition(
+        key="phrase_mean_rarity_threshold",
+        label="Phrase mean commonality",
+        category="Advanced",
+        setting_type=SettingType.SLIDER,
+        tooltip=(
+            "Filter phrases where the AVERAGE word commonality exceeds this "
+            "threshold. Lower values = more aggressive filtering.\n\n"
+            "Example: 0.40 filters phrases where the average word is in the "
+            "top 40% of common English words.\n\n"
+            "Works alongside 'Phrase filtering threshold' which checks the "
+            "RAREST word in the phrase."
+        ),
+        default=0.40,
+        min_value=0.10,
+        max_value=0.90,
+        step=0.05,
+        getter=lambda: prefs.get("phrase_mean_rarity_threshold", 0.40),
+        setter=lambda v: prefs.set("phrase_mean_rarity_threshold", float(v)),
+    ))
+
 
     # ===================================================================
     # QUESTIONS TAB
     # ===================================================================
+
+    # Session 62: Ollama Model Selector
+    def _get_ollama_model_options() -> list[tuple[str, str]]:
+        """Fetch available models from Ollama for dropdown options."""
+        try:
+            from src.core.ai import OllamaModelManager
+            manager = OllamaModelManager()
+            if not manager.is_connected:
+                return [("(Ollama not running - start Ollama first)", "")]
+            models = manager.get_available_models()
+            if models:
+                # Sort by name and return (display, value) tuples
+                options = []
+                for name in sorted(models.keys()):
+                    # Show model name with size if available
+                    info = models[name]
+                    size_gb = info.get("size", 0) / (1024**3) if info.get("size") else 0
+                    if size_gb > 0:
+                        display = f"{name} ({size_gb:.1f} GB)"
+                    else:
+                        display = name
+                    options.append((display, name))
+                return options
+            return [("(No models installed - run 'ollama pull gemma3:1b')", "")]
+        except Exception as e:
+            return [(f"(Error connecting to Ollama)", "")]
+
+    def _set_ollama_model(model_name: str) -> None:
+        """Save and activate selected Ollama model."""
+        if not model_name:
+            return
+        prefs.set("ollama_model", model_name)
+        # Also update the model manager to use this model
+        try:
+            from src.core.ai import OllamaModelManager
+            manager = OllamaModelManager()
+            manager.load_model(model_name)
+        except Exception:
+            pass  # Will be handled when model is actually used
+
+    SettingsRegistry.register(SettingDefinition(
+        key="ollama_model",
+        label="AI Model",
+        category="Questions",
+        setting_type=SettingType.DROPDOWN,
+        tooltip=(
+            "Select which Ollama model to use for AI features.\n\n"
+            "This program was tested with Gemma 3. More parameters generally "
+            "produce better results, but a dedicated GPU is recommended for "
+            "larger models (7B+).\n\n"
+            "Pick the largest Gemma model suitable for your hardware."
+        ),
+        default="gemma3:1b",
+        options=_get_ollama_model_options(),
+        getter=lambda: prefs.get("ollama_model", "gemma3:1b"),
+        setter=_set_ollama_model,
+    ))
 
     SettingsRegistry.register(SettingDefinition(
         key="qa_answer_mode",

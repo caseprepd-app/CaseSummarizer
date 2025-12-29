@@ -35,7 +35,7 @@
 - [x] **Progressive summarization** — Chunked map-reduce with focus threading
 - [x] **Unified semantic chunking** — Token enforcement via tiktoken (400-1200 tokens/chunk) — CANONICAL
 - [x] **Parallel processing** — Dynamic worker scaling based on CPU/RAM
-- [x] **Settings system** — Registry-based, tabbed dialog
+- [x] **Settings system** — Registry-based, tabbed dialog with Ollama model selector and vocabulary filtering controls (Session 62)
 - [x] **Progressive extraction worker** — Three-phase NER→Q&A→LLM with unified queue routing (Session 48)
 - [x] **Shared config loader** — DRY utility for YAML loading (`src/core/config/loader.py`)
 

@@ -6,6 +6,62 @@
 
 ---
 
+## Session 62: Settings Menu Improvements & LLM Filtering Fix — 2025-12-29
+
+**Problem:** Users had no way to select Ollama models from the GUI. The "Configure" button in the header opened Settings → Questions tab, but that tab had no model selector. Additionally, LLM-extracted vocabulary terms weren't being filtered as aggressively as NER terms, resulting in many common words passing through.
+
+### 1. Ollama Model Selector (Questions Tab)
+
+Added a dropdown to select installed Ollama models:
+- **Dynamic population** — Queries `OllamaModelManager.get_available_models()` at dialog open
+- **Graceful fallbacks** — Shows helpful messages when Ollama not running or no models installed
+- **Size display** — Format: `gemma3:1b (1.2 GB)`
+- **Tooltip** — Advises Gemma 3 for best results, GPU recommended for 7B+ models
+
+**Files:**
+- `src/ui/settings/settings_registry.py:527-582` — `_get_ollama_model_options()`, `_set_ollama_model()`, setting definition
+- `src/ui/main_window.py:237-270` — Model reload after settings close
+- `src/user_preferences.py:275-277` — Validation for `ollama_model` key
+
+### 2. Vocabulary Filtering Controls (Advanced Tab)
+
+Added two new user-configurable settings:
+- **Minimum term occurrences** (SPINBOX, 1-5, default 2) — Filter terms appearing fewer than N times
+- **Phrase mean commonality** (SLIDER, 0.10-0.90, default 0.40) — Filter phrases where average word is too common
+
+**Files:**
+- `src/ui/settings/settings_registry.py:522-560` — Setting definitions
+- `src/user_preferences.py:278-287` — Validation for new keys
+- `src/core/vocabulary/vocabulary_extractor.py:475,631` — Read `vocab_min_occurrences` from preferences
+
+### 3. LLM Term Filtering Bug Fix
+
+**Problem:** LLM extracted "way more" terms than other algorithms because common words not in the Google Word Frequency dataset bypassed filtering.
+
+**Root Cause:** In `_filter_reconciled_terms()`, the check:
+```python
+rank = self.frequency_rank_map.get(lower_term)
+if rank is not None and rank < self.rarity_threshold:
+```
+Only filtered words that WERE in the dataset. Words NOT in the dataset (rank=None) passed through unfiltered, assuming they were rare/specialized. LLM extracts many domain terms not in the Google corpus.
+
+**Fix:** Added call to `should_filter_phrase()` from `rarity_filter.py` which uses a different frequency database with better coverage:
+```python
+from src.core.vocabulary.rarity_filter import should_filter_phrase
+if should_filter_phrase(term, is_person):
+    continue  # Filter common term
+```
+
+**Files:**
+- `src/core/vocabulary/vocabulary_extractor.py:624-630` — Added rarity filter check
+
+**Why two databases?**
+- Google Word Frequency: ~333K words, good for rank-based single-word filtering
+- Scaled Frequencies (rarity_filter): Broader coverage, includes word commonality scores
+- Using both ensures LLM terms don't slip through gaps
+
+---
+
 ## Session 61: GUI Enhancements & Vocabulary Display Fix — 2025-12-29
 
 **Changes Made:**

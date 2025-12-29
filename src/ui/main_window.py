@@ -237,6 +237,11 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
     def _open_model_settings(self):
         """Open the settings dialog directly to the Questions tab (model config)."""
         from src.ui.settings.settings_dialog import SettingsDialog
+        from src.user_preferences import get_user_preferences
+
+        # Session 62: Capture current model to detect changes
+        prefs = get_user_preferences()
+        old_model = prefs.get("ollama_model", self.model_manager.model_name)
 
         try:
             dialog = SettingsDialog(parent=self, initial_tab="Questions")
@@ -246,6 +251,17 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             log_error(f"Failed to open settings dialog: {e}")
             import traceback
             traceback.print_exc()
+
+        # Session 62: Check if model changed and reload if needed
+        new_model = prefs.get("ollama_model", self.model_manager.model_name)
+        if new_model and new_model != old_model:
+            try:
+                self.model_manager.load_model(new_model)
+                from src.logging_config import info as log_info
+                log_info(f"Model changed: {old_model} → {new_model}")
+            except Exception as e:
+                from src.logging_config import warning as log_warning
+                log_warning(f"Failed to load model {new_model}: {e}")
 
         # Refresh UI after settings change
         self._refresh_corpus_dropdown()

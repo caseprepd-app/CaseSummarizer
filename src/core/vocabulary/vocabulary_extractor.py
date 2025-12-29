@@ -471,7 +471,9 @@ class VocabularyExtractor:
                 continue
 
             # Minimum occurrence filtering (Person names exempt)
-            if not is_person and merged.frequency < VOCABULARY_MIN_OCCURRENCES:
+            # Session 62: Read from user preferences with config fallback
+            min_occurrences = get_user_preferences().get("vocab_min_occurrences", VOCABULARY_MIN_OCCURRENCES)
+            if not is_person and merged.frequency < min_occurrences:
                 continue
 
             # Detect role/relevance using profession-specific profile
@@ -619,13 +621,23 @@ class VocabularyExtractor:
                     debug_log(f"[VOCAB FILTER] Skipping common word: {term} (rank={rank})")
                     continue
 
+            # Session 62: Apply rarity filter to catch common words not in frequency dataset
+            # This uses the scaled frequency database which has better coverage for LLM terms
+            from src.core.vocabulary.rarity_filter import should_filter_phrase
+            is_person = category == "Person"
+            if should_filter_phrase(term, is_person):
+                debug_log(f"[VOCAB FILTER] Skipping common term via rarity filter: {term}")
+                continue
+
             # Frequency filtering (PERSON exempt) - skip if too frequent
             if category != "Person" and term_obj.frequency > frequency_threshold:
                 debug_log(f"[VOCAB FILTER] Skipping high-frequency term: {term} (freq={term_obj.frequency})")
                 continue
 
             # Minimum occurrence filtering (PERSON exempt) - skip if too rare
-            if category != "Person" and term_obj.frequency < VOCABULARY_MIN_OCCURRENCES:
+            # Session 62: Read from user preferences with config fallback
+            min_occurrences = get_user_preferences().get("vocab_min_occurrences", VOCABULARY_MIN_OCCURRENCES)
+            if category != "Person" and term_obj.frequency < min_occurrences:
                 debug_log(f"[VOCAB FILTER] Skipping low-frequency term: {term} (freq={term_obj.frequency})")
                 continue
 
