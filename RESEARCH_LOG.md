@@ -6,6 +6,62 @@
 
 ---
 
+## Hallucination Verification for Q&A Answers — 2025-12-28
+
+**Problem:** The Q&A feature was hallucinating plausible-sounding data. When asked "What were the vital signs?", Gemma 3:1b fabricated specific values (98.6°F, 92 bpm, 130/85 mmHg) that weren't in the source documents. Small LLMs (1B params) are prone to fabrication when they don't know the answer.
+
+**Research:** Investigated hallucination detection approaches:
+- **Prompting alone:** Insufficient—model can still fabricate when confident
+- **LettuceDetect:** MIT-licensed library using ModernBERT (~570MB model), achieves 79.22% F1 on RAGTruth benchmark
+- **Span-level detection:** Returns per-token hallucination probabilities, enabling granular color-coding
+
+**Decision:** Implement LettuceDetect-based verification with color-coded display:
+
+| Hallucination Prob | Color | Tag | Display |
+|-------------------|-------|-----|---------|
+| < 0.30 | Green | `verify_verified` | Normal text |
+| 0.30 – 0.50 | Yellow | `verify_uncertain` | Yellow text |
+| 0.50 – 0.70 | Orange | `verify_suspicious` | Orange text |
+| 0.70 – 0.85 | Red | `verify_unreliable` | Red text |
+| >= 0.85 | Gray | `verify_hallucinated` | ~~Strikethrough~~ |
+
+**Key features:**
+1. **Overall reliability score:** Bold header showing percentage and level (HIGH/MEDIUM/LOW)
+2. **Answer rejection:** Answers with < 50% reliability are replaced with rejection message
+3. **Hidden citation on rejection:** Rejected answers don't show citation/source (confusing UX otherwise)
+4. **Legend:** Color key displayed at bottom of Q&A panel
+
+**Bundled model support:**
+- Model downloaded to `models/lettucedect-base-modernbert-en-v1/` for installer bundling
+- Uses `local_files_only=True` when bundled model exists (no network calls in production)
+- Download script: `scripts/download_hallucination_model.py`
+
+**Files created:**
+- `src/core/qa/verification_config.py` — Thresholds, category helpers
+- `src/core/qa/hallucination_verifier.py` — HallucinationVerifier class
+- `scripts/download_hallucination_model.py` — Pre-download for installer
+
+**Files modified:**
+- `src/config.py` — `HALLUCINATION_VERIFICATION_ENABLED`, model paths
+- `src/ui/theme.py` — Verification colors and text tags
+- `src/core/qa/qa_orchestrator.py` — `QAResult.verification` field, `_verify_answer()`
+- `src/ui/qa_panel.py` — Color-coded display, reliability header, legend
+- `requirements.txt` — Added `lettucedetect>=0.1.6`
+
+**Performance:**
+- Model size: ~570MB (larger than initially expected)
+- Model load: ~3-5 seconds (once per session, lazy-loaded)
+- Per-answer verification: ~100-200ms
+- Memory: ~500MB additional when loaded
+
+**Trade-offs:**
+- Adds ~570MB to installer size
+- First Q&A takes longer (model load)
+- May occasionally reject valid answers (false positives)
+- Always-on by default (configurable via `HALLUCINATION_VERIFICATION_ENABLED`)
+
+---
+
 ## GUI-Configurable Vocabulary Filtering Thresholds — 2025-12-28
 
 **Problem:** The vocabulary filtering thresholds (Session 58) were hardcoded in `config.py`. Users couldn't adjust them without editing code.

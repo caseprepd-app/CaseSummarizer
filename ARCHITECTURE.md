@@ -4,7 +4,6 @@
 > For WHAT and WHY, see [PROJECT_OVERVIEW.md](PROJECT_OVERVIEW.md).
 > For technical decisions, see [RESEARCH_LOG.md](RESEARCH_LOG.md).
 
----
 
 ## Quick Navigation
 
@@ -32,6 +31,7 @@
 - [x] **Smart preprocessing** — Title page, headers/footers, line numbers, Q&A notation removal
 - [x] **Vocabulary extraction** — Dual NER + LLM extraction with reconciliation, "Found By" column
 - [x] **Questions & Answers system** — Hybrid BM25+ / FAISS retrieval, LlamaIndex query expansion
+- [x] **Hallucination verification** — LettuceDetect-based span-level verification with color-coded display (Session 60)
 - [x] **Progressive summarization** — Chunked map-reduce with focus threading
 - [x] **Unified semantic chunking** — Token enforcement via tiktoken (400-1200 tokens/chunk) — CANONICAL
 - [x] **Parallel processing** — Dynamic worker scaling based on CPU/RAM
@@ -568,6 +568,7 @@ flowchart LR
 | `ChunkMerger` | `retrieval/chunk_merger.py` | Combines results |
 | `QAOrchestrator` | `qa/qa_orchestrator.py` | Coordinates Q&A flow |
 | `AnswerGenerator` | `qa/answer_generator.py` | Generates answers |
+| `HallucinationVerifier` | `qa/hallucination_verifier.py` | Verifies answers for hallucination |
 | `QuestionFlowManager` | `vector_store/question_flow.py` | Branching questions |
 
 ### Retrieval Configuration
@@ -595,6 +596,48 @@ Two modes available:
 - **Ollama mode** — AI-synthesized answers using local LLM (default)
 
 **Important:** Ollama mode can hallucinate if retrieved context doesn't contain the answer. The LLM may fill gaps with plausible-sounding but incorrect information. Full-corpus retrieval mitigates this by ensuring the most relevant chunks are always included.
+
+### Hallucination Verification (Session 60)
+
+After answer generation, each answer is verified using LettuceDetect:
+
+```mermaid
+flowchart LR
+    Answer["Generated Answer"]
+    Verifier["HallucinationVerifier<br/>LettuceDetect model"]
+    Spans["Span-level probabilities"]
+
+    subgraph Display["UI Display"]
+        Green["Green < 0.30<br/>Verified"]
+        Yellow["Yellow 0.30-0.50<br/>Uncertain"]
+        Orange["Orange 0.50-0.70<br/>Suspicious"]
+        Red["Red 0.70-0.85<br/>Unreliable"]
+        Strike["Strikethrough ≥ 0.85<br/>Hallucinated"]
+    end
+
+    Answer --> Verifier
+    Verifier --> Spans
+    Spans --> Display
+```
+
+**Verification Flow:**
+1. `AnswerGenerator` produces answer from retrieved context
+2. `HallucinationVerifier.verify()` analyzes answer against context
+3. Returns `VerificationResult` with span-level hallucination probabilities
+4. If overall reliability < 50%, answer is rejected (replaced with rejection message)
+5. Rejected answers also hide citation/source (confusing UX otherwise)
+6. UI displays color-coded spans + reliability header + legend
+
+**Configuration:**
+```python
+HALLUCINATION_VERIFICATION_ENABLED = True  # Global toggle
+ANSWER_REJECTION_THRESHOLD = 0.50          # Reject if reliability < 50%
+```
+
+**Model Bundling:**
+- Model stored at `models/lettucedect-base-modernbert-en-v1/` (~570MB)
+- Uses `local_files_only=True` when bundled model exists (no network calls)
+- Download script: `scripts/download_hallucination_model.py`
 
 ---
 

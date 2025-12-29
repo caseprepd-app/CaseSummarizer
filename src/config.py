@@ -478,3 +478,32 @@ UNIFIED_CHUNK_MAX_TOKENS = 1200     # Maximum tokens (split larger chunks)
 # tiktoken encoding for token counting
 # cl100k_base is compatible with most modern models (GPT-3.5+, Claude, Llama)
 UNIFIED_CHUNK_ENCODING = "cl100k_base"
+
+# ============================================================================
+# Hallucination Verification Configuration (Session 60)
+# ============================================================================
+# Uses LettuceDetect to verify Q&A answers against source documents
+# Identifies potentially hallucinated spans with color-coded reliability
+
+# Enable/disable hallucination verification for Q&A answers
+# When enabled, adds ~100-200ms per answer
+HALLUCINATION_VERIFICATION_ENABLED = True
+
+# Model to use for verification (smaller = faster, larger = more accurate)
+# Options: "KRLabsOrg/lettucedect-base-modernbert-en-v1" (~150MB, recommended)
+#          "KRLabsOrg/tinylettuce-17m-v1" (~35MB, faster but less accurate)
+HALLUCINATION_MODEL = "KRLabsOrg/lettucedect-base-modernbert-en-v1"
+
+# Bundled model configuration for Windows installer
+# Models are stored in PROJECT_ROOT/models/ and shipped with the installer
+# This prevents network calls at runtime for privacy and offline use
+MODELS_DIR = Path(__file__).parent.parent / "models"
+HALLUCINATION_MODEL_LOCAL_PATH = MODELS_DIR / "lettucedect-base-modernbert-en-v1"
+
+# HuggingFace cache directory (used if bundled model not found)
+# Falls back to downloading if bundled model is missing (dev mode)
+HF_CACHE_DIR = MODELS_DIR / ".hf_cache"
+
+# Prevent network calls when bundled model exists
+# Set to True for production/installer builds, False for development
+HALLUCINATION_LOCAL_ONLY = HALLUCINATION_MODEL_LOCAL_PATH.exists()

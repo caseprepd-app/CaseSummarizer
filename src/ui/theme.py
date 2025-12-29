@@ -126,6 +126,19 @@ COLORS = {
 
     # System monitor
     "monitor_bg": "#1a3a1a",                     # System monitor frame bg
+
+    # Hallucination verification colors (Session 60)
+    # Used for color-coding Q&A answer reliability
+    "verify_verified": "#28a745",                # Green - verified (< 0.30 prob)
+    "verify_uncertain": "#ffc107",               # Yellow - uncertain (0.30-0.50)
+    "verify_suspicious": "#fd7e14",              # Orange - suspicious (0.50-0.70)
+    "verify_unreliable": "#dc3545",              # Red - unreliable (0.70-0.85)
+    "verify_hallucinated": "#888888",            # Gray + strikethrough (>= 0.85)
+
+    # Overall reliability header colors
+    "reliability_high": "#28a745",               # >= 80% reliable (green)
+    "reliability_medium": "#ffc107",             # 50-80% reliable (yellow)
+    "reliability_low": "#dc3545",                # < 50% reliable (red, rejected)
 }
 
 
@@ -235,6 +248,21 @@ QA_TEXT_TAGS = {
     "citation": {"foreground": COLORS["qa_citation"]},
     "source": {"foreground": COLORS["qa_source"], "font": FONTS["qa_source"]},
     "separator": {"foreground": COLORS["qa_separator"]},
+
+    # Hallucination verification span tags (Session 60)
+    "verify_verified": {"foreground": COLORS["verify_verified"]},
+    "verify_uncertain": {"foreground": COLORS["verify_uncertain"]},
+    "verify_suspicious": {"foreground": COLORS["verify_suspicious"]},
+    "verify_unreliable": {"foreground": COLORS["verify_unreliable"]},
+    "verify_hallucinated": {"foreground": COLORS["verify_hallucinated"], "overstrike": True},
+
+    # Reliability header tags (bold + colored)
+    "reliability_high": {"foreground": COLORS["reliability_high"], "font": FONTS["body_bold"]},
+    "reliability_medium": {"foreground": COLORS["reliability_medium"], "font": FONTS["body_bold"]},
+    "reliability_low": {"foreground": COLORS["reliability_low"], "font": FONTS["body_bold"]},
+
+    # Legend label
+    "legend_label": {"foreground": COLORS["text_secondary"], "font": FONTS["small"]},
 }
 
 

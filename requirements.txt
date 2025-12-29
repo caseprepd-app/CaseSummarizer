@@ -32,3 +32,5 @@ llama-index-llms-ollama>=0.1.0
 tiktoken>=0.5.0
 # OCR error / gibberish detection (Session 55)
 pyspellchecker>=0.8.0
+# Hallucination verification for Q&A (Session 60)
+lettucedetect>=0.1.6

@@ -19,12 +19,15 @@ Integration:
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Literal
+from typing import TYPE_CHECKING
 
-from src.config import DEBUG_MODE
+from src.config import DEBUG_MODE, HALLUCINATION_VERIFICATION_ENABLED
 from src.core.config import load_yaml_with_fallback
 from src.logging_config import debug_log
 from src.core.vector_store.qa_retriever import QARetriever, RetrievalResult
+
+if TYPE_CHECKING:
+    from src.core.qa.hallucination_verifier import VerificationResult
 
 # Default questions YAML path (relative to this file: src/core/qa/ -> config/)
 DEFAULT_QUESTIONS_PATH = Path(__file__).parent.parent.parent.parent / "config" / "qa_questions.yaml"
@@ -61,7 +64,8 @@ class QAResult:
     confidence: float = 0.0
     retrieval_time_ms: float = 0.0
     is_followup: bool = False
-    is_default_question: bool = False  # NEW: Marks questions from default list
+    is_default_question: bool = False  # Marks questions from default list
+    verification: "VerificationResult | None" = None  # Hallucination verification result (Session 60)
 
     @property
     def answer(self) -> str:
@@ -130,6 +134,9 @@ class QAOrchestrator:
 
         # Results storage
         self.results: list[QAResult] = []
+
+        # Hallucination verifier (lazy-loaded on first use)
+        self._verifier = None
 
         # Load questions
         self._questions: list[QuestionDef] = []
@@ -259,6 +266,7 @@ class QAOrchestrator:
         Produces CSV-style output with:
         - citation: Raw text from BM25+/vector retrieval (always populated)
         - quick_answer: AI-synthesized answer from Ollama (or fallback)
+        - verification: Hallucination verification result (if enabled)
 
         Args:
             question: The question to ask
@@ -266,10 +274,12 @@ class QAOrchestrator:
             is_default: Whether this question is from the default questions list
 
         Returns:
-            QAResult with quick_answer, citation, and metadata
+            QAResult with quick_answer, citation, verification, and metadata
         """
         # Retrieve relevant context (this becomes the citation)
         retrieval_result = self.retriever.retrieve_context(question)
+
+        verification = None
 
         if retrieval_result.context:
             # Citation: raw retrieved text (truncated for display)
@@ -280,6 +290,16 @@ class QAOrchestrator:
             # Quick Answer: AI-synthesized from Ollama
             # Always try Ollama mode for quick_answer, regardless of configured answer_mode
             quick_answer = self._generate_quick_answer(question, retrieval_result.context)
+
+            # Run hallucination verification if enabled (Session 60)
+            if HALLUCINATION_VERIFICATION_ENABLED and quick_answer:
+                verification = self._verify_answer(
+                    quick_answer, retrieval_result.context, question
+                )
+                # If answer is rejected, replace with rejection message
+                if verification and verification.answer_rejected:
+                    from src.core.qa.verification_config import REJECTION_MESSAGE
+                    quick_answer = REJECTION_MESSAGE
 
             source_summary = self.retriever.get_relevant_sources_summary(retrieval_result)
             confidence = self._calculate_confidence(retrieval_result)
@@ -298,7 +318,8 @@ class QAOrchestrator:
             confidence=confidence,
             retrieval_time_ms=retrieval_result.retrieval_time_ms,
             is_followup=is_followup,
-            is_default_question=is_default  # NEW field
+            is_default_question=is_default,
+            verification=verification
         )
 
     def _generate_quick_answer(self, question: str, context: str) -> str:
@@ -322,6 +343,27 @@ class QAOrchestrator:
 
         # If Ollama failed or returned empty, the generator already falls back to extraction
         return answer
+
+    def _verify_answer(self, answer: str, context: str, question: str):
+        """
+        Run hallucination verification on the generated answer.
+
+        Uses LettuceDetect to identify potentially hallucinated spans.
+        Lazy-loads the verifier on first use (~150MB model download).
+
+        Args:
+            answer: Generated answer to verify
+            context: Retrieved context (source documents)
+            question: Original question
+
+        Returns:
+            VerificationResult with spans and reliability score
+        """
+        if self._verifier is None:
+            from src.core.qa.hallucination_verifier import HallucinationVerifier
+            self._verifier = HallucinationVerifier()
+
+        return self._verifier.verify(answer, context, question)
 
     def _calculate_confidence(self, retrieval_result: RetrievalResult) -> float:
         """

@@ -222,7 +222,7 @@ class QAPanel(ctk.CTkFrame):
 
     def display_results(self, results: list[QAResult]):
         """
-        Display Q&A results as plain text.
+        Display Q&A results as plain text with verification highlighting.
 
         Args:
             results: List of QAResult objects to display
@@ -233,6 +233,9 @@ class QAPanel(ctk.CTkFrame):
         self.text_display.configure(state="normal")
         self.text_display.delete("1.0", "end")
 
+        # Track if any results have verification (for legend)
+        has_verification = any(r.verification is not None for r in results)
+
         # Format and insert each Q&A pair
         for i, result in enumerate(results, 1):
             # Question number and text - use different tag for defaults
@@ -240,24 +243,48 @@ class QAPanel(ctk.CTkFrame):
             self.text_display.insert("end", f"Question {i}:\n", question_tag)
             self.text_display.insert("end", f"{result.question}\n\n", "answer")
 
-            # Answer label and text
+            # Answer section with verification if available
             self.text_display.insert("end", "Answer:\n", "label")
-            self.text_display.insert("end", f"{result.quick_answer}\n\n", "answer")
 
-            # Citation label and text
-            self.text_display.insert("end", "Citation:\n", "label")
-            citation_text = result.citation if result.citation else "(no citation available)"
-            self.text_display.insert("end", f"{citation_text}\n\n", "citation")
+            # Track if answer was rejected (used to hide citation/source)
+            answer_rejected = False
 
-            # Source label and text
-            self.text_display.insert("end", "Source:\n", "label")
-            source_text = result.source_summary if result.source_summary else "(source unknown)"
-            self.text_display.insert("end", f"{source_text}\n\n", "source")
+            if result.verification:
+                # Show reliability header
+                self._insert_reliability_header(result.verification)
+
+                if result.verification.answer_rejected:
+                    # Show rejection message in unreliable color
+                    self.text_display.insert("end", f"{result.quick_answer}\n\n", "verify_unreliable")
+                    answer_rejected = True
+                else:
+                    # Show color-coded verified answer
+                    self._insert_verified_answer(result.verification)
+            else:
+                # No verification - show plain answer
+                self.text_display.insert("end", f"{result.quick_answer}\n\n", "answer")
+
+            # Only show citation and source if answer was NOT rejected
+            # (showing citation for rejected answers is confusing - implies content exists but is hidden)
+            if not answer_rejected:
+                # Citation label and text
+                self.text_display.insert("end", "Citation:\n", "label")
+                citation_text = result.citation if result.citation else "(no citation available)"
+                self.text_display.insert("end", f"{citation_text}\n\n", "citation")
+
+                # Source label and text
+                self.text_display.insert("end", "Source:\n", "label")
+                source_text = result.source_summary if result.source_summary else "(source unknown)"
+                self.text_display.insert("end", f"{source_text}\n\n", "source")
 
             # Separator between Q&A pairs (except after last one)
             if i < len(results):
                 separator = "─" * 80 + "\n\n"
                 self.text_display.insert("end", separator, "separator")
+
+        # Show verification legend at bottom if any results were verified
+        if has_verification:
+            self._insert_verification_legend()
 
         # Make read-only
         self.text_display.configure(state="disabled")
@@ -268,6 +295,65 @@ class QAPanel(ctk.CTkFrame):
 
         if DEBUG_MODE:
             debug_log(f"[QAPanel] Displaying {len(results)} results in plain text format")
+
+    def _insert_reliability_header(self, verification):
+        """
+        Insert bold reliability score header before the answer.
+
+        Args:
+            verification: VerificationResult with overall_reliability score
+        """
+        from src.core.qa.verification_config import get_reliability_level
+
+        reliability_pct = int(verification.overall_reliability * 100)
+        level = get_reliability_level(verification.overall_reliability)
+
+        # Map level to tag and label
+        tag_map = {
+            "high": ("reliability_high", "HIGH"),
+            "medium": ("reliability_medium", "MEDIUM"),
+            "low": ("reliability_low", "LOW - REJECTED"),
+        }
+        tag, label = tag_map.get(level, ("reliability_medium", "UNKNOWN"))
+
+        self.text_display.insert("end", f"[Reliability: {reliability_pct}% - {label}]\n", tag)
+
+    def _insert_verified_answer(self, verification):
+        """
+        Insert answer text with span-level color coding based on hallucination probability.
+
+        Args:
+            verification: VerificationResult with spans and probabilities
+        """
+        from src.core.qa.verification_config import get_span_category
+
+        for span in verification.spans:
+            category = get_span_category(span.hallucination_prob)
+            tag = f"verify_{category}"
+            self.text_display.insert("end", span.text, tag)
+
+        self.text_display.insert("end", "\n\n")
+
+    def _insert_verification_legend(self):
+        """Insert color legend at bottom of display to explain verification colors."""
+        self.text_display.insert("end", "\n")
+        self.text_display.insert("end", "─" * 80 + "\n", "separator")
+        self.text_display.insert("end", "Verification Legend: ", "legend_label")
+
+        # Legend items with their tags
+        legend_items = [
+            ("Verified ", "verify_verified"),
+            ("Uncertain ", "verify_uncertain"),
+            ("Suspicious ", "verify_suspicious"),
+            ("Unreliable ", "verify_unreliable"),
+            ("Hallucinated", "verify_hallucinated"),
+        ]
+
+        for label, tag in legend_items:
+            self.text_display.insert("end", label, tag)
+            self.text_display.insert("end", " ", "answer")  # Space between items
+
+        self.text_display.insert("end", "\n")
 
 
     def _set_all_include(self, include: bool):
