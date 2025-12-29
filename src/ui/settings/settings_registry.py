@@ -240,14 +240,12 @@ def _register_all_settings():
         setter=lambda v: prefs.set("resource_usage_pct", int(v)),
     ))
 
-    # ===================================================================
-    # SUMMARIZATION TAB
-    # ===================================================================
+    # Session 62b: Summary setting moved to Performance tab (consolidated)
 
     SettingsRegistry.register(SettingDefinition(
         key="default_summary_words",
         label="Default summary length (words)",
-        category="Summarization",
+        category="Performance",
         setting_type=SettingType.SLIDER,
         tooltip=(
             "Target word count for AI-generated summaries. The actual "
@@ -482,11 +480,11 @@ def _register_all_settings():
     ))
 
     # Session 59: Vocabulary filtering thresholds (user-configurable)
-    # Moved to Advanced tab for power users
+    # Session 62b: Moved from Advanced to Vocabulary tab (consolidated)
     SettingsRegistry.register(SettingDefinition(
         key="single_word_rarity_threshold",
         label="Single-word filtering threshold",
-        category="Advanced",
+        category="Vocabulary",
         setting_type=SettingType.SLIDER,
         tooltip=(
             "Filter single words in the top X% of English vocabulary. "
@@ -504,7 +502,7 @@ def _register_all_settings():
     SettingsRegistry.register(SettingDefinition(
         key="phrase_rarity_threshold",
         label="Phrase filtering threshold",
-        category="Advanced",
+        category="Vocabulary",
         setting_type=SettingType.SLIDER,
         tooltip=(
             "Filter multi-word phrases where all words are in the top X% of English. "
@@ -523,7 +521,7 @@ def _register_all_settings():
     SettingsRegistry.register(SettingDefinition(
         key="vocab_min_occurrences",
         label="Minimum term occurrences",
-        category="Advanced",
+        category="Vocabulary",
         setting_type=SettingType.SPINBOX,
         tooltip=(
             "Filter terms appearing fewer than N times in your documents.\n\n"
@@ -541,7 +539,7 @@ def _register_all_settings():
     SettingsRegistry.register(SettingDefinition(
         key="phrase_mean_rarity_threshold",
         label="Phrase mean commonality",
-        category="Advanced",
+        category="Vocabulary",
         setting_type=SettingType.SLIDER,
         tooltip=(
             "Filter phrases where the AVERAGE word commonality exceeds this "
@@ -561,7 +559,7 @@ def _register_all_settings():
 
 
     # ===================================================================
-    # QUESTIONS TAB
+    # Q&A TAB
     # ===================================================================
 
     # Session 62: Ollama Model Selector
@@ -606,7 +604,7 @@ def _register_all_settings():
     SettingsRegistry.register(SettingDefinition(
         key="ollama_model",
         label="AI Model",
-        category="Questions",
+        category="Q&A",
         setting_type=SettingType.DROPDOWN,
         tooltip=(
             "Select which Ollama model to use for AI features.\n\n"
@@ -624,7 +622,7 @@ def _register_all_settings():
     SettingsRegistry.register(SettingDefinition(
         key="qa_answer_mode",
         label="Answer generation mode",
-        category="Questions",
+        category="Q&A",
         setting_type=SettingType.DROPDOWN,
         tooltip=(
             "How to generate answers from retrieved document context.\n\n"
@@ -647,7 +645,7 @@ def _register_all_settings():
     SettingsRegistry.register(SettingDefinition(
         key="qa_auto_run",
         label="Auto-run default questions",
-        category="Questions",
+        category="Q&A",
         setting_type=SettingType.CHECKBOX,
         tooltip=(
             "Automatically run the default questions after document processing "
@@ -678,7 +676,7 @@ def _register_all_settings():
     SettingsRegistry.register(SettingDefinition(
         key="qa_edit_questions",
         label="Edit Default Questions",
-        category="Questions",
+        category="Q&A",
         setting_type=SettingType.BUTTON,
         tooltip=(
             "Customize the questions that are automatically asked for every "
@@ -733,7 +731,7 @@ def _register_all_settings():
     SettingsRegistry.register(SettingDefinition(
         key="qa_edit_auto_questions",
         label="Edit Auto Questions (TXT)",
-        category="Questions",
+        category="Q&A",
         setting_type=SettingType.BUTTON,
         tooltip=(
             "Edit the simple text file of questions that are automatically asked "
@@ -746,23 +744,38 @@ def _register_all_settings():
 
     # ===================================================================
     # EXPERIMENTAL TAB (Session 43)
+    # Session 62b: LLM setting moved to Performance; only briefing remains here
     # ===================================================================
+
+    # Session 62b: GPU-based auto-detection for LLM extraction (moved to Performance)
+    def _get_gpu_status_for_tooltip() -> str:
+        """Get GPU status text for tooltip display."""
+        try:
+            from src.core.utils.gpu_detector import get_gpu_status_text
+            return get_gpu_status_text()
+        except Exception:
+            return "GPU detection unavailable"
 
     SettingsRegistry.register(SettingDefinition(
         key="vocab_use_llm",
-        label="Use LLM for vocabulary extraction",
-        category="Experimental",
-        setting_type=SettingType.CHECKBOX,
+        label="LLM vocabulary extraction",
+        category="Performance",
+        setting_type=SettingType.DROPDOWN,
         tooltip=(
-            "When enabled, vocabulary extraction uses both NER (spaCy) and "
-            "LLM (Ollama) to find terms. The results are reconciled and "
-            "terms found by both methods are ranked higher.\n\n"
-            "This may take longer but typically provides more accurate results. "
-            "Disable to use NER-only extraction (faster but may miss some terms)."
+            "Whether to use LLM (Ollama) for enhanced vocabulary extraction.\n\n"
+            "• Auto: Use LLM if dedicated GPU detected, skip otherwise\n"
+            "• Yes: Always use LLM (slower without GPU)\n"
+            "• No: Never use LLM (fast NER-only extraction)\n\n"
+            f"Current status: {_get_gpu_status_for_tooltip()}"
         ),
-        default=True,
-        getter=lambda: prefs.is_vocab_llm_enabled(),
-        setter=lambda v: prefs.set_vocab_llm_enabled(v),
+        default="auto",
+        options=[
+            ("Auto (based on GPU)", "auto"),
+            ("Yes (always use LLM)", "yes"),
+            ("No (NER only)", "no"),
+        ],
+        getter=lambda: prefs.get_vocab_llm_mode(),
+        setter=lambda v: prefs.set_vocab_llm_mode(v),
     ))
 
     SettingsRegistry.register(SettingDefinition(

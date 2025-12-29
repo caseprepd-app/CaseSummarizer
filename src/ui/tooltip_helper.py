@@ -4,17 +4,22 @@ Tooltip Helper for CustomTkinter Widgets
 Provides stable tooltips that appear near the mouse cursor without flickering.
 Uses delayed display (500ms) and intelligent boundary detection for proper positioning.
 
+Session 62b: Now uses TooltipManager to ensure only ONE tooltip is visible
+at a time across the entire application.
+
 Best practices implemented:
 - Tooltip appears near mouse cursor (not directly under to avoid enter/leave loops)
 - Dynamic positioning calculated at show time (handles window resize/move)
 - Multi-monitor aware using winfo_vrootx/vrooty
 - Screen boundary detection prevents off-screen tooltips
 - 500ms delay prevents flickering during mouse movement
+- Global singleton ensures only one tooltip visible at a time
 """
 
 import customtkinter as ctk
 
 from src.ui.theme import FONTS
+from src.ui.tooltip_manager import tooltip_manager
 
 
 def create_tooltip(widget, text, delay_ms=500, offset_x=15, offset_y=10):
@@ -57,6 +62,9 @@ def create_tooltip(widget, text, delay_ms=500, offset_x=15, offset_y=10):
         if tooltip_window:
             return
 
+        # Session 62b: Close any existing tooltip from anywhere in the app
+        tooltip_manager.close_active()
+
         # Get current mouse position (dynamic - calculated at show time)
         try:
             mouse_x = widget.winfo_pointerx()
@@ -78,6 +86,9 @@ def create_tooltip(widget, text, delay_ms=500, offset_x=15, offset_y=10):
             tooltip_window.wm_attributes("-toolwindow", True)  # Windows-specific
         except Exception:
             pass  # Not available on all platforms
+
+        # Session 62b: Register with global manager
+        tooltip_manager.register(tooltip_window, owner=widget)
 
         # Create tooltip label
         label = ctk.CTkLabel(
@@ -147,6 +158,8 @@ def create_tooltip(widget, text, delay_ms=500, offset_x=15, offset_y=10):
         nonlocal tooltip_window
         cancel_show()
         if tooltip_window:
+            # Session 62b: Unregister from global manager
+            tooltip_manager.unregister(tooltip_window)
             try:
                 tooltip_window.destroy()
             except Exception:
@@ -207,6 +220,9 @@ def create_tooltip_for_frame(frame, text, child_widgets=None, delay_ms=500, offs
         if tooltip_window or hover_count <= 0:
             return
 
+        # Session 62b: Close any existing tooltip from anywhere in the app
+        tooltip_manager.close_active()
+
         try:
             mouse_x = frame.winfo_pointerx()
             mouse_y = frame.winfo_pointery()
@@ -225,6 +241,9 @@ def create_tooltip_for_frame(frame, text, child_widgets=None, delay_ms=500, offs
             tooltip_window.wm_attributes("-toolwindow", True)
         except Exception:
             pass
+
+        # Session 62b: Register with global manager
+        tooltip_manager.register(tooltip_window, owner=frame)
 
         label = ctk.CTkLabel(
             tooltip_window,
@@ -276,6 +295,8 @@ def create_tooltip_for_frame(frame, text, child_widgets=None, delay_ms=500, offs
         if hover_count <= 0:
             cancel_show()
             if tooltip_window:
+                # Session 62b: Unregister from global manager
+                tooltip_manager.unregister(tooltip_window)
                 try:
                     tooltip_window.destroy()
                 except Exception:
@@ -288,6 +309,8 @@ def create_tooltip_for_frame(frame, text, child_widgets=None, delay_ms=500, offs
         hover_count = 0
         cancel_show()
         if tooltip_window:
+            # Session 62b: Unregister from global manager
+            tooltip_manager.unregister(tooltip_window)
             try:
                 tooltip_window.destroy()
             except Exception:

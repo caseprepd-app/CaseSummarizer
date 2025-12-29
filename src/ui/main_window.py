@@ -33,6 +33,7 @@ from src.ui.workers import ProcessingWorker, VocabularyWorker, QAWorker, Briefin
 from src.ui.window_layout import WindowLayoutMixin
 from src.core.vocabulary import get_corpus_registry
 from src.core.vector_store import VectorStoreBuilder
+from src.ui.tooltip_manager import tooltip_manager
 
 
 class MainWindow(WindowLayoutMixin, ctk.CTk):
@@ -59,6 +60,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
 
         self.title("LocalScribe")
         self.geometry("1200x750")
+        self.iconbitmap("assets/icon.ico")  # Custom app icon
         self.minsize(900, 600)
 
         # State
@@ -151,6 +153,9 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         )
 
         def show_tooltip(event):
+            # Session 62b: Close any existing tooltip first via global manager
+            tooltip_manager.close_active()
+
             # Create tooltip window
             self._ollama_tooltip = tooltip = ctk.CTkToplevel(self)
             tooltip.wm_overrideredirect(True)
@@ -168,8 +173,13 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             )
             label.pack()
 
+            # Session 62b: Register with global manager
+            tooltip_manager.register(tooltip, owner=self.ollama_status_dot)
+
         def hide_tooltip(event):
             if hasattr(self, '_ollama_tooltip') and self._ollama_tooltip:
+                # Session 62b: Unregister from global manager
+                tooltip_manager.unregister(self._ollama_tooltip)
                 self._ollama_tooltip.destroy()
                 self._ollama_tooltip = None
 
@@ -189,6 +199,8 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
 
         # Destroy any existing tooltip
         if hasattr(self, '_ollama_tooltip') and self._ollama_tooltip:
+            # Session 62b: Unregister from global manager
+            tooltip_manager.unregister(self._ollama_tooltip)
             self._ollama_tooltip.destroy()
             self._ollama_tooltip = None
 
@@ -819,6 +831,12 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         doc_confidence = self._calculate_aggregate_confidence(self.processing_results)
         debug_log(f"[MainWindow] Aggregate document confidence: {doc_confidence:.1f}%")
 
+        # Session 62b: Get LLM preference (auto-resolves based on GPU detection)
+        from src.user_preferences import get_user_preferences
+        prefs = get_user_preferences()
+        use_llm = prefs.is_vocab_llm_enabled()
+        debug_log(f"[MainWindow] LLM extraction enabled: {use_llm} (mode: {prefs.get_vocab_llm_mode()})")
+
         # Start progressive extraction worker (uses shared ui_queue)
         self._progressive_worker = ProgressiveExtractionWorker(
             documents=self.processing_results,
@@ -829,6 +847,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             medical_terms_path=str(MEDICAL_TERMS_LIST_PATH),
             user_exclude_path=str(USER_VOCAB_EXCLUDE_PATH),
             doc_confidence=doc_confidence,  # Session 54: OCR quality for ML
+            use_llm=use_llm,  # Session 62b: Respect GPU auto-detect preference
         )
         self._progressive_worker.start()
 

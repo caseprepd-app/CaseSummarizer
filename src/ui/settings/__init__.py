@@ -14,6 +14,20 @@ Usage:
 Adding new settings:
     Add a SettingsRegistry.register() call in settings_registry.py.
     The UI will automatically include it - no other changes needed.
+
+Layout Standard (Session 62b):
+    All settings use a consistent 2/3 - 1/3 layout where:
+    - Labels + tooltip icons occupy the left portion (LABEL_AREA_WIDTH)
+    - Controls occupy the right portion (CONTROL_WIDTH)
+
+    To create a custom widget, subclass SettingRow and use CONTROL_WIDTH
+    for your widget's width to ensure consistent alignment.
+
+    Available layout constants:
+    - LABEL_AREA_WIDTH: Width of label area (280px)
+    - CONTROL_WIDTH: Width of control area (220px)
+    - VALUE_LABEL_WIDTH: Width for value displays (50px)
+    - CONTROL_PADDING_X: Padding between elements (10px)
 """
 
 from .settings_dialog import SettingsDialog
@@ -29,6 +43,11 @@ from .settings_widgets import (
     SliderSetting,
     SpinboxSetting,
     TooltipIcon,
+    # Layout constants for custom widget creation
+    LABEL_AREA_WIDTH,
+    CONTROL_WIDTH,
+    VALUE_LABEL_WIDTH,
+    CONTROL_PADDING_X,
 )
 
 __all__ = [
@@ -45,4 +64,9 @@ __all__ = [
     "CheckboxSetting",
     "DropdownSetting",
     "SpinboxSetting",
+    # Layout constants (Session 62b)
+    "LABEL_AREA_WIDTH",
+    "CONTROL_WIDTH",
+    "VALUE_LABEL_WIDTH",
+    "CONTROL_PADDING_X",
 ]

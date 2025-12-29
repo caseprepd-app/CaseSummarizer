@@ -34,3 +34,5 @@ tiktoken>=0.5.0
 pyspellchecker>=0.8.0
 # Hallucination verification for Q&A (Session 60)
 lettucedetect>=0.1.6
+# GPU detection for auto LLM configuration (Session 62b)
+gpu-tracker>=0.3.0

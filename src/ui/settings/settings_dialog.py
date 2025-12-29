@@ -54,7 +54,7 @@ class SettingsDialog(ctk.CTkToplevel):
         """
         super().__init__(parent)
         self.title("Settings")
-        self.geometry("750x520")  # Widened to fit 6 tabs
+        self.geometry("700x520")  # Session 62b: 4 tabs (consolidated from 6)
         self.grab_set()  # Make modal
         self.resizable(True, True)
         self.minsize(550, 420)

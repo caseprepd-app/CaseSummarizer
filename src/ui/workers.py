@@ -681,6 +681,7 @@ class ProgressiveExtractionWorker(BaseWorker):
         medical_terms_path: str | None = None,
         user_exclude_path: str | None = None,
         doc_confidence: float = 100.0,
+        use_llm: bool = True,  # Session 62b: Respect LLM preference
     ):
         """
         Initialize progressive extraction worker.
@@ -694,6 +695,7 @@ class ProgressiveExtractionWorker(BaseWorker):
             medical_terms_path: Path to medical terms list
             user_exclude_path: Path to user exclusion list
             doc_confidence: Aggregate OCR confidence (0-100) for ML feature (Session 54)
+            use_llm: Whether to run Phase 3 LLM extraction (Session 62b)
         """
         super().__init__(ui_queue)
         self.documents = documents
@@ -703,6 +705,7 @@ class ProgressiveExtractionWorker(BaseWorker):
         self.medical_terms_path = medical_terms_path
         self.user_exclude_path = user_exclude_path
         self.doc_confidence = doc_confidence  # Session 54: OCR quality for ML
+        self.use_llm = use_llm  # Session 62b: Whether to run LLM phase
 
     def execute(self):
         """Execute three-phase progressive extraction."""
@@ -754,59 +757,68 @@ class ProgressiveExtractionWorker(BaseWorker):
         qa_thread.start()
 
         # ===== PHASE 3: LLM Enhancement (Slow - minutes) =====
-        debug_log("[PROGRESSIVE WORKER] Phase 3: LLM extraction starting...")
-        self.send_progress(30, "Phase 3: Starting LLM enhancement...")
+        # Session 62b: Only run LLM phase if enabled (GPU auto-detect or user override)
+        if self.use_llm:
+            debug_log("[PROGRESSIVE WORKER] Phase 3: LLM extraction starting...")
+            self.send_progress(30, "Phase 3: Starting LLM enhancement...")
 
-        from src.core.chunking import create_unified_chunker
-        from src.core.extraction import LLMVocabExtractor
-        from src.core.vocabulary.reconciler import VocabularyReconciler
+            from src.core.chunking import create_unified_chunker
+            from src.core.extraction import LLMVocabExtractor
+            from src.core.vocabulary.reconciler import VocabularyReconciler
 
-        # Get NER candidates for reconciliation
-        ner_candidates = []
-        for algorithm in extractor.algorithms:
-            if algorithm.name == "NER" and algorithm.enabled:
-                result = algorithm.extract(self.combined_text)
-                ner_candidates = result.candidates
-                break
+            # Get NER candidates for reconciliation
+            ner_candidates = []
+            for algorithm in extractor.algorithms:
+                if algorithm.name == "NER" and algorithm.enabled:
+                    result = algorithm.extract(self.combined_text)
+                    ner_candidates = result.candidates
+                    break
 
-        # Create unified chunks
-        chunker = create_unified_chunker()
-        chunks = chunker.chunk_text(self.combined_text)
-        debug_log(f"[PROGRESSIVE WORKER] Created {len(chunks)} unified chunks")
+            # Create unified chunks
+            chunker = create_unified_chunker()
+            chunks = chunker.chunk_text(self.combined_text)
+            debug_log(f"[PROGRESSIVE WORKER] Created {len(chunks)} unified chunks")
 
-        # Extract with LLM progressively
-        llm_extractor = LLMVocabExtractor()
+            # Extract with LLM progressively
+            llm_extractor = LLMVocabExtractor()
 
-        def llm_progress(current, total):
-            if not self.is_stopped:
-                pct = 30 + int((current / total) * 60)  # 30-90% range
-                self.send_progress(pct, f"LLM analyzing chunk {current}/{total}...")
-                self.ui_queue.put(QueueMessage.llm_progress(current, total))
+            def llm_progress(current, total):
+                if not self.is_stopped:
+                    pct = 30 + int((current / total) * 60)  # 30-90% range
+                    self.send_progress(pct, f"LLM analyzing chunk {current}/{total}...")
+                    self.ui_queue.put(QueueMessage.llm_progress(current, total))
 
-        llm_result = llm_extractor.extract_from_unified_chunks(
-            chunks,
-            progress_callback=llm_progress,
-        )
+            llm_result = llm_extractor.extract_from_unified_chunks(
+                chunks,
+                progress_callback=llm_progress,
+            )
 
-        self.check_cancelled()
+            self.check_cancelled()
 
-        # Reconcile NER + LLM results
-        debug_log("[PROGRESSIVE WORKER] Reconciling NER + LLM results...")
-        reconciler = VocabularyReconciler()
+            # Reconcile NER + LLM results
+            debug_log("[PROGRESSIVE WORKER] Reconciling NER + LLM results...")
+            reconciler = VocabularyReconciler()
 
-        # Reconcile people
-        ner_people = [c for c in ner_candidates if getattr(c, 'suggested_type', '') == 'Person']
-        reconciled_people = reconciler.reconcile_people(ner_people, llm_result.people)
+            # Reconcile people
+            ner_people = [c for c in ner_candidates if getattr(c, 'suggested_type', '') == 'Person']
+            reconciled_people = reconciler.reconcile_people(ner_people, llm_result.people)
 
-        # Reconcile vocabulary terms
-        reconciled_terms = reconciler.reconcile(ner_candidates, llm_result.terms)
+            # Reconcile vocabulary terms
+            reconciled_terms = reconciler.reconcile(ner_candidates, llm_result.terms)
 
-        # Convert to unified CSV format
-        final_data = reconciler.combined_to_csv_data(reconciled_people, reconciled_terms)
+            # Convert to unified CSV format
+            final_data = reconciler.combined_to_csv_data(reconciled_people, reconciled_terms)
 
-        debug_log(f"[PROGRESSIVE WORKER] Phase 3 complete: {len(final_data)} reconciled terms")
-        self.ui_queue.put(QueueMessage.llm_complete(final_data))
-        self.send_progress(100, f"Complete: {len(final_data)} names & terms found")
+            debug_log(f"[PROGRESSIVE WORKER] Phase 3 complete: {len(final_data)} reconciled terms")
+            self.ui_queue.put(QueueMessage.llm_complete(final_data))
+            self.send_progress(100, f"Complete: {len(final_data)} names & terms found")
+        else:
+            # Session 62b: Skip LLM phase - NER results are already sent in Phase 1
+            debug_log("[PROGRESSIVE WORKER] Phase 3: Skipped (LLM disabled by user preference or no GPU)")
+            self.send_progress(90, "Phase 3: Skipped (LLM disabled)")
+            # Signal LLM complete with empty list - UI will show NER-only results
+            self.ui_queue.put(QueueMessage.llm_complete([]))
+            self.send_progress(100, f"Complete: {len(ner_results)} terms (NER only)")
 
         # Wait for Q&A thread to finish
         qa_thread.join(timeout=60)

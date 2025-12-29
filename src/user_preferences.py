@@ -39,9 +39,10 @@ class UserPreferencesManager:
                 "cpu_fraction": 0.5  # Default: 1/2 cores (0.25, 0.5, or 0.75)
             },
             # Session 43: Experimental features and LLM extraction settings
+            # Session 62b: vocab_use_llm changed to tri-state: "auto", "yes", "no"
             "experimental": {
                 "briefing_enabled": False,  # Case Briefing (experimental)
-                "vocab_use_llm": True,      # Use LLM for vocabulary extraction
+                "vocab_use_llm": "auto",    # LLM extraction: "auto", "yes", or "no"
             }
         }
 
@@ -181,26 +182,64 @@ class UserPreferencesManager:
         self._preferences["experimental"]["briefing_enabled"] = enabled
         self._save_preferences()
 
+    def get_vocab_llm_mode(self) -> str:
+        """
+        Get LLM extraction mode (Session 62b).
+
+        Returns:
+            str: "auto", "yes", or "no"
+        """
+        value = self._preferences.get("experimental", {}).get("vocab_use_llm", "auto")
+        # Handle legacy boolean values from older preferences
+        if value is True:
+            return "yes"
+        elif value is False:
+            return "no"
+        return value if value in ("auto", "yes", "no") else "auto"
+
     def is_vocab_llm_enabled(self) -> bool:
         """
-        Check if LLM extraction is enabled for vocabulary.
+        Check if LLM extraction is enabled for vocabulary (Session 62b).
+
+        Resolves "auto" mode using GPU detection.
 
         Returns:
             bool: True if LLM should be used alongside NER
         """
-        return self._preferences.get("experimental", {}).get("vocab_use_llm", True)
+        mode = self.get_vocab_llm_mode()
+        if mode == "yes":
+            return True
+        elif mode == "no":
+            return False
+        else:  # "auto" - use GPU detection
+            from src.core.utils.gpu_detector import has_dedicated_gpu
+            return has_dedicated_gpu()
+
+    def set_vocab_llm_mode(self, mode: str) -> None:
+        """
+        Set LLM extraction mode (Session 62b).
+
+        Args:
+            mode: "auto", "yes", or "no"
+        """
+        if mode not in ("auto", "yes", "no"):
+            raise ValueError(f"Invalid mode: {mode}, must be 'auto', 'yes', or 'no'")
+        if "experimental" not in self._preferences:
+            self._preferences["experimental"] = {}
+        self._preferences["experimental"]["vocab_use_llm"] = mode
+        self._save_preferences()
 
     def set_vocab_llm_enabled(self, enabled: bool) -> None:
         """
-        Enable or disable LLM for vocabulary extraction.
+        Legacy method - Enable or disable LLM for vocabulary extraction.
+
+        Deprecated: Use set_vocab_llm_mode() instead.
 
         Args:
             enabled: Whether to use LLM alongside NER
         """
-        if "experimental" not in self._preferences:
-            self._preferences["experimental"] = {}
-        self._preferences["experimental"]["vocab_use_llm"] = enabled
-        self._save_preferences()
+        # Convert boolean to string mode for backwards compatibility
+        self.set_vocab_llm_mode("yes" if enabled else "no")
 
     # =========================================================================
     # Generic Get/Set Methods (for extensible settings system)
@@ -284,6 +323,13 @@ class UserPreferencesManager:
             if not isinstance(value, (int, float)) or value < 0.1 or value > 0.9:
                 raise ValueError(
                     f"phrase_mean_rarity_threshold must be 0.1-0.9, got {value}"
+                )
+        # Session 62b: LLM extraction mode validation
+        elif key == "vocab_use_llm":
+            # Accept both legacy boolean and new tri-state string
+            if value not in ("auto", "yes", "no") and not isinstance(value, bool):
+                raise ValueError(
+                    f"vocab_use_llm must be 'auto', 'yes', or 'no', got {value}"
                 )
 
         self._preferences[key] = value

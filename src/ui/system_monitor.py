@@ -16,6 +16,7 @@ from src.config import (
     SYSTEM_MONITOR_THRESHOLD_YELLOW,
 )
 from src.ui.theme import FONTS, COLORS
+from src.ui.tooltip_manager import tooltip_manager
 
 
 class SystemMonitor(ctk.CTkFrame):
@@ -240,6 +241,9 @@ class SystemMonitor(ctk.CTkFrame):
             if self.tooltip_window:
                 return
 
+            # Session 62b: Close any existing tooltip first via global manager
+            tooltip_manager.close_active()
+
             # Get current mouse position (dynamic positioning)
             try:
                 mouse_x = self.winfo_pointerx()
@@ -332,12 +336,17 @@ class SystemMonitor(ctk.CTkFrame):
             self.tooltip_window.wm_geometry(f"+{int(x)}+{int(y)}")
             self.tooltip_window.lift()
 
+            # Session 62b: Register with global manager
+            tooltip_manager.register(self.tooltip_window, owner=self)
+
         except Exception as e:
             print(f"Tooltip error: {e}")
 
     def _hide_tooltip(self):
         """Hide the tooltip."""
         if self.tooltip_window:
+            # Session 62b: Unregister from global manager
+            tooltip_manager.unregister(self.tooltip_window)
             try:
                 self.tooltip_window.destroy()
             except Exception:

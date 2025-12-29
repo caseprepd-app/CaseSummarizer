@@ -6,6 +6,78 @@
 
 ---
 
+## Session 62b: GPU Auto-Detection, Tooltip Fix & Settings Reorganization — 2025-12-29
+
+### 1. GPU-Based LLM Auto-Detection
+
+**Problem:** Users without GPUs experienced slow vocabulary extraction because LLM phase ran regardless. Manual toggle was buried and non-obvious.
+
+**Solution:** Tri-state `vocab_use_llm` setting with automatic GPU detection:
+- **Auto** (default): Detect GPU → use LLM if found, skip otherwise
+- **Yes**: Always use LLM (user accepts slower performance)
+- **No**: Never use LLM (fast NER-only extraction)
+
+**Implementation:**
+- New `src/core/utils/gpu_detector.py` with `has_dedicated_gpu()` function
+- Detection methods: `nvidia-smi`, `amd-smi`/`rocm-smi`, `gpu-tracker` library fallback
+- Results cached via `@lru_cache` to avoid repeated detection
+- `ProgressiveExtractionWorker` checks setting before Phase 3 (LLM)
+
+**Files:**
+- `src/core/utils/gpu_detector.py` — GPU detection logic
+- `src/core/user_preferences.py` — `get_vocab_llm_mode()`, `set_vocab_llm_mode()` with legacy migration
+- `src/ui/workers.py:759-821` — Conditional Phase 3 execution
+- `src/ui/settings/settings_registry.py` — Dropdown with GPU status in tooltip
+
+### 2. Global Tooltip Manager (Stacking Bug Fix)
+
+**Problem:** Tooltips weren't disappearing when moving mouse quickly between tooltip-enabled elements. Multiple tooltips would stack up and clutter the interface.
+
+**Root Cause:** Multiple independent tooltip implementations across the codebase, each managing their own state:
+- `TooltipIcon` in settings_widgets.py
+- `create_tooltip()` in tooltip_helper.py
+- Custom tooltips in main_window.py, system_monitor.py
+
+**Solution:** Centralized `TooltipManager` singleton ensuring only ONE tooltip visible at a time:
+```python
+# Before creating any tooltip:
+tooltip_manager.close_active()
+# After creating:
+tooltip_manager.register(tooltip_window)
+# When hiding:
+tooltip_manager.unregister(tooltip_window)
+```
+
+**Files:**
+- `src/ui/tooltip_manager.py` — NEW: Singleton manager
+- `src/ui/tooltip_helper.py` — Updated both helper functions
+- `src/ui/settings/settings_widgets.py` — Updated TooltipIcon
+- `src/ui/main_window.py` — Updated Ollama tooltip
+- `src/ui/system_monitor.py` — Updated system monitor tooltip
+
+### 3. Settings Menu Reorganization (6 tabs → 4 tabs)
+
+**Problem:** Settings categories no longer reflected their contents. "Summarization" had only 1 setting. "Advanced" was entirely vocabulary-related. GPU/LLM setting was buried in "Experimental".
+
+**Solution:** Consolidated to 4 logical tabs:
+
+| Old Structure | New Structure |
+|--------------|---------------|
+| Performance (3) | **Performance (5)** — + LLM mode, + summary length |
+| Summarization (1) | *Merged into Performance* |
+| Vocabulary (7) | **Vocabulary (11)** — + all filtering thresholds |
+| Questions (5) | **Q&A (5)** — renamed |
+| Advanced (4) | *Merged into Vocabulary* |
+| Experimental (2) | **Experimental (1)** — only briefing remains |
+
+**Implementation:** Changed `category` field in each setting's registration. The declarative registry pattern made this a simple string change with no UI code modifications needed.
+
+**Files:**
+- `src/ui/settings/settings_registry.py` — Category reassignments
+- `src/ui/settings/settings_dialog.py` — Window width adjustment (750→700px)
+
+---
+
 ## Session 62: Settings Menu Improvements & LLM Filtering Fix — 2025-12-29
 
 **Problem:** Users had no way to select Ollama models from the GUI. The "Configure" button in the header opened Settings → Questions tab, but that tab had no model selector. Additionally, LLM-extracted vocabulary terms weren't being filtered as aggressively as NER terms, resulting in many common words passing through.
