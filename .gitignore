@@ -36,6 +36,7 @@ ENV/
 # LocalScribe specific
 cleaned/
 *.log
+config/user_preferences.json  # User settings - never commit (defaults in code)
 
 # User data (never commit)
 %APPDATA%/LocalScribe/
