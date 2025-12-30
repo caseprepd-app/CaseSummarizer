@@ -39,7 +39,13 @@ from src.config import (
     MIN_LINE_LENGTH,
     OCR_CONFIDENCE_THRESHOLD,
     OCR_DPI,
+    OCR_PREPROCESSING_ENABLED,
+    OCR_DENOISE_STRENGTH,
+    OCR_ENABLE_CLAHE,
 )
+
+# Image preprocessing for OCR
+from src.core.extraction.image_preprocessor import ImagePreprocessor, PreprocessingStats
 
 # Character sanitization
 from src.core.sanitization import CharacterSanitizer
@@ -396,7 +402,17 @@ class RawTextExtractor:
 
     def _perform_ocr(self, file_path: Path, page_count: int) -> dict:
         """
-        Perform OCR on PDF using Tesseract.
+        Perform OCR on PDF using Tesseract with optional image preprocessing.
+
+        The preprocessing pipeline (when enabled) applies:
+        1. Grayscale conversion
+        2. Noise removal (denoising)
+        3. Contrast enhancement (CLAHE)
+        4. Adaptive thresholding (binarization)
+        5. Deskewing (rotation correction)
+        6. Border padding
+
+        Research shows preprocessing can improve OCR accuracy by 20-50%.
 
         Args:
             file_path: Path to PDF
@@ -412,22 +428,48 @@ class RawTextExtractor:
             with Timer("PDF to images conversion"):
                 images = convert_from_path(str(file_path), dpi=OCR_DPI)
 
+            # Initialize preprocessor if enabled
+            preprocessor = None
+            if OCR_PREPROCESSING_ENABLED:
+                preprocessor = ImagePreprocessor(
+                    denoise_strength=OCR_DENOISE_STRENGTH,
+                    enable_clahe=OCR_ENABLE_CLAHE,
+                )
+                debug(f"OCR preprocessing enabled (denoise={OCR_DENOISE_STRENGTH}, clahe={OCR_ENABLE_CLAHE})")
+
+            # Track preprocessing stats across all pages
+            total_preprocessing_time = 0.0
+            total_skew_corrections = 0
+
             # OCR each page
             ocr_text = ""
             for i, image in enumerate(images, 1):
                 if DEBUG_MODE:
                     debug(f"OCR processing page {i}/{len(images)}")
 
+                # Apply preprocessing if enabled
+                if preprocessor is not None:
+                    with Timer(f"Preprocessing page {i}", auto_log=DEBUG_MODE):
+                        image, stats = preprocessor.preprocess(image)
+                        total_preprocessing_time += stats.total_time_ms
+                        if stats.skew_corrected:
+                            total_skew_corrections += 1
+                            debug(f"  Page {i}: corrected {stats.skew_angle:.1f}° skew")
+
                 with Timer(f"OCR page {i}", auto_log=DEBUG_MODE):
                     page_text = pytesseract.image_to_string(image)
                     ocr_text += page_text + "\n"
+
+            # Log preprocessing summary
+            if preprocessor is not None:
+                debug(f"Preprocessing summary: {total_preprocessing_time:.1f}ms total, {total_skew_corrections}/{len(images)} pages deskewed")
 
             # Calculate confidence
             confidence = self._calculate_dictionary_confidence(ocr_text)
             debug(f"OCR confidence: {confidence:.1f}%")
 
             return {
-                'method': 'ocr',
+                'method': 'ocr' if preprocessor is None else 'ocr_enhanced',
                 'confidence': int(confidence),
                 'extracted_text': ocr_text,
                 'page_count': page_count or len(images),

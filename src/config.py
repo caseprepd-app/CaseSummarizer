@@ -129,6 +129,13 @@ MIN_DICTIONARY_CONFIDENCE = 60  # Percentage
 OCR_DPI = 300
 OCR_CONFIDENCE_THRESHOLD = 70  # Files below this are pre-unchecked
 
+# OCR Image Preprocessing Configuration
+# Preprocessing can improve OCR accuracy by 20-50% for scanned documents
+# Reference: https://tesseract-ocr.github.io/tessdoc/ImproveQuality.html
+OCR_PREPROCESSING_ENABLED = True  # Enable image preprocessing before OCR
+OCR_DENOISE_STRENGTH = 10  # Denoising strength (1-30, higher = more smoothing)
+OCR_ENABLE_CLAHE = True  # Enable CLAHE contrast enhancement
+
 # AI Model Configuration
 OLLAMA_API_BASE = "http://localhost:11434"  # Default Ollama API endpoint
 OLLAMA_MODEL_NAME = "gemma3:1b"  # Default model for the application

@@ -265,6 +265,13 @@ class SettingsDialog(ctk.CTkToplevel):
                 action=setting.action,
             )
 
+        elif setting.setting_type == SettingType.CUSTOM:
+            # CUSTOM type uses a widget_factory to create the widget
+            if setting.widget_factory:
+                return setting.widget_factory(parent)
+            else:
+                raise ValueError(f"CUSTOM setting '{setting.key}' requires widget_factory")
+
         else:
             raise ValueError(f"Unknown setting type: {setting.setting_type}")
 

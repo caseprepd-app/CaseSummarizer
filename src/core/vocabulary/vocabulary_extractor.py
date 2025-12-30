@@ -263,6 +263,14 @@ class VocabularyExtractor:
         vocabulary = filter_substring_artifacts(vocabulary)
         debug_log(f"[VOCAB] After artifact filter: {len(vocabulary)} terms")
 
+        # 5b. Regularize names: remove fragments and typos (Session 63)
+        # - Fragment filter: "Di Leo" in top quartile → remove "Di", "Leo" from bottom
+        # - Typo filter: "Barbra Jenkins" in top → remove "Barbr Jenkins" (1-char diff)
+        debug_log("[VOCAB] Regularizing names (fragments + typos)...")
+        from src.core.vocabulary.name_regularizer import regularize_names
+        vocabulary = regularize_names(vocabulary)
+        debug_log(f"[VOCAB] After name regularization: {len(vocabulary)} terms")
+
         # 6. Filter phrases with overly common component words
         # (e.g., "the same", "left side" - high RAKE scores but no vocab value)
         debug_log("[VOCAB] Filtering common phrase components...")
@@ -397,6 +405,12 @@ class VocabularyExtractor:
         debug_log("[VOCAB] Phase 8: Filtering substring artifacts...")
         from src.core.vocabulary.artifact_filter import filter_substring_artifacts
         csv_data = filter_substring_artifacts(csv_data)
+
+        # 8b. Regularize names: remove fragments and typos (Session 63)
+        debug_log("[VOCAB] Phase 8b: Regularizing names (fragments + typos)...")
+        from src.core.vocabulary.name_regularizer import regularize_names
+        csv_data = regularize_names(csv_data)
+        debug_log(f"[VOCAB] After name regularization: {len(csv_data)} terms")
 
         # 9. Filter phrases with overly common component words
         # (e.g., "the same", "left side" - high RAKE scores but no vocab value)

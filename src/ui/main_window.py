@@ -103,6 +103,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         self._update_corpus_banner()
         self._update_generate_button_state()
         self._update_default_questions_label()  # Set initial question count
+        self._update_vocab_llm_checkbox_state()  # Set LLM checkbox based on settings/GPU
 
         # Startup checks and status updates
         self._check_ollama_service()
@@ -280,6 +281,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         self._update_corpus_banner()
         self._update_model_display()
         self._update_ollama_status()
+        self._update_vocab_llm_checkbox_state()  # Session 63b: Refresh LLM checkbox
 
     # =========================================================================
     # Corpus Management
@@ -511,6 +513,28 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
                 qa_worker.start()
                 debug_log("[MainWindow] Default questions worker started")
 
+        # Q&A result handlers (Session 63c: handle messages from default questions worker)
+        elif msg_type == "qa_progress":
+            current, total, question = data
+            debug_log(f"[MainWindow] Q&A progress: {current + 1}/{total}")
+            self.set_status(f"Answering default questions: {current + 1}/{total}...")
+
+        elif msg_type == "qa_result":
+            # Individual Q&A result - add to results and update display
+            debug_log(f"[MainWindow] Q&A result received")
+            self._qa_results.append(data)
+            self.output_display.update_outputs(qa_results=self._qa_results)
+
+        elif msg_type == "qa_complete":
+            # All Q&A questions answered
+            qa_results = data if data else []
+            debug_log(f"[MainWindow] Q&A complete: {len(qa_results)} answers")
+            self._qa_results = qa_results
+            if qa_results:
+                self.output_display.update_outputs(qa_results=qa_results)
+                self.set_status(f"Default questions answered: {len(qa_results)} responses")
+            self.followup_btn.configure(state="normal")
+
         elif msg_type == "llm_progress":
             current, total = data
             debug_log(f"[MainWindow] LLM progress: {current}/{total}")
@@ -601,40 +625,40 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
 
         self._update_generate_button_state()
 
-    def _load_default_question_count(self) -> int:
+    def _load_default_question_count(self) -> tuple[int, int]:
         """
-        Get count of default questions from config file.
+        Get count of enabled and total default questions.
+
+        Session 63c: Now uses DefaultQuestionsManager for enable/disable support.
 
         Returns:
-            Number of questions in qa_default_questions.txt
+            Tuple of (enabled_count, total_count)
         """
         try:
-            from pathlib import Path
-            questions_file = Path(__file__).parent.parent.parent / "config" / "qa_default_questions.txt"
+            from src.core.qa.default_questions_manager import get_default_questions_manager
 
-            if not questions_file.exists():
-                return 0
-
-            count = 0
-            with open(questions_file, 'r', encoding='utf-8') as f:
-                for line in f:
-                    line = line.strip()
-                    if line and not line.startswith('#'):
-                        count += 1
-
-            return count
+            manager = get_default_questions_manager()
+            return (manager.get_enabled_count(), manager.get_total_count())
 
         except Exception as e:
             debug_log(f"[MainWindow] Error loading default question count: {e}")
-            return 0
+            return (0, 0)
 
     def _update_default_questions_label(self):
-        """Update checkbox text with current question count."""
-        count = self._load_default_question_count()
-        question_word = "question" if count == 1 else "questions"
-        self.ask_default_questions_check.configure(
-            text=f"  Ask {count} default {question_word}"  # Leading spaces for indent
-        )
+        """Update checkbox text with current enabled question count."""
+        enabled, total = self._load_default_question_count()
+        question_word = "question" if enabled == 1 else "questions"
+
+        if enabled == total:
+            # All questions enabled - simple display
+            self.ask_default_questions_check.configure(
+                text=f"  Ask {enabled} default {question_word}"
+            )
+        else:
+            # Some questions disabled - show enabled/total
+            self.ask_default_questions_check.configure(
+                text=f"  Ask {enabled}/{total} default {question_word}"
+            )
 
     def _on_default_questions_toggled(self):
         """Handle default questions checkbox state change."""
@@ -644,6 +668,113 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         if DEBUG_MODE:
             state = "enabled" if self.ask_default_questions_check.get() else "disabled"
             debug_log(f"[MainWindow] Default questions {state}")
+
+    # =========================================================================
+    # LLM Enhancement Checkbox State Management (Session 63b)
+    # =========================================================================
+
+    def _update_vocab_llm_checkbox_state(self):
+        """
+        Update LLM Enhancement checkbox state based on settings and GPU availability.
+
+        Called at startup, when settings change, and when vocab checkbox is toggled.
+
+        Greying logic:
+        - If vocab checkbox is unchecked: disable LLM checkbox
+        - If vocab_use_llm setting is "no": disable and uncheck
+        - If vocab_use_llm is "auto" and no GPU: disable and uncheck
+        - Otherwise: enable and set based on is_vocab_llm_enabled()
+        """
+        from src.user_preferences import get_user_preferences
+        from src.core.utils.gpu_detector import has_dedicated_gpu, get_gpu_status_text
+
+        prefs = get_user_preferences()
+        vocab_mode = prefs.get_vocab_llm_mode()  # "auto", "yes", or "no"
+        has_gpu = has_dedicated_gpu()
+        llm_enabled = prefs.is_vocab_llm_enabled()
+
+        # Case 1: Vocab is unchecked - disable LLM checkbox
+        if not self.vocab_check.get():
+            self.vocab_llm_check.deselect()
+            self.vocab_llm_check.configure(state="disabled")
+            self._set_vocab_llm_tooltip("Enable 'Extract Vocabulary' first")
+            return
+
+        # Case 2: User explicitly disabled LLM in settings
+        if vocab_mode == "no":
+            self.vocab_llm_check.deselect()
+            self.vocab_llm_check.configure(state="disabled")
+            self._set_vocab_llm_tooltip(
+                "LLM extraction disabled in Settings.\n\n"
+                "To enable: Settings > Performance > 'LLM vocabulary extraction'"
+            )
+            return
+
+        # Case 3: Auto mode with no GPU detected
+        if vocab_mode == "auto" and not has_gpu:
+            self.vocab_llm_check.deselect()
+            self.vocab_llm_check.configure(state="disabled")
+            gpu_status = get_gpu_status_text()
+            self._set_vocab_llm_tooltip(
+                f"LLM enhancement requires a dedicated GPU.\n\n"
+                f"{gpu_status}\n\n"
+                "To force LLM (slow): Settings > Performance > Set to 'Yes'"
+            )
+            return
+
+        # Case 4: LLM is available - enable checkbox
+        self.vocab_llm_check.configure(state="normal")
+
+        if llm_enabled:
+            self.vocab_llm_check.select()
+            self._set_vocab_llm_tooltip(
+                "LLM enhancement finds additional terms missed by NER.\n"
+                "Slower but more thorough vocabulary extraction."
+            )
+        else:
+            self.vocab_llm_check.deselect()
+            self._set_vocab_llm_tooltip(
+                "LLM enhancement is available.\n"
+                "Check this box for more thorough vocabulary extraction."
+            )
+
+        if DEBUG_MODE:
+            debug_log(f"[MainWindow] LLM checkbox: mode={vocab_mode}, has_gpu={has_gpu}, enabled={llm_enabled}")
+
+    def _set_vocab_llm_tooltip(self, text: str):
+        """
+        Update the tooltip for the LLM Enhancement checkbox.
+
+        Args:
+            text: New tooltip text to display
+        """
+        from src.ui.tooltip_helper import create_tooltip
+
+        # Remove existing tooltip bindings
+        if hasattr(self, '_vocab_llm_tooltip_hide') and self._vocab_llm_tooltip_hide:
+            try:
+                self.vocab_llm_check.unbind("<Enter>")
+                self.vocab_llm_check.unbind("<Leave>")
+            except Exception:
+                pass
+
+        # Create new tooltip
+        self._vocab_llm_tooltip_hide = create_tooltip(self.vocab_llm_check, text)
+
+    def _on_vocab_check_changed(self):
+        """Handle Vocabulary checkbox state change."""
+        self._update_generate_button_state()
+        self._update_vocab_llm_checkbox_state()
+
+        if DEBUG_MODE:
+            state = "enabled" if self.vocab_check.get() else "disabled"
+            debug_log(f"[MainWindow] Vocabulary extraction {state}")
+
+    def _on_vocab_llm_check_changed(self):
+        """Handle LLM Enhancement checkbox state change (user manually toggles)."""
+        if DEBUG_MODE:
+            state = "enabled" if self.vocab_llm_check.get() else "disabled"
+            debug_log(f"[MainWindow] LLM enhancement {state}")
 
     def refresh_default_questions_label(self):
         """Refresh the default questions checkbox label. Called after editing questions."""
@@ -831,11 +962,11 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         doc_confidence = self._calculate_aggregate_confidence(self.processing_results)
         debug_log(f"[MainWindow] Aggregate document confidence: {doc_confidence:.1f}%")
 
-        # Session 62b: Get LLM preference (auto-resolves based on GPU detection)
-        from src.user_preferences import get_user_preferences
-        prefs = get_user_preferences()
-        use_llm = prefs.is_vocab_llm_enabled()
-        debug_log(f"[MainWindow] LLM extraction enabled: {use_llm} (mode: {prefs.get_vocab_llm_mode()})")
+        # Session 63b: Use checkbox state (which already reflects settings + GPU detection)
+        # The checkbox is pre-configured by _update_vocab_llm_checkbox_state() at startup
+        # and when settings change. We read the checkbox to respect user's in-session choice.
+        use_llm = self.vocab_llm_check.get() and self.vocab_llm_check.cget("state") == "normal"
+        debug_log(f"[MainWindow] LLM extraction from checkbox: {use_llm}")
 
         # Start progressive extraction worker (uses shared ui_queue)
         self._progressive_worker = ProgressiveExtractionWorker(
@@ -1260,6 +1391,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         self._update_corpus_banner()
         self._update_model_display()
         self._update_ollama_status()
+        self._update_vocab_llm_checkbox_state()  # Session 63b: Refresh LLM checkbox
 
     # =========================================================================
     # Timer

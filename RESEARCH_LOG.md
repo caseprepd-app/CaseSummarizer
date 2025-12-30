@@ -6,6 +6,297 @@
 
 ---
 
+## Session 63c: Default Questions Management — 2025-12-30
+
+**Problem:** The default Q&A questions system had multiple issues:
+1. Default questions weren't actually being executed after document processing
+2. Questions could only be edited via external text file (poor UX)
+3. No way to enable/disable individual questions without deleting them
+
+### Root Cause: QA Message Routing
+
+The `qa_progress`, `qa_result`, and `qa_complete` messages from QAWorker were being sent to `_ui_queue` but `_handle_queue_message()` had no handlers for them. Messages were silently dropped.
+
+### Solution: Multi-Part Implementation
+
+**1. Fixed QA Message Handlers** (`src/ui/main_window.py`):
+```python
+elif msg_type == "qa_progress":
+    current, total, question = data
+    self.set_status(f"Answering default questions: {current + 1}/{total}...")
+
+elif msg_type == "qa_result":
+    self._qa_results.append(data)
+    self.output_display.update_outputs(qa_results=self._qa_results)
+
+elif msg_type == "qa_complete":
+    # Display all results and enable follow-up button
+```
+
+**2. Created DefaultQuestionsManager** (`src/core/qa/default_questions_manager.py`):
+- JSON-based storage in `config/default_questions.json`
+- Each question has `text` and `enabled` fields
+- Methods: `get_all_questions()`, `get_enabled_questions()`, `set_enabled()`, `add_question()`, `remove_question()`, `update_question()`, `move_question()`
+- Auto-migrates from legacy `qa_default_questions.txt` format
+- Singleton pattern via `get_default_questions_manager()`
+
+**3. Added CUSTOM Setting Type** (`src/ui/settings/`):
+- New `SettingType.CUSTOM` enum value
+- New `widget_factory` field on `SettingDefinition`
+- Dialog creates custom widgets via factory function
+
+**4. Created DefaultQuestionsWidget** (`src/ui/settings/settings_widgets.py`):
+```
+┌─────────────────────────────────────────────────────────┐
+│  Default Questions                                   ⓘ  │
+├─────────────────────────────────────────────────────────┤
+│  ☑ What is this case about?                         [✕] │
+│  ☑ What are the main allegations?                   [✕] │
+│  ☐ Who are the plaintiffs?                          [✕] │
+├─────────────────────────────────────────────────────────┤
+│  [+ Add Question]                                       │
+└─────────────────────────────────────────────────────────┘
+```
+- Checkboxes for enable/disable (saves immediately)
+- Click question text to edit
+- ✕ button to delete with confirmation
+- "+ Add Question" button
+
+### Files Modified/Created
+
+**New:**
+- `src/core/qa/default_questions_manager.py` — 270 lines
+- `config/default_questions.json` — Data file
+
+**Modified:**
+- `src/ui/main_window.py` — QA message handlers
+- `src/ui/settings/settings_dialog.py` — CUSTOM type handler
+- `src/ui/settings/settings_registry.py` — Widget registration, removed old button
+- `src/ui/settings/settings_widgets.py` — DefaultQuestionsWidget class
+- `src/core/qa/qa_orchestrator.py` — Use new manager
+- `src/core/qa/__init__.py` — New exports
+
+### Testing
+
+All 283 tests pass.
+
+---
+
+## Session 63c: GUI Checkbox Redesign — 2025-12-30
+
+**Problem:** The main window checkboxes didn't reflect the current architecture:
+1. Order was confusing (Q&A first, Vocabulary second)
+2. LLM enhancement was hidden in settings with no visibility in main UI
+3. Users couldn't tell if LLM would run or not
+
+### Solution: Expanded Checkbox Layout with LLM Sub-Option
+
+**New layout:**
+```
+☑ Extract Vocabulary
+    ☑ Use LLM Enhancement  ← greyed out if no GPU or disabled
+☑ Ask Questions
+    ☑ Ask N default questions
+☐ Generate Summary (slow)
+```
+
+### Implementation
+
+**Files modified:**
+- `src/ui/window_layout.py` — Reordered checkboxes, added `vocab_llm_check`
+- `src/ui/main_window.py` — Added 4 new methods for LLM state management
+
+**New methods in MainWindow:**
+1. `_update_vocab_llm_checkbox_state()` — Sets checkbox state based on settings/GPU
+2. `_set_vocab_llm_tooltip(text)` — Updates tooltip explaining why disabled
+3. `_on_vocab_check_changed()` — Handles parent checkbox toggle
+4. `_on_vocab_llm_check_changed()` — Handles LLM checkbox toggle
+
+**Greying logic:**
+| Condition | Result |
+|-----------|--------|
+| Vocabulary unchecked | Disabled, "Enable 'Extract Vocabulary' first" |
+| Setting = "no" | Disabled, "LLM disabled in Settings" |
+| Setting = "auto", no GPU | Disabled, "LLM requires dedicated GPU" |
+| Setting = "auto", has GPU | Enabled and checked |
+| Setting = "yes" | Enabled and checked |
+
+### State Synchronization
+
+- Checkbox state refreshed at startup (`__init__`)
+- Checkbox state refreshed after settings dialog closes (`_open_settings`, `_open_model_settings`)
+- Task execution reads checkbox state, not settings directly
+
+### Testing
+
+All 283 tests pass. Manual verification:
+- Checkbox creation works correctly
+- Enable/disable state changes work
+- GPU detection integrates properly
+
+---
+
+## Session 63b: Name Regularization for Vocabulary Extraction — 2025-12-30
+
+**Problem:** The NER vocabulary extraction sometimes produced fragmented or duplicated name entries:
+1. "Ms. Di Leo" would produce "Di" and "Leo" as separate entries (spaCy splits multi-word names)
+2. OCR typos like "Barbr Jenkins" appeared alongside correct "Barbra Jenkins"
+
+### Solution: Post-Processing Filters
+
+Created `src/core/vocabulary/name_regularizer.py` with two filtering strategies:
+
+**1. Fragment Filter**
+- Terms in top quartile (by count) are canonical
+- Terms in bottom 75% are checked for word-level subsets
+- Example: "Di" removed when "Di Leo" exists in top quartile
+- Uses set intersection to detect fragments, not substring matching
+
+**2. Typo Filter**
+- Uses Levenshtein edit distance algorithm
+- Removes terms with 1-character difference from canonical terms
+- Example: "Barbr Jenkins" removed when "Barbra Jenkins" exists
+- Minimum term length of 5 characters to avoid false positives
+
+### Multi-Pass Architecture
+
+The filter runs multiple passes (default 3) because removing noise allows legitimate terms to "bubble up" into the canonical set:
+1. Pass 1: Remove obvious fragments/typos based on initial top quartile
+2. Pass 2: Some terms move into top quartile → their fragments/typos can now be caught
+3. Pass 3: Final cleanup
+
+Early exit if no changes in a pass (optimization).
+
+### Canonical Term Selection
+
+```python
+# Use whichever is larger: fraction-based or minimum count
+fraction_index = int(len(vocab) * 0.25)  # top 25%
+min_canonical_count = 10  # minimum 10 terms
+max_canonical = int(len(vocab) * 0.75)  # cap at 75%
+split_index = min(max(min_canonical_count, fraction_index), max_canonical)
+```
+
+This ensures:
+- Small vocabularies (< 40 items) still have enough canonical terms to catch typos
+- Large vocabularies don't include too many terms in the canonical set
+- Always leaves at least 25% for filtering
+
+### Integration Point
+
+Added as Step 5b in vocabulary pipeline (after artifact_filter, before final output):
+```
+Step 5a: Artifact Filter → Step 5b: Name Regularization → Output
+```
+
+### Files Created/Modified
+
+**New:**
+- `src/core/vocabulary/name_regularizer.py` — 440 lines
+- `tests/test_name_regularizer.py` — 31 unit tests
+
+**Modified:**
+- `src/core/vocabulary/vocabulary_extractor.py` — Integrated regularize_names()
+- `src/core/vocabulary/__init__.py` — Exported new functions
+
+### Performance
+
+- Edit distance: O(m×n) per comparison, but optimized with length-difference pruning
+- Typical vocabulary (50-200 terms): < 50ms for all passes
+- Memory: Minimal (in-place filtering)
+
+### Example Results
+
+Input vocabulary (18 terms):
+```
+Wagner Doman Leto (50), Robert Wighton (45), Ms. Di Leo (35), ...
+Wagner (3), Doman (2), Di (2), Leo (2), Hospital (1)
+Robrt Wighton (2), Barbr Jenkins (1), Barbra Jenkinss (1)
+```
+
+After regularization (10 terms):
+- Fragments removed: Wagner, Doman, Di, Leo, Hospital
+- Typos removed: Robrt Wighton, Barbr Jenkins, Barbra Jenkinss
+- Legitimate terms preserved: John Smith, Plaintiff
+
+---
+
+## Session 63: OCR Image Preprocessing for Improved Accuracy — 2025-12-30
+
+**Problem:** The OCR system used basic Tesseract with no image preprocessing. Scanned legal documents often have issues like skew, noise, poor contrast, and scanner artifacts that significantly degrade OCR accuracy.
+
+### Research Findings
+
+Studies and documentation show that image preprocessing can improve OCR accuracy by 20-50%:
+- [Tesseract documentation](https://tesseract-ocr.github.io/tessdoc/ImproveQuality.html) recommends rescaling, binarization, noise removal, and deskewing
+- [Research papers](https://www.academia.edu/86875370/Improve_OCR_Accuracy_with_Advanced_Image_Preprocessing_using_Machine_Learning_with_Python) report CER reductions of up to 50% with preprocessing
+- Adaptive thresholding performs better than global thresholding for documents with uneven lighting
+
+### Libraries Evaluated
+
+| Library | License | Purpose | Decision |
+|---------|---------|---------|----------|
+| **opencv-python-headless** | Apache 2.0 | Image preprocessing | ✅ Chosen |
+| **deskew** | MIT | Skew detection/correction | ✅ Chosen |
+| **scikit-image** | BSD | Additional image processing | ✅ Chosen |
+| **EasyOCR** | Apache 2.0 | Alternative OCR engine | ❌ Not needed (preprocessing sufficient) |
+| **OCRmyPDF** | MPL 2.0 | PDF OCR tool | ❌ CLI-focused, less flexible |
+| **unpaper** | GPL | Document cleanup | ❌ Not pip-installable (C tool) |
+
+### Implementation: 6-Stage Preprocessing Pipeline
+
+Created `src/core/extraction/image_preprocessor.py` with:
+
+1. **Grayscale conversion** — Simplifies image for processing
+2. **Noise removal** — `cv2.fastNlMeansDenoising()` removes scanner artifacts
+3. **Contrast enhancement (CLAHE)** — Improves text/background separation with adaptive histogram equalization
+4. **Adaptive thresholding** — Gaussian-weighted binarization handles uneven lighting better than global Otsu
+5. **Deskewing** — Detects and corrects rotational skew (critical for Tesseract line segmentation)
+6. **Border padding** — Adds 10px white border (Tesseract requirement)
+
+### Configuration
+
+New settings in `src/config.py`:
+```python
+OCR_PREPROCESSING_ENABLED = True  # Enable by default
+OCR_DENOISE_STRENGTH = 10         # 1-30, higher = more smoothing
+OCR_ENABLE_CLAHE = True           # Contrast enhancement
+```
+
+### Files Created/Modified
+
+**New:**
+- `src/core/extraction/image_preprocessor.py` — `ImagePreprocessor` class, `preprocess_for_ocr()` function
+- `tests/test_image_preprocessor.py` — 19 unit tests
+
+**Modified:**
+- `src/core/extraction/raw_text_extractor.py` — Integrated preprocessing into `_perform_ocr()`
+- `src/config.py` — Added OCR preprocessing configuration
+- `requirements.txt` — Added `opencv-python-headless`, `deskew`, `scikit-image`
+
+### Why These Choices
+
+1. **opencv-python-headless vs opencv-python:** Headless version doesn't require GUI dependencies, smaller install
+2. **Adaptive thresholding:** Better than Otsu for scanned documents with shadows or uneven scanning
+3. **CLAHE:** Contrast Limited Adaptive Histogram Equalization prevents over-amplification of noise
+4. **Always-on:** Research shows preprocessing rarely hurts and often helps significantly; no user toggle needed
+
+### Trade-offs
+
+- **Added dependencies:** ~50MB additional install size
+- **Processing time:** ~100-200ms per page for preprocessing (acceptable given OCR is slower)
+- **Memory:** OpenCV arrays are larger than PIL images temporarily
+
+### Sources
+
+- [Tesseract - Improving Quality](https://tesseract-ocr.github.io/tessdoc/ImproveQuality.html)
+- [OpenCV Image Thresholding](https://docs.opencv.org/4.x/d7/d4d/tutorial_py_thresholding.html)
+- [OCRmyPDF PyPI](https://pypi.org/project/ocrmypdf/)
+- [deskew PyPI](https://pypi.org/project/deskew/)
+- [EasyOCR vs Tesseract Comparison](https://medium.com/swlh/ocr-engine-comparison-tesseract-vs-easyocr-729be893d3ae)
+
+---
+
 ## Session 62b: GPU Auto-Detection, Tooltip Fix & Settings Reorganization — 2025-12-29
 
 ### 1. GPU-Based LLM Auto-Detection

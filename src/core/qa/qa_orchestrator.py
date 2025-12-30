@@ -171,36 +171,43 @@ class QAOrchestrator:
 
     def load_default_questions_from_txt(self) -> list[str]:
         """
-        Load default questions from simple text file.
+        Load enabled default questions from the DefaultQuestionsManager.
 
-        Reads config/qa_default_questions.txt where each line is a question.
-        Skips blank lines and lines starting with #.
+        Session 63c: Now uses JSON-based manager with enable/disable support.
+        Falls back to legacy txt file if manager fails.
 
         Returns:
-            List of question strings (one per line)
+            List of enabled question strings
         """
-        if not DEFAULT_QUESTIONS_TXT_PATH.exists():
-            if DEBUG_MODE:
-                debug_log(f"[QAOrchestrator] Default questions file not found: {DEFAULT_QUESTIONS_TXT_PATH}")
-            return []
-
-        questions = []
         try:
-            with open(DEFAULT_QUESTIONS_TXT_PATH, 'r', encoding='utf-8') as f:
-                for line in f:
-                    line = line.strip()
-                    # Skip blank lines and comments
-                    if line and not line.startswith('#'):
-                        questions.append(line)
+            from src.core.qa.default_questions_manager import get_default_questions_manager
+
+            manager = get_default_questions_manager()
+            questions = manager.get_enabled_questions()
 
             if DEBUG_MODE:
-                debug_log(f"[QAOrchestrator] Loaded {len(questions)} default questions from txt file")
+                total = manager.get_total_count()
+                debug_log(f"[QAOrchestrator] Loaded {len(questions)}/{total} enabled default questions")
 
             return questions
 
         except Exception as e:
-            debug_log(f"[QAOrchestrator] Error loading default questions: {e}")
-            return []
+            debug_log(f"[QAOrchestrator] Error loading from manager, falling back to txt: {e}")
+
+            # Fallback to legacy txt file
+            if not DEFAULT_QUESTIONS_TXT_PATH.exists():
+                return []
+
+            questions = []
+            try:
+                with open(DEFAULT_QUESTIONS_TXT_PATH, 'r', encoding='utf-8') as f:
+                    for line in f:
+                        line = line.strip()
+                        if line and not line.startswith('#'):
+                            questions.append(line)
+                return questions
+            except Exception:
+                return []
 
     def get_default_questions(self) -> list[str]:
         """

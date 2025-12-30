@@ -234,6 +234,24 @@ class WindowLayoutMixin:
         task_frame = ctk.CTkFrame(self.left_panel, **FRAME_STYLES["transparent"])
         task_frame.grid(row=4, column=0, sticky="ew", padx=10, pady=0)
 
+        # Vocabulary checkbox (default ON) - moved to first position
+        self.vocab_check = ctk.CTkCheckBox(
+            task_frame,
+            text="Extract Vocabulary",
+            command=self._on_vocab_check_changed
+        )
+        self.vocab_check.pack(anchor="w", pady=2)
+        self.vocab_check.select()  # ON by default
+
+        # LLM Enhancement sub-checkbox (indented under Vocabulary)
+        self.vocab_llm_check = ctk.CTkCheckBox(
+            task_frame,
+            text="  Use LLM Enhancement",
+            command=self._on_vocab_llm_check_changed
+        )
+        self.vocab_llm_check.pack(anchor="w", pady=(0, 2))
+        # Initial state set by _update_vocab_llm_checkbox_state() in MainWindow.__init__
+
         # Q&A checkbox (default ON)
         self.qa_check = ctk.CTkCheckBox(
             task_frame,
@@ -252,19 +270,10 @@ class WindowLayoutMixin:
         self.ask_default_questions_check.pack(anchor="w", pady=(0, 2))
         self.ask_default_questions_check.select()  # ON by default
 
-        # Vocabulary checkbox (default ON)
-        self.vocab_check = ctk.CTkCheckBox(
-            task_frame,
-            text="Vocabulary",
-            command=self._update_generate_button_state
-        )
-        self.vocab_check.pack(anchor="w", pady=2)
-        self.vocab_check.select()  # ON by default
-
         # Summary checkbox (default OFF, with warning)
         self.summary_check = ctk.CTkCheckBox(
             task_frame,
-            text="Summary (slow)",
+            text="Generate Summary (slow)",
             command=self._on_summary_checked
         )
         self.summary_check.pack(anchor="w", pady=2)

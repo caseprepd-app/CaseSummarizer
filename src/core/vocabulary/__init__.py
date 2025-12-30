@@ -37,6 +37,7 @@ from .meta_learner import VocabularyMetaLearner, get_meta_learner
 from .corpus_manager import CorpusManager, CorpusFile, get_corpus_manager
 from .corpus_registry import CorpusRegistry, CorpusInfo, get_corpus_registry
 from .name_deduplicator import deduplicate_names
+from .name_regularizer import regularize_names, filter_name_fragments, filter_typo_variants
 
 __all__ = [
     'VocabularyExtractor',
@@ -53,4 +54,8 @@ __all__ = [
     'get_corpus_registry',
     # Name Deduplication
     'deduplicate_names',
+    # Name Regularization (Session 63)
+    'regularize_names',
+    'filter_name_fragments',
+    'filter_typo_variants',
 ]

@@ -39,6 +39,7 @@ class SettingType(Enum):
     - SPINBOX: SpinboxSetting (integer +/-)
     - PATH: Reserved for future file/folder picker
     - BUTTON: ActionButton (executes action on click)
+    - CUSTOM: CustomWidgetSetting (custom widget factory)
     """
     SLIDER = "slider"
     CHECKBOX = "checkbox"
@@ -46,6 +47,7 @@ class SettingType(Enum):
     PATH = "path"
     SPINBOX = "spinbox"
     BUTTON = "button"
+    CUSTOM = "custom"  # Session 63c: For complex widgets like question list
 
 
 @dataclass
@@ -70,6 +72,7 @@ class SettingDefinition:
         getter: Function that returns the current value
         setter: Function that applies a new value
         action: Function to execute on click (for BUTTON)
+        widget_factory: Function(parent) -> widget (for CUSTOM type)
     """
     key: str
     label: str
@@ -84,6 +87,7 @@ class SettingDefinition:
     getter: Callable[[], Any] = None
     setter: Callable[[Any], None] = None
     action: Callable[[], None] = None
+    widget_factory: Callable = None  # Session 63c: For CUSTOM type widgets
 
 
 class SettingsRegistry:
@@ -657,89 +661,25 @@ def _register_all_settings():
         setter=lambda v: prefs.set("qa_auto_run", v),
     ))
 
-    def _open_question_editor():
-        """Open the Q&A question editor dialog."""
-        from src.ui.qa_question_editor import QAQuestionEditor
-        # Get root window - traverse up the widget tree
-        import tkinter as tk
-        for widget in tk._default_root.winfo_children():
-            if widget.winfo_class() == 'CTkToplevel':
-                # Find the settings dialog
-                editor = QAQuestionEditor(widget)
-                editor.wait_window()
-                return
-        # Fallback to root
-        if tk._default_root:
-            editor = QAQuestionEditor(tk._default_root)
-            editor.wait_window()
+    # Session 63c: Custom widget for default questions management
+    # (Replaces the old "Edit Default Questions" YAML editor button)
+    def _create_default_questions_widget(parent):
+        """Factory function to create the DefaultQuestionsWidget."""
+        from src.ui.settings.settings_widgets import DefaultQuestionsWidget
+        return DefaultQuestionsWidget(parent)
 
     SettingsRegistry.register(SettingDefinition(
-        key="qa_edit_questions",
-        label="Edit Default Questions",
+        key="qa_default_questions",
+        label="Default Questions",
         category="Q&A",
-        setting_type=SettingType.BUTTON,
+        setting_type=SettingType.CUSTOM,
         tooltip=(
-            "Customize the questions that are automatically asked for every "
-            "document. You can add, edit, delete, or reorder questions. "
-            "Changes are saved to config/qa_questions.yaml."
+            "Manage the questions that are automatically asked after document "
+            "processing. Enable/disable individual questions using checkboxes. "
+            "Add new questions or edit existing ones. Changes are saved automatically."
         ),
         default=None,
-        action=_open_question_editor,
-    ))
-
-    def _open_default_questions_editor(parent_widget=None):
-        """Open text editor for default questions file."""
-        from pathlib import Path
-        import subprocess
-        import platform
-
-        questions_file = Path(__file__).parent.parent.parent.parent / "config" / "qa_default_questions.txt"
-
-        # Ensure file exists
-        if not questions_file.exists():
-            questions_file.parent.mkdir(parents=True, exist_ok=True)
-            questions_file.write_text(
-                "# Default Q&A Questions\n"
-                "# One question per line. Lines starting with # are comments.\n\n"
-                "What is this case about?\n"
-                "What are the main allegations?\n",
-                encoding='utf-8'
-            )
-
-        # Open in system default text editor
-        try:
-            if platform.system() == 'Windows':
-                subprocess.run(['notepad.exe', str(questions_file)])
-            elif platform.system() == 'Darwin':  # macOS
-                subprocess.run(['open', '-t', str(questions_file)])
-            else:  # Linux
-                subprocess.run(['xdg-open', str(questions_file)])
-
-            # Refresh the checkbox label in main window after editing
-            # Find main window and refresh label
-            widget = parent_widget
-            while widget:
-                if hasattr(widget, 'refresh_default_questions_label'):
-                    widget.refresh_default_questions_label()
-                    break
-                widget = widget.master if hasattr(widget, 'master') else None
-
-        except Exception as e:
-            from tkinter import messagebox
-            messagebox.showerror("Error", f"Could not open file: {e}")
-
-    SettingsRegistry.register(SettingDefinition(
-        key="qa_edit_auto_questions",
-        label="Edit Auto Questions (TXT)",
-        category="Q&A",
-        setting_type=SettingType.BUTTON,
-        tooltip=(
-            "Edit the simple text file of questions that are automatically asked "
-            "after document processing completes. One question per line. "
-            "Changes are saved to config/qa_default_questions.txt."
-        ),
-        default=None,
-        action=_open_default_questions_editor,
+        widget_factory=_create_default_questions_widget,
     ))
 
     # ===================================================================

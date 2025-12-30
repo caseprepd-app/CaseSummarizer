@@ -36,3 +36,7 @@ pyspellchecker>=0.8.0
 lettucedetect>=0.1.6
 # GPU detection for auto LLM configuration (Session 62b)
 gpu-tracker>=0.3.0
+# OCR image preprocessing for improved accuracy (Session 63)
+opencv-python-headless>=4.8.0
+deskew>=1.5.0
+scikit-image>=0.22.0

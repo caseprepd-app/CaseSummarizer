@@ -34,6 +34,11 @@ Components by layer:
 # Core Q&A orchestration
 from src.core.qa.answer_generator import AnswerGenerator, AnswerMode
 from src.core.qa.qa_orchestrator import QAOrchestrator, QAResult
+from src.core.qa.default_questions_manager import (
+    DefaultQuestionsManager,
+    DefaultQuestion,
+    get_default_questions_manager,
+)
 
 # Vector store and retrieval (re-exported for unified API)
 from src.core.vector_store import (
@@ -61,6 +66,10 @@ __all__ = [
     "QAResult",
     "AnswerGenerator",
     "AnswerMode",
+    # Default questions management (Session 63c)
+    "DefaultQuestionsManager",
+    "DefaultQuestion",
+    "get_default_questions_manager",
     # Vector store
     "VectorStoreBuilder",
     "QARetriever",

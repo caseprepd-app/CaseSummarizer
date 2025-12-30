@@ -1,0 +1,24 @@
+{
+  "questions": [
+    {
+      "text": "What is this case about?",
+      "enabled": true
+    },
+    {
+      "text": "What are the main allegations?",
+      "enabled": true
+    },
+    {
+      "text": "Who are the plaintiffs?",
+      "enabled": true
+    },
+    {
+      "text": "Who are the defendants?",
+      "enabled": true
+    },
+    {
+      "text": "What is the date of the incident?",
+      "enabled": true
+    }
+  ]
+}

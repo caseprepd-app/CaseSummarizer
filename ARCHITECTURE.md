@@ -38,6 +38,9 @@
 - [x] **Settings system** — Registry-based 4-tab dialog (Performance, Vocabulary, Q&A, Experimental) with GPU auto-detection for LLM (Session 62b)
 - [x] **Progressive extraction worker** — Three-phase NER→Q&A→LLM with unified queue routing (Session 48)
 - [x] **Shared config loader** — DRY utility for YAML loading (`src/core/config/loader.py`)
+- [x] **Default questions management** — JSON-based storage with enable/disable per question, Settings UI widget (Session 63c)
+- [x] **Name regularization** — Post-processing filter for vocabulary fragments and OCR typos (Session 63b)
+- [x] **Image preprocessing** — Deskew, denoise, contrast enhancement for scanned PDFs (Session 63a)
 
 ### Partially Implemented ⚡
 
@@ -326,8 +329,40 @@ flowchart TB
 | PDF text | `extraction/raw_text_extractor.py` | pdfplumber digital extraction |
 | OCR detection | `extraction/raw_text_extractor.py` | Dictionary confidence < 60% triggers OCR |
 | OCR processing | `extraction/raw_text_extractor.py` | pdf2image + pytesseract at 300 DPI |
+| **OCR preprocessing** | `extraction/image_preprocessor.py` | 6-stage image enhancement (Session 63) |
 | Sanitization | `sanitization/character_sanitizer.py` | 6-stage pipeline |
 | Preprocessing | `preprocessing/*.py` | Pluggable removers |
+
+### OCR Image Preprocessing (Session 63)
+
+When OCR is triggered for scanned documents, a 6-stage preprocessing pipeline improves accuracy by 20-50%:
+
+```mermaid
+flowchart LR
+    subgraph Preprocessing["IMAGE PREPROCESSING"]
+        I1["1. Grayscale"]
+        I2["2. Denoise<br/>(fastNlMeans)"]
+        I3["3. CLAHE<br/>(contrast)"]
+        I4["4. Adaptive<br/>threshold"]
+        I5["5. Deskew<br/>(rotation fix)"]
+        I6["6. Border<br/>padding"]
+    end
+
+    PDF["Scanned PDF"] --> Images["pdf2image<br/>300 DPI"]
+    Images --> I1
+    I1 --> I2 --> I3 --> I4 --> I5 --> I6
+    I6 --> Tesseract["pytesseract"]
+    Tesseract --> Text["Extracted Text"]
+```
+
+**Configuration:**
+```python
+OCR_PREPROCESSING_ENABLED = True  # Enable by default
+OCR_DENOISE_STRENGTH = 10         # 1-30, higher = more smoothing
+OCR_ENABLE_CLAHE = True           # Contrast enhancement
+```
+
+**Libraries:** OpenCV (Apache 2.0), deskew (MIT), scikit-image (BSD)
 
 ### Chunking Strategy
 
@@ -812,6 +847,7 @@ src/
 │   │
 │   ├── extraction/              # Document extraction
 │   │   ├── raw_text_extractor.py    # PDF/TXT/RTF → text
+│   │   ├── image_preprocessor.py    # OCR image preprocessing (Session 63)
 │   │   └── llm_extractor.py         # Ollama-based extraction
 │   │
 │   ├── sanitization/
@@ -833,6 +869,7 @@ src/
 │   │   ├── result_merger.py         # Algorithm result combination
 │   │   ├── name_deduplicator.py     # Person name deduplication
 │   │   ├── artifact_filter.py       # Substring containment removal
+│   │   ├── name_regularizer.py      # Fragment + typo deduplication (Session 63b)
 │   │   ├── rarity_filter.py         # Filter common phrases
 │   │   ├── role_profiles.py         # Role detection
 │   │   ├── feedback_manager.py      # User feedback CSV
@@ -861,7 +898,8 @@ src/
 │   │
 │   ├── qa/                      # Q&A orchestration
 │   │   ├── qa_orchestrator.py   # Coordinates flow
-│   │   └── answer_generator.py  # Generate answers
+│   │   ├── answer_generator.py  # Generate answers
+│   │   └── default_questions_manager.py  # JSON-based question storage (Session 63c)
 │   │
 │   ├── summarization/           # Multi-doc summarization
 │   │   ├── result_types.py      # Dataclasses
@@ -1044,4 +1082,4 @@ ruff check src/ --fix
 
 ---
 
-*Last updated: 2025-12-29 (Session 61)*
+*Last updated: 2025-12-30 (Session 63)*
