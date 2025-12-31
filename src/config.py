@@ -144,9 +144,11 @@ OLLAMA_TIMEOUT_SECONDS = 600  # 10 minutes for long summaries
 QUEUE_TIMEOUT_SECONDS = 2.0  # Timeout for multiprocessing queue operations
 
 # Context Window Configuration
-# Optimized for CPU inference on business laptops (8-16GB RAM, no GPU)
-# Research shows: 2k context = ~150 tokens/sec, 8k = ~43 t/s, 64k = ~9 t/s
-OLLAMA_CONTEXT_WINDOW = 2048  # Tokens - matches Ollama's default for CPU performance
+# Session 64: Now dynamically set based on GPU VRAM via user preferences.
+# This constant is only used as a fallback if user preferences are unavailable.
+# Actual context size is determined by: user_preferences.get_effective_context_size()
+# which auto-detects optimal size based on VRAM (4K-64K range).
+OLLAMA_CONTEXT_WINDOW = 4000  # Fallback default (conservative, CPU-safe)
 
 # --- New Model Configuration System ---
 MODEL_CONFIG_FILE = Path(__file__).parent.parent / "config" / "models.yaml"

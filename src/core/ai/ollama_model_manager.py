@@ -35,6 +35,24 @@ from .prompt_formatter import wrap_prompt_for_model
 from .summary_post_processor import SummaryPostProcessor
 
 
+def _get_context_window() -> int:
+    """
+    Get the effective context window size from user preferences.
+
+    Session 64: Dynamic context based on GPU VRAM detection.
+
+    Returns:
+        int: Context window size (num_ctx) for Ollama API calls.
+    """
+    try:
+        from src.user_preferences import get_user_preferences
+        prefs = get_user_preferences()
+        return prefs.get_effective_context_size()
+    except Exception:
+        # Fallback to config default if preferences unavailable
+        return OLLAMA_CONTEXT_WINDOW
+
+
 class OllamaModelManager:
     """
     Manages Ollama-based AI models for case summarization.
@@ -256,14 +274,17 @@ class OllamaModelManager:
             debug_log(f"[OLLAMA GENERATE] Wrapped prompt length: {len(wrapped_prompt)} chars")
 
             # Check if prompt may exceed context window (1 token ≈ 4 chars)
+            # Session 64: Use dynamic context size based on GPU/VRAM
             estimated_tokens = len(wrapped_prompt) // 4
-            context_window = OLLAMA_CONTEXT_WINDOW
+            context_window = _get_context_window()
             if estimated_tokens > context_window - 300:  # Leave room for output
                 warning(
                     f"Prompt ({estimated_tokens} estimated tokens) may be truncated. "
                     f"Context window is {context_window} tokens."
                 )
                 debug_log(f"[OLLAMA GENERATE] WARNING: Prompt may exceed context window!")
+
+            debug_log(f"[OLLAMA GENERATE] Using context window: {context_window} tokens")
 
             # Build request payload with explicit context window
             payload = {
@@ -274,7 +295,7 @@ class OllamaModelManager:
                 "stream": False,  # Non-streaming to avoid UTF-8 issues
                 "num_predict": max_tokens,
                 "options": {
-                    "num_ctx": context_window,  # Explicit context window for CPU performance
+                    "num_ctx": context_window,  # Session 64: Dynamic based on VRAM
                 },
             }
 
@@ -451,6 +472,10 @@ class OllamaModelManager:
 
         try:
             # Build request payload with JSON format mode
+            # Session 64: Use dynamic context size based on GPU/VRAM
+            context_window = _get_context_window()
+            debug_log(f"[OLLAMA STRUCTURED] Using context window: {context_window} tokens")
+
             payload = {
                 "model": self.model_name,
                 "prompt": prompt,
@@ -459,7 +484,7 @@ class OllamaModelManager:
                 "num_predict": max_tokens,
                 "format": "json",  # Ollama v0.5+ structured output mode
                 "options": {
-                    "num_ctx": OLLAMA_CONTEXT_WINDOW,
+                    "num_ctx": context_window,
                 },
             }
 

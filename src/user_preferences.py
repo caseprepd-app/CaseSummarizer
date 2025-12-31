@@ -242,6 +242,58 @@ class UserPreferencesManager:
         self.set_vocab_llm_mode("yes" if enabled else "no")
 
     # =========================================================================
+    # LLM Context Window Settings (Session 64)
+    # =========================================================================
+
+    def get_context_size_mode(self) -> str | int:
+        """
+        Get context window size mode (Session 64).
+
+        Returns:
+            "auto" for automatic detection based on VRAM, or
+            int for manual override (4000, 8000, 16000, 32000, 48000, 64000)
+        """
+        value = self._preferences.get("llm_context_size", "auto")
+        if value == "auto":
+            return "auto"
+        # Ensure it's a valid int
+        try:
+            return int(value)
+        except (ValueError, TypeError):
+            return "auto"
+
+    def set_context_size_mode(self, value: str | int) -> None:
+        """
+        Set context window size mode (Session 64).
+
+        Args:
+            value: "auto" or int (4000, 8000, 16000, 32000, 48000, 64000)
+        """
+        valid_sizes = [4000, 8000, 16000, 32000, 48000, 64000]
+        if value != "auto" and value not in valid_sizes:
+            raise ValueError(
+                f"Context size must be 'auto' or one of {valid_sizes}, got {value}"
+            )
+        self._preferences["llm_context_size"] = value
+        self._save_preferences()
+
+    def get_effective_context_size(self) -> int:
+        """
+        Get the actual context window size to use (Session 64).
+
+        Resolves "auto" mode using GPU VRAM detection.
+
+        Returns:
+            int: Context window size (num_ctx) for Ollama API calls
+        """
+        mode = self.get_context_size_mode()
+        if isinstance(mode, int):
+            return mode
+        # "auto" mode - use GPU detection
+        from src.core.utils.gpu_detector import get_optimal_context_size
+        return get_optimal_context_size()
+
+    # =========================================================================
     # Generic Get/Set Methods (for extensible settings system)
     # =========================================================================
 
@@ -330,6 +382,13 @@ class UserPreferencesManager:
             if value not in ("auto", "yes", "no") and not isinstance(value, bool):
                 raise ValueError(
                     f"vocab_use_llm must be 'auto', 'yes', or 'no', got {value}"
+                )
+        # Session 64: LLM context window size validation
+        elif key == "llm_context_size":
+            valid_sizes = [4000, 8000, 16000, 32000, 48000, 64000]
+            if value != "auto" and value not in valid_sizes:
+                raise ValueError(
+                    f"llm_context_size must be 'auto' or one of {valid_sizes}, got {value}"
                 )
 
         self._preferences[key] = value

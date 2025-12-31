@@ -133,37 +133,6 @@ class WindowLayoutMixin:
         )
         self.manage_corpus_btn.pack(side="left", padx=(5, 0))
 
-    def _create_warning_banner(self):
-        """Create the no-corpus warning banner."""
-        self.banner_frame = ctk.CTkFrame(
-            self,
-            fg_color=("#fff3cd", "#4a4528"),
-            corner_radius=0,
-            height=45
-        )
-        # Initially hidden, shown by _update_corpus_banner if needed
-        self.banner_frame.pack_propagate(False)
-
-        warning_text = (
-            "No corpus configured. Set up a corpus to improve vocabulary detection. "
-            "Your corpus stays 100% local and offline."
-        )
-        self.banner_label = ctk.CTkLabel(
-            self.banner_frame,
-            text=warning_text,
-            font=FONTS["body"],
-            text_color=("#856404", "#d4b833")
-        )
-        self.banner_label.pack(side="left", padx=15, pady=10)
-
-        self.setup_corpus_btn = ctk.CTkButton(
-            self.banner_frame,
-            text="Set Up Now",
-            width=100,
-            command=self._open_corpus_dialog
-        )
-        self.setup_corpus_btn.pack(side="right", padx=15, pady=8)
-
     def _create_main_panels(self):
         """Create the two-panel main content area."""
         self.main_frame = ctk.CTkFrame(self, **FRAME_STYLES["transparent"])

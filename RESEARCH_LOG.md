@@ -6,6 +6,177 @@
 
 ---
 
+## Session 64: Move Corpus Settings to Settings Menu — 2025-12-31
+
+**Problem:** Corpus management was scattered across multiple UI locations:
+1. Header dropdown for quick switching (useful - keep this)
+2. "Manage" button opening separate CorpusDialog
+3. Warning banner when corpus < 5 documents
+4. BM25-related settings in Vocabulary tab
+
+**Goal:** Consolidate corpus configuration into Settings dialog while keeping quick-switch dropdown in header.
+
+### Solution: Corpus Tab in Settings
+
+**1. Created CorpusSettingsWidget** (`src/ui/settings/settings_widgets.py`):
+```
+┌─────────────────────────────────────────────────────────────┐
+│  Corpus Management                                       ⓘ  │
+├─────────────────────────────────────────────────────────────┤
+│  📚 What is a Corpus?                                       │
+│  A corpus is a collection of YOUR past transcripts...       │
+│  ✓ 100% local and offline                                   │
+│  ✓ Powers the BM25 vocabulary algorithm                     │
+├─────────────────────────────────────────────────────────────┤
+│  Current Status:                                            │
+│  • Active corpus: My Transcripts                            │
+│  • Documents: 23 files                                      │
+│  • BM25 Algorithm: ✓ Active (5+ documents)                  │
+├─────────────────────────────────────────────────────────────┤
+│  [Manage Corpus...]                                         │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**2. Registered Corpus Tab** (`src/ui/settings/settings_registry.py`):
+- New "Corpus" category with CUSTOM widget
+- Widget shows status summary and opens CorpusDialog for full management
+
+**3. Updated Header "Manage" Button** (`src/ui/main_window.py`):
+- Now opens Settings → Corpus tab instead of CorpusDialog directly
+- User can then click "Manage Corpus..." for full dialog
+
+**4. Removed Warning Banner**:
+- Deleted `_create_warning_banner()` from `window_layout.py`
+- Deleted `_update_corpus_banner()` from `main_window.py`
+- Status now visible in Settings → Corpus tab
+
+### Architecture Decision
+
+**Why not embed full CorpusDialog (786 lines) into Settings tab?**
+- Avoids code duplication
+- Keeps corpus management logic in one place
+- Settings tab provides status/context, CorpusDialog handles CRUD
+- Pattern matches DefaultQuestionsWidget (summary + action button)
+
+**Settings Tab Order:** Performance → Vocabulary → Corpus → Q&A → Experimental
+
+### GPU Detection Improvements
+
+**Problem:** The gpu-tracker library was producing warnings:
+```
+WARNING: Neither the nvidia-smi command nor the amd-smi command is installed.
+```
+
+**Root Cause:** gpu-tracker required external CLI tools (nvidia-smi, amd-smi) to function properly.
+
+**Solution:** Switch to PyTorch for GPU detection.
+
+1. **Removed `CUDA_VISIBLE_DEVICES=''`** from `main.py`
+   - Was forcing CPU-only mode for torch
+   - Now allows GPU detection to work properly
+
+2. **Updated `gpu_detector.py`** to use PyTorch as primary:
+   - `torch.cuda.is_available()` works without any CLI tools
+   - Falls back to nvidia-smi/amd-smi check for edge cases
+   - Returns actual GPU name (e.g., "NVIDIA GeForce RTX 3080 detected")
+
+3. **Removed gpu-tracker dependency** from `requirements.txt`
+   - PyTorch is already installed (via sentence-transformers)
+   - No additional dependencies needed
+
+4. **Added WMI detection** for Windows (detects both NVIDIA and AMD):
+   - Queries `Win32_VideoController` via PowerShell
+   - Filters by keywords to distinguish dedicated vs integrated GPUs:
+     - **Dedicated NVIDIA:** geforce, rtx, gtx, quadro, tesla
+     - **Dedicated AMD:** radeon rx, radeon pro, firepro
+     - **Integrated (excluded):** intel, uhd graphics, iris, radeon graphics
+   - Returns GPU name, vendor, and VRAM
+
+**Detection Order:**
+1. PyTorch CUDA (fast, NVIDIA only)
+2. WMI Query (Windows, all vendors including AMD)
+3. CLI tools (nvidia-smi / amd-smi fallback)
+
+**Result:** Clean GPU detection with no warnings, supports both NVIDIA and AMD, no external dependencies.
+
+### Dynamic LLM Context Window Based on VRAM
+
+**Problem:** LLM context window was hardcoded at 2048 tokens regardless of hardware.
+Users with powerful GPUs couldn't leverage larger context windows, while users without
+GPUs might experience issues with the default.
+
+**Research Findings:**
+- VRAM usage grows linearly with context (about 1GB per 4K tokens for 8B models)
+- Ollama defaults to 4096 tokens but supports much larger contexts
+- Exceeding VRAM causes 5-20x performance degradation (spills to RAM)
+- Larger context = better comprehension of long documents
+
+**Solution:** Dynamic context size based on detected VRAM.
+
+**Conservative VRAM Tiers (with 1.5% safety buffer):**
+
+| VRAM | num_ctx |
+|------|---------|
+| No GPU / < 6GB | 4,000 |
+| 6-8GB | 8,000 |
+| 8-12GB | 16,000 |
+| 12-16GB | 32,000 |
+| 16-24GB | 48,000 |
+| 24GB+ | 64,000 |
+
+**Implementation:**
+
+1. **`gpu_detector.py`**: Added `get_optimal_context_size()` and `get_vram_gb()`
+
+2. **`user_preferences.py`**: Added context size preference:
+   - `get_context_size_mode()` → "auto" or int
+   - `get_effective_context_size()` → resolves "auto" via GPU detection
+
+3. **Settings UI**: Added dropdown in Q&A tab:
+   - "Auto (16K - detected 8.0GB VRAM)"
+   - Manual options: 4K, 8K, 16K, 32K, 48K, 64K
+
+4. **`ollama_model_manager.py`**: Updated `generate_text()` and `generate_structured()`
+   to use dynamic context from user preferences
+
+**User Experience:**
+- Auto-detection works out of the box
+- Power users can override in Settings → Q&A → Context window size
+- If Ollama becomes slow, user can manually reduce context
+
+### BM25/Corpus Path Mismatch Bug Fix
+
+**Problem:** BM25 algorithm was showing as disabled (0 documents) even though the
+Corpus dialog showed 6 documents in the "General" corpus. Investigation revealed
+a path mismatch between two systems:
+
+| System | Path Used |
+|--------|-----------|
+| CorpusRegistry | `%APPDATA%/LocalScribe/corpora/General/` (multi-corpus) |
+| CorpusManager | `%APPDATA%/LocalScribe/corpus/` (old single-corpus) |
+
+**Root Cause:** When multi-corpus support was added (Session 29), CorpusRegistry
+was created to manage corpora in `corpora/{name}/` subdirectories. However, the
+CorpusManager singleton continued using the old `CORPUS_DIR` constant from config.py.
+
+**Solution:**
+1. Modified `get_corpus_manager()` to use active corpus path from registry:
+   ```python
+   registry = get_corpus_registry()
+   active_path = registry.get_active_corpus_path()
+   _corpus_manager = CorpusManager(corpus_dir=active_path)
+   ```
+
+2. Added `reset_corpus_manager()` function to invalidate singleton when active
+   corpus changes
+
+3. Updated `CorpusRegistry.set_active_corpus()` to call `reset_corpus_manager()`
+
+**Result:** BM25 now correctly sees documents in the active corpus and is enabled
+when 5+ documents are present.
+
+---
+
 ## Session 63c: Default Questions Management — 2025-12-30
 
 **Problem:** The default Q&A questions system had multiple issues:

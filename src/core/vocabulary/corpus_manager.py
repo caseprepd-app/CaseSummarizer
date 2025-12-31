@@ -579,14 +579,39 @@ class CorpusManager:
 _corpus_manager: CorpusManager | None = None
 
 
+def reset_corpus_manager() -> None:
+    """
+    Reset the CorpusManager singleton.
+
+    Call this when the active corpus changes so the manager
+    gets recreated with the new corpus path.
+    """
+    global _corpus_manager
+    _corpus_manager = None
+    debug_log("[CorpusManager] Singleton reset - will reload on next access")
+
+
 def get_corpus_manager() -> CorpusManager:
     """
     Get the global CorpusManager singleton.
+
+    Uses the active corpus path from CorpusRegistry (multi-corpus support).
 
     Returns:
         CorpusManager instance
     """
     global _corpus_manager
     if _corpus_manager is None:
-        _corpus_manager = CorpusManager()
+        # Get active corpus path from registry (avoids path mismatch bug)
+        # Session 64: Fixed - was using old CORPUS_DIR instead of registry path
+        try:
+            from src.core.vocabulary.corpus_registry import get_corpus_registry
+            registry = get_corpus_registry()
+            active_path = registry.get_active_corpus_path()
+            _corpus_manager = CorpusManager(corpus_dir=active_path)
+            debug_log(f"[CorpusManager] Using active corpus path: {active_path}")
+        except Exception as e:
+            # Fallback to default CORPUS_DIR if registry fails
+            debug_log(f"[CorpusManager] Registry failed, using default path: {e}")
+            _corpus_manager = CorpusManager()
     return _corpus_manager

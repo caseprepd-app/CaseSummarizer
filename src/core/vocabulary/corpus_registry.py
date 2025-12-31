@@ -339,6 +339,11 @@ class CorpusRegistry:
         prefs._preferences["active_corpus"] = name
         prefs._save_preferences()
 
+        # Reset CorpusManager singleton so it picks up the new path
+        # Session 64: Ensures BM25 uses the newly selected corpus
+        from src.core.vocabulary.corpus_manager import reset_corpus_manager
+        reset_corpus_manager()
+
         debug_log(f"[CorpusRegistry] Set active corpus to '{name}'")
 
     def get_active_corpus_path(self) -> Path:

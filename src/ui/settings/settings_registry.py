@@ -561,6 +561,29 @@ def _register_all_settings():
         setter=lambda v: prefs.set("phrase_mean_rarity_threshold", float(v)),
     ))
 
+    # ===================================================================
+    # CORPUS TAB (Session 64)
+    # ===================================================================
+
+    # Session 64: Custom widget for corpus management
+    def _create_corpus_settings_widget(parent):
+        """Factory function to create the CorpusSettingsWidget."""
+        from src.ui.settings.settings_widgets import CorpusSettingsWidget
+        return CorpusSettingsWidget(parent)
+
+    SettingsRegistry.register(SettingDefinition(
+        key="corpus_management",
+        label="Corpus Management",
+        category="Corpus",
+        setting_type=SettingType.CUSTOM,
+        tooltip=(
+            "Manage your corpus of past transcripts for BM25 vocabulary extraction. "
+            "The corpus helps identify case-specific terminology by comparing against "
+            "your typical work."
+        ),
+        default=None,
+        widget_factory=_create_corpus_settings_widget,
+    ))
 
     # ===================================================================
     # Q&A TAB
@@ -621,6 +644,60 @@ def _register_all_settings():
         options=_get_ollama_model_options(),
         getter=lambda: prefs.get("ollama_model", "gemma3:1b"),
         setter=_set_ollama_model,
+    ))
+
+    # Session 64: Context window size based on VRAM
+    def _get_context_size_options() -> list[tuple[str, str]]:
+        """Generate context size options with auto-detected recommendation."""
+        from src.core.utils.gpu_detector import get_optimal_context_size, get_vram_gb
+
+        vram = get_vram_gb()
+        optimal = get_optimal_context_size()
+
+        if vram > 0:
+            auto_label = f"Auto ({optimal // 1000}K - detected {vram:.1f}GB VRAM)"
+        else:
+            auto_label = f"Auto ({optimal // 1000}K - no dedicated GPU)"
+
+        return [
+            (auto_label, "auto"),
+            ("4K (low VRAM / CPU only)", "4000"),
+            ("8K (6-8GB VRAM)", "8000"),
+            ("16K (8-12GB VRAM)", "16000"),
+            ("32K (12-16GB VRAM)", "32000"),
+            ("48K (16-24GB VRAM)", "48000"),
+            ("64K (24GB+ VRAM)", "64000"),
+        ]
+
+    def _get_context_size() -> str:
+        """Get current context size mode as string for dropdown."""
+        mode = prefs.get("llm_context_size", "auto")
+        return str(mode)
+
+    def _set_context_size(value: str) -> None:
+        """Set context size from dropdown value."""
+        if value == "auto":
+            prefs.set("llm_context_size", "auto")
+        else:
+            prefs.set("llm_context_size", int(value))
+
+    SettingsRegistry.register(SettingDefinition(
+        key="llm_context_size",
+        label="Context window size",
+        category="Q&A",
+        setting_type=SettingType.DROPDOWN,
+        tooltip=(
+            "How much text the AI can process at once (in tokens).\n\n"
+            "Larger context = better comprehension of long documents, but "
+            "requires more GPU memory (VRAM).\n\n"
+            "• Auto: Automatically selects optimal size based on your GPU\n"
+            "• Manual: Override if you experience issues or want to experiment\n\n"
+            "If Ollama becomes slow or unresponsive, try a smaller context size."
+        ),
+        default="auto",
+        options=_get_context_size_options(),
+        getter=_get_context_size,
+        setter=_set_context_size,
     ))
 
     SettingsRegistry.register(SettingDefinition(

@@ -94,13 +94,11 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
 
         # Build UI
         self._create_header()
-        self._create_warning_banner()
         self._create_main_panels()
         self._create_status_bar()
 
         # Initialize state
         self._refresh_corpus_dropdown()
-        self._update_corpus_banner()
         self._update_generate_button_state()
         self._update_default_questions_label()  # Set initial question count
         self._update_vocab_llm_checkbox_state()  # Set LLM checkbox based on settings/GPU
@@ -278,7 +276,6 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
 
         # Refresh UI after settings change
         self._refresh_corpus_dropdown()
-        self._update_corpus_banner()
         self._update_model_display()
         self._update_ollama_status()
         self._update_vocab_llm_checkbox_state()  # Session 63b: Refresh LLM checkbox
@@ -314,22 +311,6 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             self.corpus_dropdown.configure(values=["Error"])
             self.corpus_dropdown.set("Error")
 
-    def _update_corpus_banner(self):
-        """Show or hide the no-corpus warning banner."""
-        try:
-            corpora = self.corpus_registry.list_corpora()
-            total_docs = sum(c.doc_count for c in corpora)
-
-            if total_docs == 0:
-                # Show banner
-                self.banner_frame.pack(fill="x", after=self.header_frame)
-            else:
-                # Hide banner
-                self.banner_frame.pack_forget()
-
-        except Exception:
-            # On error, hide banner
-            self.banner_frame.pack_forget()
 
     def _on_corpus_changed(self, corpus_name: str):
         """Handle corpus selection change."""
@@ -341,17 +322,20 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             messagebox.showerror("Error", f"Failed to switch corpus: {e}")
 
     def _open_corpus_dialog(self):
-        """Open the corpus management dialog."""
-        from src.ui.corpus_dialog import CorpusDialog
+        """Open Settings dialog to the Corpus tab (Session 64)."""
+        from src.ui.settings import SettingsDialog
 
-        dialog = CorpusDialog(self)
-        self.wait_window(dialog)
+        try:
+            dialog = SettingsDialog(parent=self, initial_tab="Corpus")
+            dialog.wait_window()
+        except Exception as e:
+            from src.logging_config import error as log_error
+            log_error(f"Failed to open settings dialog: {e}")
+            import traceback
+            traceback.print_exc()
 
         # Refresh after dialog closes
-        if dialog.corpus_changed:
-            self._refresh_corpus_dropdown()
-            self._update_corpus_banner()
-            self.set_status("Corpus updated")
+        self._refresh_corpus_dropdown()
 
     # =========================================================================
     # File Management
@@ -1388,7 +1372,6 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
 
         # Refresh UI after settings change
         self._refresh_corpus_dropdown()
-        self._update_corpus_banner()
         self._update_model_display()
         self._update_ollama_status()
         self._update_vocab_llm_checkbox_state()  # Session 63b: Refresh LLM checkbox

@@ -5,12 +5,9 @@ Phase 2.1: CustomTkinter UI
 This module initializes the CustomTkinter application and launches the main window.
 """
 
-# CRITICAL: Set environment variables BEFORE any imports that might trigger torch loading.
-# This prevents torch from hanging indefinitely during CUDA/GPU scanning on Windows.
+# Set environment variables BEFORE any imports that might trigger torch loading.
 import os
-os.environ['CUDA_VISIBLE_DEVICES'] = ''  # Skip GPU enumeration (use CPU for embeddings)
 os.environ['TOKENIZERS_PARALLELISM'] = 'false'  # Prevent HuggingFace tokenizer deadlocks
-os.environ['OMP_NUM_THREADS'] = '1'  # Faster OpenMP initialization
 os.environ['HF_HUB_DISABLE_SYMLINKS_WARNING'] = '1'  # Suppress HuggingFace Hub symlink warning
 
 import multiprocessing

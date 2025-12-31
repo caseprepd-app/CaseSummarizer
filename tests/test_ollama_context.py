@@ -30,11 +30,13 @@ class TestContextWindowConfig:
         assert OLLAMA_CONTEXT_WINDOW >= 1024  # At least 1K
         assert OLLAMA_CONTEXT_WINDOW <= 131072  # Max reasonable for consumer hardware
 
-    def test_default_is_cpu_optimized(self):
-        """Verify default is 2048 for CPU performance."""
-        assert OLLAMA_CONTEXT_WINDOW == 2048, (
-            "Default should be 2048 for CPU-only laptops. "
-            "See research: 2k context = ~150 tokens/sec vs 8k = ~43 tokens/sec"
+    def test_fallback_is_conservative(self):
+        """Verify fallback default is conservative (Session 64: now 4000)."""
+        # Session 64: Changed from 2048 to 4000 as fallback.
+        # Actual context is now dynamic based on GPU VRAM via user preferences.
+        assert OLLAMA_CONTEXT_WINDOW == 4000, (
+            "Fallback should be 4000 (conservative CPU-safe default). "
+            "Actual context is determined by user_preferences.get_effective_context_size()"
         )
 
 
@@ -123,8 +125,11 @@ class TestOllamaPayload:
 
                 assert 'options' in payload, "Payload should include 'options'"
                 assert 'num_ctx' in payload['options'], "Options should include 'num_ctx'"
-                assert payload['options']['num_ctx'] == OLLAMA_CONTEXT_WINDOW, (
-                    f"num_ctx should be {OLLAMA_CONTEXT_WINDOW}"
+                # Session 64: Context is now dynamic based on GPU VRAM
+                # Just verify it's set to a reasonable value (4K-64K range)
+                num_ctx = payload['options']['num_ctx']
+                assert 4000 <= num_ctx <= 64000, (
+                    f"num_ctx should be in valid range (4000-64000), got {num_ctx}"
                 )
 
 
@@ -153,9 +158,10 @@ class TestTruncationWarning:
         manager.is_connected = True
 
         # Create a prompt that's close to context limit
-        # 2048 context - 300 output room = 1748 tokens
-        # 1748 tokens * 4 chars = ~7000 chars to trigger warning
-        large_prompt = "word " * 1500  # ~7500 chars
+        # Session 64: Context is now dynamic (4000 minimum for no GPU)
+        # 4000 context - 300 output room = 3700 tokens
+        # 3700 tokens * 4 chars = ~14800 chars to trigger warning
+        large_prompt = "word " * 3500  # ~17500 chars
 
         manager.generate_text(large_prompt, max_tokens=100)
 
