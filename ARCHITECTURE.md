@@ -33,7 +33,7 @@
 - [x] **Questions & Answers system** — Hybrid BM25+ / FAISS retrieval, LlamaIndex query expansion
 - [x] **Hallucination verification** — LettuceDetect-based span-level verification with color-coded display (Session 60)
 - [x] **Progressive summarization** — Chunked map-reduce with focus threading
-- [x] **Unified semantic chunking** — Token enforcement via tiktoken (400-1200 tokens/chunk) — CANONICAL
+- [x] **Unified semantic chunking** — Token enforcement via tiktoken (400-1000 tokens/chunk, research-based fixed sizes) — CANONICAL
 - [x] **Parallel processing** — Dynamic worker scaling based on CPU/RAM
 - [x] **Settings system** — Registry-based 5-tab dialog (Performance, Vocabulary, Corpus, Q&A, Experimental) with GPU auto-detection for LLM (Session 62b, Session 64)
 - [x] **Progressive extraction worker** — Three-phase NER→Q&A→LLM with unified queue routing (Session 48)
@@ -41,7 +41,7 @@
 - [x] **Default questions management** — JSON-based storage with enable/disable per question, Settings UI widget (Session 63c)
 - [x] **Name regularization** — Post-processing filter for vocabulary fragments and OCR typos (Session 63b)
 - [x] **Image preprocessing** — Deskew, denoise, contrast enhancement for scanned PDFs (Session 63a)
-- [x] **Dynamic LLM context** — Auto-detects optimal context window (4K-64K) based on GPU VRAM (Session 64)
+- [x] **Dynamic LLM context** — Auto-detects optimal context window (4K-64K) based on GPU VRAM; QA context scales accordingly (Session 64, 67)
 
 ### Partially Implemented ⚡
 
@@ -370,7 +370,7 @@ OCR_ENABLE_CLAHE = True           # Contrast enhancement
 The `UnifiedChunker` uses semantic chunking with token enforcement:
 
 1. **Semantic splitting** — LangChain SemanticChunker with gradient breakpoints
-2. **Token enforcement** — tiktoken (cl100k_base) ensures 400-1200 tokens per chunk
+2. **Token enforcement** — tiktoken (cl100k_base) ensures 400-1000 tokens per chunk (research-based fixed sizes, Session 67)
 3. **Single pass** — Same chunks used for LLM extraction AND Q&A indexing
 
 ---
@@ -614,7 +614,7 @@ RETRIEVAL_ALGORITHM_WEIGHTS = {"BM25+": 1.0, "FAISS": 0.5}
 RETRIEVAL_MIN_SCORE = 0.1
 RETRIEVAL_MULTI_ALGO_BONUS = 0.1
 QA_RETRIEVAL_K = None           # None = search ALL chunks, or integer for top-K
-QA_CONTEXT_WINDOW = 4096        # Max tokens for LLM context
+QA_CONTEXT_WINDOW = 4096        # Fallback; actual value scales with GPU VRAM (Session 67)
 ```
 
 **Full-Corpus Retrieval (Session 56):**
@@ -1083,4 +1083,4 @@ ruff check src/ --fix
 
 ---
 
-*Last updated: 2026-01-01 (Session 66)*
+*Last updated: 2026-01-01 (Session 67)*
