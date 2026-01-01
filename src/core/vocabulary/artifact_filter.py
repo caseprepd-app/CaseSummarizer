@@ -55,10 +55,14 @@ def filter_substring_artifacts(
     )
 
     # Extract canonical terms (top N by count)
+    # Only use multi-word canonical terms to avoid false positives where
+    # single-word terms like "john" would incorrectly filter "John Smith"
     canonical_terms = []
     for term_dict in sorted_vocab[:canonical_count]:
         term = term_dict.get(term_key, "")
-        if term:
+        # Only include multi-word terms (2+ words) as canonical
+        # Single-word canonicals cause false positives with multi-word phrases
+        if term and " " in term:
             canonical_terms.append(term.lower())
 
     if not canonical_terms:

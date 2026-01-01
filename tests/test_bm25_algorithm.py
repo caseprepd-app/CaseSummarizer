@@ -303,9 +303,18 @@ class TestBM25Integration:
     def test_vocabulary_extractor_skips_bm25_when_corpus_empty(self, tmp_path):
         """VocabularyExtractor should not include BM25 when corpus is insufficient."""
         from src.core.vocabulary import VocabularyExtractor
+        from src.core.vocabulary.corpus_manager import CorpusManager
 
-        # Default extractor with empty corpus
-        extractor = VocabularyExtractor()
+        # Create an empty corpus in temp directory
+        empty_corpus_dir = tmp_path / "empty_corpus"
+        empty_corpus_dir.mkdir()
+
+        # Mock get_corpus_manager to return a manager with empty corpus
+        empty_manager = CorpusManager(corpus_dir=empty_corpus_dir)
+
+        # Patch where the function is defined, not where it's imported
+        with patch('src.core.vocabulary.corpus_manager.get_corpus_manager', return_value=empty_manager):
+            extractor = VocabularyExtractor()
 
         algorithm_names = [alg.name for alg in extractor.algorithms]
 

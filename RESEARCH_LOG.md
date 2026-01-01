@@ -6,6 +6,43 @@
 
 ---
 
+## Session 66: Test Fixes (Artifact Filter & BM25 Mock) — 2026-01-01
+
+**Fixes:** 2 failing tests now pass (313/313 tests passing)
+
+### 1. Artifact Filter False Positive Fix
+
+**Problem:** `test_extract_deduplication` was failing because "John Smith" was being filtered out by the artifact filter.
+
+**Root Cause:** The artifact filter checks if canonical terms are substrings of other terms. When BM25 extracted single words "john" and "smith" (freq=3 each), these became canonical terms. The filter then detected "john" as a substring of "john smith" and incorrectly removed "John Smith" as an artifact.
+
+**Fix:** Only use multi-word canonical terms (containing spaces) for substring matching. Single-word canonicals cause false positives with legitimate multi-word phrases like names.
+
+```python
+# Only include multi-word terms (2+ words) as canonical
+if term and " " in term:
+    canonical_terms.append(term.lower())
+```
+
+**File:** `src/core/vocabulary/artifact_filter.py:62-66`
+
+### 2. BM25 Test Mock Fix
+
+**Problem:** `test_vocabulary_extractor_skips_bm25_when_corpus_empty` was failing because it assumed an empty corpus, but the user's actual corpus had 6 documents.
+
+**Root Cause:** The test created a `VocabularyExtractor()` without mocking the corpus manager, so it used the real user corpus which had documents, causing BM25 to be correctly enabled.
+
+**Fix:** Mock `get_corpus_manager` to return a manager pointing to an empty temp directory, isolating the test from user data.
+
+```python
+with patch('src.core.vocabulary.corpus_manager.get_corpus_manager', return_value=empty_manager):
+    extractor = VocabularyExtractor()
+```
+
+**File:** `tests/test_bm25_algorithm.py:303-324`
+
+---
+
 ## Session 65: Export & Copy Buttons + GPU Detection Tests — 2026-01-01
 
 **Features Added:**
