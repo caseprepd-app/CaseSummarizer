@@ -359,3 +359,67 @@ def get_vram_gb() -> float:
     info = get_gpu_info()
     vram_bytes = info.get("vram_bytes", 0)
     return vram_bytes / (1024 ** 3) if vram_bytes > 0 else 0.0
+
+
+# Fixed chunk sizes based on RAG research (Session 67 revised)
+#
+# Research findings (2024-2025):
+# - Optimal chunk size is 400-1024 tokens regardless of context window
+# - Chroma research: 200-400 tokens for best precision
+# - Firecrawl/Pinecone: 400-512 tokens as starting point
+# - arXiv study: 512-1024 tokens for analytical queries
+# - NVIDIA benchmark: 1024 tokens with 15% overlap
+#
+# Key insight: Chunk size should NOT scale with context window.
+# What scales is HOW MANY CHUNKS you retrieve, not chunk size.
+# Larger context = more chunks included, not bigger chunks.
+#
+# Sources:
+# - https://research.trychroma.com/evaluating-chunking
+# - https://arxiv.org/html/2407.19794v2 (Context Window Utilization)
+# - https://www.firecrawl.dev/blog/best-chunking-strategies-rag-2025
+OPTIMAL_CHUNK_SIZES = {
+    "min_tokens": 400,      # Minimum to prevent semantic fragmentation
+    "target_tokens": 700,   # Optimal for mixed query types (research: 500-800)
+    "max_tokens": 1000,     # Upper bound (research: >1024 hurts precision)
+}
+
+
+def get_optimal_chunk_sizes(context_size: int | None = None) -> dict:
+    """
+    Get optimal chunk sizes for RAG retrieval.
+
+    Based on 2024-2025 research, chunk sizes should be FIXED at 400-1000 tokens
+    regardless of context window size. What scales with larger context is how
+    many chunks can be retrieved, not the chunk size itself.
+
+    Args:
+        context_size: Context window size in tokens (used for reference only).
+                      If None, auto-detects from VRAM.
+
+    Returns:
+        Dict with:
+        - min_tokens: Minimum tokens per chunk (400)
+        - target_tokens: Target tokens per chunk (700)
+        - max_tokens: Maximum tokens per chunk (1000)
+        - context_window: The context window (for reference)
+
+    Session 67: Fixed sizes based on RAG research. Chunk size does NOT scale
+    with context window - only the number of retrieved chunks scales.
+    """
+    if context_size is None:
+        context_size = get_optimal_context_size()
+
+    logger.debug(
+        f"[GPU] Fixed chunk sizes: min={OPTIMAL_CHUNK_SIZES['min_tokens']}, "
+        f"target={OPTIMAL_CHUNK_SIZES['target_tokens']}, "
+        f"max={OPTIMAL_CHUNK_SIZES['max_tokens']} "
+        f"(context={context_size:,})"
+    )
+
+    return {
+        "min_tokens": OPTIMAL_CHUNK_SIZES["min_tokens"],
+        "target_tokens": OPTIMAL_CHUNK_SIZES["target_tokens"],
+        "max_tokens": OPTIMAL_CHUNK_SIZES["max_tokens"],
+        "context_window": context_size,
+    }

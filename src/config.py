@@ -419,9 +419,10 @@ QA_TEMPERATURE = 0.1            # Low temperature for factual, consistent answer
 QA_SIMILARITY_THRESHOLD = 0.5   # Minimum relevance score for chunks
 
 # Q&A Context Window
-# Higher than summarization because we need question + context + answer
-# Adjust based on model capability (most Ollama models support 4096)
-QA_CONTEXT_WINDOW = 4096        # Tokens for RAG context
+# Session 67: Now dynamically set to match LLM context window based on GPU VRAM.
+# See qa_retriever._get_effective_qa_context_window() for the dynamic logic.
+# This constant is a FALLBACK value used if user preferences are unavailable.
+QA_CONTEXT_WINDOW = 4096        # Fallback tokens for RAG context
 
 # Chat History Settings
 QA_CONVERSATION_CONTEXT_PAIRS = 3  # Include last N Q&A pairs in follow-up questions
@@ -473,16 +474,26 @@ QUERY_TRANSFORM_VARIANTS = 3
 QUERY_TRANSFORM_TIMEOUT = 30.0
 
 # ============================================================================
-# Unified Semantic Chunking Configuration (Session 45)
+# Unified Semantic Chunking Configuration (Session 45, Session 67)
 # ============================================================================
 # Single chunking pass for all downstream consumers (LLM extraction + Q&A indexing)
 # Uses semantic chunking with token enforcement via tiktoken
+#
+# Session 67: Based on RAG research (2024-2025), chunk sizes are FIXED and do NOT
+# scale with context window. What scales is how many chunks fit in the context.
+#
+# Research findings:
+# - Optimal chunk size: 400-1024 tokens regardless of context window
+# - Chroma research: 200-400 tokens for best precision
+# - arXiv study: 512-1024 tokens for analytical queries
+# - Key insight: Larger context = more chunks retrieved, not bigger chunks
+#
+# See gpu_detector.get_optimal_chunk_sizes() for the research-based values.
 
-# Token limits for chunk sizing (based on 2048 token context window)
-# Budget: 2048 total - 300 prompt - 500 output = ~1200 tokens for chunk
-UNIFIED_CHUNK_MIN_TOKENS = 400      # Minimum tokens (merge smaller chunks)
-UNIFIED_CHUNK_TARGET_TOKENS = 900   # Target tokens per chunk
-UNIFIED_CHUNK_MAX_TOKENS = 1200     # Maximum tokens (split larger chunks)
+# Token limits for chunk sizing (research-based fixed values)
+UNIFIED_CHUNK_MIN_TOKENS = 400      # Minimum to prevent fragmentation
+UNIFIED_CHUNK_TARGET_TOKENS = 700   # Optimal for mixed queries (research: 500-800)
+UNIFIED_CHUNK_MAX_TOKENS = 1000     # Upper bound (>1024 hurts retrieval precision)
 
 # tiktoken encoding for token counting
 # cl100k_base is compatible with most modern models (GPT-3.5+, Claude, Llama)

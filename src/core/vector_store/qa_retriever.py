@@ -33,6 +33,24 @@ from src.config import (
 )
 from src.logging_config import debug_log
 
+
+def _get_effective_qa_context_window() -> int:
+    """
+    Get effective QA context window from user preferences (Session 67).
+
+    QA context window now scales with LLM context window based on GPU VRAM.
+    Falls back to config constant if preferences unavailable.
+
+    Returns:
+        Context window size in tokens
+    """
+    try:
+        from src.user_preferences import get_user_preferences
+        prefs = get_user_preferences()
+        return prefs.get_effective_context_size()
+    except Exception:
+        return QA_CONTEXT_WINDOW
+
 if TYPE_CHECKING:
     from langchain_community.vectorstores import FAISS
     from langchain_huggingface import HuggingFaceEmbeddings
@@ -307,7 +325,12 @@ class QARetriever:
         context_parts = []
         sources = []
         estimated_tokens = 0
-        max_context_tokens = int(QA_CONTEXT_WINDOW * 0.8)  # Reserve 20% for prompt + answer
+        # Session 67: QA context now scales with LLM context based on GPU VRAM
+        qa_context_window = _get_effective_qa_context_window()
+        max_context_tokens = int(qa_context_window * 0.8)  # Reserve 20% for prompt + answer
+        if DEBUG_MODE:
+            debug_log(f"[QARetriever] Using context window: {qa_context_window:,} "
+                      f"(max context tokens: {max_context_tokens:,})")
         chunks_included = 0
         chunks_skipped_score = 0
         chunks_skipped_limit = 0

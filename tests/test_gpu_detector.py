@@ -378,3 +378,142 @@ class TestVramContextTiers:
             assert context_size in valid_sizes, (
                 f"Context size {context_size} is not in valid sizes"
             )
+
+
+class TestOptimalChunkSizes:
+    """Test fixed chunk sizes based on RAG research (Session 67 revised).
+
+    Research findings (2024-2025):
+    - Optimal chunk size is 400-1024 tokens REGARDLESS of context window
+    - What scales is number of chunks retrieved, not chunk size
+    - Chunks >1024 hurt retrieval precision
+
+    Sources: Chroma, Firecrawl, arXiv, Pinecone, NVIDIA
+    """
+
+    def test_chunk_sizes_are_fixed(self):
+        """Chunk sizes should be FIXED regardless of context window."""
+        from src.core.utils.gpu_detector import get_optimal_chunk_sizes
+
+        small = get_optimal_chunk_sizes(4000)
+        large = get_optimal_chunk_sizes(64000)
+
+        # Chunk sizes should be the SAME for any context window
+        assert small["min_tokens"] == large["min_tokens"]
+        assert small["target_tokens"] == large["target_tokens"]
+        assert small["max_tokens"] == large["max_tokens"]
+
+    def test_fixed_chunk_size_values(self):
+        """Chunk sizes should match research-based fixed values."""
+        from src.core.utils.gpu_detector import get_optimal_chunk_sizes, OPTIMAL_CHUNK_SIZES
+
+        sizes = get_optimal_chunk_sizes(16000)
+
+        # Research-based fixed values: 400/700/1000
+        assert sizes["min_tokens"] == OPTIMAL_CHUNK_SIZES["min_tokens"]
+        assert sizes["target_tokens"] == OPTIMAL_CHUNK_SIZES["target_tokens"]
+        assert sizes["max_tokens"] == OPTIMAL_CHUNK_SIZES["max_tokens"]
+
+    def test_expected_chunk_values(self):
+        """Verify the exact research-based values."""
+        from src.core.utils.gpu_detector import get_optimal_chunk_sizes
+
+        sizes = get_optimal_chunk_sizes(32000)
+
+        # Research: min 400, target 700, max 1000
+        assert sizes["min_tokens"] == 400
+        assert sizes["target_tokens"] == 700
+        assert sizes["max_tokens"] == 1000
+
+    def test_chunk_ordering_preserved(self):
+        """min < target < max should always hold."""
+        from src.core.utils.gpu_detector import get_optimal_chunk_sizes
+
+        for context in [4000, 8000, 16000, 32000, 48000, 64000]:
+            sizes = get_optimal_chunk_sizes(context)
+            assert sizes["min_tokens"] < sizes["target_tokens"], (
+                f"min >= target for context {context}"
+            )
+            assert sizes["target_tokens"] < sizes["max_tokens"], (
+                f"target >= max for context {context}"
+            )
+
+    def test_max_tokens_under_research_threshold(self):
+        """Max tokens should stay under 1024 threshold per research."""
+        from src.core.utils.gpu_detector import get_optimal_chunk_sizes
+
+        sizes = get_optimal_chunk_sizes(64000)
+        # Research shows >1024 hurts precision, so max should be ~1000
+        assert sizes["max_tokens"] <= 1024
+
+    def test_auto_detect_when_no_context_provided(self):
+        """When context not provided, should auto-detect from GPU."""
+        from src.core.utils.gpu_detector import get_optimal_chunk_sizes
+
+        with patch('src.core.utils.gpu_detector.get_optimal_context_size') as mock_ctx:
+            mock_ctx.return_value = 16000
+            sizes = get_optimal_chunk_sizes()  # No context argument
+
+            mock_ctx.assert_called_once()
+            assert sizes["context_window"] == 16000
+
+    def test_returns_context_window_in_result(self):
+        """Result should include the context window used."""
+        from src.core.utils.gpu_detector import get_optimal_chunk_sizes
+
+        sizes = get_optimal_chunk_sizes(32000)
+        assert sizes["context_window"] == 32000
+
+
+class TestUserPreferencesChunkSizes:
+    """Test user preferences chunk size methods (Session 67 revised).
+
+    Chunk sizes are now FIXED based on RAG research. The context window
+    still determines how many chunks fit, but not chunk size.
+    """
+
+    def test_effective_chunk_sizes_fixed_values(self):
+        """get_effective_chunk_sizes should return fixed research-based values."""
+        from src.user_preferences import UserPreferencesManager
+        from tempfile import TemporaryDirectory
+
+        with TemporaryDirectory() as tmpdir:
+            prefs_file = Path(tmpdir) / "test_prefs.json"
+            manager = UserPreferencesManager(prefs_file)
+
+            # Set manual context size
+            manager.set_context_size_mode(16000)
+
+            sizes = manager.get_effective_chunk_sizes()
+
+            # Context should be passed through
+            assert sizes["context_window"] == 16000
+
+            # Chunk sizes should be FIXED (400/700/1000) regardless of context
+            assert sizes["min_tokens"] == 400
+            assert sizes["target_tokens"] == 700
+            assert sizes["max_tokens"] == 1000
+
+    def test_effective_chunk_sizes_auto_mode(self):
+        """Auto mode should pass GPU-detected context but use fixed chunk sizes."""
+        from src.user_preferences import UserPreferencesManager
+        from tempfile import TemporaryDirectory
+
+        with TemporaryDirectory() as tmpdir:
+            prefs_file = Path(tmpdir) / "test_prefs.json"
+            manager = UserPreferencesManager(prefs_file)
+
+            # Ensure auto mode
+            manager.set_context_size_mode("auto")
+
+            with patch('src.core.utils.gpu_detector.get_optimal_context_size') as mock_ctx:
+                mock_ctx.return_value = 48000
+                sizes = manager.get_effective_chunk_sizes()
+
+                # Context window from GPU detection
+                assert sizes["context_window"] == 48000
+
+                # Chunk sizes should still be fixed (same as 16K context)
+                assert sizes["min_tokens"] == 400
+                assert sizes["target_tokens"] == 700
+                assert sizes["max_tokens"] == 1000

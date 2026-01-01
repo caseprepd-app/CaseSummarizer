@@ -1,12 +1,17 @@
 """
-Unified Semantic Chunker with Token Enforcement (Session 45)
+Unified Semantic Chunker with Token Enforcement (Session 45, Session 67)
 
 This module provides a single chunking service that:
 1. Uses semantic chunking (LangChain SemanticChunker with gradient breakpoints)
 2. Enforces token limits using tiktoken for accurate counting
 3. Caches chunks in memory for reuse by all downstream consumers
 
-Target: 800-1200 tokens per chunk (safe for 2048 token context window)
+Session 67: Based on RAG research (2024-2025), chunk sizes are FIXED at 400-1000
+tokens regardless of context window. Larger context = more chunks retrieved,
+not bigger chunks. Research sources:
+- Chroma: 200-400 tokens for best precision
+- arXiv: 512-1024 tokens for analytical queries
+- Firecrawl: 400-512 tokens as starting point
 """
 
 import re
@@ -24,10 +29,10 @@ from langchain_huggingface import HuggingFaceEmbeddings
 from src.logging_config import debug_log, debug_timing, error, info
 
 
-# Token limits for chunk sizing
-DEFAULT_MIN_TOKENS = 400      # Minimum tokens per chunk (merge smaller)
-DEFAULT_TARGET_TOKENS = 900   # Target tokens per chunk
-DEFAULT_MAX_TOKENS = 1200     # Maximum tokens per chunk (split larger)
+# Token limits for chunk sizing (research-based fixed values - Session 67)
+DEFAULT_MIN_TOKENS = 400      # Minimum to prevent fragmentation
+DEFAULT_TARGET_TOKENS = 700   # Optimal for mixed queries (research: 500-800)
+DEFAULT_MAX_TOKENS = 1000     # Upper bound (>1024 hurts retrieval precision)
 
 # tiktoken encoding - cl100k_base works well for most models
 TIKTOKEN_ENCODING = "cl100k_base"
@@ -423,21 +428,51 @@ class UnifiedChunker:
 
 
 def create_unified_chunker(
-    min_tokens: int = DEFAULT_MIN_TOKENS,
-    target_tokens: int = DEFAULT_TARGET_TOKENS,
-    max_tokens: int = DEFAULT_MAX_TOKENS,
+    min_tokens: int | None = None,
+    target_tokens: int | None = None,
+    max_tokens: int | None = None,
 ) -> UnifiedChunker:
     """
     Factory function to create a UnifiedChunker instance.
 
+    If token sizes are not provided, automatically scales based on GPU VRAM.
+    Session 67: Chunk sizes now scale proportionally with context window.
+
     Args:
-        min_tokens: Minimum tokens per chunk
-        target_tokens: Target token count
-        max_tokens: Maximum tokens per chunk
+        min_tokens: Minimum tokens per chunk (auto-scaled if None)
+        target_tokens: Target token count (auto-scaled if None)
+        max_tokens: Maximum tokens per chunk (auto-scaled if None)
 
     Returns:
         Configured UnifiedChunker instance
     """
+    # Auto-scale if no explicit values provided
+    if min_tokens is None and target_tokens is None and max_tokens is None:
+        try:
+            from src.user_preferences import get_user_preferences
+            prefs = get_user_preferences()
+            sizes = prefs.get_effective_chunk_sizes()
+            min_tokens = sizes["min_tokens"]
+            target_tokens = sizes["target_tokens"]
+            max_tokens = sizes["max_tokens"]
+
+            debug_log(
+                f"[UnifiedChunker] Auto-scaled: min={min_tokens}, "
+                f"target={target_tokens}, max={max_tokens} "
+                f"(context={sizes['context_window']:,})"
+            )
+        except Exception as e:
+            # Fallback to defaults if preferences unavailable
+            debug_log(f"[UnifiedChunker] Auto-scale failed ({e}), using defaults")
+            min_tokens = DEFAULT_MIN_TOKENS
+            target_tokens = DEFAULT_TARGET_TOKENS
+            max_tokens = DEFAULT_MAX_TOKENS
+    else:
+        # Use provided values with defaults for any not specified
+        min_tokens = min_tokens or DEFAULT_MIN_TOKENS
+        target_tokens = target_tokens or DEFAULT_TARGET_TOKENS
+        max_tokens = max_tokens or DEFAULT_MAX_TOKENS
+
     return UnifiedChunker(
         min_tokens=min_tokens,
         target_tokens=target_tokens,

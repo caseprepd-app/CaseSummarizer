@@ -293,6 +293,24 @@ class UserPreferencesManager:
         from src.core.utils.gpu_detector import get_optimal_context_size
         return get_optimal_context_size()
 
+    def get_effective_chunk_sizes(self) -> dict:
+        """
+        Get chunk sizes scaled to effective context window (Session 67).
+
+        Chunk sizes scale proportionally with context window to utilize
+        available VRAM more efficiently on high-memory GPUs.
+
+        Returns:
+            Dict with:
+            - min_tokens: Minimum tokens per chunk
+            - target_tokens: Target tokens per chunk
+            - max_tokens: Maximum tokens per chunk
+            - context_window: The context window used for calculation
+        """
+        from src.core.utils.gpu_detector import get_optimal_chunk_sizes
+        context_size = self.get_effective_context_size()
+        return get_optimal_chunk_sizes(context_size)
+
     # =========================================================================
     # Generic Get/Set Methods (for extensible settings system)
     # =========================================================================

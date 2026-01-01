@@ -90,8 +90,12 @@ class QAService:
                 import tempfile
                 self._vector_store_path = Path(tempfile.mkdtemp()) / "qa_index"
 
-            builder = VectorStoreBuilder(self._embeddings)
-            builder.build_from_chunks(chunks, self._vector_store_path)
+            builder = VectorStoreBuilder()
+            builder.create_from_unified_chunks(
+                chunks=chunks,
+                embeddings=self._embeddings,
+                persist_dir=self._vector_store_path
+            )
 
             # Initialize orchestrator
             from src.core.qa import QAOrchestrator
