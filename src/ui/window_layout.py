@@ -123,6 +123,15 @@ class WindowLayoutMixin:
         )
         self.corpus_dropdown.pack(side="left")
 
+        # Corpus document count badge (Session 67)
+        self.corpus_doc_count_label = ctk.CTkLabel(
+            self.corpus_frame,
+            text="",
+            font=FONTS["small"],
+            text_color=COLORS["text_secondary"]
+        )
+        self.corpus_doc_count_label.pack(side="left", padx=(8, 0))
+
         # Manage button
         self.manage_corpus_btn = ctk.CTkButton(
             self.corpus_frame,

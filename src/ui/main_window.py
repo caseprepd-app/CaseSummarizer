@@ -295,21 +295,31 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
                 active = self.corpus_registry.get_active_corpus()
                 self.corpus_dropdown.set(active)
 
-                # Update status bar with corpus info
+                # Update corpus document count badge (Session 67)
                 active_info = next((c for c in corpora if c.name == active), None)
-                if active_info:
-                    self.corpus_info_label.configure(
-                        text=f"Corpus: {active} ({active_info.doc_count} docs)"
+                if active_info and active_info.doc_count > 0:
+                    doc_text = "doc" if active_info.doc_count == 1 else "docs"
+                    self.corpus_doc_count_label.configure(
+                        text=f"({active_info.doc_count} {doc_text})"
                     )
+                    # Update status bar too
+                    self.corpus_info_label.configure(
+                        text=f"BM25 active: {active_info.doc_count}-document corpus"
+                    )
+                else:
+                    self.corpus_doc_count_label.configure(text="(empty)")
+                    self.corpus_info_label.configure(text="")
             else:
                 self.corpus_dropdown.configure(values=["No corpora"])
                 self.corpus_dropdown.set("No corpora")
+                self.corpus_doc_count_label.configure(text="")
                 self.corpus_info_label.configure(text="")
 
         except Exception as e:
             debug_log(f"[MainWindow] Error refreshing corpus dropdown: {e}")
             self.corpus_dropdown.configure(values=["Error"])
             self.corpus_dropdown.set("Error")
+            self.corpus_doc_count_label.configure(text="")
 
 
     def _on_corpus_changed(self, corpus_name: str):
