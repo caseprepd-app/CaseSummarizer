@@ -175,6 +175,16 @@ class QAPanel(ctk.CTkFrame):
         )
         self.export_txt_btn.pack(side="right", padx=5)
 
+        # Session 65: Copy to Clipboard button
+        self.copy_btn = ctk.CTkButton(
+            button_frame,
+            text="Copy to Clipboard",
+            command=self._copy_to_clipboard,
+            width=120,
+            **BUTTON_STYLES["secondary"]
+        )
+        self.copy_btn.pack(side="right", padx=5)
+
         # Select All / Deselect All buttons
         self.select_all_btn = ctk.CTkButton(
             button_frame,
@@ -586,6 +596,48 @@ class QAPanel(ctk.CTkFrame):
             lines.append("")
 
         return "\n".join(lines)
+
+    def _copy_to_clipboard(self):
+        """
+        Copy selected Q&A results to clipboard (Session 65).
+
+        Copies in a readable text format suitable for pasting into documents.
+        """
+        exportable = [r for r in self._results if r.include_in_export]
+
+        if not exportable:
+            messagebox.showwarning(
+                "No Q&A Selected",
+                "Select at least one Q&A pair to copy.\n\n"
+                "Use 'Select All' to select all results."
+            )
+            return
+
+        # Format for clipboard (readable text format)
+        lines = []
+        for i, result in enumerate(exportable, 1):
+            lines.append(f"Q: {result.question}")
+            lines.append(f"A: {result.quick_answer}")
+            if result.source_summary:
+                lines.append(f"   [Source: {result.source_summary}]")
+            lines.append("")
+
+        content = "\n".join(lines)
+
+        # Copy to clipboard
+        try:
+            self.clipboard_clear()
+            self.clipboard_append(content)
+
+            messagebox.showinfo(
+                "Copied",
+                f"Copied {len(exportable)} Q&A pair(s) to clipboard."
+            )
+            debug_log(f"[QAPanel] Copied {len(exportable)} Q&A pairs to clipboard")
+
+        except Exception as e:
+            messagebox.showerror("Copy Failed", f"Could not copy to clipboard:\n{e}")
+            debug_log(f"[QAPanel] Clipboard copy failed: {e}")
 
     def get_export_content(self) -> str:
         """

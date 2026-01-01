@@ -203,6 +203,16 @@ class DynamicOutputWidget(ctk.CTkFrame):
         )
         self.detail_toggle_btn.pack(side="left", padx=5)
 
+        # Session 65: Quick Export CSV button for vocabulary
+        self.export_csv_btn = ctk.CTkButton(
+            self.button_frame,
+            text="Export CSV",
+            command=self._quick_export_vocab_csv,
+            width=100,
+            **BUTTON_STYLES["primary"]
+        )
+        self.export_csv_btn.pack(side="left", padx=5)
+
         # Internal storage for outputs (Session 45: Updated naming)
         self._outputs = {
             "Names & Vocabulary": [],  # Session 45: Primary output - people + terms
@@ -987,6 +997,89 @@ class DynamicOutputWidget(ctk.CTkFrame):
             with open(filepath, "w", encoding="utf-8") as f:
                 f.write(content)
             messagebox.showinfo("Saved", f"Output saved to {filepath}")
+
+    def _quick_export_vocab_csv(self):
+        """
+        Quick export vocabulary to CSV file (Session 65).
+
+        Exports to Documents folder with timestamped filename.
+        Shows success message with file path.
+        """
+        from datetime import datetime
+
+        # Check if we have vocabulary data
+        vocab_data = self._outputs.get("Names & Vocabulary") or self._outputs.get("Rare Word List (CSV)", [])
+        if not vocab_data:
+            messagebox.showwarning("No Data", "No vocabulary data to export.\n\nProcess documents first.")
+            return
+
+        # Generate CSV content
+        prefs = get_user_preferences()
+        export_format = prefs.get("vocab_export_format", "basic")
+
+        # Determine columns based on format
+        if export_format == "all":
+            columns = list(ALL_EXPORT_COLUMNS)
+        elif export_format == "terms_only":
+            columns = ["Term"]
+        else:  # "basic"
+            columns = list(GUI_DISPLAY_COLUMNS)
+
+        output = io.StringIO()
+        writer = csv.writer(output)
+        writer.writerow(columns)
+
+        for item in vocab_data:
+            if isinstance(item, dict):
+                row = []
+                for col in columns:
+                    if col == "Score":
+                        row.append(item.get("Quality Score", ""))
+                    else:
+                        row.append(item.get(col, ""))
+                writer.writerow(row)
+
+        csv_content = output.getvalue()
+
+        # Get default export directory (Documents folder)
+        try:
+            import winreg
+            with winreg.OpenKey(winreg.HKEY_CURRENT_USER,
+                               r"Software\Microsoft\Windows\CurrentVersion\Explorer\Shell Folders") as key:
+                documents_path = winreg.QueryValueEx(key, "Personal")[0]
+        except Exception:
+            # Fallback to home directory
+            from pathlib import Path
+            documents_path = str(Path.home() / "Documents")
+
+        # Generate timestamped filename
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"vocabulary_{timestamp}.csv"
+        filepath = os.path.join(documents_path, filename)
+
+        # Save the file
+        try:
+            with open(filepath, "w", encoding="utf-8", newline="") as f:
+                f.write(csv_content)
+
+            debug_log(f"[VOCAB EXPORT] Saved {len(vocab_data)} terms to {filepath}")
+
+            # Show success with option to open folder
+            result = messagebox.askyesno(
+                "Export Successful",
+                f"Vocabulary exported to:\n{filepath}\n\n"
+                f"({len(vocab_data)} terms)\n\n"
+                "Open containing folder?",
+                icon="info"
+            )
+
+            if result:
+                # Open the folder in Windows Explorer
+                os.startfile(documents_path)
+
+        except Exception as e:
+            debug_log(f"[VOCAB EXPORT] Failed: {e}")
+            messagebox.showerror("Export Failed", f"Could not save file:\n{e}")
 
     def _on_treeview_click(self, event):
         """

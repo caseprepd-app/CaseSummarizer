@@ -6,6 +6,46 @@
 
 ---
 
+## Session 65: Export & Copy Buttons + GPU Detection Tests — 2026-01-01
+
+**Features Added:**
+
+### 1. Vocabulary Export CSV Button
+Added one-click CSV export for vocabulary results:
+- New "Export CSV" button in the output button bar
+- Exports to Documents folder with timestamped filename (`vocabulary_YYYYMMDD_HHMMSS.csv`)
+- Success dialog offers to open containing folder in Windows Explorer
+- Respects user's export format setting (basic/all/terms_only)
+
+**Files:**
+- `src/ui/dynamic_output.py` — Added `export_csv_btn` and `_quick_export_vocab_csv()` method
+
+### 2. Q&A Copy to Clipboard Button
+Added clipboard copy for Q&A results:
+- New "Copy to Clipboard" button in Q&A panel button bar
+- Copies selected Q&A pairs in readable text format
+- Format: `Q: question\nA: answer\n[Source: ...]\n`
+- Shows confirmation with count of copied items
+
+**Files:**
+- `src/ui/qa_panel.py` — Added `copy_btn` and `_copy_to_clipboard()` method
+
+### 3. Comprehensive GPU Detection Tests
+Created 30 unit tests for Session 64's GPU detection and dynamic context features:
+
+**Test Categories:**
+- `TestIsDedicatedGpu` (11 tests) — NVIDIA/AMD keyword detection, integrated GPU exclusion
+- `TestOptimalContextSize` (8 tests) — VRAM-to-context tier mapping (4K-64K)
+- `TestVramGb` (2 tests) — Byte-to-GB conversion
+- `TestGpuStatusText` (2 tests) — Human-readable status strings
+- `TestUserPreferencesContextSize` (5 tests) — Preferences integration, validation
+- `TestVramContextTiers` (3 tests) — Configuration validation
+
+**Files:**
+- `tests/test_gpu_detector.py` — New file with 30 tests (all passing)
+
+---
+
 ## Session 64: Move Corpus Settings to Settings Menu — 2025-12-31
 
 **Problem:** Corpus management was scattered across multiple UI locations:
