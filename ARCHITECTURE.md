@@ -176,6 +176,7 @@ flowchart TB
             SelectFiles["Select Files Button"]
             FileCount["Files Count Label"]
             CorpusSelect["Corpus Dropdown"]
+            CorpusCount["Corpus Doc Count (23 docs)"]
         end
 
         subgraph Panels["Two-Panel Layout"]
@@ -193,8 +194,8 @@ flowchart TB
 
         subgraph StatusBar
             StatusLabel["Status"]
+            CorpusInfo["BM25 Status"]
             Timer["Processing Timer"]
-            SysMon["CPU/RAM Monitor"]
         end
 
         subgraph Background["Background"]
