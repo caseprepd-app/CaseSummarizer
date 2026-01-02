@@ -938,6 +938,55 @@ class DynamicOutputWidget(ctk.CTkFrame):
             self.clipboard_clear()
             self.clipboard_append(self._selected_term)
 
+    def _build_vocab_csv(self, vocab_data: list) -> str:
+        """
+        Build CSV string from vocabulary data.
+
+        Respects the vocab_export_format user preference:
+        - "all": All columns including Quality Score, In-Case Freq, Freq Rank
+        - "basic": Term, Score, Is Person, Found By
+        - "terms_only": Just the Term column
+
+        Args:
+            vocab_data: List of vocabulary dicts
+
+        Returns:
+            CSV formatted string
+        """
+        if not vocab_data:
+            return ""
+
+        prefs = get_user_preferences()
+        export_format = prefs.get("vocab_export_format", "basic")
+
+        # Determine columns based on format
+        if export_format == "all":
+            columns = list(ALL_EXPORT_COLUMNS)
+        elif export_format == "terms_only":
+            columns = ["Term"]
+        else:  # "basic" (default)
+            columns = list(GUI_DISPLAY_COLUMNS)
+
+        output = io.StringIO()
+        writer = csv.writer(output)
+        writer.writerow(columns)
+
+        for item in vocab_data:
+            if isinstance(item, dict):
+                row = []
+                for col in columns:
+                    # Map "Score" display column to "Quality Score" data field
+                    if col == "Score":
+                        row.append(item.get("Quality Score", ""))
+                    else:
+                        row.append(item.get(col, ""))
+                writer.writerow(row)
+            else:
+                # Legacy list format
+                writer.writerow(item[:len(columns)])
+
+        return output.getvalue()
+
     def get_current_content_for_export(self):
         """
         Returns the currently displayed content for copy/save operations.
@@ -947,45 +996,11 @@ class DynamicOutputWidget(ctk.CTkFrame):
         - "basic": Term, Score, Is Person, Found By
         - "terms_only": Just the Term column
         """
-        # Session 51: Use current tab instead of dropdown
         current_tab = self.tabview.get()
 
         if current_tab == "Names & Vocab":
-            # Convert list of dicts to CSV string
             data = self._outputs.get("Names & Vocabulary") or self._outputs.get("Rare Word List (CSV)", [])
-            if not data:
-                return ""
-
-            # Get export format from user preferences
-            prefs = get_user_preferences()
-            export_format = prefs.get("vocab_export_format", "basic")
-
-            # Determine which columns to export based on setting
-            if export_format == "all":
-                columns = list(ALL_EXPORT_COLUMNS)
-            elif export_format == "terms_only":
-                columns = ["Term"]
-            else:  # "basic" (default)
-                columns = list(GUI_DISPLAY_COLUMNS)
-
-            output = io.StringIO()
-            writer = csv.writer(output)
-            # Write header
-            writer.writerow(columns)
-            # Write data - map "Score" column to "Quality Score" data field
-            for item in data:
-                if isinstance(item, dict):
-                    row = []
-                    for col in columns:
-                        if col == "Score":
-                            row.append(item.get("Quality Score", ""))
-                        else:
-                            row.append(item.get(col, ""))
-                    writer.writerow(row)
-                else:
-                    # Legacy list format - map by position
-                    writer.writerow(item[:len(columns)])
-            return output.getvalue()
+            return self._build_vocab_csv(data)
         elif current_tab == "Ask Questions":
             # Get export content from QAPanel if available
             if self._qa_panel is not None:
@@ -1054,33 +1069,8 @@ class DynamicOutputWidget(ctk.CTkFrame):
             messagebox.showwarning("No Data", "No vocabulary data to export.\n\nProcess documents first.")
             return
 
-        # Generate CSV content
-        prefs = get_user_preferences()
-        export_format = prefs.get("vocab_export_format", "basic")
-
-        # Determine columns based on format
-        if export_format == "all":
-            columns = list(ALL_EXPORT_COLUMNS)
-        elif export_format == "terms_only":
-            columns = ["Term"]
-        else:  # "basic"
-            columns = list(GUI_DISPLAY_COLUMNS)
-
-        output = io.StringIO()
-        writer = csv.writer(output)
-        writer.writerow(columns)
-
-        for item in vocab_data:
-            if isinstance(item, dict):
-                row = []
-                for col in columns:
-                    if col == "Score":
-                        row.append(item.get("Quality Score", ""))
-                    else:
-                        row.append(item.get(col, ""))
-                writer.writerow(row)
-
-        csv_content = output.getvalue()
+        # Generate CSV content using shared helper
+        csv_content = self._build_vocab_csv(vocab_data)
 
         # Get default export directory (Documents folder)
         try:
@@ -1239,7 +1229,11 @@ class DynamicOutputWidget(ctk.CTkFrame):
         Returns:
             Dictionary with term data, or None if not found
         """
-        vocab_data = self._outputs.get("Rare Word List (CSV)", [])
+        # Check primary key first (Session 45), then legacy key
+        vocab_data = self._outputs.get("Names & Vocabulary", [])
+        if not vocab_data:
+            vocab_data = self._outputs.get("Rare Word List (CSV)", [])
+
         lower_term = term.lower().strip()
 
         for item in vocab_data:

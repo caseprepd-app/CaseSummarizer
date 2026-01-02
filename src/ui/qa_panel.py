@@ -602,6 +602,7 @@ class QAPanel(ctk.CTkFrame):
         Copy selected Q&A results to clipboard (Session 65).
 
         Copies in a readable text format suitable for pasting into documents.
+        Uses brief button flash instead of modal dialog for better UX.
         """
         exportable = [r for r in self._results if r.include_in_export]
 
@@ -629,10 +630,11 @@ class QAPanel(ctk.CTkFrame):
             self.clipboard_clear()
             self.clipboard_append(content)
 
-            messagebox.showinfo(
-                "Copied",
-                f"Copied {len(exportable)} Q&A pair(s) to clipboard."
-            )
+            # Brief button flash instead of modal dialog
+            original_text = self.copy_btn.cget("text")
+            self.copy_btn.configure(text=f"Copied {len(exportable)}!")
+            self.after(1500, lambda: self.copy_btn.configure(text=original_text))
+
             debug_log(f"[QAPanel] Copied {len(exportable)} Q&A pairs to clipboard")
 
         except Exception as e:
