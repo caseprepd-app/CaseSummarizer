@@ -1055,7 +1055,10 @@ class DynamicOutputWidget(ctk.CTkFrame):
         if filepath:
             with open(filepath, "w", encoding="utf-8") as f:
                 f.write(content)
-            messagebox.showinfo("Saved", f"Output saved to {filepath}")
+            # Brief button flash instead of modal
+            original_text = self.save_btn.cget("text")
+            self.save_btn.configure(text="Saved!")
+            self.after(1500, lambda: self.save_btn.configure(text=original_text))
 
     def _quick_export_vocab_csv(self):
         """
@@ -1076,15 +1079,8 @@ class DynamicOutputWidget(ctk.CTkFrame):
         csv_content = self._build_vocab_csv(vocab_data)
 
         # Get default export directory (Documents folder)
-        try:
-            import winreg
-            with winreg.OpenKey(winreg.HKEY_CURRENT_USER,
-                               r"Software\Microsoft\Windows\CurrentVersion\Explorer\Shell Folders") as key:
-                documents_path = winreg.QueryValueEx(key, "Personal")[0]
-        except Exception:
-            # Fallback to home directory
-            from pathlib import Path
-            documents_path = str(Path.home() / "Documents")
+        from src.core.utils.text_utils import get_documents_folder
+        documents_path = get_documents_folder()
 
         # Generate timestamped filename
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")

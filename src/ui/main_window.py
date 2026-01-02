@@ -1408,18 +1408,9 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         """
         from datetime import datetime
         import os
+        from src.core.utils.text_utils import get_documents_folder
 
-        # Get Documents folder
-        try:
-            import winreg
-            with winreg.OpenKey(
-                winreg.HKEY_CURRENT_USER,
-                r"Software\Microsoft\Windows\CurrentVersion\Explorer\Shell Folders"
-            ) as key:
-                documents_path = winreg.QueryValueEx(key, "Personal")[0]
-        except Exception:
-            from pathlib import Path
-            documents_path = str(Path.home() / "Documents")
+        documents_path = get_documents_folder()
 
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         exported = []

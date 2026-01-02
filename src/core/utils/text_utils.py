@@ -72,3 +72,25 @@ def combine_document_texts(
             debug_log(f"[TEXT UTILS] Preprocessing error (using raw text): {e}")
 
     return combined_text
+
+
+def get_documents_folder() -> str:
+    """
+    Get the user's Documents folder path (Windows).
+
+    Uses Windows registry to find the actual Documents folder location,
+    which may differ from the default if the user has moved it.
+
+    Returns:
+        Path to Documents folder, or ~/Documents as fallback
+    """
+    try:
+        import winreg
+        with winreg.OpenKey(
+            winreg.HKEY_CURRENT_USER,
+            r"Software\Microsoft\Windows\CurrentVersion\Explorer\Shell Folders"
+        ) as key:
+            return winreg.QueryValueEx(key, "Personal")[0]
+    except Exception:
+        from pathlib import Path
+        return str(Path.home() / "Documents")
