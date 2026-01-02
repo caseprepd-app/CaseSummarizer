@@ -141,6 +141,9 @@ class DynamicOutputWidget(ctk.CTkFrame):
         self.tabview.add("Ask Questions")
         self.tabview.add("Summary")
 
+        # Session 68: Bind tab change to show/hide appropriate button bar
+        self.tabview.configure(command=self._on_tab_changed)
+
         # Configure tab grids
         self.tabview.tab("Names & Vocab").grid_columnconfigure(0, weight=1)
         self.tabview.tab("Names & Vocab").grid_rowconfigure(0, weight=1)
@@ -243,6 +246,9 @@ class DynamicOutputWidget(ctk.CTkFrame):
         # Feedback manager for ML learning (Session 25)
         self._feedback_manager = get_feedback_manager()
 
+        # Session 68: Track whether corpus warning has been shown this session
+        self._corpus_warning_shown = False
+
         # Bind to Configure event for resize debouncing
         self.bind("<Configure>", self._on_window_resize)
 
@@ -271,6 +277,31 @@ class DynamicOutputWidget(ctk.CTkFrame):
         self._batch_insertion_paused = False
         self._resize_after_id = None
         debug_log("[DYNAMIC OUTPUT] Resize complete - batch insertion resumed")
+
+    def _on_tab_changed(self):
+        """
+        Handle tab change to show/hide appropriate button bars (Session 68).
+
+        Hides the shared button bar when Q&A tab is active (since QAPanel
+        has its own buttons), shows it for other tabs.
+        """
+        current_tab = self.tabview.get()
+
+        if current_tab == "Ask Questions":
+            # Hide shared button bar - QAPanel has its own buttons
+            self.button_frame.grid_remove()
+        else:
+            # Show shared button bar for Names & Vocab and Summary tabs
+            self.button_frame.grid(row=1, column=0, sticky="ew", padx=5, pady=5)
+
+            # Show/hide Show Details button based on tab
+            if current_tab == "Names & Vocab":
+                self.detail_toggle_btn.pack(side="left", padx=5)
+                self.export_csv_btn.pack(side="left", padx=5)
+            else:
+                # Hide vocab-specific buttons on Summary tab
+                self.detail_toggle_btn.pack_forget()
+                self.export_csv_btn.pack_forget()
 
     def _update_progress_badge(self, source: str):
         """
@@ -1111,6 +1142,40 @@ class DynamicOutputWidget(ctk.CTkFrame):
         elif column == f"#{skip_idx}":  # Skip column
             self._toggle_feedback(item_id, -1)
 
+    def _check_corpus_and_warn(self) -> bool:
+        """
+        Check corpus status and warn user if not ready (Session 68).
+
+        Shows a warning dialog once per session if corpus has < 5 documents.
+        User can choose to continue or cancel feedback.
+
+        Returns:
+            True to proceed with feedback, False to cancel
+        """
+        # Already warned this session, proceed silently
+        if self._corpus_warning_shown:
+            return True
+
+        from src.core.vocabulary.corpus_manager import get_corpus_manager
+
+        corpus_manager = get_corpus_manager()
+        if corpus_manager.is_corpus_ready():
+            return True  # Corpus OK, proceed
+
+        # Mark warning as shown (only warn once per session)
+        self._corpus_warning_shown = True
+
+        from tkinter import messagebox
+        result = messagebox.askyesno(
+            "Corpus Not Ready",
+            f"Your vocabulary corpus has {corpus_manager.get_document_count()}/5 documents.\n\n"
+            "The ML model learns better with a corpus of past transcripts. "
+            "Consider adding documents in Settings > Corpus before providing feedback.\n\n"
+            "Continue providing feedback anyway?",
+            icon="warning"
+        )
+        return result
+
     def _toggle_feedback(self, item_id: str, feedback_type: int):
         """
         Toggle feedback state for a vocabulary term.
@@ -1122,6 +1187,10 @@ class DynamicOutputWidget(ctk.CTkFrame):
             item_id: Treeview item identifier
             feedback_type: +1 for Keep, -1 for Skip
         """
+        # Session 68: Warn about missing corpus (once per session)
+        if not self._check_corpus_and_warn():
+            return  # User cancelled
+
         # Get the term from the row
         values = self.csv_treeview.item(item_id, 'values')
         if not values:

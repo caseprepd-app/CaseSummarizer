@@ -278,6 +278,14 @@ class VocabularyExtractor:
         vocabulary = filter_common_phrases(vocabulary)
         debug_log(f"[VOCAB] After phrase filter: {len(vocabulary)} terms")
 
+        # 6b. Filter corpus-familiar terms (Session 68)
+        # Terms appearing in too many past transcripts are filtered out
+        # Remaining terms get corpus_familiarity_score for ML feature
+        debug_log("[VOCAB] Filtering corpus-familiar terms...")
+        from src.core.vocabulary.corpus_familiarity_filter import filter_corpus_familiar_terms
+        vocabulary = filter_corpus_familiar_terms(vocabulary)
+        debug_log(f"[VOCAB] After corpus familiarity filter: {len(vocabulary)} terms")
+
         # 7. Filter gibberish/nonsense terms (OCR artifacts, random strings)
         # NOTE: Person names are EXEMPT - foreign names may look unusual to English model
         debug_log("[VOCAB] Filtering gibberish terms...")
@@ -418,6 +426,14 @@ class VocabularyExtractor:
         from src.core.vocabulary.rarity_filter import filter_common_phrases
         csv_data = filter_common_phrases(csv_data)
         debug_log(f"[VOCAB] After phrase filter: {len(csv_data)} terms")
+
+        # 9b. Filter corpus-familiar terms (Session 68)
+        # Terms appearing in too many past transcripts are filtered out
+        # Remaining terms get corpus_familiarity_score for ML feature
+        debug_log("[VOCAB] Phase 9b: Filtering corpus-familiar terms...")
+        from src.core.vocabulary.corpus_familiarity_filter import filter_corpus_familiar_terms
+        csv_data = filter_corpus_familiar_terms(csv_data)
+        debug_log(f"[VOCAB] After corpus familiarity filter: {len(csv_data)} terms")
 
         # 10. Filter gibberish/nonsense terms (OCR artifacts, random strings)
         # NOTE: Person names are EXEMPT - foreign names may look unusual to English model

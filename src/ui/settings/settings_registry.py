@@ -268,6 +268,51 @@ def _register_all_settings():
     # VOCABULARY TAB
     # ===================================================================
 
+    # Session 68: Corpus status warning banner
+    # Shows warning if corpus has < 5 documents
+    def _create_corpus_warning_widget(parent):
+        """Factory for corpus status warning banner."""
+        import tkinter as tk
+        from src.core.vocabulary.corpus_manager import get_corpus_manager
+
+        frame = tk.Frame(parent)
+
+        corpus_manager = get_corpus_manager()
+        doc_count = corpus_manager.get_document_count()
+
+        if doc_count < 5:
+            # Show warning banner
+            warning_frame = tk.Frame(frame, bg="#FFF3CD", padx=10, pady=8)
+            warning_frame.pack(fill="x", pady=(0, 10))
+
+            warning_text = (
+                f"Corpus not ready ({doc_count}/5 documents). "
+                "ML predictions are less accurate without a corpus of past transcripts. "
+                "Add documents in Settings > Corpus."
+            )
+            label = tk.Label(
+                warning_frame,
+                text=warning_text,
+                bg="#FFF3CD",
+                fg="#856404",
+                wraplength=400,
+                justify="left",
+            )
+            label.pack(anchor="w")
+        # If corpus is ready, show nothing (empty frame)
+
+        return frame
+
+    SettingsRegistry.register(SettingDefinition(
+        key="corpus_status_warning",
+        label="",  # No label for banner
+        category="Vocabulary",
+        setting_type=SettingType.CUSTOM,
+        tooltip="",
+        default=None,
+        widget_factory=_create_corpus_warning_widget,
+    ))
+
     SettingsRegistry.register(SettingDefinition(
         key="vocab_display_limit",
         label="Vocabulary display limit",
@@ -559,6 +604,64 @@ def _register_all_settings():
         step=0.05,
         getter=lambda: prefs.get("phrase_mean_rarity_threshold", 0.40),
         setter=lambda v: prefs.set("phrase_mean_rarity_threshold", float(v)),
+    ))
+
+    # Session 68: Corpus Familiarity Filtering
+    SettingsRegistry.register(SettingDefinition(
+        key="corpus_familiarity_threshold",
+        label="Corpus familiarity threshold",
+        category="Vocabulary",
+        setting_type=SettingType.SLIDER,
+        tooltip=(
+            "Filter terms appearing in this percentage or more of your corpus "
+            "documents. Terms above this threshold are removed (you likely "
+            "already know them).\n\n"
+            "Example: 0.75 removes terms appearing in 75%+ of your past "
+            "transcripts.\n\n"
+            "Lower values = more aggressive filtering.\n"
+            "Higher values = keep more terms.\n"
+            "Set to 1.0 to disable percentage-based filtering."
+        ),
+        default=0.75,
+        min_value=0.25,
+        max_value=1.0,
+        step=0.05,
+        getter=lambda: prefs.get("corpus_familiarity_threshold", 0.75),
+        setter=lambda v: prefs.set("corpus_familiarity_threshold", float(v)),
+    ))
+
+    SettingsRegistry.register(SettingDefinition(
+        key="corpus_familiarity_min_docs",
+        label="Corpus familiarity min docs",
+        category="Vocabulary",
+        setting_type=SettingType.SPINBOX,
+        tooltip=(
+            "Alternative threshold: Filter terms appearing in N or more "
+            "documents. This provides a hard floor regardless of corpus size.\n\n"
+            "Example: 10 removes terms appearing in 10+ documents.\n\n"
+            "Set to 0 to use only percentage-based filtering."
+        ),
+        default=10,
+        min_value=0,
+        max_value=50,
+        getter=lambda: prefs.get("corpus_familiarity_min_docs", 10),
+        setter=lambda v: prefs.set("corpus_familiarity_min_docs", int(v)),
+    ))
+
+    SettingsRegistry.register(SettingDefinition(
+        key="corpus_familiarity_exempt_persons",
+        label="Exempt person names from corpus filter",
+        category="Vocabulary",
+        setting_type=SettingType.CHECKBOX,
+        tooltip=(
+            "When enabled, person names are never filtered by corpus familiarity. "
+            "Recommended: Names in legal documents are always case-specific, "
+            "even common names like 'John Smith'.\n\n"
+            "Disable if you want to filter frequently-appearing party names."
+        ),
+        default=True,
+        getter=lambda: prefs.get("corpus_familiarity_exempt_persons", True),
+        setter=lambda v: prefs.set("corpus_familiarity_exempt_persons", v),
     ))
 
     # ===================================================================

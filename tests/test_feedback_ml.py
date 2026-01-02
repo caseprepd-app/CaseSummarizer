@@ -150,8 +150,8 @@ class TestVocabularyMetaLearner:
             "total_unique_terms": 100,
         }
         features = meta_learner._extract_features(term_data)
-        # Session 52 reduced to 15 features (removed unreliable type features)
-        assert len(features) == 15  # Total feature count
+        # Session 68: Now 17 features (added corpus_familiarity_score, is_title_case)
+        assert len(features) == 17  # Total feature count
         assert features[0] == 75  # quality_score
         # features[1] is log_count: log(3) ≈ 1.099
         assert abs(features[1] - 1.099) < 0.01

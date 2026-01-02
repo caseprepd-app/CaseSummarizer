@@ -156,16 +156,26 @@ class QAPanel(ctk.CTkFrame):
         )
         self.ask_more_btn.pack(side="left", padx=5)
 
-        # Export CSV button (primary)
+        # Copy to Clipboard button
+        self.copy_btn = ctk.CTkButton(
+            button_frame,
+            text="Copy to Clipboard",
+            command=self._copy_to_clipboard,
+            width=120,
+            **BUTTON_STYLES["secondary"]
+        )
+        self.copy_btn.pack(side="left", padx=5)
+
+        # Export buttons - TXT and CSV (right side)
         self.export_csv_btn = ctk.CTkButton(
             button_frame,
             text="Export CSV",
             command=self._export_to_csv,
-            width=100
+            width=90,
+            **BUTTON_STYLES["secondary"]
         )
         self.export_csv_btn.pack(side="right", padx=5)
 
-        # Export TXT button (secondary)
         self.export_txt_btn = ctk.CTkButton(
             button_frame,
             text="Export TXT",
@@ -174,16 +184,6 @@ class QAPanel(ctk.CTkFrame):
             **BUTTON_STYLES["secondary"]
         )
         self.export_txt_btn.pack(side="right", padx=5)
-
-        # Session 65: Copy to Clipboard button
-        self.copy_btn = ctk.CTkButton(
-            button_frame,
-            text="Copy to Clipboard",
-            command=self._copy_to_clipboard,
-            width=120,
-            **BUTTON_STYLES["secondary"]
-        )
-        self.copy_btn.pack(side="right", padx=5)
 
         # Select All / Deselect All buttons
         self.select_all_btn = ctk.CTkButton(

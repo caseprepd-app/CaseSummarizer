@@ -77,6 +77,8 @@ class CorpusManager:
 
         # IDF index: {term: idf_score}
         self._idf_index: dict[str, float] = {}
+        # Document frequency: {term: num_docs_containing_term} (Session 68)
+        self._doc_freq: dict[str, int] = {}
         self._doc_count: int = 0
         self._vocab_size: int = 0
         self._last_build_time: str | None = None
@@ -144,6 +146,42 @@ class CorpusManager:
             return 10.0  # Max IDF for completely unknown terms
 
         return self._idf_index.get(lower_term, 10.0)
+
+    def get_doc_freq(self, term: str) -> int:
+        """
+        Get document frequency for a term (Session 68).
+
+        Returns the number of corpus documents that contain this term.
+        Used for corpus familiarity filtering.
+
+        Args:
+            term: The term to look up (case-insensitive)
+
+        Returns:
+            Number of documents containing this term. Returns 0 for OOV terms.
+        """
+        # Ensure index is built
+        if not self._doc_freq:
+            self.build_idf_index()
+
+        lower_term = term.lower().strip()
+        return self._doc_freq.get(lower_term, 0)
+
+    def get_total_docs_indexed(self) -> int:
+        """
+        Get total number of documents used to build the index (Session 68).
+
+        This may differ from get_document_count() if corpus has changed
+        since the index was last built.
+
+        Returns:
+            Number of documents that were indexed
+        """
+        # Ensure index is built
+        if not self._idf_index:
+            self.build_idf_index()
+
+        return self._doc_count
 
     def build_idf_index(self, force_rebuild: bool = False) -> bool:
         """
@@ -213,6 +251,8 @@ class CorpusManager:
             idf = math.log((total_docs - df + 0.5) / (df + 0.5) + 1)
             self._idf_index[term] = round(idf, 4)
 
+        # Session 68: Store doc_freq for corpus familiarity filtering
+        self._doc_freq = dict(doc_freq)
         self._doc_count = total_docs
         self._vocab_size = len(self._idf_index)
         self._corpus_hash = current_hash
@@ -227,7 +267,46 @@ class CorpusManager:
         # Save to cache
         self._save_cache()
 
+        # Session 68: Check if corpus just became ready and auto-reset ML model
+        self._check_corpus_ready_transition()
+
         return True
+
+    def _check_corpus_ready_transition(self) -> None:
+        """
+        Check if corpus just became ready (Session 68).
+
+        If this is the first time the corpus has 5+ documents and an ML model
+        exists, reset the model so it can retrain with corpus familiarity features.
+        Feedback history is preserved.
+        """
+        from src.user_preferences import get_user_preferences
+
+        # Check if we're now ready
+        if not self.is_corpus_ready():
+            return
+
+        # Check if we've already handled this transition
+        prefs = get_user_preferences()
+        if prefs.get("corpus_was_ever_ready", False):
+            return  # Already handled in a previous session
+
+        # First time corpus is ready - mark it and reset model
+        prefs.set("corpus_was_ever_ready", True)
+
+        debug_log("[Corpus] Corpus became ready for the first time (5+ documents)")
+
+        # Auto-reset the ML model if it's trained
+        try:
+            from src.core.vocabulary.meta_learner import get_meta_learner
+
+            learner = get_meta_learner()
+            if learner.is_trained:
+                debug_log("[Corpus] Auto-resetting ML model to incorporate corpus features")
+                learner.reset_to_default()
+                debug_log("[Corpus] ML model reset complete - will retrain with corpus features")
+        except Exception as e:
+            debug_log(f"[Corpus] Error resetting ML model: {e}")
 
     def get_corpus_stats(self) -> dict[str, Any]:
         """
@@ -326,12 +405,13 @@ class CorpusManager:
         """
         try:
             cache_data = {
-                "version": 1,
+                "version": 2,  # Session 68: Added doc_freq
                 "corpus_hash": self._corpus_hash,
                 "doc_count": self._doc_count,
                 "vocab_size": self._vocab_size,
                 "last_build_time": self._last_build_time,
                 "idf_index": self._idf_index,
+                "doc_freq": self._doc_freq,  # Session 68: For corpus familiarity
             }
 
             with open(self._cache_file, 'w', encoding='utf-8') as f:
@@ -358,9 +438,10 @@ class CorpusManager:
             with open(self._cache_file, 'r', encoding='utf-8') as f:
                 cache_data = json.load(f)
 
-            # Validate cache version
-            if cache_data.get("version") != 1:
-                debug_log("[BM25] Cache version mismatch, will rebuild")
+            # Validate cache version (Session 68: Accept v1 or v2, rebuild for older)
+            cache_version = cache_data.get("version", 0)
+            if cache_version < 1:
+                debug_log("[BM25] Cache version too old, will rebuild")
                 return False
 
             # Check if corpus has changed
@@ -377,6 +458,8 @@ class CorpusManager:
             self._vocab_size = cache_data.get("vocab_size", 0)
             self._last_build_time = cache_data.get("last_build_time")
             self._idf_index = cache_data.get("idf_index", {})
+            # Session 68: Load doc_freq (may be empty for v1 caches)
+            self._doc_freq = cache_data.get("doc_freq", {})
 
             debug_log(
                 f"[BM25] Loaded cached IDF index: {self._vocab_size} terms "

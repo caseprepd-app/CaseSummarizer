@@ -394,6 +394,28 @@ class UserPreferencesManager:
                 raise ValueError(
                     f"phrase_mean_rarity_threshold must be 0.1-0.9, got {value}"
                 )
+        # Session 68: Corpus familiarity threshold validation
+        elif key == "corpus_familiarity_threshold":
+            if not isinstance(value, (int, float)) or value < 0.25 or value > 1.0:
+                raise ValueError(
+                    f"corpus_familiarity_threshold must be 0.25-1.0, got {value}"
+                )
+        elif key == "corpus_familiarity_min_docs":
+            if not isinstance(value, int) or value < 0 or value > 50:
+                raise ValueError(
+                    f"corpus_familiarity_min_docs must be 0-50, got {value}"
+                )
+        elif key == "corpus_familiarity_exempt_persons":
+            if not isinstance(value, bool):
+                raise ValueError(
+                    f"corpus_familiarity_exempt_persons must be boolean, got {value}"
+                )
+        # Session 68: Corpus ready transition flag
+        elif key == "corpus_was_ever_ready":
+            if not isinstance(value, bool):
+                raise ValueError(
+                    f"corpus_was_ever_ready must be boolean, got {value}"
+                )
         # Session 62b: LLM extraction mode validation
         elif key == "vocab_use_llm":
             # Accept both legacy boolean and new tri-state string

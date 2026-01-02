@@ -89,6 +89,7 @@ def confidence_weighted_blend(prob_lr: float, prob_rf: float) -> float:
 # Session 52: Removed unreliable type features (is_medical, is_technical, is_place, is_unknown)
 # Only is_person is reliable (NER person detection)
 # Session 54: Added source_doc_confidence to weight terms by OCR quality
+# Session 68: Added corpus_familiarity_score and is_title_case
 FEATURE_NAMES = [
     "quality_score",
     "log_count",  # Replaces in_case_freq - better low-count discrimination
@@ -107,6 +108,9 @@ FEATURE_NAMES = [
     "is_all_caps",  # "PLAINTIFF'S EXHIBIT" - headers, not vocabulary
     # Document quality feature (Session 54)
     "source_doc_confidence",  # OCR/extraction confidence (0-100) - lower = more OCR errors
+    # Corpus familiarity features (Session 68)
+    "corpus_familiarity_score",  # 0.0-1.0, proportion of corpus docs containing term
+    "is_title_case",  # 1.0 if term.istitle() (proper nouns), 0.0 otherwise
 ]
 
 
@@ -266,6 +270,16 @@ class VocabularyPreferenceLearner:
         source_doc_confidence_raw = float(term_data.get("source_doc_confidence", 100) or 100)
         source_doc_confidence = source_doc_confidence_raw / 100.0
 
+        # Session 68: Corpus familiarity - proportion of corpus docs containing term
+        # 0.0 = never seen in corpus (most case-specific, desirable)
+        # 1.0 = in every corpus doc (too common, less useful)
+        # Default to 0.0 for legacy data or when corpus not available
+        corpus_familiarity_score = float(term_data.get("corpus_familiarity_score", 0) or 0)
+
+        # Session 68: Title case detection - proper nouns vs common words
+        # Helps distinguish names/places ("Smith", "Brooklyn") from common words/artifacts
+        is_title_case = 1.0 if term and term.istitle() else 0.0
+
         return np.array([
             quality_score,
             log_count,
@@ -282,6 +296,8 @@ class VocabularyPreferenceLearner:
             word_count,
             is_all_caps,
             source_doc_confidence,  # Session 54: OCR quality signal
+            corpus_familiarity_score,  # Session 68: Corpus familiarity
+            is_title_case,  # Session 68: Proper noun detection
         ])
 
     def _calculate_sample_weight(

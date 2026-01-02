@@ -217,8 +217,8 @@ flowchart TB
 | `FileReviewTable` | `ui/widgets.py` | File list with status/confidence |
 | `ModelSelectionWidget` | `ui/widgets.py` | Model + prompt dropdown |
 | `OutputOptionsWidget` | `ui/widgets.py` | Task checkboxes, word count slider |
-| `DynamicOutputWidget` | `ui/dynamic_output.py` | Tabbed results (Vocab/Questions/Summary) |
-| `QAPanel` | `ui/qa_panel.py` | Questions & answers with follow-up |
+| `DynamicOutputWidget` | `ui/dynamic_output.py` | Tabbed results (Vocab/Questions/Summary), tab-aware button bars |
+| `QAPanel` | `ui/qa_panel.py` | Questions & answers with follow-up, integrated button bar |
 | `QueueMessageHandler` | `ui/queue_message_handler.py` | Routes worker messages to UI |
 | `WorkflowOrchestrator` | `ui/workflow_orchestrator.py` | Processing state machine |
 
@@ -445,8 +445,9 @@ After all algorithms contribute, `rarity_filter.py` filters phrases where ALL co
 2. **Name deduplication** — Fuzzy matching for OCR variants
 3. **Artifact filter** — Substring containment removal
 4. **Phrase rarity filter** — Filter if rarest word is still common
-5. **Gibberish filter** — Spell-check based nonsense detection (non-persons only)
-6. **Sort** — By quality score or rarity
+5. **Corpus familiarity filter** — Filter terms in 75%+ of corpus docs (Session 68)
+6. **Gibberish filter** — Spell-check based nonsense detection (non-persons only)
+7. **Sort** — By quality score or rarity
 
 ### Algorithm Weights
 
@@ -524,7 +525,7 @@ User feedback weighted higher than default data once user has enough samples:
 
 **Ensemble Blending:** When both models are active, predictions use confidence-weighted blending. Each model's vote is weighted by its confidence (distance from 0.5), so more certain predictions have more influence.
 
-**Features used (15 total):**
+**Features used (17 total):**
 - `quality_score` — Base quality from algorithm weights
 - `log_count` — Log-transformed in-case frequency (better low-count discrimination)
 - `occurrence_ratio` — Document-relative frequency
@@ -534,6 +535,8 @@ User feedback weighted higher than default data once user has enough samples:
 - `is_person` — NER person detection (only reliable type signal)
 - `has_trailing_punctuation`, `has_leading_digit`, `has_trailing_digit`, `word_count`, `is_all_caps` — Artifact detection
 - `source_doc_confidence` — OCR/extraction quality of source documents (Session 54)
+- `corpus_familiarity_score` — Proportion of corpus docs containing term (Session 68)
+- `is_title_case` — Whether term uses title case for proper noun detection (Session 68)
 
 **Time Decay Weighting:**
 Older feedback is weighted less to adapt to changing preferences:
@@ -873,6 +876,7 @@ src/
 │   │   ├── artifact_filter.py       # Substring containment removal
 │   │   ├── name_regularizer.py      # Fragment + typo deduplication (Session 63b)
 │   │   ├── rarity_filter.py         # Filter common phrases
+│   │   ├── corpus_familiarity_filter.py  # Filter corpus-familiar terms (Session 68)
 │   │   ├── role_profiles.py         # Role detection
 │   │   ├── feedback_manager.py      # User feedback CSV
 │   │   ├── meta_learner.py          # ML preference learning
@@ -1084,4 +1088,4 @@ ruff check src/ --fix
 
 ---
 
-*Last updated: 2026-01-01 (Session 67)*
+*Last updated: 2026-01-01 (Session 68 - corpus familiarity filter, tab-aware UI)*

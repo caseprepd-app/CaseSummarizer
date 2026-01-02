@@ -106,6 +106,14 @@ BM25_K1 = 1.5      # Term frequency saturation (higher = more weight on repeated
 BM25_B = 0.75      # Length normalization (0 = no normalization, 1 = full normalization)
 BM25_DELTA = 1.0   # BM25+ improvement factor (prevents zero scores)
 
+# Corpus Familiarity Filtering Configuration (Session 68)
+# Filters terms that appear too frequently across the user's corpus.
+# Terms above threshold are removed (user already knows them).
+# Terms below threshold get corpus_familiarity_score as ML feature.
+CORPUS_FAMILIARITY_THRESHOLD = 0.75  # Filter terms in 75%+ of corpus docs
+CORPUS_FAMILIARITY_MIN_DOCS = 10     # Alternative: filter if in 10+ docs
+CORPUS_FAMILIARITY_EXEMPT_PERSONS = True  # Exempt person names from filtering
+
 # Vocabulary Extraction Algorithm Weights (Session 47)
 # Centralized weights for multi-algorithm vocabulary extraction
 # Higher weight = more influence on final confidence score
