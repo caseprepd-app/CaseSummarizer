@@ -28,13 +28,13 @@
 - [x] **GUI/Logic Separation** — All business logic in `src/core/`, services layer in `src/services/` (Session 57)
 - [x] **Document extraction** — PDF (digital + OCR), TXT, RTF via pdfplumber, pytesseract
 - [x] **Character sanitization** — 6-stage pipeline (mojibake, Unicode, transliteration, redactions, control chars, whitespace)
-- [x] **Smart preprocessing** — Title page, headers/footers, line numbers, Q&A notation removal
+- [x] **Smart preprocessing** — Title page, headers/footers, line numbers, page numbers, certification blocks, index pages, Q&A notation (Session 71)
 - [x] **Vocabulary extraction** — Dual NER + LLM extraction with reconciliation, "Found By" column
 - [x] **Questions & Answers system** — Hybrid BM25+ / FAISS retrieval, LlamaIndex query expansion
 - [x] **Hallucination verification** — LettuceDetect-based span-level verification with color-coded display (Session 60)
 - [x] **Progressive summarization** — Chunked map-reduce with focus threading
 - [x] **Unified semantic chunking** — Token enforcement via tiktoken (400-1000 tokens/chunk, research-based fixed sizes) — CANONICAL
-- [x] **Parallel processing** — Dynamic worker scaling based on CPU/RAM
+- [x] **Parallel processing** — Dynamic worker scaling based on CPU/RAM, parallel vocabulary algorithms, Q&A questions, LLM chunks (Session 69)
 - [x] **Settings system** — Registry-based 5-tab dialog (Performance, Vocabulary, Corpus, Q&A, Experimental) with GPU auto-detection for LLM (Session 62b, Session 64)
 - [x] **Progressive extraction worker** — Three-phase NER→Q&A→LLM with unified queue routing (Session 48)
 - [x] **Shared config loader** — DRY utility for YAML loading (`src/core/config/loader.py`)
@@ -42,6 +42,8 @@
 - [x] **Name regularization** — Post-processing filter for vocabulary fragments and OCR typos (Session 63b)
 - [x] **Image preprocessing** — Deskew, denoise, contrast enhancement for scanned PDFs (Session 63a)
 - [x] **Dynamic LLM context** — Auto-detects optimal context window (4K-64K) based on GPU VRAM; QA context scales accordingly (Session 64, 67)
+- [x] **UI feedback enhancements** — Status bar with auto-clear, task preview label, button flash confirmations (Session 69)
+- [x] **Algorithm optimizations** — O(n²)→O(n²/26) name dedup, LRU caching, pre-compiled regex, thread-safe Q&A workers (Session 70)
 
 ### Partially Implemented ⚡
 
@@ -306,7 +308,8 @@ flowchart TB
         P1["TitlePageRemover"]
         P2["HeaderFooterRemover"]
         P3["LineNumberRemover"]
-        P4["QAConverter (Q./A. → Question:/Answer:)"]
+        P4["TranscriptCleaner<br/>(page nums, cert, index)"]
+        P5["QAConverter (Q./A. → Question:/Answer:)"]
     end
 
     subgraph Stage4["CHUNKING"]
@@ -319,7 +322,7 @@ flowchart TB
     Stage1 --> Stage2
     S1 --> S2 --> S3 --> S4 --> S5 --> S6
     Stage2 --> Stage3
-    P1 --> P2 --> P3 --> P4
+    P1 --> P2 --> P3 --> P4 --> P5
     Stage3 --> Stage4
     Stage4 --> Output
 ```
@@ -495,9 +498,22 @@ User Feedback → FeedbackManager (CSV) → VocabularyPreferenceLearner (train)
 New Terms → VocabularyPreferenceLearner (predict) → Quality Score blend
 ```
 
-**Two-File Feedback System (Session 55):**
-- `config/default_feedback.csv` — Ships with app (developer's training data)
+**Two-File Feedback System (Session 55, 69):**
+- `config/default_feedback.csv` — Ships with app (universal negatives, ~100 entries)
 - `%APPDATA%/LocalScribe/data/feedback/user_feedback.csv` — User's own feedback
+
+**Universal Negatives (Session 69):**
+The default feedback contains ~100 "thumbs down" examples for terms ALL users would reject:
+- Common phrases: "the same", "left side", "one time"
+- Transcript artifacts: "Q.", "A.", "Page 1", "Exhibit A"
+- OCR errors: "1he", "tbe", "0f" (digit-letter confusion)
+- Common slipthrough words: "age", "bill", "copy"
+
+**Key constraints:**
+- Negative-only (no positive examples to avoid bias)
+- No person names (domain-specific, could be legitimate)
+- No medical/legal terms (domain-specific)
+- Middle-range quality scores (teaches model these are bad despite okay features)
 
 **Graduated ML Weight (Session 55):**
 ML influence on final score increases with user's training corpus:
@@ -876,6 +892,7 @@ src/
 │   │   ├── title_page_remover.py
 │   │   ├── header_footer_remover.py
 │   │   ├── line_number_remover.py
+│   │   ├── transcript_cleaner.py # Page nums, cert blocks, index (Session 71)
 │   │   └── qa_converter.py      # Q./A. → Question:/Answer:
 │   │
 │   ├── chunking/                # Text chunking
@@ -1101,4 +1118,4 @@ ruff check src/ --fix
 
 ---
 
-*Last updated: 2026-01-02 (Session 68 cont. - Export All button, button flash UX, DRY helpers)*
+*Last updated: 2026-01-02 (Session 70 - Algorithm optimizations, thread safety fixes)*

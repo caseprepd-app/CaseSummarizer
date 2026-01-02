@@ -160,8 +160,9 @@ class TestPreprocessingPipeline:
         """Should create pipeline with multiple preprocessors."""
         pipeline = create_default_pipeline()
 
-        assert len(pipeline.preprocessors) == 4
+        assert len(pipeline.preprocessors) == 5
         assert any(p.name == "Line Number Remover" for p in pipeline.preprocessors)
+        assert any(p.name == "Transcript Cleaner" for p in pipeline.preprocessors)
         assert any(p.name == "Q/A Converter" for p in pipeline.preprocessors)
 
     def test_pipeline_processes_in_order(self):

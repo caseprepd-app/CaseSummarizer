@@ -55,6 +55,7 @@ Rank-based scoring is more intuitive:
 """
 
 import math
+from functools import lru_cache
 from pathlib import Path
 
 from src.config import (
@@ -65,6 +66,7 @@ from src.config import (
 )
 from src.logging_config import debug_log
 from src.user_preferences import get_user_preferences
+from src.core.vocabulary.person_utils import is_person_entry
 
 
 # Module-level cache for scaled frequencies (loaded once)
@@ -158,6 +160,7 @@ def get_word_commonality(word: str) -> float:
     return scaled.get(word.lower().strip(), 0.0)
 
 
+@lru_cache(maxsize=2048)
 def calculate_phrase_component_scores(phrase: str) -> tuple[float, float, int]:
     """
     Calculate rarity metrics for a multi-word phrase based on its component words.
@@ -168,6 +171,9 @@ def calculate_phrase_component_scores(phrase: str) -> tuple[float, float, int]:
 
     KEY INSIGHT: A phrase with even ONE rare word might be worth keeping.
     We only want to filter phrases where ALL words are common.
+
+    Session 70: Added LRU cache since same phrases are often checked multiple times
+    during vocabulary extraction.
 
     Args:
         phrase: The phrase to analyze (e.g., "cervical spine" or "the same")
@@ -289,7 +295,6 @@ def should_filter_phrase(phrase: str, is_person: bool = False) -> bool:
 def filter_common_phrases(
     vocabulary: list[dict],
     term_key: str = "Term",
-    is_person_key: str = "Is Person"
 ) -> list[dict]:
     """
     Filter vocabulary list to remove common terms (single words AND phrases).
@@ -308,10 +313,11 @@ def filter_common_phrases(
     2. Consistent behavior across NER, RAKE, BM25, and LLM sources
     3. Catches common single words that individual algorithms miss (like RAKE)
 
+    Session 70: Now uses centralized is_person_entry() for consistent person detection.
+
     Args:
         vocabulary: List of term dictionaries from vocabulary extraction
         term_key: Key for the term text in each dictionary
-        is_person_key: Key for the person flag in each dictionary
 
     Returns:
         Filtered vocabulary list with common terms removed
@@ -328,7 +334,8 @@ def filter_common_phrases(
 
     for term_data in vocabulary:
         term = term_data.get(term_key, "")
-        is_person = term_data.get(is_person_key, "No") == "Yes"
+        # Session 70: Use centralized person detection
+        is_person = is_person_entry(term_data)
 
         if should_filter_phrase(term, is_person):
             removed_count += 1

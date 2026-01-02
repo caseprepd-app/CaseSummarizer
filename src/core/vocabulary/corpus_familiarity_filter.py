@@ -24,6 +24,7 @@ appearing in only 2 of 100 transcripts is worth highlighting.
 """
 
 from src.logging_config import debug_log
+from src.core.vocabulary.person_utils import is_person_entry
 
 
 def calculate_corpus_familiarity(term: str) -> float:
@@ -133,9 +134,7 @@ def _is_person_term(term_data: dict) -> bool:
     """
     Check if a term data dict represents a person.
 
-    Handles both data formats:
-    - extract(): {"Is Person": "Yes"}
-    - extract_with_llm(): {"Type": "Person"}
+    Session 70: Now delegates to centralized is_person_entry() utility.
 
     Args:
         term_data: Term dictionary from vocabulary extraction
@@ -143,13 +142,7 @@ def _is_person_term(term_data: dict) -> bool:
     Returns:
         True if the term is a person name
     """
-    # Check "Is Person" format (extract() method)
-    if term_data.get("Is Person", "") == "Yes":
-        return True
-    # Check "Type" format (extract_with_llm() method)
-    if term_data.get("Type", "") == "Person":
-        return True
-    return False
+    return is_person_entry(term_data)
 
 
 def filter_corpus_familiar_terms(
