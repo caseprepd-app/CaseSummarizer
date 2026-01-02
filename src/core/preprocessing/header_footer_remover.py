@@ -143,10 +143,15 @@ class HeaderFooterRemover(BasePreprocessor):
 
         lines = text.split('\n')
 
+        # Pre-compute all normalizations ONCE (Session 70 optimization)
+        # Previously _normalize_line() was called 3x per line
+        line_to_normalized: dict[int, str] = {}
+        for i, line in enumerate(lines):
+            line_to_normalized[i] = self._normalize_line(line)
+
         # Count normalized line frequencies
         line_counts: Counter = Counter()
-        for line in lines:
-            normalized = self._normalize_line(line)
+        for normalized in line_to_normalized.values():
             if normalized:  # Don't count empty lines
                 line_counts[normalized] += 1
 
@@ -155,8 +160,8 @@ class HeaderFooterRemover(BasePreprocessor):
         for normalized_line, count in line_counts.items():
             if count >= self.MIN_OCCURRENCES:
                 # Check if any original line with this normalization matches patterns
-                for line in lines:
-                    if self._normalize_line(line) == normalized_line:
+                for i, line in enumerate(lines):
+                    if line_to_normalized[i] == normalized_line:
                         if self._is_header_footer_candidate(line):
                             lines_to_remove.add(normalized_line)
                             break
@@ -166,8 +171,8 @@ class HeaderFooterRemover(BasePreprocessor):
         removed_count = 0
         removed_examples = []
 
-        for line in lines:
-            normalized = self._normalize_line(line)
+        for i, line in enumerate(lines):
+            normalized = line_to_normalized[i]
             if normalized in lines_to_remove:
                 removed_count += 1
                 # Track first few examples for debugging

@@ -289,8 +289,9 @@ class HybridRetriever:
                 continue
 
             try:
-                # Request more chunks from each algorithm to allow merging
-                result = algorithm.retrieve(query, k=k * 2)
+                # Session 70: Request exactly k chunks - merger handles deduplication
+                # Previously used k*2 which retrieved unnecessary data
+                result = algorithm.retrieve(query, k=k)
                 algorithm_results.append(result)
 
                 if DEBUG_MODE:

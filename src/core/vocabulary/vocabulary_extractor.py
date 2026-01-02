@@ -223,23 +223,8 @@ class VocabularyExtractor:
             text = text[:max_chars]
             debug_log(f"[VOCAB] Truncated to {VOCABULARY_MAX_TEXT_KB}KB for processing")
 
-        # 1. Run all enabled algorithms
-        all_results = []
-        for algorithm in self.algorithms:
-            if not algorithm.enabled:
-                debug_log(f"[VOCAB] Skipping disabled algorithm: {algorithm.name}")
-                continue
-
-            debug_log(f"[VOCAB] Running {algorithm.name} algorithm...")
-            start_time = time.time()
-
-            result = algorithm.extract(text)
-            all_results.append(result)
-
-            debug_log(
-                f"[VOCAB] {algorithm.name}: {len(result.candidates)} candidates "
-                f"in {result.processing_time_ms:.1f}ms"
-            )
+        # 1. Run all enabled algorithms (parallel when possible - Session 69)
+        all_results = self._run_algorithms_parallel(text)
 
         # 2. Merge results from all algorithms
         debug_log(f"[VOCAB] Merging results from {len(all_results)} algorithms...")
@@ -458,6 +443,93 @@ class VocabularyExtractor:
         debug_log(f"[VOCAB] extract_with_llm complete in {total_time:.1f}ms, {len(csv_data)} terms")
 
         return csv_data
+
+    def _run_algorithms_parallel(self, text: str) -> list:
+        """
+        Run extraction algorithms in parallel when beneficial (Session 69).
+
+        Uses ThreadPoolStrategy to run NER, RAKE, and BM25 concurrently.
+        Falls back to sequential execution when:
+        - Only 1 algorithm is enabled
+        - System has only 1 CPU core
+
+        Args:
+            text: Document text to extract vocabulary from
+
+        Returns:
+            List of AlgorithmResult from all enabled algorithms
+        """
+        from src.core.parallel.executor_strategy import ThreadPoolStrategy, SequentialStrategy
+        from src.core.parallel.task_runner import ParallelTaskRunner
+        from src.system_resources import get_optimal_workers
+
+        # Get list of enabled algorithms
+        enabled_algorithms = [alg for alg in self.algorithms if alg.enabled]
+
+        if not enabled_algorithms:
+            debug_log("[VOCAB] No algorithms enabled")
+            return []
+
+        # Decide whether to parallelize
+        # Skip parallelization for 1 algorithm or 1 CPU core
+        import os
+        cpu_count = os.cpu_count() or 1
+        use_parallel = len(enabled_algorithms) > 1 and cpu_count > 1
+
+        if not use_parallel:
+            # Sequential fallback
+            debug_log(f"[VOCAB] Running {len(enabled_algorithms)} algorithm(s) sequentially")
+            all_results = []
+            for algorithm in enabled_algorithms:
+                debug_log(f"[VOCAB] Running {algorithm.name} algorithm...")
+                result = algorithm.extract(text)
+                all_results.append(result)
+                debug_log(
+                    f"[VOCAB] {algorithm.name}: {len(result.candidates)} candidates "
+                    f"in {result.processing_time_ms:.1f}ms"
+                )
+            return all_results
+
+        # Parallel execution
+        # Each algorithm uses ~0.5GB RAM (spaCy model is shared)
+        workers = min(len(enabled_algorithms), get_optimal_workers(task_ram_gb=0.5, max_workers=4))
+        debug_log(f"[VOCAB] Running {len(enabled_algorithms)} algorithms in parallel ({workers} workers)")
+
+        start_time = time.time()
+        strategy = ThreadPoolStrategy(max_workers=workers)
+
+        def run_algorithm(algorithm):
+            """Worker function to run a single algorithm."""
+            result = algorithm.extract(text)
+            return (algorithm.name, result)
+
+        try:
+            # Build items list: (task_id, payload)
+            items = [(alg.name, alg) for alg in enabled_algorithms]
+
+            runner = ParallelTaskRunner(strategy=strategy)
+            task_results = runner.run(run_algorithm, items)
+
+            # Collect results
+            all_results = []
+            for task_result in task_results:
+                if task_result.success:
+                    alg_name, result = task_result.result
+                    all_results.append(result)
+                    debug_log(
+                        f"[VOCAB] {alg_name}: {len(result.candidates)} candidates "
+                        f"in {result.processing_time_ms:.1f}ms"
+                    )
+                else:
+                    debug_log(f"[VOCAB] Algorithm {task_result.task_id} failed: {task_result.error}")
+
+            total_time = (time.time() - start_time) * 1000
+            debug_log(f"[VOCAB] Parallel extraction complete in {total_time:.1f}ms")
+
+            return all_results
+
+        finally:
+            strategy.shutdown(wait=True)
 
     def _post_process(
         self,

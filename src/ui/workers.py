@@ -375,31 +375,155 @@ class QAWorker(BaseWorker):
 
         debug_log(f"[QA WORKER] Processing {total} questions")
 
-        # Process each question
-        self.results = []
-        for i, question in enumerate(questions):
-            self.check_cancelled()
+        # Process questions (parallel when beneficial - Session 69)
+        self.results = self._process_questions_parallel(
+            orchestrator, questions, is_default, total
+        )
 
-            # Report progress
-            truncated_q = question[:50] + "..." if len(question) > 50 else question
-            self.ui_queue.put(QueueMessage.qa_progress(i, total, truncated_q))
+        # Send completion signal with all results
+        self.ui_queue.put(QueueMessage.qa_complete(self.results))
+        debug_log(f"[QA WORKER] All {total} questions processed successfully")
 
-            # Ask the question with default flag
+    def _process_questions_parallel(
+        self,
+        orchestrator,
+        questions: list[str],
+        is_default: bool,
+        total: int
+    ) -> list:
+        """
+        Process Q&A questions, using parallelization when beneficial (Session 69).
+
+        Uses ThreadPoolStrategy to process 2-4 questions concurrently.
+        Falls back to sequential execution when:
+        - Only 1 question to ask
+        - Ollama is unavailable (answer_mode != "ollama")
+
+        Results are streamed to UI as they complete via qa_result messages.
+
+        Args:
+            orchestrator: QAOrchestrator instance
+            questions: List of questions to ask
+            is_default: Whether these are default questions
+            total: Total number of questions for progress tracking
+
+        Returns:
+            List of QAResult objects in original question order
+        """
+        from src.core.parallel.executor_strategy import ThreadPoolStrategy
+        from src.core.parallel.task_runner import ParallelTaskRunner
+        from src.system_resources import get_optimal_workers
+        import os
+        import threading
+
+        # Decide whether to parallelize
+        # Skip for single question or non-Ollama mode (extraction is fast enough)
+        cpu_count = os.cpu_count() or 1
+        use_parallel = (
+            len(questions) > 1 and
+            cpu_count > 1 and
+            self.answer_mode == "ollama"  # Ollama benefits from parallelization
+        )
+
+        if not use_parallel:
+            # Sequential fallback
+            debug_log(f"[QA WORKER] Processing {len(questions)} question(s) sequentially")
+            results = []
+            for i, question in enumerate(questions):
+                self.check_cancelled()
+
+                # Report progress
+                truncated_q = question[:50] + "..." if len(question) > 50 else question
+                self.ui_queue.put(QueueMessage.qa_progress(i, total, truncated_q))
+
+                result = orchestrator._ask_single_question(
+                    question,
+                    is_followup=False,
+                    is_default=is_default
+                )
+                results.append(result)
+                self.ui_queue.put(QueueMessage.qa_result(result))
+                debug_log(f"[QA WORKER] Q{i + 1}/{total} complete: {len(result.answer)} chars")
+
+            return results
+
+        # Parallel execution
+        # Limit workers to avoid overloading Ollama (typically 2-4)
+        workers = min(
+            len(questions),
+            get_optimal_workers(task_ram_gb=2.0, max_workers=4, min_workers=2)
+        )
+        debug_log(f"[QA WORKER] Processing {len(questions)} questions in parallel ({workers} workers)")
+
+        # Track completion for progress reporting
+        completed_count = [0]  # Using list for mutable in closure
+        count_lock = threading.Lock()
+        results_dict = {}  # Store results by index for ordering
+        results_lock = threading.Lock()  # Session 70: Thread-safe dict access
+
+        def ask_question(args):
+            """Worker function to ask a single question."""
+            idx, question = args
+
+            # Check cancellation
+            if self._cancel_event.is_set():
+                return (idx, None)
+
             result = orchestrator._ask_single_question(
                 question,
                 is_followup=False,
                 is_default=is_default
             )
-            self.results.append(result)
+            return (idx, result)
 
-            # Send individual result
-            self.ui_queue.put(QueueMessage.qa_result(result))
+        strategy = ThreadPoolStrategy(max_workers=workers)
 
-            debug_log(f"[QA WORKER] Q{i + 1}/{total} complete: {len(result.answer)} chars")
+        try:
+            # Build items: (task_id, (index, question))
+            items = [(f"Q{i+1}", (i, q)) for i, q in enumerate(questions)]
 
-        # Send completion signal with all results
-        self.ui_queue.put(QueueMessage.qa_complete(self.results))
-        debug_log(f"[QA WORKER] All {total} questions processed successfully")
+            def on_complete(task_id: str, result):
+                """Callback when question completes - stream to UI."""
+                idx, qa_result = result
+                if qa_result is None:
+                    return  # Cancelled
+
+                # Thread-safe completion tracking
+                with count_lock:
+                    completed_count[0] += 1
+                    count = completed_count[0]
+
+                # Store result for ordered return (Session 70: thread-safe)
+                with results_lock:
+                    results_dict[idx] = qa_result
+
+                # Stream result to UI
+                self.ui_queue.put(QueueMessage.qa_result(qa_result))
+
+                # Progress update
+                truncated_q = questions[idx][:50] + "..." if len(questions[idx]) > 50 else questions[idx]
+                self.ui_queue.put(QueueMessage.qa_progress(count - 1, total, truncated_q))
+
+                debug_log(f"[QA WORKER] Q{idx + 1}/{total} complete: {len(qa_result.answer)} chars")
+
+            runner = ParallelTaskRunner(
+                strategy=strategy,
+                on_task_complete=on_complete
+            )
+            task_results = runner.run(ask_question, items)
+
+            # Handle any failures
+            for task_result in task_results:
+                if not task_result.success:
+                    debug_log(f"[QA WORKER] Question {task_result.task_id} failed: {task_result.error}")
+
+            # Return results in original order (Session 70: thread-safe read)
+            with results_lock:
+                ordered_results = [results_dict.get(i) for i in range(len(questions))]
+            return [r for r in ordered_results if r is not None]
+
+        finally:
+            strategy.shutdown(wait=True)
 
 
 class OllamaAIWorkerManager:

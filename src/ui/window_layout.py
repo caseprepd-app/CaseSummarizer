@@ -265,7 +265,18 @@ class WindowLayoutMixin:
             height=40,
             command=self._perform_tasks
         )
-        self.generate_btn.grid(row=5, column=0, sticky="ew", padx=10, pady=(15, 10))
+        self.generate_btn.grid(row=5, column=0, sticky="ew", padx=10, pady=(15, 5))
+
+        # Task preview label (Session 69) - shows what will run
+        self.task_preview_label = ctk.CTkLabel(
+            self.left_panel,
+            text="",
+            font=FONTS["small"],
+            text_color=COLORS["text_secondary"],
+            wraplength=280,  # Allow text to wrap
+            justify="left"
+        )
+        self.task_preview_label.grid(row=6, column=0, sticky="w", padx=10, pady=(0, 10))
 
     def _create_right_panel(self):
         """Create the right panel with results display."""

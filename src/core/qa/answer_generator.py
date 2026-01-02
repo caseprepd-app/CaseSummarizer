@@ -24,6 +24,16 @@ from src.config import (
 )
 from src.logging_config import debug_log
 
+# Pre-compiled regex patterns (Session 70 optimization)
+# Previously compiled on every call to _split_sentences and _extract_keywords
+_RE_SOURCE_CITATIONS = re.compile(r'\[[^\]]+\]:')
+_RE_ABBREVIATIONS_TITLES = re.compile(r'(Mr\.|Mrs\.|Ms\.|Dr\.|Prof\.|Jr\.|Sr\.)')
+_RE_ABBREVIATIONS_CORP = re.compile(r'(Inc\.|Corp\.|Ltd\.|Co\.)')
+_RE_NUMBERS_PERIOD = re.compile(r'(\d+\.)')
+_RE_SENTENCE_END = re.compile(r'[.!?]+\s+')
+_RE_WORD_EXTRACT = re.compile(r'\b[a-zA-Z]+\b')
+_RE_WHITESPACE = re.compile(r'\s+')
+
 
 class AnswerMode(Enum):
     """Answer generation mode."""
@@ -237,8 +247,8 @@ ANSWER:"""
             "or", "if", "because", "while", "although", "though", "unless",
         }
 
-        # Extract words
-        words = re.findall(r'\b[a-zA-Z]+\b', text.lower())
+        # Extract words using pre-compiled regex
+        words = _RE_WORD_EXTRACT.findall(text.lower())
 
         # Filter
         keywords = {w for w in words if len(w) >= 3 and w not in stopwords}
@@ -257,17 +267,17 @@ ANSWER:"""
         Returns:
             List of sentences
         """
-        # Remove source citations for cleaner sentences
-        clean_text = re.sub(r'\[[^\]]+\]:', '', text)
+        # Remove source citations for cleaner sentences (using pre-compiled regex)
+        clean_text = _RE_SOURCE_CITATIONS.sub('', text)
 
         # Simple sentence splitting
-        # Handle common abbreviations
-        clean_text = re.sub(r'(Mr\.|Mrs\.|Ms\.|Dr\.|Prof\.|Jr\.|Sr\.)', r'\1<PERIOD>', clean_text)
-        clean_text = re.sub(r'(Inc\.|Corp\.|Ltd\.|Co\.)', r'\1<PERIOD>', clean_text)
-        clean_text = re.sub(r'(\d+\.)', r'\1<PERIOD>', clean_text)
+        # Handle common abbreviations (using pre-compiled regex)
+        clean_text = _RE_ABBREVIATIONS_TITLES.sub(r'\1<PERIOD>', clean_text)
+        clean_text = _RE_ABBREVIATIONS_CORP.sub(r'\1<PERIOD>', clean_text)
+        clean_text = _RE_NUMBERS_PERIOD.sub(r'\1<PERIOD>', clean_text)
 
-        # Split on sentence-ending punctuation
-        sentences = re.split(r'[.!?]+\s+', clean_text)
+        # Split on sentence-ending punctuation (using pre-compiled regex)
+        sentences = _RE_SENTENCE_END.split(clean_text)
 
         # Restore periods
         sentences = [s.replace('<PERIOD>', '.').strip() for s in sentences if s.strip()]
@@ -286,7 +296,7 @@ ANSWER:"""
             Score (number of keyword matches)
         """
         sentence_lower = sentence.lower()
-        sentence_words = set(re.findall(r'\b[a-zA-Z]+\b', sentence_lower))
+        sentence_words = set(_RE_WORD_EXTRACT.findall(sentence_lower))
 
         # Count keyword matches
         matches = keywords & sentence_words
@@ -303,8 +313,8 @@ ANSWER:"""
         Returns:
             Cleaned sentence
         """
-        # Remove excessive whitespace
-        cleaned = re.sub(r'\s+', ' ', sentence).strip()
+        # Remove excessive whitespace (using pre-compiled regex)
+        cleaned = _RE_WHITESPACE.sub(' ', sentence).strip()
 
         # Ensure ends with period
         if cleaned and not cleaned[-1] in '.!?':

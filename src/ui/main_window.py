@@ -607,6 +607,49 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         else:
             self.generate_btn.configure(text=f"Perform {task_count} Tasks", state="normal")
 
+        # Update task preview label (Session 69)
+        self._update_task_preview()
+
+    def _update_task_preview(self):
+        """
+        Update the task preview label to show what will run (Session 69).
+
+        Shows a concise preview like:
+        "Will run: Vocabulary (NER+LLM), Q&A (6 questions)"
+        """
+        parts = []
+
+        # Vocabulary task
+        if self.vocab_check.get():
+            if self.vocab_llm_check.get() and self.vocab_llm_check.cget("state") == "normal":
+                parts.append("Vocabulary (NER+LLM)")
+            else:
+                parts.append("Vocabulary (NER)")
+
+        # Q&A task
+        if self.qa_check.get():
+            if self.ask_default_questions_check.get():
+                enabled, total = self._load_default_question_count()
+                if enabled > 0:
+                    q_word = "question" if enabled == 1 else "questions"
+                    parts.append(f"Q&A ({enabled} {q_word})")
+                else:
+                    parts.append("Q&A")
+            else:
+                parts.append("Q&A")
+
+        # Summary task
+        if self.summary_check.get():
+            parts.append("Summary (slow)")
+
+        # Build preview text
+        if parts:
+            preview = "Will run: " + ", ".join(parts)
+        else:
+            preview = "Select tasks above"
+
+        self.task_preview_label.configure(text=preview)
+
     def _on_summary_checked(self):
         """Handle summary checkbox toggle - show warning if enabling."""
         if self.summary_check.get():
@@ -771,6 +814,9 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
 
     def _on_vocab_llm_check_changed(self):
         """Handle LLM Enhancement checkbox state change (user manually toggles)."""
+        # Update task preview to reflect LLM change (Session 69)
+        self._update_task_preview()
+
         if DEBUG_MODE:
             state = "enabled" if self.vocab_llm_check.get() else "disabled"
             debug_log(f"[MainWindow] LLM enhancement {state}")
@@ -1451,7 +1497,8 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         if exported:
             self.export_all_btn.configure(text=f"Exported!")
             self.after(1500, lambda: self.export_all_btn.configure(text="Export All"))
-            self.set_status(f"Exported to Documents: {', '.join(exported)}")
+            # Status bar with auto-clear (Session 69)
+            self.set_status(f"Exported to Documents: {', '.join(exported)}", duration_ms=5000)
             debug_log(f"[MainWindow] Export All: {exported}")
         else:
             messagebox.showwarning("No Data", "No results to export yet.")
@@ -1520,11 +1567,36 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
     # Status Bar
     # =========================================================================
 
-    def set_status(self, message: str):
-        """Update the status bar message."""
+    def set_status(self, message: str, duration_ms: int | None = None):
+        """
+        Update the status bar message with optional auto-clear.
+
+        Args:
+            message: Status message to display
+            duration_ms: If set, clear to default status after this many milliseconds.
+                         Use for temporary confirmations (e.g., "Exported 10 terms").
+        """
+        # Cancel any pending status clear
+        if hasattr(self, '_status_clear_id') and self._status_clear_id:
+            self.after_cancel(self._status_clear_id)
+            self._status_clear_id = None
+
         self.status_label.configure(text=message)
+
         if DEBUG_MODE:
             debug_log(f"[MainWindow] Status: {message}")
+
+        # Schedule auto-clear if duration specified
+        if duration_ms:
+            self._status_clear_id = self.after(
+                duration_ms,
+                lambda: self._clear_status_to_default()
+            )
+
+    def _clear_status_to_default(self):
+        """Clear status bar to default 'Ready' message."""
+        self._status_clear_id = None
+        self.status_label.configure(text="Ready")
 
     # =========================================================================
     # Startup Checks

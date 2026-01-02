@@ -1017,10 +1017,20 @@ class DynamicOutputWidget(ctk.CTkFrame):
         if content:
             self.clipboard_clear()
             self.clipboard_append(content)
-            # Brief button flash instead of modal dialog
+
+            # Brief button flash for immediate feedback
             original_text = self.copy_btn.cget("text")
             self.copy_btn.configure(text="Copied!")
             self.after(1500, lambda: self.copy_btn.configure(text=original_text))
+
+            # Status bar confirmation with count (Session 69)
+            current_tab = self.tabview.get()
+            main_window = self.winfo_toplevel()
+            if current_tab == "Names & Vocab":
+                vocab_data = self._outputs.get("Names & Vocabulary") or self._outputs.get("Rare Word List (CSV)", [])
+                main_window.set_status(f"Copied {len(vocab_data)} terms to clipboard", duration_ms=5000)
+            elif current_tab == "Summary":
+                main_window.set_status("Copied summary to clipboard", duration_ms=5000)
         else:
             messagebox.showwarning("Empty", "No content to copy.")
 
@@ -1055,17 +1065,29 @@ class DynamicOutputWidget(ctk.CTkFrame):
         if filepath:
             with open(filepath, "w", encoding="utf-8") as f:
                 f.write(content)
-            # Brief button flash instead of modal
+
+            # Brief button flash for immediate feedback
             original_text = self.save_btn.cget("text")
             self.save_btn.configure(text="Saved!")
             self.after(1500, lambda: self.save_btn.configure(text=original_text))
 
+            # Status bar confirmation with details (Session 69)
+            main_window = self.winfo_toplevel()
+            filename = os.path.basename(filepath)
+            if current_tab == "Names & Vocab":
+                vocab_data = self._outputs.get("Names & Vocabulary") or self._outputs.get("Rare Word List (CSV)", [])
+                main_window.set_status(f"Saved {len(vocab_data)} terms to {filename}", duration_ms=5000)
+            elif current_tab == "Ask Questions":
+                main_window.set_status(f"Saved Q&A results to {filename}", duration_ms=5000)
+            elif current_tab == "Summary":
+                main_window.set_status(f"Saved summary to {filename}", duration_ms=5000)
+
     def _quick_export_vocab_csv(self):
         """
-        Quick export vocabulary to CSV file (Session 65).
+        Quick export vocabulary to CSV file (Session 65, updated Session 69).
 
         Exports to Documents folder with timestamped filename.
-        Shows success message with file path.
+        Uses status bar confirmation instead of modal dialog.
         """
         from datetime import datetime
 
@@ -1094,18 +1116,17 @@ class DynamicOutputWidget(ctk.CTkFrame):
 
             debug_log(f"[VOCAB EXPORT] Saved {len(vocab_data)} terms to {filepath}")
 
-            # Show success with option to open folder
-            result = messagebox.askyesno(
-                "Export Successful",
-                f"Vocabulary exported to:\n{filepath}\n\n"
-                f"({len(vocab_data)} terms)\n\n"
-                "Open containing folder?",
-                icon="info"
-            )
+            # Brief button flash for immediate feedback
+            original_text = self.export_csv_btn.cget("text")
+            self.export_csv_btn.configure(text="Exported!")
+            self.after(1500, lambda: self.export_csv_btn.configure(text=original_text))
 
-            if result:
-                # Open the folder in Windows Explorer
-                os.startfile(documents_path)
+            # Status bar confirmation (Session 69)
+            main_window = self.winfo_toplevel()
+            main_window.set_status(
+                f"Exported {len(vocab_data)} terms to Documents/{filename}",
+                duration_ms=5000
+            )
 
         except Exception as e:
             debug_log(f"[VOCAB EXPORT] Failed: {e}")

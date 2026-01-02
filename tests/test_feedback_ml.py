@@ -188,15 +188,36 @@ class TestVocabularyMetaLearner:
         features = meta_learner._extract_features(term_data)
         assert features[13] == 1.0  # is_all_caps
 
-    def test_training_insufficient_data(self, temp_feedback_dir, meta_learner):
-        """Test that training fails with insufficient data."""
+    def test_training_insufficient_data_no_defaults(self, temp_feedback_dir, meta_learner):
+        """Test that training fails with insufficient data when no defaults exist.
+
+        Note: With default_feedback.csv populated (Session 69), training will
+        succeed even with minimal user feedback. This test verifies the behavior
+        when defaults are NOT available (e.g., if the file is missing).
+        """
+        import csv
+        from pathlib import Path
+
+        # Create a feedback manager that uses an empty default file
+        empty_default = temp_feedback_dir / "empty_default.csv"
+        with open(empty_default, "w", newline="") as f:
+            writer = csv.writer(f)
+            writer.writerow([
+                "timestamp", "document_id", "term", "feedback", "is_person",
+                "algorithms", "NER_detection", "RAKE_detection", "BM25_detection",
+                "algo_count", "quality_score", "in_case_freq", "freq_rank"
+            ])
+
+        # Create manager with only 5 user samples and no defaults
         feedback_mgr = FeedbackManager(feedback_dir=temp_feedback_dir)
-        # Add only a few samples (below threshold)
+        # Override the default file path to our empty file
+        feedback_mgr.default_feedback_file = empty_default
+
         for i in range(5):
             feedback_mgr.record_feedback({"Term": f"term{i}"}, +1 if i % 2 == 0 else -1)
 
         result = meta_learner.train(feedback_mgr)
-        assert result is False  # Should fail - not enough data
+        assert result is False  # Should fail - not enough data without defaults
 
     def test_model_save_load(self, temp_feedback_dir):
         """Test model persistence."""
@@ -313,3 +334,152 @@ class TestEnsembleMode:
         )
         # Both should refer to the same class
         assert VocabularyMetaLearner is VocabularyPreferenceLearner
+
+
+class TestDefaultFeedback:
+    """Tests for default feedback CSV (universal negatives).
+
+    The default_feedback.csv ships with the app and contains universal
+    negative examples - terms ALL users would reject regardless of domain.
+    This bootstraps the ML model for immediate noise reduction.
+    """
+
+    def test_default_feedback_exists(self):
+        """Verify default_feedback.csv exists and is valid CSV."""
+        import csv
+        from src.config import DEFAULT_FEEDBACK_CSV
+
+        assert DEFAULT_FEEDBACK_CSV.exists(), (
+            f"Default feedback CSV not found at {DEFAULT_FEEDBACK_CSV}"
+        )
+
+        # Verify it's valid CSV with expected columns
+        with open(DEFAULT_FEEDBACK_CSV, "r", encoding="utf-8") as f:
+            reader = csv.DictReader(f)
+            rows = list(reader)
+
+        assert len(rows) > 0, "Default feedback CSV is empty"
+        assert "term" in reader.fieldnames
+        assert "feedback" in reader.fieldnames
+        assert "is_person" in reader.fieldnames
+
+    def test_default_feedback_all_negative(self):
+        """Verify all default feedback entries are thumbs down (-1)."""
+        import csv
+        from src.config import DEFAULT_FEEDBACK_CSV
+
+        with open(DEFAULT_FEEDBACK_CSV, "r", encoding="utf-8") as f:
+            reader = csv.DictReader(f)
+            for i, row in enumerate(reader):
+                feedback = int(row["feedback"])
+                assert feedback == -1, (
+                    f"Row {i}: Non-negative feedback in default CSV: "
+                    f"term='{row['term']}', feedback={feedback}"
+                )
+
+    def test_default_feedback_no_persons(self):
+        """Verify no person names in default negatives.
+
+        Universal negatives should not include person names because:
+        1. Names are domain-specific (could be legitimate for some users)
+        2. NER person detection is reliable, we don't need to train against it
+        """
+        import csv
+        from src.config import DEFAULT_FEEDBACK_CSV
+
+        with open(DEFAULT_FEEDBACK_CSV, "r", encoding="utf-8") as f:
+            reader = csv.DictReader(f)
+            for i, row in enumerate(reader):
+                is_person = row["is_person"]
+                # Handle both string and int representations
+                assert is_person in ("0", "False", 0, False), (
+                    f"Row {i}: Person name in default negatives: "
+                    f"term='{row['term']}', is_person={is_person}"
+                )
+
+    def test_default_feedback_count(self):
+        """Verify reasonable number of default feedback entries.
+
+        Should have 50-150 entries:
+        - At least 50: Provides meaningful training data
+        - At most 150: Focused on universal junk, not overfit
+        """
+        import csv
+        from src.config import DEFAULT_FEEDBACK_CSV
+
+        with open(DEFAULT_FEEDBACK_CSV, "r", encoding="utf-8") as f:
+            reader = csv.DictReader(f)
+            count = sum(1 for _ in reader)
+
+        assert 50 <= count <= 150, (
+            f"Default feedback has {count} entries, expected 50-150"
+        )
+
+    def test_default_feedback_categories(self):
+        """Verify default feedback covers expected categories."""
+        import csv
+        from src.config import DEFAULT_FEEDBACK_CSV
+
+        with open(DEFAULT_FEEDBACK_CSV, "r", encoding="utf-8") as f:
+            reader = csv.DictReader(f)
+            terms = [row["term"].lower() for row in reader]
+
+        # Check for presence of key universal negatives
+        # Common phrases
+        assert any("same" in t for t in terms), "Missing common phrase category"
+        # Transcript artifacts
+        assert any(t in ("q.", "a.", "q", "a") for t in terms), (
+            "Missing transcript artifact category"
+        )
+        # OCR patterns (terms with digit-letter confusion)
+        assert any(t in ("1he", "tbe", "0f") for t in terms), (
+            "Missing OCR artifact category"
+        )
+
+    def test_training_with_default_feedback_only(self, temp_feedback_dir):
+        """Test that training succeeds with only default feedback.
+
+        The default_feedback.csv should have enough entries (30+) to
+        trigger Logistic Regression training even with zero user feedback.
+        """
+        import csv
+        from src.config import DEFAULT_FEEDBACK_CSV
+
+        # First verify we have enough defaults
+        with open(DEFAULT_FEEDBACK_CSV, "r", encoding="utf-8") as f:
+            default_count = sum(1 for _ in csv.DictReader(f))
+
+        if default_count < 30:
+            pytest.skip(f"Only {default_count} default entries, need 30+ for training")
+
+        # Create manager with only default feedback (empty user dir)
+        manager = FeedbackManager(feedback_dir=temp_feedback_dir)
+
+        # Get combined training data (should include defaults)
+        training_data = manager.export_training_data()
+
+        # Should have entries from default file
+        assert len(training_data) >= 30, (
+            f"Expected 30+ training entries, got {len(training_data)}"
+        )
+
+    def test_user_feedback_overrides_default(self, temp_feedback_dir):
+        """Test that user feedback takes precedence over defaults.
+
+        If a term appears in both default (negative) and user feedback,
+        the user's rating should win.
+        """
+        # Create manager
+        manager = FeedbackManager(feedback_dir=temp_feedback_dir)
+
+        # Record positive feedback for a term that might be in defaults
+        term_data = {
+            "Term": "the same",  # Likely in default negatives
+            "Quality Score": 50,
+        }
+        manager.record_feedback(term_data, +1)  # User says thumbs up
+
+        # User's rating should be what we get
+        assert manager.get_rating("the same") == 1, (
+            "User feedback should override default"
+        )

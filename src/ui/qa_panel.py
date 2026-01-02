@@ -499,10 +499,22 @@ class QAPanel(ctk.CTkFrame):
             with open(filepath, 'w', encoding='utf-8', newline='') as f:
                 f.write(content)
 
-            # Brief button flash instead of modal
+            # Brief button flash for immediate feedback
             original_text = self.export_csv_btn.cget("text")
             self.export_csv_btn.configure(text="Saved!")
             self.after(1500, lambda: self.export_csv_btn.configure(text=original_text))
+
+            # Status bar confirmation (Session 69)
+            import os
+            main_window = self.winfo_toplevel()
+            if hasattr(main_window, 'set_status'):
+                filename = os.path.basename(filepath)
+                pair_word = "pair" if len(exportable) == 1 else "pairs"
+                main_window.set_status(
+                    f"Exported {len(exportable)} Q&A {pair_word} to {filename}",
+                    duration_ms=5000
+                )
+
             debug_log(f"[QAPanel] Exported {len(exportable)} Q&A pairs to CSV: {filepath}")
 
         except Exception as e:
@@ -536,10 +548,22 @@ class QAPanel(ctk.CTkFrame):
             with open(filepath, 'w', encoding='utf-8') as f:
                 f.write(content)
 
-            # Brief button flash instead of modal
+            # Brief button flash for immediate feedback
             original_text = self.export_txt_btn.cget("text")
             self.export_txt_btn.configure(text="Saved!")
             self.after(1500, lambda: self.export_txt_btn.configure(text=original_text))
+
+            # Status bar confirmation (Session 69)
+            import os
+            main_window = self.winfo_toplevel()
+            if hasattr(main_window, 'set_status'):
+                filename = os.path.basename(filepath)
+                pair_word = "pair" if len(exportable) == 1 else "pairs"
+                main_window.set_status(
+                    f"Exported {len(exportable)} Q&A {pair_word} to {filename}",
+                    duration_ms=5000
+                )
+
             debug_log(f"[QAPanel] Exported {len(exportable)} Q&A pairs to TXT: {filepath}")
 
         except Exception as e:
@@ -605,10 +629,10 @@ class QAPanel(ctk.CTkFrame):
 
     def _copy_to_clipboard(self):
         """
-        Copy selected Q&A results to clipboard (Session 65).
+        Copy selected Q&A results to clipboard (Session 65, updated Session 69).
 
         Copies in a readable text format suitable for pasting into documents.
-        Uses brief button flash instead of modal dialog for better UX.
+        Uses brief button flash + status bar confirmation for better UX.
         """
         exportable = [r for r in self._results if r.include_in_export]
 
@@ -636,10 +660,19 @@ class QAPanel(ctk.CTkFrame):
             self.clipboard_clear()
             self.clipboard_append(content)
 
-            # Brief button flash instead of modal dialog
+            # Brief button flash for immediate feedback
             original_text = self.copy_btn.cget("text")
             self.copy_btn.configure(text=f"Copied {len(exportable)}!")
             self.after(1500, lambda: self.copy_btn.configure(text=original_text))
+
+            # Status bar confirmation (Session 69)
+            main_window = self.winfo_toplevel()
+            if hasattr(main_window, 'set_status'):
+                pair_word = "pair" if len(exportable) == 1 else "pairs"
+                main_window.set_status(
+                    f"Copied {len(exportable)} Q&A {pair_word} to clipboard",
+                    duration_ms=5000
+                )
 
             debug_log(f"[QAPanel] Copied {len(exportable)} Q&A pairs to clipboard")
 
