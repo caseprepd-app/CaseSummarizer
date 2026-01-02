@@ -15,6 +15,7 @@ from src.config import (
     SYSTEM_MONITOR_THRESHOLD_GREEN,
     SYSTEM_MONITOR_THRESHOLD_YELLOW,
 )
+from src.logging_config import debug_log
 from src.ui.theme import FONTS, COLORS
 from src.ui.tooltip_manager import tooltip_manager
 
@@ -191,7 +192,7 @@ class SystemMonitor(ctk.CTkFrame):
             self.ram_frame.configure(fg_color=ram_bg)
 
         except Exception as e:
-            print(f"Error updating display: {e}")
+            debug_log(f"[SystemMonitor] Error updating display: {e}")
 
     def _get_colors(self, percent: float) -> tuple:
         """
@@ -340,7 +341,7 @@ class SystemMonitor(ctk.CTkFrame):
             tooltip_manager.register(self.tooltip_window, owner=self)
 
         except Exception as e:
-            print(f"Tooltip error: {e}")
+            debug_log(f"[SystemMonitor] Tooltip error: {e}")
 
     def _hide_tooltip(self):
         """Hide the tooltip."""
