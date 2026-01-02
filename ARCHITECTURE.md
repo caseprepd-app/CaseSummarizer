@@ -217,8 +217,8 @@ flowchart TB
 | `FileReviewTable` | `ui/widgets.py` | File list with status/confidence |
 | `ModelSelectionWidget` | `ui/widgets.py` | Model + prompt dropdown |
 | `OutputOptionsWidget` | `ui/widgets.py` | Task checkboxes, word count slider |
-| `DynamicOutputWidget` | `ui/dynamic_output.py` | Tabbed results (Vocab/Questions/Summary), tab-aware button bars |
-| `QAPanel` | `ui/qa_panel.py` | Questions & answers with follow-up, integrated button bar |
+| `DynamicOutputWidget` | `ui/dynamic_output.py` | Tabbed results (Vocab/Questions/Summary), tab-aware button bars, Export All |
+| `QAPanel` | `ui/qa_panel.py` | Questions & answers with follow-up, button flash feedback |
 | `QueueMessageHandler` | `ui/queue_message_handler.py` | Routes worker messages to UI |
 | `WorkflowOrchestrator` | `ui/workflow_orchestrator.py` | Processing state machine |
 
@@ -804,6 +804,19 @@ ui_queue.put(QueueMessage.file_processed(result))
 
 All message types are defined in `src/ui/queue_messages.py` with `MessageType` constants.
 
+### Button Flash Feedback Pattern
+
+For non-blocking user feedback (replacing modal dialogs):
+
+```python
+# Brief button flash instead of messagebox
+original_text = self.copy_btn.cget("text")
+self.copy_btn.configure(text="Copied!")
+self.after(1500, lambda: self.copy_btn.configure(text=original_text))
+```
+
+Used in: copy to clipboard, export to CSV/TXT, save to file operations.
+
 ### Registry Pattern (Algorithms)
 
 New algorithms register via decorator:
@@ -958,7 +971,7 @@ src/
 │
 └── utils/
     ├── logger.py                # Backward-compat wrapper
-    ├── text_utils.py            # Text utilities
+    ├── text_utils.py            # Text utilities (combine_document_texts, get_documents_folder)
     ├── tokenizer.py             # Shared BM25 tokenization
     ├── pattern_filter.py        # Regex pattern matching for NER/OCR errors
     └── gibberish_filter.py      # Spell-check based gibberish detection
@@ -1088,4 +1101,4 @@ ruff check src/ --fix
 
 ---
 
-*Last updated: 2026-01-01 (Session 68 - corpus familiarity filter, tab-aware UI)*
+*Last updated: 2026-01-02 (Session 68 cont. - Export All button, button flash UX, DRY helpers)*
