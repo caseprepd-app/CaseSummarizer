@@ -294,10 +294,15 @@ class DynamicOutputWidget(ctk.CTkFrame):
             # Show shared button bar for Names & Vocab and Summary tabs
             self.button_frame.grid(row=1, column=0, sticky="ew", padx=5, pady=5)
 
-            # Show/hide Show Details button based on tab
+            # Show/hide vocab-specific buttons based on tab
             if current_tab == "Names & Vocab":
-                self.detail_toggle_btn.pack(side="left", padx=5)
-                self.export_csv_btn.pack(side="left", padx=5)
+                # Update progress badge when switching to this tab
+                self._update_progress_badge(self._extraction_source)
+                # Show vocab buttons - use after= to maintain correct order
+                if not self.detail_toggle_btn.winfo_ismapped():
+                    self.detail_toggle_btn.pack(side="left", padx=5, after=self.save_btn)
+                if not self.export_csv_btn.winfo_ismapped():
+                    self.export_csv_btn.pack(side="left", padx=5, after=self.detail_toggle_btn)
             else:
                 # Hide vocab-specific buttons on Summary tab
                 self.detail_toggle_btn.pack_forget()
@@ -366,8 +371,12 @@ class DynamicOutputWidget(ctk.CTkFrame):
         Clean up resources when widget is no longer needed.
         Call this to free memory after heavy processing.
         """
-        # Clear internal data storage
+        # Clear internal data storage (must match __init__ structure)
         self._outputs = {
+            "Names & Vocabulary": [],  # Session 45: Primary output
+            "Ask Questions": [],  # Q&A results
+            "Summary": "",  # Combined summary
+            # Backward compatibility keys
             "Meta-Summary": "",
             "Rare Word List (CSV)": [],
             "Q&A Results": [],
@@ -375,6 +384,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
         }
         self._document_summaries = {}
         self._briefing_sections = {}
+        self._extraction_source = "none"  # Reset progress badge state
 
         # Clear treeview data if it exists
         if self.csv_treeview is not None:

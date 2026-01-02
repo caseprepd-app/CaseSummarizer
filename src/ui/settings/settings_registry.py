@@ -268,38 +268,58 @@ def _register_all_settings():
     # VOCABULARY TAB
     # ===================================================================
 
-    # Session 68: Corpus status warning banner
-    # Shows warning if corpus has < 5 documents
+    # Session 68: Corpus status warning banner (dynamic refresh)
+    # Shows warning if corpus has < 5 documents, updates when tab is shown
     def _create_corpus_warning_widget(parent):
-        """Factory for corpus status warning banner."""
+        """Factory for corpus status warning banner with dynamic refresh."""
         import tkinter as tk
         from src.core.vocabulary.corpus_manager import get_corpus_manager
 
         frame = tk.Frame(parent)
+        frame._warning_frame = None  # Store reference for updates
+        frame._warning_label = None
 
-        corpus_manager = get_corpus_manager()
-        doc_count = corpus_manager.get_document_count()
+        def update_warning():
+            """Update the warning banner based on current corpus status."""
+            corpus_manager = get_corpus_manager()
+            doc_count = corpus_manager.get_document_count()
 
-        if doc_count < 5:
-            # Show warning banner
-            warning_frame = tk.Frame(frame, bg="#FFF3CD", padx=10, pady=8)
-            warning_frame.pack(fill="x", pady=(0, 10))
+            if doc_count < 5:
+                # Show or update warning banner
+                warning_text = (
+                    f"Corpus not ready ({doc_count}/5 documents). "
+                    "ML predictions are less accurate without a corpus of past transcripts. "
+                    "Add documents in Settings > Corpus."
+                )
 
-            warning_text = (
-                f"Corpus not ready ({doc_count}/5 documents). "
-                "ML predictions are less accurate without a corpus of past transcripts. "
-                "Add documents in Settings > Corpus."
-            )
-            label = tk.Label(
-                warning_frame,
-                text=warning_text,
-                bg="#FFF3CD",
-                fg="#856404",
-                wraplength=400,
-                justify="left",
-            )
-            label.pack(anchor="w")
-        # If corpus is ready, show nothing (empty frame)
+                if frame._warning_frame is None:
+                    # Create warning frame
+                    frame._warning_frame = tk.Frame(frame, bg="#FFF3CD", padx=10, pady=8)
+                    frame._warning_frame.pack(fill="x", pady=(0, 10))
+                    frame._warning_label = tk.Label(
+                        frame._warning_frame,
+                        text=warning_text,
+                        bg="#FFF3CD",
+                        fg="#856404",
+                        wraplength=400,
+                        justify="left",
+                    )
+                    frame._warning_label.pack(anchor="w")
+                else:
+                    # Update existing label text
+                    frame._warning_label.configure(text=warning_text)
+                    if not frame._warning_frame.winfo_ismapped():
+                        frame._warning_frame.pack(fill="x", pady=(0, 10))
+            else:
+                # Corpus is ready - hide warning if it exists
+                if frame._warning_frame is not None and frame._warning_frame.winfo_ismapped():
+                    frame._warning_frame.pack_forget()
+
+        # Initial update
+        update_warning()
+
+        # Refresh when widget becomes visible (tab switch)
+        frame.bind("<Map>", lambda e: update_warning())
 
         return frame
 
