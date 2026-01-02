@@ -356,6 +356,19 @@ class WindowLayoutMixin:
         )
         self.timer_label.pack(side="right", padx=10, pady=5)
 
+        # Export All button (right side, hidden until processing completes)
+        self.export_all_btn = ctk.CTkButton(
+            self.status_frame,
+            text="Export All",
+            command=self._export_all,
+            width=90,
+            height=24,
+            font=FONTS["small"],
+            **BUTTON_STYLES["secondary"]
+        )
+        # Hidden initially - shown after processing completes
+        self._export_all_visible = False
+
         # Corpus info (middle)
         self.corpus_info_label = ctk.CTkLabel(
             self.status_frame,

@@ -499,7 +499,10 @@ class QAPanel(ctk.CTkFrame):
             with open(filepath, 'w', encoding='utf-8', newline='') as f:
                 f.write(content)
 
-            messagebox.showinfo("Exported", f"Q&A results saved to:\n{filepath}")
+            # Brief button flash instead of modal
+            original_text = self.export_csv_btn.cget("text")
+            self.export_csv_btn.configure(text="Saved!")
+            self.after(1500, lambda: self.export_csv_btn.configure(text=original_text))
             debug_log(f"[QAPanel] Exported {len(exportable)} Q&A pairs to CSV: {filepath}")
 
         except Exception as e:
@@ -533,7 +536,10 @@ class QAPanel(ctk.CTkFrame):
             with open(filepath, 'w', encoding='utf-8') as f:
                 f.write(content)
 
-            messagebox.showinfo("Exported", f"Q&A results saved to:\n{filepath}")
+            # Brief button flash instead of modal
+            original_text = self.export_txt_btn.cget("text")
+            self.export_txt_btn.configure(text="Saved!")
+            self.after(1500, lambda: self.export_txt_btn.configure(text=original_text))
             debug_log(f"[QAPanel] Exported {len(exportable)} Q&A pairs to TXT: {filepath}")
 
         except Exception as e:

@@ -367,6 +367,11 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         if not files:
             return
 
+        # Hide Export All button when new files are selected
+        if self._export_all_visible:
+            self.export_all_btn.pack_forget()
+            self._export_all_visible = False
+
         self.selected_files = list(files)
         self.set_status(f"Processing {len(files)} file(s)...")
         self._start_preprocessing()
@@ -1221,6 +1226,11 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         if self.qa_check.get() and success:
             self.followup_btn.configure(state="normal")
 
+        # Show Export All button after successful processing
+        if success and not self._export_all_visible:
+            self.export_all_btn.pack(side="right", padx=10, pady=3)
+            self._export_all_visible = True
+
         self.set_status(message)
 
     def _ask_followup(self):
@@ -1385,6 +1395,75 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         self._update_model_display()
         self._update_ollama_status()
         self._update_vocab_llm_checkbox_state()  # Session 63b: Refresh LLM checkbox
+
+    # =========================================================================
+    # Export All (Session 68)
+    # =========================================================================
+
+    def _export_all(self):
+        """
+        Export all results (vocabulary, Q&A, summary) to Documents folder.
+
+        Creates timestamped files for each output type that has data.
+        """
+        from datetime import datetime
+        import os
+
+        # Get Documents folder
+        try:
+            import winreg
+            with winreg.OpenKey(
+                winreg.HKEY_CURRENT_USER,
+                r"Software\Microsoft\Windows\CurrentVersion\Explorer\Shell Folders"
+            ) as key:
+                documents_path = winreg.QueryValueEx(key, "Personal")[0]
+        except Exception:
+            from pathlib import Path
+            documents_path = str(Path.home() / "Documents")
+
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        exported = []
+
+        # Export vocabulary CSV
+        vocab_data = self.output_display._outputs.get("Names & Vocabulary", [])
+        if vocab_data:
+            csv_content = self.output_display._build_vocab_csv(vocab_data)
+            vocab_path = os.path.join(documents_path, f"vocabulary_{timestamp}.csv")
+            with open(vocab_path, "w", encoding="utf-8", newline="") as f:
+                f.write(csv_content)
+            exported.append(f"Vocabulary: {len(vocab_data)} terms")
+
+        # Export Q&A results
+        if self._qa_results:
+            qa_panel = self.output_display._qa_panel
+            if qa_panel:
+                # Select all for export
+                for r in qa_panel._results:
+                    r.include_in_export = True
+                txt_content = qa_panel._format_txt_export(qa_panel._results)
+                qa_path = os.path.join(documents_path, f"qa_results_{timestamp}.txt")
+                with open(qa_path, "w", encoding="utf-8") as f:
+                    f.write(txt_content)
+                exported.append(f"Q&A: {len(qa_panel._results)} answers")
+
+        # Export summary
+        summary = self.output_display._outputs.get("Summary", "")
+        if not summary:
+            summary = self.output_display._outputs.get("Meta-Summary", "")
+        if summary and summary.strip():
+            summary_path = os.path.join(documents_path, f"summary_{timestamp}.txt")
+            with open(summary_path, "w", encoding="utf-8") as f:
+                f.write(summary)
+            exported.append("Summary")
+
+        # Flash button and show result
+        if exported:
+            self.export_all_btn.configure(text=f"Exported!")
+            self.after(1500, lambda: self.export_all_btn.configure(text="Export All"))
+            self.set_status(f"Exported to Documents: {', '.join(exported)}")
+            debug_log(f"[MainWindow] Export All: {exported}")
+        else:
+            messagebox.showwarning("No Data", "No results to export yet.")
 
     # =========================================================================
     # Timer

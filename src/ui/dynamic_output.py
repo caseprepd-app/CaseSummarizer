@@ -1017,7 +1017,10 @@ class DynamicOutputWidget(ctk.CTkFrame):
         if content:
             self.clipboard_clear()
             self.clipboard_append(content)
-            messagebox.showinfo("Copied", "Content copied to clipboard.")
+            # Brief button flash instead of modal dialog
+            original_text = self.copy_btn.cget("text")
+            self.copy_btn.configure(text="Copied!")
+            self.after(1500, lambda: self.copy_btn.configure(text=original_text))
         else:
             messagebox.showwarning("Empty", "No content to copy.")
 
