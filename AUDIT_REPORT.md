@@ -208,15 +208,19 @@ The following issues were fixed on 2026-01-03:
 - **DOC-001**: Fixed docstring inconsistency in `unified_chunker.py` - now consistently states chunk sizes are FIXED
 - **DOC-002**: Not needed - the config path comment was already correct (`config/categories.json`)
 
-### REFACTOR (3/5 Fixed)
+### REFACTOR (4/5 Fixed ✓)
+- **REF-002**: Created `_run_export()` helper in `export_service.py` - reduces ~90 lines of duplicate try/except
 - **REF-003**: Moved `CORPUS_DIR` import to module level in `corpus_manager.py`
 - **REF-004**: Moved `import shutil` to module level in `meta_learner.py`
 - **REF-005**: Removed duplicate `import os` and unused `import re` in `vocabulary_extractor.py`
-- **REF-001, REF-002**: Deferred - larger refactoring tasks (type annotations, export_service helper)
+- **REF-001**: Deferred - add type annotations to 113 config constants (large task)
+
+### Additional Improvements (Session 75b)
+- **tooltip_helper.py**: Changed 12 bare `except Exception:` to specific `_TK_ERRORS` tuple
+- **raw_text_extractor.py**: Replaced TODO with explanatory comment (hardcoded keywords work offline)
 
 ### Remaining Issues (Low Priority)
 - REF-001: Add type annotations to 113 config constants (large task)
-- REF-002: Create export_service helper to reduce try-except duplication
 - Type hints: Add return type hints to functions across UI files
 
 ### Test Results

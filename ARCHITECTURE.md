@@ -53,6 +53,7 @@
 - [x] **Combined export** — Single Word/PDF document containing both vocabulary table and Q&A results (Session 73)
 - [x] **Session statistics** — Document stats (files, pages, size) and extraction stats (terms, persons, Q&A count) displayed in left panel (Session 73)
 - [x] **Export UX improvements** — Remember last export folder, auto-open exported files (configurable), Export Settings tab (Session 73)
+- [x] **Pre-ship audit fixes** — 45+ code quality fixes from comprehensive audit: PERF (9), LOGIC (14), UI (3), DOCS (1), REFACTOR (4); query cache, O(n²) dedup fix, export helper refactor (Session 75)
 
 ### Partially Implemented ⚡
 
