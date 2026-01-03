@@ -1,5 +1,71 @@
 === LocalScribe Debug Log ===
-Started: 2026-01-02T23:22:36.961582
-DEBUG_MODE: False
+Started: 2026-01-03T13:26:41.956815
+DEBUG_MODE: True
 ============================================================
 
+[13:26:50.049] Starting RawTextExtractor initialization...
+[13:26:50.049] Loading legal keywords for jurisdiction: ny
+[13:26:50.049] Loaded 20 legal keywords
+[13:26:50.049] Loading NLTK English words corpus
+[13:26:50.129] Loaded 234377 English words
+[13:26:50.129] RawTextExtractor initialization took 81 ms
+[13:26:50.130] [PROCESSING WORKER] Starting parallel extraction of 1 documents (max_workers=4)
+[13:26:50.137] [INFO] Processing document: 700321_2022_LUIGI_NAPOLITANO_v_ROBERT_L_WIGHTON_M_D_et_al_ANSWER_13.pdf
+[13:26:50.138] Starting Processing 700321_2022_LUIGI_NAPOLITANO_v_ROBERT_L_WIGHTON_M_D_et_al_ANSWER_13.pdf...
+[13:26:50.140] Processing as PDF: 700321_2022_LUIGI_NAPOLITANO_v_ROBERT_L_WIGHTON_M_D_et_al_ANSWER_13.pdf
+[13:26:50.141] Starting Digital PDF text extraction...
+[13:26:50.160] PDF has 36 pages
+[13:26:50.732] Extracting page 10/36
+[13:26:51.192] Extracting page 20/36
+[13:26:51.863] Extracting page 30/36
+[13:26:52.138] Digital PDF text extraction took 2.0 seconds
+[13:26:52.138] Starting Dictionary confidence check...
+[13:26:52.140] Dictionary confidence check took 2 ms
+[13:26:52.140] Dictionary confidence: 82.6%
+[13:26:52.140] Using digital text extraction
+[13:26:52.142] Found case numbers: ['Index No. 19051/2007', 'INDEX NO. 700321/2022', 'Index No. 700321/2022']
+[13:26:52.142] Starting Text normalization...
+[13:26:52.142] Applying text normalization rules
+[13:26:52.142]   Stage 1: De-hyphenation
+[13:26:52.146]     ✅ SUCCESS (0.004s) - Rejoin hyphenated words
+[13:26:52.146]        Input: 44855 | Output: 44831 | Delta: -24
+[13:26:52.146]   Stage 2: Page number removal
+[13:26:52.149]     ✅ SUCCESS (0.003s) - Removed 0 page markers
+[13:26:52.149]        Input: 44831 | Output: 44831 | Delta: +0
+[13:26:52.149]   Stage 3: Line filtering
+[13:26:52.155]     ✅ SUCCESS (0.007s) - Filtered 414 lines
+[13:26:52.155]        Input: 44831 | Output: 31138 | Delta: -13693
+[13:26:52.155]   Stage 4: Whitespace normalization
+[13:26:52.155]     ✅ SUCCESS (0.000s) - Normalize whitespace
+[13:26:52.155]        Input: 31138 | Output: 31138 | Delta: +0
+[13:26:52.155] Text normalization took 14 ms
+[13:26:52.155] Starting Character sanitization...
+[13:26:52.182] Character sanitization stats: {'chars_removed': 0, 'mojibake_fixed': 42, 'control_chars_removed': 0, 'redactions_replaced': 0, 'private_use_removed': 0, 'transliterations': 25931}
+[13:26:52.182]   - Stage 1: Mojibake recovery (ftfy)
+[13:26:52.182]   - Fixed 42 mojibake/encoding corruption characters
+[13:26:52.182]   -   ✅ SUCCESS (0.012s) - Fixed 42 chars
+[13:26:52.182]   -      Input: 31138 | Output: 31138 | Delta: +0
+[13:26:52.182]   - Stage 2: Unicode normalization (NFKC)
+[13:26:52.182]   -   ✅ SUCCESS (0.000s)
+[13:26:52.182]   -      Input: 31138 | Output: 31138 | Delta: +0
+[13:26:52.182]   - Stage 3: Transliteration (accent conversion)
+[13:26:52.183]   - Transliterated 25931 accented characters to ASCII
+[13:26:52.183]   -   ✅ SUCCESS (0.008s) - Transliterated 25931 chars
+[13:26:52.183]   -      Input: 31138 | Output: 31143 | Delta: +5
+[13:26:52.183]   - Stage 4: Redaction handling
+[13:26:52.183]   -   ✅ SUCCESS (0.002s) - Replaced 0 redaction chars
+[13:26:52.183]   -      Input: 31143 | Output: 31143 | Delta: +0
+[13:26:52.183]   - Stage 5: Problematic character removal
+[13:26:52.183]   -   ✅ SUCCESS (0.005s) - Removed 0 control + 0 private-use chars
+[13:26:52.183]   -      Input: 31143 | Output: 31143 | Delta: +0
+[13:26:52.183]   - Stage 6: Whitespace normalization
+[13:26:52.183]   -   ✅ SUCCESS (0.000s)
+[13:26:52.183]   -      Input: 31143 | Output: 31143 | Delta: +0
+[13:26:52.183] Character sanitization took 28 ms
+[13:26:52.183] DEBUG_EXTRACTOR: Final result for 700321_2022_LUIGI_NAPOLITANO_v_ROBERT_L_WIGHTON_M_D_et_al_ANSWER_13.pdf - file_size: 271800, page_count: 36
+[13:26:52.184] Processing 700321_2022_LUIGI_NAPOLITANO_v_ROBERT_L_WIGHTON_M_D_et_al_ANSWER_13.pdf took 2.0 seconds
+[13:26:52.184] [PROCESSING WORKER] Completed: 1/1 documents
+[13:26:59.950] [DIAGNOSTIC] Embeddings loaded in 7.8s
+[13:27:01.995] Successfully connected to Ollama
+[13:27:01.995] [OLLAMA] Connection successful
+[13:27:01.996] [DIAGNOSTIC] Ollama connected, model: gemma3:1b

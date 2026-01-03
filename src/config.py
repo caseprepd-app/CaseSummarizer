@@ -9,7 +9,8 @@ from pathlib import Path
 import yaml
 
 # Debug Mode Configuration
-DEBUG_MODE = os.environ.get('DEBUG', 'false').lower() == 'true'
+# TEMP: Hard-coded for Session 77 debugging and feedback collection
+DEBUG_MODE = True  # os.environ.get('DEBUG', 'false').lower() == 'true'
 
 # Application Paths
 APP_NAME = "LocalScribe"

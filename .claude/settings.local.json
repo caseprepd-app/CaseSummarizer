@@ -83,7 +83,14 @@
       "Bash(\"c:\\\\Users\\\\noahc\\\\Dropbox\\\\Not Work\\\\Data Science\\\\CaseSummarizer\\\\.venv\\\\Scripts\\\\pip.exe\" install python-docx fpdf2 -q)",
       "Bash(del \"C:\\\\Users\\\\noahc\\\\.claude\\\\plans\\\\purrfect-tickling-robin.md\")",
       "Bash(\"c:\\\\Users\\\\noahc\\\\Dropbox\\\\Not Work\\\\Data Science\\\\CaseSummarizer\\\\.venv\\\\Scripts\\\\python.exe\" -c \"\ntry:\n    import tkinterdnd2\n    print\\(''tkinterdnd2 is installed''\\)\n    print\\(''Version:'', getattr\\(tkinterdnd2, ''__version__'', ''unknown''\\)\\)\nexcept ImportError as e:\n    print\\(''tkinterdnd2 not installed:'', e\\)\n\")",
-      "Bash(\"c:\\\\Users\\\\noahc\\\\Dropbox\\\\Not Work\\\\Data Science\\\\CaseSummarizer\\\\.venv\\\\Scripts\\\\pip.exe\" install tkinterdnd2 -q)"
+      "Bash(\"c:\\\\Users\\\\noahc\\\\Dropbox\\\\Not Work\\\\Data Science\\\\CaseSummarizer\\\\.venv\\\\Scripts\\\\pip.exe\" install tkinterdnd2 -q)",
+      "Bash(\"c:\\\\Users\\\\noahc\\\\Dropbox\\\\Not Work\\\\Data Science\\\\CaseSummarizer\\\\.venv\\\\Scripts\\\\pip.exe\" install black)",
+      "Bash(\"c:\\\\Users\\\\noahc\\\\Dropbox\\\\Not Work\\\\Data Science\\\\CaseSummarizer\\\\.venv\\\\Scripts\\\\python.exe\" -m pytest tests/test_image_preprocessor.py -v --tb=short)",
+      "Bash(del \"C:\\\\Users\\\\noahc\\\\Dropbox\\\\Not Work\\\\Data Science\\\\CaseSummarizer\\\\VECTOR_STORE_AUDIT.json\" \"C:\\\\Users\\\\noahc\\\\Dropbox\\\\Not Work\\\\Data Science\\\\CaseSummarizer\\\\preprocessing_audit.json\" \"C:\\\\Users\\\\noahc\\\\Dropbox\\\\Not Work\\\\Data Science\\\\CaseSummarizer\\\\AUDIT_REPORT.json\")",
+      "Bash(\"c:\\\\Users\\\\noahc\\\\Dropbox\\\\Not Work\\\\Data Science\\\\CaseSummarizer\\\\.venv\\\\Scripts\\\\python.exe\" -m pytest tests/test_feedback_ml.py -v --tb=short)",
+      "Bash(\"c:\\\\Users\\\\noahc\\\\Dropbox\\\\Not Work\\\\Data Science\\\\CaseSummarizer\\\\.venv\\\\Scripts\\\\python.exe\" -m src.main)",
+      "Bash(\"c:\\\\Users\\\\noahc\\\\Dropbox\\\\Not Work\\\\Data Science\\\\CaseSummarizer\\\\.venv\\\\Scripts\\\\python.exe\" -m pytest \"c:\\\\Users\\\\noahc\\\\Dropbox\\\\Not Work\\\\Data Science\\\\CaseSummarizer\\\\tests\\\\test_gui_workflow.py::TestHeadlessProgressiveExtraction::test_progressive_extraction_phases\" -v --tb=short)",
+      "Bash(\"c:\\\\Users\\\\noahc\\\\Dropbox\\\\Not Work\\\\Data Science\\\\CaseSummarizer\\\\.venv\\\\Scripts\\\\python.exe\" -m pytest \"c:\\\\Users\\\\noahc\\\\Dropbox\\\\Not Work\\\\Data Science\\\\CaseSummarizer\\\\tests\\\\test_gui_workflow.py::TestDiagnostics\" -v --tb=short)"
     ],
     "deny": [],
     "ask": []

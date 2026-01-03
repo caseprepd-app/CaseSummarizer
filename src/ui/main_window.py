@@ -1018,6 +1018,9 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         self.generate_btn.configure(state="disabled", text=f"Processing {task_count} tasks...")
         self.add_files_btn.configure(state="disabled")
 
+        # Hide task preview - status bar now shows progress (Session 77)
+        self.task_preview_label.configure(text="")
+
         # Start timer
         self._start_timer()
 

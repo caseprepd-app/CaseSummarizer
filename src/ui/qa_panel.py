@@ -168,12 +168,13 @@ class QAPanel(ctk.CTkFrame):
         self.copy_btn.pack(side="left", padx=5)
 
         # Session 72: Export dropdown (replaces separate TXT/CSV/Word/PDF buttons)
+        # Note: CTkOptionMenu doesn't support hover_color, so only use fg_color
         self.export_dropdown = ctk.CTkOptionMenu(
             button_frame,
             values=["Export...", "TXT", "CSV", "Word (.docx)", "PDF", "HTML"],
             command=self._on_export_format_selected,
             width=120,
-            **BUTTON_STYLES["secondary"]
+            fg_color=BUTTON_STYLES["secondary"]["fg_color"],
         )
         self.export_dropdown.pack(side="right", padx=5)
 

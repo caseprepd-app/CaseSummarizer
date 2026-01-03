@@ -213,12 +213,13 @@ class DynamicOutputWidget(ctk.CTkFrame):
         self.detail_toggle_btn.pack(side="left", padx=5)
 
         # Session 72: Export dropdown (replaces separate CSV/Word/PDF buttons)
+        # Note: CTkOptionMenu doesn't support hover_color, so only use fg_color
         self.export_dropdown = ctk.CTkOptionMenu(
             self.button_frame,
             values=["Export...", "TXT", "CSV", "Word (.docx)", "PDF", "HTML"],
             command=self._on_export_format_selected,
             width=120,
-            **BUTTON_STYLES["primary"]
+            fg_color=BUTTON_STYLES["primary"]["fg_color"],
         )
         self.export_dropdown.pack(side="left", padx=5)
 
