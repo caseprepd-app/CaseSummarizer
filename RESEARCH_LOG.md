@@ -1741,3 +1741,19 @@ When the user maximized while vocabulary was loading (~156 items = 31 batches), 
 **Why:** 4% better accuracy than medium model on legal entity extraction. Acceptable download size (~560MB). Runs efficiently on CPU.
 
 ---
+
+## GUI Testing Strategy — 2026-01-03
+
+**Question:** How to automate testing of the GUI workflow (load PDFs → preprocess → Process Documents)?
+
+**Decision:** Headless worker testing with pytest markers for slow tests.
+
+**Why:**
+- Direct worker testing (no GUI rendering) is faster and more reliable than Tkinter event simulation
+- Workers communicate via queues which can be monitored with timeouts to detect stuck states
+- Pytest `@pytest.mark.slow` allows skipping long tests during quick runs (`pytest -m "not slow"`)
+- Discovered BM25 infinite loop bug (wrong method call) via this testing approach
+
+**Files:** `tests/test_gui_workflow.py` — TestHeadlessProgressiveExtraction, TestDiagnostics
+
+---

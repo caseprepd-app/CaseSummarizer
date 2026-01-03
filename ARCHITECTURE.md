@@ -54,6 +54,8 @@
 - [x] **Session statistics** — Document stats (files, pages, size) and extraction stats (terms, persons, Q&A count) displayed in left panel (Session 73)
 - [x] **Export UX improvements** — Remember last export folder, auto-open exported files (configurable), Export Settings tab (Session 73)
 - [x] **Pre-ship audit fixes** — 45+ code quality fixes from comprehensive audit: PERF (9), LOGIC (14), UI (3), DOCS (1), REFACTOR (4); query cache, O(n²) dedup fix, export helper refactor (Session 75)
+- [x] **GUI workflow test framework** — Automated headless testing simulating full user workflow (load PDFs → preprocess → Process Documents → verify phases); pytest markers for slow/integration tests (Session 77)
+- [x] **BM25 corpus manager fix** — Fixed infinite loop bug in `corpus_manager.py` where wrong method name (`extract` vs `process_document`) caused rebuild loop; added safeguard for failed corpus extraction (Session 77)
 
 ### Partially Implemented ⚡
 
@@ -1171,8 +1173,17 @@ DEBUG=true python src/main.py          # Unix
 ### Running Tests
 
 ```bash
-# All automated tests
+# Quick tests (skips slow integration tests) - ~30 seconds
+python -m pytest tests/ -v -m "not slow"
+
+# All automated tests (includes GUI workflow simulation) - ~3+ minutes
 python -m pytest tests/ -v
+
+# GUI workflow tests only (simulates full user workflow)
+python -m pytest tests/test_gui_workflow.py -v
+
+# Quick diagnostic tests (worker health, queue, embeddings, Ollama)
+python -m pytest tests/test_gui_workflow.py::TestDiagnostics -v
 
 # Specific test file
 python -m pytest tests/test_vocabulary_extractor.py -v
@@ -1196,4 +1207,4 @@ ruff check src/ --fix
 
 ---
 
-*Last updated: 2026-01-02 (Session 72 - Export to Word/PDF)*
+*Last updated: 2026-01-03 (Session 77 - GUI workflow tests, BM25 corpus fix)*

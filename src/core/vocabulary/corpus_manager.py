@@ -239,6 +239,12 @@ class CorpusManager:
 
         if total_docs == 0:
             debug_log("[BM25] No documents could be processed")
+            # Set empty index to prevent infinite rebuild loop
+            # (would otherwise trigger rebuild on every get_idf call)
+            self._idf_index = {"__empty__": 0.0}
+            self._doc_freq = {}
+            self._doc_count = 0
+            self._corpus_hash = current_hash  # Mark as built with this hash
             return False
 
         # Calculate IDF for each term
@@ -345,12 +351,13 @@ class CorpusManager:
             from src.core.extraction import RawTextExtractor
 
             extractor = RawTextExtractor()
-            result = extractor.extract(str(file_path))
+            # Use process_document (not extract) - returns dict with 'status' and 'extracted_text'
+            result = extractor.process_document(str(file_path))
 
-            if result.get("success"):
-                return result.get("text", "")
+            if result.get("status") == "success":
+                return result.get("extracted_text", "")
             else:
-                debug_log(f"[BM25] Extraction failed for {file_path.name}: {result.get('error')}")
+                debug_log(f"[BM25] Extraction failed for {file_path.name}: {result.get('error_message')}")
                 return ""
 
         except Exception as e:
