@@ -108,8 +108,6 @@ Build a **100% offline, private, commercial Windows desktop application** for co
 - License server for commercial distribution
 - Model downloads via Dropbox with quota tracking
 - Batch processing mode (overnight jobs)
-- Export to Word/PDF formats
-- Document prioritization (truncate less important docs when context is limited)
 
 ---
 

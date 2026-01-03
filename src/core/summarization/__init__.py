@@ -6,7 +6,7 @@ everything summarization-related from this package:
 
     from src.core.summarization import (
         # Core components
-        ProgressiveSummarizer, ChunkingEngine,
+        ProgressiveSummarizer,
         # Document-level
         ProgressiveDocumentSummarizer, DocumentSummaryResult,
         # Multi-document
@@ -21,7 +21,7 @@ Architecture:
     │            ↓                                                │
     │  ProgressiveDocumentSummarizer (single doc wrapper)        │
     │            ↓                                                │
-    │  ProgressiveSummarizer → ChunkingEngine                    │
+    │  ProgressiveSummarizer → UnifiedChunker                    │
     │            ↓                                                │
     │  Ollama Model → Chunk Summaries → Final Summary            │
     └─────────────────────────────────────────────────────────────┘
@@ -50,13 +50,10 @@ from .multi_document_orchestrator import MultiDocumentOrchestrator
 
 # Core summarization (re-exported from src root for unified API)
 from src.progressive_summarizer import ProgressiveSummarizer
-from src.chunking_engine import Chunk, ChunkingEngine
 
 __all__ = [
     # Core summarization engine
     'ProgressiveSummarizer',
-    'ChunkingEngine',
-    'Chunk',
     # Result types
     'DocumentSummaryResult',
     'MultiDocumentSummaryResult',

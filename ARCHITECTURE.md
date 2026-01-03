@@ -26,7 +26,7 @@
 ### Fully Implemented ✓
 
 - [x] **GUI/Logic Separation** — All business logic in `src/core/`, services layer in `src/services/` (Session 57)
-- [x] **Document extraction** — PDF (digital + OCR), TXT, RTF via pdfplumber, pytesseract
+- [x] **Document extraction** — PDF (digital + OCR), TXT, RTF, DOCX, PNG/JPG via pdfplumber, pytesseract, python-docx
 - [x] **Character sanitization** — 6-stage pipeline (mojibake, Unicode, transliteration, redactions, control chars, whitespace)
 - [x] **Smart preprocessing** — Title page, headers/footers, line numbers, page numbers, certification blocks, index pages, Q&A notation (Session 71)
 - [x] **Vocabulary extraction** — Dual NER + LLM extraction with reconciliation, "Found By" column
@@ -45,22 +45,22 @@
 - [x] **UI feedback enhancements** — Status bar with auto-clear, task preview label, button flash confirmations (Session 69)
 - [x] **Algorithm optimizations** — O(n²)→O(n²/26) name dedup, LRU caching, pre-compiled regex, thread-safe Q&A workers (Session 70)
 - [x] **FilterChain consolidation** — 6 vocabulary filters unified under VocabularyFilterChain with priority ordering and per-filter stats; CombinedPerTermFilter merges 3→1 pass (Session 71)
+- [x] **Export to Word/PDF** — Vocabulary and Q&A export via python-docx and fpdf2; DocumentBuilder abstraction with verification color support; export dropdown consolidates format buttons (Session 72)
+- [x] **DOCX + Image import** — Word documents via python-docx, PNG/JPG via existing OCR pipeline (Session 73)
+- [x] **Drag-and-drop files** — Drop files onto left panel for processing; tkinterdnd2 integration with CustomTkinter (Session 73)
+- [x] **Combined export** — Single Word/PDF document containing both vocabulary table and Q&A results (Session 73)
+- [x] **Session statistics** — Document stats (files, pages, size) and extraction stats (terms, persons, Q&A count) displayed in left panel (Session 73)
+- [x] **Export UX improvements** — Remember last export folder, auto-open exported files (configurable), Export Settings tab (Session 73)
 
 ### Partially Implemented ⚡
 
 - [ ] **Case Briefing Generator** — Functional but being deprecated from UI
 
-### Deprecated ⚠️
-
-- [x] **ChunkingEngine** — Legacy chunker, use `UnifiedChunker` instead (deprecation warning added)
-
 ### Not Yet Built ○
 
-- [ ] Document prioritization (truncate by HIGH/MEDIUM/LOW importance)
 - [ ] License server integration
 - [ ] Model-aware prompt wrapping (Llama vs Gemma vs Mistral formats)
 - [ ] Batch processing mode
-- [ ] Export to Word/PDF
 
 ---
 
@@ -73,7 +73,7 @@ The codebase follows a strict **GUI/Logic Separation** pattern:
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │  USER INPUT                                                 │
-│  PDF/TXT/RTF Files, Settings, Questions                     │
+│  PDF/TXT/RTF/DOCX/PNG/JPG Files, Settings, Questions        │
 └──────────────────────────┬──────────────────────────────────┘
                            ▼
 ┌─────────────────────────────────────────────────────────────┐
@@ -100,7 +100,7 @@ The codebase follows a strict **GUI/Logic Separation** pattern:
 ```mermaid
 flowchart TB
     subgraph USER["User Input"]
-        Files["PDF/TXT/RTF Files"]
+        Files["PDF/TXT/RTF/DOCX/PNG/JPG Files"]
         Settings["Settings & Preferences"]
         Questions["Default Questions"]
     end
@@ -748,8 +748,7 @@ User's selected prompt template guides every stage:
 | Component | File | Purpose |
 |-----------|------|---------|
 | `ProgressiveSummarizer` | `progressive_summarizer.py` | Chunked summarization |
-| `ChunkingEngine` | `chunking_engine.py` | Text chunking (legacy) |
-| `UnifiedChunker` | `chunking/unified_chunker.py` | Semantic + token chunking |
+| `UnifiedChunker` | `chunking/unified_chunker.py` | Semantic + token chunking (canonical) |
 | `DocumentSummarizer` | `summarization/document_summarizer.py` | Single doc processing |
 | `MultiDocOrchestrator` | `summarization/multi_document_orchestrator.py` | Multi-doc coordination |
 | `AIFocusExtractor` | `prompting/focus_extractor.py` | Extract focus from template |
@@ -879,8 +878,7 @@ src/
 ├── user_preferences.py          # User settings persistence
 ├── system_resources.py          # CPU/RAM detection for worker scaling
 ├── categories.py                # Category definitions
-├── chunking_engine.py           # Legacy chunker (deprecated)
-├── progressive_summarizer.py    # Chunked summarization
+├── progressive_summarizer.py    # Chunked summarization (uses UnifiedChunker)
 │
 ├── core/                        # ALL BUSINESS LOGIC
 │   ├── config/                  # Shared configuration loading
@@ -966,6 +964,13 @@ src/
 │   │   ├── adapters.py          # Stage-specific prompts
 │   │   └── config.py            # Prompt parameters
 │   │
+│   ├── export/                  # Word/PDF export (Session 72)
+│   │   ├── base.py              # DocumentBuilder ABC, TextSpan, verification colors
+│   │   ├── word_builder.py      # python-docx implementation
+│   │   ├── pdf_builder.py       # fpdf2 implementation
+│   │   ├── vocab_exporter.py    # Vocabulary table formatting
+│   │   └── qa_exporter.py       # Q&A formatting with verification colors
+│   │
 │   ├── parallel/                # Parallel processing
 │   │   ├── executor_strategy.py # Strategy pattern
 │   │   ├── task_runner.py       # Task orchestration
@@ -979,7 +984,8 @@ src/
 │   ├── document_service.py      # Document processing
 │   ├── vocabulary_service.py    # Vocabulary extraction
 │   ├── qa_service.py            # Q&A operations
-│   └── settings_service.py      # User preferences
+│   ├── settings_service.py      # User preferences
+│   └── export_service.py        # Word/PDF export (Session 72)
 │
 ├── ui/                          # USER INTERFACE ONLY
 │   ├── main_window.py           # Main window
@@ -1136,4 +1142,4 @@ ruff check src/ --fix
 
 ---
 
-*Last updated: 2026-01-02 (Session 70 - Algorithm optimizations, thread safety fixes)*
+*Last updated: 2026-01-02 (Session 72 - Export to Word/PDF)*

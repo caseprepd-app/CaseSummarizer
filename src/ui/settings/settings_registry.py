@@ -883,6 +883,26 @@ def _register_all_settings():
     ))
 
     # ===================================================================
+    # EXPORT TAB (Session 73)
+    # ===================================================================
+
+    SettingsRegistry.register(SettingDefinition(
+        key="auto_open_exports",
+        label="Auto-open exported files",
+        category="Export",
+        setting_type=SettingType.CHECKBOX,
+        tooltip=(
+            "When enabled, exported files (CSV, Word, PDF, HTML) are "
+            "automatically opened in their default application after export.\n\n"
+            "Disable this if you export many files at once or prefer to "
+            "manually open files."
+        ),
+        default=True,
+        getter=lambda: prefs.get("auto_open_exports", True),
+        setter=lambda v: prefs.set("auto_open_exports", v),
+    ))
+
+    # ===================================================================
     # EXPERIMENTAL TAB (Session 43)
     # Session 62b: LLM setting moved to Performance; only briefing remains here
     # ===================================================================

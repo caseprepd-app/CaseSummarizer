@@ -166,24 +166,15 @@ class QAPanel(ctk.CTkFrame):
         )
         self.copy_btn.pack(side="left", padx=5)
 
-        # Export buttons - TXT and CSV (right side)
-        self.export_csv_btn = ctk.CTkButton(
+        # Session 72: Export dropdown (replaces separate TXT/CSV/Word/PDF buttons)
+        self.export_dropdown = ctk.CTkOptionMenu(
             button_frame,
-            text="Export CSV",
-            command=self._export_to_csv,
-            width=90,
+            values=["Export...", "TXT", "CSV", "Word (.docx)", "PDF", "HTML"],
+            command=self._on_export_format_selected,
+            width=120,
             **BUTTON_STYLES["secondary"]
         )
-        self.export_csv_btn.pack(side="right", padx=5)
-
-        self.export_txt_btn = ctk.CTkButton(
-            button_frame,
-            text="Export TXT",
-            command=self._export_to_txt,
-            width=90,
-            **BUTTON_STYLES["secondary"]
-        )
-        self.export_txt_btn.pack(side="right", padx=5)
+        self.export_dropdown.pack(side="right", padx=5)
 
         # Select All / Deselect All buttons
         self.select_all_btn = ctk.CTkButton(
@@ -474,6 +465,10 @@ class QAPanel(ctk.CTkFrame):
 
     def _export_to_csv(self):
         """Export selected Q&A results to CSV file."""
+        from pathlib import Path
+        from src.user_preferences import get_user_preferences
+        from src.core.utils.text_utils import get_documents_folder
+
         exportable = [r for r in self._results if r.include_in_export]
 
         if not exportable:
@@ -484,10 +479,15 @@ class QAPanel(ctk.CTkFrame):
             )
             return
 
+        # Session 73: Use last export folder or Documents
+        prefs = get_user_preferences()
+        initial_dir = prefs.get("last_export_path") or get_documents_folder()
+
         filepath = filedialog.asksaveasfilename(
             defaultextension=".csv",
             filetypes=[("CSV files", "*.csv"), ("All files", "*.*")],
             initialfile="document_questions.csv",
+            initialdir=initial_dir,
             title="Export Q&A Results"
         )
 
@@ -499,10 +499,8 @@ class QAPanel(ctk.CTkFrame):
             with open(filepath, 'w', encoding='utf-8', newline='') as f:
                 f.write(content)
 
-            # Brief button flash for immediate feedback
-            original_text = self.export_csv_btn.cget("text")
-            self.export_csv_btn.configure(text="Saved!")
-            self.after(1500, lambda: self.export_csv_btn.configure(text=original_text))
+            # Session 73: Remember export folder
+            prefs.set("last_export_path", str(Path(filepath).parent))
 
             # Status bar confirmation (Session 69)
             import os
@@ -523,6 +521,10 @@ class QAPanel(ctk.CTkFrame):
 
     def _export_to_txt(self):
         """Export selected Q&A results to TXT file."""
+        from pathlib import Path
+        from src.user_preferences import get_user_preferences
+        from src.core.utils.text_utils import get_documents_folder
+
         exportable = [r for r in self._results if r.include_in_export]
 
         if not exportable:
@@ -533,10 +535,15 @@ class QAPanel(ctk.CTkFrame):
             )
             return
 
+        # Session 73: Use last export folder or Documents
+        prefs = get_user_preferences()
+        initial_dir = prefs.get("last_export_path") or get_documents_folder()
+
         filepath = filedialog.asksaveasfilename(
             defaultextension=".txt",
             filetypes=[("Text files", "*.txt"), ("All files", "*.*")],
             initialfile="document_questions.txt",
+            initialdir=initial_dir,
             title="Export Q&A Results"
         )
 
@@ -548,10 +555,8 @@ class QAPanel(ctk.CTkFrame):
             with open(filepath, 'w', encoding='utf-8') as f:
                 f.write(content)
 
-            # Brief button flash for immediate feedback
-            original_text = self.export_txt_btn.cget("text")
-            self.export_txt_btn.configure(text="Saved!")
-            self.after(1500, lambda: self.export_txt_btn.configure(text=original_text))
+            # Session 73: Remember export folder
+            prefs.set("last_export_path", str(Path(filepath).parent))
 
             # Status bar confirmation (Session 69)
             import os
@@ -569,6 +574,207 @@ class QAPanel(ctk.CTkFrame):
         except Exception as e:
             messagebox.showerror("Export Error", f"Failed to save file: {e}")
             debug_log(f"[QAPanel] Export error: {e}")
+
+    def _export_to_word(self):
+        """Export selected Q&A results to Word document (Session 71, updated Session 73)."""
+        from pathlib import Path
+        from src.services import get_export_service
+        from src.user_preferences import get_user_preferences
+        from src.core.utils.text_utils import get_documents_folder
+
+        exportable = [r for r in self._results if r.include_in_export]
+
+        if not exportable:
+            messagebox.showwarning(
+                "No Q&A Selected",
+                "Select at least one Q&A pair to export.\n\n"
+                "Click the checkboxes in the Include column."
+            )
+            return
+
+        # Session 73: Use last export folder or Documents
+        prefs = get_user_preferences()
+        initial_dir = prefs.get("last_export_path") or get_documents_folder()
+
+        filepath = filedialog.asksaveasfilename(
+            defaultextension=".docx",
+            filetypes=[("Word documents", "*.docx"), ("All files", "*.*")],
+            initialfile="document_questions.docx",
+            initialdir=initial_dir,
+            title="Export Q&A to Word"
+        )
+
+        if not filepath:
+            return
+
+        try:
+            export_service = get_export_service()
+            success = export_service.export_qa_to_word(exportable, filepath)
+
+            if success:
+                # Session 73: Remember export folder
+                prefs.set("last_export_path", str(Path(filepath).parent))
+
+                # Status bar confirmation
+                import os
+                main_window = self.winfo_toplevel()
+                if hasattr(main_window, 'set_status'):
+                    filename = os.path.basename(filepath)
+                    pair_word = "pair" if len(exportable) == 1 else "pairs"
+                    main_window.set_status(
+                        f"Exported {len(exportable)} Q&A {pair_word} to {filename}",
+                        duration_ms=5000
+                    )
+
+                debug_log(f"[QAPanel] Exported {len(exportable)} Q&A pairs to Word: {filepath}")
+            else:
+                messagebox.showerror("Export Error", "Failed to create Word document.")
+
+        except Exception as e:
+            messagebox.showerror("Export Error", f"Failed to save file: {e}")
+            debug_log(f"[QAPanel] Export error: {e}")
+
+    def _export_to_pdf(self):
+        """Export selected Q&A results to PDF document (Session 71, updated Session 73)."""
+        from pathlib import Path
+        from src.services import get_export_service
+        from src.user_preferences import get_user_preferences
+        from src.core.utils.text_utils import get_documents_folder
+
+        exportable = [r for r in self._results if r.include_in_export]
+
+        if not exportable:
+            messagebox.showwarning(
+                "No Q&A Selected",
+                "Select at least one Q&A pair to export.\n\n"
+                "Click the checkboxes in the Include column."
+            )
+            return
+
+        # Session 73: Use last export folder or Documents
+        prefs = get_user_preferences()
+        initial_dir = prefs.get("last_export_path") or get_documents_folder()
+
+        filepath = filedialog.asksaveasfilename(
+            defaultextension=".pdf",
+            filetypes=[("PDF documents", "*.pdf"), ("All files", "*.*")],
+            initialfile="document_questions.pdf",
+            initialdir=initial_dir,
+            title="Export Q&A to PDF"
+        )
+
+        if not filepath:
+            return
+
+        try:
+            export_service = get_export_service()
+            success = export_service.export_qa_to_pdf(exportable, filepath)
+
+            if success:
+                # Session 73: Remember export folder
+                prefs.set("last_export_path", str(Path(filepath).parent))
+
+                # Status bar confirmation
+                import os
+                main_window = self.winfo_toplevel()
+                if hasattr(main_window, 'set_status'):
+                    filename = os.path.basename(filepath)
+                    pair_word = "pair" if len(exportable) == 1 else "pairs"
+                    main_window.set_status(
+                        f"Exported {len(exportable)} Q&A {pair_word} to {filename}",
+                        duration_ms=5000
+                    )
+
+                debug_log(f"[QAPanel] Exported {len(exportable)} Q&A pairs to PDF: {filepath}")
+            else:
+                messagebox.showerror("Export Error", "Failed to create PDF document.")
+
+        except Exception as e:
+            messagebox.showerror("Export Error", f"Failed to save file: {e}")
+            debug_log(f"[QAPanel] Export error: {e}")
+
+    def _export_to_html(self):
+        """Export selected Q&A results to interactive HTML file (Session 72, updated Session 73)."""
+        from pathlib import Path
+        from src.services import get_export_service
+        from src.user_preferences import get_user_preferences
+        from src.core.utils.text_utils import get_documents_folder
+
+        exportable = [r for r in self._results if r.include_in_export]
+
+        if not exportable:
+            messagebox.showwarning(
+                "No Q&A Selected",
+                "Select at least one Q&A pair to export.\n\n"
+                "Click the checkboxes in the Include column."
+            )
+            return
+
+        # Session 73: Use last export folder or Documents
+        prefs = get_user_preferences()
+        initial_dir = prefs.get("last_export_path") or get_documents_folder()
+
+        filepath = filedialog.asksaveasfilename(
+            defaultextension=".html",
+            filetypes=[("HTML files", "*.html"), ("All files", "*.*")],
+            initialfile="document_questions.html",
+            initialdir=initial_dir,
+            title="Export Q&A to HTML"
+        )
+
+        if not filepath:
+            return
+
+        try:
+            export_service = get_export_service()
+            success = export_service.export_qa_to_html(exportable, filepath)
+
+            if success:
+                # Session 73: Remember export folder
+                prefs.set("last_export_path", str(Path(filepath).parent))
+
+                # Status bar confirmation
+                import os
+                main_window = self.winfo_toplevel()
+                if hasattr(main_window, 'set_status'):
+                    filename = os.path.basename(filepath)
+                    pair_word = "pair" if len(exportable) == 1 else "pairs"
+                    main_window.set_status(
+                        f"Exported {len(exportable)} Q&A {pair_word} to {filename}",
+                        duration_ms=5000
+                    )
+
+                debug_log(f"[QAPanel] Exported {len(exportable)} Q&A pairs to HTML: {filepath}")
+            else:
+                messagebox.showerror("Export Error", "Failed to create HTML file.")
+
+        except Exception as e:
+            messagebox.showerror("Export Error", f"Failed to save file: {e}")
+            debug_log(f"[QAPanel] Export error: {e}")
+
+    def _on_export_format_selected(self, choice: str):
+        """
+        Handle export format selection from dropdown (Session 72).
+
+        Args:
+            choice: Selected format ("Export...", "TXT", "CSV", "Word (.docx)", "PDF", "HTML")
+        """
+        if choice == "Export...":
+            return  # Placeholder, do nothing
+
+        if choice == "TXT":
+            self._export_to_txt()
+        elif choice == "CSV":
+            self._export_to_csv()
+        elif choice == "Word (.docx)":
+            self._export_to_word()
+        elif choice == "PDF":
+            self._export_to_pdf()
+        elif choice == "HTML":
+            self._export_to_html()
+
+        # Reset dropdown to placeholder
+        self.export_dropdown.set("Export...")
 
     def _format_csv_export(self, results: list[QAResult]) -> str:
         """

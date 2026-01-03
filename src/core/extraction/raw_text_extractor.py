@@ -1,13 +1,15 @@
 """
 Raw Text Extraction Module
 
-Extracts raw text from legal documents (PDF, TXT, RTF) and applies basic
-normalization (de-hyphenation, page number removal, whitespace normalization).
+Extracts raw text from legal documents (PDF, DOCX, TXT, RTF, PNG, JPG) and applies
+basic normalization (de-hyphenation, page number removal, whitespace normalization).
 
 This module implements Steps 1-2 of the document processing pipeline:
-- Step 1: Extract text from files (PDF digital/OCR, TXT, RTF)
+- Step 1: Extract text from files (PDF digital/OCR, DOCX, TXT, RTF, PNG/JPG via OCR)
 - Step 2: Apply basic text normalization (OCR error fixing, structural normalization)
 - Step 2.5: Character sanitization (fix mojibake, remove control chars, redaction handling)
+
+Session 73: Added DOCX and direct image (PNG/JPG) import support.
 
 This module can be used standalone via command line or as part of the larger document processing pipeline.
 """
@@ -195,9 +197,15 @@ class RawTextExtractor:
                     result.update(self._process_text_file(file_path))
                 elif file_extension == '.pdf':
                     result.update(self._process_pdf(file_path))
+                elif file_extension == '.docx':
+                    # Session 73: DOCX import support
+                    result.update(self._process_docx(file_path))
+                elif file_extension in ['.png', '.jpg', '.jpeg']:
+                    # Session 73: Direct image import support (OCR)
+                    result.update(self._process_image(file_path))
                 else:
                     result['status'] = 'error'
-                    result['error_message'] = f"Unsupported file type: {file_extension}. Supported formats: PDF, TXT, RTF"
+                    result['error_message'] = f"Unsupported file type: {file_extension}. Supported formats: PDF, DOCX, TXT, RTF, PNG, JPG"
                     error(result['error_message'])
                     return result
 
@@ -289,6 +297,119 @@ class RawTextExtractor:
             return {
                 'status': 'error',
                 'error_message': f"Failed to read text file: {str(e)}"
+            }
+
+    def _process_docx(self, file_path: Path) -> dict:
+        """
+        Process Word document (.docx).
+
+        Session 73: DOCX import support using python-docx (already installed for export).
+
+        Args:
+            file_path: Path to the DOCX file
+
+        Returns:
+            Dict with extracted text, method, status, confidence
+        """
+        debug(f"Processing as Word document: {file_path.name}")
+
+        try:
+            from docx import Document
+
+            doc = Document(file_path)
+
+            # Extract text from all paragraphs
+            paragraphs = [p.text for p in doc.paragraphs if p.text.strip()]
+            text = "\n".join(paragraphs)
+
+            # Also extract text from tables
+            for table in doc.tables:
+                for row in table.rows:
+                    row_text = [cell.text.strip() for cell in row.cells if cell.text.strip()]
+                    if row_text:
+                        text += "\n" + " | ".join(row_text)
+
+            if not text.strip():
+                return {
+                    'status': 'error',
+                    'error_message': "Word document contains no readable text."
+                }
+
+            # Calculate text quality confidence
+            confidence = self._calculate_dictionary_confidence(text)
+            debug(f"DOCX dictionary confidence: {confidence:.1f}%")
+
+            return {
+                'method': 'docx_extraction',
+                'confidence': int(confidence),
+                'extracted_text': text,
+                'page_count': len(doc.sections) or 1,  # Approximate page count
+                'status': 'success'
+            }
+
+        except Exception as e:
+            return {
+                'status': 'error',
+                'error_message': f"Failed to read Word document: {str(e)}"
+            }
+
+    def _process_image(self, file_path: Path) -> dict:
+        """
+        Process image file (.png, .jpg, .jpeg) using OCR.
+
+        Session 73: Direct image import support. Reuses existing OCR pipeline
+        with image preprocessing.
+
+        Args:
+            file_path: Path to the image file
+
+        Returns:
+            Dict with extracted text, method, status, confidence
+        """
+        debug(f"Processing as image: {file_path.name}")
+
+        try:
+            from PIL import Image
+
+            # Load image
+            img = Image.open(file_path)
+
+            # Preprocess image using existing pipeline
+            if OCR_PREPROCESSING_ENABLED:
+                preprocessor = ImagePreprocessor(
+                    denoise_strength=OCR_DENOISE_STRENGTH,
+                    enable_clahe=OCR_ENABLE_CLAHE
+                )
+                processed_img = preprocessor.preprocess(img)
+                debug(f"Image preprocessing applied: {preprocessor.stats}")
+            else:
+                processed_img = img.convert("L")  # At minimum convert to grayscale
+
+            # Perform OCR
+            text = pytesseract.image_to_string(processed_img)
+
+            if not text.strip():
+                return {
+                    'status': 'error',
+                    'error_message': "Could not extract text from image. Image may not contain readable text."
+                }
+
+            # Calculate OCR quality confidence
+            confidence = self._calculate_dictionary_confidence(text)
+            debug(f"Image OCR dictionary confidence: {confidence:.1f}%")
+
+            return {
+                'method': 'image_ocr',
+                'confidence': int(confidence),
+                'extracted_text': text,
+                'page_count': 1,
+                'status': 'success' if confidence >= OCR_CONFIDENCE_THRESHOLD else 'warning'
+            }
+
+        except Exception as e:
+            return {
+                'status': 'error',
+                'error_message': f"Failed to process image: {str(e)}"
             }
 
     def _process_pdf(self, file_path: Path) -> dict:

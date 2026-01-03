@@ -24,6 +24,8 @@ from tkinter import filedialog, messagebox
 
 import customtkinter as ctk
 
+from pathlib import Path
+
 from src.config import DEBUG_MODE, PROMPTS_DIR
 from src.logging_config import debug_log
 from src.core.ai import OllamaModelManager
@@ -34,6 +36,13 @@ from src.ui.window_layout import WindowLayoutMixin
 from src.core.vocabulary import get_corpus_registry
 from src.core.vector_store import VectorStoreBuilder
 from src.ui.tooltip_manager import tooltip_manager
+
+# Try to import tkinterdnd2 for drag-and-drop support (Session 73)
+try:
+    from tkinterdnd2 import DND_FILES, TkinterDnD
+    HAS_DND = True
+except ImportError:
+    HAS_DND = False
 
 
 class MainWindow(WindowLayoutMixin, ctk.CTk):
@@ -103,13 +112,17 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         self._update_default_questions_label()  # Set initial question count
         self._update_vocab_llm_checkbox_state()  # Set LLM checkbox based on settings/GPU
 
+        # Initialize drag-and-drop support (Session 73)
+        self._setup_drag_drop()
+
         # Startup checks and status updates
         self._check_ollama_service()
         self._update_ollama_status()
         self._update_model_display()
 
         if DEBUG_MODE:
-            debug_log("[MainWindow] Initialized with two-panel layout")
+            dnd_status = "enabled" if HAS_DND else "disabled (tkinterdnd2 not installed)"
+            debug_log(f"[MainWindow] Initialized with two-panel layout, drag-drop {dnd_status}")
 
     # =========================================================================
     # Ollama Status & Model Display
@@ -351,15 +364,108 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
     # File Management
     # =========================================================================
 
+    def _setup_drag_drop(self):
+        """
+        Initialize drag-and-drop file support (Session 73).
+
+        Registers the file table area as a drop target for files.
+        Requires tkinterdnd2 library to be installed.
+        """
+        if not HAS_DND:
+            if DEBUG_MODE:
+                debug_log("[MainWindow] Drag-drop disabled: tkinterdnd2 not installed")
+            return
+
+        try:
+            # Initialize TkinterDnD on the underlying Tk instance
+            # This approach works with CustomTkinter
+            TkinterDnD._require(self)
+
+            # Register the left panel (file table area) as a drop target
+            self.left_panel.drop_target_register(DND_FILES)
+            self.left_panel.dnd_bind('<<Drop>>', self._on_file_drop)
+
+            if DEBUG_MODE:
+                debug_log("[MainWindow] Drag-drop enabled on file table area")
+
+        except Exception as e:
+            if DEBUG_MODE:
+                debug_log(f"[MainWindow] Failed to initialize drag-drop: {e}")
+
+    def _on_file_drop(self, event):
+        """
+        Handle files dropped onto the file table area (Session 73).
+
+        Args:
+            event: Drop event containing file paths
+        """
+        # Parse the dropped file paths
+        # tkinterdnd2 provides paths as a space-separated string or Tcl list
+        raw_data = event.data
+
+        # Handle Tcl list format (paths with spaces are enclosed in braces)
+        if '{' in raw_data:
+            # Parse as Tcl list - paths with spaces are in braces
+            paths = []
+            i = 0
+            while i < len(raw_data):
+                if raw_data[i] == '{':
+                    # Find closing brace
+                    end = raw_data.index('}', i)
+                    paths.append(raw_data[i+1:end])
+                    i = end + 1
+                elif raw_data[i] == ' ':
+                    i += 1
+                else:
+                    # Find next space or end
+                    end = raw_data.find(' ', i)
+                    if end == -1:
+                        end = len(raw_data)
+                    paths.append(raw_data[i:end])
+                    i = end
+        else:
+            # Simple space-separated paths (no spaces in filenames)
+            paths = raw_data.split()
+
+        # Filter to supported file types
+        supported_extensions = {'.pdf', '.txt', '.rtf', '.docx', '.png', '.jpg', '.jpeg'}
+        valid_files = []
+        for path in paths:
+            ext = Path(path).suffix.lower()
+            if ext in supported_extensions and Path(path).is_file():
+                valid_files.append(path)
+
+        if not valid_files:
+            self.set_status("No supported files dropped (PDF, TXT, RTF, DOCX, PNG, JPG)")
+            return
+
+        if DEBUG_MODE:
+            debug_log(f"[MainWindow] Files dropped: {len(valid_files)} valid files")
+
+        # Hide Export All / Combined Report buttons when new files are dropped
+        if self._export_all_visible:
+            self.export_all_btn.pack_forget()
+            self._export_all_visible = False
+        if self._combined_report_visible:
+            self.combined_report_btn.pack_forget()
+            self._combined_report_visible = False
+
+        # Process the dropped files
+        self.selected_files = valid_files
+        self.set_status(f"Processing {len(valid_files)} dropped file(s)...")
+        self._start_preprocessing()
+
     def _select_files(self):
         """Open file dialog to select documents for this session."""
         files = filedialog.askopenfilenames(
             title="Select Documents for This Session",
             filetypes=[
-                ("Documents", "*.pdf *.txt *.rtf"),
+                ("Documents", "*.pdf *.txt *.rtf *.docx"),
                 ("PDF files", "*.pdf"),
+                ("Word documents", "*.docx"),
                 ("Text files", "*.txt"),
                 ("RTF files", "*.rtf"),
+                ("Images (OCR)", "*.png *.jpg *.jpeg"),
                 ("All files", "*.*")
             ]
         )
@@ -367,10 +473,13 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         if not files:
             return
 
-        # Hide Export All button when new files are selected
+        # Hide Export All / Combined Report buttons when new files are selected
         if self._export_all_visible:
             self.export_all_btn.pack_forget()
             self._export_all_visible = False
+        if self._combined_report_visible:
+            self.combined_report_btn.pack_forget()
+            self._combined_report_visible = False
 
         self.selected_files = list(files)
         self.set_status(f"Processing {len(files)} file(s)...")
@@ -382,6 +491,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         self.processing_results.clear()
         self.file_table.clear()
         self._update_generate_button_state()
+        self._update_session_stats()  # Clear stats display
         self.set_status("Files cleared")
 
     def _start_preprocessing(self):
@@ -577,6 +687,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             status += f", {failed_count} failed"
 
         self.set_status(status)
+        self._update_session_stats()  # Show document stats
 
     # =========================================================================
     # Task Execution
@@ -824,6 +935,70 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
     def refresh_default_questions_label(self):
         """Refresh the default questions checkbox label. Called after editing questions."""
         self._update_default_questions_label()
+
+    def _update_session_stats(self, extraction_stats: dict | None = None):
+        """
+        Update the session stats display (Session 73).
+
+        Shows document stats (file count, pages, size) and extraction stats
+        (term count, person count, Q&A count) after processing.
+
+        Args:
+            extraction_stats: Optional dict with extraction results:
+                - vocab_count: Total vocabulary terms
+                - person_count: Terms marked as persons
+                - qa_count: Number of Q&A results
+                - processing_time: Time in seconds
+        """
+        if not self.processing_results:
+            self.stats_label.configure(text="")
+            return
+
+        # Document stats from processing_results
+        file_count = len(self.processing_results)
+        success_count = sum(1 for r in self.processing_results if r.get('status') == 'success')
+        total_pages = sum(r.get('page_count', 0) or 0 for r in self.processing_results)
+        total_size = sum(r.get('file_size', 0) or 0 for r in self.processing_results)
+
+        # Format file size
+        if total_size >= 1024 * 1024:
+            size_str = f"{total_size / (1024 * 1024):.1f} MB"
+        elif total_size >= 1024:
+            size_str = f"{total_size / 1024:.0f} KB"
+        else:
+            size_str = f"{total_size} B"
+
+        # Build stats text
+        parts = [f"{success_count}/{file_count} files"]
+        if total_pages > 0:
+            parts.append(f"{total_pages} pages")
+        parts.append(size_str)
+
+        stats_text = " · ".join(parts)
+
+        # Add extraction stats if available
+        if extraction_stats:
+            ext_parts = []
+            if extraction_stats.get('vocab_count', 0) > 0:
+                v = extraction_stats['vocab_count']
+                p = extraction_stats.get('person_count', 0)
+                ext_parts.append(f"{v} terms ({p} persons)")
+            if extraction_stats.get('qa_count', 0) > 0:
+                ext_parts.append(f"{extraction_stats['qa_count']} Q&A")
+            if extraction_stats.get('processing_time'):
+                t = extraction_stats['processing_time']
+                if t >= 60:
+                    ext_parts.append(f"{t/60:.1f}m")
+                else:
+                    ext_parts.append(f"{t:.1f}s")
+
+            if ext_parts:
+                stats_text += "\n" + " · ".join(ext_parts)
+
+        self.stats_label.configure(text=stats_text)
+
+        if DEBUG_MODE:
+            debug_log(f"[MainWindow] Session stats: {stats_text.replace(chr(10), ' | ')}")
 
     def _perform_tasks(self):
         """Execute the selected tasks using progressive three-phase architecture (Session 45)."""
@@ -1272,12 +1447,48 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         if self.qa_check.get() and success:
             self.followup_btn.configure(state="normal")
 
-        # Show Export All button after successful processing
+        # Show Export All and Combined Report buttons after successful processing
         if success and not self._export_all_visible:
             self.export_all_btn.pack(side="right", padx=10, pady=3)
             self._export_all_visible = True
+        if success and not self._combined_report_visible:
+            self.combined_report_btn.pack(side="right", padx=5, pady=3)
+            self._combined_report_visible = True
+
+        # Update session stats with extraction results (Session 73)
+        if success:
+            extraction_stats = self._gather_extraction_stats()
+            self._update_session_stats(extraction_stats)
 
         self.set_status(message)
+
+    def _gather_extraction_stats(self) -> dict:
+        """
+        Gather extraction statistics after task completion (Session 73).
+
+        Returns:
+            Dict with vocab_count, person_count, qa_count, processing_time
+        """
+        stats = {}
+
+        # Vocabulary stats from output display
+        vocab_data = getattr(self.output_display, '_vocab_csv_data', None)
+        if vocab_data:
+            stats['vocab_count'] = len(vocab_data)
+            stats['person_count'] = sum(
+                1 for v in vocab_data
+                if v.get('Is Person', '').lower() in ('yes', 'true', '1')
+            )
+
+        # Q&A stats
+        if self._qa_results:
+            stats['qa_count'] = len(self._qa_results)
+
+        # Processing time
+        if self._processing_start_time:
+            stats['processing_time'] = time.time() - self._processing_start_time
+
+        return stats
 
     def _ask_followup(self):
         """Ask a follow-up question using the Q&A system (async version)."""
@@ -1502,6 +1713,77 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             debug_log(f"[MainWindow] Export All: {exported}")
         else:
             messagebox.showwarning("No Data", "No results to export yet.")
+
+    def _export_combined_report(self):
+        """
+        Export vocabulary and Q&A together in a single Word document.
+
+        Session 73: Combined export feature - creates unified report.
+        """
+        from datetime import datetime
+        from pathlib import Path
+        from tkinter import filedialog
+        from src.services import get_export_service
+        from src.user_preferences import get_user_preferences
+        from src.core.utils.text_utils import get_documents_folder
+
+        # Gather data
+        vocab_data = self.output_display._outputs.get("Names & Vocabulary", [])
+        qa_results = []
+        if self._qa_results:
+            qa_panel = self.output_display._qa_panel
+            if qa_panel and qa_panel._results:
+                qa_results = qa_panel._results
+
+        if not vocab_data and not qa_results:
+            messagebox.showwarning("No Data", "No results to export yet.")
+            return
+
+        # Get initial directory (last export path or Documents)
+        prefs = get_user_preferences()
+        initial_dir = prefs.get("last_export_path") or get_documents_folder()
+
+        # Ask for save location with format choice
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filepath = filedialog.asksaveasfilename(
+            defaultextension=".docx",
+            filetypes=[
+                ("Word documents", "*.docx"),
+                ("PDF documents", "*.pdf"),
+                ("All files", "*.*")
+            ],
+            initialfile=f"combined_report_{timestamp}.docx",
+            initialdir=initial_dir,
+            title="Export Combined Report"
+        )
+
+        if not filepath:
+            return
+
+        # Determine format from extension
+        export_service = get_export_service()
+        ext = Path(filepath).suffix.lower()
+
+        if ext == ".pdf":
+            success = export_service.export_combined_to_pdf(vocab_data, qa_results, filepath)
+        else:
+            success = export_service.export_combined_to_word(vocab_data, qa_results, filepath)
+
+        if success:
+            # Remember export folder
+            prefs.set("last_export_path", str(Path(filepath).parent))
+
+            # Flash button and status
+            self.combined_report_btn.configure(text="Exported!")
+            self.after(1500, lambda: self.combined_report_btn.configure(text="Combined Report"))
+
+            filename = Path(filepath).name
+            term_count = len(vocab_data)
+            qa_count = len(qa_results)
+            self.set_status(f"Combined report: {term_count} terms + {qa_count} Q&A → {filename}", duration_ms=5000)
+            debug_log(f"[MainWindow] Combined report exported: {filepath}")
+        else:
+            messagebox.showerror("Export Failed", "Failed to create combined report.")
 
     # =========================================================================
     # Timer

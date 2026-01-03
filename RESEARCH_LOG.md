@@ -901,7 +901,7 @@ Replaced 9 duplicate implementations across: `question_flow.py`, `qa_orchestrato
 
 ### Phase 2: Chunking Consolidation
 - **UnifiedChunker** designated as CANONICAL (token-aware via tiktoken)
-- **ChunkingEngine** deprecated with warning (legacy, will be removed)
+- **ChunkingEngine** removed (Session 71) — `ProgressiveSummarizer` now uses `UnifiedChunker`
 - Removed `briefing/chunker.py` (part of deprecated briefing system)
 
 ### Phase 3: Business Logic to `src/core/`
@@ -1548,6 +1548,8 @@ When the user maximized while vocabulary was loading (~156 items = 31 batches), 
 **Decision:** Keep separate chunkers. `DocumentChunker` for extraction, `ChunkingEngine` for summarization.
 
 **Why:** Legal section structure matters for extraction (PARTIES vs ALLEGATIONS have different meaning). `DocumentChunker` has 45 legal-specific regex patterns vs 8 in `ChunkingEngine`. Neither uses true embedding-based semantic splitting—both are regex-based.
+
+**UPDATE (Session 71):** `ChunkingEngine` removed. `UnifiedChunker` is now the canonical chunker for all use cases — it uses true embedding-based semantic splitting (LangChain SemanticChunker with gradient breakpoints) plus token enforcement (400-1000 tokens).
 
 ---
 

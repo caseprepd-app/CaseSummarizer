@@ -201,16 +201,27 @@ class WindowLayoutMixin:
         )
         self.clear_files_btn.pack(side="left")
 
+        # Session Stats section (Session 73)
+        self.stats_label = ctk.CTkLabel(
+            self.left_panel,
+            text="",
+            font=FONTS["small"],
+            text_color=COLORS["text_secondary"],
+            justify="left",
+            anchor="w"
+        )
+        self.stats_label.grid(row=3, column=0, sticky="w", padx=10, pady=(5, 0))
+
         # Task checkboxes section
         task_header = ctk.CTkLabel(
             self.left_panel,
             text="TASKS",
             font=FONTS["body_bold"]
         )
-        task_header.grid(row=3, column=0, sticky="w", padx=10, pady=(15, 5))
+        task_header.grid(row=4, column=0, sticky="w", padx=10, pady=(10, 5))
 
         task_frame = ctk.CTkFrame(self.left_panel, **FRAME_STYLES["transparent"])
-        task_frame.grid(row=4, column=0, sticky="ew", padx=10, pady=0)
+        task_frame.grid(row=5, column=0, sticky="ew", padx=10, pady=0)
 
         # Vocabulary checkbox (default ON) - moved to first position
         self.vocab_check = ctk.CTkCheckBox(
@@ -265,7 +276,7 @@ class WindowLayoutMixin:
             height=40,
             command=self._perform_tasks
         )
-        self.generate_btn.grid(row=5, column=0, sticky="ew", padx=10, pady=(15, 5))
+        self.generate_btn.grid(row=6, column=0, sticky="ew", padx=10, pady=(15, 5))
 
         # Task preview label (Session 69) - shows what will run
         self.task_preview_label = ctk.CTkLabel(
@@ -276,7 +287,7 @@ class WindowLayoutMixin:
             wraplength=280,  # Allow text to wrap
             justify="left"
         )
-        self.task_preview_label.grid(row=6, column=0, sticky="w", padx=10, pady=(0, 10))
+        self.task_preview_label.grid(row=7, column=0, sticky="w", padx=10, pady=(0, 10))
 
     def _create_right_panel(self):
         """Create the right panel with results display."""
@@ -379,6 +390,19 @@ class WindowLayoutMixin:
         )
         # Hidden initially - shown after processing completes
         self._export_all_visible = False
+
+        # Combined Report button (Session 73: single document with vocab + Q&A)
+        self.combined_report_btn = ctk.CTkButton(
+            self.status_frame,
+            text="Combined Report",
+            command=self._export_combined_report,
+            width=110,
+            height=24,
+            font=FONTS["small"],
+            **BUTTON_STYLES["secondary"]
+        )
+        # Hidden initially - shown after processing completes
+        self._combined_report_visible = False
 
         # Corpus info (middle)
         self.corpus_info_label = ctk.CTkLabel(

@@ -226,6 +226,7 @@ DOCUMENT CHUNK:
         Extract people and vocabulary from text using single LLM prompt per chunk.
 
         Results are stored in memory as lists of LLMPerson and LLMTerm objects.
+        Session 69: Uses parallel processing when beneficial.
 
         Args:
             text: Full document text to process
@@ -236,8 +237,6 @@ DOCUMENT CHUNK:
             LLMExtractionResult with all extracted people and terms
         """
         start_time = time.time()
-        all_people: list[LLMPerson] = []
-        all_terms: list[LLMTerm] = []
 
         # Chunk the text
         chunks = self._chunk_text(text, chunk_size_chars)
@@ -245,18 +244,13 @@ DOCUMENT CHUNK:
 
         debug_log(f"[LLMVocabExtractor] Processing {chunk_count} chunks")
 
-        for i, chunk in enumerate(chunks):
-            if progress_callback:
-                progress_callback(i + 1, chunk_count)
+        # Convert to (chunk_text, chunk_id) tuples for parallel processing
+        chunk_items = [(chunk, i) for i, chunk in enumerate(chunks)]
 
-            chunk_people, chunk_terms = self._extract_chunk(chunk, i)
-            all_people.extend(chunk_people)
-            all_terms.extend(chunk_terms)
-
-            debug_log(
-                f"[LLMVocabExtractor] Chunk {i+1}/{chunk_count}: "
-                f"extracted {len(chunk_people)} people, {len(chunk_terms)} terms"
-            )
+        # Use parallel extraction (Session 69)
+        all_people, all_terms = self._extract_chunks_parallel(
+            chunk_items, progress_callback
+        )
 
         processing_time = (time.time() - start_time) * 1000
 
@@ -432,6 +426,7 @@ DOCUMENT CHUNK:
         Extract people and vocabulary from pre-chunked text.
 
         Use this when you already have document chunks as plain strings.
+        Session 69: Uses parallel processing when beneficial.
 
         Args:
             chunks: List of text chunks
@@ -441,19 +436,17 @@ DOCUMENT CHUNK:
             LLMExtractionResult with all extracted people and terms
         """
         start_time = time.time()
-        all_people: list[LLMPerson] = []
-        all_terms: list[LLMTerm] = []
         chunk_count = len(chunks)
 
         debug_log(f"[LLMVocabExtractor] Processing {chunk_count} pre-chunked segments")
 
-        for i, chunk in enumerate(chunks):
-            if progress_callback:
-                progress_callback(i + 1, chunk_count)
+        # Convert to (chunk_text, chunk_id) tuples for parallel processing
+        chunk_items = [(chunk, i) for i, chunk in enumerate(chunks)]
 
-            chunk_people, chunk_terms = self._extract_chunk(chunk, i)
-            all_people.extend(chunk_people)
-            all_terms.extend(chunk_terms)
+        # Use parallel extraction (Session 69)
+        all_people, all_terms = self._extract_chunks_parallel(
+            chunk_items, progress_callback
+        )
 
         processing_time = (time.time() - start_time) * 1000
 
@@ -474,7 +467,8 @@ DOCUMENT CHUNK:
         Extract people and vocabulary from UnifiedChunk objects (Session 45).
 
         Use this when you have chunks from UnifiedChunker for integrated
-        processing with Q&A indexing.
+        processing with Q&A indexing. Session 69: Uses parallel processing
+        when beneficial.
 
         Args:
             chunks: List of UnifiedChunk objects from unified_chunker
@@ -484,28 +478,21 @@ DOCUMENT CHUNK:
             LLMExtractionResult with all extracted people and terms
         """
         start_time = time.time()
-        all_people: list[LLMPerson] = []
-        all_terms: list[LLMTerm] = []
         chunk_count = len(chunks)
 
         debug_log(f"[LLMVocabExtractor] Processing {chunk_count} unified chunks")
 
+        # Convert UnifiedChunk objects to (chunk_text, chunk_id) tuples
+        chunk_items = []
         for i, chunk in enumerate(chunks):
-            if progress_callback:
-                progress_callback(i + 1, chunk_count)
-
-            # UnifiedChunk has .text attribute
             chunk_text = chunk.text if hasattr(chunk, 'text') else str(chunk)
             chunk_id = chunk.chunk_num if hasattr(chunk, 'chunk_num') else i
+            chunk_items.append((chunk_text, chunk_id))
 
-            chunk_people, chunk_terms = self._extract_chunk(chunk_text, chunk_id)
-            all_people.extend(chunk_people)
-            all_terms.extend(chunk_terms)
-
-            debug_log(
-                f"[LLMVocabExtractor] Chunk {i+1}/{chunk_count}: "
-                f"extracted {len(chunk_people)} people, {len(chunk_terms)} terms"
-            )
+        # Use parallel extraction (Session 69)
+        all_people, all_terms = self._extract_chunks_parallel(
+            chunk_items, progress_callback
+        )
 
         processing_time = (time.time() - start_time) * 1000
 
@@ -521,3 +508,120 @@ DOCUMENT CHUNK:
             processing_time_ms=processing_time,
             success=True,
         )
+
+    def _extract_chunks_parallel(
+        self,
+        chunk_items: list[tuple[str, int]],
+        progress_callback: Optional[Callable[[int, int], None]] = None,
+    ) -> tuple[list[LLMPerson], list[LLMTerm]]:
+        """
+        Process chunks in parallel when beneficial (Session 69).
+
+        Uses ThreadPoolStrategy to process 2-3 chunks concurrently.
+        Falls back to sequential execution when:
+        - Only 1 chunk to process
+        - System has only 1 CPU core
+
+        Args:
+            chunk_items: List of (chunk_text, chunk_id) tuples
+            progress_callback: Optional callback(current, total)
+
+        Returns:
+            Tuple of (all_people, all_terms) collected from all chunks
+        """
+        import os
+        import threading
+        from src.core.parallel.executor_strategy import ThreadPoolStrategy
+        from src.core.parallel.task_runner import ParallelTaskRunner
+        from src.system_resources import get_optimal_workers
+
+        chunk_count = len(chunk_items)
+
+        if chunk_count == 0:
+            return [], []
+
+        # Decide whether to parallelize
+        cpu_count = os.cpu_count() or 1
+        use_parallel = chunk_count > 1 and cpu_count > 1
+
+        if not use_parallel:
+            # Sequential fallback
+            debug_log(f"[LLMVocabExtractor] Processing {chunk_count} chunk(s) sequentially")
+            all_people = []
+            all_terms = []
+            for i, (chunk_text, chunk_id) in enumerate(chunk_items):
+                if progress_callback:
+                    progress_callback(i + 1, chunk_count)
+
+                chunk_people, chunk_terms = self._extract_chunk(chunk_text, chunk_id)
+                all_people.extend(chunk_people)
+                all_terms.extend(chunk_terms)
+
+                debug_log(
+                    f"[LLMVocabExtractor] Chunk {i+1}/{chunk_count}: "
+                    f"extracted {len(chunk_people)} people, {len(chunk_terms)} terms"
+                )
+
+            return all_people, all_terms
+
+        # Parallel execution
+        # Limit workers to avoid overloading Ollama (2-3 concurrent LLM calls max)
+        workers = min(
+            chunk_count,
+            get_optimal_workers(task_ram_gb=2.0, max_workers=3, min_workers=2)
+        )
+        debug_log(f"[LLMVocabExtractor] Processing {chunk_count} chunks in parallel ({workers} workers)")
+
+        # Thread-safe result accumulation
+        all_people = []
+        all_terms = []
+        results_lock = threading.Lock()
+        completed_count = [0]
+
+        def extract_single_chunk(args):
+            """Worker function to extract from a single chunk."""
+            chunk_text, chunk_id = args
+            people, terms = self._extract_chunk(chunk_text, chunk_id)
+            return (chunk_id, people, terms)
+
+        strategy = ThreadPoolStrategy(max_workers=workers)
+
+        try:
+            # Build items: (task_id, (chunk_text, chunk_id))
+            items = [(f"chunk_{chunk_id}", (chunk_text, chunk_id))
+                     for chunk_text, chunk_id in chunk_items]
+
+            def on_complete(task_id: str, result):
+                """Callback when chunk completes - accumulate results."""
+                chunk_id, chunk_people, chunk_terms = result
+
+                with results_lock:
+                    all_people.extend(chunk_people)
+                    all_terms.extend(chunk_terms)
+                    completed_count[0] += 1
+                    count = completed_count[0]
+
+                # Progress callback
+                if progress_callback:
+                    progress_callback(count, chunk_count)
+
+                debug_log(
+                    f"[LLMVocabExtractor] Chunk {count}/{chunk_count}: "
+                    f"extracted {len(chunk_people)} people, {len(chunk_terms)} terms"
+                )
+
+            runner = ParallelTaskRunner(
+                strategy=strategy,
+                on_task_complete=on_complete
+            )
+            task_results = runner.run(extract_single_chunk, items)
+
+            # Log any failures
+            for task_result in task_results:
+                if not task_result.success:
+                    debug_log(f"[LLMVocabExtractor] Chunk {task_result.task_id} failed: {task_result.error}")
+
+            return all_people, all_terms
+
+        finally:
+            strategy.shutdown(wait=True)

@@ -73,7 +73,8 @@ class TestRawTextExtractor:
     def test_unsupported_file_type(self, extractor, tmp_path):
         """Test processing an unsupported file type."""
         # Create a dummy file with unsupported extension
-        test_file = tmp_path / "test.docx"
+        # Note: Session 73 added support for DOCX and PNG/JPG, so use .xyz
+        test_file = tmp_path / "test.xyz"
         test_file.write_text("test content")
 
         result = extractor.process_document(str(test_file))
@@ -225,7 +226,8 @@ class TestImprovedErrorMessages:
 
     def test_unsupported_file_type_message(self, extractor, tmp_path):
         """Test error message for unsupported file types."""
-        test_file = tmp_path / "test.docx"
+        # Note: Session 73 added support for DOCX and PNG/JPG, so use .xyz
+        test_file = tmp_path / "test.xyz"
         test_file.write_text("test")
 
         result = extractor.process_document(str(test_file))
@@ -234,7 +236,8 @@ class TestImprovedErrorMessages:
         assert 'Supported formats' in result['error_message']
         assert 'PDF' in result['error_message']
         assert 'TXT' in result['error_message']
-        assert 'RTF' in result['error_message']
+        # Session 73: DOCX, PNG, JPG now supported
+        assert 'DOCX' in result['error_message']
 
 
 class TestRTFProcessing:

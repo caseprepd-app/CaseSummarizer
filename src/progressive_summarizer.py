@@ -16,7 +16,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from src.chunking_engine import Chunk, ChunkingEngine
+from src.core.chunking import UnifiedChunk, create_unified_chunker
 from src.core.config import load_yaml
 from src.logging_config import debug_log, debug_timing, error, info
 
@@ -64,7 +64,7 @@ class ProgressiveSummarizer:
             config_path = Path(__file__).parent.parent / "config" / "chunking_config.yaml"
 
         self.config = self._load_config(config_path)
-        self.chunking_engine = ChunkingEngine(config_path)
+        self.unified_chunker = create_unified_chunker()
 
         # DataFrame to track chunks and summaries
         self.df = pd.DataFrame(
@@ -201,32 +201,32 @@ class ProgressiveSummarizer:
         debug_log(f"Adaptive boundaries: {boundaries}")
         return boundaries
 
-    def chunk_document(self, text: str) -> list[Chunk]:
+    def chunk_document(self, text: str) -> list[UnifiedChunk]:
         """
-        Chunk a document using the chunking engine.
+        Chunk a document using the unified chunker.
 
         Args:
             text: Full document text
 
         Returns:
-            List of Chunk objects
+            List of UnifiedChunk objects (400-1000 tokens each, research-based)
         """
         start_time = time.time()
         debug_log("Starting document chunking...")
-        chunks = self.chunking_engine.chunk_text(text)
+        chunks = self.unified_chunker.chunk_text(text, use_cache=False)
         elapsed = time.time() - start_time
         debug_timing(f"Document chunking ({len(chunks)} chunks)", elapsed)
         info(f"Document chunked into {len(chunks)} chunks")
         return chunks
 
-    def prepare_chunks_dataframe(self, chunks: list[Chunk]) -> pd.DataFrame:
+    def prepare_chunks_dataframe(self, chunks: list[UnifiedChunk]) -> pd.DataFrame:
         """
         Prepare DataFrame with chunk information.
 
         This is done before summarization so we can calculate batch boundaries.
 
         Args:
-            chunks: List of Chunk objects
+            chunks: List of UnifiedChunk objects
 
         Returns:
             DataFrame with chunk data

@@ -206,15 +206,15 @@ class DynamicOutputWidget(ctk.CTkFrame):
         )
         self.detail_toggle_btn.pack(side="left", padx=5)
 
-        # Session 65: Quick Export CSV button for vocabulary
-        self.export_csv_btn = ctk.CTkButton(
+        # Session 72: Export dropdown (replaces separate CSV/Word/PDF buttons)
+        self.export_dropdown = ctk.CTkOptionMenu(
             self.button_frame,
-            text="Export CSV",
-            command=self._quick_export_vocab_csv,
-            width=100,
+            values=["Export...", "TXT", "CSV", "Word (.docx)", "PDF", "HTML"],
+            command=self._on_export_format_selected,
+            width=120,
             **BUTTON_STYLES["primary"]
         )
-        self.export_csv_btn.pack(side="left", padx=5)
+        self.export_dropdown.pack(side="left", padx=5)
 
         # Internal storage for outputs (Session 45: Updated naming)
         self._outputs = {
@@ -294,19 +294,19 @@ class DynamicOutputWidget(ctk.CTkFrame):
             # Show shared button bar for Names & Vocab and Summary tabs
             self.button_frame.grid(row=1, column=0, sticky="ew", padx=5, pady=5)
 
-            # Show/hide vocab-specific buttons based on tab
+            # Show/hide vocab-specific widgets based on tab
             if current_tab == "Names & Vocab":
                 # Update progress badge when switching to this tab
                 self._update_progress_badge(self._extraction_source)
-                # Show vocab buttons - use after= to maintain correct order
+                # Show vocab widgets - use after= to maintain correct order
                 if not self.detail_toggle_btn.winfo_ismapped():
                     self.detail_toggle_btn.pack(side="left", padx=5, after=self.save_btn)
-                if not self.export_csv_btn.winfo_ismapped():
-                    self.export_csv_btn.pack(side="left", padx=5, after=self.detail_toggle_btn)
+                if not self.export_dropdown.winfo_ismapped():
+                    self.export_dropdown.pack(side="left", padx=5, after=self.detail_toggle_btn)
             else:
-                # Hide vocab-specific buttons on Summary tab
+                # Hide vocab-specific widgets on Summary tab
                 self.detail_toggle_btn.pack_forget()
-                self.export_csv_btn.pack_forget()
+                self.export_dropdown.pack_forget()
 
     def _update_progress_badge(self, source: str):
         """
@@ -1056,15 +1056,25 @@ class DynamicOutputWidget(ctk.CTkFrame):
             default_filename = "summary.txt"
             filetypes = [("Text Files", "*.txt"), ("All Files", "*.*")]
 
+        # Session 73: Remember last export folder
+        from src.core.utils.text_utils import get_documents_folder
+        prefs = get_user_preferences()
+        initial_dir = prefs.get("last_export_path") or get_documents_folder()
+
         filepath = filedialog.asksaveasfilename(
             defaultextension=".txt",
             filetypes=filetypes,
             initialfile=default_filename,
+            initialdir=initial_dir,
             title="Save Output"
         )
         if filepath:
+            from pathlib import Path
             with open(filepath, "w", encoding="utf-8") as f:
                 f.write(content)
+
+            # Session 73: Remember last export folder
+            prefs.set("last_export_path", str(Path(filepath).parent))
 
             # Brief button flash for immediate feedback
             original_text = self.save_btn.cget("text")
@@ -1086,10 +1096,11 @@ class DynamicOutputWidget(ctk.CTkFrame):
         """
         Quick export vocabulary to CSV file (Session 65, updated Session 69).
 
-        Exports to Documents folder with timestamped filename.
+        Exports to last used folder (or Documents) with timestamped filename.
         Uses status bar confirmation instead of modal dialog.
         """
         from datetime import datetime
+        from pathlib import Path
 
         # Check if we have vocabulary data
         vocab_data = self._outputs.get("Names & Vocabulary") or self._outputs.get("Rare Word List (CSV)", [])
@@ -1100,37 +1111,227 @@ class DynamicOutputWidget(ctk.CTkFrame):
         # Generate CSV content using shared helper
         csv_content = self._build_vocab_csv(vocab_data)
 
-        # Get default export directory (Documents folder)
+        # Session 73: Use last export folder or Documents
         from src.core.utils.text_utils import get_documents_folder
-        documents_path = get_documents_folder()
+        prefs = get_user_preferences()
+        export_path = prefs.get("last_export_path") or get_documents_folder()
 
         # Generate timestamped filename
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         filename = f"vocabulary_{timestamp}.csv"
-        filepath = os.path.join(documents_path, filename)
+        filepath = os.path.join(export_path, filename)
 
         # Save the file
         try:
             with open(filepath, "w", encoding="utf-8", newline="") as f:
                 f.write(csv_content)
 
+            # Session 73: Remember export folder
+            prefs.set("last_export_path", str(Path(filepath).parent))
+
             debug_log(f"[VOCAB EXPORT] Saved {len(vocab_data)} terms to {filepath}")
 
-            # Brief button flash for immediate feedback
-            original_text = self.export_csv_btn.cget("text")
-            self.export_csv_btn.configure(text="Exported!")
-            self.after(1500, lambda: self.export_csv_btn.configure(text=original_text))
-
-            # Status bar confirmation (Session 69)
+            # Status bar confirmation (Session 69, updated 73)
             main_window = self.winfo_toplevel()
+            folder_name = Path(export_path).name
             main_window.set_status(
-                f"Exported {len(vocab_data)} terms to Documents/{filename}",
+                f"Exported {len(vocab_data)} terms to {folder_name}/{filename}",
                 duration_ms=5000
             )
 
         except Exception as e:
             debug_log(f"[VOCAB EXPORT] Failed: {e}")
             messagebox.showerror("Export Failed", f"Could not save file:\n{e}")
+
+    def _export_vocab_to_word(self):
+        """
+        Export vocabulary to Word document (Session 71, updated Session 73).
+        """
+        from datetime import datetime
+        from pathlib import Path
+        from src.services import get_export_service
+        from src.core.utils.text_utils import get_documents_folder
+
+        vocab_data = self._outputs.get("Names & Vocabulary", [])
+        if not vocab_data:
+            messagebox.showinfo("No Data", "No vocabulary data to export.")
+            return
+
+        # Session 73: Use last export folder or Documents
+        prefs = get_user_preferences()
+        export_path = prefs.get("last_export_path") or get_documents_folder()
+
+        # Generate timestamped filename
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"vocabulary_{timestamp}.docx"
+        filepath = os.path.join(export_path, filename)
+
+        # Export using service
+        export_service = get_export_service()
+        include_details = self._show_details  # Use current detail toggle state
+        success = export_service.export_vocabulary_to_word(vocab_data, filepath, include_details)
+
+        if success:
+            # Session 73: Remember export folder
+            prefs.set("last_export_path", str(Path(filepath).parent))
+
+            # Status bar confirmation
+            main_window = self.winfo_toplevel()
+            folder_name = Path(export_path).name
+            main_window.set_status(
+                f"Exported {len(vocab_data)} terms to {folder_name}/{filename}",
+                duration_ms=5000
+            )
+        else:
+            messagebox.showerror("Export Failed", "Could not export to Word document.")
+
+    def _export_vocab_to_pdf(self):
+        """
+        Export vocabulary to PDF document (Session 71, updated Session 73).
+        """
+        from datetime import datetime
+        from pathlib import Path
+        from src.services import get_export_service
+        from src.core.utils.text_utils import get_documents_folder
+
+        vocab_data = self._outputs.get("Names & Vocabulary", [])
+        if not vocab_data:
+            messagebox.showinfo("No Data", "No vocabulary data to export.")
+            return
+
+        # Session 73: Use last export folder or Documents
+        prefs = get_user_preferences()
+        export_path = prefs.get("last_export_path") or get_documents_folder()
+
+        # Generate timestamped filename
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"vocabulary_{timestamp}.pdf"
+        filepath = os.path.join(export_path, filename)
+
+        # Export using service
+        export_service = get_export_service()
+        include_details = self._show_details  # Use current detail toggle state
+        success = export_service.export_vocabulary_to_pdf(vocab_data, filepath, include_details)
+
+        if success:
+            # Session 73: Remember export folder
+            prefs.set("last_export_path", str(Path(filepath).parent))
+
+            # Status bar confirmation
+            main_window = self.winfo_toplevel()
+            folder_name = Path(export_path).name
+            main_window.set_status(
+                f"Exported {len(vocab_data)} terms to {folder_name}/{filename}",
+                duration_ms=5000
+            )
+        else:
+            messagebox.showerror("Export Failed", "Could not export to PDF document.")
+
+    def _export_vocab_to_txt(self):
+        """
+        Export vocabulary to plain text file (Session 72, updated Session 73).
+        """
+        from datetime import datetime
+        from pathlib import Path
+        from src.services import get_export_service
+        from src.core.utils.text_utils import get_documents_folder
+
+        vocab_data = self._outputs.get("Names & Vocabulary", [])
+        if not vocab_data:
+            messagebox.showinfo("No Data", "No vocabulary data to export.")
+            return
+
+        # Session 73: Use last export folder or Documents
+        prefs = get_user_preferences()
+        export_path = prefs.get("last_export_path") or get_documents_folder()
+
+        # Generate timestamped filename
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"vocabulary_{timestamp}.txt"
+        filepath = os.path.join(export_path, filename)
+
+        # Export using service
+        export_service = get_export_service()
+        success = export_service.export_vocabulary_to_txt(vocab_data, filepath)
+
+        if success:
+            # Session 73: Remember export folder
+            prefs.set("last_export_path", str(Path(filepath).parent))
+
+            # Status bar confirmation
+            main_window = self.winfo_toplevel()
+            folder_name = Path(export_path).name
+            main_window.set_status(
+                f"Exported {len(vocab_data)} terms to {folder_name}/{filename}",
+                duration_ms=5000
+            )
+        else:
+            messagebox.showerror("Export Failed", "Could not export to text file.")
+
+    def _export_vocab_to_html(self):
+        """
+        Export vocabulary to interactive HTML file (Session 72, updated Session 73).
+        """
+        from datetime import datetime
+        from pathlib import Path
+        from src.services import get_export_service
+        from src.core.utils.text_utils import get_documents_folder
+
+        vocab_data = self._outputs.get("Names & Vocabulary", [])
+        if not vocab_data:
+            messagebox.showinfo("No Data", "No vocabulary data to export.")
+            return
+
+        # Session 73: Use last export folder or Documents
+        prefs = get_user_preferences()
+        export_path = prefs.get("last_export_path") or get_documents_folder()
+
+        # Generate timestamped filename
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"vocabulary_{timestamp}.html"
+        filepath = os.path.join(export_path, filename)
+
+        # Export using service
+        export_service = get_export_service()
+        success = export_service.export_vocabulary_to_html(vocab_data, filepath)
+
+        if success:
+            # Session 73: Remember export folder
+            prefs.set("last_export_path", str(Path(filepath).parent))
+
+            # Status bar confirmation
+            main_window = self.winfo_toplevel()
+            folder_name = Path(export_path).name
+            main_window.set_status(
+                f"Exported {len(vocab_data)} terms to {folder_name}/{filename}",
+                duration_ms=5000
+            )
+        else:
+            messagebox.showerror("Export Failed", "Could not export to HTML file.")
+
+    def _on_export_format_selected(self, choice: str):
+        """
+        Handle export format selection from dropdown (Session 72).
+
+        Args:
+            choice: Selected format ("Export...", "TXT", "CSV", "Word (.docx)", "PDF", "HTML")
+        """
+        if choice == "Export...":
+            return  # Placeholder, do nothing
+
+        if choice == "TXT":
+            self._export_vocab_to_txt()
+        elif choice == "CSV":
+            self._quick_export_vocab_csv()
+        elif choice == "Word (.docx)":
+            self._export_vocab_to_word()
+        elif choice == "PDF":
+            self._export_vocab_to_pdf()
+        elif choice == "HTML":
+            self._export_vocab_to_html()
+
+        # Reset dropdown to placeholder
+        self.export_dropdown.set("Export...")
 
     def _on_treeview_click(self, event):
         """
