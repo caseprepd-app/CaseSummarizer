@@ -18,9 +18,14 @@ Architecture:
     Business logic is in: This file (main_window.py)
 """
 
+import re
+import threading
 import time
 from queue import Queue, Empty
 from tkinter import filedialog, messagebox
+
+# PERF-001: Pre-compile regex at module level
+_MODEL_PARAM_PATTERN = re.compile(r':(\d+\.?\d*)b')
 
 import customtkinter as ctk
 
@@ -96,6 +101,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         self._embeddings = None  # Lazy-loaded HuggingFaceEmbeddings
         self._vector_store_path = None  # Path to current session's vector store
         self._qa_results: list = []  # Store QAResult objects
+        self._qa_results_lock = threading.Lock()  # LOG-007: Thread-safe access
         self._qa_ready = False  # Session 45: Q&A becomes available after indexing
 
         # Initialize all ttk styles once at startup (prevents freeze on first view switch)
@@ -249,9 +255,8 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         param_info = ""
         name_lower = model_name.lower()
 
-        # Look for parameter patterns in the model name
-        import re
-        param_match = re.search(r':(\d+\.?\d*)b', name_lower)
+        # PERF-001: Look for parameter patterns using pre-compiled regex
+        param_match = _MODEL_PARAM_PATTERN.search(name_lower)
         if param_match:
             param_size = param_match.group(1)
             param_info = f" ({param_size}B params)"
@@ -271,10 +276,8 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             dialog = SettingsDialog(parent=self, initial_tab="Questions")
             dialog.wait_window()
         except Exception as e:
-            from src.logging_config import error as log_error
-            log_error(f"Failed to open settings dialog: {e}")
-            import traceback
-            traceback.print_exc()
+            # LOG-006: Use debug_log instead of traceback.print_exc()
+            debug_log(f"Failed to open settings dialog: {e}")
 
         # Session 62: Check if model changed and reload if needed
         new_model = prefs.get("ollama_model", self.model_manager.model_name)
@@ -352,10 +355,8 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             dialog = SettingsDialog(parent=self, initial_tab="Corpus")
             dialog.wait_window()
         except Exception as e:
-            from src.logging_config import error as log_error
-            log_error(f"Failed to open settings dialog: {e}")
-            import traceback
-            traceback.print_exc()
+            # LOG-006: Use debug_log instead of traceback.print_exc()
+            debug_log(f"Failed to open settings dialog: {e}")
 
         # Refresh after dialog closes
         self._refresh_corpus_dropdown()
@@ -631,14 +632,16 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         elif msg_type == "qa_result":
             # Individual Q&A result - add to results and update display
             debug_log(f"[MainWindow] Q&A result received")
-            self._qa_results.append(data)
-            self.output_display.update_outputs(qa_results=self._qa_results)
+            with self._qa_results_lock:  # LOG-007: Thread-safe access
+                self._qa_results.append(data)
+                self.output_display.update_outputs(qa_results=self._qa_results)
 
         elif msg_type == "qa_complete":
             # All Q&A questions answered
             qa_results = data if data else []
             debug_log(f"[MainWindow] Q&A complete: {len(qa_results)} answers")
-            self._qa_results = qa_results
+            with self._qa_results_lock:  # LOG-007: Thread-safe access
+                self._qa_results = qa_results
             if qa_results:
                 self.output_display.update_outputs(qa_results=qa_results)
                 self.set_status(f"Default questions answered: {len(qa_results)} responses")
@@ -1567,8 +1570,9 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         try:
             if msg_type == "success" and data is not None:
                 # Add to existing results and refresh display
-                self._qa_results.append(data)
-                self.output_display.update_outputs(qa_results=self._qa_results)
+                with self._qa_results_lock:  # LOG-007: Thread-safe access
+                    self._qa_results.append(data)
+                    self.output_display.update_outputs(qa_results=self._qa_results)
                 # Note: QAResult uses 'quick_answer', not 'answer'
                 answer_len = len(data.quick_answer) if data.quick_answer else 0
                 self.set_status(f"Follow-up answered: {answer_len} chars")
@@ -1620,8 +1624,9 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             result = orchestrator.ask_followup(question)
 
             # Add to internal results list (so it persists across view changes)
-            # Thread-safe: append is atomic in CPython
-            self._qa_results.append(result)
+            # LOG-007: Use lock for thread-safe access
+            with self._qa_results_lock:
+                self._qa_results.append(result)
 
             debug_log(f"[MainWindow] Follow-up answered: {len(result.answer)} chars")
             return result
@@ -1642,10 +1647,8 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             dialog = SettingsDialog(parent=self)
             dialog.wait_window()
         except Exception as e:
-            from src.logging_config import error as log_error
-            log_error(f"Failed to open settings dialog: {e}")
-            import traceback
-            traceback.print_exc()
+            # LOG-006: Use debug_log instead of traceback.print_exc()
+            debug_log(f"Failed to open settings dialog: {e}")
 
         # Refresh UI after settings change
         self._refresh_corpus_dropdown()

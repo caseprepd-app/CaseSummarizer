@@ -35,21 +35,43 @@ def setup_file_logging():
     log_filename = LOGS_DIR / f"main_log_{timestamp}.txt"
 
     class Logger:
+        """LOG-002, LOG-003: Added error handling and close method."""
         def __init__(self, filepath):
             self.terminal = sys.stdout
-            self.logfile = open(filepath, "w", encoding='utf-8')
+            try:
+                self.logfile = open(filepath, "w", encoding='utf-8')
+            except (OSError, IOError) as e:
+                print(f"Warning: Could not open log file {filepath}: {e}", file=sys.stderr)
+                self.logfile = None
 
         def write(self, message):
             self.terminal.write(message)
-            self.logfile.write(message)
-            self.flush()
+            if self.logfile:
+                try:
+                    self.logfile.write(message)
+                    self.flush()
+                except (OSError, IOError):
+                    pass  # Log file may have been closed
 
         def flush(self):
             self.terminal.flush()
-            self.logfile.flush()
+            if self.logfile:
+                try:
+                    self.logfile.flush()
+                except (OSError, IOError):
+                    pass
+
+        def close(self):
+            """Close the log file when done."""
+            if self.logfile:
+                try:
+                    self.logfile.close()
+                except (OSError, IOError):
+                    pass
+                self.logfile = None
 
     sys.stdout = Logger(log_filename)
-    sys.stderr = sys.stdout # Redirect stderr to the same file
+    sys.stderr = sys.stdout  # Redirect stderr to the same file
     print(f"--- Log started at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} ---")
     print(f"Logging to: {log_filename}")
 

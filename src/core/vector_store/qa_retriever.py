@@ -15,6 +15,7 @@ Integration:
 - Provides context to Ollama for answer generation
 """
 
+import hashlib
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -123,8 +124,11 @@ class QARetriever:
                 "Ensure documents have been processed first."
             )
 
+        # SEC-001: Verify integrity hash before loading (if hash file exists)
+        self._verify_integrity_hash(self.vector_store_path)
+
         # Load FAISS index from disk (for backward compatibility and document access)
-        # allow_dangerous_deserialization=True is safe because we control the data
+        # allow_dangerous_deserialization=True is safe because we verify hash first
         self._faiss_store = FAISS.load_local(
             folder_path=str(self.vector_store_path),
             embeddings=embeddings,
@@ -147,6 +151,54 @@ class QARetriever:
             debug_log(f"[QARetriever] Hybrid retriever initialized with {len(self._documents)} chunks")
             if self._query_transformer:
                 debug_log("[QARetriever] Query transformer enabled")
+
+    def _verify_integrity_hash(self, persist_dir: Path) -> None:
+        """
+        Verify SHA256 hash of vector store files before loading (SEC-001).
+
+        Computes hash of index.faiss and index.pkl files and compares
+        against stored .hash file. Raises error if hash mismatch detected.
+
+        For backward compatibility, skips verification if .hash file doesn't exist
+        (older vector stores created before this security feature).
+
+        Args:
+            persist_dir: Directory containing the vector store files
+
+        Raises:
+            ValueError: If integrity check fails (hash mismatch)
+        """
+        hash_file = persist_dir / ".hash"
+
+        # Skip verification for older stores without hash file
+        if not hash_file.exists():
+            if DEBUG_MODE:
+                debug_log("[QARetriever] No .hash file found - skipping integrity check (legacy store)")
+            return
+
+        # Compute current hash of files
+        faiss_file = persist_dir / "index.faiss"
+        pkl_file = persist_dir / "index.pkl"
+
+        hasher = hashlib.sha256()
+        for file_path in [faiss_file, pkl_file]:
+            if file_path.exists():
+                with open(file_path, "rb") as f:
+                    for chunk in iter(lambda: f.read(65536), b""):
+                        hasher.update(chunk)
+
+        computed_hash = hasher.hexdigest()
+        stored_hash = hash_file.read_text().strip()
+
+        if computed_hash != stored_hash:
+            raise ValueError(
+                f"Vector store integrity check failed at {persist_dir}. "
+                "Files may have been tampered with or corrupted. "
+                "Please rebuild the vector store from source documents."
+            )
+
+        if DEBUG_MODE:
+            debug_log(f"[QARetriever] Integrity check passed: {computed_hash[:16]}...")
 
     def _extract_documents_from_faiss(self) -> list[dict]:
         """

@@ -811,8 +811,8 @@ class DynamicOutputWidget(ctk.CTkFrame):
                 )
                 self.vocab_info_label.grid(row=2, column=0, columnspan=2, sticky="w", padx=10, pady=5)
 
-        # Run garbage collection in background thread (non-blocking)
-        threading.Thread(target=gc.collect, daemon=True).start()
+        # PERF-008: Call gc.collect() directly (lightweight operation)
+        gc.collect()
 
     def _load_more_rows(self, data: list):
         """

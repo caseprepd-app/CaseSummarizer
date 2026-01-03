@@ -21,6 +21,7 @@ Example:
     # ]
 """
 
+import re  # PERF-005: Move to module level
 import time
 from dataclasses import dataclass, field
 from typing import Optional
@@ -255,7 +256,7 @@ Alternative queries:"""
             # Remove common prefixes
             # Numbered: "1.", "1)", "1:"
             # Bullets: "-", "*", "•"
-            import re
+            # PERF-005: Use module-level re import
             line = re.sub(r'^[\d]+[.)\:]?\s*', '', line)
             line = re.sub(r'^[-*•]\s*', '', line)
             line = line.strip()

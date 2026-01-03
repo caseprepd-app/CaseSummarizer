@@ -525,12 +525,13 @@ HALLUCINATION_MODEL = "KRLabsOrg/lettucedect-base-modernbert-en-v1"
 # Bundled model configuration for Windows installer
 # Models are stored in PROJECT_ROOT/models/ and shipped with the installer
 # This prevents network calls at runtime for privacy and offline use
-MODELS_DIR = Path(__file__).parent.parent / "models"
-HALLUCINATION_MODEL_LOCAL_PATH = MODELS_DIR / "lettucedect-base-modernbert-en-v1"
+# LOG-001: Renamed to avoid conflict with MODELS_DIR defined earlier
+BUNDLED_MODELS_DIR = Path(__file__).parent.parent / "models"
+HALLUCINATION_MODEL_LOCAL_PATH = BUNDLED_MODELS_DIR / "lettucedect-base-modernbert-en-v1"
 
 # HuggingFace cache directory (used if bundled model not found)
 # Falls back to downloading if bundled model is missing (dev mode)
-HF_CACHE_DIR = MODELS_DIR / ".hf_cache"
+HF_CACHE_DIR = BUNDLED_MODELS_DIR / ".hf_cache"
 
 # Prevent network calls when bundled model exists
 # Set to True for production/installer builds, False for development

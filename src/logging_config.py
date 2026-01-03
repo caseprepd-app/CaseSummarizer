@@ -104,12 +104,19 @@ def _setup_standard_logging() -> logging.Logger:
 
     # File handler (always active for production logs)
     try:
+        # SEC-002: Create log directory if it doesn't exist
+        log_dir = LOG_FILE.parent
+        if not log_dir.exists():
+            log_dir.mkdir(parents=True, exist_ok=True)
+
         file_handler = logging.FileHandler(LOG_FILE, encoding='utf-8')
         file_handler.setLevel(logging.DEBUG)
         file_handler.setFormatter(logging.Formatter(LOG_FORMAT, datefmt=LOG_DATE_FORMAT))
         logger.addHandler(file_handler)
-    except Exception:
-        pass  # Gracefully handle if log directory doesn't exist
+    except Exception as e:
+        # SEC-002: Log error to stderr instead of silent pass
+        print(f"[WARNING] Could not set up file logging: {e}", file=sys.stderr)
+        print("[WARNING] Falling back to console-only logging", file=sys.stderr)
 
     # Console handler (respects DEBUG_MODE)
     if DEBUG_MODE:

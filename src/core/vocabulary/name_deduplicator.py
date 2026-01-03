@@ -18,7 +18,7 @@ Example:
 
 import re
 from difflib import SequenceMatcher
-from src.logging_config import debug as debug_log
+from src.logging_config import debug_log
 from src.core.vocabulary.person_utils import is_person_entry
 
 

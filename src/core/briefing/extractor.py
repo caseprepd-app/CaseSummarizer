@@ -563,16 +563,4 @@ class ChunkExtractor:
         items = self._ensure_list(value)
         return [str(item) for item in items if item]
 
-    def _count_items(self, extraction: ChunkExtraction) -> int:
-        """Count total items extracted for logging."""
-        count = 0
-        count += len(extraction.parties.get("plaintiffs", []))
-        count += len(extraction.parties.get("defendants", []))
-        count += len(extraction.allegations)
-        count += len(extraction.defenses)
-        count += len(extraction.names_mentioned)
-        count += len(extraction.key_facts)
-        count += len(extraction.dates_mentioned)
-        count += len(extraction.case_type_hints)
-        count += len(extraction.vocabulary)
-        return count
+    # LOG-025: Removed dead code _count_items() method (never called)

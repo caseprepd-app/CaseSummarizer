@@ -380,8 +380,8 @@ class RawTextExtractor:
                     denoise_strength=OCR_DENOISE_STRENGTH,
                     enable_clahe=OCR_ENABLE_CLAHE
                 )
-                processed_img = preprocessor.preprocess(img)
-                debug(f"Image preprocessing applied: {preprocessor.stats}")
+                processed_img, preprocessing_stats = preprocessor.preprocess(img)
+                debug(f"Image preprocessing applied: {preprocessing_stats}")
             else:
                 processed_img = img.convert("L")  # At minimum convert to grayscale
 

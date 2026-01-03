@@ -40,7 +40,7 @@ from pathlib import Path
 from typing import Callable, Optional
 
 from src.core.ai.ollama_model_manager import OllamaModelManager
-from src.categories import get_category_list, get_llm_prompt_categories, normalize_category
+from src.categories import get_llm_prompt_categories, normalize_category
 from src.logging_config import debug_log
 
 

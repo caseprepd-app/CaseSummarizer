@@ -82,7 +82,7 @@ class TestRawTextExtractor:
         assert 'unsupported' in result['error_message'].lower()
 
 
-class TestTextFileProcesing:
+class TestTextFileProcessing:
     """Tests for TXT file processing."""
 
     @pytest.fixture

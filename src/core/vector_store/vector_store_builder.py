@@ -125,6 +125,9 @@ class VectorStoreBuilder:
         # Save to disk as files (index.faiss + index.pkl)
         vector_store.save_local(str(persist_dir))
 
+        # SEC-001: Save SHA256 hash for integrity verification on load
+        self._save_integrity_hash(persist_dir)
+
         elapsed_ms = (time.perf_counter() - start_time) * 1000
 
         if DEBUG_MODE:
@@ -238,6 +241,9 @@ class VectorStoreBuilder:
         # Save to disk as files (index.faiss + index.pkl)
         vector_store.save_local(str(persist_dir))
 
+        # SEC-001: Save SHA256 hash for integrity verification on load
+        self._save_integrity_hash(persist_dir)
+
         elapsed_ms = (time.perf_counter() - start_time) * 1000
 
         if DEBUG_MODE:
@@ -272,14 +278,15 @@ class VectorStoreBuilder:
         from langchain_core.documents import Document
         from langchain_text_splitters import RecursiveCharacterTextSplitter
 
-        # Configure text splitter for Q&A chunks
-        # Smaller chunks (500 chars) work better for precise retrieval
-        text_splitter = RecursiveCharacterTextSplitter(
-            chunk_size=500,
-            chunk_overlap=50,
-            length_function=len,
-            separators=["\n\n", "\n", ". ", " ", ""]
-        )
+        # PERF-006: Cache text splitter as class attribute
+        if not hasattr(self, '_text_splitter'):
+            self._text_splitter = RecursiveCharacterTextSplitter(
+                chunk_size=500,
+                chunk_overlap=50,
+                length_function=len,
+                separators=["\n\n", "\n", ". ", " ", ""]
+            )
+        text_splitter = self._text_splitter
 
         lc_documents = []
 
@@ -363,6 +370,36 @@ class VectorStoreBuilder:
         date_stamp = datetime.now().strftime('%Y%m%d')
 
         return f"{hash_prefix}_{date_stamp}"
+
+    def _save_integrity_hash(self, persist_dir: Path) -> None:
+        """
+        Compute and save SHA256 hash of vector store files (SEC-001).
+
+        Creates a .hash file containing the combined hash of index.faiss
+        and index.pkl for integrity verification on load.
+
+        Args:
+            persist_dir: Directory containing the vector store files
+        """
+        faiss_file = persist_dir / "index.faiss"
+        pkl_file = persist_dir / "index.pkl"
+        hash_file = persist_dir / ".hash"
+
+        # Compute combined hash of both files
+        hasher = hashlib.sha256()
+
+        for file_path in [faiss_file, pkl_file]:
+            if file_path.exists():
+                with open(file_path, "rb") as f:
+                    # Read in chunks for memory efficiency
+                    for chunk in iter(lambda: f.read(65536), b""):
+                        hasher.update(chunk)
+
+        # Save hash to file
+        hash_file.write_text(hasher.hexdigest())
+
+        if DEBUG_MODE:
+            debug_log(f"[VectorStore] Saved integrity hash: {hasher.hexdigest()[:16]}...")
 
     @staticmethod
     def get_existing_stores() -> list[Path]:

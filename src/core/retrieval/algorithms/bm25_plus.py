@@ -24,6 +24,7 @@ Reference:
 import time
 from typing import Any
 
+import numpy as np  # PERF-004: Move to module level
 from rank_bm25 import BM25Plus
 
 from src.config import BM25_K1, BM25_B, BM25_DELTA, DEBUG_MODE
@@ -130,9 +131,7 @@ class BM25PlusRetriever(BaseRetrievalAlgorithm):
         raw_scores = self._index.get_scores(query_tokens)
 
         # Get top-k indices (sorted by score descending)
-        # Use negative scores for argsort to get descending order
-        import numpy as np
-
+        # PERF-004: Use module-level numpy import
         top_k_indices = np.argsort(raw_scores)[::-1][:k]
 
         # Normalize scores to 0-1 range

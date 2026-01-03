@@ -14,6 +14,7 @@ not bigger chunks. Research sources:
 - Firecrawl: 400-512 tokens as starting point
 """
 
+import hashlib
 import re
 import time
 from dataclasses import dataclass, field
@@ -165,7 +166,9 @@ class UnifiedChunker:
             List of UnifiedChunk objects
         """
         start_time = time.time()
-        cache_key = f"{source_file or 'unknown'}_{hash(text)}"
+        # PERF-010: Use deterministic hash instead of non-deterministic hash()
+        text_hash = hashlib.sha256(text.encode()).hexdigest()[:16]
+        cache_key = f"{source_file or 'unknown'}_{text_hash}"
 
         # Check cache first
         if use_cache and cache_key in self._chunk_cache:

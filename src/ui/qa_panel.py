@@ -16,6 +16,7 @@ Features:
 
 import csv
 import io
+import os  # LOG-014: Move to module level
 import queue
 import threading
 from tkinter import filedialog, messagebox
@@ -503,7 +504,7 @@ class QAPanel(ctk.CTkFrame):
             prefs.set("last_export_path", str(Path(filepath).parent))
 
             # Status bar confirmation (Session 69)
-            import os
+            # LOG-014: Using module-level os import
             main_window = self.winfo_toplevel()
             if hasattr(main_window, 'set_status'):
                 filename = os.path.basename(filepath)
@@ -559,7 +560,7 @@ class QAPanel(ctk.CTkFrame):
             prefs.set("last_export_path", str(Path(filepath).parent))
 
             # Status bar confirmation (Session 69)
-            import os
+            # LOG-014: Using module-level os import
             main_window = self.winfo_toplevel()
             if hasattr(main_window, 'set_status'):
                 filename = os.path.basename(filepath)
@@ -616,7 +617,7 @@ class QAPanel(ctk.CTkFrame):
                 prefs.set("last_export_path", str(Path(filepath).parent))
 
                 # Status bar confirmation
-                import os
+                # LOG-014: Using module-level os import
                 main_window = self.winfo_toplevel()
                 if hasattr(main_window, 'set_status'):
                     filename = os.path.basename(filepath)
@@ -675,7 +676,7 @@ class QAPanel(ctk.CTkFrame):
                 prefs.set("last_export_path", str(Path(filepath).parent))
 
                 # Status bar confirmation
-                import os
+                # LOG-014: Using module-level os import
                 main_window = self.winfo_toplevel()
                 if hasattr(main_window, 'set_status'):
                     filename = os.path.basename(filepath)
@@ -734,7 +735,7 @@ class QAPanel(ctk.CTkFrame):
                 prefs.set("last_export_path", str(Path(filepath).parent))
 
                 # Status bar confirmation
-                import os
+                # LOG-014: Using module-level os import
                 main_window = self.winfo_toplevel()
                 if hasattr(main_window, 'set_status'):
                     filename = os.path.basename(filepath)

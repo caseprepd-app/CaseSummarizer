@@ -104,13 +104,15 @@ class LineNumberRemover(BasePreprocessor):
 
         # Remove line numbers attached to uppercase content (PDF extraction error)
         # "25THE COURT:" -> "THE COURT:"
+        changes_before_attached_start = changes
+
         def replace_attached_start(match):
             nonlocal changes
             changes += 1
             return match.group(1)  # Keep leading whitespace only
 
         result = self.ATTACHED_START_PATTERN.sub(replace_attached_start, result)
-        attached_start_count = changes - (changes - end_count - pipe_count) - end_count - pipe_count
+        attached_start_count = changes - changes_before_attached_start
 
         # Remove line numbers attached to punctuation at end
         # "Thank you.25" -> "Thank you."
@@ -121,7 +123,7 @@ class LineNumberRemover(BasePreprocessor):
             text=result,
             changes_made=changes,
             metadata={
-                'start_line_numbers': changes - end_count - pipe_count - attached_end_count,
+                'start_line_numbers': attached_start_count,
                 'end_line_numbers': end_count,
                 'pipe_line_numbers': pipe_count,
                 'attached_end_numbers': attached_end_count,

@@ -11,7 +11,6 @@ Usage:
     vocab_data = service.extract_vocabulary(text)
 """
 
-from pathlib import Path
 from typing import Callable
 
 from src.config import DEBUG_MODE

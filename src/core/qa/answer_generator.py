@@ -316,8 +316,8 @@ ANSWER:"""
         # Remove excessive whitespace (using pre-compiled regex)
         cleaned = _RE_WHITESPACE.sub(' ', sentence).strip()
 
-        # Ensure ends with period
-        if cleaned and not cleaned[-1] in '.!?':
+        # LOG-023: Ensure ends with period
+        if cleaned and cleaned[-1] not in '.!?':
             cleaned += '.'
 
         return cleaned

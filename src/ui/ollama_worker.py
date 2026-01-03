@@ -52,12 +52,15 @@ def ollama_generation_worker_process(
                     # However, we can track if a terminate signal comes *before* or *after* the call.
                     # The requests.post call does have a timeout, which is the primary control.
 
-                    # Check for termination right before the blocking call
-                    if not input_queue.empty():
+                    # LOG-012: Check for termination right before the blocking call
+                    # Use try/except to avoid TOCTOU race with empty() + get_nowait()
+                    try:
                         if input_queue.get_nowait() == "TERMINATE":
                             debug_log("[OLLAMA WORKER] Termination signal received before generate_summary. Aborting task.")
                             output_queue.put(('cancelled', "AI generation task cancelled."))
-                            continue # Skip the generation and await next task/termination
+                            continue  # Skip the generation and await next task/termination
+                    except Exception:
+                        pass  # No termination signal, proceed with generation
 
                     summary = model_manager.generate_summary(
                         case_text=case_text,
@@ -65,12 +68,15 @@ def ollama_generation_worker_process(
                         preset_id=preset_id
                     )
 
-                    # After generation, check again for termination (if user pressed Escape right after summary was generated)
-                    if not input_queue.empty():
+                    # LOG-012: After generation, check again for termination
+                    # Use try/except to avoid TOCTOU race with empty() + get_nowait()
+                    try:
                         if input_queue.get_nowait() == "TERMINATE":
                             debug_log("[OLLAMA WORKER] Termination signal received after generate_summary. Discarding result.")
                             output_queue.put(('cancelled', "AI generation task cancelled after completion."))
                             continue
+                    except Exception:
+                        pass  # No termination signal, send the result
 
                     elapsed_time = time.time() - start_time
                     debug_log(f"[OLLAMA WORKER] Summary generated in {elapsed_time:.2f} seconds.")

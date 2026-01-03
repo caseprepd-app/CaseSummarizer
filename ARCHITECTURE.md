@@ -48,6 +48,8 @@
 - [x] **Export to Word/PDF** — Vocabulary and Q&A export via python-docx and fpdf2; DocumentBuilder abstraction with verification color support; export dropdown consolidates format buttons (Session 72)
 - [x] **DOCX + Image import** — Word documents via python-docx, PNG/JPG via existing OCR pipeline (Session 73)
 - [x] **Drag-and-drop files** — Drop files onto left panel for processing; tkinterdnd2 integration with CustomTkinter (Session 73)
+- [x] **Vector store integrity** — SHA256 hash verification for FAISS stores; prevents deserialization of tampered files (Session 74)
+- [x] **Thread-safe Q&A** — Lock-protected `_qa_results` access; fixed TOCTOU race in Ollama worker (Session 74)
 - [x] **Combined export** — Single Word/PDF document containing both vocabulary table and Q&A results (Session 73)
 - [x] **Session statistics** — Document stats (files, pages, size) and extraction stats (terms, persons, Q&A count) displayed in left panel (Session 73)
 - [x] **Export UX improvements** — Remember last export folder, auto-open exported files (configurable), Export Settings tab (Session 73)
