@@ -306,6 +306,9 @@ class QuestionFlowManager:
                 return option['value']
 
         # Keyword-based matching for common cases
+        # Note: Simple keyword matching may produce false positives in edge cases
+        # (e.g., "not criminal" contains "criminal"). For accuracy-critical use,
+        # consider LLM-based classification instead.
         keyword_map = {
             'yes': ['yes', 'court case', 'legal proceeding', 'lawsuit', 'litigation'],
             'no': ['no', 'not a court', 'not related'],

@@ -200,7 +200,8 @@ class ProcessingWorker(BaseWorker):
 
     def _cleanup(self):
         """Clean up strategy on exit."""
-        self.strategy.shutdown(wait=False)
+        # Note: shutdown already called in stop() - no action needed here
+        pass
 
 
 class VocabularyWorker(BaseWorker):
@@ -520,7 +521,14 @@ class QAWorker(BaseWorker):
             # Return results in original order (Session 70: thread-safe read)
             with results_lock:
                 ordered_results = [results_dict.get(i) for i in range(len(questions))]
-            return [r for r in ordered_results if r is not None]
+            final_results = [r for r in ordered_results if r is not None]
+
+            # LOG-009: Log if any questions failed/were cancelled
+            failed_count = len(ordered_results) - len(final_results)
+            if failed_count > 0:
+                debug_log(f"[QA WORKER] {failed_count}/{len(questions)} questions returned no result")
+
+            return final_results
 
         finally:
             strategy.shutdown(wait=True)
@@ -541,11 +549,16 @@ class OllamaAIWorkerManager:
     @staticmethod
     def _clear_queue(queue):
         """Safely clear all messages from a queue."""
+        # LOG-010: Track how many items cleared for debugging
+        cleared_count = 0
         while not queue.empty():
             try:
                 queue.get_nowait()
+                cleared_count += 1
             except Empty:
                 break
+        if cleared_count > 0:
+            debug_log(f"[OLLAMA MANAGER] Cleared {cleared_count} items from queue")
 
     def start_worker(self):
         """Starts the Ollama AI worker process."""

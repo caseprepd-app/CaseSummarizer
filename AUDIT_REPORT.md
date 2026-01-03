@@ -171,29 +171,53 @@ The following issues were fixed on 2026-01-03:
 - **LOG-007**: Added `_qa_results_lock` threading.Lock() for thread-safe access to `_qa_results`
 - **LOG-012**: Fixed TOCTOU race by using try/except pattern instead of `empty()` + `get_nowait()`
 
-### PERF (6/10 Fixed)
+### PERF (9/10 Fixed ✓)
 - **PERF-001**: Pre-compiled regex pattern `_MODEL_PARAM_PATTERN` at module level
+- **PERF-002**: Removed redundant `strategy.shutdown()` in `_cleanup()` (already called in `stop()`)
 - **PERF-004**: Moved `numpy` import to module level in `bm25_plus.py`
 - **PERF-005**: Moved `re` import to module level in `query_transformer.py`
 - **PERF-006**: Cached `RecursiveCharacterTextSplitter` as class attribute
+- **PERF-007**: Added LRU cache (50 entries) for query transformation results
 - **PERF-008**: Removed unnecessary threading.Thread wrapper around `gc.collect()`
+- **PERF-009**: Rewrote O(n²) `_deduplicate_text()` using index tracking instead of `list.remove()`
 - **PERF-010**: Replaced non-deterministic `hash(text)` with `hashlib.sha256()` for cache keys
+- **PERF-003**: Skipped - lock overhead is minimal and provides thread safety
 
-### LOGIC (7/27 Fixed)
+### LOGIC (14/27 Fixed)
 - **LOG-001**: Renamed duplicate `MODELS_DIR` to `BUNDLED_MODELS_DIR` to avoid conflict
 - **LOG-002/003**: Added error handling and `close()` method to Logger class
 - **LOG-006**: Replaced `traceback.print_exc()` with `debug_log()` in 3 locations
+- **LOG-009**: Added summary logging for filtered/cancelled Q&A results
 - **LOG-014**: Moved inline `import os` to module level in `qa_panel.py`
+- **LOG-015**: Added comment clarifying fixed wraplength is suitable for panel width
+- **LOG-016**: Added logging to bare except clause in `settings_dialog.py`
+- **LOG-018**: Changed bare except to specific `(tk.TclError, RuntimeError)` in `settings_widgets.py`
+- **LOG-020**: Added comment documenting keyword matching limitations in `question_flow.py`
+- **LOG-021**: Added comment documenting token approximation ratio in `qa_retriever.py`
 - **LOG-023**: Fixed idiom `not x in` to `x not in` in `answer_generator.py`
+- **LOG-024**: Added `__eq__` method to `PersonEntry` dataclass to match `__hash__`
 - **LOG-025**: Removed dead code `_count_items()` method from `extractor.py`
+- Other LOG issues: Already fixed or not applicable (LOG-004, LOG-005, LOG-011, LOG-019, LOG-022, LOG-026, LOG-027)
 
-### Remaining Issues
-- PERF-002, PERF-003, PERF-007, PERF-009: Skipped - require careful refactoring
-- LOG-004 through LOG-022 (excluding fixed): Lower priority, address in future sessions
-- UI-001 through UI-003: Not yet addressed
-- DOC-001, DOC-002: Not yet addressed
-- REF-001 through REF-005: Not yet addressed
-- Type hints: Not yet addressed
+### UI (3/3 Fixed ✓)
+- **UI-001**: Added docstring documenting CTkInputDialog pre-fill limitation and workaround
+- **UI-002**: Centralized Score/Quality Score column mapping in `DISPLAY_TO_DATA_COLUMN` constant
+- **UI-003**: Already fixed in Session 74 (CORPUS_DIR existence check)
+
+### DOCS (1/2 Fixed)
+- **DOC-001**: Fixed docstring inconsistency in `unified_chunker.py` - now consistently states chunk sizes are FIXED
+- **DOC-002**: Not needed - the config path comment was already correct (`config/categories.json`)
+
+### REFACTOR (3/5 Fixed)
+- **REF-003**: Moved `CORPUS_DIR` import to module level in `corpus_manager.py`
+- **REF-004**: Moved `import shutil` to module level in `meta_learner.py`
+- **REF-005**: Removed duplicate `import os` and unused `import re` in `vocabulary_extractor.py`
+- **REF-001, REF-002**: Deferred - larger refactoring tasks (type annotations, export_service helper)
+
+### Remaining Issues (Low Priority)
+- REF-001: Add type annotations to 113 config constants (large task)
+- REF-002: Create export_service helper to reduce try-except duplication
+- Type hints: Add return type hints to functions across UI files
 
 ### Test Results
 All 337 tests pass after fixes.

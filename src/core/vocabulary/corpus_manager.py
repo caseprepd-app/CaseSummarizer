@@ -27,7 +27,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from src.config import CACHE_DIR
+from src.config import CACHE_DIR, CORPUS_DIR
 from src.logging_config import debug_log
 from src.core.utils.tokenizer import tokenize, TokenizerConfig
 
@@ -69,9 +69,6 @@ class CorpusManager:
             cache_dir: Directory for caching IDF index.
                       Defaults to %APPDATA%/LocalScribe/cache/
         """
-        # Import here to avoid circular imports
-        from src.config import CORPUS_DIR
-
         self.corpus_dir = Path(corpus_dir) if corpus_dir else CORPUS_DIR
         self.cache_dir = Path(cache_dir) if cache_dir else CACHE_DIR
 

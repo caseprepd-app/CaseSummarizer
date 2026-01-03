@@ -66,6 +66,11 @@ class PersonEntry:
     def __hash__(self):
         return hash(self.canonical_name)
 
+    def __eq__(self, other):
+        if not isinstance(other, PersonEntry):
+            return NotImplemented
+        return self.canonical_name == other.canonical_name
+
 
 @dataclass
 class AggregatedBriefingData:
@@ -674,21 +679,24 @@ class DataAggregator:
         if not cleaned:
             return []
 
-        # Similarity-based deduplication
-        unique = []
-        for item in cleaned:
-            is_duplicate = False
-            item_lower = item.lower()
+        # Similarity-based deduplication (O(n²) but avoids list.remove() overhead)
+        # Use index tracking instead of list.remove() for better performance
+        unique_indices = []  # Track indices of items to keep
+        unique_lower = []    # Lowercase versions for comparison
 
-            for existing in unique:
-                existing_lower = existing.lower()
+        for i, item in enumerate(cleaned):
+            item_lower = item.lower()
+            is_duplicate = False
+            replace_idx = None
+
+            for j, (existing_idx, existing_lower) in enumerate(zip(unique_indices, unique_lower)):
+                existing = cleaned[existing_idx]
 
                 # Check substring relationship
                 if item_lower in existing_lower or existing_lower in item_lower:
                     # Keep the longer one
                     if len(item) > len(existing):
-                        unique.remove(existing)
-                        unique.append(item)
+                        replace_idx = j
                     is_duplicate = True
                     break
 
@@ -697,12 +705,16 @@ class DataAggregator:
                 if similarity >= self.text_similarity_threshold:
                     # Keep the longer one
                     if len(item) > len(existing):
-                        unique.remove(existing)
-                        unique.append(item)
+                        replace_idx = j
                     is_duplicate = True
                     break
 
-            if not is_duplicate:
-                unique.append(item)
+            if replace_idx is not None:
+                # Replace existing with longer item
+                unique_indices[replace_idx] = i
+                unique_lower[replace_idx] = item_lower
+            elif not is_duplicate:
+                unique_indices.append(i)
+                unique_lower.append(item_lower)
 
-        return unique
+        return [cleaned[i] for i in unique_indices]

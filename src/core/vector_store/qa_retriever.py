@@ -147,6 +147,10 @@ class QARetriever:
         # Initialize query transformer (LlamaIndex + Ollama)
         self._query_transformer = self._init_query_transformer()
 
+        # PERF-007: LRU cache for query transformation results
+        self._query_cache: dict[str, list[str]] = {}
+        self._query_cache_maxsize = 50
+
         if DEBUG_MODE:
             debug_log(f"[QARetriever] Hybrid retriever initialized with {len(self._documents)} chunks")
             if self._query_transformer:
@@ -345,13 +349,25 @@ class QARetriever:
             debug_log(f"[QARetriever] Query: '{question[:50]}...' (k={k}, min_score={min_score})")
 
         # Transform query into variants if transformer is available
+        # PERF-007: Check cache first to avoid redundant LLM calls
         queries_to_search = [question]
         if self._query_transformer:
-            transform_result = self._query_transformer.transform(question)
-            if transform_result.success and transform_result.expanded_queries:
-                queries_to_search = transform_result.all_queries
+            if question in self._query_cache:
+                queries_to_search = self._query_cache[question]
                 if DEBUG_MODE:
-                    debug_log(f"[QARetriever] Query expanded to {len(queries_to_search)} variants")
+                    debug_log(f"[QARetriever] Query expansion cache hit: {len(queries_to_search)} variants")
+            else:
+                transform_result = self._query_transformer.transform(question)
+                if transform_result.success and transform_result.expanded_queries:
+                    queries_to_search = transform_result.all_queries
+                    # Cache the result (with size limit)
+                    if len(self._query_cache) >= self._query_cache_maxsize:
+                        # Remove oldest entry (first inserted)
+                        oldest_key = next(iter(self._query_cache))
+                        del self._query_cache[oldest_key]
+                    self._query_cache[question] = queries_to_search
+                    if DEBUG_MODE:
+                        debug_log(f"[QARetriever] Query expanded to {len(queries_to_search)} variants")
 
         # Retrieve for all query variants and merge results
         all_chunks = {}  # chunk_id -> best chunk result (avoid duplicates)
@@ -401,7 +417,8 @@ class QARetriever:
 
             chunk_text = f"{source_cite}\n{chunk.text}"
             word_count = len(chunk.text.split())
-            chunk_tokens = int(word_count * 1.3)  # Approximate token count
+            # Token approximation: ~1.3 tokens per English word (varies by model/content)
+            chunk_tokens = int(word_count * 1.3)
 
             # Check if adding this chunk would exceed context window
             if estimated_tokens + chunk_tokens > max_context_tokens:

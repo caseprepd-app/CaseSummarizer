@@ -99,6 +99,12 @@ GUI_DISPLAY_COLUMNS_EXTENDED = ("Term", "Score", "Is Person", "Found By", "NER",
 # Session 54: Removed Definition, kept Quality Score for full data export
 ALL_EXPORT_COLUMNS = ("Term", "Quality Score", "Is Person", "Found By", "NER", "RAKE", "BM25", "Algo Count", "In-Case Freq", "Freq Rank")
 
+# UI-002: Centralized mapping from display column names to data field names
+# "Score" in the GUI maps to "Quality Score" in the data dictionary
+DISPLAY_TO_DATA_COLUMN = {
+    "Score": "Quality Score",
+}
+
 
 def truncate_text(text: str, max_chars: int) -> str:
     """
@@ -695,10 +701,11 @@ class DynamicOutputWidget(ctk.CTkFrame):
                             values.append(THUMB_UP_FILLED if rating == 1 else THUMB_UP_EMPTY)
                         elif col == "Skip":
                             values.append(THUMB_DOWN_FILLED if rating == -1 else THUMB_DOWN_EMPTY)
-                        elif col == "Score":
-                            # Map "Score" display column to "Quality Score" data field
-                            score = item.get("Quality Score", "")
-                            values.append(truncate_text(str(score), COLUMN_CONFIG[col]["max_chars"]))
+                        elif col in DISPLAY_TO_DATA_COLUMN:
+                            # Map display column to data field (e.g., "Score" -> "Quality Score")
+                            data_col = DISPLAY_TO_DATA_COLUMN[col]
+                            value = item.get(data_col, "")
+                            values.append(truncate_text(str(value), COLUMN_CONFIG[col]["max_chars"]))
                         else:
                             values.append(truncate_text(str(item.get(col, "")), COLUMN_CONFIG[col]["max_chars"]))
 
@@ -975,11 +982,9 @@ class DynamicOutputWidget(ctk.CTkFrame):
             if isinstance(item, dict):
                 row = []
                 for col in columns:
-                    # Map "Score" display column to "Quality Score" data field
-                    if col == "Score":
-                        row.append(item.get("Quality Score", ""))
-                    else:
-                        row.append(item.get(col, ""))
+                    # Map display column to data field if needed (e.g., "Score" -> "Quality Score")
+                    data_col = DISPLAY_TO_DATA_COLUMN.get(col, col)
+                    row.append(item.get(data_col, ""))
                 writer.writerow(row)
             else:
                 # Legacy list format

@@ -29,6 +29,7 @@ that affect preferences (new courthouse, new case types) are infrequent (~years)
 
 import math
 import pickle
+import shutil
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -676,7 +677,6 @@ class VocabularyPreferenceLearner:
         Returns:
             True if reset succeeded
         """
-        import shutil
         from src.config import DEFAULT_VOCAB_MODEL_PATH
 
         try:

@@ -33,6 +33,7 @@ To add a new widget type:
 ─────────────────────────────────────────────────────────────────────────
 """
 
+import tkinter as tk
 from typing import Any, Callable
 
 import customtkinter as ctk
@@ -186,8 +187,8 @@ class TooltipIcon(ctk.CTkLabel):
             tooltip_manager.unregister(self.tooltip_window)
             try:
                 self.tooltip_window.destroy()
-            except Exception:
-                pass  # Window may already be destroyed
+            except (tk.TclError, RuntimeError):
+                pass  # Window may already be destroyed (common during app shutdown)
             self.tooltip_window = None
 
 
@@ -829,7 +830,12 @@ class DefaultQuestionsWidget(ctk.CTkFrame):
             self._refresh_question_list()
 
     def _edit_question(self, index: int):
-        """Show dialog to edit a question."""
+        """Show dialog to edit a question.
+
+        Note (UI-001): CTkInputDialog doesn't support pre-filling the input field.
+        As a workaround, we show the current text in the prompt. User must manually
+        retype or paste the text they want to keep.
+        """
         questions = self.manager.get_all_questions()
         if index >= len(questions):
             return

@@ -283,8 +283,10 @@ class SettingsDialog(ctk.CTkToplevel):
                 try:
                     value = setting.getter()
                     widget.set_value(value)
-                except Exception:
-                    # Use default if getter fails
+                except Exception as e:
+                    # Use default if getter fails (e.g., missing preference)
+                    from src.logging_config import debug_log
+                    debug_log(f"[Settings] Getter failed for {setting.key}: {e}")
                     widget.set_value(setting.default)
 
     def _save(self):

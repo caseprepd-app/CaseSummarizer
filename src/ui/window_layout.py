@@ -284,7 +284,7 @@ class WindowLayoutMixin:
             text="",
             font=FONTS["small"],
             text_color=COLORS["text_secondary"],
-            wraplength=280,  # Allow text to wrap
+            wraplength=280,  # Fixed width suitable for left panel (approx 300px)
             justify="left"
         )
         self.task_preview_label.grid(row=7, column=0, sticky="w", padx=10, pady=(0, 10))

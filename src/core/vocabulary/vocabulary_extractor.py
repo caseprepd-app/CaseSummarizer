@@ -22,7 +22,6 @@ The extraction algorithms are pluggable via dependency injection.
 """
 
 import os
-import re
 import socket
 import subprocess
 import sys
@@ -390,7 +389,6 @@ class VocabularyExtractor:
 
         # Decide whether to parallelize
         # Skip parallelization for 1 algorithm or 1 CPU core
-        import os
         cpu_count = os.cpu_count() or 1
         use_parallel = len(enabled_algorithms) > 1 and cpu_count > 1
 

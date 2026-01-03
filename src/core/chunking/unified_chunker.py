@@ -438,8 +438,8 @@ def create_unified_chunker(
     """
     Factory function to create a UnifiedChunker instance.
 
-    If token sizes are not provided, automatically scales based on GPU VRAM.
-    Session 67: Chunk sizes now scale proportionally with context window.
+    If token sizes are not provided, uses optimal fixed sizes based on RAG research.
+    Session 67: Chunk sizes are FIXED at 400-1000 tokens (research-based optimal range).
 
     Args:
         min_tokens: Minimum tokens per chunk (auto-scaled if None)
