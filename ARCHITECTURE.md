@@ -547,28 +547,37 @@ The default feedback contains ~100 "thumbs down" examples for terms ALL users wo
 - No medical/legal terms (domain-specific)
 - Middle-range quality scores (teaches model these are bad despite okay features)
 
-**Graduated ML Weight (Session 55):**
-ML influence on final score increases with user's training corpus:
+**Graduated ML Weight (Session 76):**
+ML influence on final score increases with user's training corpus. The shipped model works from day 0, so ML influence starts at 45%:
 
 | User Samples | ML Weight | Formula |
 |--------------|-----------|---------|
-| < 30 | 0% | `score = base_score` |
-| 30-50 | 45% | `score = base * 0.55 + ml_prob * 100 * 0.45` |
-| 51-99 | 60% | `score = base * 0.40 + ml_prob * 100 * 0.60` |
-| 100-199 | 70% | `score = base * 0.30 + ml_prob * 100 * 0.70` |
+| 0 | 45% | `score = base * 0.55 + ml_prob * 100 * 0.45` |
+| 1-9 | 50% | `score = base * 0.50 + ml_prob * 100 * 0.50` |
+| 10-24 | 55% | `score = base * 0.45 + ml_prob * 100 * 0.55` |
+| 25-49 | 60% | `score = base * 0.40 + ml_prob * 100 * 0.60` |
+| 50-99 | 70% | `score = base * 0.30 + ml_prob * 100 * 0.70` |
+| 100-199 | 80% | `score = base * 0.20 + ml_prob * 100 * 0.80` |
 | 200+ | 85% | `score = base * 0.15 + ml_prob * 100 * 0.85` |
 
-**Source-Based Training Weights (Session 55):**
-User feedback weighted higher than default data once user has enough samples:
+**Source-Based Training Weights (Session 76):**
+User feedback weighted higher than default data from the FIRST observation. Default data is never deleted, just gradually de-emphasized:
 
-| User Samples | Default Weight | User Weight | Ratio |
-|--------------|----------------|-------------|-------|
-| < 30 | 1.0 | 1.0 | Equal |
-| 30-99 | 1.0 | 1.3 | User 1.3x |
-| 100+ | 1.0 | 2.0 | User 2x |
+| User Samples | Default Weight | User Weight | User Influence* |
+|--------------|----------------|-------------|-----------------|
+| 0 | 1.0 | — | 0% (only defaults) |
+| 1-2 | 1.0 | 1.5 | ~5% |
+| 3-9 | 1.0 | 2.0 | ~17% |
+| 10-24 | 0.95 | 2.5 | ~47% |
+| 25-49 | 0.9 | 3.0 | ~73% |
+| 50-99 | 0.8 | 3.5 | ~88% |
+| 100-199 | 0.7 | 4.0 | ~95% |
+| 200+ | 0.6 | 5.0 | ~97% |
+
+*Approximate influence assuming 30 default samples shipped with app.
 
 **Graduated Training:**
-- 30+ samples: Logistic Regression only
+- Program ships with 30+ default observations; retrains on ANY new user feedback
 - 200+ samples: Ensemble mode (LR + Random Forest with 23 trees)
 
 **Ensemble Blending:** When both models are active, predictions use confidence-weighted blending. Each model's vote is weighted by its confidence (distance from 0.5), so more certain predictions have more influence.
