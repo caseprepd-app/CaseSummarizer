@@ -491,8 +491,8 @@ class QueueMessageHandler:
         """
         # Check if checkbox is enabled
         if not self.main_window.ask_default_questions_check.get():
-            if debug_log:
-                debug_log("[QUEUE HANDLER] Default questions disabled, skipping")
+            # LOG-013: debug_log always exists; just call it directly
+            debug_log("[QUEUE HANDLER] Default questions disabled, skipping")
             return
 
         # Spawn QAWorker with default questions

@@ -414,6 +414,9 @@ def _register_all_settings():
 
     def _open_corpus_folder():
         """Open the corpus folder in the system file explorer."""
+        # UI-003: Verify CORPUS_DIR exists before trying to open
+        if not CORPUS_DIR.exists():
+            CORPUS_DIR.mkdir(parents=True, exist_ok=True)
         try:
             # Windows
             os.startfile(str(CORPUS_DIR))
@@ -748,8 +751,10 @@ def _register_all_settings():
             from src.core.ai import OllamaModelManager
             manager = OllamaModelManager()
             manager.load_model(model_name)
-        except Exception:
-            pass  # Will be handled when model is actually used
+        except Exception as e:
+            # LOG-017: Log exception instead of silent pass
+            from src.logging_config import debug_log
+            debug_log(f"[SETTINGS] Model load deferred: {e}")
 
     SettingsRegistry.register(SettingDefinition(
         key="ollama_model",
