@@ -48,10 +48,11 @@ VOCAB_FEEDBACK_CSV = FEEDBACK_DIR / "vocab_feedback.csv"
 # Users can reset to this model if they accidentally train in a bad direction
 DEFAULT_VOCAB_MODEL_PATH = Path(__file__).parent.parent / "config" / "default_vocab_model.pkl"
 
-# ML Training Thresholds
-ML_MIN_SAMPLES = 30  # Minimum feedback samples before training (LR only)
+# ML Training Thresholds (Session 76)
+# Program ships with 30+ default observations, so training is always viable.
+ML_MIN_SAMPLES = 1  # Train on any feedback (always have 30+ defaults)
 ML_ENSEMBLE_MIN_SAMPLES = 200  # Minimum samples to enable ensemble (LR + RF)
-ML_RETRAIN_THRESHOLD = 10  # New feedback entries to trigger retraining
+ML_RETRAIN_THRESHOLD = 1  # Retrain on ANY new user feedback (was 10)
 
 # ML Time Decay Configuration (Session 47)
 # Older feedback is weighted less to adapt to changing user preferences
@@ -65,26 +66,39 @@ ML_RETRAIN_THRESHOLD = 10  # New feedback entries to trigger retraining
 ML_DECAY_HALF_LIFE_DAYS = 1270  # ~3.5 years - tuned so weight hits floor at 3 years
 ML_DECAY_WEIGHT_FLOOR = 0.55  # Old feedback retains 55% weight minimum
 
-# Graduated ML Weight (Session 55)
+# Graduated ML Weight (Session 76)
 # ML influence on final score increases with user's training corpus size.
 # Formula: score = base_score * (1 - ml_weight) + ml_probability * 100 * ml_weight
-# Thresholds: (min_samples, weight) - finds first threshold where user_count < min_samples
+# Thresholds: (min_user_samples, ml_weight) - finds first threshold where count < min
+#
+# The shipped model works from day 0, so we start at 45% ML influence.
+# As user adds more feedback, ML influence increases (more personalized).
 ML_WEIGHT_THRESHOLDS = [
-    (30, 0.0),              # < 30 samples: rules only (0% ML)
-    (51, 0.45),             # 30-50 samples: 45% ML
-    (100, 0.60),            # 51-99 samples: 60% ML
-    (200, 0.70),            # 100-199 samples: 70% ML
+    (1, 0.45),              # 0 user samples: shipped model (45% ML)
+    (10, 0.50),             # 1-9 samples: 50% ML
+    (25, 0.55),             # 10-24 samples: 55% ML
+    (50, 0.60),             # 25-49 samples: 60% ML
+    (100, 0.70),            # 50-99 samples: 70% ML
+    (200, 0.80),            # 100-199 samples: 80% ML
     (float('inf'), 0.85),   # 200+ samples: 85% ML
 ]
 
-# Source-Based Training Weights (Session 55)
-# User feedback is weighted higher than shipped default data once user has enough samples.
-# This personalizes the model to the user while keeping defaults as a stable baseline.
+# Source-Based Training Weights (Session 76)
+# User feedback is weighted higher than shipped default data from the FIRST observation.
+# This personalizes the model immediately while keeping defaults as a stable baseline.
+# Default data is never deleted, just gradually de-emphasized as user adds more data.
+#
 # Thresholds: (min_user_samples, default_weight, user_weight)
+# Influence with 30 defaults: 1 user@1.5x = ~5%, 10 user@2x = ~40%, 100 user@3.5x = ~94%
 ML_SOURCE_WEIGHTS = [
-    (30, 1.0, 1.0),             # < 30 user samples: equal weight
-    (100, 1.0, 1.3),            # 30-99 user samples: user 1.3x more influential
-    (float('inf'), 1.0, 2.0),   # 100+ user samples: user 2x more influential
+    (1, 1.0, 1.0),              # 0 user samples: only default data exists
+    (3, 1.0, 1.5),              # 1-2 samples: user 1.5x (early boost)
+    (10, 1.0, 2.0),             # 3-9 samples: user 2x
+    (25, 0.95, 2.5),            # 10-24 samples: user 2.5x, default starts dropping
+    (50, 0.9, 3.0),             # 25-49 samples: user 3x
+    (100, 0.8, 3.5),            # 50-99 samples: user 3.5x
+    (200, 0.7, 4.0),            # 100-199 samples: user 4x
+    (float('inf'), 0.6, 5.0),   # 200+ samples: user 5x, default 0.6x
 ]
 
 # Ensure ML directories exist
