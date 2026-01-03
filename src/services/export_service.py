@@ -4,11 +4,13 @@ Export Service
 Provides high-level API for exporting vocabulary and Q&A to Word/PDF/TXT/HTML.
 
 Session 73: Added auto-open exported files feature (configurable).
+Session 75: Refactored with _run_export() helper to reduce duplication (REF-002).
 """
 
 import os
 import sys
 from pathlib import Path
+from typing import Callable
 
 from src.core.export import (
     WordDocumentBuilder,
@@ -52,6 +54,40 @@ def _auto_open_file(file_path: str) -> None:
         debug_log(f"[EXPORT] Auto-open failed: {e}")
 
 
+def _run_export(
+    description: str,
+    file_path: str,
+    error_prefix: str,
+    export_fn: Callable[[], bool | None]
+) -> bool:
+    """
+    Helper to run export with standard logging and error handling.
+
+    REF-002: Centralizes the try/except/log pattern used by all export methods.
+
+    Args:
+        description: What's being exported (e.g., "10 terms to Word")
+        file_path: Output file path for success message
+        error_prefix: Prefix for error message (e.g., "vocabulary to Word")
+        export_fn: Callable that performs the export, returns True/None on success
+
+    Returns:
+        True if successful, False otherwise
+    """
+    try:
+        debug_log(f"[EXPORT] Exporting {description}: {file_path}")
+        result = export_fn()
+        # Handle functions that return bool vs those that return None
+        success = result if result is not None else True
+        if success:
+            info(f"Exported to {file_path}")
+            _auto_open_file(file_path)
+        return success
+    except Exception as e:
+        error(f"Failed to export {error_prefix}: {e}")
+        return False
+
+
 class ExportService:
     """
     Service for exporting data to Word and PDF formats.
@@ -77,17 +113,17 @@ class ExportService:
         Returns:
             True if successful, False otherwise
         """
-        try:
-            debug_log(f"[EXPORT] Exporting {len(vocab_data)} terms to Word: {file_path}")
+        def do_export():
             builder = WordDocumentBuilder()
             export_vocabulary(vocab_data, builder, include_details)
             builder.save(file_path)
-            info(f"Exported vocabulary to {file_path}")
-            _auto_open_file(file_path)  # Session 73
-            return True
-        except Exception as e:
-            error(f"Failed to export vocabulary to Word: {e}")
-            return False
+
+        return _run_export(
+            f"{len(vocab_data)} terms to Word",
+            file_path,
+            "vocabulary to Word",
+            do_export
+        )
 
     def export_vocabulary_to_pdf(
         self,
@@ -106,17 +142,17 @@ class ExportService:
         Returns:
             True if successful, False otherwise
         """
-        try:
-            debug_log(f"[EXPORT] Exporting {len(vocab_data)} terms to PDF: {file_path}")
+        def do_export():
             builder = PdfDocumentBuilder()
             export_vocabulary(vocab_data, builder, include_details)
             builder.save(file_path)
-            info(f"Exported vocabulary to {file_path}")
-            _auto_open_file(file_path)  # Session 73
-            return True
-        except Exception as e:
-            error(f"Failed to export vocabulary to PDF: {e}")
-            return False
+
+        return _run_export(
+            f"{len(vocab_data)} terms to PDF",
+            file_path,
+            "vocabulary to PDF",
+            do_export
+        )
 
     def export_qa_to_word(
         self,
@@ -135,17 +171,17 @@ class ExportService:
         Returns:
             True if successful, False otherwise
         """
-        try:
-            debug_log(f"[EXPORT] Exporting {len(results)} Q&A pairs to Word: {file_path}")
+        def do_export():
             builder = WordDocumentBuilder()
             export_qa_results(results, builder, include_verification)
             builder.save(file_path)
-            info(f"Exported Q&A to {file_path}")
-            _auto_open_file(file_path)  # Session 73
-            return True
-        except Exception as e:
-            error(f"Failed to export Q&A to Word: {e}")
-            return False
+
+        return _run_export(
+            f"{len(results)} Q&A pairs to Word",
+            file_path,
+            "Q&A to Word",
+            do_export
+        )
 
     def export_qa_to_pdf(
         self,
@@ -164,17 +200,17 @@ class ExportService:
         Returns:
             True if successful, False otherwise
         """
-        try:
-            debug_log(f"[EXPORT] Exporting {len(results)} Q&A pairs to PDF: {file_path}")
+        def do_export():
             builder = PdfDocumentBuilder()
             export_qa_results(results, builder, include_verification)
             builder.save(file_path)
-            info(f"Exported Q&A to {file_path}")
-            _auto_open_file(file_path)  # Session 73
-            return True
-        except Exception as e:
-            error(f"Failed to export Q&A to PDF: {e}")
-            return False
+
+        return _run_export(
+            f"{len(results)} Q&A pairs to PDF",
+            file_path,
+            "Q&A to PDF",
+            do_export
+        )
 
     def export_vocabulary_to_txt(
         self,
@@ -191,16 +227,12 @@ class ExportService:
         Returns:
             True if successful, False otherwise
         """
-        try:
-            debug_log(f"[EXPORT] Exporting {len(vocab_data)} terms to TXT: {file_path}")
-            success = export_vocabulary_txt(vocab_data, file_path)
-            if success:
-                info(f"Exported vocabulary to {file_path}")
-                _auto_open_file(file_path)  # Session 73
-            return success
-        except Exception as e:
-            error(f"Failed to export vocabulary to TXT: {e}")
-            return False
+        return _run_export(
+            f"{len(vocab_data)} terms to TXT",
+            file_path,
+            "vocabulary to TXT",
+            lambda: export_vocabulary_txt(vocab_data, file_path)
+        )
 
     def export_vocabulary_to_html(
         self,
@@ -217,16 +249,12 @@ class ExportService:
         Returns:
             True if successful, False otherwise
         """
-        try:
-            debug_log(f"[EXPORT] Exporting {len(vocab_data)} terms to HTML: {file_path}")
-            success = export_vocabulary_html(vocab_data, file_path)
-            if success:
-                info(f"Exported vocabulary to {file_path}")
-                _auto_open_file(file_path)  # Session 73
-            return success
-        except Exception as e:
-            error(f"Failed to export vocabulary to HTML: {e}")
-            return False
+        return _run_export(
+            f"{len(vocab_data)} terms to HTML",
+            file_path,
+            "vocabulary to HTML",
+            lambda: export_vocabulary_html(vocab_data, file_path)
+        )
 
     def export_qa_to_html(
         self,
@@ -245,16 +273,12 @@ class ExportService:
         Returns:
             True if successful, False otherwise
         """
-        try:
-            debug_log(f"[EXPORT] Exporting {len(results)} Q&A pairs to HTML: {file_path}")
-            success = export_qa_html(results, file_path, include_verification)
-            if success:
-                info(f"Exported Q&A to {file_path}")
-                _auto_open_file(file_path)  # Session 73
-            return success
-        except Exception as e:
-            error(f"Failed to export Q&A to HTML: {e}")
-            return False
+        return _run_export(
+            f"{len(results)} Q&A pairs to HTML",
+            file_path,
+            "Q&A to HTML",
+            lambda: export_qa_html(results, file_path, include_verification)
+        )
 
     def export_combined_to_word(
         self,
@@ -279,17 +303,17 @@ class ExportService:
         Returns:
             True if successful, False otherwise
         """
-        try:
-            debug_log(f"[EXPORT] Combined export to Word: {len(vocab_data)} terms, {len(qa_results)} Q&A pairs")
+        def do_export():
             builder = WordDocumentBuilder()
             export_combined(vocab_data, qa_results, builder, include_vocab_details, include_qa_verification)
             builder.save(file_path)
-            info(f"Exported combined report to {file_path}")
-            _auto_open_file(file_path)
-            return True
-        except Exception as e:
-            error(f"Failed to export combined to Word: {e}")
-            return False
+
+        return _run_export(
+            f"combined ({len(vocab_data)} terms, {len(qa_results)} Q&A) to Word",
+            file_path,
+            "combined to Word",
+            do_export
+        )
 
     def export_combined_to_pdf(
         self,
@@ -314,17 +338,17 @@ class ExportService:
         Returns:
             True if successful, False otherwise
         """
-        try:
-            debug_log(f"[EXPORT] Combined export to PDF: {len(vocab_data)} terms, {len(qa_results)} Q&A pairs")
+        def do_export():
             builder = PdfDocumentBuilder()
             export_combined(vocab_data, qa_results, builder, include_vocab_details, include_qa_verification)
             builder.save(file_path)
-            info(f"Exported combined report to {file_path}")
-            _auto_open_file(file_path)
-            return True
-        except Exception as e:
-            error(f"Failed to export combined to PDF: {e}")
-            return False
+
+        return _run_export(
+            f"combined ({len(vocab_data)} terms, {len(qa_results)} Q&A) to PDF",
+            file_path,
+            "combined to PDF",
+            do_export
+        )
 
 
 # Singleton instance

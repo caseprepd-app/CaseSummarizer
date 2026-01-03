@@ -89,8 +89,8 @@ class RawTextExtractor:
         """Load legal keywords for the jurisdiction."""
         debug(f"Loading legal keywords for jurisdiction: {self.jurisdiction}")
 
-        # For now, use a default set since keyword files don't exist yet
-        # TODO: Download from Dropbox and cache locally
+        # Hardcoded legal keywords: works offline, no network dependency, covers
+        # common terms across all US jurisdictions. Extensible via config if needed.
         self.legal_keywords = {
             "COURT", "PLAINTIFF", "DEFENDANT", "APPEARANCES", "SUPREME",
             "MOTION", "AFFIDAVIT", "EXHIBIT", "DEPOSITION", "TESTIMONY",

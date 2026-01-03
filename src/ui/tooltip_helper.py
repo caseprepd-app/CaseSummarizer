@@ -16,10 +16,15 @@ Best practices implemented:
 - Global singleton ensures only one tooltip visible at a time
 """
 
+import tkinter as tk
+
 import customtkinter as ctk
 
 from src.ui.theme import FONTS
 from src.ui.tooltip_manager import tooltip_manager
+
+# Common exceptions during tooltip operations (window destroyed, platform differences)
+_TK_ERRORS = (tk.TclError, RuntimeError, AttributeError)
 
 
 def create_tooltip(widget, text, delay_ms=500, offset_x=15, offset_y=10):
@@ -69,7 +74,7 @@ def create_tooltip(widget, text, delay_ms=500, offset_x=15, offset_y=10):
         try:
             mouse_x = widget.winfo_pointerx()
             mouse_y = widget.winfo_pointery()
-        except Exception:
+        except _TK_ERRORS:
             # Fallback if pointer position unavailable
             mouse_x = widget.winfo_rootx() + widget.winfo_width()
             mouse_y = widget.winfo_rooty()
@@ -77,14 +82,14 @@ def create_tooltip(widget, text, delay_ms=500, offset_x=15, offset_y=10):
         # Create tooltip window
         try:
             tooltip_window = ctk.CTkToplevel(widget.winfo_toplevel())
-        except Exception:
+        except _TK_ERRORS:
             return
 
         tooltip_window.wm_overrideredirect(True)
         tooltip_window.wm_attributes("-topmost", True)
         try:
             tooltip_window.wm_attributes("-toolwindow", True)  # Windows-specific
-        except Exception:
+        except _TK_ERRORS:
             pass  # Not available on all platforms
 
         # Session 62b: Register with global manager
@@ -116,7 +121,7 @@ def create_tooltip(widget, text, delay_ms=500, offset_x=15, offset_y=10):
             # Offset for multi-monitor setups
             vroot_x = widget.winfo_vrootx()
             vroot_y = widget.winfo_vrooty()
-        except Exception:
+        except _TK_ERRORS:
             screen_width = 1920
             screen_height = 1080
             vroot_x = 0
@@ -162,8 +167,8 @@ def create_tooltip(widget, text, delay_ms=500, offset_x=15, offset_y=10):
             tooltip_manager.unregister(tooltip_window)
             try:
                 tooltip_window.destroy()
-            except Exception:
-                pass
+            except _TK_ERRORS:
+                pass  # Window may already be destroyed
             tooltip_window = None
 
     def on_enter(event):
@@ -226,21 +231,21 @@ def create_tooltip_for_frame(frame, text, child_widgets=None, delay_ms=500, offs
         try:
             mouse_x = frame.winfo_pointerx()
             mouse_y = frame.winfo_pointery()
-        except Exception:
+        except _TK_ERRORS:
             mouse_x = frame.winfo_rootx() + frame.winfo_width()
             mouse_y = frame.winfo_rooty()
 
         try:
             tooltip_window = ctk.CTkToplevel(frame.winfo_toplevel())
-        except Exception:
+        except _TK_ERRORS:
             return
 
         tooltip_window.wm_overrideredirect(True)
         tooltip_window.wm_attributes("-topmost", True)
         try:
             tooltip_window.wm_attributes("-toolwindow", True)
-        except Exception:
-            pass
+        except _TK_ERRORS:
+            pass  # Not available on all platforms
 
         # Session 62b: Register with global manager
         tooltip_manager.register(tooltip_window, owner=frame)
@@ -266,7 +271,7 @@ def create_tooltip_for_frame(frame, text, child_widgets=None, delay_ms=500, offs
             screen_height = frame.winfo_screenheight()
             vroot_x = frame.winfo_vrootx()
             vroot_y = frame.winfo_vrooty()
-        except Exception:
+        except _TK_ERRORS:
             screen_width, screen_height = 1920, 1080
             vroot_x, vroot_y = 0, 0
 
@@ -299,8 +304,8 @@ def create_tooltip_for_frame(frame, text, child_widgets=None, delay_ms=500, offs
                 tooltip_manager.unregister(tooltip_window)
                 try:
                     tooltip_window.destroy()
-                except Exception:
-                    pass
+                except _TK_ERRORS:
+                    pass  # Window may already be destroyed
                 tooltip_window = None
 
     def force_hide(event=None):
@@ -313,8 +318,8 @@ def create_tooltip_for_frame(frame, text, child_widgets=None, delay_ms=500, offs
             tooltip_manager.unregister(tooltip_window)
             try:
                 tooltip_window.destroy()
-            except Exception:
-                pass
+            except _TK_ERRORS:
+                pass  # Window may already be destroyed
             tooltip_window = None
 
     # Bind to frame
