@@ -236,58 +236,16 @@ class VocabularyExtractor:
         vocabulary = self._post_process(merged_terms, text, doc_count, doc_confidence)
         debug_log(f"[VOCAB] After post-process: {len(vocabulary)} terms")
 
-        # 4. Deduplicate similar Person names (OCR errors, typos)
-        debug_log("[VOCAB] Deduplicating similar Person names...")
-        from src.core.vocabulary.name_deduplicator import deduplicate_names
-        vocabulary = deduplicate_names(vocabulary)
-        debug_log(f"[VOCAB] After deduplication: {len(vocabulary)} terms")
-
-        # 5. Filter substring artifacts (e.g., "Ms. Di Leo:" when "Ms. Di Leo" exists)
-        debug_log("[VOCAB] Filtering substring artifacts...")
-        from src.core.vocabulary.artifact_filter import filter_substring_artifacts
-        vocabulary = filter_substring_artifacts(vocabulary)
-        debug_log(f"[VOCAB] After artifact filter: {len(vocabulary)} terms")
-
-        # 5b. Regularize names: remove fragments and typos (Session 63)
-        # - Fragment filter: "Di Leo" in top quartile → remove "Di", "Leo" from bottom
-        # - Typo filter: "Barbra Jenkins" in top → remove "Barbr Jenkins" (1-char diff)
-        debug_log("[VOCAB] Regularizing names (fragments + typos)...")
-        from src.core.vocabulary.name_regularizer import regularize_names
-        vocabulary = regularize_names(vocabulary)
-        debug_log(f"[VOCAB] After name regularization: {len(vocabulary)} terms")
-
-        # 6. Filter phrases with overly common component words
-        # (e.g., "the same", "left side" - high RAKE scores but no vocab value)
-        debug_log("[VOCAB] Filtering common phrase components...")
-        from src.core.vocabulary.rarity_filter import filter_common_phrases
-        vocabulary = filter_common_phrases(vocabulary)
-        debug_log(f"[VOCAB] After phrase filter: {len(vocabulary)} terms")
-
-        # 6b. Filter corpus-familiar terms (Session 68)
-        # Terms appearing in too many past transcripts are filtered out
-        # Remaining terms get corpus_familiarity_score for ML feature
-        debug_log("[VOCAB] Filtering corpus-familiar terms...")
-        from src.core.vocabulary.corpus_familiarity_filter import filter_corpus_familiar_terms
-        vocabulary = filter_corpus_familiar_terms(vocabulary)
-        debug_log(f"[VOCAB] After corpus familiarity filter: {len(vocabulary)} terms")
-
-        # 7. Filter gibberish/nonsense terms (OCR artifacts, random strings)
-        # NOTE: Person names are EXEMPT - foreign names may look unusual to English model
-        debug_log("[VOCAB] Filtering gibberish terms...")
-        from src.core.utils.gibberish_filter import is_gibberish
-        gibberish_filtered = []
-        for term_data in vocabulary:
-            # Person names bypass gibberish check (foreign names look unusual)
-            if term_data.get("Is Person") == "Yes":
-                gibberish_filtered.append(term_data)
-                continue
-            # Check if term text is gibberish
-            if is_gibberish(term_data["Term"]):
-                debug_log(f"[VOCAB] Filtered gibberish: '{term_data['Term']}'")
-                continue
-            gibberish_filtered.append(term_data)
-        vocabulary = gibberish_filtered
-        debug_log(f"[VOCAB] Final vocabulary: {len(vocabulary)} terms")
+        # 4. Run vocabulary filter chain (Session 71)
+        # Consolidates: name dedup, artifact filter, name regularizer,
+        # rarity filter, corpus familiarity, and gibberish filter
+        debug_log("[VOCAB] Running filter chain...")
+        from src.core.vocabulary.filters import create_optimized_filter_chain
+        filter_chain = create_optimized_filter_chain()
+        filter_result = filter_chain.run(vocabulary)
+        vocabulary = filter_result.vocabulary
+        debug_log(f"[VOCAB] Filter chain complete: {filter_result.removed_count} removed, "
+                  f"{len(vocabulary)} remaining")
 
         # 8. Sort vocabulary based on configured method
         vocabulary = self._sort_vocabulary(vocabulary)
@@ -388,56 +346,16 @@ class VocabularyExtractor:
             role = self._get_role_relevance(term, category, text)
             row["Role/Relevance"] = role
 
-        # 7. Deduplicate similar Person names (OCR errors, typos)
-        debug_log("[VOCAB] Phase 7: Deduplicating similar Person names...")
-        from src.core.vocabulary.name_deduplicator import deduplicate_names
-        csv_data = deduplicate_names(csv_data)
-        debug_log(f"[VOCAB] After deduplication: {len(csv_data)} terms")
-
-        # 8. Filter substring artifacts (e.g., "Ms. Di Leo:" when "Ms. Di Leo" exists)
-        debug_log("[VOCAB] Phase 8: Filtering substring artifacts...")
-        from src.core.vocabulary.artifact_filter import filter_substring_artifacts
-        csv_data = filter_substring_artifacts(csv_data)
-
-        # 8b. Regularize names: remove fragments and typos (Session 63)
-        debug_log("[VOCAB] Phase 8b: Regularizing names (fragments + typos)...")
-        from src.core.vocabulary.name_regularizer import regularize_names
-        csv_data = regularize_names(csv_data)
-        debug_log(f"[VOCAB] After name regularization: {len(csv_data)} terms")
-
-        # 9. Filter phrases with overly common component words
-        # (e.g., "the same", "left side" - high RAKE scores but no vocab value)
-        debug_log("[VOCAB] Phase 9: Filtering common phrase components...")
-        from src.core.vocabulary.rarity_filter import filter_common_phrases
-        csv_data = filter_common_phrases(csv_data)
-        debug_log(f"[VOCAB] After phrase filter: {len(csv_data)} terms")
-
-        # 9b. Filter corpus-familiar terms (Session 68)
-        # Terms appearing in too many past transcripts are filtered out
-        # Remaining terms get corpus_familiarity_score for ML feature
-        debug_log("[VOCAB] Phase 9b: Filtering corpus-familiar terms...")
-        from src.core.vocabulary.corpus_familiarity_filter import filter_corpus_familiar_terms
-        csv_data = filter_corpus_familiar_terms(csv_data)
-        debug_log(f"[VOCAB] After corpus familiarity filter: {len(csv_data)} terms")
-
-        # 10. Filter gibberish/nonsense terms (OCR artifacts, random strings)
-        # NOTE: Person names are EXEMPT - foreign names may look unusual to English model
-        debug_log("[VOCAB] Phase 10: Filtering gibberish terms...")
-        from src.core.utils.gibberish_filter import is_gibberish
-        gibberish_filtered = []
-        for row in csv_data:
-            # Person names bypass gibberish check (foreign names look unusual)
-            term_type = row.get("Type", "")
-            if term_type == "Person":
-                gibberish_filtered.append(row)
-                continue
-            # Check if term text is gibberish
-            if is_gibberish(row["Term"]):
-                debug_log(f"[VOCAB] Filtered gibberish: '{row['Term']}'")
-                continue
-            gibberish_filtered.append(row)
-        csv_data = gibberish_filtered
-        debug_log(f"[VOCAB] After gibberish filter: {len(csv_data)} terms")
+        # 7. Run vocabulary filter chain (Session 71)
+        # Consolidates: name dedup, artifact filter, name regularizer,
+        # rarity filter, corpus familiarity, and gibberish filter
+        debug_log("[VOCAB] Phase 7: Running filter chain...")
+        from src.core.vocabulary.filters import create_optimized_filter_chain
+        filter_chain = create_optimized_filter_chain()
+        filter_result = filter_chain.run(csv_data)
+        csv_data = filter_result.vocabulary
+        debug_log(f"[VOCAB] Filter chain complete: {filter_result.removed_count} removed, "
+                  f"{len(csv_data)} remaining")
 
         total_time = (time.time() - start_time) * 1000
         debug_log(f"[VOCAB] extract_with_llm complete in {total_time:.1f}ms, {len(csv_data)} terms")

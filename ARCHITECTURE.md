@@ -44,6 +44,7 @@
 - [x] **Dynamic LLM context** — Auto-detects optimal context window (4K-64K) based on GPU VRAM; QA context scales accordingly (Session 64, 67)
 - [x] **UI feedback enhancements** — Status bar with auto-clear, task preview label, button flash confirmations (Session 69)
 - [x] **Algorithm optimizations** — O(n²)→O(n²/26) name dedup, LRU caching, pre-compiled regex, thread-safe Q&A workers (Session 70)
+- [x] **FilterChain consolidation** — 6 vocabulary filters unified under VocabularyFilterChain with priority ordering and per-filter stats; CombinedPerTermFilter merges 3→1 pass (Session 71)
 
 ### Partially Implemented ⚡
 
@@ -428,6 +429,7 @@ flowchart TB
 | `Reconciler` | `vocabulary/reconciler.py` | Merge NER + RAKE + BM25 + LLM results |
 | `ResultMerger` | `vocabulary/result_merger.py` | Weighted confidence combination |
 | `RarityFilter` | `vocabulary/rarity_filter.py` | Filter common phrase components |
+| `VocabularyFilterChain` | `vocabulary/filters/` | Unified filtering pipeline (Session 71) |
 | `FeedbackManager` | `vocabulary/feedback_manager.py` | User feedback storage |
 | `MetaLearner` | `vocabulary/meta_learner.py` | ML preference learning |
 
@@ -443,14 +445,24 @@ Filtering is split between algorithm-level and centralized:
 **Centralized (multi-word phrase filtering):**
 After all algorithms contribute, `rarity_filter.py` filters phrases where ALL component words are common. This catches phrases like "the same" or "left side" that score well algorithmically but provide no vocabulary value.
 
-**Filter pipeline order:**
-1. **Post-process** — Frequency thresholds, ML boost, deduplication
-2. **Name deduplication** — Fuzzy matching for OCR variants
-3. **Artifact filter** — Substring containment removal
-4. **Phrase rarity filter** — Filter if rarest word is still common
-5. **Corpus familiarity filter** — Filter terms in 75%+ of corpus docs (Session 68)
-6. **Gibberish filter** — Spell-check based nonsense detection (non-persons only)
-7. **Sort** — By quality score or rarity
+**Filter pipeline order (Session 71 FilterChain, optimized Session 71):**
+
+Consolidated into `VocabularyFilterChain` with priority-based execution.
+Uses `CombinedPerTermFilter` to run 3 per-term checks in a single pass (3→1 loop):
+
+| Priority | Filter | Purpose |
+|----------|--------|---------|
+| 10 | NameDeduplicationFilter | Fuzzy matching for OCR variants |
+| 20 | ArtifactFilter | Substring containment removal |
+| 30 | NameRegularizerFilter | Remove fragments and 1-char typos |
+| 40 | CombinedPerTermFilter | Rarity + Corpus Familiarity + Gibberish in one pass |
+
+Each filter extends `BaseVocabularyFilter` and returns `FilterResult` with statistics.
+The chain tracks per-filter removed counts for debugging.
+
+Two factory functions available:
+- `create_optimized_filter_chain()` — 4 filters with combined per-term (default)
+- `create_default_filter_chain()` — 6 separate filters (for debugging)
 
 ### Algorithm Weights
 
@@ -907,11 +919,17 @@ src/
 │   │   ├── name_regularizer.py      # Fragment + typo deduplication (Session 63b)
 │   │   ├── rarity_filter.py         # Filter common phrases
 │   │   ├── corpus_familiarity_filter.py  # Filter corpus-familiar terms (Session 68)
+│   │   ├── person_utils.py          # Centralized person detection (Session 70)
 │   │   ├── role_profiles.py         # Role detection
 │   │   ├── feedback_manager.py      # User feedback CSV
 │   │   ├── meta_learner.py          # ML preference learning
 │   │   ├── corpus_manager.py        # BM25 corpus
 │   │   ├── corpus_registry.py       # Multi-corpus management
+│   │   ├── filters/                 # FilterChain pipeline (Session 71)
+│   │   │   ├── base.py              # BaseVocabularyFilter, FilterResult
+│   │   │   ├── filter_chain.py      # VocabularyFilterChain orchestrator
+│   │   │   ├── combined_per_term.py # Rarity + Corpus + Gibberish in 1 pass
+│   │   │   └── *.py                 # 6 wrapper filters (dedup, artifact, etc.)
 │   │   └── algorithms/
 │   │       ├── base.py              # ABC + CandidateTerm
 │   │       ├── ner_algorithm.py     # spaCy NER
