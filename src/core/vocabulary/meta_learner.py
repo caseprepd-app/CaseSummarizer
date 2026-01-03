@@ -51,6 +51,14 @@ from src.config import (
 )
 from src.logging_config import debug_log
 from src.core.vocabulary.feedback_manager import FeedbackManager, get_feedback_manager
+from src.core.vocabulary.rarity_filter import _load_scaled_frequencies
+
+# Medical suffixes for domain-specific feature (Session 76)
+MEDICAL_SUFFIXES = (
+    'itis', 'osis', 'ectomy', 'pathy', 'algia', 'emia',
+    'plasty', 'scopy', 'otomy', 'ology', 'oma', 'esis',
+    'iasis', 'trophy', 'megaly', 'rrhea', 'rrhage', 'plegia',
+)
 
 
 def confidence_weighted_blend(prob_lr: float, prob_rf: float) -> float:
@@ -200,105 +208,153 @@ class VocabularyPreferenceLearner:
         """
         Extract feature vector from term data.
 
+        Session 76: Major feature overhaul
+        - Removed: quality_score (circular), num_algorithms (redundant), freq_rank_normalized
+        - Added: 9 new features including word-level frequency, vowel ratio, medical suffix
+
         Args:
             term_data: Dictionary with term information (from feedback CSV or extractor)
-                      Expected keys: quality_score, in_case_freq, freq_rank, algorithms, type,
-                                    total_unique_terms (optional)
 
         Returns:
-            numpy array of features
+            numpy array of 23 features
         """
-        # Numeric features (with defaults for missing data)
-        quality_score = float(term_data.get("quality_score", 0) or 0)
+        # Get the term text
+        term = str(term_data.get("Term", "") or term_data.get("term", "") or "")
+        term_lower = term.lower()
+
+        # === FREQUENCY FEATURES ===
         in_case_freq = float(term_data.get("in_case_freq", 1) or 1)
 
         # Log-transformed count - better discrimination at low counts
-        # log(1)=0 (singleton), log(5)=1.6, log(10)=2.3, log(100)=4.6
         log_count = math.log(max(in_case_freq, 1))
 
         # Document-relative frequency - normalizes for document size
-        # Falls back to 0.01 if total_unique_terms not available (legacy feedback data)
         total_unique_terms = float(term_data.get("total_unique_terms", 0) or 0)
         if total_unique_terms > 0:
             occurrence_ratio = in_case_freq / total_unique_terms
         else:
-            # Fallback for legacy data: assume moderate-sized vocabulary
-            occurrence_ratio = in_case_freq / 100.0
+            occurrence_ratio = in_case_freq / 100.0  # Fallback for legacy data
 
-        # Normalize freq_rank (0 = not in dataset = rarest, higher = more common)
-        freq_rank = float(term_data.get("freq_rank", 0) or 0)
-        # Normalize to [0, 1] where 0 = very rare, 1 = very common
-        freq_rank_normalized = min(freq_rank / 300000, 1.0) if freq_rank > 0 else 0.0
-
-        # Algorithm source features (binary)
+        # === ALGORITHM SOURCE FEATURES ===
         algorithms = str(term_data.get("algorithms", "")).lower()
         has_ner = 1.0 if "ner" in algorithms else 0.0
         has_rake = 1.0 if "rake" in algorithms else 0.0
         has_bm25 = 1.0 if "bm25" in algorithms else 0.0
-        num_algorithms = has_ner + has_rake + has_bm25  # Count of algorithms that found term
 
-        # Session 52: Simplified to just is_person (NER detection)
-        # Other type features were unreliable and removed
+        # === PERSON DETECTION ===
         is_person_val = term_data.get("is_person", 0)
         is_person = float(is_person_val) if isinstance(is_person_val, (int, float)) else (
             1.0 if str(is_person_val).lower() in ("1", "yes", "true") else 0.0
         )
 
-        # Character/format features for artifact detection
-        term = str(term_data.get("Term", "") or term_data.get("term", "") or "")
-
+        # === CHARACTER/FORMAT FEATURES ===
         # Trailing punctuation (":Smith", "Di Leo.") - likely artifacts
         trailing_punct = ":;.,!?"
         has_trailing_punctuation = 1.0 if term and term[-1] in trailing_punct else 0.0
 
-        # Leading digit ("4 Ms. Di Leo", "17 SMITH") - line numbers/page refs
+        # Leading/trailing digits
         has_leading_digit = 1.0 if term and term[0].isdigit() else 0.0
-
-        # Trailing digit ("Smith 17", "Di Leo 2") - page/line number suffixes
         has_trailing_digit = 1.0 if term and term[-1].isdigit() else 0.0
 
-        # Word count - 1-3 words normal, 4+ suspicious (over-extraction)
-        word_count = float(len(term.split())) if term else 1.0
+        # Word count
+        words = term.split() if term else []
+        word_count = float(len(words)) if words else 1.0
 
-        # All caps ("PLAINTIFF'S EXHIBIT") - headers, not vocabulary
-        # Check if all alphabetic characters are uppercase
+        # All caps detection
         alpha_chars = [c for c in term if c.isalpha()]
         is_all_caps = 1.0 if alpha_chars and all(c.isupper() for c in alpha_chars) else 0.0
 
         # Source document confidence (Session 54)
-        # Normalized to 0-1 range (original is 0-100)
-        # Default to 1.0 (100%) for legacy data without this field
         source_doc_confidence_raw = float(term_data.get("source_doc_confidence", 100) or 100)
         source_doc_confidence = source_doc_confidence_raw / 100.0
 
-        # Session 68: Corpus familiarity - proportion of corpus docs containing term
-        # 0.0 = never seen in corpus (most case-specific, desirable)
-        # 1.0 = in every corpus doc (too common, less useful)
-        # Default to 0.0 for legacy data or when corpus not available
+        # Corpus familiarity (Session 68)
         corpus_familiarity_score = float(term_data.get("corpus_familiarity_score", 0) or 0)
 
-        # Session 68: Title case detection - proper nouns vs common words
-        # Helps distinguish names/places ("Smith", "Brooklyn") from common words/artifacts
+        # Title case detection (Session 68)
         is_title_case = 1.0 if term and term.istitle() else 0.0
 
+        # === NEW SESSION 76 FEATURES ===
+
+        # Word-level frequency dictionary features
+        freq_dict = _load_scaled_frequencies()
+        words_lower = [w.lower() for w in words] if words else []
+        if words_lower:
+            words_in_dict = [1.0 if w in freq_dict else 0.0 for w in words_lower]
+            freq_dict_word_ratio = sum(words_in_dict) / len(words_in_dict)
+            all_words_in_freq_dict = 1.0 if all(w in freq_dict for w in words_lower) else 0.0
+        else:
+            freq_dict_word_ratio = 0.0
+            all_words_in_freq_dict = 0.0
+
+        # Term length (character count)
+        term_length = float(len(term))
+
+        # Vowel ratio - gibberish detector
+        # Real words ~40% vowels, gibberish often 0% or very low
+        vowels = set('aeiouAEIOU')
+        if alpha_chars:
+            vowel_count = sum(1 for c in alpha_chars if c in vowels)
+            vowel_ratio = vowel_count / len(alpha_chars)
+        else:
+            vowel_ratio = 0.0
+
+        # Single letter detection ("Q", "A" - transcript artifacts)
+        is_single_letter = 1.0 if len(term.strip()) == 1 and term.strip().isalpha() else 0.0
+
+        # Internal digits (digits not at start or end)
+        # "Smith17" has trailing, "17Smith" has leading, "Sm1th" has internal
+        if len(term) > 2:
+            internal_chars = term[1:-1]
+            has_internal_digits = 1.0 if any(c.isdigit() for c in internal_chars) else 0.0
+        else:
+            has_internal_digits = 0.0
+
+        # Medical suffix detection - strong signal for legitimate vocabulary
+        has_medical_suffix = 1.0 if any(term_lower.endswith(suffix) for suffix in MEDICAL_SUFFIXES) else 0.0
+
+        # Repeated characters (3+ in a row) - artifact detection
+        # Catches "aaaa", ".....", "---"
+        has_repeated_chars = 0.0
+        if len(term) >= 3:
+            for i in range(len(term) - 2):
+                if term[i] == term[i+1] == term[i+2]:
+                    has_repeated_chars = 1.0
+                    break
+
+        # Contains hyphen - often legitimate compound terms
+        contains_hyphen = 1.0 if '-' in term else 0.0
+
         return np.array([
-            quality_score,
+            # Frequency features (2)
             log_count,
             occurrence_ratio,
-            freq_rank_normalized,
-            num_algorithms,
+            # Algorithm features (3)
             has_ner,
             has_rake,
             has_bm25,
-            is_person,  # Session 52: Only reliable type feature
+            # Type feature (1)
+            is_person,
+            # Original artifact features (6)
             has_trailing_punctuation,
             has_leading_digit,
             has_trailing_digit,
             word_count,
             is_all_caps,
-            source_doc_confidence,  # Session 54: OCR quality signal
-            corpus_familiarity_score,  # Session 68: Corpus familiarity
-            is_title_case,  # Session 68: Proper noun detection
+            is_title_case,
+            # Quality features (2)
+            source_doc_confidence,
+            corpus_familiarity_score,
+            # NEW Session 76 features (9)
+            freq_dict_word_ratio,
+            all_words_in_freq_dict,
+            term_length,
+            vowel_ratio,
+            is_single_letter,
+            has_internal_digits,
+            has_medical_suffix,
+            has_repeated_chars,
+            contains_hyphen,
         ])
 
     def _calculate_sample_weight(

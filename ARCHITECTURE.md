@@ -582,18 +582,43 @@ User feedback weighted higher than default data from the FIRST observation. Defa
 
 **Ensemble Blending:** When both models are active, predictions use confidence-weighted blending. Each model's vote is weighted by its confidence (distance from 0.5), so more certain predictions have more influence.
 
-**Features used (17 total):**
-- `quality_score` — Base quality from algorithm weights
-- `log_count` — Log-transformed in-case frequency (better low-count discrimination)
+**Features used (23 total, Session 76 overhaul):**
+
+*Frequency features:*
+- `log_count` — Log-transformed in-case frequency
 - `occurrence_ratio` — Document-relative frequency
-- `freq_rank_normalized` — Rank among all terms
-- `num_algorithms` — Count of algorithms that found term
+
+*Algorithm features:*
 - `has_ner`, `has_rake`, `has_bm25` — Algorithm presence flags
+
+*Type feature:*
 - `is_person` — NER person detection (only reliable type signal)
-- `has_trailing_punctuation`, `has_leading_digit`, `has_trailing_digit`, `word_count`, `is_all_caps` — Artifact detection
-- `source_doc_confidence` — OCR/extraction quality of source documents (Session 54)
+
+*Artifact detection features:*
+- `has_trailing_punctuation`, `has_leading_digit`, `has_trailing_digit` — Punctuation/digit artifacts
+- `word_count` — Number of words (4+ suspicious)
+- `is_all_caps` — Headers like "PLAINTIFF'S EXHIBIT"
+- `is_title_case` — Proper noun detection (Session 68)
+
+*Quality features:*
+- `source_doc_confidence` — OCR/extraction quality (Session 54)
 - `corpus_familiarity_score` — Proportion of corpus docs containing term (Session 68)
-- `is_title_case` — Whether term uses title case for proper noun detection (Session 68)
+
+*Session 76 new features:*
+- `freq_dict_word_ratio` — Proportion of words found in frequency dictionary
+- `all_words_in_freq_dict` — 1 if every word in dictionary (common phrase detection)
+- `term_length` — Character count (very short/long = suspicious)
+- `vowel_ratio` — Proportion of vowels (gibberish detector)
+- `is_single_letter` — Single letter like "Q" or "A" (transcript artifact)
+- `has_internal_digits` — Digits in middle of term (OCR artifact)
+- `has_medical_suffix` — Ends with -itis, -osis, -ectomy, etc. (legitimate vocabulary)
+- `has_repeated_chars` — 3+ same char in a row (artifact)
+- `contains_hyphen` — Often legitimate compound terms
+
+*Removed in Session 76:*
+- ~~`quality_score`~~ — Circular dependency (ML was learning to mimic rules)
+- ~~`freq_rank_normalized`~~ — Replaced by word-level frequency features
+- ~~`num_algorithms`~~ — Redundant (sum of has_ner/rake/bm25)
 
 **Time Decay Weighting:**
 Older feedback is weighted less to adapt to changing preferences:
