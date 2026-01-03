@@ -36,6 +36,7 @@ from pathlib import Path
 from typing import Any
 
 from src.config import (
+    DEBUG_MODE,
     DEFAULT_FEEDBACK_CSV,
     FEEDBACK_DIR,
     ML_MIN_SAMPLES,
@@ -66,13 +67,19 @@ class FeedbackManager:
     """
     Manages user feedback on vocabulary terms.
 
-    Two-File System (Session 55):
+    Two-File System (Session 55, updated Session 76):
     - Default feedback: Ships with app (developer's training data)
-    - User feedback: Collected during normal use, stored in user's AppData
+      Location: config/default_feedback.csv
+    - User feedback: Collected during normal use
+      Location: %APPDATA%/LocalScribe/feedback/user_feedback.csv
+
+    Routing (Session 76):
+    - DEBUG_MODE=True: Feedback writes to default_feedback.csv (for development)
+    - DEBUG_MODE=False: Feedback writes to user_feedback.csv (for end users)
 
     Provides:
     - Recording feedback (thumbs up/down) for terms
-    - Persisting feedback to user's CSV file
+    - Persisting feedback to appropriate CSV file based on DEBUG_MODE
     - Loading combined feedback history for ML training (with source tags)
     - Caching feedback state for UI display
 
@@ -235,18 +242,26 @@ class FeedbackManager:
             "freq_rank": term_data.get("Freq Rank", 0),
         }
 
-        # Append to user feedback CSV
-        try:
-            file_exists = self.user_feedback_file.exists()
+        # Session 76: Route feedback based on DEBUG_MODE
+        # - DEBUG_MODE=True: Write to default_feedback.csv (development data)
+        # - DEBUG_MODE=False: Write to user_feedback.csv (user data)
+        target_file = self.default_feedback_file if DEBUG_MODE else self.user_feedback_file
 
-            with open(self.user_feedback_file, 'a', encoding='utf-8', newline='') as f:
+        try:
+            file_exists = target_file.exists()
+
+            # Ensure parent directory exists (needed for default_feedback.csv in config/)
+            target_file.parent.mkdir(parents=True, exist_ok=True)
+
+            with open(target_file, 'a', encoding='utf-8', newline='') as f:
                 writer = csv.DictWriter(f, fieldnames=FEEDBACK_COLUMNS)
                 if not file_exists:
                     writer.writeheader()
                 writer.writerow(record)
 
             self._pending_count += 1
-            debug_log(f"[FEEDBACK] Recorded {'+' if feedback > 0 else '-'} for '{term}'")
+            target_type = "default" if DEBUG_MODE else "user"
+            debug_log(f"[FEEDBACK] Recorded {'+' if feedback > 0 else '-'} for '{term}' ({target_type})")
             return True
 
         except Exception as e:
