@@ -6,6 +6,83 @@
 
 ---
 
+## Session 74: Auto-Rotation and Document Cropping for Phone Photos — 2026-01-02
+
+**Problem:** Users uploading phone photos of documents need automatic rotation correction (90°/180°/270°) and background cropping before OCR. The existing `ImagePreprocessor` only handled small-angle deskewing (±10°).
+
+### Research Findings
+
+**Libraries Evaluated for Rotation Detection:**
+
+| Approach | Pros | Cons | Decision |
+|----------|------|------|----------|
+| **Tesseract OSD** | Already have pytesseract; detects 0°/90°/180°/270° + confidence score | ~90% accuracy; needs visible text | ✅ Chosen |
+| **OpenCV Hough Transform** | Pure OpenCV (already installed) | Complex tuning required | ❌ Overkill |
+| **ocropus3-ocrorot** (DL) | Very accurate (0.2° precision) | Heavy dependency | ❌ Overkill |
+
+**Libraries Evaluated for Document Detection/Cropping:**
+
+| Approach | Pros | Cons | Decision |
+|----------|------|------|----------|
+| **OpenCV Contour Detection** | Already installed; well-documented; handles perspective | Struggles with busy backgrounds | ✅ Chosen |
+| **GrabCut** | Handles white backgrounds well | Fails if document corners cropped | ❌ Less reliable |
+| **Perspectra** (PyPI) | All-in-one solution | Version 0.1.0 (immature) | ❌ Too new |
+| **Deep Learning** (docTR) | Most robust | Heavy dependencies | ❌ Overkill |
+
+### Implementation
+
+Added two new stages at the **beginning** of `ImagePreprocessor.preprocess()`:
+
+**Stage 0a: Orientation Detection** (`_detect_and_correct_orientation`)
+- Uses `pytesseract.image_to_osd()` for 90°/180°/270° detection
+- Confidence threshold (default 2.0) prevents false corrections
+- Gracefully skips if OSD fails (e.g., no text in image)
+
+**Stage 0b: Document Detection** (`_detect_and_crop_document`)
+- Canny edge detection → contour finding → largest 4-point contour
+- Perspective transform via `cv2.getPerspectiveTransform()` + `cv2.warpPerspective()`
+- Minimum area ratio (default 10%) prevents detecting noise as document
+- Skips gracefully if no 4-sided document found
+
+**New Pipeline Flow:**
+```
+Phone Photo
+    ↓
+[0a] Orientation correction (90°/180°/270°)
+    ↓
+[0b] Document detection & perspective crop
+    ↓
+[1-6] Existing preprocessing (grayscale, denoise, CLAHE, binarize, deskew, border)
+    ↓
+OCR
+```
+
+**New Constructor Parameters:**
+- `enable_orientation_correction` (default: True)
+- `orientation_confidence_threshold` (default: 2.0)
+- `enable_document_detection` (default: True)
+- `min_document_area_ratio` (default: 0.1)
+
+### Files Modified
+
+- `src/core/extraction/image_preprocessor.py` — Added 2 new stages, updated stats
+- `tests/test_image_preprocessor.py` — 8 new tests (27 total, all passing)
+
+### No New Dependencies
+
+Both features use already-installed libraries:
+- `pytesseract` — OSD for orientation
+- `opencv-python-headless` — Contour detection, perspective transform
+
+### Sources
+
+- [PyImageSearch: Mobile Document Scanner](https://pyimagesearch.com/2014/09/01/build-kick-ass-mobile-document-scanner-just-5-minutes/)
+- [PyImageSearch: Correcting Text Orientation](https://pyimagesearch.com/2022/01/31/correcting-text-orientation-with-tesseract-and-python/)
+- [LearnOpenCV: Automatic Document Scanner](https://learnopencv.com/automatic-document-scanner-using-opencv/)
+- [Tesseract ImproveQuality Docs](https://tesseract-ocr.github.io/tessdoc/ImproveQuality.html)
+
+---
+
 ## Session 66: Test Fixes (Artifact Filter & BM25 Mock) — 2026-01-01
 
 **Fixes:** 2 failing tests now pass (313/313 tests passing)

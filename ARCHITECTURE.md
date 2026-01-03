@@ -40,7 +40,7 @@
 - [x] **Shared config loader** — DRY utility for YAML loading (`src/core/config/loader.py`)
 - [x] **Default questions management** — JSON-based storage with enable/disable per question, Settings UI widget (Session 63c)
 - [x] **Name regularization** — Post-processing filter for vocabulary fragments and OCR typos (Session 63b)
-- [x] **Image preprocessing** — Deskew, denoise, contrast enhancement for scanned PDFs (Session 63a)
+- [x] **Image preprocessing** — Orientation fix, document crop, deskew, denoise, contrast for scanned PDFs/images (Session 63a, 74)
 - [x] **Dynamic LLM context** — Auto-detects optimal context window (4K-64K) based on GPU VRAM; QA context scales accordingly (Session 64, 67)
 - [x] **UI feedback enhancements** — Status bar with auto-clear, task preview label, button flash confirmations (Session 69)
 - [x] **Algorithm optimizations** — O(n²)→O(n²/26) name dedup, LRU caching, pre-compiled regex, thread-safe Q&A workers (Session 70)
@@ -335,40 +335,57 @@ flowchart TB
 | PDF text | `extraction/raw_text_extractor.py` | pdfplumber digital extraction |
 | OCR detection | `extraction/raw_text_extractor.py` | Dictionary confidence < 60% triggers OCR |
 | OCR processing | `extraction/raw_text_extractor.py` | pdf2image + pytesseract at 300 DPI |
-| **OCR preprocessing** | `extraction/image_preprocessor.py` | 6-stage image enhancement (Session 63) |
+| **OCR preprocessing** | `extraction/image_preprocessor.py` | 8-stage image enhancement (Session 63, 74) |
 | Sanitization | `sanitization/character_sanitizer.py` | 6-stage pipeline |
 | Preprocessing | `preprocessing/*.py` | Pluggable removers |
 
-### OCR Image Preprocessing (Session 63)
+### OCR Image Preprocessing (Session 63, 74)
 
-When OCR is triggered for scanned documents, a 6-stage preprocessing pipeline improves accuracy by 20-50%:
+When OCR is triggered for scanned documents or images, an 8-stage preprocessing pipeline improves accuracy by 20-50%:
 
 ```mermaid
 flowchart LR
-    subgraph Preprocessing["IMAGE PREPROCESSING"]
+    subgraph PhonePrep["PHONE PHOTO PREP (Session 74)"]
+        I0a["0a. Orientation<br/>(Tesseract OSD)"]
+        I0b["0b. Document<br/>Crop"]
+    end
+
+    subgraph Preprocessing["IMAGE PREPROCESSING (Session 63)"]
         I1["1. Grayscale"]
         I2["2. Denoise<br/>(fastNlMeans)"]
         I3["3. CLAHE<br/>(contrast)"]
         I4["4. Adaptive<br/>threshold"]
-        I5["5. Deskew<br/>(rotation fix)"]
+        I5["5. Deskew<br/>(fine rotation)"]
         I6["6. Border<br/>padding"]
     end
 
-    PDF["Scanned PDF"] --> Images["pdf2image<br/>300 DPI"]
-    Images --> I1
+    Input["PDF / Image"] --> Images["pdf2image<br/>300 DPI"]
+    Images --> I0a --> I0b
+    I0b --> I1
     I1 --> I2 --> I3 --> I4 --> I5 --> I6
     I6 --> Tesseract["pytesseract"]
     Tesseract --> Text["Extracted Text"]
 ```
 
+**Stage 0a (Orientation):** Detects 90°/180°/270° rotation using Tesseract OSD; skips if confidence < threshold.
+
+**Stage 0b (Document Crop):** OpenCV contour detection finds 4-sided document, applies perspective transform to remove background; skips if no document found.
+
 **Configuration:**
 ```python
-OCR_PREPROCESSING_ENABLED = True  # Enable by default
-OCR_DENOISE_STRENGTH = 10         # 1-30, higher = more smoothing
-OCR_ENABLE_CLAHE = True           # Contrast enhancement
+# New (Session 74)
+enable_orientation_correction = True      # Detect/fix 90°/180°/270° rotation
+orientation_confidence_threshold = 2.0    # Min confidence for correction
+enable_document_detection = True          # Crop background from phone photos
+min_document_area_ratio = 0.1             # Document must be 10%+ of image
+
+# Existing (Session 63)
+OCR_PREPROCESSING_ENABLED = True          # Enable preprocessing pipeline
+OCR_DENOISE_STRENGTH = 10                 # 1-30, higher = more smoothing
+OCR_ENABLE_CLAHE = True                   # Contrast enhancement
 ```
 
-**Libraries:** OpenCV (Apache 2.0), deskew (MIT), scikit-image (BSD)
+**Libraries:** OpenCV (Apache 2.0), deskew (MIT), scikit-image (BSD), pytesseract (Apache 2.0)
 
 ### Chunking Strategy
 

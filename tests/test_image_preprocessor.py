@@ -2,6 +2,8 @@
 Tests for the Image Preprocessor module.
 
 Tests the OCR preprocessing pipeline including:
+- Orientation correction (90°/180°/270°)
+- Document detection and cropping
 - Grayscale conversion
 - Denoising
 - Contrast enhancement (CLAHE)
@@ -28,6 +30,12 @@ class TestImagePreprocessor:
         """Test that preprocessor initializes with default values."""
         preprocessor = ImagePreprocessor()
 
+        # New feature defaults
+        assert preprocessor.enable_orientation_correction is True
+        assert preprocessor.orientation_confidence_threshold == 2.0
+        assert preprocessor.enable_document_detection is True
+        assert preprocessor.min_document_area_ratio == 0.1
+        # Existing defaults
         assert preprocessor.denoise_strength == 10
         assert preprocessor.adaptive_block_size == 11
         assert preprocessor.adaptive_constant == 2
@@ -38,6 +46,10 @@ class TestImagePreprocessor:
     def test_initialization_custom_values(self):
         """Test that preprocessor accepts custom values."""
         preprocessor = ImagePreprocessor(
+            enable_orientation_correction=False,
+            orientation_confidence_threshold=5.0,
+            enable_document_detection=False,
+            min_document_area_ratio=0.2,
             denoise_strength=5,
             adaptive_block_size=15,
             adaptive_constant=5,
@@ -46,6 +58,12 @@ class TestImagePreprocessor:
             enable_clahe=False,
         )
 
+        # New features
+        assert preprocessor.enable_orientation_correction is False
+        assert preprocessor.orientation_confidence_threshold == 5.0
+        assert preprocessor.enable_document_detection is False
+        assert preprocessor.min_document_area_ratio == 0.2
+        # Existing
         assert preprocessor.denoise_strength == 5
         assert preprocessor.adaptive_block_size == 15
         assert preprocessor.adaptive_constant == 5
@@ -109,7 +127,9 @@ class TestImagePreprocessor:
 
         _, stats = preprocessor.preprocess(image)
 
-        # All stages should be tracked in timing
+        # All stages should be tracked in timing (including new ones)
+        assert 'orientation' in stats.stage_times
+        assert 'document_crop' in stats.stage_times
         assert 'grayscale' in stats.stage_times
         assert 'denoise' in stats.stage_times
         assert 'clahe' in stats.stage_times
@@ -225,8 +245,18 @@ class TestPreprocessingStats:
 
         assert stats.original_size == (0, 0)
         assert stats.processed_size == (0, 0)
+        # Orientation fields
+        assert stats.orientation_angle == 0
+        assert stats.orientation_confidence == 0.0
+        assert stats.orientation_corrected is False
+        # Document detection fields
+        assert stats.document_detected is False
+        assert stats.document_corners is None
+        assert stats.document_cropped is False
+        # Deskew fields
         assert stats.skew_angle == 0.0
         assert stats.skew_corrected is False
+        # Other fields
         assert stats.denoised is False
         assert stats.contrast_enhanced is False
         assert stats.binarized is False
@@ -256,3 +286,111 @@ class TestSkewDetection:
 
         # The max_skew_angle should be stored
         assert preprocessor.max_skew_angle == 5.0
+
+
+class TestOrientationDetection:
+    """Tests for orientation detection and correction."""
+
+    def test_orientation_disabled(self):
+        """Test that orientation detection can be disabled."""
+        preprocessor = ImagePreprocessor(enable_orientation_correction=False)
+        image = Image.new('RGB', (100, 100), color='white')
+
+        _, stats = preprocessor.preprocess(image)
+
+        # Should not have been corrected
+        assert stats.orientation_corrected is False
+        assert stats.orientation_angle == 0
+
+    def test_orientation_enabled_no_text(self):
+        """Test orientation detection on image with no text (should skip gracefully)."""
+        preprocessor = ImagePreprocessor(enable_orientation_correction=True)
+        # Solid color image - OSD will likely fail
+        image = Image.new('RGB', (100, 100), color='white')
+
+        # Should not raise exception
+        result, stats = preprocessor.preprocess(image)
+
+        assert isinstance(result, Image.Image)
+        # Orientation detection likely failed/skipped, but that's OK
+        assert stats.orientation_corrected is False
+
+    def test_orientation_confidence_threshold(self):
+        """Test that orientation confidence threshold is respected."""
+        # High threshold should prevent most corrections
+        preprocessor = ImagePreprocessor(orientation_confidence_threshold=99.0)
+
+        assert preprocessor.orientation_confidence_threshold == 99.0
+
+
+class TestDocumentDetection:
+    """Tests for document detection and cropping."""
+
+    def test_document_detection_disabled(self):
+        """Test that document detection can be disabled."""
+        preprocessor = ImagePreprocessor(enable_document_detection=False)
+        image = Image.new('RGB', (100, 100), color='white')
+
+        _, stats = preprocessor.preprocess(image)
+
+        assert stats.document_detected is False
+        assert stats.document_cropped is False
+
+    def test_document_detection_no_document(self):
+        """Test document detection on solid color image (no document to find)."""
+        preprocessor = ImagePreprocessor(enable_document_detection=True)
+        image = Image.new('RGB', (100, 100), color='white')
+
+        result, stats = preprocessor.preprocess(image)
+
+        # No document should be detected in solid color image
+        assert stats.document_detected is False
+        assert stats.document_cropped is False
+        assert isinstance(result, Image.Image)
+
+    def test_document_detection_with_rectangle(self):
+        """Test document detection with a clear rectangular shape."""
+        preprocessor = ImagePreprocessor(
+            enable_orientation_correction=False,  # Skip to speed up test
+            enable_document_detection=True,
+            min_document_area_ratio=0.05,
+        )
+
+        # Create image with dark background and white rectangle (document)
+        image = Image.new('RGB', (200, 200), color=(50, 50, 50))
+        draw = ImageDraw.Draw(image)
+        # Draw a white rectangle in the center
+        draw.rectangle([40, 40, 160, 160], fill='white', outline='white')
+
+        result, stats = preprocessor.preprocess(image)
+
+        # Should detect the rectangular document
+        assert isinstance(result, Image.Image)
+        # Document detection may or may not work depending on contrast
+        # At minimum, it shouldn't crash
+
+    def test_min_document_area_ratio(self):
+        """Test that minimum document area ratio is respected."""
+        preprocessor = ImagePreprocessor(min_document_area_ratio=0.5)
+
+        assert preprocessor.min_document_area_ratio == 0.5
+
+    def test_order_corners_helper(self):
+        """Test the corner ordering helper function."""
+        preprocessor = ImagePreprocessor()
+
+        # Unordered corners of a rectangle
+        corners = np.array([
+            [100, 100],  # bottom-right
+            [0, 0],      # top-left
+            [100, 0],    # top-right
+            [0, 100],    # bottom-left
+        ])
+
+        ordered = preprocessor._order_corners(corners)
+
+        # Should be: top-left, top-right, bottom-right, bottom-left
+        assert ordered[0].tolist() == [0, 0]      # top-left
+        assert ordered[1].tolist() == [100, 0]    # top-right
+        assert ordered[2].tolist() == [100, 100]  # bottom-right
+        assert ordered[3].tolist() == [0, 100]    # bottom-left

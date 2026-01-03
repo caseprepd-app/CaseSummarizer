@@ -49,8 +49,18 @@ class PreprocessingStats:
     """Statistics from image preprocessing."""
     original_size: tuple[int, int] = (0, 0)
     processed_size: tuple[int, int] = (0, 0)
+    # Orientation correction (90°/180°/270°)
+    orientation_angle: int = 0
+    orientation_confidence: float = 0.0
+    orientation_corrected: bool = False
+    # Document detection and cropping
+    document_detected: bool = False
+    document_corners: Optional[list] = None
+    document_cropped: bool = False
+    # Fine deskewing (small angles)
     skew_angle: float = 0.0
     skew_corrected: bool = False
+    # Other stages
     denoised: bool = False
     contrast_enhanced: bool = False
     binarized: bool = False
@@ -79,6 +89,12 @@ class ImagePreprocessor:
 
     def __init__(
         self,
+        # New: Orientation and document detection
+        enable_orientation_correction: bool = True,
+        orientation_confidence_threshold: float = 2.0,
+        enable_document_detection: bool = True,
+        min_document_area_ratio: float = 0.1,
+        # Existing parameters
         denoise_strength: int = 10,
         adaptive_block_size: int = 11,
         adaptive_constant: int = 2,
@@ -92,6 +108,10 @@ class ImagePreprocessor:
         Initialize the preprocessor with configurable parameters.
 
         Args:
+            enable_orientation_correction: Detect and fix 90°/180°/270° rotation using Tesseract OSD
+            orientation_confidence_threshold: Minimum confidence to apply orientation fix (0-10 scale)
+            enable_document_detection: Detect document edges and crop/perspective-correct
+            min_document_area_ratio: Minimum document area as ratio of image (0.1 = 10%)
             denoise_strength: Strength of denoising filter (higher = more smoothing, 10 is default)
             adaptive_block_size: Size of pixel neighborhood for adaptive thresholding (must be odd)
             adaptive_constant: Constant subtracted from mean in adaptive threshold
@@ -101,6 +121,12 @@ class ImagePreprocessor:
             clahe_clip_limit: Contrast limit for CLAHE (2.0 is typical)
             clahe_grid_size: Grid size for CLAHE histogram equalization
         """
+        # New features
+        self.enable_orientation_correction = enable_orientation_correction
+        self.orientation_confidence_threshold = orientation_confidence_threshold
+        self.enable_document_detection = enable_document_detection
+        self.min_document_area_ratio = min_document_area_ratio
+        # Existing
         self.denoise_strength = denoise_strength
         self.adaptive_block_size = adaptive_block_size
         self.adaptive_constant = adaptive_constant
@@ -129,6 +155,22 @@ class ImagePreprocessor:
         stats.original_size = image.size
 
         debug(f"Starting image preprocessing: {image.size[0]}x{image.size[1]}")
+
+        # Stage 0a: Orientation correction (90°/180°/270°)
+        stage_start = time.time()
+        if self.enable_orientation_correction:
+            image = self._detect_and_correct_orientation(image, stats)
+        else:
+            debug("  [0a] Orientation correction: skipped (disabled)")
+        stats.stage_times['orientation'] = (time.time() - stage_start) * 1000
+
+        # Stage 0b: Document detection and cropping
+        stage_start = time.time()
+        if self.enable_document_detection:
+            image = self._detect_and_crop_document(image, stats)
+        else:
+            debug("  [0b] Document detection: skipped (disabled)")
+        stats.stage_times['document_crop'] = (time.time() - stage_start) * 1000
 
         # Convert PIL Image to OpenCV format (numpy array)
         cv_image = self._pil_to_cv2(image)
@@ -296,6 +338,178 @@ class ImagePreprocessor:
         except Exception as e:
             warning(f"Deskew failed: {e}")
             return image, 0.0
+
+    def _detect_and_correct_orientation(
+        self, image: Image.Image, stats: PreprocessingStats
+    ) -> Image.Image:
+        """
+        Detect and correct large rotations (90°, 180°, 270°) using Tesseract OSD.
+
+        Args:
+            image: PIL Image to check
+            stats: PreprocessingStats to update
+
+        Returns:
+            Rotated PIL Image (or original if no rotation needed)
+        """
+        try:
+            import pytesseract
+        except ImportError:
+            warning("pytesseract not available for orientation detection")
+            return image
+
+        try:
+            # Use Tesseract's Orientation and Script Detection
+            osd_output = pytesseract.image_to_osd(image, output_type=pytesseract.Output.DICT)
+
+            orientation = osd_output.get("orientation", 0)
+            confidence = osd_output.get("orientation_conf", 0.0)
+
+            stats.orientation_angle = orientation
+            stats.orientation_confidence = confidence
+
+            # Only correct if confidence is high enough and rotation is significant
+            if confidence >= self.orientation_confidence_threshold and orientation != 0:
+                # Rotate in opposite direction to correct
+                # PIL rotates counter-clockwise, so we negate
+                corrected = image.rotate(-orientation, expand=True, fillcolor="white")
+                stats.orientation_corrected = True
+                debug(f"  [0a] Orientation correction: rotated {orientation}° (confidence={confidence:.1f})")
+                return corrected
+            else:
+                if orientation != 0:
+                    debug(f"  [0a] Orientation detection: {orientation}° detected but confidence too low ({confidence:.1f} < {self.orientation_confidence_threshold})")
+                else:
+                    debug(f"  [0a] Orientation detection: no rotation needed")
+                return image
+
+        except Exception as e:
+            # OSD can fail on images with little/no text
+            debug(f"  [0a] Orientation detection skipped: {e}")
+            return image
+
+    def _detect_and_crop_document(
+        self, image: Image.Image, stats: PreprocessingStats
+    ) -> Image.Image:
+        """
+        Detect document edges and apply perspective correction to crop out background.
+
+        Uses Canny edge detection and contour finding to locate a 4-sided document,
+        then applies perspective transform for a top-down view.
+
+        Args:
+            image: PIL Image (possibly a phone photo with background)
+            stats: PreprocessingStats to update
+
+        Returns:
+            Cropped and perspective-corrected PIL Image (or original if no document found)
+        """
+        cv_image = self._pil_to_cv2(image)
+        original_h, original_w = cv_image.shape[:2]
+        min_area = original_h * original_w * self.min_document_area_ratio
+
+        # Convert to grayscale for edge detection
+        if len(cv_image.shape) == 3:
+            gray = cv2.cvtColor(cv_image, cv2.COLOR_RGB2GRAY)
+        else:
+            gray = cv_image
+
+        # Apply Gaussian blur to reduce noise
+        blurred = cv2.GaussianBlur(gray, (5, 5), 0)
+
+        # Canny edge detection
+        edges = cv2.Canny(blurred, 50, 150)
+
+        # Dilate edges to close gaps
+        kernel = np.ones((5, 5), np.uint8)
+        dilated = cv2.dilate(edges, kernel, iterations=2)
+
+        # Find contours
+        contours, _ = cv2.findContours(dilated, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+        if not contours:
+            debug("  [0b] Document detection: no contours found")
+            return image
+
+        # Sort contours by area (largest first)
+        contours = sorted(contours, key=cv2.contourArea, reverse=True)
+
+        document_contour = None
+
+        for contour in contours[:5]:  # Check top 5 largest contours
+            area = cv2.contourArea(contour)
+            if area < min_area:
+                continue
+
+            # Approximate the contour to reduce points
+            peri = cv2.arcLength(contour, True)
+            approx = cv2.approxPolyDP(contour, 0.02 * peri, True)
+
+            # We're looking for a quadrilateral (4 points)
+            if len(approx) == 4:
+                document_contour = approx
+                break
+
+        if document_contour is None:
+            debug("  [0b] Document detection: no 4-sided document found")
+            return image
+
+        # Found a document - extract the 4 corners
+        corners = document_contour.reshape(4, 2)
+        stats.document_detected = True
+        stats.document_corners = corners.tolist()
+
+        # Order corners: top-left, top-right, bottom-right, bottom-left
+        ordered_corners = self._order_corners(corners)
+
+        # Calculate target dimensions
+        width_top = np.linalg.norm(ordered_corners[1] - ordered_corners[0])
+        width_bottom = np.linalg.norm(ordered_corners[2] - ordered_corners[3])
+        height_left = np.linalg.norm(ordered_corners[3] - ordered_corners[0])
+        height_right = np.linalg.norm(ordered_corners[2] - ordered_corners[1])
+
+        target_width = int(max(width_top, width_bottom))
+        target_height = int(max(height_left, height_right))
+
+        # Define destination points for perspective transform
+        dst_corners = np.array([
+            [0, 0],
+            [target_width - 1, 0],
+            [target_width - 1, target_height - 1],
+            [0, target_height - 1]
+        ], dtype=np.float32)
+
+        # Apply perspective transform
+        src_corners = ordered_corners.astype(np.float32)
+        matrix = cv2.getPerspectiveTransform(src_corners, dst_corners)
+        warped = cv2.warpPerspective(cv_image, matrix, (target_width, target_height))
+
+        stats.document_cropped = True
+        debug(f"  [0b] Document detection: cropped {original_w}x{original_h} → {target_width}x{target_height}")
+
+        return self._cv2_to_pil(warped)
+
+    def _order_corners(self, corners: np.ndarray) -> np.ndarray:
+        """
+        Order 4 corners as: top-left, top-right, bottom-right, bottom-left.
+
+        Args:
+            corners: Array of 4 corner points
+
+        Returns:
+            Ordered corners array
+        """
+        # Sort by sum of coordinates (top-left has smallest sum, bottom-right has largest)
+        sorted_by_sum = corners[np.argsort(corners.sum(axis=1))]
+        top_left = sorted_by_sum[0]
+        bottom_right = sorted_by_sum[3]
+
+        # Sort by difference (top-right has smallest diff, bottom-left has largest)
+        sorted_by_diff = corners[np.argsort(np.diff(corners, axis=1).ravel())]
+        top_right = sorted_by_diff[0]
+        bottom_left = sorted_by_diff[3]
+
+        return np.array([top_left, top_right, bottom_right, bottom_left])
 
     def _pil_to_cv2(self, pil_image: Image.Image) -> np.ndarray:
         """Convert PIL Image to OpenCV format (numpy array)."""
