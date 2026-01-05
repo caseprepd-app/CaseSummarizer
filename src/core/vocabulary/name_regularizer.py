@@ -1,35 +1,147 @@
 """
 Name Regularization for Vocabulary Extraction
 
-Post-processing filter that removes name fragments and OCR typo variants
-by comparing against high-frequency canonical terms.
+Post-processing filter that removes name fragments and typo variants
+using dictionary lookup and confidence-weighted scoring.
 
 Two main filters:
 
 1. Fragment Filter:
-   - "Di Leo" in top quartile → remove "Di", "Leo" from bottom 3/4
+   - "Di Leo" (high frequency) → remove "Di", "Leo" (low frequency fragments)
    - Handles spaCy splitting multi-word names into separate entities
 
-2. Typo Filter (1-character edit distance):
-   - "Barbra Jenkins" in top quartile → remove "Barbr Jenkins", "Barbra Jenkinss"
-   - Catches common OCR errors where one character is wrong
+2. Typo Filter (1-2 character edit distance):
+   - Session 78: Uses CanonicalScorer with branching logic:
+     - Exactly ONE variant in dictionary → it wins (100% confidence)
+     - ZERO variants known → confidence-weighted score decides
+     - MULTIPLE variants known → weighted score as tiebreaker
+   - Integrates OCR artifact penalty (10% reduction for suspicious patterns)
+
+NOTE: An ML model trained on user feedback could potentially outperform this
+rules-based approach by learning document-specific patterns (medical vs legal
+terminology, regional name spellings). This implementation provides a reasonable
+baseline that works without training data.
 
 These filters run AFTER artifact_filter.py (which catches longer superstrings)
 and work on the opposite direction (catching shorter fragments and typos).
 
 Example:
-    Top quartile: ["Di Leo", "Barbra Jenkins", "Memorial Hospital"]
-    Bottom 3/4:   ["Di", "Leo", "Barbr Jenkins", "Barbra Jenkinss", "Hospital"]
+    Input: ["Di Leo" (50), "Di" (3), "Leo" (2), "Jenkins" (40), "Jenidns" (8)]
 
     After filtering:
     - "Di" removed (fragment of "Di Leo")
     - "Leo" removed (fragment of "Di Leo")
-    - "Barbr Jenkins" removed (1-char typo of "Barbra Jenkins")
-    - "Barbra Jenkinss" removed (1-char typo of "Barbra Jenkins")
-    - "Hospital" NOT removed (not a fragment, "Memorial Hospital" ≠ "Hospital")
+    - "Jenidns" removed (typo of "Jenkins" - only "Jenkins" is in dictionary)
 """
 
 from src.logging_config import debug_log
+from src.core.vocabulary.canonical_scorer import create_canonical_scorer
+from src.core.vocabulary.term_sources import TermSources
+
+# Lazy-loaded known words set for typo resolution
+_KNOWN_WORDS: set[str] | None = None
+
+
+def _load_known_words() -> set[str]:
+    """
+    Load known words for typo resolution from multiple sources.
+
+    Session 78: Used to decide which of two similar terms (1 char apart) is the typo.
+    Logic:
+    - One in list, one not → keep the known word, filter the typo
+    - Both in list → keep both (user decides)
+    - Neither in list → keep both (user decides - may be exotic names)
+
+    Sources:
+    1. Google 333k word frequency list (top 50k) - common English words/names
+    2. International names dataset (~4.6k names from 106 countries)
+       https://github.com/sigpwned/popular-names-by-country-dataset
+       CC0 Public Domain license
+
+    Returns:
+        Set of lowercase known words/names
+    """
+    global _KNOWN_WORDS
+    if _KNOWN_WORDS is not None:
+        return _KNOWN_WORDS
+
+    from pathlib import Path
+    from src.config import GOOGLE_WORD_FREQUENCY_FILE
+
+    _KNOWN_WORDS = set()
+
+    # Source 1: Google word frequency list (top 50k)
+    if GOOGLE_WORD_FREQUENCY_FILE.exists():
+        try:
+            max_words = 50000
+            with open(GOOGLE_WORD_FREQUENCY_FILE, "r", encoding="utf-8") as f:
+                for i, line in enumerate(f):
+                    if i >= max_words:
+                        break
+                    parts = line.strip().split("\t")
+                    if parts:
+                        _KNOWN_WORDS.add(parts[0].lower())
+            debug_log(f"[NAME-REG] Loaded {len(_KNOWN_WORDS)} words from Google frequency list")
+        except Exception as e:
+            debug_log(f"[NAME-REG] Failed to load Google word frequency file: {e}")
+
+    # Source 2: International names dataset
+    # https://github.com/sigpwned/popular-names-by-country-dataset
+    data_dir = Path(__file__).parent.parent.parent.parent / "data" / "names"
+    surnames_file = data_dir / "international_surnames.csv"
+    forenames_file = data_dir / "international_forenames.csv"
+
+    names_loaded = 0
+
+    # Load surnames (Romanized Name is column index 5)
+    if surnames_file.exists():
+        try:
+            with open(surnames_file, "r", encoding="utf-8") as f:
+                next(f)  # Skip header
+                for line in f:
+                    parts = line.strip().split(",")
+                    if len(parts) > 5 and parts[5]:
+                        _KNOWN_WORDS.add(parts[5].lower())
+                        names_loaded += 1
+        except Exception as e:
+            debug_log(f"[NAME-REG] Failed to load surnames file: {e}")
+
+    # Load forenames (Romanized Name is column index 11)
+    if forenames_file.exists():
+        try:
+            with open(forenames_file, "r", encoding="utf-8") as f:
+                next(f)  # Skip header
+                for line in f:
+                    parts = line.strip().split(",")
+                    if len(parts) > 11 and parts[11]:
+                        _KNOWN_WORDS.add(parts[11].lower())
+                        names_loaded += 1
+        except Exception as e:
+            debug_log(f"[NAME-REG] Failed to load forenames file: {e}")
+
+    if names_loaded > 0:
+        debug_log(f"[NAME-REG] Loaded {names_loaded} international names")
+
+    debug_log(f"[NAME-REG] Total known words for typo resolution: {len(_KNOWN_WORDS)}")
+
+    return _KNOWN_WORDS
+
+
+def _is_known_term(term: str) -> bool:
+    """
+    Check if all words in a term are in the known words list.
+
+    Args:
+        term: A term like "Leroy Jenkins" or "John Smith"
+
+    Returns:
+        True if ALL words in the term are known, False otherwise
+    """
+    known_words = _load_known_words()
+    words = term.lower().split()
+    return all(word.strip(".,;:'\"") in known_words for word in words)
+
+
 
 
 def _edit_distance(s1: str, s2: str) -> int:
@@ -194,13 +306,14 @@ def filter_typo_variants(
     """
     Remove terms that are 1-character typos of high-frequency canonical terms.
 
-    Terms in the top fraction (by count) are considered canonical. Terms in
-    the bottom portion are checked for edit distance to canonical terms.
+    DEPRECATED (Session 78): This function uses the old "top 25% frequency"
+    approach. Use regularize_names() instead, which uses CanonicalScorer with
+    dictionary lookup and confidence-weighted scoring.
 
-    Example:
-        "Barbra Jenkins" (count=50) in top quartile
-        "Barbr Jenkins" (count=2) in bottom → removed (edit distance = 1)
-        "Barbra Jenkinss" (count=1) in bottom → removed (edit distance = 1)
+    The old approach fails when OCR consistently produces the same error
+    (e.g., 99 wrong readings vs 1 correct - the typo becomes "canonical").
+
+    Kept for backward compatibility but no longer called by regularize_names().
 
     Args:
         vocabulary: List of term dictionaries
@@ -294,9 +407,20 @@ def _single_pass_regularize(
     """
     Single pass of name regularization.
 
+    Session 78: Uses CanonicalScorer with branching logic for typo detection:
+    - Exactly ONE variant in dictionary → it wins (100% confidence)
+    - ZERO variants known → confidence-weighted score decides
+    - MULTIPLE variants known → weighted score as tiebreaker
+
+    This replaces the old "top 25% frequency" approach which fails when OCR
+    consistently produces the same error (e.g., 99 wrong readings vs 1 correct).
+
+    NOTE: An ML model trained on user feedback could potentially outperform this
+    rules-based approach by learning document-specific patterns.
+
     Args:
         vocabulary: List of term dictionaries
-        top_fraction: Fraction of terms to consider canonical
+        top_fraction: Fraction of terms to consider canonical (for fragments)
         min_canonical_count: Minimum number of canonical terms
         count_key: Dictionary key for term frequency count
         term_key: Dictionary key for the term string
@@ -307,75 +431,133 @@ def _single_pass_regularize(
     if not vocabulary or len(vocabulary) < 4:
         return vocabulary, 0, 0
 
-    # Sort by count descending to determine canonical terms
+    # Sort by count descending to determine canonical terms for FRAGMENT filter
     sorted_vocab = sorted(
         vocabulary,
         key=lambda x: int(x.get(count_key, 0) or 0),
         reverse=True
     )
 
-    # Determine split point - use fraction OR min count, whichever gives more canonical terms
-    # But never take more than 75% of the vocabulary (must leave some for filtering)
+    # Determine split point for fragment filter only
     fraction_index = int(len(sorted_vocab) * top_fraction)
-    max_canonical = int(len(sorted_vocab) * 0.75)  # Cap at 75% of vocab
+    max_canonical = int(len(sorted_vocab) * 0.75)
     split_index = min(max(min_canonical_count, fraction_index), max_canonical)
-    # But don't exceed the vocabulary size
     split_index = min(split_index, len(sorted_vocab))
 
     top_terms = sorted_vocab[:split_index]
     bottom_terms = sorted_vocab[split_index:]
 
-    # Build canonical term sets for both filters
+    # Build canonical multi-word terms for fragment filter
     canonical_multiword = []
-    canonical_for_typo = []
-
     for term_dict in top_terms:
         term = term_dict.get(term_key, "")
-        if term:
-            if len(term.split()) > 1:
-                canonical_multiword.append(term)
-            if len(term) >= 5:  # min_term_length for typo filter
-                canonical_for_typo.append(term.lower())
+        if term and len(term.split()) > 1:
+            canonical_multiword.append(term)
 
-    # Filter bottom terms only
-    filtered_bottom = []
+    # FRAGMENT FILTER: Only applies to bottom terms vs top terms
+    filtered_after_fragments = []
     fragment_removed = 0
-    typo_removed = 0
 
     for term_dict in bottom_terms:
         term = term_dict.get(term_key, "")
-        term_lower = term.lower()
-
-        # Check 1: Is this a fragment of a canonical multi-word term?
         is_fragment = False
         for canonical in canonical_multiword:
             if _is_fragment_of(term, canonical):
                 is_fragment = True
                 fragment_removed += 1
                 break
+        if not is_fragment:
+            filtered_after_fragments.append(term_dict)
 
-        if is_fragment:
+    # Combine top + filtered bottom for typo detection
+    all_terms = top_terms + filtered_after_fragments
+
+    # TYPO FILTER: Session 78 - Use CanonicalScorer for typo pair resolution
+    # Groups similar terms (1-2 edit distance) and picks the canonical variant
+    typo_removed = 0
+    terms_to_remove: set[str] = set()
+
+    # Build list of terms long enough for typo checking
+    long_terms = [
+        (t, t.get(term_key, ""))
+        for t in all_terms
+        if len(t.get(term_key, "")) >= 5
+    ]
+
+    # Create scorer once for efficiency
+    scorer = create_canonical_scorer()
+
+    # Group similar terms (1-2 edit distance) for canonical selection
+    processed: set[str] = set()
+    typo_groups: list[list[tuple[dict, str]]] = []
+
+    for i, (dict_a, term_a) in enumerate(long_terms):
+        if term_a.lower() in processed:
             continue
 
-        # Check 2: Is this a typo of a canonical term?
-        is_typo = False
-        if len(term) >= 5:  # Only check terms long enough
-            for canonical in canonical_for_typo:
-                if term_lower == canonical:
-                    continue
-                if abs(len(term_lower) - len(canonical)) > 1:
-                    continue
-                if _edit_distance(term_lower, canonical) <= 1:
-                    is_typo = True
-                    typo_removed += 1
-                    break
+        # Find all terms similar to term_a
+        similar_group = [(dict_a, term_a)]
+        processed.add(term_a.lower())
 
-        if is_typo:
-            continue
+        for dict_b, term_b in long_terms[i + 1:]:
+            if term_b.lower() in processed:
+                continue
 
-        filtered_bottom.append(term_dict)
+            # Skip if lengths differ by more than 2 (optimization)
+            if abs(len(term_a) - len(term_b)) > 2:
+                continue
 
-    return top_terms + filtered_bottom, fragment_removed, typo_removed
+            # Check edit distance (1-2 chars)
+            if _edit_distance(term_a.lower(), term_b.lower()) <= 2:
+                similar_group.append((dict_b, term_b))
+                processed.add(term_b.lower())
+
+        # If group has multiple entries, use CanonicalScorer to pick winner
+        if len(similar_group) > 1:
+            typo_groups.append(similar_group)
+
+    # Process each typo group through CanonicalScorer
+    for group in typo_groups:
+        # Build variants for CanonicalScorer
+        variants = []
+        for term_dict, term in group:
+            # Check for existing TermSources
+            sources = term_dict.get("sources")
+            if sources is None:
+                # Create legacy sources from frequency
+                sources = TermSources.create_legacy(
+                    term_dict.get(count_key, 1),
+                    term_dict.get("source_doc_confidence", 0.85)
+                )
+
+            variants.append({
+                "Term": term,
+                "sources": sources,
+                "In-Case Freq": term_dict.get(count_key, 1),
+                "_original_dict": term_dict,
+            })
+
+        # Let CanonicalScorer select the winner
+        canonical = scorer.select_canonical(variants)
+        canonical_term = canonical["Term"].lower()
+
+        # Mark non-canonical terms for removal
+        for term_dict, term in group:
+            if term.lower() != canonical_term:
+                terms_to_remove.add(term.lower())
+                typo_removed += 1
+                debug_log(
+                    f"[NAME-REG] Removing typo '{term}' "
+                    f"in favor of canonical '{canonical['Term']}'"
+                )
+
+    # Filter out removed terms
+    result = [
+        t for t in all_terms
+        if t.get(term_key, "").lower() not in terms_to_remove
+    ]
+
+    return result, fragment_removed, typo_removed
 
 
 def regularize_names(
@@ -391,18 +573,27 @@ def regularize_names(
 
     This function applies fragment and typo filtering multiple times. Each pass:
     1. Removes fragments (e.g., "Di" when "Di Leo" exists in top quartile)
-    2. Removes typos (e.g., "Barbr Jenkins" when "Barbra Jenkins" exists)
+    2. Removes typos using CanonicalScorer (Session 78)
+
+    Session 78: Typo detection uses CanonicalScorer with branching logic:
+    - Exactly ONE variant in dictionary → it wins (keeps the known word)
+    - ZERO variants known → confidence-weighted score decides (exotic names)
+    - MULTIPLE variants known → weighted score as tiebreaker
+
+    This replaces the old "top 25% frequency" approach which failed when OCR
+    consistently produced the same error (e.g., 99 wrong readings vs 1 correct).
+
+    NOTE: An ML model trained on user feedback could potentially outperform
+    this rules-based approach by learning document-specific patterns.
 
     Multiple passes allow legitimate terms to "bubble up" as noise is removed.
     For example, if pass 1 removes 5 typos, a term that was #26 might become #21,
-    moving into the top quartile for pass 2 where its typos can be caught.
+    moving into the top quartile for pass 2 where its fragments can be caught.
 
     Args:
         vocabulary: List of term dictionaries
-        top_fraction: Fraction of terms to consider canonical (default 0.25)
-        min_canonical_count: Minimum number of canonical terms, regardless of
-            percentage (default 10). Ensures small vocabularies have enough
-            canonical terms to catch typos.
+        top_fraction: Fraction of terms to consider canonical (for fragments, default 0.25)
+        min_canonical_count: Minimum number of canonical terms for fragment filter
         num_passes: Number of filtering passes (default 3)
         count_key: Dictionary key for term frequency count
         term_key: Dictionary key for the term string

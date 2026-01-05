@@ -111,6 +111,9 @@ class VocabularyFilterChain:
                 result = filter_.filter(current_vocab)
                 elapsed_ms = (time.time() - filter_start) * 1000
 
+                # Session 80: Yield GIL between filters to keep GUI responsive
+                time.sleep(0)
+
                 stats.per_filter_stats[filter_.name] = {
                     'input_count': input_count,
                     'output_count': len(result.vocabulary),

@@ -1,1 +1,1 @@
-timestamp,document_id,term,feedback,is_person,algorithms,NER_detection,RAKE_detection,BM25_detection,algo_count,quality_score,in_case_freq,freq_rank
+timestamp,document_id,term,feedback,is_person,algorithms,NER_detection,RAKE_detection,BM25_detection,algo_count,quality_score,in_case_freq,freq_rank,num_source_documents,doc_diversity_ratio,mean_doc_confidence,median_doc_confidence,confidence_std_dev,high_conf_doc_ratio,all_low_conf,total_docs_in_session

@@ -2,9 +2,16 @@
 Gibberish Filter Utility
 
 Detects nonsense/random character sequences that pass pattern-based filters.
-Uses spell checking to identify words that are:
-1. Not in the dictionary
-2. Have no reasonable corrections (true gibberish, not typos)
+Uses spell checking combined with edit distance and sequence similarity
+to distinguish true gibberish from typos.
+
+Session 79: Improved algorithm using dual metrics:
+- Edit distance ratio: How many characters changed relative to word length
+- Sequence similarity: How similar the word is to its best correction
+- BOTH must pass thresholds, otherwise it's gibberish (strict when they disagree)
+
+This catches PDF garbage like "modmess" (sim=0.77) while allowing real typos
+like "Jenidns" (sim=0.86) and "Smitb" (sim=0.80).
 
 NOTE: This filter should NOT be applied to PERSON entities, as foreign
 names may incorrectly trigger gibberish detection.
@@ -17,22 +24,33 @@ Usage:
 """
 
 import logging
+from difflib import SequenceMatcher
 
 from spellchecker import SpellChecker
 
 logger = logging.getLogger(__name__)
 
+# Thresholds for combined algorithm (Session 79)
+# Both must pass for a word to be considered a valid typo (not gibberish)
+EDIT_DISTANCE_RATIO_THRESHOLD = 0.35  # Max 35% of characters can differ
+SIMILARITY_THRESHOLD = 0.80  # Must be at least 80% similar to correction
+
 
 class GibberishFilter:
     """
-    Wrapper for gibberish detection using spell checking.
+    Wrapper for gibberish detection using spell checking with dual metrics.
+
+    Session 79: Improved algorithm that uses BOTH edit distance ratio AND
+    sequence similarity to distinguish gibberish from typos.
 
     A word is considered gibberish if:
-    1. It's not in the dictionary (unknown)
-    2. It has no reasonable spelling corrections
+    1. It's not in the dictionary, AND
+    2. It has no correction, OR its best correction fails EITHER metric:
+       - Edit distance ratio > 35% (too many character changes)
+       - Sequence similarity < 80% (not similar enough)
 
-    This distinguishes true garbage (random characters) from typos
-    (which have corrections) and valid rare words (which are in dictionary).
+    This is stricter than just checking for corrections, catching PDF garbage
+    like "modmess" while still allowing real typos like "Jenidns" and "Smitb".
     """
 
     _instance = None
@@ -58,7 +76,6 @@ class GibberishFilter:
         """
         Check if text appears to be gibberish/nonsense.
 
-        A word is gibberish if it's unknown AND has no corrections.
         Multi-word phrases are gibberish if ANY word is gibberish.
 
         Args:
@@ -84,25 +101,76 @@ class GibberishFilter:
 
     def _is_word_gibberish(self, word: str) -> bool:
         """
-        Check if a single word is gibberish.
+        Check if a single word is gibberish using dual metrics.
+
+        Session 79: Uses edit distance ratio AND sequence similarity.
+        Both must pass for a word to be considered a valid typo.
 
         Args:
             word: Cleaned lowercase word to check
 
         Returns:
-            True if word is gibberish (unknown with no corrections)
+            True if word is gibberish
         """
         # If word is in dictionary, not gibberish
         if word in self._spell:
             return False
 
-        # If word has corrections, it's a typo, not gibberish
-        corrections = self._spell.candidates(word)
-        if corrections and len(corrections) > 0:
-            return False
+        # Short words (<=4 chars): metrics break down, be lenient
+        if len(word) <= 4:
+            best = self._spell.correction(word)
+            if best and best != word:
+                return False  # Has a correction = probably typo
+            candidates = self._spell.candidates(word)
+            if candidates:
+                return False  # Has candidates = probably typo
+            return True  # No correction or candidates = gibberish
 
-        # Unknown word with no corrections = gibberish
-        return True
+        # Get best correction
+        best = self._spell.correction(word)
+        if best is None or best == word:
+            return True  # No correction = gibberish
+
+        # Calculate both metrics
+        edit_dist = self._edit_distance(word, best)
+        edit_ratio = edit_dist / len(word)
+        similarity = SequenceMatcher(None, word, best).ratio()
+
+        # BOTH must pass - strict when they disagree
+        ratio_pass = edit_ratio <= EDIT_DISTANCE_RATIO_THRESHOLD
+        sim_pass = similarity >= SIMILARITY_THRESHOLD
+
+        if ratio_pass and sim_pass:
+            return False  # Valid typo, not gibberish
+        else:
+            return True  # Failed at least one metric = gibberish
+
+    def _edit_distance(self, s1: str, s2: str) -> int:
+        """
+        Calculate Levenshtein edit distance between two strings.
+
+        Args:
+            s1: First string
+            s2: Second string
+
+        Returns:
+            Number of single-character edits needed to transform s1 to s2
+        """
+        if len(s1) < len(s2):
+            return self._edit_distance(s2, s1)
+        if len(s2) == 0:
+            return len(s1)
+
+        prev_row = list(range(len(s2) + 1))
+        for i, c1 in enumerate(s1):
+            curr_row = [i + 1]
+            for j, c2 in enumerate(s2):
+                insertions = prev_row[j + 1] + 1
+                deletions = curr_row[j] + 1
+                substitutions = prev_row[j] + (c1 != c2)
+                curr_row.append(min(insertions, deletions, substitutions))
+            prev_row = curr_row
+        return prev_row[-1]
 
     def _clean_for_check(self, word: str) -> str:
         """

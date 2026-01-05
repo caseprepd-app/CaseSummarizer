@@ -157,6 +157,7 @@ class NERAlgorithm(BaseExtractionAlgorithm):
         total_entities = 0
 
         # Process chunks using nlp.pipe() for efficiency
+        # Session 80: Add GIL yield after each chunk to keep GUI responsive
         for doc in self.nlp.pipe(chunks, batch_size=VOCABULARY_BATCH_SIZE):
             total_tokens += len(doc)
             total_entities += len(doc.ents)
@@ -164,6 +165,9 @@ class NERAlgorithm(BaseExtractionAlgorithm):
             # Extract from this chunk
             chunk_candidates = self._extract_from_doc(doc, term_frequencies)
             candidates.extend(chunk_candidates)
+
+            # Yield GIL to allow GUI updates (prevents freezing)
+            time.sleep(0)
 
         processing_time_ms = (time.time() - start_time) * 1000
 

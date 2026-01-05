@@ -25,8 +25,10 @@ import nltk
 
 # PDF processing
 import pdfplumber
+import fitz  # PyMuPDF - primary PDF text extraction (Session 79)
 import pytesseract
 from nltk.corpus import words
+from difflib import SequenceMatcher
 
 # OCR
 from pdf2image import convert_from_path
@@ -413,32 +415,73 @@ class RawTextExtractor:
             }
 
     def _process_pdf(self, file_path: Path) -> dict:
-        """Process PDF file (digital or scanned)."""
+        """
+        Process PDF file using hybrid extraction with word-level voting.
+
+        Session 79: Hybrid extraction pipeline:
+        1. Extract with PyMuPDF (primary - faster, more accurate)
+        2. Extract with pdfplumber (secondary)
+        3. Reconcile differences using word-level voting
+        4. Fall back to OCR if text quality is insufficient
+        """
         debug(f"Processing as PDF: {file_path.name}")
 
-        # Step 1: Try digital text extraction
-        with Timer("Digital PDF text extraction"):
-            text, page_count, error_type = self._extract_pdf_text(file_path)
+        # Step 1: Try PyMuPDF extraction (primary)
+        with Timer("PyMuPDF text extraction"):
+            primary_text, page_count, primary_error = self._extract_text_pymupdf(file_path)
 
-        if text is None:
-            # Error occurred
-            # ... (error handling as before)
+        # Step 2: Try pdfplumber extraction (secondary)
+        with Timer("pdfplumber text extraction"):
+            secondary_text, secondary_page_count, secondary_error = self._extract_pdf_text(file_path)
+
+        # Use whichever page count we got
+        page_count = page_count or secondary_page_count
+
+        # Step 3: Determine extraction method based on what succeeded
+        text = None
+        method = None
+
+        if primary_text and secondary_text:
+            # Both succeeded - reconcile with word-level voting
+            with Timer("Word-level voting reconciliation"):
+                text = self._reconcile_extractions(primary_text, secondary_text)
+            method = 'hybrid_voting'
+            debug(f"Using hybrid extraction with word-level voting")
+        elif primary_text:
+            # Only PyMuPDF succeeded
+            text = primary_text
+            method = 'pymupdf_only'
+            debug(f"Using PyMuPDF extraction only (pdfplumber failed: {secondary_error})")
+        elif secondary_text:
+            # Only pdfplumber succeeded
+            text = secondary_text
+            method = 'pdfplumber_only'
+            debug(f"Using pdfplumber extraction only (PyMuPDF failed: {primary_error})")
+        else:
+            # Both failed - return error
+            error_msg = primary_error or secondary_error or 'unknown'
+            error_messages = {
+                'password': "PDF is password-protected or encrypted",
+                'corrupted': "PDF file appears to be corrupted or damaged",
+                'permission': "Permission denied when accessing PDF",
+                'empty': "PDF has no pages or content",
+            }
             return {
                 'status': 'error',
-                'error_message': '...',
+                'error_message': error_messages.get(error_msg, f"Failed to extract PDF text: {error_msg}"),
                 'page_count': page_count
             }
 
-        # Step 2: Heuristic check
+        # Step 4: Check text quality
         with Timer("Dictionary confidence check"):
             dictionary_confidence = self._calculate_dictionary_confidence(text)
-        debug(f"Dictionary confidence: {dictionary_confidence:.1f}%")
+        debug(f"Dictionary confidence: {dictionary_confidence:.1f}% (method: {method})")
 
-        # Decision
+        # Decision: Use digital text or fall back to OCR
         if dictionary_confidence > MIN_DICTIONARY_CONFIDENCE and len(text) > 1000:
-            debug("Using digital text extraction")
+            debug(f"Using {method} extraction")
             return {
-                'method': 'digital_text',
+                'method': method,
                 'confidence': int(dictionary_confidence),
                 'extracted_text': text,
                 'page_count': page_count,
@@ -496,6 +539,58 @@ class RawTextExtractor:
                 error(f"Failed to extract PDF text: {str(e)}", exc_info=True)
                 return None, 0, 'unknown'
 
+    def _extract_text_pymupdf(self, file_path: Path) -> tuple[str | None, int, str | None]:
+        """
+        Extract text from PDF using PyMuPDF (fitz).
+
+        Session 79: PyMuPDF is faster and more accurate than pdfplumber for
+        text extraction. Used as primary extractor in hybrid mode.
+
+        Returns:
+            (text, page_count, error_type) where error_type is None on success,
+            or one of: 'password', 'corrupted', 'empty', 'unknown'
+        """
+        try:
+            text = ""
+            page_count = 0
+
+            doc = fitz.open(file_path)
+            page_count = len(doc)
+            debug(f"PyMuPDF: PDF has {page_count} pages")
+
+            if page_count == 0:
+                doc.close()
+                error("PyMuPDF: PDF has no pages")
+                return None, 0, 'empty'
+
+            for i, page in enumerate(doc, 1):
+                if DEBUG_MODE and i % 10 == 0:
+                    debug(f"PyMuPDF: Extracting page {i}/{page_count}")
+
+                page_text = page.get_text()
+                if page_text:
+                    text += page_text + "\n"
+
+            doc.close()
+            return text, page_count, None
+
+        except fitz.FileDataError as e:
+            error_msg = str(e).lower()
+            if "password" in error_msg or "encrypted" in error_msg:
+                error("PyMuPDF: PDF is password-protected or encrypted")
+                return None, 0, 'password'
+            else:
+                error("PyMuPDF: PDF file appears to be corrupted")
+                return None, 0, 'corrupted'
+        except Exception as e:
+            error_msg = str(e).lower()
+            if "permission" in error_msg:
+                error("PyMuPDF: Permission denied when accessing PDF")
+                return None, 0, 'permission'
+            else:
+                error(f"PyMuPDF: Failed to extract PDF text: {str(e)}", exc_info=True)
+                return None, 0, 'unknown'
+
     def _calculate_dictionary_confidence(self, text: str) -> float:
         """
         Calculate what percentage of words are valid English words.
@@ -520,6 +615,115 @@ class RawTextExtractor:
 
         confidence = (valid_words / len(tokens)) * 100
         return confidence
+
+    def _is_valid_word(self, word: str) -> bool:
+        """
+        Check if a word is in the English dictionary.
+
+        Session 79: Used by word-level voting to decide between extractor outputs.
+
+        Args:
+            word: Word to check (will be lowercased)
+
+        Returns:
+            True if word is in dictionary
+        """
+        return word.lower().strip(".,;:'\"()[]{}") in self.english_words
+
+    def _tokenize_for_voting(self, text: str) -> list[str]:
+        """
+        Tokenize text into words for voting alignment.
+
+        Preserves punctuation attached to words so we can reconstruct text.
+        Splits on whitespace only.
+
+        Args:
+            text: Text to tokenize
+
+        Returns:
+            List of tokens (words with attached punctuation)
+        """
+        return text.split()
+
+    def _reconcile_extractions(self, primary_text: str, secondary_text: str) -> str:
+        """
+        Reconcile two PDF extractions using word-level voting.
+
+        Session 79: When both extractors succeed, align their outputs word-by-word
+        and pick the better word at each position:
+        - If words match: keep them
+        - If words differ and one is in dictionary: use dictionary word
+        - If both valid or both invalid: use primary (PyMuPDF)
+
+        Args:
+            primary_text: Text from PyMuPDF (preferred)
+            secondary_text: Text from pdfplumber (fallback)
+
+        Returns:
+            Reconciled text with best words from each extractor
+        """
+        # Tokenize both texts
+        primary_tokens = self._tokenize_for_voting(primary_text)
+        secondary_tokens = self._tokenize_for_voting(secondary_text)
+
+        if not primary_tokens:
+            return secondary_text
+        if not secondary_tokens:
+            return primary_text
+
+        # Use SequenceMatcher to align the two token sequences
+        matcher = SequenceMatcher(None, primary_tokens, secondary_tokens)
+        result_tokens = []
+        corrections_made = 0
+
+        for tag, i1, i2, j1, j2 in matcher.get_opcodes():
+            if tag == 'equal':
+                # Words match - keep primary
+                result_tokens.extend(primary_tokens[i1:i2])
+            elif tag == 'replace':
+                # Words differ - vote on each pair
+                primary_chunk = primary_tokens[i1:i2]
+                secondary_chunk = secondary_tokens[j1:j2]
+
+                # Align chunks (may be different lengths)
+                max_len = max(len(primary_chunk), len(secondary_chunk))
+                for k in range(max_len):
+                    p_word = primary_chunk[k] if k < len(primary_chunk) else ""
+                    s_word = secondary_chunk[k] if k < len(secondary_chunk) else ""
+
+                    if not p_word:
+                        result_tokens.append(s_word)
+                    elif not s_word:
+                        result_tokens.append(p_word)
+                    else:
+                        # Both have words - vote
+                        p_valid = self._is_valid_word(p_word)
+                        s_valid = self._is_valid_word(s_word)
+
+                        if p_valid and not s_valid:
+                            result_tokens.append(p_word)
+                        elif s_valid and not p_valid:
+                            result_tokens.append(s_word)
+                            corrections_made += 1
+                            debug(f"[VOTING] '{p_word}' → '{s_word}' (dictionary correction)")
+                        else:
+                            # Both valid or both invalid - use primary
+                            result_tokens.append(p_word)
+
+            elif tag == 'delete':
+                # Words only in primary - keep them
+                result_tokens.extend(primary_tokens[i1:i2])
+            elif tag == 'insert':
+                # Words only in secondary - this could be important content
+                # Only add if they look like real words (not extraction artifacts)
+                for token in secondary_tokens[j1:j2]:
+                    if len(token) > 1 and self._is_valid_word(token):
+                        result_tokens.append(token)
+
+        if corrections_made > 0:
+            debug(f"[VOTING] Made {corrections_made} dictionary corrections")
+
+        return " ".join(result_tokens)
 
     def _perform_ocr(self, file_path: Path, page_count: int) -> dict:
         """

@@ -295,9 +295,11 @@ class RAKEAlgorithm(BaseExtractionAlgorithm):
         if ' ' not in cleaned and lower_cleaned in STOPWORDS:
             return ""
 
-        # Capitalize first letter for consistency
-        if cleaned and cleaned[0].islower():
-            cleaned = cleaned[0].upper() + cleaned[1:]
+        # Session 78: Use title case for proper noun consistency
+        # Previously only capitalized first letter, causing "Luigi napolitano"
+        # instead of "Luigi Napolitano"
+        if cleaned:
+            cleaned = cleaned.title()
 
         return cleaned.strip()
 

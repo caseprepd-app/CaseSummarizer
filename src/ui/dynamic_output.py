@@ -287,12 +287,23 @@ class DynamicOutputWidget(ctk.CTkFrame):
 
     def _on_tab_changed(self):
         """
-        Handle tab change to show/hide appropriate button bars (Session 68).
+        Handle tab change to show/hide appropriate button bars (Session 68, 78).
 
         Hides the shared button bar when Q&A tab is active (since QAPanel
         has its own buttons), shows it for other tabs.
+
+        Session 78: Also shows/hides the main window's follow-up input frame
+        so it only appears when the Q&A tab is active.
         """
         current_tab = self.tabview.get()
+
+        # Session 78: Show/hide main window's follow-up frame based on tab
+        main_window = self.winfo_toplevel()
+        if hasattr(main_window, 'followup_frame'):
+            if current_tab == "Ask Questions":
+                main_window.followup_frame.grid(row=2, column=0, sticky="ew", padx=10, pady=(0, 10))
+            else:
+                main_window.followup_frame.grid_remove()
 
         if current_tab == "Ask Questions":
             # Hide shared button bar - QAPanel has its own buttons
@@ -319,19 +330,24 @@ class DynamicOutputWidget(ctk.CTkFrame):
         """
         Update the progress badge to show data source status (Session 45).
 
+        Session 80: Changed "NER only" to "Local algorithms" since results
+        actually come from NER, RAKE, and BM25 (not just NER). The badge
+        indicates extraction phase (local vs LLM-enhanced), not which algorithms.
+
         Args:
-            source: "none", "ner", or "both"
+            source: "none", "ner" (local algorithms), or "both" (local + LLM)
         """
         if source == "none":
             self._progress_badge.configure(text="")
         elif source == "ner":
+            # Session 80: More accurate label - results come from NER, RAKE, BM25
             self._progress_badge.configure(
-                text="Initial results (NER only)",
+                text="Results (local algorithms)",
                 text_color=("orange", "#ffaa00")
             )
         elif source == "both":
             self._progress_badge.configure(
-                text="Enhanced results (NER + LLM)",
+                text="Enhanced results (+ LLM)",
                 text_color=("green", "#00cc66")
             )
 
@@ -493,13 +509,11 @@ class DynamicOutputWidget(ctk.CTkFrame):
             for doc_name, doc_summary in sorted(self._document_summaries.items()):
                 self.summary_text_display.insert("end", f"{doc_name}:\n{doc_summary}\n\n")
 
-        # Set default tab to Names & Vocab if it has data, otherwise Q&A if ready, otherwise Summary
+        # Session 78: Only switch to Vocab tab when there's vocab data
+        # Don't switch to Summary/Q&A automatically - user should stay on Vocab tab
+        # as it's the most useful for court reporters
         if vocab_data:
             self.tabview.set("Names & Vocab")
-        elif qa_ready:
-            self.tabview.set("Ask Questions")
-        else:
-            self.tabview.set("Summary")
 
     def _display_csv(self, data: list):
         """
@@ -508,11 +522,29 @@ class DynamicOutputWidget(ctk.CTkFrame):
         Uses async batch insertion with pagination for GUI responsiveness.
         Initial load shows ROWS_PER_PAGE items, "Load More" button adds more.
 
+        Session 80: Filters out items with negative feedback (Skip) from display.
+        This ensures previously skipped items don't reappear in new sessions.
+
         Args:
             data: List of dicts with keys: Term, Quality Score, Is Person, Found By
         """
         if not data:
             debug_log("[VOCAB DISPLAY] No vocabulary data to display")
+            return
+
+        # Session 80: Filter out items with negative feedback (previously skipped)
+        # This prevents old skipped items from appearing even if not in exclusion file
+        original_count = len(data)
+        data = [
+            item for item in data
+            if self._feedback_manager.get_rating(item.get("Term", "") if isinstance(item, dict) else "") != -1
+        ]
+        filtered_count = original_count - len(data)
+        if filtered_count > 0:
+            debug_log(f"[VOCAB DISPLAY] Filtered {filtered_count} previously skipped items")
+
+        if not data:
+            debug_log("[VOCAB DISPLAY] All items were filtered (previously skipped)")
             return
 
         # Reset pagination state
@@ -723,30 +755,19 @@ class DynamicOutputWidget(ctk.CTkFrame):
                 # Session 51: Add alternating row background color
                 row_bg_tag = 'oddrow' if i % 2 else 'evenrow'
 
+                # Session 78: Row coloring should ONLY reflect feedback status
+                # - Thumbs up (rating=1) → green
+                # - Thumbs down (rating=-1) → red
+                # - No feedback (rating=0) → neutral (just alternating row background)
+                # Removed algorithm-based coloring (found_ner, found_rake, etc.) since
+                # colors should only indicate user/developer feedback, not detection source.
                 if rating == 1:
                     tag = (row_bg_tag, 'rated_up')
                 elif rating == -1:
                     tag = (row_bg_tag, 'rated_down')
                 else:
-                    # No feedback rating - use Found By coloring if available
-                    # Session 53: Handle comma-separated algorithm names (e.g., "NER, RAKE")
-                    # Session 61: Also handle legacy "Both" value
-                    found_by = item.get("Found By", "") if isinstance(item, dict) else ""
-                    algos = [a.strip() for a in found_by.split(",")] if found_by else []
-                    if len(algos) >= 2 or "Both" in algos:
-                        # Multiple algorithms = high confidence (includes legacy "Both")
-                        tag = (row_bg_tag, 'found_multi')
-                    elif "NER" in algos:
-                        tag = (row_bg_tag, 'found_ner')
-                    elif "RAKE" in algos:
-                        tag = (row_bg_tag, 'found_rake')
-                    elif "BM25" in algos:
-                        tag = (row_bg_tag, 'found_bm25')
-                    elif "LLM" in algos:
-                        tag = (row_bg_tag, 'found_llm')
-                    else:
-                        # Fallback: use multi color for visibility (better than invisible)
-                        tag = (row_bg_tag, 'found_multi')
+                    # No feedback - neutral coloring (just alternating background)
+                    tag = (row_bg_tag,)
                 self.csv_treeview.insert("", "end", values=values, tags=tag)
 
             current_idx = batch_end
@@ -777,6 +798,8 @@ class DynamicOutputWidget(ctk.CTkFrame):
         total_items = len(data)
         displayed_items = self._vocab_display_offset
 
+        debug_log(f"[PAGINATION] Updating UI: {displayed_items}/{total_items} displayed")
+
         # Create or update "Load More" button
         if displayed_items < total_items:
             remaining = total_items - displayed_items
@@ -785,15 +808,17 @@ class DynamicOutputWidget(ctk.CTkFrame):
                 self._load_more_btn = ctk.CTkButton(
                     self.treeview_frame,
                     text="",
-                    command=lambda: self._load_more_rows(data),
                     height=28,
                     **BUTTON_STYLES["primary"]
                 )
 
+            # Session 80: Always update command to use current data (fixes stale closure)
             self._load_more_btn.configure(
-                text=f"Load More ({remaining} remaining)"
+                text=f"Load More ({remaining} remaining)",
+                command=lambda d=data: self._load_more_rows(d)
             )
             self._load_more_btn.grid(row=2, column=0, columnspan=2, sticky="ew", padx=10, pady=5)
+            debug_log(f"[PAGINATION] Load More button shown ({remaining} remaining)")
 
             # Update info label
             if not hasattr(self, 'vocab_info_label'):
@@ -810,6 +835,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
 
         else:
             # All items displayed
+            debug_log(f"[PAGINATION] All {total_items} items displayed, hiding Load More")
             if self._load_more_btn is not None:
                 self._load_more_btn.grid_remove()
 
@@ -945,6 +971,55 @@ class DynamicOutputWidget(ctk.CTkFrame):
         if self._selected_term:
             self.clipboard_clear()
             self.clipboard_append(self._selected_term)
+
+    def _add_to_user_exclusion_list(self, term: str) -> None:
+        """
+        Add a term to the user exclusion list (silent, no dialog).
+
+        Called when user gives negative feedback (-1) to a term.
+        The term will be filtered out of future vocabulary extractions.
+
+        Session 80: Improved logging to debug exclusion persistence issues.
+
+        Args:
+            term: The term to exclude (case-insensitive)
+        """
+        if not term:
+            return
+
+        lower_term = term.lower().strip()
+        debug_log(f"[FEEDBACK] Adding '{lower_term}' to exclusion list at {USER_VOCAB_EXCLUDE_PATH}")
+
+        try:
+            # Session 80: Use Path methods instead of os.path for consistency
+            USER_VOCAB_EXCLUDE_PATH.parent.mkdir(parents=True, exist_ok=True)
+
+            # Check if term is already in the list
+            existing_terms = set()
+            if USER_VOCAB_EXCLUDE_PATH.exists():
+                with open(USER_VOCAB_EXCLUDE_PATH, 'r', encoding='utf-8') as f:
+                    existing_terms = {line.strip().lower() for line in f if line.strip()}
+                debug_log(f"[FEEDBACK] Existing exclusions: {len(existing_terms)} terms")
+
+            if lower_term in existing_terms:
+                debug_log(f"[FEEDBACK] Term '{term}' already in exclusion list, skipping")
+                return
+
+            # Append to file
+            with open(USER_VOCAB_EXCLUDE_PATH, 'a', encoding='utf-8') as f:
+                f.write(f"{lower_term}\n")
+
+            # Verify write succeeded
+            if USER_VOCAB_EXCLUDE_PATH.exists():
+                with open(USER_VOCAB_EXCLUDE_PATH, 'r', encoding='utf-8') as f:
+                    new_count = sum(1 for line in f if line.strip())
+                debug_log(f"[FEEDBACK] Successfully added '{term}' to exclusion list "
+                         f"(now {new_count} total exclusions)")
+            else:
+                debug_log(f"[FEEDBACK] WARNING: File not found after write: {USER_VOCAB_EXCLUDE_PATH}")
+
+        except Exception as e:
+            debug_log(f"[FEEDBACK] ERROR: Failed to add '{term}' to exclusion list: {e}")
 
     def _build_vocab_csv(self, vocab_data: list) -> str:
         """
@@ -1158,7 +1233,8 @@ class DynamicOutputWidget(ctk.CTkFrame):
         from src.services import get_export_service
         from src.core.utils.text_utils import get_documents_folder
 
-        vocab_data = self._outputs.get("Names & Vocabulary", [])
+        # Session 80: Use fallback to legacy key like other export functions
+        vocab_data = self._outputs.get("Names & Vocabulary") or self._outputs.get("Rare Word List (CSV)", [])
         if not vocab_data:
             messagebox.showinfo("No Data", "No vocabulary data to export.")
             return
@@ -1200,7 +1276,8 @@ class DynamicOutputWidget(ctk.CTkFrame):
         from src.services import get_export_service
         from src.core.utils.text_utils import get_documents_folder
 
-        vocab_data = self._outputs.get("Names & Vocabulary", [])
+        # Session 80: Use fallback to legacy key like other export functions
+        vocab_data = self._outputs.get("Names & Vocabulary") or self._outputs.get("Rare Word List (CSV)", [])
         if not vocab_data:
             messagebox.showinfo("No Data", "No vocabulary data to export.")
             return
@@ -1242,7 +1319,8 @@ class DynamicOutputWidget(ctk.CTkFrame):
         from src.services import get_export_service
         from src.core.utils.text_utils import get_documents_folder
 
-        vocab_data = self._outputs.get("Names & Vocabulary", [])
+        # Session 80: Use fallback to legacy key like other export functions
+        vocab_data = self._outputs.get("Names & Vocabulary") or self._outputs.get("Rare Word List (CSV)", [])
         if not vocab_data:
             messagebox.showinfo("No Data", "No vocabulary data to export.")
             return
@@ -1283,7 +1361,8 @@ class DynamicOutputWidget(ctk.CTkFrame):
         from src.services import get_export_service
         from src.core.utils.text_utils import get_documents_folder
 
-        vocab_data = self._outputs.get("Names & Vocabulary", [])
+        # Session 80: Use fallback to legacy key like other export functions
+        vocab_data = self._outputs.get("Names & Vocabulary") or self._outputs.get("Rare Word List (CSV)", [])
         if not vocab_data:
             messagebox.showinfo("No Data", "No vocabulary data to export.")
             return
@@ -1445,6 +1524,11 @@ class DynamicOutputWidget(ctk.CTkFrame):
             self._update_feedback_display(item_id, new_rating)
             debug_log(f"[FEEDBACK UI] {'Cleared' if new_rating == 0 else 'Set'} "
                       f"feedback for '{term}': {new_rating}")
+
+            # Session 78: Add skipped terms to user exclusion list
+            # This filters them out of future extractions
+            if new_rating == -1:
+                self._add_to_user_exclusion_list(term)
 
     def _find_term_data(self, term: str) -> dict | None:
         """

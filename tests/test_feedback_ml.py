@@ -34,8 +34,10 @@ def temp_feedback_dir():
 
 @pytest.fixture
 def feedback_manager(temp_feedback_dir):
-    """Create FeedbackManager with temp directory."""
-    return FeedbackManager(feedback_dir=temp_feedback_dir)
+    """Create FeedbackManager with temp directory and no shipped defaults."""
+    # Provide a non-existent default_feedback_file so tests start clean
+    nonexistent_default = temp_feedback_dir / "default_feedback.csv"
+    return FeedbackManager(feedback_dir=temp_feedback_dir, default_feedback_file=nonexistent_default)
 
 
 @pytest.fixture
@@ -103,12 +105,15 @@ class TestFeedbackManager:
         """Test that feedback persists across manager instances."""
         term_data = {"Term": "persistent_term"}
 
+        # Provide non-existent default_feedback_file to avoid polluting shipped file
+        nonexistent_default = temp_feedback_dir / "default_feedback.csv"
+
         # Create first manager and record feedback
-        manager1 = FeedbackManager(feedback_dir=temp_feedback_dir)
+        manager1 = FeedbackManager(feedback_dir=temp_feedback_dir, default_feedback_file=nonexistent_default)
         manager1.record_feedback(term_data, +1)
 
         # Create second manager and verify feedback was loaded
-        manager2 = FeedbackManager(feedback_dir=temp_feedback_dir)
+        manager2 = FeedbackManager(feedback_dir=temp_feedback_dir, default_feedback_file=nonexistent_default)
         assert manager2.get_rating("persistent_term") == 1
 
     def test_get_feedback_count(self, feedback_manager):
@@ -160,7 +165,7 @@ class TestVocabularyMetaLearner:
             "total_unique_terms": 100,
         }
         features = meta_learner._extract_features(term_data)
-        assert len(features) == 23  # Session 76: 23 features
+        assert len(features) == 30  # Session 78: 30 features (23 from Session 76 + 7 TermSources)
         # features[0] is log_count: log(3) ≈ 1.099
         assert abs(features[0] - 1.099) < 0.01
         # features[1] is occurrence_ratio: 3/100 = 0.03

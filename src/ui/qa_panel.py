@@ -84,7 +84,7 @@ class QAPanel(ctk.CTkFrame):
         self._create_header()
         self._create_text_display()
         self._create_button_bar()
-        self._create_followup_pane()
+        # Session 80: Removed _create_followup_pane() - follow-up input is in main window
 
         if DEBUG_MODE:
             debug_log("[QAPanel] Initialized with plain text layout")
@@ -148,14 +148,9 @@ class QAPanel(ctk.CTkFrame):
         )
         self.edit_btn.pack(side="left", padx=(0, 5))
 
-        # Ask More Questions button
-        self.ask_more_btn = ctk.CTkButton(
-            button_frame,
-            text="Ask More Questions",
-            command=self._toggle_followup_pane,
-            width=140
-        )
-        self.ask_more_btn.pack(side="left", padx=5)
+        # Session 80: Removed "Ask More Questions" button - redundant with
+        # the follow-up input at bottom of main window. Users can type questions
+        # directly in the input field below the Q&A results.
 
         # Copy to Clipboard button
         self.copy_btn = ctk.CTkButton(

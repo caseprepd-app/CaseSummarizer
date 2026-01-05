@@ -26,6 +26,16 @@ CSV Schema:
 - quality_score: Quality score at time of feedback
 - in_case_freq: Term occurrence count
 - freq_rank: Google frequency rank
+
+Session 78: Added TermSources-based per-document features:
+- num_source_documents: How many docs contain this term
+- doc_diversity_ratio: num_docs / total_docs (0-1)
+- mean_doc_confidence: Count-weighted mean OCR confidence (0-1)
+- median_doc_confidence: Median confidence - robust to outliers (0-1)
+- confidence_std_dev: Standard deviation of confidences (0-0.5)
+- high_conf_doc_ratio: % of source docs with confidence > 0.80 (0-1)
+- all_low_conf: 1 if ALL source docs have conf < 0.60, else 0
+- total_docs_in_session: Total docs in extraction session (for diversity ratio)
 """
 
 import csv
@@ -43,9 +53,11 @@ from src.config import (
     ML_RETRAIN_THRESHOLD,
 )
 from src.logging_config import debug_log
+from src.core.vocabulary.term_sources import TermSources
 
 # CSV columns
 # Session 52: Replaced "type" with "is_person" (binary flag, more reliable)
+# Session 78: Added TermSources-based per-document features (8 columns)
 FEEDBACK_COLUMNS = [
     "timestamp",
     "document_id",
@@ -60,6 +72,15 @@ FEEDBACK_COLUMNS = [
     "quality_score",
     "in_case_freq",
     "freq_rank",
+    # Session 78: TermSources-based features
+    "num_source_documents",    # How many docs contain this term
+    "doc_diversity_ratio",     # num_docs / total_docs (0-1)
+    "mean_doc_confidence",     # Count-weighted mean OCR confidence (0-1)
+    "median_doc_confidence",   # Median confidence - robust to outliers (0-1)
+    "confidence_std_dev",      # Standard deviation of confidences (0-0.5)
+    "high_conf_doc_ratio",     # % of source docs with confidence > 0.80 (0-1)
+    "all_low_conf",            # 1 if ALL source docs have conf < 0.60, else 0
+    "total_docs_in_session",   # Total docs in extraction session
 ]
 
 
@@ -92,19 +113,21 @@ class FeedbackManager:
         rating = manager.get_rating("spondylosis")  # Returns +1, -1, or 0
     """
 
-    def __init__(self, feedback_dir: Path | None = None):
+    def __init__(self, feedback_dir: Path | None = None, default_feedback_file: Path | None = None):
         """
         Initialize feedback manager.
 
         Args:
             feedback_dir: Directory to store user feedback files.
                          Defaults to %APPDATA%/LocalScribe/feedback/
+            default_feedback_file: Path to default feedback CSV (for testing).
+                         Defaults to config/default_feedback.csv
         """
         self.feedback_dir = Path(feedback_dir) if feedback_dir else FEEDBACK_DIR
 
         # Two-file system: default (shipped) + user (collected)
-        # Default file is always from app installation (shipped data)
-        self.default_feedback_file = DEFAULT_FEEDBACK_CSV
+        # Default file: shipped data, or override for testing
+        self.default_feedback_file = Path(default_feedback_file) if default_feedback_file else DEFAULT_FEEDBACK_CSV
         # User file goes in the feedback_dir (which may be overridden for testing)
         self.user_feedback_file = self.feedback_dir / "user_feedback.csv"
 
@@ -129,13 +152,25 @@ class FeedbackManager:
         self.feedback_dir.mkdir(parents=True, exist_ok=True)
 
     def _load_cache(self):
-        """Load existing user feedback from CSV into cache."""
-        if not self.user_feedback_file.exists():
-            debug_log("[FEEDBACK] No existing user feedback file, starting fresh")
+        """
+        Load existing feedback from CSV into cache.
+
+        Routing (Session 78):
+        - DEBUG_MODE=True: Load from default_feedback.csv (developer data)
+        - DEBUG_MODE=False: Load from user_feedback.csv (user data)
+
+        This ensures the GUI reflects the dataset that will be modified.
+        """
+        # Choose which file to load based on DEBUG_MODE
+        target_file = self.default_feedback_file if DEBUG_MODE else self.user_feedback_file
+        target_type = "default" if DEBUG_MODE else "user"
+
+        if not target_file.exists():
+            debug_log(f"[FEEDBACK] No existing {target_type} feedback file, starting fresh")
             return
 
         try:
-            with open(self.user_feedback_file, 'r', encoding='utf-8', newline='') as f:
+            with open(target_file, 'r', encoding='utf-8', newline='') as f:
                 reader = csv.DictReader(f)
                 for row in reader:
                     term = row.get("term", "").lower().strip()
@@ -146,9 +181,9 @@ class FeedbackManager:
                     except ValueError:
                         continue
 
-            debug_log(f"[FEEDBACK] Loaded {len(self._cache)} user feedback entries")
+            debug_log(f"[FEEDBACK] Loaded {len(self._cache)} {target_type} feedback entries (DEBUG_MODE={DEBUG_MODE})")
         except Exception as e:
-            debug_log(f"[FEEDBACK] Error loading user feedback: {e}")
+            debug_log(f"[FEEDBACK] Error loading {target_type} feedback: {e}")
 
     def set_document_id(self, doc_id: str):
         """
@@ -226,6 +261,29 @@ class FeedbackManager:
         is_person_val = term_data.get("Is Person", "No")
         is_person = 1 if str(is_person_val).lower() in ("yes", "1", "true") else 0
 
+        # Session 78: Extract TermSources-based features if available
+        sources = term_data.get("sources")
+        total_docs_in_session = term_data.get("total_docs_in_session", 1)
+
+        if isinstance(sources, TermSources) and sources.num_documents > 0:
+            num_source_documents = sources.num_documents
+            doc_diversity_ratio = sources.doc_diversity_ratio(int(total_docs_in_session))
+            mean_doc_confidence = sources.mean_confidence
+            median_doc_confidence = sources.median_confidence
+            confidence_std_dev = sources.confidence_std_dev
+            high_conf_doc_ratio = sources.high_conf_doc_ratio
+            all_low_conf = 1 if sources.all_low_conf else 0
+        else:
+            # Legacy fallback: no TermSources available
+            source_doc_confidence = term_data.get("source_doc_confidence", 100) / 100.0
+            num_source_documents = 1
+            doc_diversity_ratio = 1.0 / max(total_docs_in_session, 1)
+            mean_doc_confidence = source_doc_confidence
+            median_doc_confidence = source_doc_confidence
+            confidence_std_dev = 0.0
+            high_conf_doc_ratio = 1.0 if source_doc_confidence > 0.80 else 0.0
+            all_low_conf = 1 if source_doc_confidence < 0.60 else 0
+
         record = {
             "timestamp": datetime.now().isoformat(),
             "document_id": doc_id,
@@ -240,6 +298,15 @@ class FeedbackManager:
             "quality_score": term_data.get("Quality Score", 0),
             "in_case_freq": term_data.get("In-Case Freq", 1),
             "freq_rank": term_data.get("Freq Rank", 0),
+            # Session 78: TermSources-based features
+            "num_source_documents": num_source_documents,
+            "doc_diversity_ratio": doc_diversity_ratio,
+            "mean_doc_confidence": mean_doc_confidence,
+            "median_doc_confidence": median_doc_confidence,
+            "confidence_std_dev": confidence_std_dev,
+            "high_conf_doc_ratio": high_conf_doc_ratio,
+            "all_low_conf": all_low_conf,
+            "total_docs_in_session": total_docs_in_session,
         }
 
         # Session 76: Route feedback based on DEBUG_MODE

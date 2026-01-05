@@ -56,6 +56,11 @@
 - [x] **Pre-ship audit fixes** — 45+ code quality fixes from comprehensive audit: PERF (9), LOGIC (14), UI (3), DOCS (1), REFACTOR (4); query cache, O(n²) dedup fix, export helper refactor (Session 75)
 - [x] **GUI workflow test framework** — Automated headless testing simulating full user workflow (load PDFs → preprocess → Process Documents → verify phases); pytest markers for slow/integration tests (Session 77)
 - [x] **BM25 corpus manager fix** — Fixed infinite loop bug in `corpus_manager.py` where wrong method name (`extract` vs `process_document`) caused rebuild loop; added safeguard for failed corpus extraction (Session 77)
+- [x] **Hybrid PDF extraction** — Dual-extractor pipeline using PyMuPDF (primary) + pdfplumber (secondary) with word-level voting reconciliation; picks dictionary words when extractors disagree; reduces OCR errors from layout misinterpretation (Session 79)
+- [x] **Canonical spelling selector** — CanonicalScorer with branching logic: dictionary-known names win automatically, exotic names use confidence-weighted scoring; replaces "top 25% by frequency" approach; 10% penalty for OCR artifacts (Session 78)
+- [x] **Per-document term tracking** — TermSources dataclass tracks which documents contributed each term occurrence with confidences; enables weighted scoring for canonical selection (Session 78)
+- [x] **ML feature expansion** — 30 features total (7 new TermSources-based: num_source_documents, doc_diversity_ratio, mean/median confidence, confidence_std_dev, high_conf_doc_ratio, all_low_conf) (Session 78)
+- [x] **Rule-based scoring with TermSources** — Base quality score incorporates document source quality: +10 for multi-doc terms, +5 for high-conf sources, -10 for all-low-conf, -10 conditional single-source penalty (3+ doc sessions only); configurable in config.py (Session 79)
 
 ### Partially Implemented ⚡
 
@@ -452,6 +457,8 @@ flowchart TB
 | `ResultMerger` | `vocabulary/result_merger.py` | Weighted confidence combination |
 | `RarityFilter` | `vocabulary/rarity_filter.py` | Filter common phrase components |
 | `VocabularyFilterChain` | `vocabulary/filters/` | Unified filtering pipeline (Session 71) |
+| `CanonicalScorer` | `vocabulary/canonical_scorer.py` | Branching logic for spelling selection (Session 78) |
+| `TermSources` | `vocabulary/term_sources.py` | Per-document term tracking (Session 78) |
 | `FeedbackManager` | `vocabulary/feedback_manager.py` | User feedback storage |
 | `MetaLearner` | `vocabulary/meta_learner.py` | ML preference learning |
 
@@ -486,6 +493,57 @@ Two factory functions available:
 - `create_optimized_filter_chain()` — 4 filters with combined per-term (default)
 - `create_default_filter_chain()` — 6 separate filters (for debugging)
 
+### Canonical Spelling Selection (Session 78)
+
+When similar variants are detected (1-2 edit distance), `CanonicalScorer` selects the correct spelling using branching logic:
+
+```mermaid
+flowchart TB
+    Input["Similar variants<br/>(1-2 edit distance)"]
+
+    subgraph Decision["How many variants are dictionary-known?"]
+        Check["Check if ALL words<br/>in term are known"]
+    end
+
+    subgraph Branch1["EXACTLY ONE KNOWN"]
+        B1Result["Known variant wins<br/>(100% certainty)"]
+    end
+
+    subgraph Branch2["ZERO KNOWN"]
+        B2Calc["Calculate weighted scores"]
+        B2Result["Highest score wins"]
+    end
+
+    subgraph Branch3["MULTIPLE KNOWN"]
+        B3Calc["Weighted score tiebreaker"]
+        B3Result["Highest score wins"]
+    end
+
+    Input --> Decision
+    Decision -->|"1 known"| Branch1
+    Decision -->|"0 known"| Branch2
+    Decision -->|"2+ known"| Branch3
+```
+
+**Weighted Score Formula:**
+```
+base_score = (confidence × count) ^ 1.1
+penalty = 0.90 if has_ocr_artifacts(term) else 1.0
+final_score = base_score × penalty
+```
+
+**Example comparison:**
+| Spelling | Docs | Confidences | Counts | Weighted Score | OCR Penalty | Final |
+|----------|------|-------------|--------|----------------|-------------|-------|
+| Jenkins | 2 | [0.95, 0.88] | [5, 2] | (4.75+1.76)^1.1 = 7.8 | None | 7.8 |
+| Jenidns | 1 | [0.60] | [8] | (4.8)^1.1 = 5.6 | -10% | 5.0 |
+
+→ "Jenkins" wins despite lower raw count (8 vs 7) because it's dictionary-known.
+
+**OCR artifact patterns** (10% penalty if detected):
+- Digit-letter confusion: `0/O`, `1/l/I`, `5/S`, `8/B`
+- Ligature-like patterns: `rn→m`, `vv→w` (but NOT common patterns like `cl`, `li`)
+
 ### Algorithm Weights
 
 Centralized in `config.py` for tuning and future ML optimization:
@@ -513,6 +571,37 @@ Each term tracks which algorithms detected it:
 
 The Score column displays the ML-adjusted Quality Score (0-100) that determines term ranking. Users see exactly what the model uses to sort terms.
 
+### Rule-Based Quality Score (Session 79)
+
+Before ML blending, a base score is calculated from term features:
+
+```
+Base Score: 50 points
+
++ Occurrence boost:       0-20 pts  (count × 5, capped at 20)
++ Rarity boost:           0-20 pts  (Google frequency rank: rare = more)
++ Person name boost:      +10 pts   (if NER detected as Person)
++ Multi-algorithm boost:  0-10 pts  (algorithms × 3, capped at 10)
+
+# TermSources-based adjustments (when per-document tracking available):
++ Multi-doc boost:        +10 pts   (term found in 2+ documents)
++ High-conf boost:        +5 pts    (>80% of source docs are high confidence)
+- All-low-conf penalty:   -10 pts   (ALL sources have confidence < 60%)
+- Single-source penalty:  -10 pts   (only 1 low-conf doc, when session has 3+ docs)
+─────────────────────────────────────
+Final range: 0-100 (clamped)
+```
+
+The single-source penalty is **conditional**: it only applies when the extraction session includes 3+ documents. This prevents unfair penalization when processing 1-2 documents where most terms naturally appear in only one source.
+
+Configuration in `config.py`:
+- `SCORE_MULTI_DOC_BOOST` — Default +10
+- `SCORE_HIGH_CONF_BOOST` — Default +5
+- `SCORE_ALL_LOW_CONF_PENALTY` — Default -10
+- `SCORE_SINGLE_SOURCE_PENALTY` — Default -10
+- `SCORE_SINGLE_SOURCE_MIN_DOCS` — Default 3
+- `SCORE_SINGLE_SOURCE_CONF_THRESHOLD` — Default 0.70
+
 ### Document Confidence
 
 Document confidence measures OCR/extraction quality (0-100%):
@@ -533,21 +622,21 @@ New Terms → VocabularyPreferenceLearner (predict) → Quality Score blend
 ```
 
 **Two-File Feedback System (Session 55, 69):**
-- `config/default_feedback.csv` — Ships with app (universal negatives, ~100 entries)
+- `config/default_feedback.csv` — Developer training data (currently empty, needs population)
 - `%APPDATA%/LocalScribe/data/feedback/user_feedback.csv` — User's own feedback
 
-**Universal Negatives (Session 69):**
-The default feedback contains ~100 "thumbs down" examples for terms ALL users would reject:
-- Common phrases: "the same", "left side", "one time"
-- Transcript artifacts: "Q.", "A.", "Page 1", "Exhibit A"
-- OCR errors: "1he", "tbe", "0f" (digit-letter confusion)
-- Common slipthrough words: "age", "bill", "copy"
+**Developer Training Data:**
+The default_feedback.csv is populated during developer testing to bootstrap the ML model before shipping. Session 79 reset this file to ensure all TermSources features have real values (not mock data).
+
+**Target content for default_feedback.csv:**
+- Universal negatives: common phrases, transcript artifacts, OCR errors
+- Positive examples: legitimate medical terms, person names, legal terminology
+- Real TermSources values from actual multi-document extraction sessions
 
 **Key constraints:**
-- Negative-only (no positive examples to avoid bias)
-- No person names (domain-specific, could be legitimate)
-- No medical/legal terms (domain-specific)
-- Middle-range quality scores (teaches model these are bad despite okay features)
+- Mixed positive/negative examples for balanced training
+- Real TermSources feature values (not mock 0.85 placeholders)
+- Populated during DEBUG_MODE=True development sessions
 
 **Graduated ML Weight (Session 76):**
 ML influence on final score increases with user's training corpus. The shipped model works from day 0, so ML influence starts at 45%:
@@ -584,7 +673,7 @@ User feedback weighted higher than default data from the FIRST observation. Defa
 
 **Ensemble Blending:** When both models are active, predictions use confidence-weighted blending. Each model's vote is weighted by its confidence (distance from 0.5), so more certain predictions have more influence.
 
-**Features used (23 total, Session 76 overhaul):**
+**Features used (30 total, Session 78 expansion):**
 
 *Frequency features:*
 - `log_count` — Log-transformed in-case frequency
@@ -616,6 +705,15 @@ User feedback weighted higher than default data from the FIRST observation. Defa
 - `has_medical_suffix` — Ends with -itis, -osis, -ectomy, etc. (legitimate vocabulary)
 - `has_repeated_chars` — 3+ same char in a row (artifact)
 - `contains_hyphen` — Often legitimate compound terms
+
+*Session 78 TermSources features (7):*
+- `num_source_documents` — Number of documents containing this term
+- `doc_diversity_ratio` — num_docs / total_docs in session (0-1)
+- `mean_doc_confidence` — Count-weighted mean OCR confidence (0-1)
+- `median_doc_confidence` — Median confidence, robust to outliers (0-1)
+- `confidence_std_dev` — Standard deviation of confidences (consistency signal)
+- `high_conf_doc_ratio` — % of source docs with confidence > 0.80
+- `all_low_conf` — 1 if ALL source docs have confidence < 0.60 (red flag)
 
 *Removed in Session 76:*
 - ~~`quality_score`~~ — Circular dependency (ML was learning to mimic rules)
@@ -970,9 +1068,11 @@ src/
 │   │   ├── result_merger.py         # Algorithm result combination
 │   │   ├── name_deduplicator.py     # Person name deduplication
 │   │   ├── artifact_filter.py       # Substring containment removal
-│   │   ├── name_regularizer.py      # Fragment + typo deduplication (Session 63b)
+│   │   ├── name_regularizer.py      # Fragment + typo deduplication (Session 63b, 78)
 │   │   ├── rarity_filter.py         # Filter common phrases
 │   │   ├── corpus_familiarity_filter.py  # Filter corpus-familiar terms (Session 68)
+│   │   ├── canonical_scorer.py      # Branching logic for spelling selection (Session 78)
+│   │   ├── term_sources.py          # Per-document term tracking (Session 78)
 │   │   ├── person_utils.py          # Centralized person detection (Session 70)
 │   │   ├── role_profiles.py         # Role detection
 │   │   ├── feedback_manager.py      # User feedback CSV
@@ -1071,7 +1171,8 @@ src/
     ├── text_utils.py            # Text utilities (combine_document_texts, get_documents_folder)
     ├── tokenizer.py             # Shared BM25 tokenization
     ├── pattern_filter.py        # Regex pattern matching for NER/OCR errors
-    └── gibberish_filter.py      # Spell-check based gibberish detection
+    ├── gibberish_filter.py      # Spell-check based gibberish detection
+    └── ocr_patterns.py          # OCR artifact detection for canonical scoring (Session 78)
 ```
 
 ### Configuration (`config/`)
@@ -1109,6 +1210,8 @@ tests/
 ├── test_prompt_adapters.py
 ├── test_progressive_summarizer.py
 ├── test_parallel.py
+├── test_canonical_scorer.py     # CanonicalScorer branching logic tests (Session 78)
+├── test_name_regularizer.py     # Name fragment + typo filter tests
 └── manual/                      # Require Ollama running
     ├── README.md
     └── test_ollama_workflow.py
@@ -1207,4 +1310,4 @@ ruff check src/ --fix
 
 ---
 
-*Last updated: 2026-01-03 (Session 77 - GUI workflow tests, BM25 corpus fix)*
+*Last updated: 2026-01-05 (Session 79 - Rule-based scoring with TermSources adjustments, reset feedback dataset)*

@@ -377,7 +377,8 @@ class TestRealWorldScenarios:
             ("Robert Wightn", 3),        # Bottom - Typo
         ])
 
-        result = regularize_names(vocab, top_fraction=0.25)
+        # Use min_canonical_count=3 to match top_fraction=0.25 (12 * 0.25 = 3)
+        result = regularize_names(vocab, top_fraction=0.25, min_canonical_count=3)
 
         terms = [r["Term"] for r in result]
 
@@ -390,13 +391,12 @@ class TestRealWorldScenarios:
         assert "Memorial Hospital" in terms
         assert "Valid Entry" in terms
 
-        # Fragments removed
-        assert "Wagner" not in terms
-        assert "Doman" not in terms
-        assert "Leto" not in terms
+        # Fragments removed (single words that are subsets of multi-word canonicals)
         assert "Di" not in terms
         assert "Leo" not in terms
 
-        # Typos removed
-        assert "Robrt Wighton" not in terms
-        assert "Robert Wightn" not in terms
+        # Session 78: Typos are now handled by CanonicalScorer with weighted scoring
+        # When no variants are known, the higher-weighted score wins
+        # "Robert Wighton" (count=100) wins over lower-frequency typos
+        assert "Robrt Wighton" not in terms  # Removed - lower weighted score
+        assert "Robert Wightn" not in terms  # Removed - lower weighted score

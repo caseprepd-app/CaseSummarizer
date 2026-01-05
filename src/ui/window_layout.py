@@ -47,7 +47,7 @@ class WindowLayoutMixin:
     - self.main_frame, self.left_panel, self.right_panel
     - self.file_table, self.add_files_btn, self.clear_files_btn
     - self.qa_check, self.vocab_check, self.summary_check, self.generate_btn
-    - self.output_display, self.followup_entry, self.followup_btn
+    - self.output_display, self.followup_frame, self.followup_entry, self.followup_btn
     - self.status_frame, self.status_label, self.timer_label, self.corpus_info_label
     - self.ollama_status_frame, self.ollama_status_dot, self.ollama_status_label
     """
@@ -315,12 +315,15 @@ class WindowLayoutMixin:
         self.output_display.grid(row=1, column=0, sticky="nsew", padx=10, pady=5)
 
         # Follow-up question input (for Q&A mode)
-        followup_frame = ctk.CTkFrame(self.right_panel, fg_color="transparent")
-        followup_frame.grid(row=2, column=0, sticky="ew", padx=10, pady=(0, 10))
-        followup_frame.grid_columnconfigure(0, weight=1)
+        # Session 78: Store as class attribute so it can be shown/hidden based on active tab
+        self.followup_frame = ctk.CTkFrame(self.right_panel, fg_color="transparent")
+        self.followup_frame.grid(row=2, column=0, sticky="ew", padx=10, pady=(0, 10))
+        self.followup_frame.grid_columnconfigure(0, weight=1)
+        # Start hidden - only shown when Q&A tab is active
+        self.followup_frame.grid_remove()
 
         self.followup_entry = ctk.CTkEntry(
-            followup_frame,
+            self.followup_frame,
             placeholder_text="Ask a follow-up question...",
             height=35
         )
@@ -328,7 +331,7 @@ class WindowLayoutMixin:
         self.followup_entry.bind("<Return>", lambda e: self._ask_followup())
 
         self.followup_btn = ctk.CTkButton(
-            followup_frame,
+            self.followup_frame,
             text="Ask",
             width=60,
             command=self._ask_followup,
@@ -369,6 +372,17 @@ class WindowLayoutMixin:
             text_color=COLORS["text_secondary"]
         )
         self.ollama_status_label.pack(side="left")
+
+        # Activity indicator (animated progress bar) - shows during processing
+        self.activity_indicator = ctk.CTkProgressBar(
+            self.status_frame,
+            width=60,
+            height=8,
+            mode="indeterminate",
+            indeterminate_speed=0.7,
+        )
+        # Hidden initially - shown during processing
+        self._activity_indicator_visible = False
 
         # Timer (right side)
         self.timer_label = ctk.CTkLabel(

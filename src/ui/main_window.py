@@ -654,10 +654,18 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         elif msg_type == "llm_complete":
             term_count = len(data) if data else 0
             debug_log(f"[MainWindow] LLM complete: {term_count} reconciled terms")
-            self.output_display.update_outputs(vocab_csv_data=data)
-            self.output_display.set_extraction_source("both")
+
+            # Session 78: Only update vocab and show "Enhanced" if LLM actually returned results
+            # When LLM is skipped/disabled, data is empty [] - keep NER-only results
+            if data:
+                self.output_display.update_outputs(vocab_csv_data=data)
+                self.output_display.set_extraction_source("both")
+                self.set_status(f"Complete: {term_count} names & vocabulary extracted")
+            else:
+                # LLM was skipped - keep extraction source as "ner" (already set)
+                self.set_status("Complete: NER extraction only (LLM disabled)")
+
             self._completed_tasks.add('vocab')
-            self.set_status(f"Complete: {term_count} names & vocabulary extracted")
             if self._pending_tasks.get('summary'):
                 self._start_summary_task()
             else:
@@ -1796,12 +1804,13 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
     # =========================================================================
 
     def _start_timer(self):
-        """Start the processing timer."""
+        """Start the processing timer and activity indicator."""
         self._processing_start_time = time.time()
         self._update_timer()
+        self._start_activity_indicator()
 
     def _stop_timer(self):
-        """Stop the processing timer."""
+        """Stop the processing timer and activity indicator."""
         if self._timer_after_id:
             self.after_cancel(self._timer_after_id)
             self._timer_after_id = None
@@ -1810,6 +1819,24 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         if self._processing_start_time:
             elapsed = time.time() - self._processing_start_time
             self._format_timer(elapsed)
+
+        self._stop_activity_indicator()
+
+    def _start_activity_indicator(self):
+        """Show and start the animated activity indicator."""
+        if hasattr(self, 'activity_indicator'):
+            if not self._activity_indicator_visible:
+                self.activity_indicator.pack(side="right", padx=(0, 5), pady=5)
+                self._activity_indicator_visible = True
+            self.activity_indicator.start()
+
+    def _stop_activity_indicator(self):
+        """Stop and hide the activity indicator."""
+        if hasattr(self, 'activity_indicator'):
+            self.activity_indicator.stop()
+            if self._activity_indicator_visible:
+                self.activity_indicator.pack_forget()
+                self._activity_indicator_visible = False
 
     def _update_timer(self):
         """Update the timer display."""

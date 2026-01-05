@@ -52,6 +52,7 @@ from src.config import (
 from src.logging_config import debug_log
 from src.core.vocabulary.feedback_manager import FeedbackManager, get_feedback_manager
 from src.core.vocabulary.rarity_filter import _load_scaled_frequencies
+from src.core.vocabulary.term_sources import TermSources
 
 # Medical suffixes for domain-specific feature (Session 76)
 MEDICAL_SUFFIXES = (
@@ -99,12 +100,12 @@ def confidence_weighted_blend(prob_lr: float, prob_rf: float) -> float:
 # Only is_person is reliable (NER person detection)
 # Session 54: Added source_doc_confidence to weight terms by OCR quality
 # Session 68: Added corpus_familiarity_score and is_title_case
+# Session 78: Added 7 TermSources features for per-document confidence tracking
 FEATURE_NAMES = [
-    "quality_score",
+    # Frequency features (kept for backward compat, used by Session 76)
     "log_count",  # Replaces in_case_freq - better low-count discrimination
     "occurrence_ratio",  # Document-relative frequency (count / total_unique_terms)
-    "freq_rank_normalized",
-    "num_algorithms",
+    # Algorithm features
     "has_ner",
     "has_rake",
     "has_bm25",  # Added in Session 47 for per-algorithm tracking
@@ -115,11 +116,30 @@ FEATURE_NAMES = [
     "has_trailing_digit",  # "Smith 17", "Di Leo 2" - page/line number suffixes
     "word_count",  # 1-3 words = good, 4+ = suspicious over-extraction
     "is_all_caps",  # "PLAINTIFF'S EXHIBIT" - headers, not vocabulary
+    "is_title_case",  # 1.0 if term.istitle() (proper nouns), 0.0 otherwise
     # Document quality feature (Session 54)
     "source_doc_confidence",  # OCR/extraction confidence (0-100) - lower = more OCR errors
     # Corpus familiarity features (Session 68)
     "corpus_familiarity_score",  # 0.0-1.0, proportion of corpus docs containing term
-    "is_title_case",  # 1.0 if term.istitle() (proper nouns), 0.0 otherwise
+    # Session 76 features (9 total)
+    "freq_dict_word_ratio",
+    "all_words_in_freq_dict",
+    "term_length",
+    "vowel_ratio",
+    "is_single_letter",
+    "has_internal_digits",
+    "has_medical_suffix",
+    "has_repeated_chars",
+    "contains_hyphen",
+    # Session 78: TermSources-based per-document confidence features (7 total)
+    # These provide richer signals about term reliability across source documents
+    "num_source_documents",    # How many docs contain this term (more = more reliable)
+    "doc_diversity_ratio",     # num_docs / total_docs (0-1, spread across corpus)
+    "mean_doc_confidence",     # Count-weighted mean OCR confidence (0-1)
+    "median_doc_confidence",   # Median confidence - robust to single bad scan (0-1)
+    "confidence_std_dev",      # Consistency of confidence across docs (0-0.5)
+    "high_conf_doc_ratio",     # % of source docs with confidence > 0.80 (0-1)
+    "all_low_conf",            # 1 if ALL source docs have conf < 0.60 (red flag)
 ]
 
 
@@ -212,11 +232,18 @@ class VocabularyPreferenceLearner:
         - Removed: quality_score (circular), num_algorithms (redundant), freq_rank_normalized
         - Added: 9 new features including word-level frequency, vowel ratio, medical suffix
 
+        Session 78: Added 7 TermSources-based per-document features:
+        - num_source_documents, doc_diversity_ratio, mean_doc_confidence,
+          median_doc_confidence, confidence_std_dev, high_conf_doc_ratio, all_low_conf
+        - These provide richer signals about term reliability across source documents
+        - Falls back to sensible defaults when TermSources not available (legacy data)
+
         Args:
             term_data: Dictionary with term information (from feedback CSV or extractor)
+                      May include "sources" (TermSources) and "total_docs_in_session"
 
         Returns:
-            numpy array of 23 features
+            numpy array of 30 features
         """
         # Get the term text
         term = str(term_data.get("Term", "") or term_data.get("term", "") or "")
@@ -325,6 +352,43 @@ class VocabularyPreferenceLearner:
         # Contains hyphen - often legitimate compound terms
         contains_hyphen = 1.0 if '-' in term else 0.0
 
+        # === SESSION 78: TermSources-based per-document features ===
+        # These features provide richer signals about term reliability by
+        # tracking which source documents contributed each occurrence.
+        #
+        # When TermSources is available:
+        # - Multiple high-confidence documents → more reliable term
+        # - Single low-confidence document → potentially OCR error
+        # - High confidence_std_dev → inconsistent quality (red flag)
+        #
+        # NOTE: An ML model trained on user feedback could learn to weight
+        # these features based on the user's document types and preferences.
+
+        # Check if TermSources is available
+        sources = term_data.get("sources")
+        total_docs_in_session = float(term_data.get("total_docs_in_session", 1) or 1)
+
+        if isinstance(sources, TermSources) and sources.num_documents > 0:
+            # Extract features from actual TermSources
+            num_source_documents = float(sources.num_documents)
+            doc_diversity_ratio = sources.doc_diversity_ratio(int(total_docs_in_session))
+            mean_doc_confidence = sources.mean_confidence
+            median_doc_confidence = sources.median_confidence
+            confidence_std_dev = sources.confidence_std_dev
+            high_conf_doc_ratio = sources.high_conf_doc_ratio
+            all_low_conf = 1.0 if sources.all_low_conf else 0.0
+        else:
+            # Legacy fallback: no TermSources available
+            # Use sensible defaults based on available data
+            num_source_documents = 1.0
+            doc_diversity_ratio = 1.0 / total_docs_in_session
+            # Use source_doc_confidence as a single-doc approximation
+            mean_doc_confidence = source_doc_confidence
+            median_doc_confidence = source_doc_confidence
+            confidence_std_dev = 0.0  # No variance with single source
+            high_conf_doc_ratio = 1.0 if source_doc_confidence > 0.80 else 0.0
+            all_low_conf = 1.0 if source_doc_confidence < 0.60 else 0.0
+
         return np.array([
             # Frequency features (2)
             log_count,
@@ -345,7 +409,7 @@ class VocabularyPreferenceLearner:
             # Quality features (2)
             source_doc_confidence,
             corpus_familiarity_score,
-            # NEW Session 76 features (9)
+            # Session 76 features (9)
             freq_dict_word_ratio,
             all_words_in_freq_dict,
             term_length,
@@ -355,6 +419,14 @@ class VocabularyPreferenceLearner:
             has_medical_suffix,
             has_repeated_chars,
             contains_hyphen,
+            # Session 78: TermSources features (7)
+            num_source_documents,
+            doc_diversity_ratio,
+            mean_doc_confidence,
+            median_doc_confidence,
+            confidence_std_dev,
+            high_conf_doc_ratio,
+            all_low_conf,
         ])
 
     def _calculate_sample_weight(

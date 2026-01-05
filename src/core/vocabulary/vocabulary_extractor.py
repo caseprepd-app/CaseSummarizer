@@ -50,6 +50,7 @@ from src.core.vocabulary.meta_learner import VocabularyMetaLearner, get_meta_lea
 from src.core.vocabulary.result_merger import MergedTerm, ResultMerger
 from src.core.vocabulary.role_profiles import RoleDetectionProfile, StenographerProfile
 from src.core.vocabulary.reconciler import VocabularyReconciler
+from src.core.vocabulary.term_sources import TermSources
 
 # Organization indicator words for category detection
 ORGANIZATION_INDICATORS = {
@@ -109,6 +110,10 @@ class VocabularyExtractor:
         self.exclude_list = self._load_word_list(exclude_list_path)
         self.user_exclude_list = self._load_word_list(user_exclude_path)
         self.medical_terms = self._load_word_list(medical_terms_path)
+
+        # Session 80: Log user exclusions for debugging
+        if self.user_exclude_list:
+            debug_log(f"[VOCAB] User exclusion list has {len(self.user_exclude_list)} terms")
 
         # Load common medical/legal words blacklist
         common_blacklist_path = Path(__file__).parent.parent.parent.parent / "config" / "common_medical_legal.txt"
@@ -472,6 +477,8 @@ class VocabularyExtractor:
         # Total unique terms for ML occurrence_ratio feature
         total_unique_terms = len(merged_terms)
 
+        # Session 80: Track iteration count for periodic GIL yield
+        iteration_count = 0
         for merged in merged_terms:
             term = merged.term
             lower_term = term.lower()
@@ -542,6 +549,11 @@ class VocabularyExtractor:
 
             vocabulary.append(term_data)
             seen_terms.add(lower_term)
+
+            # Session 80: Yield GIL every 50 terms to keep GUI responsive
+            iteration_count += 1
+            if iteration_count % 50 == 0:
+                time.sleep(0)
 
         return vocabulary
 
@@ -675,7 +687,13 @@ class VocabularyExtractor:
         return filtered
 
     def _calculate_quality_score(
-        self, is_person: bool, term_count: int, frequency_rank: int, algorithm_count: int
+        self,
+        is_person: bool,
+        term_count: int,
+        frequency_rank: int,
+        algorithm_count: int,
+        term_sources: TermSources | None = None,
+        total_docs_in_session: int = 1,
     ) -> float:
         """
         Calculate composite quality score (0-100).
@@ -687,10 +705,21 @@ class VocabularyExtractor:
             term_count: Number of occurrences
             frequency_rank: Google frequency rank
             algorithm_count: Number of algorithms that found this term
+            term_sources: Optional TermSources for per-document confidence data
+            total_docs_in_session: Total documents in this extraction session
 
         Returns:
             Quality score between 0.0 and 100.0
         """
+        from src.config import (
+            SCORE_MULTI_DOC_BOOST,
+            SCORE_HIGH_CONF_BOOST,
+            SCORE_ALL_LOW_CONF_PENALTY,
+            SCORE_SINGLE_SOURCE_PENALTY,
+            SCORE_SINGLE_SOURCE_MIN_DOCS,
+            SCORE_SINGLE_SOURCE_CONF_THRESHOLD,
+        )
+
         score = 50.0  # Base score
 
         # Boost for multiple occurrences (max +20)
@@ -713,6 +742,29 @@ class VocabularyExtractor:
         # Terms found by multiple algorithms are more trustworthy
         if algorithm_count >= 2:
             score += min(algorithm_count * 3, 10)
+
+        # === TermSources-based adjustments (Session 79) ===
+        if term_sources is not None and term_sources.num_documents > 0:
+            # Boost for terms found in multiple documents
+            if term_sources.num_documents >= 2:
+                score += SCORE_MULTI_DOC_BOOST
+
+            # Boost for high-confidence sources
+            if term_sources.high_conf_doc_ratio > 0.8:
+                score += SCORE_HIGH_CONF_BOOST
+
+            # Penalty if ALL sources are low confidence
+            if term_sources.all_low_conf:
+                score += SCORE_ALL_LOW_CONF_PENALTY
+
+            # Conditional single-source penalty:
+            # Only apply when session has 3+ docs and term is in only 1 low-conf doc
+            if (
+                total_docs_in_session >= SCORE_SINGLE_SOURCE_MIN_DOCS
+                and term_sources.num_documents == 1
+                and term_sources.mean_confidence < SCORE_SINGLE_SOURCE_CONF_THRESHOLD
+            ):
+                score += SCORE_SINGLE_SOURCE_PENALTY
 
         return min(100.0, max(0.0, round(score, 1)))
 
@@ -996,3 +1048,228 @@ class VocabularyExtractor:
         except Exception as e:
             debug_log(f"[VOCAB] BM25 check failed: {e}")
             return False
+
+    # ========================================================================
+    # PER-DOCUMENT EXTRACTION (Session 78)
+    # ========================================================================
+
+    def extract_from_document(
+        self,
+        text: str,
+        doc_id: str,
+        doc_confidence: float
+    ) -> dict[str, int]:
+        """
+        Extract vocabulary from a single document.
+
+        Session 78: Per-document extraction for TermSources tracking.
+        This method extracts terms from ONE document only. Call this
+        for each document, then use merge_document_results() to combine.
+
+        Args:
+            text: The document text to analyze
+            doc_id: Unique identifier for this document (e.g., file hash)
+            doc_confidence: OCR/extraction confidence (0-100)
+
+        Returns:
+            Dict mapping term (lowercase) → count for this document only.
+            Example: {"john smith": 5, "radiculopathy": 3}
+        """
+        debug_log(f"[VOCAB] Extracting from document {doc_id[:12]}... (conf={doc_confidence:.1f}%)")
+
+        # Limit text size
+        max_chars = VOCABULARY_MAX_TEXT_KB * 1024
+        if len(text) > max_chars:
+            text = text[:max_chars]
+
+        # Run algorithms
+        all_results = self._run_algorithms_parallel(text)
+
+        # Merge algorithm results
+        merged_terms = self.merger.merge(all_results)
+
+        # Build term → count mapping
+        term_counts: dict[str, int] = {}
+        for merged in merged_terms:
+            lower_term = merged.term.lower()
+            term_counts[lower_term] = merged.frequency
+
+        debug_log(f"[VOCAB] Document {doc_id[:12]}: {len(term_counts)} unique terms")
+        return term_counts
+
+    def merge_document_results(
+        self,
+        doc_results: list[tuple[str, float, dict[str, int]]],
+        full_text: str | None = None
+    ) -> list[dict]:
+        """
+        Merge per-document extractions into final vocabulary with TermSources.
+
+        Session 78: Combines results from multiple documents while tracking
+        which documents contributed each term occurrence. This enables
+        confidence-weighted canonical selection.
+
+        Args:
+            doc_results: List of (doc_id, confidence, {term: count}) tuples
+                        from extract_from_document() calls
+            full_text: Optional combined text for role detection
+
+        Returns:
+            Vocabulary list with TermSources attached to each term.
+        """
+        if not doc_results:
+            return []
+
+        total_docs = len(doc_results)
+        debug_log(f"[VOCAB] Merging results from {total_docs} documents...")
+
+        # Build TermSources for each unique term
+        # term_data[lower_term] = {
+        #     "original_term": str,  # Best-cased version
+        #     "sources": TermSources,
+        #     "total_count": int,
+        #     "algorithms": set[str],  # Which algorithms found it
+        # }
+        term_data: dict[str, dict] = {}
+
+        for doc_id, confidence, term_counts in doc_results:
+            for term_lower, count in term_counts.items():
+                if term_lower not in term_data:
+                    term_data[term_lower] = {
+                        "original_term": term_lower,  # Will be replaced with best case
+                        "doc_ids": [],
+                        "confidences": [],
+                        "counts_per_doc": [],
+                        "total_count": 0,
+                    }
+
+                term_data[term_lower]["doc_ids"].append(doc_id)
+                term_data[term_lower]["confidences"].append(confidence / 100.0)  # Normalize to 0-1
+                term_data[term_lower]["counts_per_doc"].append(count)
+                term_data[term_lower]["total_count"] += count
+
+        debug_log(f"[VOCAB] Found {len(term_data)} unique terms across all documents")
+
+        # Convert to TermSources and build vocabulary
+        vocabulary = []
+        for term_lower, data in term_data.items():
+            # Create TermSources
+            sources = TermSources(
+                doc_ids=data["doc_ids"],
+                confidences=data["confidences"],
+                counts_per_doc=data["counts_per_doc"]
+            )
+
+            # Use original term (need to find best-cased version)
+            # For now, use title case for multi-word, capitalize for single
+            words = term_lower.split()
+            if len(words) > 1:
+                display_term = " ".join(w.capitalize() for w in words)
+            else:
+                display_term = term_lower.capitalize()
+
+            # Determine if this is a person (will be refined in _post_process)
+            is_person = False  # Default, will be updated below
+
+            # Calculate base quality score (Session 79: pass TermSources for quality adjustments)
+            frequency_rank = self._get_term_frequency_rank(term_lower)
+            base_quality_score = self._calculate_quality_score(
+                is_person, data["total_count"], frequency_rank, 1,
+                term_sources=sources,
+                total_docs_in_session=total_docs,
+            )
+
+            term_dict = {
+                "Term": display_term,
+                "Is Person": "No",  # Will be updated by filter chain
+                "Found By": "—",
+                "Role/Relevance": "Vocabulary term",
+                "Quality Score": base_quality_score,
+                "In-Case Freq": data["total_count"],
+                "Freq Rank": frequency_rank,
+                "Definition": "—",
+                "Sources": "",
+                "NER": "No",
+                "RAKE": "No",
+                "BM25": "No",
+                "Algo Count": 0,
+                # Session 78: TermSources tracking
+                "sources": sources,
+                "total_docs_in_session": total_docs,
+                # ML feature fields
+                "quality_score": base_quality_score,
+                "in_case_freq": data["total_count"],
+                "freq_rank": frequency_rank,
+                "is_person": 0,
+                "total_unique_terms": len(term_data),
+                "source_doc_confidence": sources.mean_confidence * 100,
+            }
+
+            vocabulary.append(term_dict)
+
+        # Run filter chain
+        debug_log("[VOCAB] Running filter chain on merged results...")
+        from src.core.vocabulary.filters import create_optimized_filter_chain
+        filter_chain = create_optimized_filter_chain()
+        filter_result = filter_chain.run(vocabulary)
+        vocabulary = filter_result.vocabulary
+        debug_log(f"[VOCAB] Filter chain complete: {filter_result.removed_count} removed")
+
+        # Sort and return
+        vocabulary = self._sort_vocabulary(vocabulary)
+        return vocabulary
+
+    def extract_per_document(
+        self,
+        documents: list[dict],
+        progress_callback=None
+    ) -> list[dict]:
+        """
+        High-level per-document extraction with TermSources tracking.
+
+        Session 78: Convenience method that handles the full per-document
+        extraction workflow. Extracts from each document individually,
+        then merges with TermSources for canonical selection.
+
+        Args:
+            documents: List of dicts with keys:
+                      - 'text': Document text
+                      - 'doc_id': Unique identifier (e.g., file hash)
+                      - 'confidence': OCR confidence (0-100)
+            progress_callback: Optional callback(current, total) for progress
+
+        Returns:
+            Final vocabulary list with TermSources attached.
+        """
+        if not documents:
+            return []
+
+        total_docs = len(documents)
+        debug_log(f"[VOCAB] Starting per-document extraction for {total_docs} documents")
+
+        # Extract from each document
+        doc_results = []
+        combined_text_parts = []
+
+        for i, doc in enumerate(documents):
+            text = doc.get("text", "")
+            doc_id = doc.get("doc_id", f"doc_{i}")
+            confidence = doc.get("confidence", 100.0)
+
+            if not text.strip():
+                continue
+
+            # Extract terms from this document
+            term_counts = self.extract_from_document(text, doc_id, confidence)
+            doc_results.append((doc_id, confidence, term_counts))
+            combined_text_parts.append(text)
+
+            if progress_callback:
+                progress_callback(i + 1, total_docs)
+
+        # Merge all document results
+        combined_text = "\n\n".join(combined_text_parts)
+        vocabulary = self.merge_document_results(doc_results, combined_text)
+
+        debug_log(f"[VOCAB] Per-document extraction complete: {len(vocabulary)} terms")
+        return vocabulary

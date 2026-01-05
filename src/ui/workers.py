@@ -212,9 +212,21 @@ class VocabularyWorker(BaseWorker):
     Session 43: Added use_llm parameter for NER+LLM reconciled extraction.
     Session 49: Refactored to use BaseWorker.
     Session 54: Added doc_confidence for ML feature (OCR quality signal).
+    Session 78: Added documents parameter for per-document extraction with TermSources.
     """
 
-    def __init__(self, combined_text, ui_queue, exclude_list_path=None, medical_terms_path=None, user_exclude_path=None, doc_count=1, use_llm=True, doc_confidence=100.0):
+    def __init__(
+        self,
+        combined_text,
+        ui_queue,
+        exclude_list_path=None,
+        medical_terms_path=None,
+        user_exclude_path=None,
+        doc_count=1,
+        use_llm=True,
+        doc_confidence=100.0,
+        documents=None  # Session 78: Per-document extraction
+    ):
         super().__init__(ui_queue)
         self.combined_text = combined_text
         self.exclude_list_path = exclude_list_path or "config/legal_exclude.txt"
@@ -223,6 +235,9 @@ class VocabularyWorker(BaseWorker):
         self.doc_count = doc_count  # Number of documents (for frequency filtering)
         self.use_llm = use_llm  # Whether to use LLM extraction (Session 43)
         self.doc_confidence = doc_confidence  # Session 54: Aggregate OCR confidence for ML
+        # Session 78: Per-document extraction with TermSources tracking
+        # documents is a list of dicts with 'text', 'doc_id', 'confidence' keys
+        self.documents = documents
 
     def execute(self):
         """Execute vocabulary extraction in background thread."""
@@ -252,15 +267,23 @@ class VocabularyWorker(BaseWorker):
         # Check for cancellation before heavy processing
         self.check_cancelled()
 
-        # Update progress - NLP/LLM processing is the slow part
-        if self.use_llm:
-            self.send_progress(40, "Running local + LLM extraction (this may take a while)...")
-        else:
-            self.send_progress(40, "Running local extraction (NER, RAKE)...")
+        # Session 78: Use per-document extraction if documents are provided
+        if self.documents and not self.use_llm:
+            # Per-document extraction with TermSources tracking
+            self.send_progress(40, f"Extracting vocabulary from {len(self.documents)} documents...")
 
-        # Extract vocabulary - this is the slow part
-        # Session 43: Use extract_with_llm for reconciled NER+LLM output
-        if self.use_llm:
+            def doc_progress(current, total):
+                pct = 40 + int((current / total) * 25)  # 40-65% range
+                self.send_progress(pct, f"Processing document {current}/{total}...")
+
+            vocab_data = extractor.extract_per_document(
+                self.documents,
+                progress_callback=doc_progress
+            )
+        elif self.use_llm:
+            # Update progress - NLP/LLM processing is the slow part
+            self.send_progress(40, "Running local + LLM extraction (this may take a while)...")
+
             # Progress callback for LLM chunk processing
             def llm_progress(current, total):
                 pct = 40 + int((current / total) * 25)  # 40-65% range
@@ -273,7 +296,8 @@ class VocabularyWorker(BaseWorker):
                 progress_callback=llm_progress
             )
         else:
-            # Legacy NER-only extraction
+            # Legacy NER-only extraction (combined text mode)
+            self.send_progress(40, "Running local extraction (NER, RAKE)...")
             vocab_data = extractor.extract(self.combined_text, doc_count=self.doc_count, doc_confidence=self.doc_confidence)
 
         # Check for cancellation after extraction
@@ -958,7 +982,9 @@ class ProgressiveExtractionWorker(BaseWorker):
             self.send_progress(100, f"Complete: {len(ner_results)} terms (NER only)")
 
         # Wait for Q&A thread to finish
-        qa_thread.join(timeout=60)
+        # Session 80: Increased timeout from 60s to 180s - large documents can take longer
+        # to chunk and build vector store, especially on first run when loading embeddings
+        qa_thread.join(timeout=180)
 
     def _build_vector_store(self):
         """Build vector store for Q&A (Phase 2) - runs in parallel thread."""

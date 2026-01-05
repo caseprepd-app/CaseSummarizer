@@ -102,6 +102,16 @@ ML_SOURCE_WEIGHTS = [
     (float('inf'), 0.6, 5.0),   # 200+ samples: user 5x, default 0.6x
 ]
 
+# Rule-Based Quality Score: TermSources Adjustments (Session 79)
+# These adjustments are applied BEFORE ML blending, based on document source quality.
+# All values are additive to the base score (50 points).
+SCORE_MULTI_DOC_BOOST = 10              # Bonus for terms found in 2+ documents
+SCORE_HIGH_CONF_BOOST = 5               # Bonus if high_conf_doc_ratio > 0.8
+SCORE_ALL_LOW_CONF_PENALTY = -10        # Penalty if ALL sources have confidence < 0.60
+SCORE_SINGLE_SOURCE_PENALTY = -10       # Penalty for single low-conf source (conditional)
+SCORE_SINGLE_SOURCE_MIN_DOCS = 3        # Only apply single-source penalty when session has 3+ docs
+SCORE_SINGLE_SOURCE_CONF_THRESHOLD = 0.70  # Confidence threshold for single-source penalty
+
 # Ensure ML directories exist
 for ml_dir in [FEEDBACK_DIR, MODELS_ML_DIR]:
     ml_dir.mkdir(parents=True, exist_ok=True)
@@ -147,6 +157,11 @@ MAX_FILE_SIZE_MB = 500
 LARGE_FILE_WARNING_MB = 100
 MIN_LINE_LENGTH = 15
 MIN_DICTIONARY_CONFIDENCE = 60  # Percentage
+
+# PDF Extraction Configuration (Session 79)
+# Hybrid extraction uses both PyMuPDF and pdfplumber, reconciling with word-level voting
+PDF_EXTRACTION_MODE = "hybrid"  # "hybrid", "pymupdf_only", "pdfplumber_only"
+PDF_VOTING_ENABLED = True  # Enable word-level voting when both extractors succeed
 
 # OCR Configuration
 OCR_DPI = 300

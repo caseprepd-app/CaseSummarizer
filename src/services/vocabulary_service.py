@@ -66,6 +66,44 @@ class VocabularyService:
 
         return result
 
+    def extract_vocabulary_per_document(
+        self,
+        documents: list[dict],
+        progress_callback: Callable[[int, int], None] | None = None
+    ) -> list[dict]:
+        """
+        Extract vocabulary with per-document tracking (Session 78).
+
+        This method processes each document individually and tracks which
+        documents contributed each term occurrence. This enables confidence-
+        weighted canonical selection for better handling of OCR variants.
+
+        Args:
+            documents: List of dicts with keys:
+                      - 'text': Document text
+                      - 'doc_id': Unique identifier (e.g., file hash)
+                      - 'confidence': OCR confidence (0-100)
+            progress_callback: Optional callback(current, total) for progress
+
+        Returns:
+            List of vocabulary dicts with TermSources attached via 'sources' key.
+            The TermSources enables confidence-weighted canonical selection.
+        """
+        if not documents:
+            if DEBUG_MODE:
+                debug_log("[VocabularyService] No documents provided, returning empty list")
+            return []
+
+        result = self.extractor.extract_per_document(
+            documents,
+            progress_callback=progress_callback
+        )
+
+        if DEBUG_MODE:
+            debug_log(f"[VocabularyService] Extracted {len(result)} terms from {len(documents)} documents")
+
+        return result
+
     def record_feedback(
         self,
         term: str,

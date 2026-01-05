@@ -6,10 +6,14 @@ and Gibberish checks into one iteration through the vocabulary.
 
 This replaces three separate filters that each iterated the full list.
 Performance improvement: 3 passes → 1 pass.
+
+Session 79: Added Person validity check to catch garbage terms that spaCy
+NER incorrectly marks as Person (e.g., "ModMess Quanny Desortpdon").
 """
 
 from src.core.vocabulary.filters.base import BaseVocabularyFilter, FilterResult
 from src.core.vocabulary.person_utils import is_person_entry
+from src.core.vocabulary.name_deduplicator import _word_validity_score
 from src.logging_config import debug_log
 
 
@@ -52,12 +56,16 @@ class CombinedPerTermFilter(BaseVocabularyFilter):
         )
         from src.core.utils.gibberish_filter import is_gibberish
 
+        import time
+
         filtered = []
         removed_by_rarity = 0
         removed_by_corpus = 0
         removed_by_gibberish = 0
         removed_terms = []
 
+        # Session 80: Track iteration for periodic GIL yield
+        iteration_count = 0
         for term_data in vocabulary:
             term = term_data.get("Term", "")
             is_person = is_person_entry(term_data)
@@ -89,8 +97,26 @@ class CombinedPerTermFilter(BaseVocabularyFilter):
                 debug_log(f"[COMBINED] Filtered gibberish: '{term}'")
                 continue
 
+            # === CHECK 4: Person Validity Filter (Session 79) ===
+            # Person names are exempt from gibberish filter, but we catch
+            # complete garbage that spaCy NER incorrectly marks as Person.
+            # If NONE of the words are in the known dictionary, it's garbage.
+            # Legitimate foreign names typically have at least one recognizable word.
+            if is_person and len(term) >= 10:  # Only check longer names (2+ words)
+                validity = _word_validity_score(term)
+                if validity == 0.0:
+                    removed_by_gibberish += 1  # Count as gibberish
+                    removed_terms.append(term)
+                    debug_log(f"[COMBINED] Filtered Person garbage (0% validity): '{term}'")
+                    continue
+
             # Term passed all checks
             filtered.append(term_data)
+
+            # Session 80: Yield GIL every 50 terms to keep GUI responsive
+            iteration_count += 1
+            if iteration_count % 50 == 0:
+                time.sleep(0)
 
         total_removed = removed_by_rarity + removed_by_corpus + removed_by_gibberish
 

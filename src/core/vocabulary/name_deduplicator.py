@@ -20,6 +20,9 @@ import re
 from difflib import SequenceMatcher
 from src.logging_config import debug_log
 from src.core.vocabulary.person_utils import is_person_entry
+from src.core.vocabulary.name_regularizer import _load_known_words
+from src.core.vocabulary.canonical_scorer import create_canonical_scorer
+from src.core.vocabulary.term_sources import TermSources
 
 
 # Similarity threshold for fuzzy matching (after artifact removal)
@@ -261,26 +264,179 @@ def _build_candidate_pairs(keys: list[str]) -> set[tuple[int, int]]:
     return pairs
 
 
+def _word_validity_score(name: str) -> float:
+    """
+    Score a name based on how many of its words are in the known word lists.
+
+    Session 78: Used by _select_canonical to prefer valid dictionary words
+    over OCR typos when merging similar names.
+
+    Example:
+        "Arthur Jenkins" → 1.0 (both words known)
+        "Arthur Jenidns" → 0.5 (only "Arthur" known)
+        "Xyzabc Qwerty" → 0.0 (neither word known)
+
+    Args:
+        name: A person's name to score
+
+    Returns:
+        Float between 0.0 and 1.0 indicating proportion of known words
+    """
+    if not name:
+        return 0.0
+
+    known_words = _load_known_words()
+    words = name.lower().split()
+
+    if not words:
+        return 0.0
+
+    known_count = sum(1 for word in words if word.strip(".,;:'\"") in known_words)
+    return known_count / len(words)
+
+
+def _term_validity_score(term: str) -> float:
+    """
+    Alias for _word_validity_score for external imports.
+
+    This is exported for use in tests (test_name_regularizer.py).
+    """
+    return _word_validity_score(term)
+
+
 def _select_canonical(group: list[dict]) -> dict:
     """
     Select the canonical entry from a group of similar names.
 
-    Priority:
-    1. Cleanest form (shortest cleaned name that isn't just initials)
-    2. Highest frequency
-    3. Most "proper" casing (has both upper and lower)
+    Session 78: Now uses CanonicalScorer with branching logic:
+    - If exactly ONE variant is fully known (in dictionary) → it wins
+    - If ZERO variants are known → weighted score decides (exotic name)
+    - If MULTIPLE variants are known → weighted score tiebreaker
+
+    The CanonicalScorer uses confidence-weighted scoring with TermSources:
+        score = (sum(confidence * count))^1.1 * ocr_penalty
+
+    Falls back to legacy scoring if no TermSources are present (backward compat).
+
+    NOTE: An ML model trained on user feedback could potentially outperform
+    this rules-based approach by learning user-specific preferences and
+    document type patterns (medical vs legal terminology, regional names).
 
     Args:
-        group: List of similar name entries
+        group: List of similar name entries, each with:
+            - 'original': The vocabulary dict (Term, In-Case Freq, sources?)
+            - 'cleaned': Artifact-stripped name string
+            - 'normalized': Normalized name for display
 
     Returns:
-        Single canonical term dict with merged frequency
+        Single canonical term dict with merged frequency and sources
     """
     if len(group) == 1:
         return group[0]["original"]
 
-    # Calculate total frequency
     freq_key = "In-Case Freq"
+
+    # Check if any entry has TermSources (Session 78 infrastructure)
+    has_sources = any(
+        "sources" in e["original"] and isinstance(e["original"].get("sources"), TermSources)
+        for e in group
+    )
+
+    if has_sources:
+        # Use new CanonicalScorer with branching logic
+        return _select_canonical_with_scorer(group, freq_key)
+    else:
+        # Legacy path: Use heuristic scoring (backward compatibility)
+        return _select_canonical_legacy(group, freq_key)
+
+
+def _select_canonical_with_scorer(group: list[dict], freq_key: str) -> dict:
+    """
+    Select canonical using CanonicalScorer (Session 78).
+
+    Uses dictionary presence and confidence-weighted scoring to select
+    the most likely correct spelling from a group of similar variants.
+
+    Args:
+        group: List of similar name entries
+        freq_key: Key for frequency field
+
+    Returns:
+        Canonical term dict with merged frequency and sources
+    """
+    # Build variants list for CanonicalScorer
+    # Use the cleaned/normalized name as Term for comparison
+    variants = []
+    for entry in group:
+        original = entry["original"]
+        variant = {
+            "Term": entry["normalized"],  # Use normalized for canonical selection
+            "sources": original.get("sources"),
+            "In-Case Freq": original.get(freq_key, 1),
+            "_original_entry": entry,  # Keep reference to full entry
+        }
+        # Create legacy sources if missing
+        if variant["sources"] is None:
+            variant["sources"] = TermSources.create_legacy(
+                variant["In-Case Freq"],
+                original.get("source_doc_confidence", 0.85)
+            )
+        variants.append(variant)
+
+    # Use CanonicalScorer for selection
+    scorer = create_canonical_scorer()
+    canonical_variant = scorer.select_canonical(variants)
+
+    # Build the output dict
+    best_entry = canonical_variant.get("_original_entry", group[0])
+    canonical = best_entry["original"].copy()
+
+    # Use the canonical term (what the scorer decided)
+    canonical["Term"] = canonical_variant["Term"]
+    canonical[freq_key] = canonical_variant["In-Case Freq"]
+
+    # Include merged sources
+    if "sources" in canonical_variant:
+        canonical["sources"] = canonical_variant["sources"]
+
+    # Update internal key if present
+    if "in_case_freq" in canonical:
+        canonical["in_case_freq"] = canonical[freq_key]
+
+    # Log what we merged
+    if len(group) > 1:
+        merged_terms = [
+            e["original"].get("Term", "")
+            for e in group
+            if e["normalized"] != canonical["Term"]
+        ]
+        if merged_terms:
+            debug_log(
+                f"[DEDUP] Merged {len(merged_terms)} variants into "
+                f"'{canonical['Term']}': {merged_terms[:5]}"
+                f"{'...' if len(merged_terms) > 5 else ''}"
+            )
+
+    return canonical
+
+
+def _select_canonical_legacy(group: list[dict], freq_key: str) -> dict:
+    """
+    Legacy canonical selection using heuristic scoring.
+
+    Kept for backward compatibility when TermSources aren't available.
+    Uses word validity, casing, length, and frequency to score candidates.
+
+    Session 78: This will be phased out once per-document tracking is
+    fully integrated into the pipeline.
+
+    Args:
+        group: List of similar name entries
+        freq_key: Key for frequency field
+
+    Returns:
+        Canonical term dict with merged frequency
+    """
     total_freq = sum(e["original"].get(freq_key, 1) for e in group)
 
     # Score each candidate
@@ -289,6 +445,10 @@ def _select_canonical(group: list[dict]) -> dict:
         original = entry["original"]
 
         score = 0
+
+        # Strongly prefer valid dictionary words over typos
+        validity_score = _word_validity_score(cleaned)
+        score += validity_score * 50
 
         # Prefer names that aren't all caps (more readable)
         if cleaned != cleaned.upper():
@@ -299,7 +459,6 @@ def _select_canonical(group: list[dict]) -> dict:
             score += 5
 
         # Prefer shorter cleaned names (less artifact residue)
-        # But not TOO short (avoid just initials)
         if len(cleaned) >= 3:
             score += max(0, 20 - len(cleaned))
 
@@ -315,17 +474,19 @@ def _select_canonical(group: list[dict]) -> dict:
     best = sorted_group[0]
     canonical = best["original"].copy()
 
-    # Use the cleaned name as the Term (but title-cased)
     canonical["Term"] = best["normalized"]
     canonical[freq_key] = total_freq
 
-    # Update internal key if present
     if "in_case_freq" in canonical:
         canonical["in_case_freq"] = total_freq
 
     # Log what we merged
     if len(group) > 1:
         variants = [e["original"].get("Term", "") for e in sorted_group[1:]]
-        debug_log(f"[DEDUP] Merged {len(variants)} variants into '{canonical['Term']}': {variants[:5]}{'...' if len(variants) > 5 else ''}")
+        debug_log(
+            f"[DEDUP] Merged {len(variants)} variants into "
+            f"'{canonical['Term']}': {variants[:5]}"
+            f"{'...' if len(variants) > 5 else ''}"
+        )
 
     return canonical
