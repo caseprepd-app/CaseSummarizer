@@ -226,6 +226,9 @@ class ResultMerger:
         Tracks each unique casing variant weighted by its occurrence frequency.
         Returns the variant that appears most often across the document.
 
+        For Person entities, forces Title Case regardless of frequency to ensure
+        names like "jenkins" from BM25 become "Jenkins".
+
         Example:
             "JAMES LUCAS" (freq 2), "James Lucas" (freq 10), "james lucas" (freq 1)
             → Returns "James Lucas" (highest frequency)
@@ -236,8 +239,15 @@ class ResultMerger:
         Returns:
             The most frequently occurring capitalization variant
         """
+        # Check if any candidate is a Person entity
+        is_person = any(c.suggested_type == "Person" for c in candidates)
+
         if len(candidates) == 1:
-            return candidates[0].term
+            term = candidates[0].term
+            # Force Title Case for Person entities
+            if is_person:
+                return term.title()
+            return term
 
         # Count frequency of each capitalization variant
         casing_counts: dict[str, int] = {}
@@ -256,7 +266,13 @@ class ResultMerger:
             return (count, is_mixed, term)
 
         sorted_variants = sorted(casing_counts.items(), key=sort_key, reverse=True)
-        return sorted_variants[0][0]
+        selected_term = sorted_variants[0][0]
+
+        # Force Title Case for Person entities
+        if is_person:
+            return selected_term.title()
+
+        return selected_term
 
     def update_weights(self, new_weights: dict[str, float]) -> None:
         """

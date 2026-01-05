@@ -160,6 +160,44 @@ def get_word_commonality(word: str) -> float:
     return scaled.get(word.lower().strip(), 0.0)
 
 
+def is_common_word(word: str, top_n: int = 200000) -> bool:
+    """
+    Check if a word is in the top N most common English words.
+
+    Uses the Google word frequency dataset. Words in the top N are considered
+    "common" and unlikely to be part of a person's actual name.
+
+    Args:
+        word: The word to check
+        top_n: Number of top words to consider "common" (default 200K of 333K)
+
+    Returns:
+        True if word is in top N most common words (or unknown), False otherwise
+
+    Example:
+        is_common_word("patient")  # True - common word
+        is_common_word("napolitano")  # False - uncommon (likely a name)
+    """
+    scaled = _load_scaled_frequencies()
+    if not scaled:
+        return False  # No data - don't filter
+
+    word_lower = word.lower().strip()
+    if not word_lower:
+        return True  # Empty = treat as common (filter)
+
+    score = scaled.get(word_lower)
+    if score is None:
+        return False  # Unknown word = not common (might be a name)
+
+    # Score = rank / total_words (lower = more common)
+    # Check if rank < top_n, i.e., score < top_n / total_words
+    total_words = len(scaled)
+    threshold = top_n / total_words
+
+    return score < threshold
+
+
 @lru_cache(maxsize=2048)
 def calculate_phrase_component_scores(phrase: str) -> tuple[float, float, int]:
     """
