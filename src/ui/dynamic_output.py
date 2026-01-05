@@ -31,6 +31,7 @@ import csv
 import gc
 import io
 import os
+import re
 import threading
 from tkinter import Menu, filedialog, messagebox, ttk
 
@@ -181,6 +182,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
         # Session 80b: Filter widgets for vocabulary table
         self.filter_frame = None
         self.filter_entry = None
+        self.filter_regex_var = None  # BooleanVar for regex checkbox
         self._detached_items = []  # Items hidden by filter (for restore)
 
         # Right-click context menu for vocabulary exclusion
@@ -683,16 +685,17 @@ class DynamicOutputWidget(ctk.CTkFrame):
         """Handle filter entry text change - filter treeview rows."""
         if self.filter_entry is None:
             return
-        filter_text = self.filter_entry.get().lower().strip()
-        self._apply_filter(filter_text)
+        filter_text = self.filter_entry.get().strip()
+        use_regex = self.filter_regex_var.get() if self.filter_regex_var else False
+        self._apply_filter(filter_text, use_regex=use_regex)
 
     def _clear_filter(self):
         """Clear filter and show all rows."""
         if self.filter_entry is not None:
             self.filter_entry.delete(0, "end")
-        self._apply_filter("")
+        self._apply_filter("", use_regex=False)
 
-    def _apply_filter(self, filter_text: str):
+    def _apply_filter(self, filter_text: str, use_regex: bool = False):
         """
         Apply text filter to treeview rows.
 
@@ -701,6 +704,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
 
         Args:
             filter_text: Text to filter by (empty string shows all)
+            use_regex: If True, treat filter_text as regex pattern
         """
         if self.csv_treeview is None:
             return
@@ -716,12 +720,27 @@ class DynamicOutputWidget(ctk.CTkFrame):
         if not filter_text:
             return  # No filter, all items visible
 
+        # Compile regex if using regex mode
+        regex_pattern = None
+        if use_regex:
+            try:
+                regex_pattern = re.compile(filter_text, re.IGNORECASE)
+            except re.error:
+                # Invalid regex - don't filter, let user fix it
+                return
+
         # Detach non-matching items
+        filter_lower = filter_text.lower()
         for item_id in self.csv_treeview.get_children():
             values = self.csv_treeview.item(item_id, 'values')
             if values:
-                term = str(values[0]).lower()  # First column is Term
-                if filter_text not in term:
+                term = str(values[0])  # First column is Term
+                if use_regex and regex_pattern:
+                    matches = regex_pattern.search(term) is not None
+                else:
+                    matches = filter_lower in term.lower()
+
+                if not matches:
                     self.csv_treeview.detach(item_id)
                     self._detached_items.append(item_id)
 
@@ -928,6 +947,17 @@ class DynamicOutputWidget(ctk.CTkFrame):
                 **BUTTON_STYLES["secondary"]
             )
             filter_clear_btn.pack(side="left")
+
+            # Regex checkbox (disabled by default)
+            self.filter_regex_var = ctk.BooleanVar(value=False)
+            filter_regex_cb = ctk.CTkCheckBox(
+                self.filter_frame,
+                text="Regex",
+                variable=self.filter_regex_var,
+                width=60,
+                command=self._on_filter_changed,  # Re-apply filter when toggled
+            )
+            filter_regex_cb.pack(side="left", padx=(10, 0))
 
         # Session 80: Get visible columns from user preferences
         columns = tuple(self._get_visible_columns())
