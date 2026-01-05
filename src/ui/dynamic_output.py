@@ -45,6 +45,7 @@ from src.config import (
 from src.logging_config import debug_log
 from src.user_preferences import get_user_preferences
 from src.core.vocabulary.feedback_manager import get_feedback_manager
+from src.core.vocabulary.column_config import SORT_WARNING_COLUMNS
 from src.ui.qa_panel import QAPanel
 from src.ui.theme import FONTS, COLORS, BUTTON_STYLES, FRAME_STYLES, VOCAB_TABLE_TAGS
 
@@ -176,6 +177,11 @@ class DynamicOutputWidget(ctk.CTkFrame):
         # Names & Vocab Tab: Treeview frame (initially None, created when needed)
         self.csv_treeview = None
         self.treeview_frame = None  # Frame to hold treeview and scrollbars
+
+        # Session 80b: Filter widgets for vocabulary table
+        self.filter_frame = None
+        self.filter_entry = None
+        self._detached_items = []  # Items hidden by filter (for restore)
 
         # Right-click context menu for vocabulary exclusion
         self.context_menu = None
@@ -523,16 +529,31 @@ class DynamicOutputWidget(ctk.CTkFrame):
 
     def _sort_by_column(self, column: str):
         """
-        Sort vocabulary table by column (Session 80).
+        Sort vocabulary table by column (Session 80, 80b).
 
         Clicking a header sorts ascending; clicking again sorts descending;
         clicking a third time resets to original order.
+
+        Session 80b: Shows warning dialog when sorting by non-Score columns
+        since those sorts will show lower-quality results first.
 
         Args:
             column: The column name to sort by
         """
         if not self._unsorted_vocab_data or self.csv_treeview is None:
             return
+
+        # Session 80b: Show warning for non-Score columns (first click only)
+        # Don't warn when changing direction on same column or resetting
+        is_new_column = self._sort_column != column
+        if is_new_column and column in SORT_WARNING_COLUMNS:
+            result = messagebox.askyesno(
+                "Sort Warning",
+                f"Sorting by '{column}' will show lower-quality results first.\n\nContinue?",
+                icon="warning"
+            )
+            if not result:
+                return  # User cancelled
 
         # Determine new sort state
         if self._sort_column == column:
@@ -653,6 +674,56 @@ class DynamicOutputWidget(ctk.CTkFrame):
 
         # Start async batch insertion
         self._async_insert_rows(sorted_data, 0, initial_load)
+
+    # -------------------------------------------------------------------------
+    # Session 80b: Text Filter for Vocabulary Table
+    # -------------------------------------------------------------------------
+
+    def _on_filter_changed(self, event=None):
+        """Handle filter entry text change - filter treeview rows."""
+        if self.filter_entry is None:
+            return
+        filter_text = self.filter_entry.get().lower().strip()
+        self._apply_filter(filter_text)
+
+    def _clear_filter(self):
+        """Clear filter and show all rows."""
+        if self.filter_entry is not None:
+            self.filter_entry.delete(0, "end")
+        self._apply_filter("")
+
+    def _apply_filter(self, filter_text: str):
+        """
+        Apply text filter to treeview rows.
+
+        Uses detach/reattach for performance (preserves item state).
+        Filters by Term column (first column), case-insensitive.
+
+        Args:
+            filter_text: Text to filter by (empty string shows all)
+        """
+        if self.csv_treeview is None:
+            return
+
+        # First, restore all previously detached items
+        for item_id in self._detached_items:
+            try:
+                self.csv_treeview.reattach(item_id, '', 'end')
+            except Exception:
+                pass  # Item may have been deleted
+        self._detached_items = []
+
+        if not filter_text:
+            return  # No filter, all items visible
+
+        # Detach non-matching items
+        for item_id in self.csv_treeview.get_children():
+            values = self.csv_treeview.item(item_id, 'values')
+            if values:
+                term = str(values[0]).lower()  # First column is Term
+                if filter_text not in term:
+                    self.csv_treeview.detach(item_id)
+                    self._detached_items.append(item_id)
 
     def cleanup(self):
         """
@@ -834,7 +905,29 @@ class DynamicOutputWidget(ctk.CTkFrame):
 
         self.treeview_frame.grid(row=0, column=0, sticky="nsew")
         self.treeview_frame.grid_columnconfigure(0, weight=1)
-        self.treeview_frame.grid_rowconfigure(0, weight=1)
+        self.treeview_frame.grid_rowconfigure(1, weight=1)  # Treeview row expands
+
+        # Session 80b: Create filter bar at top of treeview frame
+        if self.filter_frame is None:
+            self.filter_frame = ctk.CTkFrame(self.treeview_frame, fg_color="transparent")
+            self.filter_frame.grid(row=0, column=0, columnspan=2, sticky="ew", padx=5, pady=(5, 2))
+
+            self.filter_entry = ctk.CTkEntry(
+                self.filter_frame,
+                placeholder_text="Filter terms...",
+                width=250
+            )
+            self.filter_entry.pack(side="left", padx=(0, 5))
+            self.filter_entry.bind("<KeyRelease>", self._on_filter_changed)
+
+            filter_clear_btn = ctk.CTkButton(
+                self.filter_frame,
+                text="Clear",
+                width=60,
+                command=self._clear_filter,
+                **BUTTON_STYLES["secondary"]
+            )
+            filter_clear_btn.pack(side="left")
 
         # Session 80: Get visible columns from user preferences
         columns = tuple(self._get_visible_columns())
@@ -888,10 +981,10 @@ class DynamicOutputWidget(ctk.CTkFrame):
             )
             self.csv_treeview.configure(xscrollcommand=hsb.set)
 
-            # Grid layout
-            self.csv_treeview.grid(row=0, column=0, sticky="nsew")
-            vsb.grid(row=0, column=1, sticky="ns")
-            hsb.grid(row=1, column=0, sticky="ew")
+            # Grid layout (Session 80b: row=1 to make room for filter bar at row=0)
+            self.csv_treeview.grid(row=1, column=0, sticky="nsew")
+            vsb.grid(row=1, column=1, sticky="ns")
+            hsb.grid(row=2, column=0, sticky="ew")
 
             # Bind right-click for context menu
             self.csv_treeview.bind("<Button-3>", self._on_right_click)

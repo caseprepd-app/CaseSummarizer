@@ -5,6 +5,8 @@ Generates self-contained HTML files with embedded CSS and JavaScript
 for filtering, sorting, and interactive features.
 
 Session 80: Updated to support configurable columns matching GUI settings.
+Session 80b: Import shared column_config for consistency with GUI; add sort
+             warnings and Term column protection.
 """
 
 from datetime import datetime
@@ -13,6 +15,12 @@ import html
 import json
 
 from src.core.export.base import VERIFICATION_COLORS
+from src.core.vocabulary.column_config import (
+    COLUMN_DEFINITIONS,
+    PROTECTED_COLUMNS,
+    SORT_WARNING_COLUMNS,
+    NUMERIC_COLUMNS,
+)
 
 
 def _escape(text: str) -> str:
@@ -24,24 +32,13 @@ def _escape(text: str) -> str:
 # Vocabulary HTML Builder (Session 80: Configurable columns)
 # ============================================================================
 
-# All available columns with their display names and data keys
+# Build column list from shared config (name, data_key tuples)
+# Excludes Keep/Skip feedback columns which are GUI-only
 VOCAB_HTML_COLUMNS = [
-    ("Term", "Term"),
-    ("Score", "Quality Score"),
-    ("Is Person", "Is Person"),
-    ("Found By", "Found By"),
-    ("# Docs", "# Docs"),
-    ("Count", "Count"),
-    ("Median Conf", "Median Conf"),
-    ("NER", "NER"),
-    ("RAKE", "RAKE"),
-    ("BM25", "BM25"),
-    ("Algo Count", "Algo Count"),
-    ("Freq Rank", "Freq Rank"),
+    (c.name, c.data_key)
+    for c in COLUMN_DEFINITIONS
+    if c.name not in ("Keep", "Skip")  # Feedback columns are GUI-only
 ]
-
-# Columns that should use numeric sorting
-NUMERIC_COLUMNS = {"Score", "# Docs", "Count", "Algo Count", "Freq Rank"}
 
 VOCAB_HTML_TEMPLATE = '''<!DOCTYPE html>
 <html lang="en">
@@ -228,6 +225,7 @@ VOCAB_HTML_TEMPLATE = '''<!DOCTYPE html>
     <script>
         const numericColumns = {numeric_columns_json};
         const columnOrder = {column_order_json};
+        const sortWarningColumns = {sort_warning_columns_json};
         let sortColumn = -1;
         let sortAsc = true;
 
@@ -291,6 +289,13 @@ VOCAB_HTML_TEMPLATE = '''<!DOCTYPE html>
             const headers = table.querySelectorAll('th');
             const colName = columnOrder[colIndex];
             const isNumeric = numericColumns.includes(colName);
+
+            // Session 80b: Show warning for non-Score columns
+            if (sortWarningColumns.includes(colName)) {{
+                if (!confirm("Sorting by '" + colName + "' will show lower-quality results first.\\n\\nContinue?")) {{
+                    return;  // User cancelled
+                }}
+            }}
 
             // Toggle sort direction if same column
             if (sortColumn === colIndex) {{
@@ -372,15 +377,24 @@ def export_vocabulary_html(
         summary = f"{len(vocab_data)} entries ({person_count} persons, {term_count} terms) — Generated {timestamp}"
 
         # Build column toggle checkboxes
+        # Session 80b: Protected columns (like Term) have disabled checkbox
         toggle_parts = []
         for col_name, _ in VOCAB_HTML_COLUMNS:
             col_id = col_name.replace(" ", "").replace("#", "").replace("/", "")
             is_visible = col_name in visible_columns
-            checked = " checked" if is_visible else ""
-            toggle_parts.append(
-                f'<label><input type="checkbox" id="col-{col_id}" '
-                f'onchange="toggleColumn(\'{col_name}\')"{checked}> {col_name}</label>'
-            )
+
+            if col_name in PROTECTED_COLUMNS:
+                # Protected column: always visible, checkbox disabled
+                toggle_parts.append(
+                    f'<label><input type="checkbox" id="col-{col_id}" '
+                    f'checked disabled> {col_name} (required)</label>'
+                )
+            else:
+                checked = " checked" if is_visible else ""
+                toggle_parts.append(
+                    f'<label><input type="checkbox" id="col-{col_id}" '
+                    f'onchange="toggleColumn(\'{col_name}\')"{checked}> {col_name}</label>'
+                )
         column_toggles = "\n                ".join(toggle_parts)
 
         # Build table headers
@@ -410,6 +424,7 @@ def export_vocabulary_html(
         table_rows = "\n".join(rows)
 
         # Generate HTML with JSON data for JavaScript
+        # Session 80b: Include sort warning columns for confirm dialog
         html_content = VOCAB_HTML_TEMPLATE.format(
             summary=_escape(summary),
             column_toggles=column_toggles,
@@ -417,6 +432,7 @@ def export_vocabulary_html(
             table_rows=table_rows,
             numeric_columns_json=json.dumps(list(NUMERIC_COLUMNS)),
             column_order_json=json.dumps(column_names),
+            sort_warning_columns_json=json.dumps(list(SORT_WARNING_COLUMNS)),
         )
 
         Path(file_path).write_text(html_content, encoding="utf-8")
