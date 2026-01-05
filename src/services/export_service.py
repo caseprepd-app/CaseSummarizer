@@ -237,14 +237,19 @@ class ExportService:
     def export_vocabulary_to_html(
         self,
         vocab_data: list[dict],
-        file_path: str
+        file_path: str,
+        visible_columns: list[str] | None = None
     ) -> bool:
         """
         Export vocabulary to interactive HTML.
 
+        Session 80: Updated to pass visible columns from GUI to HTML export.
+        All columns are included but only visible_columns are shown initially.
+
         Args:
             vocab_data: List of vocabulary dicts
             file_path: Output file path (.html)
+            visible_columns: Columns to show initially (from GUI selection)
 
         Returns:
             True if successful, False otherwise
@@ -253,7 +258,7 @@ class ExportService:
             f"{len(vocab_data)} terms to HTML",
             file_path,
             "vocabulary to HTML",
-            lambda: export_vocabulary_html(vocab_data, file_path)
+            lambda: export_vocabulary_html(vocab_data, file_path, visible_columns)
         )
 
     def export_qa_to_html(

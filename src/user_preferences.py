@@ -454,6 +454,27 @@ class UserPreferencesManager:
             # Term column cannot be hidden
             if value.get("Term") is False:
                 raise ValueError("'Term' column cannot be hidden")
+        # Session 80: Column widths validation
+        elif key == "vocab_column_widths":
+            if not isinstance(value, dict):
+                raise ValueError(
+                    f"vocab_column_widths must be a dict, got {type(value).__name__}"
+                )
+            # Validate that all keys are valid column names
+            valid_columns = {
+                "Term", "Score", "Is Person", "Found By", "# Docs", "Count",
+                "Median Conf", "NER", "RAKE", "BM25", "Algo Count",
+                "Freq Rank", "Keep", "Skip"
+            }
+            invalid = set(value.keys()) - valid_columns
+            if invalid:
+                raise ValueError(f"Invalid column names: {invalid}")
+            # Validate that all values are positive integers
+            for col, width in value.items():
+                if not isinstance(width, int) or width < 30 or width > 500:
+                    raise ValueError(
+                        f"Column width must be int 30-500, got {width} for '{col}'"
+                    )
 
         self._preferences[key] = value
         self._save_preferences()

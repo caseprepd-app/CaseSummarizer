@@ -252,6 +252,11 @@ class DynamicOutputWidget(ctk.CTkFrame):
         self._load_more_btn = None  # "Load More" button reference
         self._is_loading = False  # Prevents duplicate load operations
 
+        # Session 80: Sort state for vocabulary table
+        self._sort_column = None  # Currently sorted column name
+        self._sort_ascending = True  # Sort direction
+        self._unsorted_vocab_data = []  # Original order for reset
+
         # Resize event debouncing to prevent glitchiness (Session 51)
         self._resize_after_id = None  # Track pending resize callbacks
         self._batch_insertion_paused = False  # Pause batch insertion during resize
@@ -293,15 +298,21 @@ class DynamicOutputWidget(ctk.CTkFrame):
 
     def _on_tab_changed(self):
         """
-        Handle tab change to show/hide appropriate button bars (Session 68, 78).
+        Handle tab change to show/hide appropriate button bars (Session 68, 78, 80).
 
         Hides the shared button bar when Q&A tab is active (since QAPanel
         has its own buttons), shows it for other tabs.
 
         Session 78: Also shows/hides the main window's follow-up input frame
         so it only appears when the Q&A tab is active.
+
+        Session 80: Saves column widths when leaving Names & Vocab tab.
         """
         current_tab = self.tabview.get()
+
+        # Session 80: Save column widths when leaving Names & Vocab tab
+        # (Widths may have been adjusted by user dragging column separators)
+        self._save_column_widths()
 
         # Session 78: Show/hide main window's follow-up frame based on tab
         main_window = self.winfo_toplevel()
@@ -396,6 +407,51 @@ class DynamicOutputWidget(ctk.CTkFrame):
         """Get list of currently visible column names in display order."""
         return [col for col in COLUMN_ORDER if self._column_visibility.get(col, False)]
 
+    # -------------------------------------------------------------------------
+    # Session 80: Column Width Persistence
+    # -------------------------------------------------------------------------
+
+    def _load_column_widths(self) -> dict[str, int]:
+        """Load saved column widths from user preferences."""
+        prefs = get_user_preferences()
+        return prefs.get("vocab_column_widths", {})
+
+    def _save_column_widths(self):
+        """Save current column widths to user preferences."""
+        if self.csv_treeview is None:
+            return
+
+        widths = {}
+        columns = self._get_visible_columns()
+        for col in columns:
+            try:
+                # Get actual current width from treeview
+                width = self.csv_treeview.column(col, 'width')
+                if isinstance(width, int) and 30 <= width <= 500:
+                    widths[col] = width
+            except Exception:
+                pass  # Column may not exist in current view
+
+        if widths:
+            prefs = get_user_preferences()
+            prefs.set("vocab_column_widths", widths)
+
+    def _get_column_width(self, col_name: str) -> int:
+        """
+        Get width for a column, preferring saved width over default.
+
+        Args:
+            col_name: Column name
+
+        Returns:
+            Width in pixels
+        """
+        saved_widths = self._load_column_widths()
+        if col_name in saved_widths:
+            return saved_widths[col_name]
+        # Fall back to COLUMN_CONFIG default
+        return COLUMN_CONFIG.get(col_name, {}).get("width", 100)
+
     def _show_column_menu(self, event=None):
         """
         Show column visibility context menu (Session 80).
@@ -465,6 +521,139 @@ class DynamicOutputWidget(ctk.CTkFrame):
             self.csv_treeview = None
             self._display_csv(vocab_data)
 
+    def _sort_by_column(self, column: str):
+        """
+        Sort vocabulary table by column (Session 80).
+
+        Clicking a header sorts ascending; clicking again sorts descending;
+        clicking a third time resets to original order.
+
+        Args:
+            column: The column name to sort by
+        """
+        if not self._unsorted_vocab_data or self.csv_treeview is None:
+            return
+
+        # Determine new sort state
+        if self._sort_column == column:
+            if self._sort_ascending:
+                # Second click: descending
+                self._sort_ascending = False
+            else:
+                # Third click: reset to unsorted
+                self._sort_column = None
+                self._sort_ascending = True
+        else:
+            # New column: ascending
+            self._sort_column = column
+            self._sort_ascending = True
+
+        # Prepare sorted data
+        if self._sort_column is None:
+            # Reset to original order
+            sorted_data = list(self._unsorted_vocab_data)
+        else:
+            # Sort by column
+            sorted_data = self._sort_vocab_data(
+                self._unsorted_vocab_data,
+                self._sort_column,
+                self._sort_ascending
+            )
+
+        # Update header text to show sort indicator
+        self._update_sort_headers()
+
+        # Redisplay with sorted data (without resetting sort state)
+        self._redisplay_sorted_data(sorted_data)
+
+    def _sort_vocab_data(
+        self, data: list[dict], column: str, ascending: bool
+    ) -> list[dict]:
+        """
+        Sort vocabulary data by column with type-aware comparison.
+
+        Numeric columns (Score, # Docs, Count, etc.) sort numerically.
+        Other columns sort alphabetically, case-insensitive.
+
+        Args:
+            data: List of vocabulary dicts
+            column: Column name to sort by
+            ascending: True for ascending, False for descending
+
+        Returns:
+            Sorted list (new list, doesn't modify original)
+        """
+        # Map display column names to data keys
+        column_key_map = {
+            "Score": "Quality Score",
+            "# Docs": "# Docs",
+            "Count": "Count",
+            "Algo Count": "Algo Count",
+            "Freq Rank": "Freq Rank",
+        }
+        data_key = column_key_map.get(column, column)
+
+        # Numeric columns for type-aware sorting
+        numeric_columns = {"Score", "Quality Score", "# Docs", "Count", "Algo Count", "Freq Rank"}
+        is_numeric = column in numeric_columns or data_key in numeric_columns
+
+        def sort_key(item):
+            value = item.get(data_key, "")
+            if is_numeric:
+                # Parse numeric value (handle percentage strings like "85%")
+                if isinstance(value, (int, float)):
+                    return value
+                try:
+                    # Strip percentage sign and other non-numeric chars
+                    clean = str(value).replace("%", "").replace(",", "").strip()
+                    return float(clean) if clean else 0
+                except (ValueError, TypeError):
+                    return 0
+            else:
+                # String comparison, case-insensitive
+                return str(value).lower()
+
+        return sorted(data, key=sort_key, reverse=not ascending)
+
+    def _update_sort_headers(self):
+        """Update column header text to show sort indicator (▲/▼)."""
+        if self.csv_treeview is None:
+            return
+
+        columns = self._get_visible_columns()
+        for col in columns:
+            if col == self._sort_column:
+                indicator = " ▲" if self._sort_ascending else " ▼"
+                self.csv_treeview.heading(col, text=f"{col}{indicator}")
+            else:
+                # Remove indicator from other columns
+                self.csv_treeview.heading(col, text=col)
+
+    def _redisplay_sorted_data(self, sorted_data: list):
+        """
+        Redisplay treeview with sorted data without full rebuild.
+
+        Clears and repopulates treeview rows while preserving structure.
+        """
+        if self.csv_treeview is None:
+            return
+
+        # Clear existing rows
+        self.csv_treeview.delete(*self.csv_treeview.get_children())
+
+        # Reset pagination and redisplay
+        self._vocab_display_offset = 0
+        self._vocab_total_items = len(sorted_data)
+
+        # Calculate how many items to load
+        initial_load = min(ROWS_PER_PAGE, self._vocab_total_items)
+
+        # Temporarily store sorted data for async insertion
+        self._sorted_display_data = sorted_data
+
+        # Start async batch insertion
+        self._async_insert_rows(sorted_data, 0, initial_load)
+
     def cleanup(self):
         """
         Clean up resources when widget is no longer needed.
@@ -484,6 +673,12 @@ class DynamicOutputWidget(ctk.CTkFrame):
         self._document_summaries = {}
         self._briefing_sections = {}
         self._extraction_source = "none"  # Reset progress badge state
+
+        # Session 80: Save column widths before cleanup, then clear sort state
+        self._save_column_widths()
+        self._unsorted_vocab_data = []
+        self._sort_column = None
+        self._sort_ascending = True
 
         # Clear treeview data if it exists
         if self.csv_treeview is not None:
@@ -623,6 +818,11 @@ class DynamicOutputWidget(ctk.CTkFrame):
             debug_log("[VOCAB DISPLAY] All items were filtered (previously skipped)")
             return
 
+        # Session 80: Store unsorted data for sort operations and reset sort state
+        self._unsorted_vocab_data = list(data)
+        self._sort_column = None
+        self._sort_ascending = True
+
         # Reset pagination state
         self._vocab_display_offset = 0
         self._vocab_total_items = len(data)
@@ -650,13 +850,21 @@ class DynamicOutputWidget(ctk.CTkFrame):
                 selectmode="browse"
             )
 
-            # Configure column headings and widths using COLUMN_CONFIG
+            # Configure column headings and widths
+            # Session 80: Add click-to-sort functionality and use saved column widths
             for col in columns:
-                col_config = COLUMN_CONFIG.get(col, {"width": 100})
-                self.csv_treeview.heading(col, text=col, anchor='w')
+                # Use saved width if available, else default from COLUMN_CONFIG
+                col_width = self._get_column_width(col)
+                # Lambda capture col by default argument to avoid closure issue
+                self.csv_treeview.heading(
+                    col,
+                    text=col,
+                    anchor='w',
+                    command=lambda c=col: self._sort_by_column(c)
+                )
                 self.csv_treeview.column(
                     col,
-                    width=col_config["width"],
+                    width=col_width,
                     minwidth=60,
                     anchor='w',
                     stretch=True if col == "Term" else False  # Term stretches to fill space
@@ -1439,7 +1647,10 @@ class DynamicOutputWidget(ctk.CTkFrame):
 
     def _export_vocab_to_html(self):
         """
-        Export vocabulary to interactive HTML file (Session 72, updated Session 73).
+        Export vocabulary to interactive HTML file (Session 72, updated Session 80).
+
+        Session 80: Now passes visible columns to HTML export so the exported
+        file mirrors the GUI's column visibility settings.
         """
         from datetime import datetime
         from pathlib import Path
@@ -1461,9 +1672,14 @@ class DynamicOutputWidget(ctk.CTkFrame):
         filename = f"vocabulary_{timestamp}.html"
         filepath = os.path.join(export_path, filename)
 
+        # Session 80: Pass current visible columns to HTML export
+        visible_columns = self._get_visible_columns()
+
         # Export using service
         export_service = get_export_service()
-        success = export_service.export_vocabulary_to_html(vocab_data, filepath)
+        success = export_service.export_vocabulary_to_html(
+            vocab_data, filepath, visible_columns
+        )
 
         if success:
             # Session 73: Remember export folder

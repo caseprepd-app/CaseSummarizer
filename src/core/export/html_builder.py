@@ -3,11 +3,14 @@ Interactive HTML Export Builder
 
 Generates self-contained HTML files with embedded CSS and JavaScript
 for filtering, sorting, and interactive features.
+
+Session 80: Updated to support configurable columns matching GUI settings.
 """
 
 from datetime import datetime
 from pathlib import Path
 import html
+import json
 
 from src.core.export.base import VERIFICATION_COLORS
 
@@ -18,8 +21,27 @@ def _escape(text: str) -> str:
 
 
 # ============================================================================
-# Vocabulary HTML Builder
+# Vocabulary HTML Builder (Session 80: Configurable columns)
 # ============================================================================
+
+# All available columns with their display names and data keys
+VOCAB_HTML_COLUMNS = [
+    ("Term", "Term"),
+    ("Score", "Quality Score"),
+    ("Is Person", "Is Person"),
+    ("Found By", "Found By"),
+    ("# Docs", "# Docs"),
+    ("Count", "Count"),
+    ("Median Conf", "Median Conf"),
+    ("NER", "NER"),
+    ("RAKE", "RAKE"),
+    ("BM25", "BM25"),
+    ("Algo Count", "Algo Count"),
+    ("Freq Rank", "Freq Rank"),
+]
+
+# Columns that should use numeric sorting
+NUMERIC_COLUMNS = {"Score", "# Docs", "Count", "Algo Count", "Freq Rank"}
 
 VOCAB_HTML_TEMPLATE = '''<!DOCTYPE html>
 <html lang="en">
@@ -87,11 +109,27 @@ VOCAB_HTML_TEMPLATE = '''<!DOCTYPE html>
             align-items: center;
             padding-left: 15px;
             border-left: 2px solid #eee;
+            flex-wrap: wrap;
         }}
         .filter-group-label {{
             font-weight: 500;
             color: #666;
             font-size: 13px;
+        }}
+        .column-toggles {{
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }}
+        .column-toggles label {{
+            font-size: 12px;
+            padding: 4px 8px;
+            background: #f0f0f0;
+            border-radius: 4px;
+            transition: background 0.2s;
+        }}
+        .column-toggles label:hover {{
+            background: #e0e0e0;
         }}
         table {{
             width: 100%;
@@ -123,6 +161,7 @@ VOCAB_HTML_TEMPLATE = '''<!DOCTYPE html>
         td {{
             padding: 10px 15px;
             border-bottom: 1px solid #eee;
+            white-space: nowrap;
         }}
         tr:hover {{
             background: #f8f9fa;
@@ -139,6 +178,9 @@ VOCAB_HTML_TEMPLATE = '''<!DOCTYPE html>
             margin-left: auto;
         }}
         .hidden {{
+            display: none;
+        }}
+        .col-hidden {{
             display: none;
         }}
         @media print {{
@@ -162,10 +204,10 @@ VOCAB_HTML_TEMPLATE = '''<!DOCTYPE html>
         </div>
 
         <div class="filter-group">
-            <span class="filter-group-label">Algorithm:</span>
-            <label><input type="checkbox" id="filter-ner" onchange="filterTable()"> NER</label>
-            <label><input type="checkbox" id="filter-rake" onchange="filterTable()"> RAKE</label>
-            <label><input type="checkbox" id="filter-bm25" onchange="filterTable()"> BM25</label>
+            <span class="filter-group-label">Columns:</span>
+            <div class="column-toggles" id="column-toggles">
+                {column_toggles}
+            </div>
         </div>
 
         <button onclick="window.print()">Print</button>
@@ -175,10 +217,7 @@ VOCAB_HTML_TEMPLATE = '''<!DOCTYPE html>
     <table id="vocab-table">
         <thead>
             <tr>
-                <th onclick="sortTable(0)">Term <span class="sort-arrow">▼</span></th>
-                <th onclick="sortTable(1)">Score <span class="sort-arrow">▼</span></th>
-                <th onclick="sortTable(2)">Person <span class="sort-arrow">▼</span></th>
-                <th onclick="sortTable(3)">Found By <span class="sort-arrow">▼</span></th>
+{table_headers}
             </tr>
         </thead>
         <tbody>
@@ -187,25 +226,44 @@ VOCAB_HTML_TEMPLATE = '''<!DOCTYPE html>
     </table>
 
     <script>
+        const numericColumns = {numeric_columns_json};
+        const columnOrder = {column_order_json};
         let sortColumn = -1;
         let sortAsc = true;
+
+        function toggleColumn(colName) {{
+            const checkbox = document.getElementById('col-' + colName.replace(/[^a-zA-Z0-9]/g, ''));
+            const isVisible = checkbox.checked;
+            const colIndex = columnOrder.indexOf(colName);
+            if (colIndex === -1) return;
+
+            // Toggle header
+            const headers = document.querySelectorAll('#vocab-table thead th');
+            headers[colIndex].classList.toggle('col-hidden', !isVisible);
+
+            // Toggle all cells in that column
+            const rows = document.querySelectorAll('#vocab-table tbody tr');
+            rows.forEach(row => {{
+                if (row.cells[colIndex]) {{
+                    row.cells[colIndex].classList.toggle('col-hidden', !isVisible);
+                }}
+            }});
+        }}
 
         function filterTable() {{
             const search = document.getElementById('search').value.toLowerCase();
             const personsOnly = document.getElementById('persons-only').checked;
             const termsOnly = document.getElementById('terms-only').checked;
-            const filterNer = document.getElementById('filter-ner').checked;
-            const filterRake = document.getElementById('filter-rake').checked;
-            const filterBm25 = document.getElementById('filter-bm25').checked;
-            const anyAlgoFilter = filterNer || filterRake || filterBm25;
 
+            const personColIndex = columnOrder.indexOf('Is Person');
             const rows = document.querySelectorAll('#vocab-table tbody tr');
             let visibleCount = 0;
 
             rows.forEach(row => {{
                 const term = row.cells[0].textContent.toLowerCase();
-                const isPerson = row.cells[2].textContent.trim() === 'Yes';
-                const foundBy = row.cells[3].textContent;
+                const isPerson = personColIndex >= 0 && row.cells[personColIndex]
+                    ? row.cells[personColIndex].textContent.trim() === 'Yes'
+                    : false;
 
                 let show = true;
 
@@ -217,18 +275,6 @@ VOCAB_HTML_TEMPLATE = '''<!DOCTYPE html>
                 // Person/term filter (mutually exclusive)
                 if (personsOnly && !isPerson) show = false;
                 if (termsOnly && isPerson) show = false;
-
-                // Algorithm filter (any checked must match)
-                if (anyAlgoFilter) {{
-                    const hasNer = foundBy.includes('NER');
-                    const hasRake = foundBy.includes('RAKE');
-                    const hasBm25 = foundBy.includes('BM25');
-
-                    const matchesAlgo = (filterNer && hasNer) ||
-                                        (filterRake && hasRake) ||
-                                        (filterBm25 && hasBm25);
-                    if (!matchesAlgo) show = false;
-                }}
 
                 row.classList.toggle('hidden', !show);
                 if (show) visibleCount++;
@@ -243,6 +289,8 @@ VOCAB_HTML_TEMPLATE = '''<!DOCTYPE html>
             const tbody = table.querySelector('tbody');
             const rows = Array.from(tbody.querySelectorAll('tr'));
             const headers = table.querySelectorAll('th');
+            const colName = columnOrder[colIndex];
+            const isNumeric = numericColumns.includes(colName);
 
             // Toggle sort direction if same column
             if (sortColumn === colIndex) {{
@@ -264,8 +312,8 @@ VOCAB_HTML_TEMPLATE = '''<!DOCTYPE html>
                 let aVal = a.cells[colIndex].textContent.trim();
                 let bVal = b.cells[colIndex].textContent.trim();
 
-                // Numeric sort for Score column
-                if (colIndex === 1) {{
+                // Numeric sort
+                if (isNumeric) {{
                     aVal = parseFloat(aVal) || 0;
                     bVal = parseFloat(bVal) || 0;
                     return sortAsc ? aVal - bVal : bVal - aVal;
@@ -289,46 +337,86 @@ VOCAB_HTML_TEMPLATE = '''<!DOCTYPE html>
 def export_vocabulary_html(
     vocab_data: list[dict],
     file_path: str,
+    visible_columns: list[str] | None = None,
     title: str = "Names & Vocabulary"
 ) -> bool:
     """
     Export vocabulary to interactive HTML file.
 
+    Session 80: Updated to support configurable columns. All columns are
+    included in the HTML but only visible_columns are shown initially.
+    Users can toggle column visibility in the browser.
+
     Args:
         vocab_data: List of vocabulary dicts
         file_path: Output file path (.html)
+        visible_columns: List of column names to show initially (from GUI).
+                        If None, uses default columns.
         title: Document title
 
     Returns:
         True if successful, False otherwise
     """
     try:
+        # Default visible columns if not specified
+        if visible_columns is None:
+            visible_columns = ["Term", "Score", "Is Person", "Found By"]
+
+        # Get all column display names in order
+        column_names = [col[0] for col in VOCAB_HTML_COLUMNS]
+
         # Build summary
         person_count = sum(1 for v in vocab_data if v.get("Is Person") == "Yes")
         term_count = len(vocab_data) - person_count
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M")
         summary = f"{len(vocab_data)} entries ({person_count} persons, {term_count} terms) — Generated {timestamp}"
 
-        # Build table rows
+        # Build column toggle checkboxes
+        toggle_parts = []
+        for col_name, _ in VOCAB_HTML_COLUMNS:
+            col_id = col_name.replace(" ", "").replace("#", "").replace("/", "")
+            is_visible = col_name in visible_columns
+            checked = " checked" if is_visible else ""
+            toggle_parts.append(
+                f'<label><input type="checkbox" id="col-{col_id}" '
+                f'onchange="toggleColumn(\'{col_name}\')"{checked}> {col_name}</label>'
+            )
+        column_toggles = "\n                ".join(toggle_parts)
+
+        # Build table headers
+        header_parts = []
+        for i, (col_name, _) in enumerate(VOCAB_HTML_COLUMNS):
+            hidden_class = "" if col_name in visible_columns else ' class="col-hidden"'
+            header_parts.append(
+                f'                <th onclick="sortTable({i})"{hidden_class}>'
+                f'{col_name} <span class="sort-arrow">▼</span></th>'
+            )
+        table_headers = "\n".join(header_parts)
+
+        # Build table rows with all columns
         rows = []
         for v in vocab_data:
             is_person = v.get("Is Person", "") == "Yes"
             row_class = ' class="person"' if is_person else ""
-            rows.append(
-                f'            <tr{row_class}>'
-                f'<td>{_escape(v.get("Term", ""))}</td>'
-                f'<td>{_escape(v.get("Quality Score", ""))}</td>'
-                f'<td>{_escape(v.get("Is Person", ""))}</td>'
-                f'<td>{_escape(v.get("Found By", ""))}</td>'
-                f'</tr>'
-            )
+
+            cells = []
+            for col_name, data_key in VOCAB_HTML_COLUMNS:
+                hidden_class = "" if col_name in visible_columns else ' class="col-hidden"'
+                value = v.get(data_key, "")
+                cells.append(f'<td{hidden_class}>{_escape(value)}</td>')
+
+            rows.append(f'            <tr{row_class}>{"".join(cells)}</tr>')
 
         table_rows = "\n".join(rows)
 
-        # Generate HTML
+        # Generate HTML with JSON data for JavaScript
         html_content = VOCAB_HTML_TEMPLATE.format(
             summary=_escape(summary),
-            table_rows=table_rows
+            column_toggles=column_toggles,
+            table_headers=table_headers,
+            table_rows=table_rows,
+            numeric_columns_json=json.dumps(list(NUMERIC_COLUMNS)),
+            column_order_json=json.dumps(column_names),
         )
 
         Path(file_path).write_text(html_content, encoding="utf-8")

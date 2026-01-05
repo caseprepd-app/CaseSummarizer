@@ -61,7 +61,7 @@
 - [x] **Per-document term tracking** — TermSources dataclass tracks which documents contributed each term occurrence with confidences; enables weighted scoring for canonical selection (Session 78)
 - [x] **ML feature expansion** — 30 features total (7 new TermSources-based: num_source_documents, doc_diversity_ratio, mean/median confidence, confidence_std_dev, high_conf_doc_ratio, all_low_conf) (Session 78)
 - [x] **Rule-based scoring with TermSources** — Base quality score incorporates document source quality: +10 for multi-doc terms, +5 for high-conf sources, -10 for all-low-conf, -10 conditional single-source penalty (3+ doc sessions only); configurable in config.py (Session 79)
-- [x] **Configurable column visibility** — COLUMN_REGISTRY replaces static lists; 3 new TermSources columns (# Docs, Count, Median Conf); right-click header menu + Settings tab; user preferences persistence (Session 80)
+- [x] **Configurable column visibility** — COLUMN_REGISTRY replaces static lists; 3 new TermSources columns (# Docs, Count, Median Conf); right-click header menu + Settings tab; user preferences persistence; click-to-sort headers (▲/▼ indicators); HTML export with column toggles mirroring GUI; column width persistence (Session 80)
 
 ### Partially Implemented ⚡
 
