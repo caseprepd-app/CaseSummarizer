@@ -393,6 +393,22 @@ def _register_all_settings():
         setter=lambda v: prefs.set("vocab_export_format", v),
     ))
 
+    # Session 80: Column visibility configuration
+    def _create_column_visibility_widget(parent):
+        """Factory function to create the ColumnVisibilityWidget."""
+        from src.ui.settings.settings_widgets import ColumnVisibilityWidget
+        return ColumnVisibilityWidget(parent)
+
+    SettingsRegistry.register(SettingDefinition(
+        key="vocab_column_visibility",
+        label="",  # Widget has its own header
+        category="Vocabulary",
+        setting_type=SettingType.CUSTOM,
+        tooltip="",  # Widget has its own tooltip
+        default=None,
+        widget_factory=_create_column_visibility_widget,
+    ))
+
     # Session 26: BM25 Corpus-based term extraction
     SettingsRegistry.register(SettingDefinition(
         key="bm25_enabled",

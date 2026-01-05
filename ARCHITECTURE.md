@@ -61,6 +61,7 @@
 - [x] **Per-document term tracking** — TermSources dataclass tracks which documents contributed each term occurrence with confidences; enables weighted scoring for canonical selection (Session 78)
 - [x] **ML feature expansion** — 30 features total (7 new TermSources-based: num_source_documents, doc_diversity_ratio, mean/median confidence, confidence_std_dev, high_conf_doc_ratio, all_low_conf) (Session 78)
 - [x] **Rule-based scoring with TermSources** — Base quality score incorporates document source quality: +10 for multi-doc terms, +5 for high-conf sources, -10 for all-low-conf, -10 conditional single-source penalty (3+ doc sessions only); configurable in config.py (Session 79)
+- [x] **Configurable column visibility** — COLUMN_REGISTRY replaces static lists; 3 new TermSources columns (# Docs, Count, Median Conf); right-click header menu + Settings tab; user preferences persistence (Session 80)
 
 ### Partially Implemented ⚡
 
@@ -230,7 +231,7 @@ flowchart TB
 | `FileReviewTable` | `ui/widgets.py` | File list with status/confidence |
 | `ModelSelectionWidget` | `ui/widgets.py` | Model + prompt dropdown |
 | `OutputOptionsWidget` | `ui/widgets.py` | Task checkboxes, word count slider |
-| `DynamicOutputWidget` | `ui/dynamic_output.py` | Tabbed results (Vocab/Questions/Summary), tab-aware button bars, Export All |
+| `DynamicOutputWidget` | `ui/dynamic_output.py` | Tabbed results (Vocab/Questions/Summary), configurable columns via COLUMN_REGISTRY, right-click header menu, Export All |
 | `QAPanel` | `ui/qa_panel.py` | Questions & answers with follow-up, button flash feedback |
 | `QueueMessageHandler` | `ui/queue_message_handler.py` | Routes worker messages to UI |
 | `WorkflowOrchestrator` | `ui/workflow_orchestrator.py` | Processing state machine |

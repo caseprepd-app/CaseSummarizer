@@ -518,6 +518,10 @@ class VocabularyExtractor:
             # Build "Found By" display string from sources
             found_by = ", ".join(merged.sources)  # e.g., "NER, RAKE" or "NER, RAKE, BM25"
 
+            # Session 80: Create legacy TermSources for single-doc extraction path
+            # This enables consistent display columns across both extraction methods
+            sources_obj = TermSources.create_legacy(merged.frequency, doc_confidence / 100.0)
+
             term_data = {
                 "Term": term,
                 "Is Person": "Yes" if is_person else "No",  # Session 52: Replaced Type
@@ -533,6 +537,13 @@ class VocabularyExtractor:
                 "RAKE": "Yes" if "RAKE" in sources_upper else "No",
                 "BM25": "Yes" if "BM25" in sources_upper else "No",
                 "Algo Count": algo_count,  # Sum of algorithms that found term
+                # Session 80: Display columns from TermSources
+                "# Docs": sources_obj.num_documents,
+                "Count": sources_obj.total_count,
+                "Median Conf": f"{sources_obj.median_confidence:.0%}",
+                # Session 78: TermSources object for ML/filters
+                "sources": sources_obj,
+                "total_docs_in_session": doc_count,
                 # ML feature fields (from feedback CSV schema)
                 "quality_score": base_quality_score,
                 "in_case_freq": merged.frequency,
@@ -1193,6 +1204,10 @@ class VocabularyExtractor:
                 "RAKE": "No",
                 "BM25": "No",
                 "Algo Count": 0,
+                # Session 80: Display columns from TermSources
+                "# Docs": sources.num_documents,
+                "Count": sources.total_count,
+                "Median Conf": f"{sources.median_confidence:.0%}",
                 # Session 78: TermSources tracking
                 "sources": sources,
                 "total_docs_in_session": total_docs,

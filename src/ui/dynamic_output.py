@@ -61,49 +61,55 @@ BATCH_INSERT_SIZE = VOCABULARY_BATCH_INSERT_SIZE
 BATCH_INSERT_DELAY_MS = VOCABULARY_BATCH_INSERT_DELAY_MS
 
 
-# Column width configuration (in pixels) - controls text truncation
-# Approximate character limits based on font size 10 Segoe UI
-# Session 23: Added Quality Score, In-Case Freq, Freq Rank columns for filtering
-# Session 25: Added feedback columns (Keep/Skip) for ML learning
-# Session 43: Added Found By column for NER/LLM reconciliation
-# Session 47: Added per-algorithm detection columns (NER, RAKE, BM25)
-# Session 52: Removed Type column (unreliable), added Is Person (NER detection)
-# Session 54: Removed Definition/Role (useless), added Score for ML transparency
-COLUMN_CONFIG = {
-    "Term": {"width": 180, "max_chars": 30},
-    "Score": {"width": 55, "max_chars": 5},  # Quality Score - ML ranking value
-    "Is Person": {"width": 65, "max_chars": 4},  # Yes/No - NER person detection
-    "Found By": {"width": 120, "max_chars": 20},  # Algorithm names: NER, RAKE, BM25
-    "Keep": {"width": 45, "max_chars": 3},
-    "Skip": {"width": 45, "max_chars": 3},
-    # Extended view columns (Session 47)
-    "NER": {"width": 45, "max_chars": 4},
-    "RAKE": {"width": 50, "max_chars": 4},
-    "BM25": {"width": 50, "max_chars": 4},
-    "Algo Count": {"width": 55, "max_chars": 3},  # Number of algorithms that found term
-    # Export-only columns (not shown in GUI)
-    "Quality Score": {"width": 85, "max_chars": 8},
-    "In-Case Freq": {"width": 80, "max_chars": 8},
-    "Freq Rank": {"width": 80, "max_chars": 10},
+# Session 80: Unified column registry for configurable visibility
+# Each column specifies: width, max_chars, default visibility, and whether it can be hidden
+# User preferences override defaults; "Term" cannot be hidden
+COLUMN_REGISTRY = {
+    # Basic columns (default visible)
+    "Term": {"width": 180, "max_chars": 30, "default": True, "can_hide": False},
+    "Score": {"width": 55, "max_chars": 5, "default": True, "can_hide": True},
+    "Is Person": {"width": 65, "max_chars": 4, "default": True, "can_hide": True},
+    "Found By": {"width": 120, "max_chars": 20, "default": True, "can_hide": True},
+    # TermSources columns (Session 80 - default visible)
+    "# Docs": {"width": 55, "max_chars": 4, "default": True, "can_hide": True},
+    "Count": {"width": 60, "max_chars": 6, "default": True, "can_hide": True},
+    "Median Conf": {"width": 80, "max_chars": 5, "default": True, "can_hide": True},
+    # Algorithm detail columns (default hidden - formerly "Show Details")
+    "NER": {"width": 45, "max_chars": 4, "default": False, "can_hide": True},
+    "RAKE": {"width": 50, "max_chars": 4, "default": False, "can_hide": True},
+    "BM25": {"width": 50, "max_chars": 4, "default": False, "can_hide": True},
+    "Algo Count": {"width": 55, "max_chars": 3, "default": False, "can_hide": True},
+    # Additional columns (default hidden)
+    "Freq Rank": {"width": 80, "max_chars": 10, "default": False, "can_hide": True},
+    # Feedback columns (default visible)
+    "Keep": {"width": 45, "max_chars": 3, "default": True, "can_hide": True},
+    "Skip": {"width": 45, "max_chars": 3, "default": True, "can_hide": True},
 }
 
-# Columns visible in the GUI Treeview
-# Session 54: Simplified - removed Definition/Role, added Score for ML transparency
-GUI_DISPLAY_COLUMNS = ("Term", "Score", "Is Person", "Found By", "Keep", "Skip")
+# Fixed column order (determines display sequence in table)
+COLUMN_ORDER = [
+    "Term", "Score", "Is Person", "Found By",
+    "# Docs", "Count", "Median Conf",
+    "NER", "RAKE", "BM25", "Algo Count",
+    "Freq Rank", "Keep", "Skip"
+]
 
-# Session 47: Extended columns with per-algorithm detection (shown via "Show Details" button)
-# Session 54: Removed Definition/Role, added Score
+# Backward compatibility: old column lists for reference
+GUI_DISPLAY_COLUMNS = ("Term", "Score", "Is Person", "Found By", "Keep", "Skip")
 GUI_DISPLAY_COLUMNS_EXTENDED = ("Term", "Score", "Is Person", "Found By", "NER", "RAKE", "BM25", "Algo Count", "Keep", "Skip")
 
 # All columns available for export (includes ML feature columns)
-# Session 54: Removed Definition, kept Quality Score for full data export
-ALL_EXPORT_COLUMNS = ("Term", "Quality Score", "Is Person", "Found By", "NER", "RAKE", "BM25", "Algo Count", "In-Case Freq", "Freq Rank")
+ALL_EXPORT_COLUMNS = ("Term", "Quality Score", "Is Person", "Found By", "# Docs", "Count", "Median Conf", "NER", "RAKE", "BM25", "Algo Count", "In-Case Freq", "Freq Rank")
 
 # UI-002: Centralized mapping from display column names to data field names
 # "Score" in the GUI maps to "Quality Score" in the data dictionary
 DISPLAY_TO_DATA_COLUMN = {
     "Score": "Quality Score",
 }
+
+# Legacy COLUMN_CONFIG for backward compatibility
+COLUMN_CONFIG = {name: {"width": cfg["width"], "max_chars": cfg["max_chars"]}
+                 for name, cfg in COLUMN_REGISTRY.items()}
 
 
 def truncate_text(text: str, max_chars: int) -> str:
@@ -201,16 +207,16 @@ class DynamicOutputWidget(ctk.CTkFrame):
         self.save_btn = ctk.CTkButton(self.button_frame, text="Save to File...", command=self.save_to_file)
         self.save_btn.pack(side="left", padx=5)
 
-        # Session 47: Toggle button for showing per-algorithm detection details
-        self._show_details = False
-        self.detail_toggle_btn = ctk.CTkButton(
+        # Session 80: Column visibility state (replaces Show Details toggle)
+        self._column_visibility = self._load_column_visibility()
+        self.column_picker_btn = ctk.CTkButton(
             self.button_frame,
-            text="Show Details",
-            command=self._toggle_detail_view,
-            width=100,
+            text="Columns...",
+            command=self._show_column_menu,
+            width=90,
             **BUTTON_STYLES["secondary"]
         )
-        self.detail_toggle_btn.pack(side="left", padx=5)
+        self.column_picker_btn.pack(side="left", padx=5)
 
         # Session 72: Export dropdown (replaces separate CSV/Word/PDF buttons)
         # Note: CTkOptionMenu doesn't support hover_color, so only use fg_color
@@ -317,13 +323,13 @@ class DynamicOutputWidget(ctk.CTkFrame):
                 # Update progress badge when switching to this tab
                 self._update_progress_badge(self._extraction_source)
                 # Show vocab widgets - use after= to maintain correct order
-                if not self.detail_toggle_btn.winfo_ismapped():
-                    self.detail_toggle_btn.pack(side="left", padx=5, after=self.save_btn)
+                if not self.column_picker_btn.winfo_ismapped():
+                    self.column_picker_btn.pack(side="left", padx=5, after=self.save_btn)
                 if not self.export_dropdown.winfo_ismapped():
-                    self.export_dropdown.pack(side="left", padx=5, after=self.detail_toggle_btn)
+                    self.export_dropdown.pack(side="left", padx=5, after=self.column_picker_btn)
             else:
                 # Hide vocab-specific widgets on Summary tab
-                self.detail_toggle_btn.pack_forget()
+                self.column_picker_btn.pack_forget()
                 self.export_dropdown.pack_forget()
 
     def _update_progress_badge(self, source: str):
@@ -366,27 +372,97 @@ class DynamicOutputWidget(ctk.CTkFrame):
         if current_tab == "Names & Vocab":
             self._update_progress_badge(source)
 
-    def _toggle_detail_view(self):
-        """
-        Toggle between basic and detailed column view (Session 47).
+    # -------------------------------------------------------------------------
+    # Session 80: Column Visibility Management
+    # -------------------------------------------------------------------------
 
-        When details are shown, displays NER, RAKE, and BM25 columns
-        indicating which algorithms detected each term.
+    def _load_column_visibility(self) -> dict[str, bool]:
+        """Load column visibility from user preferences, with defaults."""
+        prefs = get_user_preferences()
+        saved = prefs.get("vocab_column_visibility", {})
+
+        visibility = {}
+        for col_name, col_config in COLUMN_REGISTRY.items():
+            # Use saved value if present, else default from registry
+            visibility[col_name] = saved.get(col_name, col_config["default"])
+        return visibility
+
+    def _save_column_visibility(self):
+        """Save current column visibility to user preferences."""
+        prefs = get_user_preferences()
+        prefs.set("vocab_column_visibility", self._column_visibility)
+
+    def _get_visible_columns(self) -> list[str]:
+        """Get list of currently visible column names in display order."""
+        return [col for col in COLUMN_ORDER if self._column_visibility.get(col, False)]
+
+    def _show_column_menu(self, event=None):
         """
-        self._show_details = not self._show_details
-        self.detail_toggle_btn.configure(
-            text="Hide Details" if self._show_details else "Show Details"
+        Show column visibility context menu (Session 80).
+
+        Can be triggered by the Columns button or right-click on header.
+        """
+        menu = Menu(
+            self,
+            tearoff=0,
+            bg="#404040",
+            fg="white",
+            activebackground="#505050",
+            activeforeground="white",
+            font=('Segoe UI', 10)
         )
-        # Refresh current view to apply new columns if Names & Vocab tab is active
-        current_tab = self.tabview.get()
-        if current_tab == "Names & Vocab":
-            vocab_data = self._outputs.get("Names & Vocabulary", [])
-            if not vocab_data:
-                vocab_data = self._outputs.get("Rare Word List (CSV)", [])
-            # Force treeview recreation to update columns
-            if self.csv_treeview is not None:
-                self.csv_treeview.destroy()
-                self.csv_treeview = None
+
+        for col_name in COLUMN_ORDER:
+            col_config = COLUMN_REGISTRY[col_name]
+
+            # Term cannot be hidden
+            if not col_config["can_hide"]:
+                menu.add_command(label=f"  {col_name} (required)", state="disabled")
+            else:
+                # Checkmark for visible columns
+                is_visible = self._column_visibility.get(col_name, col_config["default"])
+                prefix = "\u2713 " if is_visible else "   "  # ✓ or spaces
+                menu.add_command(
+                    label=f"{prefix}{col_name}",
+                    command=lambda c=col_name: self._toggle_column(c)
+                )
+
+        menu.add_separator()
+        menu.add_command(label="Reset to Defaults", command=self._reset_column_visibility)
+
+        # Position menu at button or event location
+        if event:
+            menu.tk_popup(event.x_root, event.y_root)
+        else:
+            # Position below the button
+            btn_x = self.column_picker_btn.winfo_rootx()
+            btn_y = self.column_picker_btn.winfo_rooty() + self.column_picker_btn.winfo_height()
+            menu.tk_popup(btn_x, btn_y)
+
+    def _toggle_column(self, column_name: str):
+        """Toggle visibility of a column."""
+        current = self._column_visibility.get(column_name, COLUMN_REGISTRY[column_name]["default"])
+        self._column_visibility[column_name] = not current
+        self._save_column_visibility()
+        self._refresh_treeview_columns()
+
+    def _reset_column_visibility(self):
+        """Reset column visibility to defaults."""
+        self._column_visibility = {
+            col: cfg["default"]
+            for col, cfg in COLUMN_REGISTRY.items()
+        }
+        self._save_column_visibility()
+        self._refresh_treeview_columns()
+
+    def _refresh_treeview_columns(self):
+        """Refresh treeview when column visibility changes."""
+        vocab_data = self._outputs.get("Names & Vocabulary", [])
+        if not vocab_data:
+            vocab_data = self._outputs.get("Rare Word List (CSV)", [])
+        if vocab_data and self.csv_treeview is not None:
+            self.csv_treeview.destroy()
+            self.csv_treeview = None
             self._display_csv(vocab_data)
 
     def cleanup(self):
@@ -560,8 +636,8 @@ class DynamicOutputWidget(ctk.CTkFrame):
         self.treeview_frame.grid_columnconfigure(0, weight=1)
         self.treeview_frame.grid_rowconfigure(0, weight=1)
 
-        # Session 47: Choose columns based on detail view toggle
-        columns = GUI_DISPLAY_COLUMNS_EXTENDED if self._show_details else GUI_DISPLAY_COLUMNS
+        # Session 80: Get visible columns from user preferences
+        columns = tuple(self._get_visible_columns())
         self._current_columns = columns  # Store for use in _async_insert_rows
 
         # Create or reconfigure treeview
@@ -882,7 +958,14 @@ class DynamicOutputWidget(ctk.CTkFrame):
         )
 
     def _on_right_click(self, event):
-        """Handle right-click on treeview to show context menu."""
+        """Handle right-click on treeview - show column menu for header, context menu for rows."""
+        # Session 80: Check if click is on header region
+        region = self.csv_treeview.identify_region(event.x, event.y)
+        if region == "heading":
+            # Show column visibility menu
+            self._show_column_menu(event)
+            return
+
         # Identify the row under cursor
         item_id = self.csv_treeview.identify_row(event.y)
         if item_id:
@@ -1250,7 +1333,8 @@ class DynamicOutputWidget(ctk.CTkFrame):
 
         # Export using service
         export_service = get_export_service()
-        include_details = self._show_details  # Use current detail toggle state
+        # Session 80: Include details if any algorithm columns are visible
+        include_details = any(self._column_visibility.get(col, False) for col in ["NER", "RAKE", "BM25", "Algo Count"])
         success = export_service.export_vocabulary_to_word(vocab_data, filepath, include_details)
 
         if success:
@@ -1293,7 +1377,8 @@ class DynamicOutputWidget(ctk.CTkFrame):
 
         # Export using service
         export_service = get_export_service()
-        include_details = self._show_details  # Use current detail toggle state
+        # Session 80: Include details if any algorithm columns are visible
+        include_details = any(self._column_visibility.get(col, False) for col in ["NER", "RAKE", "BM25", "Algo Count"])
         success = export_service.export_vocabulary_to_pdf(vocab_data, filepath, include_details)
 
         if success:

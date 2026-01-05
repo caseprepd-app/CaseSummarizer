@@ -430,6 +430,30 @@ class UserPreferencesManager:
                 raise ValueError(
                     f"llm_context_size must be 'auto' or one of {valid_sizes}, got {value}"
                 )
+        # Session 80: Column visibility validation
+        elif key == "vocab_column_visibility":
+            if not isinstance(value, dict):
+                raise ValueError(
+                    f"vocab_column_visibility must be a dict, got {type(value).__name__}"
+                )
+            # Validate that all keys are valid column names
+            valid_columns = {
+                "Term", "Score", "Is Person", "Found By", "# Docs", "Count",
+                "Median Conf", "NER", "RAKE", "BM25", "Algo Count",
+                "Freq Rank", "Keep", "Skip"
+            }
+            invalid = set(value.keys()) - valid_columns
+            if invalid:
+                raise ValueError(f"Invalid column names: {invalid}")
+            # Validate that all values are boolean
+            for col, visible in value.items():
+                if not isinstance(visible, bool):
+                    raise ValueError(
+                        f"Column visibility value must be boolean, got {type(visible).__name__} for '{col}'"
+                    )
+            # Term column cannot be hidden
+            if value.get("Term") is False:
+                raise ValueError("'Term' column cannot be hidden")
 
         self._preferences[key] = value
         self._save_preferences()
