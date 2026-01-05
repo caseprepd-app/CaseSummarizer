@@ -62,7 +62,9 @@
 - [x] **ML feature expansion** — 30 features total (7 new TermSources-based: num_source_documents, doc_diversity_ratio, mean/median confidence, confidence_std_dev, high_conf_doc_ratio, all_low_conf) (Session 78)
 - [x] **Rule-based scoring with TermSources** — Base quality score incorporates document source quality: +10 for multi-doc terms, +5 for high-conf sources, -10 for all-low-conf, -10 conditional single-source penalty (3+ doc sessions only); configurable in config.py (Session 79)
 - [x] **Configurable column visibility** — COLUMN_REGISTRY replaces static lists; 3 new TermSources columns (# Docs, Count, Median Conf); right-click header menu + Settings tab; user preferences persistence; click-to-sort headers (▲/▼ indicators); HTML export with column toggles mirroring GUI; column width persistence (Session 80)
-- [x] **Column config consolidation** — Shared `column_config.py` as single source of truth for column definitions; sort warning dialogs for non-Score columns (GUI messagebox + HTML confirm); Term column protected from hiding; real-time term filter above treeview with detach/reattach pattern (Session 80b)
+- [x] **Column config consolidation** — Shared `column_config.py` as single source of truth for column definitions; sort warning dialogs for non-Score columns (GUI messagebox + HTML confirm); Term column protected from hiding; real-time term filter above treeview with detach/reattach pattern; regex filter option (Session 80b)
+- [x] **Person name casing fix** — ResultMerger forces Title Case for Person entities regardless of algorithm frequency; fixes lowercase names from BM25 ("jenkins" → "Jenkins") (Session 80b)
+- [x] **Common-word variant detection** — ArtifactFilter removes Person terms that are canonical_name + common_word(s); uses Google frequency dataset (top 200K = common); fuzzy prefix matching (edit distance ≤2) catches typos like "Luigi Napontano Dob" → "Luigi Napolitano"; `is_common_word()` helper in rarity_filter.py (Session 80b)
 
 ### Partially Implemented ⚡
 
@@ -484,9 +486,17 @@ Uses `CombinedPerTermFilter` to run 3 per-term checks in a single pass (3→1 lo
 | Priority | Filter | Purpose |
 |----------|--------|---------|
 | 10 | NameDeduplicationFilter | Fuzzy matching for OCR variants |
-| 20 | ArtifactFilter | Substring containment removal |
+| 20 | ArtifactFilter | Substring containment + common-word variants (Session 80b) |
 | 30 | NameRegularizerFilter | Remove fragments and 1-char typos |
 | 40 | CombinedPerTermFilter | Rarity + Corpus Familiarity + Gibberish in one pass |
+
+**ArtifactFilter Details (Session 80b):**
+The ArtifactFilter performs two types of checks:
+1. **Substring containment**: Removes terms containing canonical terms (e.g., "Ms. Di Leo:" → removed)
+2. **Common-word variants** (Person entities only): Removes terms that are name + common word(s)
+   - Uses `is_common_word()` to check if trailing/leading words are in top 200K of Google frequency dataset
+   - Exact match: "Luigi Napolitano Patient" removed when "Luigi Napolitano" exists
+   - Fuzzy match (edit distance ≤2): "Luigi Napontano Dob" removed (handles OCR typos in names)
 
 Each filter extends `BaseVocabularyFilter` and returns `FilterResult` with statistics.
 The chain tracks per-filter removed counts for debugging.
@@ -1313,4 +1323,4 @@ ruff check src/ --fix
 
 ---
 
-*Last updated: 2026-01-05 (Session 80b - Shared column config, sort warnings, term filter)*
+*Last updated: 2026-01-05 (Session 80b - Column config, Person name casing, common-word variant detection)*
