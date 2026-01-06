@@ -37,6 +37,7 @@ Example:
 from src.logging_config import debug_log
 from src.core.vocabulary.canonical_scorer import create_canonical_scorer
 from src.core.vocabulary.term_sources import TermSources
+from src.core.vocabulary.string_utils import edit_distance
 
 # Lazy-loaded known words set for typo resolution
 _KNOWN_WORDS: set[str] | None = None
@@ -140,41 +141,6 @@ def _is_known_term(term: str) -> bool:
     known_words = _load_known_words()
     words = term.lower().split()
     return all(word.strip(".,;:'\"") in known_words for word in words)
-
-
-def _edit_distance(s1: str, s2: str) -> int:
-    """
-    Calculate Levenshtein edit distance between two strings.
-
-    Edit distance = minimum number of single-character edits (insertions,
-    deletions, or substitutions) required to change one string into another.
-
-    Args:
-        s1: First string
-        s2: Second string
-
-    Returns:
-        Integer edit distance
-    """
-    if len(s1) < len(s2):
-        return _edit_distance(s2, s1)
-
-    if len(s2) == 0:
-        return len(s1)
-
-    previous_row = range(len(s2) + 1)
-
-    for i, c1 in enumerate(s1):
-        current_row = [i + 1]
-        for j, c2 in enumerate(s2):
-            # Cost is 0 if characters match, 1 otherwise
-            insertions = previous_row[j + 1] + 1
-            deletions = current_row[j] + 1
-            substitutions = previous_row[j] + (c1 != c2)
-            current_row.append(min(insertions, deletions, substitutions))
-        previous_row = current_row
-
-    return previous_row[-1]
 
 
 def _is_fragment_of(fragment: str, canonical: str) -> bool:
@@ -370,7 +336,7 @@ def filter_typo_variants(
             if abs(len(term_lower) - len(canonical)) > max_edit_distance:
                 continue
 
-            distance = _edit_distance(term_lower, canonical)
+            distance = edit_distance(term_lower, canonical)
 
             if distance <= max_edit_distance:
                 debug_log(
@@ -492,7 +458,7 @@ def _single_pass_regularize(
                 continue
 
             # Check edit distance (1-2 chars)
-            if _edit_distance(term_a.lower(), term_b.lower()) <= 2:
+            if edit_distance(term_a.lower(), term_b.lower()) <= 2:
                 similar_group.append((dict_b, term_b))
                 processed.add(term_b.lower())
 

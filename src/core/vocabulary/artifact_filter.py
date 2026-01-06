@@ -23,37 +23,13 @@ transcript-specific artifacts like Q/A notation.
 from src.logging_config import debug_log
 from src.core.vocabulary.rarity_filter import is_common_word
 from src.core.vocabulary.person_utils import is_person_entry
+from src.core.vocabulary.string_utils import edit_distance
 
 # Default number of top terms to use as canonical candidates
 DEFAULT_CANONICAL_COUNT = 25
 
 # Default threshold for common word detection (top N words in Google dataset)
 COMMON_WORD_THRESHOLD = 200000
-
-
-def _edit_distance(s1: str, s2: str) -> int:
-    """
-    Calculate Levenshtein edit distance between two strings.
-
-    Copied from name_regularizer.py to avoid circular imports.
-    """
-    if len(s1) < len(s2):
-        return _edit_distance(s2, s1)
-
-    if len(s2) == 0:
-        return len(s1)
-
-    previous_row = range(len(s2) + 1)
-    for i, c1 in enumerate(s1):
-        current_row = [i + 1]
-        for j, c2 in enumerate(s2):
-            insertions = previous_row[j + 1] + 1
-            deletions = current_row[j] + 1
-            substitutions = previous_row[j] + (c1 != c2)
-            current_row.append(min(insertions, deletions, substitutions))
-        previous_row = current_row
-
-    return previous_row[-1]
 
 
 def _get_trailing_words(term: str, canonical: str) -> list[str] | None:
@@ -149,7 +125,7 @@ def _is_fuzzy_common_word_variant(term: str, canonical: str, max_edit: int = 2) 
     term_prefix = " ".join(term_words[: len(canonical_words)])
     canonical_str = " ".join(canonical_words)
 
-    if _edit_distance(term_prefix, canonical_str) <= max_edit:
+    if edit_distance(term_prefix, canonical_str) <= max_edit:
         trailing = term_words[len(canonical_words) :]
         if all(is_common_word(w, COMMON_WORD_THRESHOLD) for w in trailing):
             return True
@@ -157,7 +133,7 @@ def _is_fuzzy_common_word_variant(term: str, canonical: str, max_edit: int = 2) 
     # Try fuzzy match on suffix (leading common words)
     term_suffix = " ".join(term_words[-len(canonical_words) :])
 
-    if _edit_distance(term_suffix, canonical_str) <= max_edit:
+    if edit_distance(term_suffix, canonical_str) <= max_edit:
         leading = term_words[: -len(canonical_words)]
         if all(is_common_word(w, COMMON_WORD_THRESHOLD) for w in leading):
             return True

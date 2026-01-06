@@ -19,6 +19,7 @@ Usage:
 
 import customtkinter as ctk
 
+from src.ui.base_dialog import BaseModalDialog
 from src.ui.theme import FONTS, COLORS
 from .settings_registry import SettingsRegistry, SettingType
 from .settings_widgets import (
@@ -30,7 +31,7 @@ from .settings_widgets import (
 )
 
 
-class SettingsDialog(ctk.CTkToplevel):
+class SettingsDialog(BaseModalDialog):
     """
     Tabbed settings dialog with auto-generated UI.
 
@@ -52,12 +53,14 @@ class SettingsDialog(ctk.CTkToplevel):
             on_save_callback: Optional callback after settings are saved.
             initial_tab: Optional tab name to open initially (e.g., "Questions").
         """
-        super().__init__(parent)
-        self.title("Settings")
-        self.geometry("700x520")  # Session 62b: 4 tabs (consolidated from 6)
-        self.grab_set()  # Make modal
-        self.resizable(True, True)
-        self.minsize(550, 420)
+        super().__init__(
+            parent=parent,
+            title="Settings",
+            width=700,
+            height=520,
+            min_width=550,
+            min_height=420,
+        )
 
         self.on_save_callback = on_save_callback
         self.widgets: dict[str, ctk.CTkFrame] = {}
@@ -66,26 +69,6 @@ class SettingsDialog(ctk.CTkToplevel):
         self._setup_ui()
         self._load_current_values()
         self._setup_dependencies()
-
-        # Center dialog on parent
-        self._center_on_parent(parent)
-
-    def _center_on_parent(self, parent):
-        """Center the dialog on its parent window."""
-        if parent:
-            self.update_idletasks()
-            parent_x = parent.winfo_x()
-            parent_y = parent.winfo_y()
-            parent_w = parent.winfo_width()
-            parent_h = parent.winfo_height()
-
-            dialog_w = self.winfo_width()
-            dialog_h = self.winfo_height()
-
-            x = parent_x + (parent_w - dialog_w) // 2
-            y = parent_y + (parent_h - dialog_h) // 2
-
-            self.geometry(f"+{x}+{y}")
 
     def _setup_ui(self):
         """Create the tabbed interface with all settings."""

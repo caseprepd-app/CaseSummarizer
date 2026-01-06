@@ -21,6 +21,7 @@ from tkinter import filedialog, messagebox, ttk
 import customtkinter as ctk
 
 from src.config import DEBUG_MODE
+from src.ui.base_dialog import BaseModalDialog
 from src.logging_config import debug_log
 from src.ui.theme import FONTS, COLORS
 from src.core.vocabulary import (
@@ -35,7 +36,7 @@ from src.core.vocabulary import (
 BM25_WIKI_URL = "https://en.wikipedia.org/wiki/Okapi_BM25"
 
 
-class CorpusDialog(ctk.CTkToplevel):
+class CorpusDialog(BaseModalDialog):
     """
     Dialog for managing vocabulary corpora.
 
@@ -57,27 +58,19 @@ class CorpusDialog(ctk.CTkToplevel):
         Args:
             parent: Parent window
         """
-        super().__init__(parent)
+        super().__init__(
+            parent=parent,
+            title="Corpus Management",
+            width=800,
+            height=650,
+            min_width=700,
+            min_height=550,
+        )
 
         self.corpus_changed = False
         self.registry = get_corpus_registry()
         self._selected_corpus: str | None = None
         self._corpus_manager: CorpusManager | None = None
-
-        # Window configuration
-        self.title("Corpus Management")
-        self.geometry("800x650")
-        self.minsize(700, 550)
-
-        # Make modal
-        self.transient(parent)
-        self.grab_set()
-
-        # Center on parent
-        self.update_idletasks()
-        x = parent.winfo_x() + (parent.winfo_width() - 800) // 2
-        y = parent.winfo_y() + (parent.winfo_height() - 650) // 2
-        self.geometry(f"+{x}+{y}")
 
         # Build UI
         self._create_ui()

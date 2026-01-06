@@ -28,6 +28,8 @@ from difflib import SequenceMatcher
 
 from spellchecker import SpellChecker
 
+from src.core.vocabulary.string_utils import edit_distance
+
 logger = logging.getLogger(__name__)
 
 # Thresholds for combined algorithm (Session 79)
@@ -132,7 +134,7 @@ class GibberishFilter:
             return True  # No correction = gibberish
 
         # Calculate both metrics
-        edit_dist = self._edit_distance(word, best)
+        edit_dist = edit_distance(word, best)
         edit_ratio = edit_dist / len(word)
         similarity = SequenceMatcher(None, word, best).ratio()
 
@@ -144,33 +146,6 @@ class GibberishFilter:
             return False  # Valid typo, not gibberish
         else:
             return True  # Failed at least one metric = gibberish
-
-    def _edit_distance(self, s1: str, s2: str) -> int:
-        """
-        Calculate Levenshtein edit distance between two strings.
-
-        Args:
-            s1: First string
-            s2: Second string
-
-        Returns:
-            Number of single-character edits needed to transform s1 to s2
-        """
-        if len(s1) < len(s2):
-            return self._edit_distance(s2, s1)
-        if len(s2) == 0:
-            return len(s1)
-
-        prev_row = list(range(len(s2) + 1))
-        for i, c1 in enumerate(s1):
-            curr_row = [i + 1]
-            for j, c2 in enumerate(s2):
-                insertions = prev_row[j + 1] + 1
-                deletions = curr_row[j] + 1
-                substitutions = prev_row[j] + (c1 != c2)
-                curr_row.append(min(insertions, deletions, substitutions))
-            prev_row = curr_row
-        return prev_row[-1]
 
     def _clean_for_check(self, word: str) -> str:
         """

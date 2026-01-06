@@ -24,6 +24,7 @@ import customtkinter as ctk
 import yaml
 
 from src.config import DEBUG_MODE
+from src.ui.base_dialog import BaseModalDialog
 from src.core.config import load_yaml_with_fallback
 from src.logging_config import debug_log
 from src.ui.theme import FONTS, COLORS, BUTTON_STYLES
@@ -35,7 +36,7 @@ DEFAULT_QUESTIONS_PATH = Path(__file__).parent.parent.parent / "config" / "qa_qu
 BACKUP_QUESTIONS_PATH = Path(__file__).parent.parent.parent / "config" / "qa_questions_default.yaml"
 
 
-class QAQuestionEditor(ctk.CTkToplevel):
+class QAQuestionEditor(BaseModalDialog):
     """
     Dialog for editing default Q&A questions.
 
@@ -57,28 +58,20 @@ class QAQuestionEditor(ctk.CTkToplevel):
             parent: Parent window
             yaml_path: Path to questions YAML (default: config/qa_questions.yaml)
         """
-        super().__init__(parent)
+        super().__init__(
+            parent=parent,
+            title="Edit Default Questions",
+            width=700,
+            height=500,
+            min_width=500,
+            min_height=400,
+        )
 
         self.yaml_path = yaml_path or DEFAULT_QUESTIONS_PATH
         self.saved = False
         self._original_questions: list[dict] = []
         self._questions: list[dict] = []
         self._has_changes = False
-
-        # Window configuration
-        self.title("Edit Default Questions")
-        self.geometry("700x500")
-        self.minsize(500, 400)
-
-        # Make modal
-        self.transient(parent)
-        self.grab_set()
-
-        # Center on parent
-        self.update_idletasks()
-        x = parent.winfo_x() + (parent.winfo_width() - 700) // 2
-        y = parent.winfo_y() + (parent.winfo_height() - 500) // 2
-        self.geometry(f"+{x}+{y}")
 
         # Build UI
         self._create_ui()

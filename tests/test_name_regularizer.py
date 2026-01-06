@@ -9,12 +9,12 @@ Tests the two filtering strategies:
 import pytest
 
 from src.core.vocabulary.name_regularizer import (
-    _edit_distance,
     _is_fragment_of,
     filter_name_fragments,
     filter_typo_variants,
     regularize_names,
 )
+from src.core.vocabulary.string_utils import edit_distance as _edit_distance
 
 
 class TestEditDistance:
