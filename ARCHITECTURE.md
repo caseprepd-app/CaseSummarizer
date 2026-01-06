@@ -66,6 +66,8 @@
 - [x] **Person name casing fix** — ResultMerger forces Title Case for Person entities regardless of algorithm frequency; fixes lowercase names from BM25 ("jenkins" → "Jenkins") (Session 80b)
 - [x] **Common-word variant detection** — ArtifactFilter removes Person terms that are canonical_name + common_word(s); uses Google frequency dataset (top 200K = common); fuzzy prefix matching (edit distance ≤2) catches typos like "Luigi Napontano Dob" → "Luigi Napolitano"; `is_common_word()` helper in rarity_filter.py (Session 80b)
 - [x] **Extraction module refactor** — Split 1100-line `raw_text_extractor.py` into 6 focused modules: `pdf_extractor.py` (hybrid voting), `ocr_processor.py`, `file_readers.py` (TXT/RTF/DOCX/image), `text_normalizer.py`, `dictionary_utils.py`, `case_number_extractor.py`; facade pattern preserves API; black formatting applied to all src/ (Session 81)
+- [x] **DRY improvements** — Consolidated duplicate `edit_distance()` from 3 files → `string_utils.py`; created `BaseModalDialog` for dialog boilerplate; split `settings_widgets.py` (1269→641 lines) into `columns_widget.py`, `corpus_widget.py`, `questions_widget.py` (Session 82)
+- [x] **UI module split** — Created `vocab_table/` subdirectory with `column_config.py` (shared constants), `treeview_manager.py`, `export_handler.py`, `feedback_handler.py` (mixins); created `main_window_helpers/` with `ollama_mixin.py`, `file_mixin.py`, `task_mixin.py`, `export_mixin.py`, `timer_mixin.py`; `dynamic_output.py` imports from centralized `column_config.py` (Session 82)
 
 ### Partially Implemented ⚡
 
@@ -1122,6 +1124,7 @@ src/
 │   ├── vocabulary/              # Vocabulary extraction
 │   │   ├── vocabulary_extractor.py  # Main orchestrator
 │   │   ├── column_config.py         # Shared column definitions (Session 80b)
+│   │   ├── string_utils.py          # edit_distance, normalize_term (Session 82 DRY)
 │   │   ├── reconciler.py            # NER + LLM merge
 │   │   ├── result_merger.py         # Algorithm result combination
 │   │   ├── name_deduplicator.py     # Person name deduplication
@@ -1202,12 +1205,13 @@ src/
 │   └── export_service.py        # Word/PDF export (Session 72)
 │
 ├── ui/                          # USER INTERFACE ONLY
-│   ├── main_window.py           # Main window
+│   ├── main_window.py           # Main window (business logic)
 │   ├── window_layout.py         # Layout mixin
+│   ├── base_dialog.py           # BaseModalDialog for modal windows (Session 82)
 │   ├── theme.py                 # Centralized fonts, colors, style presets
 │   ├── styles.py                # Centralized ttk style config
 │   ├── widgets.py               # FileTable, ModelSelector, etc.
-│   ├── dynamic_output.py        # Results display
+│   ├── dynamic_output.py        # Results display (imports from vocab_table/)
 │   ├── qa_panel.py              # Q&A panel
 │   ├── qa_question_editor.py    # Edit questions dialog
 │   ├── corpus_dialog.py         # Corpus management
@@ -1219,10 +1223,27 @@ src/
 │   ├── processing_timer.py      # Elapsed time
 │   ├── system_monitor.py        # CPU/RAM display
 │   ├── tooltip_helper.py        # Tooltips
+│   │
+│   ├── vocab_table/             # Vocabulary table components (Session 82)
+│   │   ├── column_config.py     # COLUMN_REGISTRY, COLUMN_ORDER, truncate_text
+│   │   ├── treeview_manager.py  # Column visibility, sorting, filtering (mixin)
+│   │   ├── export_handler.py    # CSV/TXT/Word/PDF/HTML export (mixin)
+│   │   └── feedback_handler.py  # Keep/Skip feedback UI (mixin)
+│   │
+│   ├── main_window_helpers/     # MainWindow helper modules (Session 82)
+│   │   ├── ollama_mixin.py      # Ollama status display (~170 lines)
+│   │   ├── file_mixin.py        # File selection, drag-drop (~180 lines)
+│   │   ├── task_mixin.py        # Task execution, progressive extraction (~550 lines)
+│   │   ├── export_mixin.py      # Export All, Combined Report (~130 lines)
+│   │   └── timer_mixin.py       # Processing timer (~80 lines)
+│   │
 │   └── settings/
 │       ├── settings_dialog.py   # Tabbed dialog
 │       ├── settings_registry.py # Setting definitions
-│       └── settings_widgets.py  # Custom widgets
+│       ├── settings_widgets.py  # Base widgets (TooltipIcon, SliderSetting, etc.)
+│       ├── columns_widget.py    # Column visibility widget (Session 82)
+│       ├── corpus_widget.py     # Corpus settings widget (Session 82)
+│       └── questions_widget.py  # Default questions widget (Session 82)
 │
 └── utils/
     ├── logger.py                # Backward-compat wrapper
@@ -1368,4 +1389,4 @@ ruff check src/ --fix
 
 ---
 
-*Last updated: 2026-01-05 (Session 80b - Column config, Person name casing, common-word variant detection)*
+*Last updated: 2026-01-06 (Session 82 - DRY improvements, UI module split: vocab_table/, main_window_helpers/, settings widget extraction)*
