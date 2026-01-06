@@ -21,13 +21,12 @@ import csv
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import Callable
 
 import customtkinter as ctk
 
 from src.config import PROCESSING_METRICS_CSV
-from src.ui.theme import FONTS
 from src.logging_config import debug_log
+from src.ui.theme import FONTS
 
 
 def format_duration(seconds: float) -> str:
@@ -114,7 +113,7 @@ class ProcessingTimer(ctk.CTkLabel):
         self.is_running = True
         self._job_metadata = job_metadata or {}
 
-        debug_log(f"[TIMER] Started processing timer")
+        debug_log("[TIMER] Started processing timer")
         self._update_display()
 
     def stop(self) -> float:

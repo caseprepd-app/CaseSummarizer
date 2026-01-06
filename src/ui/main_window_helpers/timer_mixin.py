@@ -11,7 +11,6 @@ Contains:
 
 import time
 
-from src.config import DEBUG_MODE
 from src.logging_config import debug_log
 
 

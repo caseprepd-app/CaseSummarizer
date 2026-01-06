@@ -166,7 +166,7 @@ class PromptTemplateManager:
     {max_words_range}, {case_text}
     """
 
-    def __init__(self, prompts_base_dir: Path, user_prompts_dir: Path = None):
+    def __init__(self, prompts_base_dir: Path, user_prompts_dir: Path | None = None):
         """
         Initialize the template manager.
 
@@ -306,7 +306,7 @@ class PromptTemplateManager:
         self._cache[cache_key] = template
         return template
 
-    def validate_template(self, template: str, template_path: Path = None) -> None:
+    def validate_template(self, template: str, template_path: Path | None = None) -> None:
         """
         Validate that a template has required elements.
 

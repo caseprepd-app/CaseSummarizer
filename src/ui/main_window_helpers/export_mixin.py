@@ -74,7 +74,7 @@ class ExportMixin:
 
         # Flash button and show result
         if exported:
-            self.export_all_btn.configure(text=f"Exported!")
+            self.export_all_btn.configure(text="Exported!")
             self.after(1500, lambda: self.export_all_btn.configure(text="Export All"))
             # Status bar with auto-clear (Session 69)
             self.set_status(f"Exported to Documents: {', '.join(exported)}", duration_ms=5000)
@@ -88,9 +88,9 @@ class ExportMixin:
 
         Session 73: Combined export feature - creates unified report.
         """
+        from src.core.utils.text_utils import get_documents_folder
         from src.services import get_export_service
         from src.user_preferences import get_user_preferences
-        from src.core.utils.text_utils import get_documents_folder
 
         # Gather data
         vocab_data = self.output_display._outputs.get("Names & Vocabulary", [])

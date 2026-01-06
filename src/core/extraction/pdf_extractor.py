@@ -203,7 +203,7 @@ class PDFExtractor:
                 error("PyMuPDF: Permission denied when accessing PDF")
                 return None, 0, "permission"
             else:
-                error(f"PyMuPDF: Failed to extract PDF text: {str(e)}", exc_info=True)
+                error(f"PyMuPDF: Failed to extract PDF text: {e!s}", exc_info=True)
                 return None, 0, "unknown"
 
     def _extract_pdfplumber(self, file_path: Path) -> tuple[str | None, int, str | None]:
@@ -255,7 +255,7 @@ class PDFExtractor:
                 error("pdfplumber: Permission denied when accessing PDF")
                 return None, 0, "permission"
             else:
-                error(f"pdfplumber: Failed to extract PDF text: {str(e)}", exc_info=True)
+                error(f"pdfplumber: Failed to extract PDF text: {e!s}", exc_info=True)
                 return None, 0, "unknown"
 
     def reconcile_extractions(self, primary_text: str, secondary_text: str) -> str:

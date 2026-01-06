@@ -12,7 +12,6 @@ This module defines:
 """
 
 from dataclasses import dataclass
-from typing import Optional
 
 
 @dataclass(frozen=True)
@@ -88,7 +87,7 @@ NUMERIC_COLUMNS = frozenset(c.name for c in COLUMN_DEFINITIONS if c.is_numeric)
 DISPLAY_TO_DATA_KEY = {c.name: c.data_key for c in COLUMN_DEFINITIONS if c.name != c.data_key}
 
 
-def get_column_by_name(name: str) -> Optional[ColumnDefinition]:
+def get_column_by_name(name: str) -> ColumnDefinition | None:
     """
     Get column definition by display name.
 

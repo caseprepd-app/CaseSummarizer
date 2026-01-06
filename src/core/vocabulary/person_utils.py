@@ -47,7 +47,4 @@ def is_person_entry(term_data: dict) -> bool:
 
     # Check ML feature format
     ml_person = term_data.get("is_person", 0)
-    if ml_person == 1 or str(ml_person).lower() in ("1", "true", "yes"):
-        return True
-
-    return False
+    return bool(ml_person == 1 or str(ml_person).lower() in ("1", "true", "yes"))

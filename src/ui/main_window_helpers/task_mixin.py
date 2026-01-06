@@ -15,10 +15,9 @@ Contains:
 
 import threading
 import time
-from queue import Queue, Empty
+from queue import Empty, Queue
 from tkinter import messagebox
 
-from src.config import DEBUG_MODE
 from src.logging_config import debug_log
 
 
@@ -90,7 +89,7 @@ class TaskMixin:
         # Q&A task
         if self.qa_check.get():
             if self.ask_default_questions_check.get():
-                enabled, total = self._load_default_question_count()
+                enabled, _total = self._load_default_question_count()
                 if enabled > 0:
                     q_word = "question" if enabled == 1 else "questions"
                     parts.append(f"Q&A ({enabled} {q_word})")
@@ -104,10 +103,7 @@ class TaskMixin:
             parts.append("Summary (slow)")
 
         # Build preview text
-        if parts:
-            preview = "Will run: " + ", ".join(parts)
-        else:
-            preview = "Select tasks above"
+        preview = "Will run: " + ", ".join(parts) if parts else "Select tasks above"
 
         self.task_preview_label.configure(text=preview)
 
@@ -135,7 +131,7 @@ class TaskMixin:
     def _handle_queue_message(self, msg_type: str, data):
         """Handle a message from the worker queue."""
         if msg_type == "progress":
-            percentage, message = data
+            _percentage, message = data
             # Append Q&A status if ready
             if self._qa_ready and "Q&A ready" not in message and "Questions" not in message:
                 message = f"{message} (Q&A ready)"
@@ -185,12 +181,12 @@ class TaskMixin:
             self._handle_trigger_default_qa(data)
 
         elif msg_type == "qa_progress":
-            current, total, question = data
+            current, total, _question = data
             debug_log(f"[MainWindow] Q&A progress: {current + 1}/{total}")
             self.set_status(f"Answering default questions: {current + 1}/{total}...")
 
         elif msg_type == "qa_result":
-            debug_log(f"[MainWindow] Q&A result received")
+            debug_log("[MainWindow] Q&A result received")
             with self._qa_results_lock:
                 self._qa_results.append(data)
                 self.output_display.update_outputs(qa_results=self._qa_results)
@@ -309,12 +305,12 @@ class TaskMixin:
         Phase 2 (Q&A): Builds vector store, enables Q&A panel
         Phase 3 (LLM): Slow enhancement, updates table progressively
         """
-        from src.core.utils.text_utils import combine_document_texts
         from src.config import (
             LEGAL_EXCLUDE_LIST_PATH,
             MEDICAL_TERMS_LIST_PATH,
             USER_VOCAB_EXCLUDE_PATH,
         )
+        from src.core.utils.text_utils import combine_document_texts
         from src.ui.workers import ProgressiveExtractionWorker
 
         self.set_status("Starting extraction (NER first, then LLM enhancement)...")
@@ -401,7 +397,8 @@ class TaskMixin:
 
             except Exception as e:
                 debug_log(f"[MainWindow] Q&A initialization error: {e}")
-                self.after(0, lambda: self._qa_init_complete(False, str(e)))
+                error_msg = str(e)
+                self.after(0, lambda err=error_msg: self._qa_init_complete(False, err))
 
         init_thread = threading.Thread(target=initialize_qa, daemon=True)
         init_thread.start()
@@ -440,7 +437,7 @@ class TaskMixin:
             while True:
                 msg_type, data = self._qa_queue.get_nowait()
                 if msg_type == "qa_progress":
-                    current, total, question = data
+                    current, total, _question = data
                     self.set_status(
                         f"Questions and answers: Processing question {current + 1}/{total}..."
                     )
@@ -521,7 +518,7 @@ class TaskMixin:
             while True:
                 msg_type, data = self._briefing_queue.get_nowait()
                 if msg_type == "briefing_progress":
-                    phase, current, total, message = data
+                    _phase, _current, _total, message = data
                     self.set_status(f"Case Briefing: {message}")
                 elif msg_type == "briefing_complete":
                     self._on_briefing_complete(data)
@@ -709,14 +706,14 @@ class TaskMixin:
                     self.output_display.update_outputs(qa_results=self._qa_results)
                 answer_len = len(data.quick_answer) if data.quick_answer else 0
                 self.set_status(f"Follow-up answered: {answer_len} chars")
-                debug_log(f"[MainWindow] Follow-up result displayed successfully")
+                debug_log("[MainWindow] Follow-up result displayed successfully")
             elif msg_type == "error":
                 self.set_status("Follow-up failed")
                 messagebox.showerror("Error", f"Failed to process follow-up: {data}")
         except Exception as e:
             debug_log(f"[MainWindow] Error processing follow-up result: {e}")
             self.set_status("Follow-up error - check logs")
-            messagebox.showerror("Error", f"Error displaying result: {str(e)}")
+            messagebox.showerror("Error", f"Error displaying result: {e!s}")
 
     def _ask_followup_for_qa_panel(self, question: str):
         """

@@ -34,10 +34,8 @@ Map-Reduce Flow:
 """
 
 # Result types
-from .result_types import (
-    DocumentSummaryResult,
-    MultiDocumentSummaryResult,
-)
+# Core summarization (re-exported from src root for unified API)
+from src.progressive_summarizer import ProgressiveSummarizer
 
 # Document summarizers
 from .document_summarizer import (
@@ -47,19 +45,20 @@ from .document_summarizer import (
 
 # Multi-document orchestration
 from .multi_document_orchestrator import MultiDocumentOrchestrator
-
-# Core summarization (re-exported from src root for unified API)
-from src.progressive_summarizer import ProgressiveSummarizer
+from .result_types import (
+    DocumentSummaryResult,
+    MultiDocumentSummaryResult,
+)
 
 __all__ = [
-    # Core summarization engine
-    "ProgressiveSummarizer",
-    # Result types
-    "DocumentSummaryResult",
-    "MultiDocumentSummaryResult",
     # Document summarizer
     "DocumentSummarizer",
-    "ProgressiveDocumentSummarizer",
+    # Result types
+    "DocumentSummaryResult",
     # Multi-document orchestration
     "MultiDocumentOrchestrator",
+    "MultiDocumentSummaryResult",
+    "ProgressiveDocumentSummarizer",
+    # Core summarization engine
+    "ProgressiveSummarizer",
 ]

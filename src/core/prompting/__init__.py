@@ -47,50 +47,49 @@ Created in Session 33 by consolidating orphan files from src/ root:
 """
 
 # Template management
-from src.core.prompting.template_manager import (
-    PromptTemplateManager,
-    SKELETON_FILENAME,
-    README_FILENAME,
-    USER_SKELETON_TEMPLATE,
-    USER_README_CONTENT,
-    GENERIC_FALLBACK_TEMPLATE,
-)
-
-# Focus extraction
-from src.core.prompting.focus_extractor import (
-    FocusExtractor,
-    AIFocusExtractor,
-)
-
 # Prompt adapters
 from src.core.prompting.adapters import (
-    PromptAdapter,
     MultiDocPromptAdapter,
+    PromptAdapter,
 )
 
 # Configuration
 from src.core.prompting.config import (
+    PROMPT_PARAMS_FILE,
     PromptConfig,
     get_prompt_config,
-    PROMPT_PARAMS_FILE,
+)
+
+# Focus extraction
+from src.core.prompting.focus_extractor import (
+    AIFocusExtractor,
+    FocusExtractor,
+)
+from src.core.prompting.template_manager import (
+    GENERIC_FALLBACK_TEMPLATE,
+    README_FILENAME,
+    SKELETON_FILENAME,
+    USER_README_CONTENT,
+    USER_SKELETON_TEMPLATE,
+    PromptTemplateManager,
 )
 
 __all__ = [
-    # Template management
-    "PromptTemplateManager",
-    "SKELETON_FILENAME",
-    "README_FILENAME",
-    "USER_SKELETON_TEMPLATE",
-    "USER_README_CONTENT",
     "GENERIC_FALLBACK_TEMPLATE",
+    "PROMPT_PARAMS_FILE",
+    "README_FILENAME",
+    "SKELETON_FILENAME",
+    "USER_README_CONTENT",
+    "USER_SKELETON_TEMPLATE",
+    "AIFocusExtractor",
     # Focus extraction
     "FocusExtractor",
-    "AIFocusExtractor",
+    "MultiDocPromptAdapter",
     # Prompt adapters
     "PromptAdapter",
-    "MultiDocPromptAdapter",
     # Configuration
     "PromptConfig",
+    # Template management
+    "PromptTemplateManager",
     "get_prompt_config",
-    "PROMPT_PARAMS_FILE",
 ]

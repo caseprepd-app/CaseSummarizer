@@ -26,9 +26,9 @@ from pathlib import Path
 from typing import Any
 
 from src.config import LEGAL_EXCLUDE_LIST_PATH, MEDICAL_TERMS_LIST_PATH, USER_VOCAB_EXCLUDE_PATH
+from src.core.utils.text_utils import combine_document_texts
 from src.logging_config import debug_log
 from src.ui.queue_messages import QueueMessage
-from src.core.utils.text_utils import combine_document_texts
 
 
 @dataclass
@@ -372,6 +372,7 @@ class WorkflowOrchestrator:
                 # Import and initialize embeddings
                 # NOTE: This import triggers torch loading which can take 10-15 seconds
                 from langchain_huggingface import HuggingFaceEmbeddings
+
                 from src.core.vector_store import VectorStoreBuilder
 
                 # Initialize embeddings (reusing the same model as ChunkingEngine)
@@ -443,8 +444,9 @@ class WorkflowOrchestrator:
         Args:
             vector_store_result: Dictionary with 'path', 'case_id', 'chunk_count'
         """
-        from src.ui.workers import QAWorker
         from langchain_huggingface import HuggingFaceEmbeddings
+
+        from src.ui.workers import QAWorker
         from src.user_preferences import get_user_preferences
 
         debug_log("[ORCHESTRATOR] Starting Q&A processing...")
@@ -487,6 +489,7 @@ class WorkflowOrchestrator:
         def ask_question():
             try:
                 from langchain_huggingface import HuggingFaceEmbeddings
+
                 from src.core.qa.qa_orchestrator import QAOrchestrator
                 from src.user_preferences import get_user_preferences
 

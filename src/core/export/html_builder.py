@@ -9,17 +9,16 @@ Session 80b: Import shared column_config for consistency with GUI; add sort
              warnings and Term column protection.
 """
 
-from datetime import datetime
-from pathlib import Path
 import html
 import json
+from datetime import datetime
+from pathlib import Path
 
-from src.core.export.base import VERIFICATION_COLORS
 from src.core.vocabulary.column_config import (
     COLUMN_DEFINITIONS,
+    NUMERIC_COLUMNS,
     PROTECTED_COLUMNS,
     SORT_WARNING_COLUMNS,
-    NUMERIC_COLUMNS,
 )
 
 
@@ -419,7 +418,7 @@ def export_vocabulary_html(
                 value = v.get(data_key, "")
                 cells.append(f"<td{hidden_class}>{_escape(value)}</td>")
 
-            rows.append(f'            <tr{row_class}>{"".join(cells)}</tr>')
+            rows.append(f"            <tr{row_class}>{''.join(cells)}</tr>")
 
         table_rows = "\n".join(rows)
 
@@ -748,7 +747,7 @@ def export_qa_html(
 
             item = f"""        <div class="qa-item">
             <div class="qa-header" onclick="toggleItem(this)">
-                <span>Q{i}: {_escape(result.question)[:80]}{'...' if len(result.question) > 80 else ''}{reliability_badge}</span>
+                <span>Q{i}: {_escape(result.question)[:80]}{"..." if len(result.question) > 80 else ""}{reliability_badge}</span>
                 <span class="toggle">▼ Hide</span>
             </div>
             <div class="qa-content">

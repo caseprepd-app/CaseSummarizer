@@ -140,7 +140,7 @@ class ChunkMerger:
 
         # Merge each group
         merged_chunks = []
-        for chunk_id, chunks in chunk_groups.items():
+        for _chunk_id, chunks in chunk_groups.items():
             merged = self._merge_group(chunks)
             merged_chunks.append(merged)
 
@@ -183,7 +183,7 @@ class ChunkMerger:
         first = chunks[0]
 
         # Collect unique sources
-        sources = list(set(c.source_algorithm for c in chunks))
+        sources = list({c.source_algorithm for c in chunks})
 
         # Calculate weighted score
         combined_score = self._calculate_weighted_score(chunks)

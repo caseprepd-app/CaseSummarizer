@@ -29,7 +29,7 @@ VERIFIER_MODEL_PATH = "KRLabsOrg/lettucedect-base-modernbert-en-v1"
 
 # Rejection message shown when answer confidence is too low
 REJECTION_MESSAGE = (
-    "Confidence in answer too low after verification step, " "declining to show answer..."
+    "Confidence in answer too low after verification step, declining to show answer..."
 )
 
 

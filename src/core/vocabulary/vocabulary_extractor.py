@@ -22,10 +22,6 @@ The extraction algorithms are pluggable via dependency injection.
 """
 
 import os
-import socket
-import subprocess
-import sys
-import threading
 import time
 from pathlib import Path
 
@@ -35,22 +31,20 @@ from nltk.corpus import wordnet
 
 from src.config import (
     GOOGLE_WORD_FREQUENCY_FILE,
-    SPACY_DOWNLOAD_TIMEOUT_SEC,
     VOCABULARY_MAX_TEXT_KB,
     VOCABULARY_MIN_OCCURRENCES,
     VOCABULARY_RARITY_THRESHOLD,
     VOCABULARY_SORT_METHOD,
 )
-from src.logging_config import debug_log
-from src.user_preferences import get_user_preferences
 from src.core.utils.tokenizer import STOPWORDS
-from src.core.vocabulary.algorithms import create_default_algorithms
 from src.core.vocabulary.algorithms.base import BaseExtractionAlgorithm
-from src.core.vocabulary.meta_learner import VocabularyMetaLearner, get_meta_learner
+from src.core.vocabulary.meta_learner import get_meta_learner
+from src.core.vocabulary.reconciler import VocabularyReconciler
 from src.core.vocabulary.result_merger import MergedTerm, ResultMerger
 from src.core.vocabulary.role_profiles import RoleDetectionProfile, StenographerProfile
-from src.core.vocabulary.reconciler import VocabularyReconciler
 from src.core.vocabulary.term_sources import TermSources
+from src.logging_config import debug_log
+from src.user_preferences import get_user_preferences
 
 # Organization indicator words for category detection
 ORGANIZATION_INDICATORS = {
@@ -413,7 +407,7 @@ class VocabularyExtractor:
         Returns:
             List of AlgorithmResult from all enabled algorithms
         """
-        from src.core.parallel.executor_strategy import ThreadPoolStrategy, SequentialStrategy
+        from src.core.parallel.executor_strategy import ThreadPoolStrategy
         from src.core.parallel.task_runner import ParallelTaskRunner
         from src.system_resources import get_optimal_workers
 
@@ -768,12 +762,12 @@ class VocabularyExtractor:
             Quality score between 0.0 and 100.0
         """
         from src.config import (
-            SCORE_MULTI_DOC_BOOST,
-            SCORE_HIGH_CONF_BOOST,
             SCORE_ALL_LOW_CONF_PENALTY,
-            SCORE_SINGLE_SOURCE_PENALTY,
-            SCORE_SINGLE_SOURCE_MIN_DOCS,
+            SCORE_HIGH_CONF_BOOST,
+            SCORE_MULTI_DOC_BOOST,
             SCORE_SINGLE_SOURCE_CONF_THRESHOLD,
+            SCORE_SINGLE_SOURCE_MIN_DOCS,
+            SCORE_SINGLE_SOURCE_PENALTY,
         )
 
         score = 50.0  # Base score
@@ -972,10 +966,7 @@ class VocabularyExtractor:
 
     def _looks_like_organization(self, term: str) -> bool:
         """Check if term looks like an organization."""
-        for indicator in ORGANIZATION_INDICATORS:
-            if indicator.lower() in term.lower():
-                return True
-        return False
+        return any(indicator.lower() in term.lower() for indicator in ORGANIZATION_INDICATORS)
 
     def _load_word_list(self, file_path) -> set[str]:
         """Load a list of words from a file."""
@@ -1078,9 +1069,9 @@ class VocabularyExtractor:
             True if BM25 should be added to algorithm list
         """
         try:
-            from src.user_preferences import get_user_preferences
-            from src.core.vocabulary.corpus_manager import get_corpus_manager
             from src.config import CORPUS_MIN_DOCUMENTS
+            from src.core.vocabulary.corpus_manager import get_corpus_manager
+            from src.user_preferences import get_user_preferences
 
             # Check user preference
             prefs = get_user_preferences()

@@ -35,28 +35,28 @@ Usage:
     print(formatted.text)
 """
 
-from .chunker import DocumentChunker, BriefingChunk
-from .extractor import ChunkExtractor, ChunkExtraction
-from .aggregator import DataAggregator, AggregatedBriefingData, PersonEntry
-from .synthesizer import NarrativeSynthesizer, SynthesisResult
-from .orchestrator import BriefingOrchestrator, BriefingResult
+from .aggregator import AggregatedBriefingData, DataAggregator, PersonEntry
+from .chunker import BriefingChunk, DocumentChunker
+from .extractor import ChunkExtraction, ChunkExtractor
 from .formatter import BriefingFormatter, FormattedBriefing
+from .orchestrator import BriefingOrchestrator, BriefingResult
+from .synthesizer import NarrativeSynthesizer, SynthesisResult
 
 __all__ = [
-    # Phase 1: Chunking and Extraction
-    "DocumentChunker",
-    "BriefingChunk",
-    "ChunkExtractor",
-    "ChunkExtraction",
-    # Phase 2: Aggregation and Synthesis
-    "DataAggregator",
     "AggregatedBriefingData",
-    "PersonEntry",
-    "NarrativeSynthesizer",
-    "SynthesisResult",
+    "BriefingChunk",
+    "BriefingFormatter",
     # Phase 3: Orchestration and Formatting
     "BriefingOrchestrator",
     "BriefingResult",
-    "BriefingFormatter",
+    "ChunkExtraction",
+    "ChunkExtractor",
+    # Phase 2: Aggregation and Synthesis
+    "DataAggregator",
+    # Phase 1: Chunking and Extraction
+    "DocumentChunker",
     "FormattedBriefing",
+    "NarrativeSynthesizer",
+    "PersonEntry",
+    "SynthesisResult",
 ]

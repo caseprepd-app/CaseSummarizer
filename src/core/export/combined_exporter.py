@@ -11,8 +11,8 @@ Supports Word (.docx) and PDF formats using the DocumentBuilder pattern.
 """
 
 from src.core.export.base import DocumentBuilder
-from src.core.export.vocab_exporter import export_vocabulary
 from src.core.export.qa_exporter import export_qa_results
+from src.core.export.vocab_exporter import export_vocabulary
 from src.logging_config import debug_log
 
 

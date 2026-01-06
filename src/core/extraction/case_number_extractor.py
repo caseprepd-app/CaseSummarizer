@@ -18,6 +18,7 @@ Example usage:
 """
 
 import re
+from typing import ClassVar
 
 
 class CaseNumberExtractor:
@@ -34,7 +35,7 @@ class CaseNumberExtractor:
     """
 
     # Compiled regex patterns for common case number formats
-    PATTERNS = [
+    PATTERNS: ClassVar[list[re.Pattern[str]]] = [
         # Federal court: "Case No. 1:23-cv-12345" or "Case No. 1:23-cv-12345-ABC"
         re.compile(r"Case\s+No\.?\s*:?\s*\d+:\d+-\w+-\d+", re.IGNORECASE),
         # NY Index Number: "Index No. 123456/2024"

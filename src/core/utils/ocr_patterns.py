@@ -22,7 +22,6 @@ Session 78: Initial implementation for canonical spelling improvement.
 """
 
 import re
-from typing import Optional
 
 # -----------------------------------------------------------------------------
 # OCR Confusion Patterns
@@ -121,11 +120,7 @@ def has_ocr_artifacts(term: str) -> bool:
         return True
 
     # Check additional suspicious patterns
-    for pattern, _ in OCR_SUSPICIOUS_PATTERNS:
-        if pattern.search(term):
-            return True
-
-    return False
+    return any(pattern.search(term) for pattern, _ in OCR_SUSPICIOUS_PATTERNS)
 
 
 def _has_suspicious_digits(term: str) -> bool:
@@ -264,7 +259,7 @@ def get_ocr_penalty(term: str, base_penalty: float = 0.10) -> float:
 # -----------------------------------------------------------------------------
 
 
-def compare_variants_for_ocr(variant_a: str, variant_b: str) -> Optional[str]:
+def compare_variants_for_ocr(variant_a: str, variant_b: str) -> str | None:
     """
     Compare two similar term variants and identify which has OCR artifacts.
 

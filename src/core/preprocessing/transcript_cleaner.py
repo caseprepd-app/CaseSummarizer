@@ -19,7 +19,6 @@ Usage:
 """
 
 import re
-from typing import List, Set, Tuple
 
 from src.core.preprocessing.base import BasePreprocessor, PreprocessingResult
 from src.logging_config import debug_log
@@ -94,7 +93,7 @@ class TranscriptCleaner(BasePreprocessor):
             metadata=metadata,
         )
 
-    def _remove_page_numbers(self, text: str, min_pages: int = 3) -> Tuple[str, int]:
+    def _remove_page_numbers(self, text: str, min_pages: int = 3) -> tuple[str, int]:
         """
         Remove sequential page numbers from transcript.
 
@@ -119,7 +118,7 @@ class TranscriptCleaner(BasePreprocessor):
         standalone_number_pattern = re.compile(r"^\s*(\d+)\s*$")
 
         # Find all standalone numbers and their positions
-        potential_page_numbers: List[Tuple[int, int]] = []
+        potential_page_numbers: list[tuple[int, int]] = []
         for i, line in enumerate(lines):
             match = standalone_number_pattern.match(line)
             if match:
@@ -164,12 +163,12 @@ class TranscriptCleaner(BasePreprocessor):
             return text, 0
 
         # Remove identified page number lines
-        page_line_indices: Set[int] = set(single_occurrence.values())
+        page_line_indices: set[int] = set(single_occurrence.values())
         cleaned_lines = [line for i, line in enumerate(lines) if i not in page_line_indices]
 
         return "\n".join(cleaned_lines), len(page_line_indices)
 
-    def _remove_certification_block(self, text: str) -> Tuple[str, bool]:
+    def _remove_certification_block(self, text: str) -> tuple[str, bool]:
         """
         Remove certification/attestation block from transcript end.
 
@@ -207,7 +206,7 @@ class TranscriptCleaner(BasePreprocessor):
 
         return text[:line_start].rstrip(), True
 
-    def _remove_index_pages(self, text: str, min_cluster_size: int = 5) -> Tuple[str, int]:
+    def _remove_index_pages(self, text: str, min_cluster_size: int = 5) -> tuple[str, int]:
         """
         Remove index/concordance pages from transcript end.
 
@@ -253,7 +252,7 @@ class TranscriptCleaner(BasePreprocessor):
         )
 
         # Mark each line as index-like or not
-        is_index_line: List[bool] = []
+        is_index_line: list[bool] = []
         for line in lines:
             stripped = line.strip()
             if not stripped:
@@ -264,7 +263,7 @@ class TranscriptCleaner(BasePreprocessor):
                 is_index_line.append(False)
 
         # Find clusters of index lines
-        clusters_to_remove: List[Tuple[int, int]] = []
+        clusters_to_remove: list[tuple[int, int]] = []
         i = 0
 
         while i < len(is_index_line):
@@ -296,7 +295,7 @@ class TranscriptCleaner(BasePreprocessor):
             return text, 0
 
         # Build set of lines to remove
-        lines_to_remove: Set[int] = set()
+        lines_to_remove: set[int] = set()
         for start, end in clusters_to_remove:
             for idx in range(start, end):
                 lines_to_remove.add(idx)

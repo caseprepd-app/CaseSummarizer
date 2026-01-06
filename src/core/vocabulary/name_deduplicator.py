@@ -18,12 +18,12 @@ Example:
 
 import re
 from difflib import SequenceMatcher
-from src.logging_config import debug_log
-from src.core.vocabulary.person_utils import is_person_entry
-from src.core.vocabulary.name_regularizer import _load_known_words
-from src.core.vocabulary.canonical_scorer import create_canonical_scorer
-from src.core.vocabulary.term_sources import TermSources
 
+from src.core.vocabulary.canonical_scorer import create_canonical_scorer
+from src.core.vocabulary.name_regularizer import _load_known_words
+from src.core.vocabulary.person_utils import is_person_entry
+from src.core.vocabulary.term_sources import TermSources
+from src.logging_config import debug_log
 
 # Similarity threshold for fuzzy matching (after artifact removal)
 NAME_SIMILARITY_THRESHOLD = 0.85
@@ -204,7 +204,7 @@ def _fuzzy_merge_groups(groups: dict[str, list], threshold: float) -> list[list[
 
     merged_indices = set()
     result_groups = []
-    key_to_index = {key: i for i, key in enumerate(keys)}
+    {key: i for i, key in enumerate(keys)}
 
     for i, key1 in enumerate(keys):
         if i in merged_indices:

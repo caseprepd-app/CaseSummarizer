@@ -7,7 +7,7 @@ Moved from src/prompt_config.py to src/prompting/config.py in Session 33.
 
 import json
 from pathlib import Path
-from typing import Any
+from typing import Any, ClassVar
 
 # Path to the prompt parameters file
 PROMPT_PARAMS_FILE = (
@@ -24,7 +24,7 @@ class PromptConfig:
     """
 
     # Default values (used if config file is missing or corrupted)
-    DEFAULTS = {
+    DEFAULTS: ClassVar[dict[str, dict[str, float | int]]] = {
         "summary": {
             "word_count_tolerance": 20,
             "slider_increment": 50,

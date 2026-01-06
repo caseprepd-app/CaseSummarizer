@@ -21,11 +21,11 @@ class TestMojibakeFix:
         test_cases = [
             ("ñêcessary", "necessary"),  # Common encoding issue
             ("ñecessary", "necessary"),  # Variant
-            ("dccedêñt", "dccedent"),    # "decedent" corrupted (OCR typo preserved)
+            ("dccedêñt", "dccedent"),  # "decedent" corrupted (OCR typo preserved)
             ("Defeñdañt", "Defendant"),  # "Defendant" corrupted
-            ("locãted", "located"),      # "located" with corruption
+            ("locãted", "located"),  # "located" with corruption
             ("represêñted", "represented"),  # "represented" corrupted
-            ("relevañt", "relevant"),    # "relevant" corrupted
+            ("relevañt", "relevant"),  # "relevant" corrupted
         ]
 
         for corrupted, expected in test_cases:
@@ -35,7 +35,11 @@ class TestMojibakeFix:
             assert "ê" not in cleaned, f"Failed to remove ê from: {corrupted}"
             assert "ã" not in cleaned, f"Failed to remove ã from: {corrupted}"
             # Check that we got close to expected
-            assert cleaned.lower() in expected.lower() or expected.lower() in cleaned.lower() or stats["transliterations"] > 0
+            assert (
+                cleaned.lower() in expected.lower()
+                or expected.lower() in cleaned.lower()
+                or stats["transliterations"] > 0
+            )
 
     def test_legitimate_unicode_preserved(self):
         """Test that legitimate Unicode (accents, etc.) is preserved."""
@@ -43,10 +47,10 @@ class TestMojibakeFix:
 
         # Legal names and terms with legitimate Unicode
         test_cases = [
-            "José García",     # Spanish names
-            "Montréal",        # French city
-            "Müller",          # German name
-            "naïveté",         # French word with accents
+            "José García",  # Spanish names
+            "Montréal",  # French city
+            "Müller",  # German name
+            "naïveté",  # French word with accents
         ]
 
         for text in test_cases:
@@ -80,7 +84,7 @@ class TestRedactionHandling:
 
         # Text with clear redaction blocks
         text = "Info ██ more text"
-        _, stats = sanitizer.sanitize(text)
+        _, _stats = sanitizer.sanitize(text)
 
         # Redaction characters should be detected or transliterated away
         # The exact count depends on detection, but text should be processed
@@ -137,7 +141,7 @@ class TestZeroWidthCharacters:
 
         # Zero-width space (U+200B)
         text = "Word1\u200bWord2"
-        cleaned, stats = sanitizer.sanitize(text)
+        cleaned, _stats = sanitizer.sanitize(text)
 
         # Should not contain zero-width space
         assert "\u200b" not in cleaned
@@ -304,8 +308,7 @@ class TestLogging:
         # Should have logged some actions
         log_text = "\n".join(log)
         assert any(
-            keyword in log_text.lower()
-            for keyword in ["fixed", "removed", "replaced", "cleaned"]
+            keyword in log_text.lower() for keyword in ["fixed", "removed", "replaced", "cleaned"]
         )
 
 
@@ -346,7 +349,7 @@ class TestEdgeCases:
 
         # All control characters
         text = "\x00\x01\x02\x03\x04\x05"
-        cleaned, stats = sanitizer.sanitize(text)
+        _cleaned, stats = sanitizer.sanitize(text)
 
         # Should handle control chars (may be removed or replaced)
         # The specific count depends on how they're handled

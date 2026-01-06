@@ -8,13 +8,11 @@ Session 63c: Created to support checkbox-based question management in Settings U
 """
 
 import json
+from dataclasses import asdict, dataclass
 from pathlib import Path
-from dataclasses import dataclass, asdict
-from typing import Optional
 
-from src.logging_config import debug_log
 from src.config import DEBUG_MODE
-
+from src.logging_config import debug_log
 
 # Default questions file location
 DEFAULT_QUESTIONS_PATH = (
@@ -53,7 +51,7 @@ class DefaultQuestionsManager:
     - Get only enabled questions for execution
     """
 
-    def __init__(self, config_path: Optional[Path] = None):
+    def __init__(self, config_path: Path | None = None):
         """
         Initialize the manager.
 
@@ -76,7 +74,7 @@ class DefaultQuestionsManager:
     def _load_from_json(self):
         """Load questions from JSON file."""
         try:
-            with open(self.config_path, "r", encoding="utf-8") as f:
+            with open(self.config_path, encoding="utf-8") as f:
                 data = json.load(f)
 
             self._questions = [DefaultQuestion.from_dict(q) for q in data.get("questions", [])]
@@ -92,7 +90,7 @@ class DefaultQuestionsManager:
         """Migrate from legacy text file format."""
         try:
             questions = []
-            with open(LEGACY_QUESTIONS_PATH, "r", encoding="utf-8") as f:
+            with open(LEGACY_QUESTIONS_PATH, encoding="utf-8") as f:
                 for line in f:
                     line = line.strip()
                     if line and not line.startswith("#"):
@@ -255,7 +253,7 @@ class DefaultQuestionsManager:
 
 
 # Singleton instance
-_manager: Optional[DefaultQuestionsManager] = None
+_manager: DefaultQuestionsManager | None = None
 
 
 def get_default_questions_manager() -> DefaultQuestionsManager:

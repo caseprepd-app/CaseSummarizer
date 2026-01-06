@@ -18,7 +18,6 @@ Session 78: Initial implementation for canonical spelling improvement.
 
 from dataclasses import dataclass, field
 from statistics import median as stats_median
-from typing import Optional
 
 
 @dataclass
@@ -96,7 +95,7 @@ class TermSources:
         """
         if not self.counts_per_doc or self.total_count == 0:
             return 0.0
-        weighted = sum(c * n for c, n in zip(self.confidences, self.counts_per_doc))
+        weighted = sum(c * n for c, n in zip(self.confidences, self.counts_per_doc, strict=False))
         return weighted / self.total_count
 
     @property
@@ -113,7 +112,7 @@ class TermSources:
 
         # Weight-expand confidences by count, then take median
         expanded = []
-        for c, n in zip(self.confidences, self.counts_per_doc):
+        for c, n in zip(self.confidences, self.counts_per_doc, strict=False):
             expanded.extend([c] * n)
 
         if not expanded:
@@ -220,7 +219,9 @@ class TermSources:
         if not self.counts_per_doc:
             return 0.0
 
-        weighted_sum = sum(c * n for c, n in zip(self.confidences, self.counts_per_doc))
+        weighted_sum = sum(
+            c * n for c, n in zip(self.confidences, self.counts_per_doc, strict=False)
+        )
         return weighted_sum**1.1
 
     # -------------------------------------------------------------------------
@@ -268,7 +269,9 @@ class TermSources:
             counts_per_doc=self.counts_per_doc.copy(),
         )
 
-        for doc_id, conf, count in zip(other.doc_ids, other.confidences, other.counts_per_doc):
+        for doc_id, conf, count in zip(
+            other.doc_ids, other.confidences, other.counts_per_doc, strict=False
+        ):
             merged.add_document(doc_id, conf, count)
 
         return merged

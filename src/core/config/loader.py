@@ -6,7 +6,7 @@ Provides consistent YAML/JSON loading with proper error handling and logging.
 """
 
 from pathlib import Path
-from typing import Any, Optional, TypeVar, Union
+from typing import Any, TypeVar
 
 import yaml
 
@@ -14,11 +14,11 @@ T = TypeVar("T")
 
 
 def load_yaml(
-    config_path: Union[str, Path],
-    default: Optional[T] = None,
+    config_path: str | Path,
+    default: T | None = None,
     raise_on_error: bool = True,
     log_prefix: str = "[Config]",
-) -> Union[dict, T]:
+) -> dict | T:
     """
     Load a YAML configuration file with consistent error handling.
 
@@ -50,8 +50,11 @@ def load_yaml(
         from src.logging_config import debug_log, error
     except ImportError:
         # Fallback if logging not available yet
-        debug_log = lambda msg: None
-        error = lambda msg: None
+        def debug_log(msg):
+            return None
+
+        def error(msg):
+            return None
 
     try:
         with open(config_path, encoding="utf-8") as f:
@@ -82,8 +85,8 @@ def load_yaml(
 
 
 def load_yaml_with_fallback(
-    config_path: Union[str, Path], fallback: T, log_prefix: str = "[Config]"
-) -> Union[dict, T]:
+    config_path: str | Path, fallback: T, log_prefix: str = "[Config]"
+) -> dict | T:
     """
     Convenience function that loads YAML with a fallback value.
 
@@ -100,7 +103,7 @@ def load_yaml_with_fallback(
     return load_yaml(config_path, default=fallback, raise_on_error=False, log_prefix=log_prefix)
 
 
-def save_yaml(config_path: Union[str, Path], data: Any, log_prefix: str = "[Config]") -> bool:
+def save_yaml(config_path: str | Path, data: Any, log_prefix: str = "[Config]") -> bool:
     """
     Save data to a YAML file with consistent formatting.
 
@@ -117,8 +120,12 @@ def save_yaml(config_path: Union[str, Path], data: Any, log_prefix: str = "[Conf
     try:
         from src.logging_config import debug_log, error
     except ImportError:
-        debug_log = lambda msg: None
-        error = lambda msg: None
+
+        def debug_log(msg):
+            return None
+
+        def error(msg):
+            return None
 
     try:
         # Ensure parent directory exists

@@ -4,12 +4,11 @@ Unit tests for OCR artifact pattern detection.
 Tests the heuristics used to identify likely OCR errors in vocabulary terms.
 """
 
-import pytest
 from src.core.utils.ocr_patterns import (
-    has_ocr_artifacts,
     analyze_ocr_patterns,
-    get_ocr_penalty,
     compare_variants_for_ocr,
+    get_ocr_penalty,
+    has_ocr_artifacts,
 )
 
 
@@ -57,9 +56,9 @@ class TestHasOcrArtifacts:
     def test_conservative_patterns_not_flagged(self):
         """Common patterns like cl, li, ri should NOT be flagged (too many false positives)."""
         # These contain patterns that COULD be OCR errors but appear in real names
-        assert has_ocr_artifacts("Clark") is False     # Contains "cl"
+        assert has_ocr_artifacts("Clark") is False  # Contains "cl"
         assert has_ocr_artifacts("Williams") is False  # Contains "li"
-        assert has_ocr_artifacts("Marie") is False     # Contains "ri"
+        assert has_ocr_artifacts("Marie") is False  # Contains "ri"
         assert has_ocr_artifacts("Jennifer") is False  # Contains "nn"
 
     def test_vv_to_w_confusion(self):
@@ -212,7 +211,7 @@ class TestRealWorldScenarios:
         """Real names with common patterns should not be flagged."""
         # These are real names that shouldn't be flagged
         # The detector is intentionally conservative to avoid false positives
-        assert has_ocr_artifacts("Clark") is False     # Has 'cl' but legit
+        assert has_ocr_artifacts("Clark") is False  # Has 'cl' but legit
         assert has_ocr_artifacts("Williams") is False  # Has 'li' but legit
         assert has_ocr_artifacts("Thompson") is False  # Real spelling
         assert has_ocr_artifacts("Harrison") is False  # Double 'r' is fine

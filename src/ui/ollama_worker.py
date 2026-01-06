@@ -2,8 +2,8 @@ import multiprocessing
 import time
 import traceback
 
-from src.core.ai.ollama_model_manager import OllamaModelManager
 from src.config import QUEUE_TIMEOUT_SECONDS
+from src.core.ai.ollama_model_manager import OllamaModelManager
 from src.logging_config import debug_log
 
 
@@ -158,13 +158,13 @@ def ollama_generation_worker_process(
                     output_queue.put(("heartbeat", None))
                 pass
             except Exception as e:
-                error_msg = f"Ollama worker process error: {str(e)}\n{traceback.format_exc()}"
+                error_msg = f"Ollama worker process error: {e!s}\n{traceback.format_exc()}"
                 debug_log(f"[OLLAMA WORKER] {error_msg}")
                 output_queue.put(("error", error_msg))
 
     except Exception as e:
         error_msg = (
-            f"Critical error in Ollama worker process setup: {str(e)}\n{traceback.format_exc()}"
+            f"Critical error in Ollama worker process setup: {e!s}\n{traceback.format_exc()}"
         )
         debug_log(f"[OLLAMA WORKER] {error_msg}")
         output_queue.put(("error", error_msg))

@@ -16,8 +16,8 @@ from src.config import (
     SUMMARY_MAX_CONDENSE_ATTEMPTS,
     USER_PROMPTS_DIR,
 )
+from src.core.prompting import PromptTemplateManager, get_prompt_config
 from src.logging_config import debug_log
-from src.core.prompting import get_prompt_config, PromptTemplateManager
 
 
 class SummaryPostProcessor:
@@ -42,8 +42,8 @@ class SummaryPostProcessor:
         self,
         generate_text_fn: Callable[[str, int], str],
         prompt_template_manager: PromptTemplateManager | None = None,
-        tolerance: float = None,
-        max_attempts: int = None,
+        tolerance: float | None = None,
+        max_attempts: int | None = None,
     ):
         """
         Initialize the post-processor.
@@ -70,7 +70,9 @@ class SummaryPostProcessor:
             max_attempts if max_attempts is not None else SUMMARY_MAX_CONDENSE_ATTEMPTS
         )
 
-    def enforce_length(self, summary: str, target_words: int, max_attempts: int = None) -> str:
+    def enforce_length(
+        self, summary: str, target_words: int, max_attempts: int | None = None
+    ) -> str:
         """
         Enforce summary length by recursively condensing if over target.
 
@@ -118,7 +120,7 @@ class SummaryPostProcessor:
         else:
             debug_log(
                 f"[LENGTH ENFORCE] Success: {actual_words} words "
-                f"(within {self.tolerance*100:.0f}% tolerance of {target_words})"
+                f"(within {self.tolerance * 100:.0f}% tolerance of {target_words})"
             )
 
         return summary

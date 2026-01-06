@@ -8,6 +8,7 @@ Tests the branching logic for selecting canonical spelling from similar variants
 """
 
 import pytest
+
 from src.core.vocabulary.canonical_scorer import (
     CanonicalScorer,
     create_canonical_scorer,
@@ -23,8 +24,17 @@ class TestIsFullyKnown:
     def scorer(self):
         """Create scorer with a small test dictionary."""
         known_words = {
-            "john", "smith", "jones", "jenkins", "mary", "williams",
-            "robert", "brown", "dr", "mr", "mrs",
+            "john",
+            "smith",
+            "jones",
+            "jenkins",
+            "mary",
+            "williams",
+            "robert",
+            "brown",
+            "dr",
+            "mr",
+            "mrs",
         }
         return CanonicalScorer(known_words)
 
@@ -73,7 +83,7 @@ class TestCalculateScore:
         sources = TermSources.from_single_document("doc1", 1.0, 10)
         score = scorer.calculate_score("Smith", sources)
         # 10^1.1 ≈ 12.59
-        assert abs(score - (10 ** 1.1)) < 0.01
+        assert abs(score - (10**1.1)) < 0.01
 
     def test_ocr_artifact_penalty(self, scorer):
         """Terms with OCR artifacts should get 10% penalty."""
@@ -247,7 +257,7 @@ class TestRealWorldScenarios:
             {"Term": "Djamei", "sources": djamei_sources, "In-Case Freq": 10},
         ]
 
-        result = scorer.select_canonical(variants)
+        scorer.select_canonical(variants)
 
         # Djamel: (0.95*3)^1.1 = 2.85^1.1 ≈ 3.21
         # Djamei: (0.50*10)^1.1 = 5.0^1.1 ≈ 5.87

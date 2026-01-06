@@ -5,7 +5,6 @@ Implements DocumentBuilder using fpdf2 for PDF export.
 """
 
 from fpdf import FPDF
-from fpdf.fonts import FontFace
 
 from src.core.export.base import DocumentBuilder, TextSpan
 

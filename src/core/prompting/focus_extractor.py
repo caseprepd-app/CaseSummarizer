@@ -26,7 +26,7 @@ Usage:
 
 from abc import ABC, abstractmethod
 from hashlib import md5
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, ClassVar
 
 from src.logging_config import debug_log, error
 
@@ -82,7 +82,7 @@ class AIFocusExtractor(FocusExtractor):
 
     # Class-level cache for AI-extracted focus (shared across instances)
     # Keyed by template content hash
-    _cache: dict[str, dict] = {}
+    _cache: ClassVar[dict[str, dict]] = {}
 
     def __init__(self, model_manager: "OllamaModelManager"):
         """
@@ -183,7 +183,7 @@ INSTRUCTIONS:
             return self._parse_ai_response(response)
         except Exception as e:
             error(f"[FOCUS] AI extraction failed for '{preset_id}': {e}")
-            debug_log(f"[FOCUS] Using generic fallback due to error")
+            debug_log("[FOCUS] Using generic fallback due to error")
             return self._generic_fallback()
 
     def _parse_ai_response(self, response: str) -> dict:

@@ -19,7 +19,7 @@ Usage:
 
 import customtkinter as ctk
 
-from src.ui.theme import FONTS, COLORS, BUTTON_STYLES, FRAME_STYLES
+from src.ui.theme import BUTTON_STYLES, COLORS, FONTS, FRAME_STYLES
 
 
 class WindowLayoutMixin:
@@ -346,7 +346,7 @@ class WindowLayoutMixin:
             width=90,
             height=24,
             font=FONTS["small"],
-            **BUTTON_STYLES["secondary"]
+            **BUTTON_STYLES["secondary"],
         )
         # Hidden initially - shown after processing completes
         self._export_all_visible = False
@@ -359,7 +359,7 @@ class WindowLayoutMixin:
             width=110,
             height=24,
             font=FONTS["small"],
-            **BUTTON_STYLES["secondary"]
+            **BUTTON_STYLES["secondary"],
         )
         # Hidden initially - shown after processing completes
         self._combined_report_visible = False

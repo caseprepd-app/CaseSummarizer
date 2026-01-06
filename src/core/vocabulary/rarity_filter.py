@@ -54,9 +54,7 @@ Rank-based scoring is more intuitive:
 - A court reporter filtering top 50% keeps only specialized terms
 """
 
-import math
 from functools import lru_cache
-from pathlib import Path
 
 from src.config import (
     GOOGLE_WORD_FREQUENCY_FILE,
@@ -64,10 +62,9 @@ from src.config import (
     PHRASE_MEAN_COMMONALITY_THRESHOLD,
     SINGLE_WORD_COMMONALITY_THRESHOLD,
 )
+from src.core.vocabulary.person_utils import is_person_entry
 from src.logging_config import debug_log
 from src.user_preferences import get_user_preferences
-from src.core.vocabulary.person_utils import is_person_entry
-
 
 # Module-level cache for scaled frequencies (loaded once)
 _scaled_frequencies: dict[str, float] | None = None
@@ -312,7 +309,7 @@ def should_filter_phrase(phrase: str, is_person: bool = False) -> bool:
         if min_common < single_threshold:
             debug_log(
                 f"[RARITY] Filtering single word '{phrase}': "
-                f"rank_pct={min_common:.4f} < {single_threshold} (top {min_common*100:.1f}%)"
+                f"rank_pct={min_common:.4f} < {single_threshold} (top {min_common * 100:.1f}%)"
             )
             return True
         return False
@@ -324,7 +321,7 @@ def should_filter_phrase(phrase: str, is_person: bool = False) -> bool:
     if min_common < phrase_threshold:
         debug_log(
             f"[RARITY] Filtering '{phrase}': min_rank_pct={min_common:.4f} "
-            f"< {phrase_threshold} (all words in top {min_common*100:.1f}%)"
+            f"< {phrase_threshold} (all words in top {min_common * 100:.1f}%)"
         )
         return True
 

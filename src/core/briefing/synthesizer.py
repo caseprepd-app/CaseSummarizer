@@ -281,7 +281,7 @@ WRITE THE NARRATIVE NOW (no preamble, just the narrative):"""
         """
         if not items:
             return ""
-        return "\n".join(f"{i+1}. {item}" for i, item in enumerate(items[:10]))
+        return "\n".join(f"{i + 1}. {item}" for i, item in enumerate(items[:10]))
 
     def _clean_narrative(self, text: str) -> str:
         """

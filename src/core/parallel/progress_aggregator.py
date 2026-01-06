@@ -33,10 +33,10 @@ Usage:
     # "Processed 1/5 documents" (20%)
 """
 
+import threading
+import time
 from dataclasses import dataclass, field
 from queue import Queue
-import time
-import threading
 
 
 @dataclass

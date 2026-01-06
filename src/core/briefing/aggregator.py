@@ -23,7 +23,6 @@ from src.logging_config import debug_log
 
 from .extractor import ChunkExtraction
 
-
 # Name category priority for merging (higher = preferred)
 CATEGORY_PRIORITY = {
     "PARTY": 4,
@@ -177,7 +176,7 @@ class DataAggregator:
         debug_log(f"[DataAggregator] Aggregating {len(extractions)} chunk extractions")
 
         # Track sources
-        source_docs = list(set(e.source_document for e in extractions))
+        source_docs = list({e.source_document for e in extractions})
         successful_extractions = [e for e in extractions if e.extraction_success]
 
         # Aggregate each field type
@@ -514,10 +513,7 @@ class DataAggregator:
 
         # Filter names that are just numbers or punctuation
         alphanumeric = "".join(c for c in name if c.isalnum())
-        if not alphanumeric or alphanumeric.isdigit():
-            return True
-
-        return False
+        return bool(not alphanumeric or alphanumeric.isdigit())
 
     def _find_name_match(
         self,
@@ -711,7 +707,9 @@ class DataAggregator:
             is_duplicate = False
             replace_idx = None
 
-            for j, (existing_idx, existing_lower) in enumerate(zip(unique_indices, unique_lower)):
+            for j, (existing_idx, existing_lower) in enumerate(
+                zip(unique_indices, unique_lower, strict=False)
+            ):
                 existing = cleaned[existing_idx]
 
                 # Check substring relationship

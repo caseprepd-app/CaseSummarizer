@@ -19,7 +19,6 @@ Multi-word PHRASE filtering is done CENTRALLY by rarity_filter.py after all
 algorithms contribute their candidates. This ensures consistent filtering.
 """
 
-import os
 import re
 import socket
 import subprocess
@@ -27,15 +26,13 @@ import sys
 import threading
 import time
 from collections import defaultdict
-from pathlib import Path
 from typing import Any
 
-import nltk
 import spacy
 from nltk.corpus import wordnet
 
+from src.categories import get_ner_mapping
 from src.config import (
-    GOOGLE_WORD_FREQUENCY_FILE,
     SPACY_DOWNLOAD_TIMEOUT_SEC,
     SPACY_SOCKET_TIMEOUT_SEC,
     SPACY_THREAD_TIMEOUT_SEC,
@@ -43,24 +40,20 @@ from src.config import (
     VOCABULARY_BATCH_SIZE,
     VOCABULARY_RARITY_THRESHOLD,
 )
-from src.categories import get_ner_mapping
-from src.logging_config import debug_log
-from src.core.utils.tokenizer import STOPWORDS
 from src.core.utils.pattern_filter import (
     VARIATION_FILTER,
-    TITLE_ABBREVIATIONS,
-    MIN_ENTITY_LENGTH,
-    MAX_ENTITY_LENGTH,
+    is_valid_acronym,
     matches_entity_filter,
     matches_token_filter,
-    is_valid_acronym,
 )
+from src.core.utils.tokenizer import STOPWORDS
 from src.core.vocabulary.algorithms import register_algorithm
 from src.core.vocabulary.algorithms.base import (
     AlgorithmResult,
     BaseExtractionAlgorithm,
     CandidateTerm,
 )
+from src.logging_config import debug_log
 
 # Constants for spaCy model
 SPACY_MODEL_NAME = "en_core_web_lg"
@@ -178,7 +171,7 @@ class NERAlgorithm(BaseExtractionAlgorithm):
                 "total_tokens": total_tokens,
                 "total_entities": total_entities,
                 "chunks_processed": len(chunks),
-                "unique_terms": len(set(c.term.lower() for c in candidates)),
+                "unique_terms": len({c.term.lower() for c in candidates}),
             },
         )
 
@@ -377,10 +370,7 @@ class NERAlgorithm(BaseExtractionAlgorithm):
             return False
 
         # WordNet fallback
-        if wordnet.synsets(lower_text):
-            return False
-
-        return True
+        return not wordnet.synsets(lower_text)
 
     # ========================================================================
     # SPACY MODEL LOADING - Moved from VocabularyExtractor

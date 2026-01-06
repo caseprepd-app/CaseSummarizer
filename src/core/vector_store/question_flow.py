@@ -21,7 +21,6 @@ Usage:
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
 
 from src.config import DEBUG_MODE
 from src.core.config import load_yaml_with_fallback

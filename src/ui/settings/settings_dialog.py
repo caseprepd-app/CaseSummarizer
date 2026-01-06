@@ -20,14 +20,15 @@ Usage:
 import customtkinter as ctk
 
 from src.ui.base_dialog import BaseModalDialog
-from src.ui.theme import FONTS, COLORS
+from src.ui.theme import COLORS, FONTS
+
 from .settings_registry import SettingsRegistry, SettingType
 from .settings_widgets import (
-    SliderSetting,
+    ButtonSetting,
     CheckboxSetting,
     DropdownSetting,
+    SliderSetting,
     SpinboxSetting,
-    ButtonSetting,
 )
 
 
@@ -269,6 +270,7 @@ class SettingsDialog(BaseModalDialog):
         and does NOT close the dialog, allowing user to correct the value.
         """
         from tkinter import messagebox
+
         from src.logging_config import debug_log
 
         errors = []
@@ -313,23 +315,25 @@ class SettingsDialog(BaseModalDialog):
         auto_detect_widget = self.widgets.get("parallel_workers_auto")
         worker_count_widget = self.widgets.get("parallel_workers_count")
 
-        if auto_detect_widget and worker_count_widget:
-            # Check if worker_count_widget has set_enabled method
-            if hasattr(worker_count_widget, "set_enabled"):
-                # Set initial state based on current auto-detect value
-                auto_enabled = auto_detect_widget.get_value()
-                worker_count_widget.set_enabled(not auto_enabled)
+        if (
+            auto_detect_widget
+            and worker_count_widget
+            and hasattr(worker_count_widget, "set_enabled")
+        ):
+            # Set initial state based on current auto-detect value
+            auto_enabled = auto_detect_widget.get_value()
+            worker_count_widget.set_enabled(not auto_enabled)
 
-                # Update when checkbox changes
-                original_on_change = auto_detect_widget.on_change
+            # Update when checkbox changes
+            original_on_change = auto_detect_widget.on_change
 
-                def on_auto_detect_change(value):
-                    worker_count_widget.set_enabled(not value)
-                    if original_on_change:
-                        original_on_change(value)
+            def on_auto_detect_change(value):
+                worker_count_widget.set_enabled(not value)
+                if original_on_change:
+                    original_on_change(value)
 
-                auto_detect_widget.on_change = on_auto_detect_change
-                # Also update the checkbox command
-                auto_detect_widget.checkbox.configure(
-                    command=lambda: on_auto_detect_change(auto_detect_widget.get_value())
-                )
+            auto_detect_widget.on_change = on_auto_detect_change
+            # Also update the checkbox command
+            auto_detect_widget.checkbox.configure(
+                command=lambda: on_auto_detect_change(auto_detect_widget.get_value())
+            )

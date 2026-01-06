@@ -10,14 +10,14 @@ Contains:
 """
 
 import tkinter as tk
-from tkinter import ttk, messagebox
+from tkinter import messagebox, ttk
 
 from src.logging_config import debug_log
 from src.ui.vocab_table.column_config import (
-    THUMB_UP_EMPTY,
-    THUMB_UP_FILLED,
     THUMB_DOWN_EMPTY,
     THUMB_DOWN_FILLED,
+    THUMB_UP_EMPTY,
+    THUMB_UP_FILLED,
 )
 
 
@@ -90,10 +90,7 @@ class FeedbackHandlerMixin:
         current_state = self._feedback_state.get(term)
 
         # Toggle logic: click same button clears, click different button sets
-        if current_state == feedback_type:
-            new_state = None
-        else:
-            new_state = feedback_type
+        new_state = None if current_state == feedback_type else feedback_type
 
         self._feedback_state[term] = new_state
 
@@ -261,7 +258,7 @@ class FeedbackHandlerMixin:
             # Read existing terms
             existing = set()
             if USER_VOCAB_EXCLUDE_PATH.exists():
-                with open(USER_VOCAB_EXCLUDE_PATH, "r", encoding="utf-8") as f:
+                with open(USER_VOCAB_EXCLUDE_PATH, encoding="utf-8") as f:
                     existing = {line.strip().lower() for line in f if line.strip()}
 
             # Add new term

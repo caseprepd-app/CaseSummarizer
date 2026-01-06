@@ -474,7 +474,7 @@ class UserPreferencesManager:
 _user_prefs = None
 
 
-def get_user_preferences(preferences_file: Path = None) -> UserPreferencesManager:
+def get_user_preferences(preferences_file: Path | None = None) -> UserPreferencesManager:
     """
     Get the global UserPreferencesManager instance (singleton pattern).
 

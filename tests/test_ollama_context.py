@@ -11,13 +11,11 @@ import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 # Add project root to path for imports
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
-from src.config import OLLAMA_CONTEXT_WINDOW
+from src.config import OLLAMA_CONTEXT_WINDOW  # noqa: E402
 
 
 class TestContextWindowConfig:
@@ -51,7 +49,7 @@ class TestChunkingConfig:
         with open(config_path) as f:
             config = yaml.safe_load(f)
 
-        max_chunk_words = config['chunking']['max_chunk_words']
+        max_chunk_words = config["chunking"]["max_chunk_words"]
         # Rough estimate: 1.3 tokens per word
         estimated_tokens = int(max_chunk_words * 1.3)
 
@@ -71,7 +69,7 @@ class TestChunkingConfig:
         with open(config_path) as f:
             config = yaml.safe_load(f)
 
-        hard_limit = config['chunking']['max_chunk_words_hard_limit']
+        hard_limit = config["chunking"]["max_chunk_words_hard_limit"]
         # Rough estimate: 1.3 tokens per word
         estimated_tokens = int(hard_limit * 1.3)
 
@@ -88,23 +86,20 @@ class TestChunkingConfig:
 class TestOllamaPayload:
     """Test that Ollama API payload includes context window."""
 
-    @patch('src.core.ai.ollama_model_manager.requests.post')
+    @patch("src.core.ai.ollama_model_manager.requests.post")
     def test_num_ctx_in_payload(self, mock_post):
         """Verify num_ctx is included in Ollama API calls."""
         # Setup mock response
         mock_response = MagicMock()
         mock_response.status_code = 200
-        mock_response.json.return_value = {
-            'response': 'Test summary',
-            'eval_count': 10
-        }
+        mock_response.json.return_value = {"response": "Test summary", "eval_count": 10}
         mock_post.return_value = mock_response
 
         # Also mock the connection check
-        with patch('src.core.ai.ollama_model_manager.requests.get') as mock_get:
+        with patch("src.core.ai.ollama_model_manager.requests.get") as mock_get:
             mock_get_response = MagicMock()
             mock_get_response.status_code = 200
-            mock_get_response.json.return_value = {'models': []}
+            mock_get_response.json.return_value = {"models": []}
             mock_get.return_value = mock_get_response
 
             from src.core.ai.ollama_model_manager import OllamaModelManager
@@ -113,21 +108,23 @@ class TestOllamaPayload:
             manager.is_connected = True
 
             # Make a test call
-            try:
+            import contextlib
+
+            with contextlib.suppress(Exception):
                 manager.generate_text("Test prompt", max_tokens=100)
-            except Exception:
-                pass  # We just want to check the payload
 
             # Check that requests.post was called with num_ctx in options
             if mock_post.called:
                 call_args = mock_post.call_args
-                payload = call_args.kwargs.get('json', call_args.args[1] if len(call_args.args) > 1 else {})
+                payload = call_args.kwargs.get(
+                    "json", call_args.args[1] if len(call_args.args) > 1 else {}
+                )
 
-                assert 'options' in payload, "Payload should include 'options'"
-                assert 'num_ctx' in payload['options'], "Options should include 'num_ctx'"
+                assert "options" in payload, "Payload should include 'options'"
+                assert "num_ctx" in payload["options"], "Options should include 'num_ctx'"
                 # Session 64: Context is now dynamic based on GPU VRAM
                 # Just verify it's set to a reasonable value (4K-64K range)
-                num_ctx = payload['options']['num_ctx']
+                num_ctx = payload["options"]["num_ctx"]
                 assert 4000 <= num_ctx <= 64000, (
                     f"num_ctx should be in valid range (4000-64000), got {num_ctx}"
                 )
@@ -136,20 +133,20 @@ class TestOllamaPayload:
 class TestTruncationWarning:
     """Test that truncation warnings are issued appropriately."""
 
-    @patch('src.core.ai.ollama_model_manager.warning')
-    @patch('src.core.ai.ollama_model_manager.requests.post')
-    @patch('src.core.ai.ollama_model_manager.requests.get')
+    @patch("src.core.ai.ollama_model_manager.warning")
+    @patch("src.core.ai.ollama_model_manager.requests.post")
+    @patch("src.core.ai.ollama_model_manager.requests.get")
     def test_warning_on_large_prompt(self, mock_get, mock_post, mock_warning):
         """Verify warning is issued when prompt approaches context limit."""
         # Setup mocks
         mock_get_response = MagicMock()
         mock_get_response.status_code = 200
-        mock_get_response.json.return_value = {'models': []}
+        mock_get_response.json.return_value = {"models": []}
         mock_get.return_value = mock_get_response
 
         mock_post_response = MagicMock()
         mock_post_response.status_code = 200
-        mock_post_response.json.return_value = {'response': 'Summary', 'eval_count': 10}
+        mock_post_response.json.return_value = {"response": "Summary", "eval_count": 10}
         mock_post.return_value = mock_post_response
 
         from src.core.ai.ollama_model_manager import OllamaModelManager
@@ -172,20 +169,20 @@ class TestTruncationWarning:
             f"Warning should mention truncation risk: {warning_msg}"
         )
 
-    @patch('src.core.ai.ollama_model_manager.warning')
-    @patch('src.core.ai.ollama_model_manager.requests.post')
-    @patch('src.core.ai.ollama_model_manager.requests.get')
+    @patch("src.core.ai.ollama_model_manager.warning")
+    @patch("src.core.ai.ollama_model_manager.requests.post")
+    @patch("src.core.ai.ollama_model_manager.requests.get")
     def test_no_warning_on_small_prompt(self, mock_get, mock_post, mock_warning):
         """Verify no warning for prompts well under context limit."""
         # Setup mocks
         mock_get_response = MagicMock()
         mock_get_response.status_code = 200
-        mock_get_response.json.return_value = {'models': []}
+        mock_get_response.json.return_value = {"models": []}
         mock_get.return_value = mock_get_response
 
         mock_post_response = MagicMock()
         mock_post_response.status_code = 200
-        mock_post_response.json.return_value = {'response': 'Summary', 'eval_count': 10}
+        mock_post_response.json.return_value = {"response": "Summary", "eval_count": 10}
         mock_post.return_value = mock_post_response
 
         from src.core.ai.ollama_model_manager import OllamaModelManager

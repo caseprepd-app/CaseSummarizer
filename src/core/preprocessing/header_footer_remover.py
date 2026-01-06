@@ -13,6 +13,7 @@ Common patterns:
 
 import re
 from collections import Counter
+from typing import ClassVar
 
 from src.core.preprocessing.base import BasePreprocessor, PreprocessingResult
 
@@ -27,7 +28,7 @@ class HeaderFooterRemover(BasePreprocessor):
     Strategy:
     1. Split text into lines
     2. Count frequency of each normalized line
-    3. Lines appearing 3+ times AND matching patterns → remove
+    3. Lines appearing 3+ times AND matching patterns -> remove
     4. Preserve unique content lines
 
     This is conservative by design - would rather keep some headers
@@ -43,7 +44,7 @@ class HeaderFooterRemover(BasePreprocessor):
     MAX_HEADER_LENGTH = 120
 
     # Patterns that indicate a line is likely a header/footer
-    HEADER_FOOTER_PATTERNS = [
+    HEADER_FOOTER_PATTERNS: ClassVar[list[re.Pattern[str]]] = [
         # Page numbers with text
         re.compile(r"^\s*-?\s*\d+\s*-?\s*$"),  # Just a number: "- 12 -" or "12"
         re.compile(r"page\s+\d+\s*(of\s+\d+)?", re.IGNORECASE),
@@ -116,11 +117,7 @@ class HeaderFooterRemover(BasePreprocessor):
             return False
 
         # Check against patterns
-        for pattern in self.HEADER_FOOTER_PATTERNS:
-            if pattern.search(line):
-                return True
-
-        return False
+        return any(pattern.search(line) for pattern in self.HEADER_FOOTER_PATTERNS)
 
     def process(self, text: str) -> PreprocessingResult:
         """
@@ -155,10 +152,11 @@ class HeaderFooterRemover(BasePreprocessor):
             if count >= self.MIN_OCCURRENCES:
                 # Check if any original line with this normalization matches patterns
                 for i, line in enumerate(lines):
-                    if line_to_normalized[i] == normalized_line:
-                        if self._is_header_footer_candidate(line):
-                            lines_to_remove.add(normalized_line)
-                            break
+                    if line_to_normalized[
+                        i
+                    ] == normalized_line and self._is_header_footer_candidate(line):
+                        lines_to_remove.add(normalized_line)
+                        break
 
         # Remove matching lines
         result_lines = []

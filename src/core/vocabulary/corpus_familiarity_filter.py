@@ -23,8 +23,8 @@ A court reporter who has processed 100 transcripts doesn't need to learn
 appearing in only 2 of 100 transcripts is worth highlighting.
 """
 
-from src.logging_config import debug_log
 from src.core.vocabulary.person_utils import is_person_entry
+from src.logging_config import debug_log
 
 
 def calculate_corpus_familiarity(term: str) -> float:
@@ -83,8 +83,8 @@ def should_filter_corpus_familiar(term: str, is_person: bool = False) -> bool:
         False if the term should be KEPT
     """
     try:
-        from src.user_preferences import get_user_preferences
         from src.core.vocabulary.corpus_manager import get_corpus_manager
+        from src.user_preferences import get_user_preferences
 
         prefs = get_user_preferences()
 

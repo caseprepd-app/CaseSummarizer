@@ -35,14 +35,14 @@ Usage:
 
 import json
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Callable, Optional
+from typing import ClassVar
 
-from src.core.ai.ollama_model_manager import OllamaModelManager
 from src.categories import get_llm_prompt_categories, normalize_category
+from src.core.ai.ollama_model_manager import OllamaModelManager
 from src.logging_config import debug_log
-
 
 # Default prompt file path (Session 45: combined extraction)
 PROMPT_FILE = (
@@ -76,7 +76,7 @@ class LLMPerson:
     confidence: float = 0.8
 
     # Valid roles for normalization
-    VALID_ROLES = {
+    VALID_ROLES: ClassVar[set[str]] = {
         "plaintiff",
         "defendant",
         "attorney",
@@ -176,9 +176,9 @@ class LLMVocabExtractor:
 
     def __init__(
         self,
-        ollama_manager: Optional[OllamaModelManager] = None,
+        ollama_manager: OllamaModelManager | None = None,
         max_tokens: int = DEFAULT_MAX_TOKENS,
-        prompt_file: Optional[Path] = None,
+        prompt_file: Path | None = None,
     ):
         """
         Initialize the LLM vocab extractor.
@@ -202,7 +202,7 @@ class LLMVocabExtractor:
             debug_log(f"[LLMVocabExtractor] Loaded prompt from {self.prompt_file}")
             return template
 
-        debug_log(f"[LLMVocabExtractor] Prompt file not found, using default")
+        debug_log("[LLMVocabExtractor] Prompt file not found, using default")
         return self._get_default_prompt()
 
     def _get_default_prompt(self) -> str:
@@ -237,7 +237,7 @@ DOCUMENT CHUNK:
         self,
         text: str,
         chunk_size_chars: int = DEFAULT_CHUNK_SIZE,
-        progress_callback: Optional[Callable[[int, int], None]] = None,
+        progress_callback: Callable[[int, int], None] | None = None,
     ) -> LLMExtractionResult:
         """
         Extract people and vocabulary from text using single LLM prompt per chunk.
@@ -441,7 +441,7 @@ DOCUMENT CHUNK:
     def extract_from_chunks(
         self,
         chunks: list[str],
-        progress_callback: Optional[Callable[[int, int], None]] = None,
+        progress_callback: Callable[[int, int], None] | None = None,
     ) -> LLMExtractionResult:
         """
         Extract people and vocabulary from pre-chunked text.
@@ -480,7 +480,7 @@ DOCUMENT CHUNK:
     def extract_from_unified_chunks(
         self,
         chunks: list,  # list[UnifiedChunk] - avoid import for type hint
-        progress_callback: Optional[Callable[[int, int], None]] = None,
+        progress_callback: Callable[[int, int], None] | None = None,
     ) -> LLMExtractionResult:
         """
         Extract people and vocabulary from UnifiedChunk objects (Session 45).
@@ -529,7 +529,7 @@ DOCUMENT CHUNK:
     def _extract_chunks_parallel(
         self,
         chunk_items: list[tuple[str, int]],
-        progress_callback: Optional[Callable[[int, int], None]] = None,
+        progress_callback: Callable[[int, int], None] | None = None,
     ) -> tuple[list[LLMPerson], list[LLMTerm]]:
         """
         Process chunks in parallel when beneficial (Session 69).
@@ -548,6 +548,7 @@ DOCUMENT CHUNK:
         """
         import os
         import threading
+
         from src.core.parallel.executor_strategy import ThreadPoolStrategy
         from src.core.parallel.task_runner import ParallelTaskRunner
         from src.system_resources import get_optimal_workers
@@ -575,7 +576,7 @@ DOCUMENT CHUNK:
                 all_terms.extend(chunk_terms)
 
                 debug_log(
-                    f"[LLMVocabExtractor] Chunk {i+1}/{chunk_count}: "
+                    f"[LLMVocabExtractor] Chunk {i + 1}/{chunk_count}: "
                     f"extracted {len(chunk_people)} people, {len(chunk_terms)} terms"
                 )
 
@@ -613,7 +614,7 @@ DOCUMENT CHUNK:
 
             def on_complete(task_id: str, result):
                 """Callback when chunk completes - accumulate results."""
-                chunk_id, chunk_people, chunk_terms = result
+                _chunk_id, chunk_people, chunk_terms = result
 
                 with results_lock:
                     all_people.extend(chunk_people)

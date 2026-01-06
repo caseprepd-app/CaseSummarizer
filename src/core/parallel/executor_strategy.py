@@ -23,10 +23,11 @@ Usage:
     results = list(strategy.map(process_func, items))
 """
 
-from abc import ABC, abstractmethod
-from concurrent.futures import ThreadPoolExecutor, Future
-from typing import Callable, TypeVar, Iterator
 import os
+from abc import ABC, abstractmethod
+from collections.abc import Callable, Iterator
+from concurrent.futures import Future, ThreadPoolExecutor
+from typing import TypeVar
 
 T = TypeVar("T")
 R = TypeVar("R")
@@ -123,7 +124,7 @@ class ThreadPoolStrategy(ExecutorStrategy):
             results = list(strategy.map(process_doc, file_paths))
     """
 
-    def __init__(self, max_workers: int = None):
+    def __init__(self, max_workers: int | None = None):
         """
         Initialize thread pool strategy.
 

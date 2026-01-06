@@ -124,9 +124,8 @@ class GibberishFilter:
             if best and best != word:
                 return False  # Has a correction = probably typo
             candidates = self._spell.candidates(word)
-            if candidates:
-                return False  # Has candidates = probably typo
-            return True  # No correction or candidates = gibberish
+            # Has candidates = probably typo; otherwise gibberish
+            return not candidates
 
         # Get best correction
         best = self._spell.correction(word)
@@ -142,10 +141,8 @@ class GibberishFilter:
         ratio_pass = edit_ratio <= EDIT_DISTANCE_RATIO_THRESHOLD
         sim_pass = similarity >= SIMILARITY_THRESHOLD
 
-        if ratio_pass and sim_pass:
-            return False  # Valid typo, not gibberish
-        else:
-            return True  # Failed at least one metric = gibberish
+        # Valid typo (both pass) = not gibberish; otherwise gibberish
+        return not (ratio_pass and sim_pass)
 
     def _clean_for_check(self, word: str) -> str:
         """

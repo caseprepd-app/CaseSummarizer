@@ -21,16 +21,13 @@ from tkinter import filedialog, messagebox, ttk
 import customtkinter as ctk
 
 from src.config import DEBUG_MODE
-from src.ui.base_dialog import BaseModalDialog
-from src.logging_config import debug_log
-from src.ui.theme import FONTS, COLORS
 from src.core.vocabulary import (
-    CorpusRegistry,
-    CorpusInfo,
     CorpusManager,
-    CorpusFile,
     get_corpus_registry,
 )
+from src.logging_config import debug_log
+from src.ui.base_dialog import BaseModalDialog
+from src.ui.theme import COLORS, FONTS
 
 # BM25 Wikipedia link
 BM25_WIKI_URL = "https://en.wikipedia.org/wiki/Okapi_BM25"
@@ -691,7 +688,7 @@ class CorpusDialog(BaseModalDialog):
         count = len(selection)
         result = messagebox.askyesno(
             "Remove Documents",
-            f"Remove {count} document(s) from corpus?\n\n" "This will delete the files.",
+            f"Remove {count} document(s) from corpus?\n\nThis will delete the files.",
         )
 
         if not result:

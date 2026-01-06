@@ -7,7 +7,6 @@ Tests cover:
 - Integration: Feedback loop with quality score boosting
 """
 
-import os
 import sys
 import tempfile
 from pathlib import Path
@@ -37,7 +36,9 @@ def feedback_manager(temp_feedback_dir):
     """Create FeedbackManager with temp directory and no shipped defaults."""
     # Provide a non-existent default_feedback_file so tests start clean
     nonexistent_default = temp_feedback_dir / "default_feedback.csv"
-    return FeedbackManager(feedback_dir=temp_feedback_dir, default_feedback_file=nonexistent_default)
+    return FeedbackManager(
+        feedback_dir=temp_feedback_dir, default_feedback_file=nonexistent_default
+    )
 
 
 @pytest.fixture
@@ -109,11 +110,15 @@ class TestFeedbackManager:
         nonexistent_default = temp_feedback_dir / "default_feedback.csv"
 
         # Create first manager and record feedback
-        manager1 = FeedbackManager(feedback_dir=temp_feedback_dir, default_feedback_file=nonexistent_default)
+        manager1 = FeedbackManager(
+            feedback_dir=temp_feedback_dir, default_feedback_file=nonexistent_default
+        )
         manager1.record_feedback(term_data, +1)
 
         # Create second manager and verify feedback was loaded
-        manager2 = FeedbackManager(feedback_dir=temp_feedback_dir, default_feedback_file=nonexistent_default)
+        manager2 = FeedbackManager(
+            feedback_dir=temp_feedback_dir, default_feedback_file=nonexistent_default
+        )
         assert manager2.get_rating("persistent_term") == 1
 
     def test_get_feedback_count(self, feedback_manager):
@@ -237,17 +242,28 @@ class TestVocabularyMetaLearner:
         when defaults are NOT available (e.g., if the file is missing).
         """
         import csv
-        from pathlib import Path
 
         # Create a feedback manager that uses an empty default file
         empty_default = temp_feedback_dir / "empty_default.csv"
         with open(empty_default, "w", newline="") as f:
             writer = csv.writer(f)
-            writer.writerow([
-                "timestamp", "document_id", "term", "feedback", "is_person",
-                "algorithms", "NER_detection", "RAKE_detection", "BM25_detection",
-                "algo_count", "quality_score", "in_case_freq", "freq_rank"
-            ])
+            writer.writerow(
+                [
+                    "timestamp",
+                    "document_id",
+                    "term",
+                    "feedback",
+                    "is_person",
+                    "algorithms",
+                    "NER_detection",
+                    "RAKE_detection",
+                    "BM25_detection",
+                    "algo_count",
+                    "quality_score",
+                    "in_case_freq",
+                    "freq_rank",
+                ]
+            )
 
         # Create manager with only 5 user samples and no defaults
         feedback_mgr = FeedbackManager(feedback_dir=temp_feedback_dir)
@@ -293,6 +309,7 @@ class TestIntegration:
             get_feedback_manager,
             get_meta_learner,
         )
+
         # Just verify imports work
         assert VocabularyExtractor is not None
         assert get_feedback_manager is not None
@@ -301,8 +318,9 @@ class TestIntegration:
     def test_extractor_has_meta_learner(self):
         """Test that VocabularyExtractor has meta-learner integration."""
         from src.core.vocabulary import VocabularyExtractor
+
         extractor = VocabularyExtractor()
-        assert hasattr(extractor, '_meta_learner')
+        assert hasattr(extractor, "_meta_learner")
         assert extractor._meta_learner is not None
 
 
@@ -373,6 +391,7 @@ class TestEnsembleMode:
             VocabularyMetaLearner,
             VocabularyPreferenceLearner,
         )
+
         # Both should refer to the same class
         assert VocabularyMetaLearner is VocabularyPreferenceLearner
 
@@ -389,6 +408,7 @@ class TestDefaultFeedback:
     def test_default_feedback_exists(self):
         """Verify default_feedback.csv exists and is valid CSV."""
         import csv
+
         from src.config import DEFAULT_FEEDBACK_CSV
 
         assert DEFAULT_FEEDBACK_CSV.exists(), (
@@ -396,7 +416,7 @@ class TestDefaultFeedback:
         )
 
         # Verify it's valid CSV with expected columns
-        with open(DEFAULT_FEEDBACK_CSV, "r", encoding="utf-8") as f:
+        with open(DEFAULT_FEEDBACK_CSV, encoding="utf-8") as f:
             reader = csv.DictReader(f)
             rows = list(reader)
 
@@ -408,9 +428,10 @@ class TestDefaultFeedback:
     def test_default_feedback_all_negative(self):
         """Verify all default feedback entries are thumbs down (-1)."""
         import csv
+
         from src.config import DEFAULT_FEEDBACK_CSV
 
-        with open(DEFAULT_FEEDBACK_CSV, "r", encoding="utf-8") as f:
+        with open(DEFAULT_FEEDBACK_CSV, encoding="utf-8") as f:
             reader = csv.DictReader(f)
             for i, row in enumerate(reader):
                 feedback = int(row["feedback"])
@@ -427,9 +448,10 @@ class TestDefaultFeedback:
         2. NER person detection is reliable, we don't need to train against it
         """
         import csv
+
         from src.config import DEFAULT_FEEDBACK_CSV
 
-        with open(DEFAULT_FEEDBACK_CSV, "r", encoding="utf-8") as f:
+        with open(DEFAULT_FEEDBACK_CSV, encoding="utf-8") as f:
             reader = csv.DictReader(f)
             for i, row in enumerate(reader):
                 is_person = row["is_person"]
@@ -447,22 +469,22 @@ class TestDefaultFeedback:
         - At most 150: Focused on universal junk, not overfit
         """
         import csv
+
         from src.config import DEFAULT_FEEDBACK_CSV
 
-        with open(DEFAULT_FEEDBACK_CSV, "r", encoding="utf-8") as f:
+        with open(DEFAULT_FEEDBACK_CSV, encoding="utf-8") as f:
             reader = csv.DictReader(f)
             count = sum(1 for _ in reader)
 
-        assert 50 <= count <= 150, (
-            f"Default feedback has {count} entries, expected 50-150"
-        )
+        assert 50 <= count <= 150, f"Default feedback has {count} entries, expected 50-150"
 
     def test_default_feedback_categories(self):
         """Verify default feedback covers expected categories."""
         import csv
+
         from src.config import DEFAULT_FEEDBACK_CSV
 
-        with open(DEFAULT_FEEDBACK_CSV, "r", encoding="utf-8") as f:
+        with open(DEFAULT_FEEDBACK_CSV, encoding="utf-8") as f:
             reader = csv.DictReader(f)
             terms = [row["term"].lower() for row in reader]
 
@@ -474,9 +496,7 @@ class TestDefaultFeedback:
             "Missing transcript artifact category"
         )
         # OCR patterns (terms with digit-letter confusion)
-        assert any(t in ("1he", "tbe", "0f") for t in terms), (
-            "Missing OCR artifact category"
-        )
+        assert any(t in ("1he", "tbe", "0f") for t in terms), "Missing OCR artifact category"
 
     def test_training_with_default_feedback_only(self, temp_feedback_dir):
         """Test that training succeeds with only default feedback.
@@ -485,10 +505,11 @@ class TestDefaultFeedback:
         trigger Logistic Regression training even with zero user feedback.
         """
         import csv
+
         from src.config import DEFAULT_FEEDBACK_CSV
 
         # First verify we have enough defaults
-        with open(DEFAULT_FEEDBACK_CSV, "r", encoding="utf-8") as f:
+        with open(DEFAULT_FEEDBACK_CSV, encoding="utf-8") as f:
             default_count = sum(1 for _ in csv.DictReader(f))
 
         if default_count < 30:
@@ -501,9 +522,7 @@ class TestDefaultFeedback:
         training_data = manager.export_training_data()
 
         # Should have entries from default file
-        assert len(training_data) >= 30, (
-            f"Expected 30+ training entries, got {len(training_data)}"
-        )
+        assert len(training_data) >= 30, f"Expected 30+ training entries, got {len(training_data)}"
 
     def test_user_feedback_overrides_default(self, temp_feedback_dir):
         """Test that user feedback takes precedence over defaults.
@@ -522,6 +541,4 @@ class TestDefaultFeedback:
         manager.record_feedback(term_data, +1)  # User says thumbs up
 
         # User's rating should be what we get
-        assert manager.get_rating("the same") == 1, (
-            "User feedback should override default"
-        )
+        assert manager.get_rating("the same") == 1, "User feedback should override default"

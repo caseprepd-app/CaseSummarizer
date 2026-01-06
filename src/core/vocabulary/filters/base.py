@@ -7,7 +7,6 @@ All vocabulary filters should inherit from BaseVocabularyFilter.
 Design mirrors the preprocessing pipeline pattern from src/core/preprocessing/base.py.
 """
 
-import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import Any

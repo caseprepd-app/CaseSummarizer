@@ -2,9 +2,9 @@
 Quick test script to verify prompt template system works.
 """
 
-from pathlib import Path
-from src.core.prompting import PromptTemplateManager
 from src.config import PROMPTS_DIR
+from src.core.prompting import PromptTemplateManager
+
 
 def test_template_system():
     """Test that both presets can be loaded and formatted."""
@@ -37,12 +37,12 @@ def test_template_system():
         print(f"\n   Testing preset: {preset['name']}")
         try:
             # Load template
-            template = manager.load_template("phi-3-mini", preset['id'])
+            template = manager.load_template("phi-3-mini", preset["id"])
             print(f"     [OK] Template loaded ({len(template)} chars)")
 
             # Validate template
             manager.validate_template(template)
-            print(f"     [OK] Template validated (has required tokens)")
+            print("     [OK] Template validated (has required tokens)")
 
             # Format template
             formatted = manager.format_template(
@@ -50,7 +50,7 @@ def test_template_system():
                 min_words=180,
                 max_words=200,
                 max_words_range=220,
-                case_text=sample_text
+                case_text=sample_text,
             )
             print(f"     [OK] Template formatted ({len(formatted)} chars)")
 
@@ -62,7 +62,7 @@ def test_template_system():
             assert "180" in formatted  # min_words
             assert "200" in formatted  # max_words
             assert "220" in formatted  # max_words_range
-            print(f"     [OK] Formatted prompt has all required elements")
+            print("     [OK] Formatted prompt has all required elements")
 
         except Exception as e:
             print(f"     [FAIL] FAILED: {e}")
@@ -71,6 +71,7 @@ def test_template_system():
     print("\n" + "=" * 60)
     print("[SUCCESS] ALL TESTS PASSED!")
     print("=" * 60)
+
 
 if __name__ == "__main__":
     test_template_system()

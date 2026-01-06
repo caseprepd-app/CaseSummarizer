@@ -13,8 +13,8 @@ Usage:
     answer = service.ask_question("Who is the plaintiff?")
 """
 
+from collections.abc import Callable
 from pathlib import Path
-from typing import Callable
 
 from src.config import DEBUG_MODE
 from src.logging_config import debug_log
@@ -163,8 +163,8 @@ class QAService:
         """
         if self._orchestrator is None:
             # Load questions without full orchestrator
-            from src.core.qa.qa_orchestrator import DEFAULT_QUESTIONS_PATH
             from src.core.config import load_yaml_with_fallback
+            from src.core.qa.qa_orchestrator import DEFAULT_QUESTIONS_PATH
 
             config = load_yaml_with_fallback(
                 DEFAULT_QUESTIONS_PATH, fallback={}, log_prefix="[QAService]"

@@ -5,9 +5,9 @@ Implements DocumentBuilder using python-docx for .docx export.
 """
 
 from docx import Document
-from docx.shared import Inches, Pt, RGBColor
-from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.enum.table import WD_TABLE_ALIGNMENT
+from docx.enum.text import WD_ALIGN_PARAGRAPH
+from docx.shared import Pt, RGBColor
 
 from src.core.export.base import DocumentBuilder, TextSpan
 

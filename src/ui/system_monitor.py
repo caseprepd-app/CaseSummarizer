@@ -4,6 +4,7 @@ System Monitor Widget for LocalScribe
 Real-time CPU and RAM monitoring with color-coded status indicators.
 """
 
+import contextlib
 import platform
 import threading
 
@@ -16,7 +17,7 @@ from src.config import (
     SYSTEM_MONITOR_THRESHOLD_YELLOW,
 )
 from src.logging_config import debug_log
-from src.ui.theme import FONTS, COLORS
+from src.ui.theme import COLORS, FONTS
 from src.ui.tooltip_manager import tooltip_manager
 
 
@@ -157,10 +158,10 @@ class SystemMonitor(ctk.CTkFrame):
             pass  # Ignore display errors during heavy processing
 
         # Schedule next check - use after() which is resilient to busy main thread
-        try:
+        import contextlib
+
+        with contextlib.suppress(Exception):
             self.after(self.update_interval_ms, self._schedule_main_thread_update)
-        except Exception:
-            pass  # Widget may be destroyed
 
     def _update_display(self):
         """Update the display with stored metrics (main thread only)."""
@@ -275,10 +276,10 @@ class SystemMonitor(ctk.CTkFrame):
             self.tooltip_window = ctk.CTkToplevel(self.winfo_toplevel())
             self.tooltip_window.wm_overrideredirect(True)
             self.tooltip_window.wm_attributes("-topmost", True)
-            try:
+            import contextlib
+
+            with contextlib.suppress(Exception):
                 self.tooltip_window.wm_attributes("-toolwindow", True)
-            except Exception:
-                pass  # Not available on all platforms
 
             label = ctk.CTkLabel(
                 self.tooltip_window,
@@ -345,8 +346,6 @@ class SystemMonitor(ctk.CTkFrame):
         if self.tooltip_window:
             # Session 62b: Unregister from global manager
             tooltip_manager.unregister(self.tooltip_window)
-            try:
+            with contextlib.suppress(Exception):
                 self.tooltip_window.destroy()
-            except Exception:
-                pass
             self.tooltip_window = None

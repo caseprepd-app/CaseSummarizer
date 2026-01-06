@@ -8,12 +8,7 @@ Tests the corpus-based vocabulary extraction system:
 These tests use temporary directories to avoid affecting the user's actual corpus.
 """
 
-import json
-import tempfile
-from pathlib import Path
 from unittest.mock import patch
-
-import pytest
 
 
 class TestCorpusManager:
@@ -26,7 +21,7 @@ class TestCorpusManager:
         corpus_dir = tmp_path / "corpus"
         cache_dir = tmp_path / "cache"
 
-        manager = CorpusManager(corpus_dir=corpus_dir, cache_dir=cache_dir)
+        CorpusManager(corpus_dir=corpus_dir, cache_dir=cache_dir)
 
         assert corpus_dir.exists()
         assert cache_dir.exists()
@@ -60,7 +55,7 @@ class TestCorpusManager:
         (corpus_dir / "doc2.txt").write_text("test")
         (corpus_dir / "doc3.rtf").write_text("test")
         (corpus_dir / "ignored.docx").write_text("test")  # Not supported
-        (corpus_dir / "ignored.md").write_text("test")    # Not supported
+        (corpus_dir / "ignored.md").write_text("test")  # Not supported
 
         manager = CorpusManager(corpus_dir=corpus_dir, cache_dir=tmp_path / "cache")
 
@@ -313,7 +308,9 @@ class TestBM25Integration:
         empty_manager = CorpusManager(corpus_dir=empty_corpus_dir)
 
         # Patch where the function is defined, not where it's imported
-        with patch('src.core.vocabulary.corpus_manager.get_corpus_manager', return_value=empty_manager):
+        with patch(
+            "src.core.vocabulary.corpus_manager.get_corpus_manager", return_value=empty_manager
+        ):
             extractor = VocabularyExtractor()
 
         algorithm_names = [alg.name for alg in extractor.algorithms]
@@ -335,7 +332,7 @@ class TestBM25Integration:
             (corpus_dir / f"doc{i}.txt").write_text("test content")
 
         # Mock preferences to disable BM25
-        with patch.object(get_user_preferences(), 'get', return_value=False):
+        with patch.object(get_user_preferences(), "get", return_value=False):
             extractor = VocabularyExtractor()
 
             algorithm_names = [alg.name for alg in extractor.algorithms]

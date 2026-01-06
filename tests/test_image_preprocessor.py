@@ -13,7 +13,6 @@ Tests the OCR preprocessing pipeline including:
 """
 
 import numpy as np
-import pytest
 from PIL import Image, ImageDraw
 
 from src.core.extraction.image_preprocessor import (
@@ -82,7 +81,7 @@ class TestImagePreprocessor:
     def test_preprocess_returns_image_and_stats(self):
         """Test that preprocess returns a PIL Image and stats."""
         preprocessor = ImagePreprocessor()
-        image = Image.new('RGB', (100, 100), color='white')
+        image = Image.new("RGB", (100, 100), color="white")
 
         result, stats = preprocessor.preprocess(image)
 
@@ -92,7 +91,7 @@ class TestImagePreprocessor:
     def test_preprocess_rgb_image(self):
         """Test preprocessing an RGB image."""
         preprocessor = ImagePreprocessor()
-        image = Image.new('RGB', (100, 100), color='white')
+        image = Image.new("RGB", (100, 100), color="white")
 
         result, stats = preprocessor.preprocess(image)
 
@@ -104,7 +103,7 @@ class TestImagePreprocessor:
     def test_preprocess_grayscale_image(self):
         """Test preprocessing a grayscale image."""
         preprocessor = ImagePreprocessor()
-        image = Image.new('L', (100, 100), color=255)
+        image = Image.new("L", (100, 100), color=255)
 
         result, stats = preprocessor.preprocess(image)
 
@@ -114,28 +113,28 @@ class TestImagePreprocessor:
     def test_preprocess_rgba_image(self):
         """Test preprocessing an RGBA image."""
         preprocessor = ImagePreprocessor()
-        image = Image.new('RGBA', (100, 100), color=(255, 255, 255, 255))
+        image = Image.new("RGBA", (100, 100), color=(255, 255, 255, 255))
 
-        result, stats = preprocessor.preprocess(image)
+        result, _stats = preprocessor.preprocess(image)
 
         assert isinstance(result, Image.Image)
 
     def test_stats_tracks_stages(self):
         """Test that stats tracks all preprocessing stages."""
         preprocessor = ImagePreprocessor()
-        image = Image.new('RGB', (100, 100), color='white')
+        image = Image.new("RGB", (100, 100), color="white")
 
         _, stats = preprocessor.preprocess(image)
 
         # All stages should be tracked in timing (including new ones)
-        assert 'orientation' in stats.stage_times
-        assert 'document_crop' in stats.stage_times
-        assert 'grayscale' in stats.stage_times
-        assert 'denoise' in stats.stage_times
-        assert 'clahe' in stats.stage_times
-        assert 'binarize' in stats.stage_times
-        assert 'deskew' in stats.stage_times
-        assert 'border' in stats.stage_times
+        assert "orientation" in stats.stage_times
+        assert "document_crop" in stats.stage_times
+        assert "grayscale" in stats.stage_times
+        assert "denoise" in stats.stage_times
+        assert "clahe" in stats.stage_times
+        assert "binarize" in stats.stage_times
+        assert "deskew" in stats.stage_times
+        assert "border" in stats.stage_times
 
         # All timings should be non-negative
         for stage, time_ms in stats.stage_times.items():
@@ -144,7 +143,7 @@ class TestImagePreprocessor:
     def test_stats_tracks_operations(self):
         """Test that stats tracks which operations were applied."""
         preprocessor = ImagePreprocessor()
-        image = Image.new('RGB', (100, 100), color='white')
+        image = Image.new("RGB", (100, 100), color="white")
 
         _, stats = preprocessor.preprocess(image)
 
@@ -158,9 +157,9 @@ class TestImagePreprocessor:
         """Test that border adds expected pixels."""
         border_size = 15
         preprocessor = ImagePreprocessor(border_size=border_size)
-        image = Image.new('RGB', (100, 100), color='white')
+        image = Image.new("RGB", (100, 100), color="white")
 
-        result, stats = preprocessor.preprocess(image)
+        result, _stats = preprocessor.preprocess(image)
 
         # Result should be at least original + 2*border in each dimension
         # (may be larger if deskewing occurred)
@@ -170,16 +169,16 @@ class TestImagePreprocessor:
     def test_no_border_when_disabled(self):
         """Test that no border is added when border_size=0."""
         preprocessor = ImagePreprocessor(border_size=0)
-        image = Image.new('L', (100, 100), color=255)
+        image = Image.new("L", (100, 100), color=255)
 
-        result, stats = preprocessor.preprocess(image)
+        _result, stats = preprocessor.preprocess(image)
 
         assert stats.border_added is False
 
     def test_clahe_can_be_disabled(self):
         """Test that CLAHE can be disabled."""
         preprocessor = ImagePreprocessor(enable_clahe=False)
-        image = Image.new('RGB', (100, 100), color='white')
+        image = Image.new("RGB", (100, 100), color="white")
 
         _, stats = preprocessor.preprocess(image)
 
@@ -188,7 +187,7 @@ class TestImagePreprocessor:
     def test_total_time_tracked(self):
         """Test that total processing time is tracked."""
         preprocessor = ImagePreprocessor()
-        image = Image.new('RGB', (100, 100), color='white')
+        image = Image.new("RGB", (100, 100), color="white")
 
         _, stats = preprocessor.preprocess(image)
 
@@ -199,9 +198,9 @@ class TestImagePreprocessor:
         preprocessor = ImagePreprocessor()
 
         # Create image with text
-        image = Image.new('RGB', (200, 50), color='white')
+        image = Image.new("RGB", (200, 50), color="white")
         draw = ImageDraw.Draw(image)
-        draw.text((10, 10), "Test OCR", fill='black')
+        draw.text((10, 10), "Test OCR", fill="black")
 
         result, stats = preprocessor.preprocess(image)
 
@@ -214,7 +213,7 @@ class TestPreprocessForOCRFunction:
 
     def test_preprocess_for_ocr_basic(self):
         """Test the convenience function works."""
-        image = Image.new('RGB', (100, 100), color='white')
+        image = Image.new("RGB", (100, 100), color="white")
 
         result, stats = preprocess_for_ocr(image)
 
@@ -223,7 +222,7 @@ class TestPreprocessForOCRFunction:
 
     def test_preprocess_for_ocr_custom_params(self):
         """Test convenience function with custom parameters."""
-        image = Image.new('RGB', (100, 100), color='white')
+        image = Image.new("RGB", (100, 100), color="white")
 
         result, stats = preprocess_for_ocr(
             image,
@@ -272,7 +271,7 @@ class TestSkewDetection:
         """Test that clean images have minimal detected skew."""
         preprocessor = ImagePreprocessor()
         # Create a solid white image - no skew should be detected
-        image = Image.new('L', (100, 100), color=255)
+        image = Image.new("L", (100, 100), color=255)
 
         _, stats = preprocessor.preprocess(image)
 
@@ -294,7 +293,7 @@ class TestOrientationDetection:
     def test_orientation_disabled(self):
         """Test that orientation detection can be disabled."""
         preprocessor = ImagePreprocessor(enable_orientation_correction=False)
-        image = Image.new('RGB', (100, 100), color='white')
+        image = Image.new("RGB", (100, 100), color="white")
 
         _, stats = preprocessor.preprocess(image)
 
@@ -306,7 +305,7 @@ class TestOrientationDetection:
         """Test orientation detection on image with no text (should skip gracefully)."""
         preprocessor = ImagePreprocessor(enable_orientation_correction=True)
         # Solid color image - OSD will likely fail
-        image = Image.new('RGB', (100, 100), color='white')
+        image = Image.new("RGB", (100, 100), color="white")
 
         # Should not raise exception
         result, stats = preprocessor.preprocess(image)
@@ -329,7 +328,7 @@ class TestDocumentDetection:
     def test_document_detection_disabled(self):
         """Test that document detection can be disabled."""
         preprocessor = ImagePreprocessor(enable_document_detection=False)
-        image = Image.new('RGB', (100, 100), color='white')
+        image = Image.new("RGB", (100, 100), color="white")
 
         _, stats = preprocessor.preprocess(image)
 
@@ -339,7 +338,7 @@ class TestDocumentDetection:
     def test_document_detection_no_document(self):
         """Test document detection on solid color image (no document to find)."""
         preprocessor = ImagePreprocessor(enable_document_detection=True)
-        image = Image.new('RGB', (100, 100), color='white')
+        image = Image.new("RGB", (100, 100), color="white")
 
         result, stats = preprocessor.preprocess(image)
 
@@ -357,12 +356,12 @@ class TestDocumentDetection:
         )
 
         # Create image with dark background and white rectangle (document)
-        image = Image.new('RGB', (200, 200), color=(50, 50, 50))
+        image = Image.new("RGB", (200, 200), color=(50, 50, 50))
         draw = ImageDraw.Draw(image)
         # Draw a white rectangle in the center
-        draw.rectangle([40, 40, 160, 160], fill='white', outline='white')
+        draw.rectangle([40, 40, 160, 160], fill="white", outline="white")
 
-        result, stats = preprocessor.preprocess(image)
+        result, _stats = preprocessor.preprocess(image)
 
         # Should detect the rectangular document
         assert isinstance(result, Image.Image)
@@ -380,17 +379,19 @@ class TestDocumentDetection:
         preprocessor = ImagePreprocessor()
 
         # Unordered corners of a rectangle
-        corners = np.array([
-            [100, 100],  # bottom-right
-            [0, 0],      # top-left
-            [100, 0],    # top-right
-            [0, 100],    # bottom-left
-        ])
+        corners = np.array(
+            [
+                [100, 100],  # bottom-right
+                [0, 0],  # top-left
+                [100, 0],  # top-right
+                [0, 100],  # bottom-left
+            ]
+        )
 
         ordered = preprocessor._order_corners(corners)
 
         # Should be: top-left, top-right, bottom-right, bottom-left
-        assert ordered[0].tolist() == [0, 0]      # top-left
-        assert ordered[1].tolist() == [100, 0]    # top-right
+        assert ordered[0].tolist() == [0, 0]  # top-left
+        assert ordered[1].tolist() == [100, 0]  # top-right
         assert ordered[2].tolist() == [100, 100]  # bottom-right
-        assert ordered[3].tolist() == [0, 100]    # bottom-left
+        assert ordered[3].tolist() == [0, 100]  # bottom-left

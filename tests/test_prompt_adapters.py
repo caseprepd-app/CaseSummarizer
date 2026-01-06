@@ -10,11 +10,16 @@ Tests the thread-through prompt template architecture:
 Uses mock model_manager to avoid actual Ollama calls during testing.
 """
 
-import pytest
-from unittest.mock import Mock, MagicMock, patch
+from unittest.mock import Mock
 
-from src.core.prompting import FocusExtractor, AIFocusExtractor
-from src.core.prompting import PromptAdapter, MultiDocPromptAdapter
+import pytest
+
+from src.core.prompting import (
+    AIFocusExtractor,
+    FocusExtractor,
+    MultiDocPromptAdapter,
+    PromptAdapter,
+)
 
 
 class TestFocusExtractorABC:
@@ -27,6 +32,7 @@ class TestFocusExtractorABC:
 
     def test_custom_extractor_must_implement_extract_focus(self):
         """Custom extractors must implement extract_focus method."""
+
         class IncompleteExtractor(FocusExtractor):
             pass
 
@@ -35,18 +41,16 @@ class TestFocusExtractorABC:
 
     def test_custom_extractor_can_be_created(self):
         """Custom extractors with extract_focus work correctly."""
+
         class MockExtractor(FocusExtractor):
             def extract_focus(self, template: str, preset_id: str) -> dict:
-                return {
-                    'emphasis': 'test emphasis',
-                    'instructions': '1. Test instruction'
-                }
+                return {"emphasis": "test emphasis", "instructions": "1. Test instruction"}
 
         extractor = MockExtractor()
         result = extractor.extract_focus("template content", "test-preset")
 
-        assert result['emphasis'] == 'test emphasis'
-        assert 'Test instruction' in result['instructions']
+        assert result["emphasis"] == "test emphasis"
+        assert "Test instruction" in result["instructions"]
 
 
 class TestAIFocusExtractor:
@@ -74,8 +78,8 @@ INSTRUCTIONS:
 
         result = extractor.extract_focus("Test template content", "test-preset")
 
-        assert 'injuries' in result['emphasis'].lower()
-        assert '1.' in result['instructions']
+        assert "injuries" in result["emphasis"].lower()
+        assert "1." in result["instructions"]
         mock_model.generate_text.assert_called_once()
 
     def test_caches_by_content_hash(self):
@@ -122,8 +126,8 @@ INSTRUCTIONS:
         result = extractor.extract_focus("Test template", "test-preset")
 
         # Should return fallback values
-        assert 'key facts' in result['emphasis'].lower()
-        assert 'Synthesize' in result['instructions']
+        assert "key facts" in result["emphasis"].lower()
+        assert "Synthesize" in result["instructions"]
 
     def test_parses_emphasis_correctly(self):
         """Correctly parses EMPHASIS line from AI response."""
@@ -139,8 +143,8 @@ INSTRUCTIONS:
 
         result = extractor.extract_focus("Template", "preset")
 
-        assert 'medical records' in result['emphasis']
-        assert 'injury severity' in result['emphasis']
+        assert "medical records" in result["emphasis"]
+        assert "injury severity" in result["emphasis"]
 
     def test_parses_instructions_correctly(self):
         """Correctly parses INSTRUCTIONS block from AI response."""
@@ -157,9 +161,9 @@ INSTRUCTIONS:
 
         result = extractor.extract_focus("Template", "preset")
 
-        assert '1. First instruction' in result['instructions']
-        assert '2. Second instruction' in result['instructions']
-        assert '3. Third instruction' in result['instructions']
+        assert "1. First instruction" in result["instructions"]
+        assert "2. Second instruction" in result["instructions"]
+        assert "3. Third instruction" in result["instructions"]
 
 
 class TestPromptAdapterABC:
@@ -172,9 +176,11 @@ class TestPromptAdapterABC:
 
     def test_must_implement_all_methods(self):
         """Custom adapters must implement all abstract methods."""
+
         class IncompleteAdapter(PromptAdapter):
             def create_chunk_prompt(self, *args, **kwargs):
                 return "chunk"
+
             # Missing create_document_final_prompt and create_meta_summary_prompt
 
         with pytest.raises(TypeError):
@@ -214,8 +220,7 @@ INSTRUCTIONS:
         """Create adapter with mocks."""
         AIFocusExtractor.clear_cache()
         return MultiDocPromptAdapter(
-            template_manager=mock_template_manager,
-            model_manager=mock_model_manager
+            template_manager=mock_template_manager, model_manager=mock_model_manager
         )
 
     def test_create_chunk_prompt_includes_focus(self, adapter):
@@ -226,12 +231,12 @@ INSTRUCTIONS:
             global_context="Document overview here",
             local_context="Previous section summary",
             chunk_text="The plaintiff reported severe back pain...",
-            max_words=75
+            max_words=75,
         )
 
-        assert 'injuries' in prompt.lower()
-        assert 'back pain' in prompt
-        assert '75' in prompt
+        assert "injuries" in prompt.lower()
+        assert "back pain" in prompt
+        assert "75" in prompt
 
     def test_create_document_final_prompt_includes_focus(self, adapter):
         """Document final prompt includes focus emphasis."""
@@ -240,12 +245,12 @@ INSTRUCTIONS:
             model_name="phi-3-mini",
             chunk_summaries="Summary 1\n\nSummary 2",
             filename="complaint.pdf",
-            max_words=200
+            max_words=200,
         )
 
-        assert 'injuries' in prompt.lower()
-        assert 'complaint.pdf' in prompt
-        assert '200' in prompt
+        assert "injuries" in prompt.lower()
+        assert "complaint.pdf" in prompt
+        assert "200" in prompt
 
     def test_create_meta_summary_prompt_includes_instructions(self, adapter):
         """Meta-summary prompt includes extracted instructions."""
@@ -254,12 +259,12 @@ INSTRUCTIONS:
             model_name="phi-3-mini",
             formatted_summaries="Doc 1 summary\n\nDoc 2 summary",
             max_words=500,
-            doc_count=2
+            doc_count=2,
         )
 
-        assert 'Identify all injuries' in prompt
-        assert '2 documents' in prompt
-        assert 'Doc 1 summary' in prompt
+        assert "Identify all injuries" in prompt
+        assert "2 documents" in prompt
+        assert "Doc 1 summary" in prompt
 
     def test_caches_focus_per_preset_and_model(self, adapter, mock_model_manager):
         """Focus is cached per preset/model combination."""
@@ -270,7 +275,7 @@ INSTRUCTIONS:
             global_context="",
             local_context="",
             chunk_text="Text",
-            max_words=75
+            max_words=75,
         )
 
         # Same preset/model - should use cache
@@ -280,7 +285,7 @@ INSTRUCTIONS:
             global_context="",
             local_context="",
             chunk_text="Different text",
-            max_words=75
+            max_words=75,
         )
 
         # Only called AI once for focus extraction (template load triggers this)
@@ -289,28 +294,22 @@ INSTRUCTIONS:
 
     def test_accepts_custom_focus_extractor(self, mock_template_manager, mock_model_manager):
         """Can inject a custom focus extractor."""
+
         class CustomExtractor(FocusExtractor):
             def extract_focus(self, template: str, preset_id: str) -> dict:
-                return {
-                    'emphasis': 'custom emphasis',
-                    'instructions': '1. Custom instruction'
-                }
+                return {"emphasis": "custom emphasis", "instructions": "1. Custom instruction"}
 
         adapter = MultiDocPromptAdapter(
             template_manager=mock_template_manager,
             model_manager=mock_model_manager,
-            focus_extractor=CustomExtractor()
+            focus_extractor=CustomExtractor(),
         )
 
         prompt = adapter.create_meta_summary_prompt(
-            preset_id="any",
-            model_name="any",
-            formatted_summaries="",
-            max_words=100,
-            doc_count=1
+            preset_id="any", model_name="any", formatted_summaries="", max_words=100, doc_count=1
         )
 
-        assert 'Custom instruction' in prompt
+        assert "Custom instruction" in prompt
 
     def test_clear_cache_resets_focus_cache(self, adapter, mock_model_manager):
         """clear_cache() removes cached focus entries."""
@@ -321,7 +320,7 @@ INSTRUCTIONS:
             global_context="",
             local_context="",
             chunk_text="Text",
-            max_words=75
+            max_words=75,
         )
 
         # Clear and regenerate
@@ -334,7 +333,7 @@ INSTRUCTIONS:
             global_context="",
             local_context="",
             chunk_text="Text",
-            max_words=75
+            max_words=75,
         )
 
         # Should call AI twice (cache was cleared)
@@ -346,13 +345,15 @@ class TestIntegrationImports:
 
     def test_focus_extractor_imports(self):
         """FocusExtractor components import correctly."""
-        from src.core.prompting import FocusExtractor, AIFocusExtractor
+        from src.core.prompting import AIFocusExtractor, FocusExtractor
+
         assert FocusExtractor is not None
         assert AIFocusExtractor is not None
 
     def test_prompt_adapter_imports(self):
         """PromptAdapter components import correctly."""
-        from src.core.prompting import PromptAdapter, MultiDocPromptAdapter
+        from src.core.prompting import MultiDocPromptAdapter, PromptAdapter
+
         assert PromptAdapter is not None
         assert MultiDocPromptAdapter is not None
 
@@ -365,9 +366,7 @@ class TestIntegrationImports:
 
         # Should not raise
         summarizer = ProgressiveDocumentSummarizer(
-            model_manager=mock_model,
-            prompt_adapter=mock_adapter,
-            preset_id="test-preset"
+            model_manager=mock_model, prompt_adapter=mock_adapter, preset_id="test-preset"
         )
 
         assert summarizer.prompt_adapter == mock_adapter
@@ -375,7 +374,7 @@ class TestIntegrationImports:
 
     def test_orchestrator_accepts_adapter_params(self):
         """MultiDocumentOrchestrator accepts adapter parameters."""
-        from src.core.summarization import MultiDocumentOrchestrator, ProgressiveDocumentSummarizer
+        from src.core.summarization import MultiDocumentOrchestrator
 
         mock_model = Mock()
         mock_adapter = Mock()
@@ -386,7 +385,7 @@ class TestIntegrationImports:
             document_summarizer=mock_summarizer,
             model_manager=mock_model,
             prompt_adapter=mock_adapter,
-            preset_id="test-preset"
+            preset_id="test-preset",
         )
 
         assert orchestrator.prompt_adapter == mock_adapter

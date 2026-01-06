@@ -187,10 +187,12 @@ class TestPreprocessingPipeline:
 
     def test_disabled_preprocessors_skipped(self):
         """Should skip disabled preprocessors."""
-        pipeline = PreprocessingPipeline([
-            LineNumberRemover(),
-            QAConverter(),
-        ])
+        pipeline = PreprocessingPipeline(
+            [
+                LineNumberRemover(),
+                QAConverter(),
+            ]
+        )
         pipeline.preprocessors[1].enabled = False  # Disable Q/A converter
 
         text = "Q.  What happened?\nA.  I saw it."
@@ -219,4 +221,4 @@ class TestPreprocessingPipeline:
 
         stats = pipeline.get_stats()
         assert isinstance(stats, dict)
-        assert any("Q/A Converter" in name for name in stats.keys())
+        assert any("Q/A Converter" in name for name in stats)

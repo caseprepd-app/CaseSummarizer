@@ -24,21 +24,20 @@ Usage:
 
 import os
 import sys
-import time
 import threading
-from pathlib import Path
-from queue import Queue, Empty
+import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Callable
+from pathlib import Path
+from queue import Empty, Queue
+
 import pytest
 
 # Ensure src is importable
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from src.config import DEBUG_MODE
 from src.logging_config import debug_log
-from src.ui.queue_messages import QueueMessage, MessageType
-
+from src.ui.queue_messages import MessageType, QueueMessage
 
 # =============================================================================
 # Test Configuration
@@ -58,6 +57,7 @@ TOTAL_TIMEOUT = 900  # 15 minutes total
 @dataclass
 class WorkflowProgress:
     """Tracks progress through the workflow phases."""
+
     files_processed: int = 0
     preprocessing_complete: bool = False
     ner_complete: bool = False
@@ -72,11 +72,7 @@ class WorkflowProgress:
 
     def is_complete(self, require_llm: bool = False) -> bool:
         """Check if workflow completed all expected phases."""
-        base_complete = (
-            self.preprocessing_complete and
-            self.ner_complete and
-            self.qa_ready
-        )
+        base_complete = self.preprocessing_complete and self.ner_complete and self.qa_ready
         if require_llm:
             return base_complete and self.llm_complete
         return base_complete
@@ -85,6 +81,7 @@ class WorkflowProgress:
 # =============================================================================
 # Test Fixtures
 # =============================================================================
+
 
 @pytest.fixture
 def sample_pdfs():
@@ -111,6 +108,7 @@ def progress_tracker():
 # Queue Message Collector
 # =============================================================================
 
+
 class QueueCollector:
     """
     Collects and categorizes messages from worker threads.
@@ -128,10 +126,7 @@ class QueueCollector:
         self._stop_event.set()
 
     def collect_until(
-        self,
-        condition: Callable[[], bool],
-        timeout: float,
-        poll_interval: float = 0.1
+        self, condition: Callable[[], bool], timeout: float, poll_interval: float = 0.1
     ) -> bool:
         """
         Collect messages until condition is met or timeout.
@@ -200,7 +195,7 @@ class QueueCollector:
 
         elif msg_type == MessageType.QA_READY:
             self.progress.qa_ready = True
-            chunk_count = data.get('chunk_count', 0) if isinstance(data, dict) else 0
+            chunk_count = data.get("chunk_count", 0) if isinstance(data, dict) else 0
             debug_log(f"[COLLECTOR] Q&A ready: {chunk_count} chunks")
 
         elif msg_type == MessageType.LLM_COMPLETE:
@@ -221,6 +216,7 @@ class QueueCollector:
 # HEADLESS TESTS - Test workers directly without GUI
 # =============================================================================
 
+
 class TestHeadlessPreprocessing:
     """Test document preprocessing (extraction) without GUI."""
 
@@ -229,17 +225,14 @@ class TestHeadlessPreprocessing:
         from src.ui.workers import ProcessingWorker
 
         # Start worker
-        worker = ProcessingWorker(
-            file_paths=sample_pdfs,
-            ui_queue=ui_queue
-        )
+        worker = ProcessingWorker(file_paths=sample_pdfs, ui_queue=ui_queue)
         worker.start()
 
         # Collect messages until preprocessing complete
         collector = QueueCollector(ui_queue, progress_tracker)
         success = collector.collect_until(
             condition=lambda: progress_tracker.preprocessing_complete,
-            timeout=PREPROCESSING_TIMEOUT * len(sample_pdfs)
+            timeout=PREPROCESSING_TIMEOUT * len(sample_pdfs),
         )
 
         # Wait for worker to finish
@@ -247,8 +240,9 @@ class TestHeadlessPreprocessing:
 
         # Assertions
         assert success, f"Preprocessing timed out. Messages: {progress_tracker.messages[-10:]}"
-        assert progress_tracker.files_processed == len(sample_pdfs), \
+        assert progress_tracker.files_processed == len(sample_pdfs), (
             f"Expected {len(sample_pdfs)} files, got {progress_tracker.files_processed}"
+        )
         assert not progress_tracker.errors, f"Errors: {progress_tracker.errors}"
 
     def test_preprocessing_results_have_text(self, sample_pdfs, ui_queue, progress_tracker):
@@ -257,22 +251,18 @@ class TestHeadlessPreprocessing:
 
         worker = ProcessingWorker(
             file_paths=sample_pdfs[:1],  # Just first file for speed
-            ui_queue=ui_queue
+            ui_queue=ui_queue,
         )
         worker.start()
 
         collector = QueueCollector(ui_queue, progress_tracker)
         collector.collect_until(
-            condition=lambda: progress_tracker.preprocessing_complete,
-            timeout=PREPROCESSING_TIMEOUT
+            condition=lambda: progress_tracker.preprocessing_complete, timeout=PREPROCESSING_TIMEOUT
         )
         worker.join(timeout=5)
 
         # Check that we captured file_processed with text
-        file_messages = [
-            m for m in progress_tracker.messages
-            if m[1] == MessageType.FILE_PROCESSED
-        ]
+        file_messages = [m for m in progress_tracker.messages if m[1] == MessageType.FILE_PROCESSED]
         assert file_messages, "No file_processed messages received"
 
 
@@ -283,7 +273,6 @@ class TestHeadlessVocabulary:
     def extracted_text(self, sample_pdfs, ui_queue, progress_tracker):
         """Pre-extract text from sample PDFs for vocabulary tests."""
         from src.ui.workers import ProcessingWorker
-        from src.core.utils.text_utils import combine_document_texts
 
         worker = ProcessingWorker(file_paths=sample_pdfs, ui_queue=ui_queue)
         worker.start()
@@ -291,13 +280,12 @@ class TestHeadlessVocabulary:
         collector = QueueCollector(ui_queue, progress_tracker)
         collector.collect_until(
             condition=lambda: progress_tracker.preprocessing_complete,
-            timeout=PREPROCESSING_TIMEOUT * len(sample_pdfs)
+            timeout=PREPROCESSING_TIMEOUT * len(sample_pdfs),
         )
         worker.join(timeout=5)
 
         # Reconstruct results from messages
-        results = []
-        for _, msg_type, data_str in progress_tracker.messages:
+        for _, msg_type, _data_str in progress_tracker.messages:
             if msg_type == MessageType.PROCESSING_FINISHED:
                 # Note: data_str is truncated, we need the actual data
                 pass
@@ -319,7 +307,7 @@ class TestHeadlessVocabulary:
             combined_text=combined_text,
             ui_queue=ui_queue,
             doc_count=len(extracted_text),
-            use_llm=False  # NER only for speed
+            use_llm=False,  # NER only for speed
         )
         worker.start()
 
@@ -353,21 +341,18 @@ class TestHeadlessProgressiveExtraction:
 
         This is the core test that reproduces the "stuck" issue.
         """
-        from src.ui.workers import ProcessingWorker, ProgressiveExtractionWorker
         from src.core.utils.text_utils import combine_document_texts
+        from src.ui.workers import ProcessingWorker, ProgressiveExtractionWorker
 
         # Phase 0: Preprocessing
         debug_log("[TEST] Starting preprocessing...")
-        preprocess_worker = ProcessingWorker(
-            file_paths=sample_pdfs,
-            ui_queue=ui_queue
-        )
+        preprocess_worker = ProcessingWorker(file_paths=sample_pdfs, ui_queue=ui_queue)
         preprocess_worker.start()
 
         collector = QueueCollector(ui_queue, progress_tracker)
         success = collector.collect_until(
             condition=lambda: progress_tracker.preprocessing_complete,
-            timeout=PREPROCESSING_TIMEOUT * len(sample_pdfs)
+            timeout=PREPROCESSING_TIMEOUT * len(sample_pdfs),
         )
         preprocess_worker.join(timeout=5)
 
@@ -377,7 +362,7 @@ class TestHeadlessProgressiveExtraction:
 
         # Check confidence scores
         for doc in documents:
-            conf = doc.get('confidence', 0)
+            conf = doc.get("confidence", 0)
             debug_log(f"[TEST] {doc.get('filename', '?')}: {conf}% confidence")
             # Your typical range is 80-90%
             assert conf > 50, f"Low confidence: {conf}%"
@@ -409,8 +394,7 @@ class TestHeadlessProgressiveExtraction:
         # Wait for NER (Phase 1)
         debug_log("[TEST] Waiting for Phase 1 (NER)...")
         ner_success = extract_collector.collect_until(
-            condition=lambda: extract_progress.ner_complete,
-            timeout=PHASE1_TIMEOUT
+            condition=lambda: extract_progress.ner_complete, timeout=PHASE1_TIMEOUT
         )
         assert ner_success, f"Phase 1 (NER) timed out. Messages: {extract_progress.messages[-10:]}"
         debug_log("[TEST] Phase 1 complete!")
@@ -418,8 +402,7 @@ class TestHeadlessProgressiveExtraction:
         # Wait for Q&A Ready (Phase 2)
         debug_log("[TEST] Waiting for Phase 2 (Q&A indexing)...")
         qa_success = extract_collector.collect_until(
-            condition=lambda: extract_progress.qa_ready,
-            timeout=PHASE2_TIMEOUT
+            condition=lambda: extract_progress.qa_ready, timeout=PHASE2_TIMEOUT
         )
         assert qa_success, f"Phase 2 (Q&A) timed out. Messages: {extract_progress.messages[-10:]}"
         debug_log("[TEST] Phase 2 complete!")
@@ -428,7 +411,7 @@ class TestHeadlessProgressiveExtraction:
         debug_log("[TEST] Waiting for Phase 3 (LLM/finalization)...")
         llm_success = extract_collector.collect_until(
             condition=lambda: extract_progress.llm_complete,
-            timeout=60  # Should be fast since LLM is disabled
+            timeout=60,  # Should be fast since LLM is disabled
         )
         assert llm_success, f"Phase 3 timed out. Messages: {extract_progress.messages[-10:]}"
         debug_log("[TEST] Phase 3 complete!")
@@ -445,6 +428,7 @@ class TestHeadlessProgressiveExtraction:
 # GUI SIMULATION TESTS - Test with actual MainWindow
 # =============================================================================
 
+
 @pytest.mark.slow
 @pytest.mark.integration
 class TestGUISimulation:
@@ -460,6 +444,7 @@ class TestGUISimulation:
         """Check if GUI tests can run."""
         try:
             import tkinter as tk
+
             root = tk.Tk()
             root.withdraw()
             root.destroy()
@@ -478,7 +463,6 @@ class TestGUISimulation:
         if not can_run_gui:
             pytest.skip("No display available for GUI tests")
 
-        import tkinter as tk
         from src.ui.main_window import MainWindow
 
         # Track progress
@@ -527,13 +511,17 @@ class TestGUISimulation:
                     app.update()
 
                     # Check if tasks completed
-                    if hasattr(app, '_completed_tasks') and 'vocab' in app._completed_tasks:
+                    if hasattr(app, "_completed_tasks") and "vocab" in app._completed_tasks:
                         debug_log("[GUI TEST] Vocabulary task complete")
                     if app._qa_ready:
                         debug_log("[GUI TEST] Q&A ready")
 
                     # Check for stuck state
-                    if app._qa_ready and hasattr(app, '_completed_tasks') and 'vocab' in app._completed_tasks:
+                    if (
+                        app._qa_ready
+                        and hasattr(app, "_completed_tasks")
+                        and "vocab" in app._completed_tasks
+                    ):
                         workflow_complete.set()
                         break
 
@@ -550,19 +538,21 @@ class TestGUISimulation:
             except Exception as e:
                 errors.append(f"GUI error: {e}")
                 import traceback
+
                 errors.append(traceback.format_exc())
 
         # Run in main thread (required for tkinter)
         run_gui()
 
         # Assertions
-        assert not errors, f"GUI test errors:\n" + "\n".join(errors)
+        assert not errors, "GUI test errors:\n" + "\n".join(errors)
         assert workflow_complete.is_set(), "Workflow did not complete"
 
 
 # =============================================================================
 # Diagnostic Tests - Help identify stuck points
 # =============================================================================
+
 
 class TestDiagnostics:
     """Diagnostic tests to help identify where processing gets stuck."""
@@ -573,7 +563,7 @@ class TestDiagnostics:
 
         worker = ProcessingWorker(
             file_paths=sample_pdfs[:1],  # Just one file
-            ui_queue=ui_queue
+            ui_queue=ui_queue,
         )
 
         # Thread should not be alive before start
@@ -607,10 +597,7 @@ class TestDiagnostics:
 
         from langchain_huggingface import HuggingFaceEmbeddings
 
-        embeddings = HuggingFaceEmbeddings(
-            model_name="all-MiniLM-L6-v2",
-            model_kwargs={'device': 'cpu'}
-        )
+        HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2", model_kwargs={"device": "cpu"})
 
         load_time = time.time() - start_time
         debug_log(f"[DIAGNOSTIC] Embeddings loaded in {load_time:.1f}s")
@@ -636,13 +623,16 @@ class TestDiagnostics:
 
 if __name__ == "__main__":
     # Enable debug logging
-    os.environ['DEBUG'] = 'true'
+    os.environ["DEBUG"] = "true"
 
     # Run specific tests
-    pytest.main([
-        __file__,
-        "-v",
-        "-s",  # Show print output
-        "--tb=short",
-        "-k", "TestHeadlessProgressiveExtraction",  # Run the main workflow test
-    ])
+    pytest.main(
+        [
+            __file__,
+            "-v",
+            "-s",  # Show print output
+            "--tb=short",
+            "-k",
+            "TestHeadlessProgressiveExtraction",  # Run the main workflow test
+        ]
+    )

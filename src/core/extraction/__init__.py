@@ -12,18 +12,18 @@ Session 45 Updates:
 - Support for UnifiedChunk objects from unified chunker
 """
 
-from src.core.extraction.raw_text_extractor import RawTextExtractor
 from src.core.extraction.llm_extractor import (
-    LLMVocabExtractor,
+    LLMExtractionResult,
     LLMPerson,
     LLMTerm,
-    LLMExtractionResult,
+    LLMVocabExtractor,
 )
+from src.core.extraction.raw_text_extractor import RawTextExtractor
 
 __all__ = [
-    "RawTextExtractor",
-    "LLMVocabExtractor",
+    "LLMExtractionResult",
     "LLMPerson",
     "LLMTerm",
-    "LLMExtractionResult",
+    "LLMVocabExtractor",
+    "RawTextExtractor",
 ]

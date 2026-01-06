@@ -24,10 +24,10 @@ import customtkinter as ctk
 import yaml
 
 from src.config import DEBUG_MODE
-from src.ui.base_dialog import BaseModalDialog
 from src.core.config import load_yaml_with_fallback
 from src.logging_config import debug_log
-from src.ui.theme import FONTS, COLORS, BUTTON_STYLES
+from src.ui.base_dialog import BaseModalDialog
+from src.ui.theme import BUTTON_STYLES, COLORS, FONTS
 
 # Default questions YAML path
 DEFAULT_QUESTIONS_PATH = Path(__file__).parent.parent.parent / "config" / "qa_questions.yaml"

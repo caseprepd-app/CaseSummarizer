@@ -3,23 +3,23 @@ Quick test script to verify AI model loading and text generation.
 Tests the ModelManager without launching the full GUI.
 """
 
-import sys
 import os
+import sys
 from pathlib import Path
 
 # Fix Windows console encoding for Unicode characters
-if sys.platform == 'win32':
-    os.system('chcp 65001 > nul 2>&1')
-    if hasattr(sys.stdout, 'reconfigure'):
-        sys.stdout.reconfigure(encoding='utf-8')
-    if hasattr(sys.stderr, 'reconfigure'):
-        sys.stderr.reconfigure(encoding='utf-8')
+if sys.platform == "win32":
+    os.system("chcp 65001 > nul 2>&1")
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8")
+    if hasattr(sys.stderr, "reconfigure"):
+        sys.stderr.reconfigure(encoding="utf-8")
 
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent))
 
 from src.core.ai import ModelManager
-from src.config import DEBUG_MODE
+
 
 def test_model_loading():
     """Test basic model loading and text generation."""
@@ -35,23 +35,23 @@ def test_model_loading():
     print("\n[2/4] Checking available models...")
     models = manager.get_available_models()
 
-    for model_key, model_info in models.items():
-        status = "✓ Available" if model_info['available'] else "✗ Not found"
+    for _model_key, model_info in models.items():
+        status = "✓ Available" if model_info["available"] else "✗ Not found"
         print(f"  {model_info['name']}: {status}")
-        if model_info['available']:
+        if model_info["available"]:
             print(f"    Path: {model_info['path']}")
             print(f"    Size: {model_info['size_gb']} GB")
 
     # Find first available model
     available_model = None
     for model_key, model_info in models.items():
-        if model_info['available']:
+        if model_info["available"]:
             available_model = model_key
             break
 
     if not available_model:
         print("\n❌ ERROR: No models found!")
-        print(f"   Please download a model to the models directory")
+        print("   Please download a model to the models directory")
         return False
 
     # Load the model
@@ -77,10 +77,7 @@ def test_model_loading():
         # Generate with streaming
         full_response = ""
         for token in manager.generate_text(
-            prompt=test_prompt,
-            max_tokens=50,
-            temperature=0.3,
-            stream=True
+            prompt=test_prompt, max_tokens=50, temperature=0.3, stream=True
         ):
             print(token, end="", flush=True)
             full_response += token
@@ -98,19 +95,21 @@ def test_model_loading():
             return False
 
     except Exception as e:
-        print(f"\n\n❌ ERROR during generation: {str(e)}")
+        print(f"\n\n❌ ERROR during generation: {e!s}")
         return False
     finally:
         # Cleanup
         manager.unload_model()
         print("\nModel unloaded.")
 
+
 if __name__ == "__main__":
     try:
         success = test_model_loading()
         sys.exit(0 if success else 1)
     except Exception as e:
-        print(f"\n❌ UNEXPECTED ERROR: {str(e)}")
+        print(f"\n❌ UNEXPECTED ERROR: {e!s}")
         import traceback
+
         traceback.print_exc()
         sys.exit(1)

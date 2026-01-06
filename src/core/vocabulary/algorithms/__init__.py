@@ -24,8 +24,6 @@ Registration:
         ...
 """
 
-from typing import Type
-
 from src.core.vocabulary.algorithms.base import (
     AlgorithmResult,
     BaseExtractionAlgorithm,
@@ -33,7 +31,7 @@ from src.core.vocabulary.algorithms.base import (
 )
 
 # Registry of available algorithms (class references, not instances)
-_ALGORITHM_REGISTRY: dict[str, Type[BaseExtractionAlgorithm]] = {}
+_ALGORITHM_REGISTRY: dict[str, type[BaseExtractionAlgorithm]] = {}
 
 
 def register_algorithm(name: str):
@@ -59,7 +57,7 @@ def register_algorithm(name: str):
         ValueError: If name is already registered (prevents accidental overwrites)
     """
 
-    def decorator(cls: Type[BaseExtractionAlgorithm]) -> Type[BaseExtractionAlgorithm]:
+    def decorator(cls: type[BaseExtractionAlgorithm]) -> type[BaseExtractionAlgorithm]:
         if name in _ALGORITHM_REGISTRY:
             raise ValueError(
                 f"Algorithm '{name}' is already registered. "

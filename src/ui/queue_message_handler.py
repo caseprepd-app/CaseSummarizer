@@ -29,6 +29,7 @@ Performance Optimizations (Session 14):
 
 import gc
 from tkinter import messagebox
+
 from src.logging_config import debug_log
 from src.ui.processing_timer import format_duration
 from src.ui.queue_messages import MessageType
@@ -157,7 +158,7 @@ class QueueMessageHandler:
         Args:
             data: Dictionary with 'summary' key containing the generated text
         """
-        debug_log(f"[QUEUE HANDLER] Summary result received.")
+        debug_log("[QUEUE HANDLER] Summary result received.")
         self.main_window.summary_results.update_outputs(meta_summary=data.get("summary", ""))
         self.main_window.progress_bar.set(1.0)
         self.main_window.status_label.configure(text="Summary generation complete!")
@@ -177,7 +178,6 @@ class QueueMessageHandler:
             data: MultiDocumentSummaryResult with individual_summaries and meta_summary
         """
         # Import here to avoid circular imports
-        from src.core.summarization import MultiDocumentSummaryResult
 
         debug_log(
             f"[QUEUE HANDLER] Multi-doc result received: "
@@ -257,7 +257,9 @@ class QueueMessageHandler:
 
         # Disable cancel button (grey it out instead of hiding)
         self.main_window.cancel_btn.configure(
-            state="disabled", fg_color="#6c757d", hover_color="#5a6268"  # Grey when disabled
+            state="disabled",
+            fg_color="#6c757d",
+            hover_color="#5a6268",  # Grey when disabled
         )
         debug_log("[QUEUE HANDLER] Cancel button disabled (greyed out)")
 

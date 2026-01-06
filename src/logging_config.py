@@ -56,7 +56,7 @@ class _DebugFileLogger:
     def _initialize_log_file(cls):
         """Create and initialize the debug log file."""
         log_path = Path(__file__).parent.parent / "debug_flow.txt"
-        cls._log_file = open(log_path, "w", encoding="utf-8")
+        cls._log_file = open(log_path, "w", encoding="utf-8")  # noqa: SIM115
         cls._log_file.write("=== LocalScribe Debug Log ===\n")
         cls._log_file.write(f"Started: {datetime.now().isoformat()}\n")
         cls._log_file.write(f"DEBUG_MODE: {DEBUG_MODE}\n")
@@ -334,11 +334,11 @@ def debug_timing(operation: str, elapsed_seconds: float):
         # Output: "[14:32:01] PDF chunking took 2.34s"
     """
     if elapsed_seconds < 1:
-        time_str = f"{elapsed_seconds*1000:.0f} ms"
+        time_str = f"{elapsed_seconds * 1000:.0f} ms"
     elif elapsed_seconds < 60:
         time_str = f"{elapsed_seconds:.2f}s"
     else:
-        time_str = f"{elapsed_seconds/60:.1f}m"
+        time_str = f"{elapsed_seconds / 60:.1f}m"
     debug_log(f"{operation} took {time_str}")
 
 
@@ -357,14 +357,14 @@ def close_debug_log():
 
 # These allow existing code to continue working without changes
 __all__ = [
-    "debug_log",
+    "DEBUG_MODE",
+    "Timer",
+    "close_debug_log",
+    "critical",
     "debug",
+    "debug_log",
     "debug_timing",
+    "error",
     "info",
     "warning",
-    "error",
-    "critical",
-    "close_debug_log",
-    "Timer",
-    "DEBUG_MODE",
 ]

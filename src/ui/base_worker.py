@@ -114,7 +114,7 @@ class BaseWorker(threading.Thread):
             operation: What was being attempted (for error message)
             error: The exception that occurred
         """
-        error_msg = f"{operation} failed: {str(error)}"
+        error_msg = f"{operation} failed: {error!s}"
         debug_log(f"[{self._worker_name}] {error_msg}\n{traceback.format_exc()}")
         self.ui_queue.put(QueueMessage.error(error_msg))
 

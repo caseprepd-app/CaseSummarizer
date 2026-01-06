@@ -29,8 +29,9 @@ from src.config import (
     PROMPTS_DIR,
     USER_PROMPTS_DIR,
 )
+from src.core.prompting import PromptTemplateManager, get_prompt_config
 from src.logging_config import debug, debug_log, warning
-from src.core.prompting import get_prompt_config, PromptTemplateManager
+
 from .prompt_formatter import wrap_prompt_for_model
 from .summary_post_processor import SummaryPostProcessor
 
@@ -117,8 +118,8 @@ class OllamaModelManager:
             debug_log(f"[OLLAMA] Connection error: Cannot reach {self.api_base}")
             self.is_connected = False
         except Exception as e:
-            debug(f"Connection check failed: {str(e)}")
-            debug_log(f"[OLLAMA] Connection error: {str(e)}")
+            debug(f"Connection check failed: {e!s}")
+            debug_log(f"[OLLAMA] Connection error: {e!s}")
             self.is_connected = False
 
         return self.is_connected
@@ -154,8 +155,8 @@ class OllamaModelManager:
                 else:
                     debug(f"Failed to get models: {response.status_code}")
             except Exception as e:
-                debug(f"Error fetching available models: {str(e)}")
-                debug_log(f"[OLLAMA] Error fetching models: {str(e)}")
+                debug(f"Error fetching available models: {e!s}")
+                debug_log(f"[OLLAMA] Error fetching models: {e!s}")
         else:
             debug("Ollama not connected - cannot get available models")
             debug_log("[OLLAMA] Not connected - cannot list models")
@@ -170,7 +171,7 @@ class OllamaModelManager:
             size_bytes /= 1024
         return f"{size_bytes:.1f} TB"
 
-    def load_model(self, model_name: str = None) -> bool:
+    def load_model(self, model_name: str | None = None) -> bool:
         """
         Load a model via Ollama (pulls if not already available).
 
@@ -213,8 +214,8 @@ class OllamaModelManager:
             return True
 
         except Exception as e:
-            debug(f"Failed to load model {model_name}: {str(e)}")
-            debug_log(f"[OLLAMA LOAD] Error: {str(e)}")
+            debug(f"Failed to load model {model_name}: {e!s}")
+            debug_log(f"[OLLAMA LOAD] Error: {e!s}")
             return False
 
     def is_model_loaded(self) -> bool:
@@ -224,7 +225,11 @@ class OllamaModelManager:
         return self.is_connected
 
     def generate_text(
-        self, prompt: str, max_tokens: int = 500, temperature: float = None, top_p: float = None
+        self,
+        prompt: str,
+        max_tokens: int = 500,
+        temperature: float | None = None,
+        top_p: float | None = None,
     ) -> str:
         """
         Generate text using Ollama REST API.
@@ -273,7 +278,7 @@ class OllamaModelManager:
                     f"Prompt ({estimated_tokens} estimated tokens) may be truncated. "
                     f"Context window is {context_window} tokens."
                 )
-                debug_log(f"[OLLAMA GENERATE] WARNING: Prompt may exceed context window!")
+                debug_log("[OLLAMA GENERATE] WARNING: Prompt may exceed context window!")
 
             debug_log(f"[OLLAMA GENERATE] Using context window: {context_window} tokens")
 
@@ -333,9 +338,9 @@ class OllamaModelManager:
                 "Is Ollama running? Start with: ollama serve"
             ) from e
         except Exception as e:
-            debug(f"Text generation failed: {str(e)}")
-            debug_log(f"[OLLAMA GENERATE] Error: {str(e)}")
-            raise RuntimeError(f"Text generation failed: {str(e)}") from e
+            debug(f"Text generation failed: {e!s}")
+            debug_log(f"[OLLAMA GENERATE] Error: {e!s}")
+            raise RuntimeError(f"Text generation failed: {e!s}") from e
 
     def generate_summary(
         self, case_text: str, max_words: int = 200, preset_id: str = "factual-summary"
@@ -516,7 +521,7 @@ class OllamaModelManager:
             debug_log(f"[OLLAMA STRUCTURED] Connection error to {self.api_base}")
             return None
         except Exception as e:
-            debug_log(f"[OLLAMA STRUCTURED] Error: {str(e)}")
+            debug_log(f"[OLLAMA STRUCTURED] Error: {e!s}")
             return None
 
     def _parse_json_response(self, text: str) -> dict[str, Any] | None:

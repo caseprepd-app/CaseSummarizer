@@ -68,9 +68,8 @@ class PatternFilter:
             elif self.method == MatchMethod.SEARCH:
                 if pattern.search(text):
                     return True
-            elif self.method == MatchMethod.FULLMATCH:
-                if pattern.fullmatch(text):
-                    return True
+            elif self.method == MatchMethod.FULLMATCH and pattern.fullmatch(text):
+                return True
         return False
 
 
@@ -243,10 +242,7 @@ def matches_entity_filter(entity_text: str) -> bool:
         return True
     if LEGAL_BOILERPLATE_FILTER.matches(entity_text):
         return True
-    if CASE_CITATION_FILTER.matches(entity_text):
-        return True
-
-    return False
+    return bool(CASE_CITATION_FILTER.matches(entity_text))
 
 
 def matches_token_filter(token_text: str) -> bool:
@@ -269,10 +265,7 @@ def matches_token_filter(token_text: str) -> bool:
         return True
     if GEOGRAPHIC_CODE_FILTER.matches(token_text):
         return True
-    if OCR_ERROR_FILTER.matches(token_text):
-        return True
-
-    return False
+    return bool(OCR_ERROR_FILTER.matches(token_text))
 
 
 def is_valid_acronym(text: str) -> bool:
@@ -287,6 +280,4 @@ def is_valid_acronym(text: str) -> bool:
     """
     if not ACRONYM_FILTER.matches(text):
         return False
-    if text.lower() in TITLE_ABBREVIATIONS:
-        return False
-    return True
+    return text.lower() not in TITLE_ABBREVIATIONS

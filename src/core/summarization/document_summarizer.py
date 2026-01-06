@@ -34,8 +34,9 @@ from __future__ import annotations
 
 import time
 from abc import ABC, abstractmethod
+from collections.abc import Callable
 from pathlib import Path
-from typing import TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING
 
 from src.logging_config import debug_log, error, info
 from src.progressive_summarizer import ProgressiveSummarizer
@@ -110,7 +111,7 @@ class ProgressiveDocumentSummarizer(DocumentSummarizer):
         self,
         model_manager: OllamaModelManager,
         config_path: Path | None = None,
-        prompt_adapter: "PromptAdapter | None" = None,
+        prompt_adapter: PromptAdapter | None = None,
         preset_id: str = "factual-summary",
     ):
         """

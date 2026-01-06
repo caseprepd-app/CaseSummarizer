@@ -87,10 +87,10 @@ def create_tooltip(widget, text, delay_ms=500, offset_x=15, offset_y=10):
 
         tooltip_window.wm_overrideredirect(True)
         tooltip_window.wm_attributes("-topmost", True)
-        try:
+        import contextlib
+
+        with contextlib.suppress(_TK_ERRORS):
             tooltip_window.wm_attributes("-toolwindow", True)  # Windows-specific
-        except _TK_ERRORS:
-            pass  # Not available on all platforms
 
         # Session 62b: Register with global manager
         tooltip_manager.register(tooltip_window, owner=widget)
@@ -165,10 +165,10 @@ def create_tooltip(widget, text, delay_ms=500, offset_x=15, offset_y=10):
         if tooltip_window:
             # Session 62b: Unregister from global manager
             tooltip_manager.unregister(tooltip_window)
-            try:
+            import contextlib
+
+            with contextlib.suppress(_TK_ERRORS):
                 tooltip_window.destroy()
-            except _TK_ERRORS:
-                pass  # Window may already be destroyed
             tooltip_window = None
 
     def on_enter(event):
@@ -244,10 +244,10 @@ def create_tooltip_for_frame(
 
         tooltip_window.wm_overrideredirect(True)
         tooltip_window.wm_attributes("-topmost", True)
-        try:
+        import contextlib
+
+        with contextlib.suppress(_TK_ERRORS):
             tooltip_window.wm_attributes("-toolwindow", True)
-        except _TK_ERRORS:
-            pass  # Not available on all platforms
 
         # Session 62b: Register with global manager
         tooltip_manager.register(tooltip_window, owner=frame)
@@ -304,10 +304,10 @@ def create_tooltip_for_frame(
             if tooltip_window:
                 # Session 62b: Unregister from global manager
                 tooltip_manager.unregister(tooltip_window)
-                try:
+                import contextlib
+
+                with contextlib.suppress(_TK_ERRORS):
                     tooltip_window.destroy()
-                except _TK_ERRORS:
-                    pass  # Window may already be destroyed
                 tooltip_window = None
 
     def force_hide(event=None):
@@ -318,10 +318,10 @@ def create_tooltip_for_frame(
         if tooltip_window:
             # Session 62b: Unregister from global manager
             tooltip_manager.unregister(tooltip_window)
-            try:
+            import contextlib
+
+            with contextlib.suppress(_TK_ERRORS):
                 tooltip_window.destroy()
-            except _TK_ERRORS:
-                pass  # Window may already be destroyed
             tooltip_window = None
 
     # Bind to frame

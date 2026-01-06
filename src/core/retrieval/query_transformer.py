@@ -24,11 +24,9 @@ Example:
 import re  # PERF-005: Move to module level
 import time
 from dataclasses import dataclass, field
-from typing import Optional
 
 from src.config import DEBUG_MODE
 from src.logging_config import debug_log
-
 
 # Default config values
 DEFAULT_VARIANT_COUNT = 3
@@ -48,7 +46,7 @@ class QueryTransformResult:
     @property
     def all_queries(self) -> list[str]:
         """Get original query plus all expanded queries."""
-        return [self.original_query] + self.expanded_queries
+        return [self.original_query, *self.expanded_queries]
 
 
 class QueryTransformer:
@@ -113,8 +111,8 @@ Alternative queries:"""
         self.enabled = enabled
 
         # Lazy-loaded LlamaIndex components
-        self._llm: Optional[object] = None
-        self._available: Optional[bool] = None
+        self._llm: object | None = None
+        self._available: bool | None = None
 
         if DEBUG_MODE:
             debug_log(

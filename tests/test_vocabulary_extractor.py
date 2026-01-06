@@ -57,8 +57,7 @@ def setup_test_files():
 def extractor():
     """Create VocabularyExtractor with test configuration."""
     return VocabularyExtractor(
-        exclude_list_path=EXCLUDE_LIST_PATH,
-        medical_terms_path=MEDICAL_TERMS_PATH
+        exclude_list_path=EXCLUDE_LIST_PATH, medical_terms_path=MEDICAL_TERMS_PATH
     )
 
 
@@ -121,8 +120,9 @@ def test_extract(extractor):
         # Support multiple acceptable Role/Relevance values for flexible NER classification
         expected_roles = expected_data["Role/Relevance"]
         if isinstance(expected_roles, list):
-            assert found_terms[term]["Role/Relevance"] in expected_roles, \
+            assert found_terms[term]["Role/Relevance"] in expected_roles, (
                 f"Role/Relevance '{found_terms[term]['Role/Relevance']}' not in expected {expected_roles}"
+            )
         else:
             assert found_terms[term]["Role/Relevance"] == expected_roles
         # Definition check: Person should be "—", non-Person may have definition or "—"
@@ -149,7 +149,9 @@ def test_extract_deduplication(extractor):
     vocabulary_dup = extractor.extract(test_text_dup)
 
     # Expected: "John Smith" should appear only once despite multiple mentions
-    found_john_smith = next((item for item in vocabulary_dup if item["Term"].lower() == "john smith"), None)
+    found_john_smith = next(
+        (item for item in vocabulary_dup if item["Term"].lower() == "john smith"), None
+    )
     assert found_john_smith is not None, "John Smith not found in extracted vocabulary"
     assert found_john_smith["Is Person"] == "Yes"  # Named entity, is a person
     assert found_john_smith["Definition"] == "—"  # Person entries don't have definitions
@@ -178,4 +180,6 @@ def test_sources_column(extractor):
         # Sources should be comma-separated list of algorithm names
         assert sources, f"Empty Sources for '{term['Term']}'"
         # Should contain at least one known algorithm
-        assert any(alg in sources for alg in ["NER", "RAKE"]), f"Unknown algorithms in Sources: {sources}"
+        assert any(alg in sources for alg in ["NER", "RAKE"]), (
+            f"Unknown algorithms in Sources: {sources}"
+        )

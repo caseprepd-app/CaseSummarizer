@@ -42,11 +42,12 @@ def _is_dedicated_gpu(gpu_name: str) -> tuple[bool, str]:
 
     # Check for integrated GPU keywords first (exclude these)
     for keyword in INTEGRATED_KEYWORDS:
-        if keyword in name_lower:
-            # Exception: Some AMD integrated GPUs have "Radeon" in name
-            # but we want dedicated Radeon RX/Pro cards
-            if not any(amd_kw in name_lower for amd_kw in ["radeon rx", "radeon pro"]):
-                return False, "integrated"
+        # Exception: Some AMD integrated GPUs have "Radeon" in name
+        # but we want dedicated Radeon RX/Pro cards
+        if keyword in name_lower and not any(
+            amd_kw in name_lower for amd_kw in ["radeon rx", "radeon pro"]
+        ):
+            return False, "integrated"
 
     # Check for NVIDIA dedicated GPU
     for keyword in NVIDIA_KEYWORDS:
@@ -100,10 +101,7 @@ def _detect_gpu_wmi() -> dict | None:
 
         # Handle single GPU (returns object) vs multiple (returns array)
         data = json.loads(output)
-        if isinstance(data, dict):
-            gpus = [data]
-        else:
-            gpus = data
+        gpus = [data] if isinstance(data, dict) else data
 
         # Check each GPU for dedicated status
         for gpu in gpus:

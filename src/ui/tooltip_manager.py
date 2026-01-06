@@ -20,9 +20,9 @@ Usage:
     # ... then create your new tooltip
 """
 
-import customtkinter as ctk
 from typing import Optional
-import weakref
+
+import customtkinter as ctk
 
 
 class TooltipManager:
@@ -105,7 +105,7 @@ class TooltipManager:
         return self._active_tooltip is not None
 
     @property
-    def active_tooltip(self) -> Optional[ctk.CTkToplevel]:
+    def active_tooltip(self) -> ctk.CTkToplevel | None:
         """Get the currently active tooltip window (if any)."""
         return self._active_tooltip
 

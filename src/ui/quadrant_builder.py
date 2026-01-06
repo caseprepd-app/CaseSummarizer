@@ -7,9 +7,8 @@ Separates UI layout construction from window orchestration.
 
 import customtkinter as ctk
 
-from src.ui.theme import FONTS, COLORS
-
 from src.ui.dynamic_output import DynamicOutputWidget
+from src.ui.theme import COLORS, FONTS
 from src.ui.tooltip_helper import create_tooltip
 from src.ui.widgets import FileReviewTable, ModelSelectionWidget, OutputOptionsWidget
 
@@ -28,7 +27,7 @@ def build_document_selection_quadrant(parent_frame):
     create_tooltip(
         files_label,
         "Digital PDF: Text extracted directly. Scanned PDF: Uses Tesseract OCR (confidence evaluation may result in higher errors). TXT/RTF: Direct text extraction.\n\n"
-        "Batch: Up to 100 docs. ProcessingTime ≈ (avg_pages × model_size). Supports .pdf, .txt, .rtf.",
+        "Batch: Up to 100 docs. ProcessingTime ~ (avg_pages x model_size). Supports .pdf, .txt, .rtf.",
     )
 
     # File table

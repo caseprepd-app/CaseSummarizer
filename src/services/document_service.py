@@ -12,14 +12,14 @@ Usage:
     combined = service.combine_texts(results)
 """
 
+from collections.abc import Callable
 from pathlib import Path
-from typing import Callable
 
 from src.config import DEBUG_MODE
-from src.logging_config import debug_log
 from src.core.extraction import RawTextExtractor
-from src.core.preprocessing import PreprocessingPipeline, create_default_pipeline
+from src.core.preprocessing import create_default_pipeline
 from src.core.sanitization import CharacterSanitizer
+from src.logging_config import debug_log
 
 
 class DocumentService:

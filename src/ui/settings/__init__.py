@@ -37,36 +37,36 @@ from .settings_registry import (
     SettingType,
 )
 from .settings_widgets import (
+    CONTROL_PADDING_X,
+    CONTROL_WIDTH,
+    # Layout constants for custom widget creation
+    LABEL_AREA_WIDTH,
+    VALUE_LABEL_WIDTH,
     CheckboxSetting,
     DropdownSetting,
     SettingRow,
     SliderSetting,
     SpinboxSetting,
     TooltipIcon,
-    # Layout constants for custom widget creation
-    LABEL_AREA_WIDTH,
-    CONTROL_WIDTH,
-    VALUE_LABEL_WIDTH,
-    CONTROL_PADDING_X,
 )
 
 __all__ = [
+    "CONTROL_PADDING_X",
+    "CONTROL_WIDTH",
+    # Layout constants (Session 62b)
+    "LABEL_AREA_WIDTH",
+    "VALUE_LABEL_WIDTH",
+    "CheckboxSetting",
+    "DropdownSetting",
+    "SettingDefinition",
+    "SettingRow",
+    "SettingType",
     # Main dialog
     "SettingsDialog",
     # Registry
     "SettingsRegistry",
-    "SettingDefinition",
-    "SettingType",
+    "SliderSetting",
+    "SpinboxSetting",
     # Widgets
     "TooltipIcon",
-    "SettingRow",
-    "SliderSetting",
-    "CheckboxSetting",
-    "DropdownSetting",
-    "SpinboxSetting",
-    # Layout constants (Session 62b)
-    "LABEL_AREA_WIDTH",
-    "CONTROL_WIDTH",
-    "VALUE_LABEL_WIDTH",
-    "CONTROL_PADDING_X",
 ]

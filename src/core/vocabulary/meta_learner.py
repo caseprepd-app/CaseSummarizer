@@ -49,10 +49,10 @@ from src.config import (
     ML_WEIGHT_THRESHOLDS,
     VOCAB_MODEL_PATH,
 )
-from src.logging_config import debug_log
 from src.core.vocabulary.feedback_manager import FeedbackManager, get_feedback_manager
 from src.core.vocabulary.rarity_filter import _load_scaled_frequencies
 from src.core.vocabulary.term_sources import TermSources
+from src.logging_config import debug_log
 
 # Medical suffixes for domain-specific feature (Session 76)
 MEDICAL_SUFFIXES = (
@@ -588,7 +588,7 @@ class VocabularyPreferenceLearner:
         # Log LR feature importances
         if hasattr(self._lr_model, "coef_"):
             coefs = self._lr_model.coef_[0]
-            importance = list(zip(FEATURE_NAMES, coefs))
+            importance = list(zip(FEATURE_NAMES, coefs, strict=False))
             importance.sort(key=lambda x: abs(x[1]), reverse=True)
             debug_log("[PREF-LEARNER] LR feature importance (top 5):")
             for name, coef in importance[:5]:
@@ -612,7 +612,9 @@ class VocabularyPreferenceLearner:
             self._ensemble_enabled = True
 
             # Log RF feature importances
-            rf_importance = list(zip(FEATURE_NAMES, self._rf_model.feature_importances_))
+            rf_importance = list(
+                zip(FEATURE_NAMES, self._rf_model.feature_importances_, strict=False)
+            )
             rf_importance.sort(key=lambda x: x[1], reverse=True)
             debug_log("[PREF-LEARNER] RF feature importance (top 5):")
             for name, imp in rf_importance[:5]:
@@ -691,7 +693,10 @@ class VocabularyPreferenceLearner:
         if self.is_ensemble:
             probs_rf = self._rf_model.predict_proba(X_scaled)[:, 1]
             # Apply confidence-weighted blend to each pair
-            blended = [confidence_weighted_blend(lr, rf) for lr, rf in zip(probs_lr, probs_rf)]
+            blended = [
+                confidence_weighted_blend(lr, rf)
+                for lr, rf in zip(probs_lr, probs_rf, strict=False)
+            ]
             return blended
 
         return probs_lr.tolist()
@@ -853,7 +858,7 @@ class VocabularyPreferenceLearner:
                 # No default model - just delete user's model to start fresh
                 if self.model_path.exists():
                     self.model_path.unlink()
-                    debug_log(f"[PREF-LEARNER] Deleted user model (no default available)")
+                    debug_log("[PREF-LEARNER] Deleted user model (no default available)")
                 else:
                     debug_log("[PREF-LEARNER] No model to reset (already clean)")
                 return True

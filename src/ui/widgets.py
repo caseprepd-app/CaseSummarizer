@@ -13,7 +13,7 @@ from tkinter import ttk
 
 import customtkinter as ctk
 
-from src.ui.theme import FONTS, COLORS, FILE_STATUS_TAGS
+from src.ui.theme import COLORS, FILE_STATUS_TAGS, FONTS
 
 
 class FileReviewTable(ctk.CTkFrame):

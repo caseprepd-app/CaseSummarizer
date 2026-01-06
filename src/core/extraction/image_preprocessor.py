@@ -19,7 +19,6 @@ References:
 
 import time
 from dataclasses import dataclass, field
-from typing import Optional
 
 import cv2
 import numpy as np
@@ -57,7 +56,7 @@ class PreprocessingStats:
     orientation_corrected: bool = False
     # Document detection and cropping
     document_detected: bool = False
-    document_corners: Optional[list] = None
+    document_corners: list | None = None
     document_cropped: bool = False
     # Fine deskewing (small angles)
     skew_angle: float = 0.0
@@ -231,12 +230,12 @@ class ImagePreprocessor:
             debug(
                 f"  [4] Adaptive thresholding: applied (block={self.adaptive_block_size}, C={self.adaptive_constant})"
             )
-        except Exception as e:
+        except Exception:
             # Fallback to Otsu's method
             try:
                 _, binary = cv2.threshold(enhanced, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
                 stats.binarized = True
-                debug(f"  [4] Adaptive thresholding failed, Otsu fallback: applied")
+                debug("  [4] Adaptive thresholding failed, Otsu fallback: applied")
             except Exception as e2:
                 binary = enhanced
                 warning(f"  [4] All binarization failed: {e2}")
@@ -393,7 +392,7 @@ class ImagePreprocessor:
                         f"  [0a] Orientation detection: {orientation}° detected but confidence too low ({confidence:.1f} < {self.orientation_confidence_threshold})"
                     )
                 else:
-                    debug(f"  [0a] Orientation detection: no rotation needed")
+                    debug("  [0a] Orientation detection: no rotation needed")
                 return image
 
         except Exception as e:
@@ -422,10 +421,7 @@ class ImagePreprocessor:
         min_area = original_h * original_w * self.min_document_area_ratio
 
         # Convert to grayscale for edge detection
-        if len(cv_image.shape) == 3:
-            gray = cv2.cvtColor(cv_image, cv2.COLOR_RGB2GRAY)
-        else:
-            gray = cv_image
+        gray = cv2.cvtColor(cv_image, cv2.COLOR_RGB2GRAY) if len(cv_image.shape) == 3 else cv_image
 
         # Apply Gaussian blur to reduce noise
         blurred = cv2.GaussianBlur(gray, (5, 5), 0)
@@ -603,7 +599,7 @@ if __name__ == "__main__":
     output_path = input_path.rsplit(".", 1)[0] + "_preprocessed.png"
     processed.save(output_path)
 
-    print(f"\nPreprocessing Stats:")
+    print("\nPreprocessing Stats:")
     print(f"  Original size: {stats.original_size}")
     print(f"  Processed size: {stats.processed_size}")
     print(f"  Skew angle: {stats.skew_angle:.2f}°")

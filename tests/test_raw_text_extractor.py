@@ -67,8 +67,8 @@ class TestRawTextExtractor:
     def test_process_nonexistent_file(self, extractor):
         """Test processing a file that doesn't exist."""
         result = extractor.process_document("nonexistent_file.pdf")
-        assert result['status'] == 'error'
-        assert 'not found' in result['error_message'].lower()
+        assert result["status"] == "error"
+        assert "not found" in result["error_message"].lower()
 
     def test_unsupported_file_type(self, extractor, tmp_path):
         """Test processing an unsupported file type."""
@@ -78,8 +78,8 @@ class TestRawTextExtractor:
         test_file.write_text("test content")
 
         result = extractor.process_document(str(test_file))
-        assert result['status'] == 'error'
-        assert 'unsupported' in result['error_message'].lower()
+        assert result["status"] == "error"
+        assert "unsupported" in result["error_message"].lower()
 
 
 class TestTextFileProcessing:
@@ -98,11 +98,11 @@ class TestTextFileProcessing:
 
         result = extractor.process_document(str(test_file))
 
-        assert result['status'] == 'success'
-        assert result['method'] == 'direct_read'
+        assert result["status"] == "success"
+        assert result["method"] == "direct_read"
         # Confidence is based on dictionary word coverage; legal terms may not all be in dictionary
-        assert result['confidence'] >= 70, f"Confidence {result['confidence']} below threshold"
-        assert len(result['extracted_text']) > 0
+        assert result["confidence"] >= 70, f"Confidence {result['confidence']} below threshold"
+        assert len(result["extracted_text"]) > 0
 
 
 class TestPageNumberRemoval:
@@ -174,9 +174,9 @@ class TestCaseNumberExtraction:
 
         result = extractor.process_document(str(test_file))
 
-        assert result['status'] == 'success'
-        assert 'case_numbers' in result
-        assert len(result['case_numbers']) > 0
+        assert result["status"] == "success"
+        assert "case_numbers" in result
+        assert len(result["case_numbers"]) > 0
 
 
 class TestProgressCallback:
@@ -198,7 +198,7 @@ class TestProgressCallback:
 
         result = extractor.process_document(str(test_file), progress_callback=capture_progress)
 
-        assert result['status'] == 'success'
+        assert result["status"] == "success"
         assert len(progress_calls) > 0
         # Should have start, extraction/normalization, and completion
         assert any(p[1] == 0 for p in progress_calls)  # Start
@@ -207,14 +207,16 @@ class TestProgressCallback:
     def test_progress_callback_exception_handling(self, extractor, tmp_path):
         """Test that callback exceptions don't crash processing."""
         test_file = tmp_path / "test.txt"
-        test_file.write_text("This is test content for progress tracking that has enough substance to pass normalization filters.")
+        test_file.write_text(
+            "This is test content for progress tracking that has enough substance to pass normalization filters."
+        )
 
         def failing_callback(message, percent):
             raise Exception("Callback failed!")
 
         # Should not raise exception despite callback failure
         result = extractor.process_document(str(test_file), progress_callback=failing_callback)
-        assert result['status'] == 'success'
+        assert result["status"] == "success"
 
 
 class TestImprovedErrorMessages:
@@ -232,12 +234,12 @@ class TestImprovedErrorMessages:
 
         result = extractor.process_document(str(test_file))
 
-        assert result['status'] == 'error'
-        assert 'Supported formats' in result['error_message']
-        assert 'PDF' in result['error_message']
-        assert 'TXT' in result['error_message']
+        assert result["status"] == "error"
+        assert "Supported formats" in result["error_message"]
+        assert "PDF" in result["error_message"]
+        assert "TXT" in result["error_message"]
         # Session 73: DOCX, PNG, JPG now supported
-        assert 'DOCX' in result['error_message']
+        assert "DOCX" in result["error_message"]
 
 
 class TestRTFProcessing:
@@ -263,16 +265,16 @@ The court finds in favor of the plaintiff.\par
 
         result = extractor.process_document(str(test_file))
 
-        assert result['status'] == 'success'
-        assert result['method'] == 'rtf_extraction'
+        assert result["status"] == "success"
+        assert result["method"] == "rtf_extraction"
         # Confidence is based on dictionary word coverage; legal terms may not all be in dictionary
-        assert result['confidence'] >= 70, f"Confidence {result['confidence']} below threshold"
-        assert len(result['extracted_text']) > 0
+        assert result["confidence"] >= 70, f"Confidence {result['confidence']} below threshold"
+        assert len(result["extracted_text"]) > 0
         # Verify formatting codes are removed
-        assert '\\rtf' not in result['extracted_text']
-        assert '\\par' not in result['extracted_text']
-        assert 'SUPREME COURT' in result['extracted_text']
-        assert 'plaintiff' in result['extracted_text']
+        assert "\\rtf" not in result["extracted_text"]
+        assert "\\par" not in result["extracted_text"]
+        assert "SUPREME COURT" in result["extracted_text"]
+        assert "plaintiff" in result["extracted_text"]
 
     def test_process_rtf_with_special_chars(self, extractor, tmp_path):
         """Test RTF file with special characters and escaped quotes."""
@@ -285,11 +287,11 @@ The defendant said \ldblquote no comment\rdblquote in response.\par
 
         result = extractor.process_document(str(test_file))
 
-        assert result['status'] == 'success'
-        assert result['method'] == 'rtf_extraction'
+        assert result["status"] == "success"
+        assert result["method"] == "rtf_extraction"
         # Verify text is extracted (striprtf should handle special chars)
-        assert len(result['extracted_text']) > 0
-        assert 'claim' in result['extracted_text']
+        assert len(result["extracted_text"]) > 0
+        assert "claim" in result["extracted_text"]
 
     def test_process_sample_rtf_file(self, extractor):
         """Test processing the sample RTF motion file."""
@@ -301,15 +303,15 @@ The defendant said \ldblquote no comment\rdblquote in response.\par
 
         result = extractor.process_document(str(sample_file))
 
-        assert result['status'] == 'success'
-        assert result['method'] == 'rtf_extraction'
+        assert result["status"] == "success"
+        assert result["method"] == "rtf_extraction"
         # Confidence is based on dictionary word coverage; legal terms may not all be in dictionary
-        assert result['confidence'] >= 70, f"Confidence {result['confidence']} below threshold"
-        assert len(result['extracted_text']) > 0
+        assert result["confidence"] >= 70, f"Confidence {result['confidence']} below threshold"
+        assert len(result["extracted_text"]) > 0
         # Verify key legal terms are preserved
-        assert 'SUPREME COURT' in result['extracted_text']
-        assert 'plaintiff' in result['extracted_text'].lower()
-        assert 'defendant' in result['extracted_text'].lower()
+        assert "SUPREME COURT" in result["extracted_text"]
+        assert "plaintiff" in result["extracted_text"].lower()
+        assert "defendant" in result["extracted_text"].lower()
 
 
 if __name__ == "__main__":

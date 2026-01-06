@@ -15,7 +15,7 @@ Merge Strategy:
 """
 
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, ClassVar
 
 from src.core.vocabulary.algorithms.base import AlgorithmResult, CandidateTerm
 
@@ -63,7 +63,7 @@ class ResultMerger:
     """
 
     # Type precedence: NER types are most trustworthy
-    TYPE_PRECEDENCE = {
+    TYPE_PRECEDENCE: ClassVar[dict[str, int]] = {
         "Person": 10,
         "Place": 9,
         "Medical": 8,
@@ -112,7 +112,7 @@ class ResultMerger:
 
         # Merge each group
         merged = []
-        for normalized_key, candidates in term_groups.items():
+        for _normalized_key, candidates in term_groups.items():
             merged_term = self._merge_group(candidates)
             merged.append(merged_term)
 
@@ -132,7 +132,7 @@ class ResultMerger:
         canonical_term = self._select_canonical_casing(candidates)
 
         # Collect unique sources (which algorithms found this term)
-        sources = list(set(c.source_algorithm for c in candidates))
+        sources = list({c.source_algorithm for c in candidates})
 
         # Weighted confidence combination
         combined_confidence = self._calculate_weighted_confidence(candidates)

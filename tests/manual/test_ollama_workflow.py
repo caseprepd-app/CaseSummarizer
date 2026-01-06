@@ -11,9 +11,10 @@ from pathlib import Path
 project_root = Path(__file__).parent
 sys.path.insert(0, str(project_root))
 
-from src.core.ai.ollama_model_manager import OllamaModelManager
-from src.core.prompting import PromptTemplateManager
-from src.config import PROMPTS_DIR
+from src.config import PROMPTS_DIR  # noqa: E402
+from src.core.ai.ollama_model_manager import OllamaModelManager  # noqa: E402
+from src.core.prompting import PromptTemplateManager  # noqa: E402
+
 
 def test_ollama_connection():
     """Test 1: Can we connect to Ollama?"""
@@ -31,6 +32,7 @@ def test_ollama_connection():
     print("[PASS] Connected to Ollama")
     print(f"       API Base: {manager.api_base}")
     return True
+
 
 def test_model_availability():
     """Test 2: Can we get available models?"""
@@ -50,6 +52,7 @@ def test_model_availability():
         print(f"       - {model_name}")
 
     return True
+
 
 def test_prompt_templates():
     """Test 3: Can we load prompt templates?"""
@@ -78,6 +81,7 @@ def test_prompt_templates():
 
     return True
 
+
 def test_summary_generation():
     """Test 4: Can we generate a summary?"""
     print("\n" + "=" * 60)
@@ -90,7 +94,7 @@ def test_summary_generation():
         print("[FAIL] Test document not found")
         return False
 
-    with open(test_doc, 'r', encoding='utf-8') as f:
+    with open(test_doc, encoding="utf-8") as f:
         case_text = f.read()
 
     print(f"Test document loaded: {len(case_text)} chars")
@@ -106,9 +110,7 @@ def test_summary_generation():
         # Generate summary (small, for quick testing)
         print("Generating summary (this may take 30-60 seconds on CPU)...")
         summary = manager.generate_summary(
-            case_text=case_text,
-            max_words=100,
-            preset_id="factual-summary"
+            case_text=case_text, max_words=100, preset_id="factual-summary"
         )
 
         if not summary:
@@ -116,18 +118,20 @@ def test_summary_generation():
             return False
 
         word_count = len(summary.split())
-        print(f"[PASS] Summary generated successfully!")
+        print("[PASS] Summary generated successfully!")
         print(f"       Length: {word_count} words, {len(summary)} chars")
-        print(f"\nSummary preview (first 200 chars):")
+        print("\nSummary preview (first 200 chars):")
         print(f"       {summary[:200]}...")
 
         return True
 
     except Exception as e:
-        print(f"[FAIL] Summary generation error: {str(e)}")
+        print(f"[FAIL] Summary generation error: {e!s}")
         import traceback
+
         traceback.print_exc()
         return False
+
 
 def main():
     """Run all tests."""
@@ -145,9 +149,10 @@ def main():
         try:
             result = test()
             results.append((test.__name__, result))
-        except Exception as e:
+        except Exception:
             print(f"\n[ERROR] Unexpected exception in {test.__name__}:")
             import traceback
+
             traceback.print_exc()
             results.append((test.__name__, False))
 
@@ -171,6 +176,7 @@ def main():
     else:
         print(f"\n[FAILED] {total - passed} test(s) failed.")
         return 1
+
 
 if __name__ == "__main__":
     exit_code = main()

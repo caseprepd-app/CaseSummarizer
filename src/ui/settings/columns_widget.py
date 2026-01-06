@@ -24,10 +24,12 @@ Layout:
     └─────────────────────────────────────────────────────────────┘
 """
 
+from typing import ClassVar
+
 import customtkinter as ctk
 
-from src.ui.theme import FONTS, COLORS
 from src.ui.settings.settings_widgets import TooltipIcon
+from src.ui.theme import COLORS, FONTS
 
 
 class ColumnVisibilityWidget(ctk.CTkFrame):
@@ -40,7 +42,7 @@ class ColumnVisibilityWidget(ctk.CTkFrame):
     """
 
     # Column groups for organized display
-    COLUMN_GROUPS = [
+    COLUMN_GROUPS: ClassVar[list[tuple[str, list[str]]]] = [
         ("Basic", ["Term", "Score", "Is Person", "Found By"]),
         ("Term Sources", ["# Docs", "Count", "Median Conf"]),
         ("Algorithm Details", ["NER", "RAKE", "BM25", "Algo Count"]),
@@ -144,13 +146,13 @@ class ColumnVisibilityWidget(ctk.CTkFrame):
 
     def _load_values(self):
         """Load current visibility settings from preferences."""
-        from src.user_preferences import get_user_preferences
         from src.ui.dynamic_output import COLUMN_REGISTRY
+        from src.user_preferences import get_user_preferences
 
         prefs = get_user_preferences()
         saved = prefs.get("vocab_column_visibility", {})
 
-        for col_name, (cb, var) in self._checkboxes.items():
+        for col_name, (_cb, var) in self._checkboxes.items():
             # Get default from registry if not saved
             default = COLUMN_REGISTRY.get(col_name, {}).get("default", False)
             value = saved.get(col_name, default)
@@ -172,7 +174,7 @@ class ColumnVisibilityWidget(ctk.CTkFrame):
         """Reset all checkboxes to their default values."""
         from src.ui.dynamic_output import COLUMN_REGISTRY
 
-        for col_name, (cb, var) in self._checkboxes.items():
+        for col_name, (_cb, var) in self._checkboxes.items():
             default = COLUMN_REGISTRY.get(col_name, {}).get("default", False)
             var.set(default)
 
@@ -188,5 +190,5 @@ class ColumnVisibilityWidget(ctk.CTkFrame):
             return
         for col, is_visible in value.items():
             if col in self._checkboxes:
-                cb, var = self._checkboxes[col]
+                _cb, var = self._checkboxes[col]
                 var.set(is_visible)

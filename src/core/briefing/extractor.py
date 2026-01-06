@@ -13,16 +13,16 @@ This is the MAP phase of the Map-Reduce pattern.
 """
 
 import threading
+from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 from src.core.ai.ollama_model_manager import OllamaModelManager
 from src.logging_config import debug_log
 
 from .chunker import BriefingChunk
-
 
 # External prompt files directory
 EXTRACTION_PROMPTS_DIR = Path("config/extraction_prompts")
@@ -193,7 +193,7 @@ class ChunkExtractor:
         """
         Extract structured data from multiple chunks using parallel prompt chaining.
 
-        Creates N×4 tasks (N chunks × 4 prompts) and processes them all in parallel.
+        Creates Nx4 tasks (N chunks x 4 prompts) and processes them all in parallel.
         Results are merged by chunk_id after completion.
 
         Args:
@@ -220,7 +220,7 @@ class ChunkExtractor:
             max_workers = get_optimal_workers(task_ram_gb=1.5, max_workers=12)
 
         debug_log(
-            f"[ChunkExtractor] Parallel prompt chaining: {num_chunks} chunks × "
+            f"[ChunkExtractor] Parallel prompt chaining: {num_chunks} chunks x "
             f"{num_prompts} prompts = {total_tasks} tasks, {max_workers} workers"
         )
 

@@ -33,8 +33,8 @@ Usage:
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
-from src.logging_config import debug_log, error
 from src.core.prompting.focus_extractor import AIFocusExtractor, FocusExtractor
+from src.logging_config import debug_log, error
 
 if TYPE_CHECKING:
     from src.core.ai.ollama_model_manager import OllamaModelManager
@@ -207,7 +207,7 @@ PREVIOUS SECTION:
 Summarize this section in approximately {max_words} words.
 
 Focus on key facts, developments, and decisions.
-Pay particular attention to: {focus['emphasis']}
+Pay particular attention to: {focus["emphasis"]}
 
 Preserve any information related to these focus areas, even if it seems minor - it may be important for the overall case analysis.
 
@@ -244,7 +244,7 @@ You are creating a comprehensive summary of a legal document from its section su
 <|user|>
 Create a {max_words}-word summary of "{filename}" from these section summaries.
 
-Pay particular attention to: {focus['emphasis']}
+Pay particular attention to: {focus["emphasis"]}
 
 Preserve any information related to these focus areas, even if it seems minor.
 Present the information in a logical, chronological order where possible.
@@ -291,7 +291,7 @@ Individual document summaries:
 {formatted_summaries}
 
 Create a comprehensive meta-summary ({min_words}-{max_words} words) that:
-{focus['instructions']}
+{focus["instructions"]}
 
 Present the information in a logical, chronological order where appropriate.
 Synthesize information across documents rather than summarizing each document separately.

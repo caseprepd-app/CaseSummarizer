@@ -34,10 +34,10 @@ Example:
     - "Jenidns" removed (typo of "Jenkins" - only "Jenkins" is in dictionary)
 """
 
-from src.logging_config import debug_log
 from src.core.vocabulary.canonical_scorer import create_canonical_scorer
-from src.core.vocabulary.term_sources import TermSources
 from src.core.vocabulary.string_utils import edit_distance
+from src.core.vocabulary.term_sources import TermSources
+from src.logging_config import debug_log
 
 # Lazy-loaded known words set for typo resolution
 _KNOWN_WORDS: set[str] | None = None
@@ -67,6 +67,7 @@ def _load_known_words() -> set[str]:
         return _KNOWN_WORDS
 
     from pathlib import Path
+
     from src.config import GOOGLE_WORD_FREQUENCY_FILE
 
     _KNOWN_WORDS = set()
@@ -75,7 +76,7 @@ def _load_known_words() -> set[str]:
     if GOOGLE_WORD_FREQUENCY_FILE.exists():
         try:
             max_words = 50000
-            with open(GOOGLE_WORD_FREQUENCY_FILE, "r", encoding="utf-8") as f:
+            with open(GOOGLE_WORD_FREQUENCY_FILE, encoding="utf-8") as f:
                 for i, line in enumerate(f):
                     if i >= max_words:
                         break
@@ -97,7 +98,7 @@ def _load_known_words() -> set[str]:
     # Load surnames (Romanized Name is column index 5)
     if surnames_file.exists():
         try:
-            with open(surnames_file, "r", encoding="utf-8") as f:
+            with open(surnames_file, encoding="utf-8") as f:
                 next(f)  # Skip header
                 for line in f:
                     parts = line.strip().split(",")
@@ -110,7 +111,7 @@ def _load_known_words() -> set[str]:
     # Load forenames (Romanized Name is column index 11)
     if forenames_file.exists():
         try:
-            with open(forenames_file, "r", encoding="utf-8") as f:
+            with open(forenames_file, encoding="utf-8") as f:
                 next(f)  # Skip header
                 for line in f:
                     parts = line.strip().split(",")
@@ -174,10 +175,7 @@ def _is_fragment_of(fragment: str, canonical: str) -> bool:
         return False
 
     # Must be a PROPER subset (not equal)
-    if fragment_words == canonical_words:
-        return False
-
-    return True
+    return fragment_words != canonical_words
 
 
 def filter_name_fragments(
@@ -340,8 +338,7 @@ def filter_typo_variants(
 
             if distance <= max_edit_distance:
                 debug_log(
-                    f"[NAME-REG] Removing typo '{term}' "
-                    f"(distance={distance} from '{canonical}')"
+                    f"[NAME-REG] Removing typo '{term}' (distance={distance} from '{canonical}')"
                 )
                 is_typo = True
                 removed_count += 1
@@ -493,13 +490,12 @@ def _single_pass_regularize(
         canonical_term = canonical["Term"].lower()
 
         # Mark non-canonical terms for removal
-        for term_dict, term in group:
+        for _term_dict, term in group:
             if term.lower() != canonical_term:
                 terms_to_remove.add(term.lower())
                 typo_removed += 1
                 debug_log(
-                    f"[NAME-REG] Removing typo '{term}' "
-                    f"in favor of canonical '{canonical['Term']}'"
+                    f"[NAME-REG] Removing typo '{term}' in favor of canonical '{canonical['Term']}'"
                 )
 
     # Filter out removed terms

@@ -154,7 +154,7 @@ class OCRProcessor:
                 "method": None,
                 "confidence": 0,
                 "status": "error",
-                "error_message": f"OCR processing failed: {str(e)}",
+                "error_message": f"OCR processing failed: {e!s}",
             }
 
     def process_image(self, image) -> dict:
@@ -217,5 +217,5 @@ class OCRProcessor:
                 "method": None,
                 "confidence": 0,
                 "status": "error",
-                "error_message": f"Failed to process image: {str(e)}",
+                "error_message": f"Failed to process image: {e!s}",
             }

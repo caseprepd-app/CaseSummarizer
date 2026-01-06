@@ -13,6 +13,7 @@ Key responsibilities:
 Privacy: All data is stored locally in %APPDATA%/LocalScribe/corpora/
 """
 
+import contextlib
 import json
 import shutil
 from dataclasses import dataclass
@@ -81,7 +82,7 @@ class CorpusRegistry:
             return
 
         try:
-            with open(self.registry_file, "r", encoding="utf-8") as f:
+            with open(self.registry_file, encoding="utf-8") as f:
                 self._registry = json.load(f)
             debug_log(
                 f"[CorpusRegistry] Loaded registry with {len(self._registry.get('corpora', {}))} corpora"
@@ -195,10 +196,8 @@ class CorpusRegistry:
         # Delete associated cache file
         cache_file = CACHE_DIR / f"{safe_name}_idf_index.json"
         if cache_file.exists():
-            try:
+            with contextlib.suppress(Exception):
                 cache_file.unlink()
-            except Exception:
-                pass
 
         self._save_registry()
         debug_log(f"[CorpusRegistry] Deleted corpus '{name}'")
@@ -321,7 +320,7 @@ class CorpusRegistry:
         # Fall back to first corpus
         corpora = self._registry.get("corpora", {})
         if corpora:
-            first_safe_name = list(corpora.keys())[0]
+            first_safe_name = next(iter(corpora.keys()))
             return corpora[first_safe_name].get("display_name", first_safe_name)
 
         return "General"

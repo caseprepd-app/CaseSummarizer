@@ -13,7 +13,6 @@ import threading
 import time
 from pathlib import Path
 from queue import Queue
-from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -21,8 +20,7 @@ import pytest
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
-from src.core.parallel import (
-    ExecutorStrategy,
+from src.core.parallel import (  # noqa: E402
     ParallelTaskRunner,
     ProgressAggregator,
     ProgressState,
@@ -85,6 +83,7 @@ class TestThreadPoolStrategy:
         """Default max_workers is min(cpu_count, 4)."""
         strategy = ThreadPoolStrategy()
         import os
+
         expected = min(os.cpu_count() or 4, 4)
         assert strategy.max_workers == expected
         strategy.shutdown()
@@ -184,10 +183,7 @@ class TestParallelTaskRunner:
         def on_complete(task_id, result):
             completed.append((task_id, result))
 
-        runner = ParallelTaskRunner(
-            strategy=strategy,
-            on_task_complete=on_complete
-        )
+        runner = ParallelTaskRunner(strategy=strategy, on_task_complete=on_complete)
 
         items = [("a", 1), ("b", 2), ("c", 3)]
         runner.run(lambda x: x * 2, items)
@@ -215,7 +211,7 @@ class TestParallelTaskRunner:
         runner.cancel()
 
         items = [("t1", 1), ("t2", 2)]
-        results = runner.run(slow_task, items)
+        runner.run(slow_task, items)
 
         # Should process nothing or minimal items due to cancellation
         assert runner.is_cancelled
@@ -260,7 +256,7 @@ class TestProgressAggregator:
 
         # Should have sent at least one message
         assert not queue.empty()
-        msg_type, (pct, text) = queue.get_nowait()
+        msg_type, (_pct, text) = queue.get_nowait()
         assert msg_type == "progress"
         assert "Processing task 1" in text
 
@@ -389,6 +385,7 @@ class TestIntegrationWithConfig:
     def test_parallel_max_workers_from_config(self):
         """ThreadPoolStrategy uses PARALLEL_MAX_WORKERS from config."""
         from src.config import PARALLEL_MAX_WORKERS
+
         strategy = ThreadPoolStrategy()
         assert strategy.max_workers == PARALLEL_MAX_WORKERS
         strategy.shutdown()
@@ -396,6 +393,7 @@ class TestIntegrationWithConfig:
     def test_vocabulary_batch_size_in_config(self):
         """VOCABULARY_BATCH_SIZE is defined in config."""
         from src.config import VOCABULARY_BATCH_SIZE
+
         assert VOCABULARY_BATCH_SIZE is not None
         assert isinstance(VOCABULARY_BATCH_SIZE, int)
         assert VOCABULARY_BATCH_SIZE >= 4  # Should be at least baseline
@@ -404,9 +402,10 @@ class TestIntegrationWithConfig:
     def test_user_worker_config_exists(self):
         """User worker configuration options are defined."""
         from src.config import (
-            USER_PICKS_MAX_WORKER_COUNT,
             USER_DEFINED_MAX_WORKER_COUNT,
+            USER_PICKS_MAX_WORKER_COUNT,
         )
+
         # Both should be defined
         assert USER_PICKS_MAX_WORKER_COUNT is not None
         assert USER_DEFINED_MAX_WORKER_COUNT is not None
@@ -417,7 +416,8 @@ class TestIntegrationWithConfig:
 
     def test_user_defined_workers_bounds_enforced(self):
         """User-defined worker count is bounded between 1 and 8."""
-        from src.config import _user_workers, USER_DEFINED_MAX_WORKER_COUNT
+        from src.config import USER_DEFINED_MAX_WORKER_COUNT, _user_workers
+
         # The _user_workers variable should be bounded
         assert _user_workers >= 1, "Minimum workers should be 1"
         assert _user_workers <= 8, "Maximum workers should be 8"
@@ -428,6 +428,7 @@ class TestIntegrationWithConfig:
     def test_parallel_max_workers_in_valid_range(self):
         """PARALLEL_MAX_WORKERS is within expected range."""
         from src.config import PARALLEL_MAX_WORKERS
+
         # Whether auto or user-defined, should be between 1 and 8
         assert PARALLEL_MAX_WORKERS >= 1, "Should have at least 1 worker"
         assert PARALLEL_MAX_WORKERS <= 8, "Should have at most 8 workers"

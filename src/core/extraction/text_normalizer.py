@@ -132,7 +132,7 @@ class TextNormalizer:
             )
         except Exception as e:
             duration = time.time() - start
-            debug(f"    FAILED ({duration:.3f}s) - {type(e).__name__}: {str(e)}")
+            debug(f"    FAILED ({duration:.3f}s) - {type(e).__name__}: {e!s}")
             raise
 
         return text
@@ -143,7 +143,7 @@ class TextNormalizer:
 
         Removes common page number patterns:
             - "Page 1", "Page 1 of 10"
-            - "- 1 -", "– 2 –"
+            - "- 1 -" (dashed numbers)
             - Standalone numbers (1-4 digits)
             - "P. 1", "Pg. 1"
             - "1/10" (page X of Y)
@@ -179,7 +179,7 @@ class TextNormalizer:
             )
         except Exception as e:
             duration = time.time() - start
-            debug(f"    FAILED ({duration:.3f}s) - {type(e).__name__}: {str(e)}")
+            debug(f"    FAILED ({duration:.3f}s) - {type(e).__name__}: {e!s}")
             raise
 
         return text
@@ -226,7 +226,7 @@ class TextNormalizer:
             )
         except Exception as e:
             duration = time.time() - start
-            debug(f"    FAILED ({duration:.3f}s) - {type(e).__name__}: {str(e)}")
+            debug(f"    FAILED ({duration:.3f}s) - {type(e).__name__}: {e!s}")
             raise
 
         return text
@@ -260,7 +260,7 @@ class TextNormalizer:
             )
         except Exception as e:
             duration = time.time() - start
-            debug(f"    FAILED ({duration:.3f}s) - {type(e).__name__}: {str(e)}")
+            debug(f"    FAILED ({duration:.3f}s) - {type(e).__name__}: {e!s}")
             raise
 
         return text
@@ -271,7 +271,7 @@ class TextNormalizer:
 
         Patterns detected:
             - "Page 1", "Page 1 of 10"
-            - "- 1 -", "– 2 –" (dashed numbers)
+            - "- 1 -" (dashed numbers, including en-dash)
             - Standalone numbers: "1", "23" (up to 4 digits)
             - "P. 1", "Pg. 1", "p. 1"
             - "1/10" (page X of Y format)
@@ -297,8 +297,8 @@ class TextNormalizer:
         if re.match(r"^Page\s+\d+(\s+of\s+\d+)?$", line, re.IGNORECASE):
             return True
 
-        # Pattern 2: "- X -" or "– X –"
-        if re.match(r"^[-–]\s*\d+\s*[-–]$", line):
+        # Pattern 2: "- X -" or en-dash variants
+        if re.match(r"^[-\u2013]\s*\d+\s*[-\u2013]$", line):
             return True
 
         # Pattern 3: Just a number (but not if it's part of a list like "1.")
@@ -310,10 +310,7 @@ class TextNormalizer:
             return True
 
         # Pattern 5: "X/Y" (page X of Y)
-        if re.match(r"^\d+/\d+$", line):
-            return True
-
-        return False
+        return bool(re.match(r"^\d+/\d+$", line))
 
     def _should_keep_line(self, line: str) -> bool:
         """
@@ -333,9 +330,7 @@ class TextNormalizer:
         # Minimum length check
         if len(line) <= MIN_LINE_LENGTH:
             # Exception: Allow short legal headers
-            if self._is_legal_header(line):
-                return True
-            return False
+            return bool(self._is_legal_header(line))
 
         # Check if line has lowercase letters
         has_lowercase = any(c.islower() for c in line)

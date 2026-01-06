@@ -23,8 +23,8 @@ from typing import TYPE_CHECKING
 
 from src.config import DEBUG_MODE, HALLUCINATION_VERIFICATION_ENABLED
 from src.core.config import load_yaml_with_fallback
-from src.logging_config import debug_log
 from src.core.vector_store.qa_retriever import QARetriever, RetrievalResult
+from src.logging_config import debug_log
 
 if TYPE_CHECKING:
     from src.core.qa.hallucination_verifier import VerificationResult
@@ -207,7 +207,7 @@ class QAOrchestrator:
 
             questions = []
             try:
-                with open(DEFAULT_QUESTIONS_TXT_PATH, "r", encoding="utf-8") as f:
+                with open(DEFAULT_QUESTIONS_TXT_PATH, encoding="utf-8") as f:
                     for line in f:
                         line = line.strip()
                         if line and not line.startswith("#"):

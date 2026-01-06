@@ -35,15 +35,15 @@ import time
 from collections import Counter
 from typing import Any
 
-from src.config import BM25_K1, BM25_B, BM25_MIN_SCORE_THRESHOLD, VOCAB_ALGORITHM_WEIGHTS
-from src.logging_config import debug_log
-from src.core.utils.tokenizer import tokenize, STOPWORDS
+from src.config import BM25_B, BM25_K1, BM25_MIN_SCORE_THRESHOLD, VOCAB_ALGORITHM_WEIGHTS
+from src.core.utils.tokenizer import STOPWORDS, tokenize
 from src.core.vocabulary.algorithms import register_algorithm
 from src.core.vocabulary.algorithms.base import (
     AlgorithmResult,
     BaseExtractionAlgorithm,
     CandidateTerm,
 )
+from src.logging_config import debug_log
 
 
 @register_algorithm("BM25")
@@ -140,7 +140,7 @@ class BM25Algorithm(BaseExtractionAlgorithm):
         term_freqs = Counter(tokens)
 
         debug_log(
-            f"[BM25] Processing document: {doc_length} tokens, " f"{len(term_freqs)} unique terms"
+            f"[BM25] Processing document: {doc_length} tokens, {len(term_freqs)} unique terms"
         )
 
         # Get average document length from corpus
@@ -247,10 +247,7 @@ class BM25Algorithm(BaseExtractionAlgorithm):
             return False
 
         # Contains only repeated characters (e.g., "aaa", "xxxxx")
-        if len(set(term)) == 1:
-            return False
-
-        return True
+        return len(set(term)) != 1
 
     def get_config(self) -> dict[str, Any]:
         """Return algorithm configuration for logging/debugging."""

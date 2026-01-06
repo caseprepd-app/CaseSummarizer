@@ -33,13 +33,11 @@ Usage:
         print(f"{term.term} - {term.found_by}")
 """
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from difflib import SequenceMatcher
-from typing import Literal, Optional
 
 from src.categories import normalize_category
 from src.logging_config import debug_log
-
 
 # Type alias for found_by values
 # Session 61: Changed from Literal to str to support comma-separated algorithms
@@ -455,7 +453,7 @@ class VocabularyReconciler:
 
         return normalized
 
-    def _find_match(self, term_key: str, term_dict: dict[str, dict]) -> Optional[str]:
+    def _find_match(self, term_key: str, term_dict: dict[str, dict]) -> str | None:
         """
         Find matching term using fuzzy matching.
 
@@ -484,7 +482,7 @@ class VocabularyReconciler:
 
         return best_match
 
-    def _resolve_type(self, ner_type: Optional[str], llm_type: str) -> str:
+    def _resolve_type(self, ner_type: str | None, llm_type: str) -> str:
         """
         Resolve type conflict between NER and LLM.
 

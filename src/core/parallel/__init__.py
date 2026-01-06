@@ -72,21 +72,21 @@ Performance Notes:
 
 from .executor_strategy import (
     ExecutorStrategy,
-    ThreadPoolStrategy,
     SequentialStrategy,
+    ThreadPoolStrategy,
 )
-from .task_runner import ParallelTaskRunner, TaskResult
 from .progress_aggregator import ProgressAggregator, ProgressState
+from .task_runner import ParallelTaskRunner, TaskResult
 
 __all__ = [
     # Strategies
     "ExecutorStrategy",
-    "ThreadPoolStrategy",
-    "SequentialStrategy",
     # Task runner
     "ParallelTaskRunner",
-    "TaskResult",
     # Progress tracking
     "ProgressAggregator",
     "ProgressState",
+    "SequentialStrategy",
+    "TaskResult",
+    "ThreadPoolStrategy",
 ]

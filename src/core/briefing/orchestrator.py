@@ -12,10 +12,8 @@ This is the main entry point for generating Case Briefing Sheets.
 """
 
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime import datetime
-from pathlib import Path
-from typing import Callable
 
 from src.core.ai.ollama_model_manager import OllamaModelManager
 from src.logging_config import debug_log
@@ -204,7 +202,7 @@ class BriefingOrchestrator:
 
         except Exception as e:
             result.success = False
-            result.error_message = f"Briefing generation failed: {str(e)}"
+            result.error_message = f"Briefing generation failed: {e!s}"
             debug_log(f"[BriefingOrchestrator] Error: {e}")
             return result
 

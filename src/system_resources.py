@@ -108,7 +108,7 @@ def get_optimal_workers(
 
     debug_log(
         f"[Resources] Calculated workers: {final_workers} "
-        f"(CPU: {resources.cpu_count} cores × {resources.resource_usage_pct}% = {cpu_limited}, "
+        f"(CPU: {resources.cpu_count} cores x {resources.resource_usage_pct}% = {cpu_limited}, "
         f"RAM: {resources.available_ram_gb:.1f}GB avail / {task_ram_gb}GB per worker = {ram_limited}, "
         f"cap: {max_workers})"
     )

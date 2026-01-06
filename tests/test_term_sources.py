@@ -8,7 +8,6 @@ Tests the per-document term tracking infrastructure including:
 - Weighted scoring for canonical selection
 """
 
-import pytest
 from src.core.vocabulary.term_sources import TermSources, merge_term_sources_dict
 
 
@@ -175,7 +174,7 @@ class TestWeightedScore:
         )
         # weighted_sum = 1.0 * 10 = 10
         # weighted_score = 10 ^ 1.1 ≈ 12.59
-        assert abs(sources.weighted_score - (10 ** 1.1)) < 0.01
+        assert abs(sources.weighted_score - (10**1.1)) < 0.01
 
     def test_weighted_score_confidence_matters(self):
         """Higher confidence should produce higher score."""

@@ -14,7 +14,6 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent / "src"))
 
 from src.config import VECTOR_STORE_DIR
-from src.logging_config import debug_log
 
 
 def inspect_latest_vector_store():
@@ -51,7 +50,7 @@ def inspect_latest_vector_store():
         print(f"\n[!] index.pkl not found in {latest_store}")
         return
 
-    print(f"\n[OK] FAISS files exist:")
+    print("\n[OK] FAISS files exist:")
     print(f"     - index.faiss ({faiss_file.stat().st_size:,} bytes)")
     print(f"     - index.pkl ({pkl_file.stat().st_size:,} bytes)")
 
@@ -64,35 +63,35 @@ def inspect_latest_vector_store():
         embeddings = HuggingFaceEmbeddings(
             model_name="sentence-transformers/all-MiniLM-L6-v2",
             model_kwargs={"device": "cpu"},
-            encode_kwargs={"normalize_embeddings": True}
+            encode_kwargs={"normalize_embeddings": True},
         )
 
         print(f"[*] Loading FAISS index from {latest_store}...")
         vector_store = FAISS.load_local(
             folder_path=str(latest_store),
             embeddings=embeddings,
-            allow_dangerous_deserialization=True
+            allow_dangerous_deserialization=True,
         )
 
         # Inspect docstore
         docstore = vector_store.docstore
         index_to_id = vector_store.index_to_docstore_id
 
-        print(f"\n[OK] Vector store loaded successfully")
+        print("\n[OK] Vector store loaded successfully")
         print(f"     Total chunks indexed: {len(index_to_id)}")
 
         # Sample first 5 chunks to inspect metadata
         print("\n[*] Sample chunk metadata (first 5):")
         print("-" * 80)
 
-        for i, (idx, doc_id) in enumerate(list(index_to_id.items())[:5]):
+        for i, (_idx, doc_id) in enumerate(list(index_to_id.items())[:5]):
             doc = docstore.search(doc_id)
             if doc is None:
-                print(f"\n  Chunk {i+1}: [!] Document not found in docstore")
+                print(f"\n  Chunk {i + 1}: [!] Document not found in docstore")
                 continue
 
             metadata = doc.metadata
-            print(f"\n  Chunk {i+1}:")
+            print(f"\n  Chunk {i + 1}:")
             print(f"    filename: {metadata.get('filename', '[MISSING]')}")
             print(f"    chunk_num: {metadata.get('chunk_num', '[MISSING]')}")
             print(f"    section_name: {metadata.get('section_name', '[MISSING]')}")
@@ -113,7 +112,7 @@ def inspect_latest_vector_store():
 
         result = retriever.retrieve_context(test_question, k=3)
 
-        print(f"\n[*] Retrieval Results:")
+        print("\n[*] Retrieval Results:")
         print(f"    Chunks retrieved: {result.chunks_retrieved}")
         print(f"    Retrieval time: {result.retrieval_time_ms:.1f}ms")
         print(f"    Context length: {len(result.context)} chars")
@@ -125,7 +124,7 @@ def inspect_latest_vector_store():
             print("  [!] No sources found!")
         else:
             for i, source in enumerate(result.sources):
-                print(f"\n  Source {i+1}:")
+                print(f"\n  Source {i + 1}:")
                 print(f"    filename: {source.filename or '[EMPTY]'}")
                 print(f"    chunk_num: {source.chunk_num}")
                 print(f"    section: {source.section or 'N/A'}")
@@ -135,18 +134,19 @@ def inspect_latest_vector_store():
 
         # Test source summary generation
         source_summary = retriever.get_relevant_sources_summary(result)
-        print(f"\n[*] Source Summary:")
+        print("\n[*] Source Summary:")
         print(f"    {source_summary}")
 
         if not source_summary or source_summary == "No sources found":
-            print(f"\n  [!] Source summary is blank or 'No sources found'!")
-            print(f"      This is the bug - citations exist but source_summary is empty.")
+            print("\n  [!] Source summary is blank or 'No sources found'!")
+            print("      This is the bug - citations exist but source_summary is empty.")
         else:
-            print(f"\n  [OK] Source summary generated successfully")
+            print("\n  [OK] Source summary generated successfully")
 
     except Exception as e:
         print(f"\n[!] Error during inspection: {e}")
         import traceback
+
         traceback.print_exc()
 
 

@@ -32,37 +32,35 @@ import gc
 import io
 import os
 import re
-import threading
 from tkinter import Menu, filedialog, messagebox, ttk
 
 import customtkinter as ctk
 
 from src.config import USER_VOCAB_EXCLUDE_PATH
-from src.logging_config import debug_log
-from src.user_preferences import get_user_preferences
-from src.core.vocabulary.feedback_manager import get_feedback_manager
 from src.core.vocabulary.column_config import SORT_WARNING_COLUMNS
+from src.core.vocabulary.feedback_manager import get_feedback_manager
+from src.logging_config import debug_log
 from src.ui.qa_panel import QAPanel
-from src.ui.theme import FONTS, COLORS, BUTTON_STYLES, FRAME_STYLES, VOCAB_TABLE_TAGS
+from src.ui.theme import BUTTON_STYLES, COLORS, FONTS, FRAME_STYLES, VOCAB_TABLE_TAGS
 
 # Session 82: Import column configuration from centralized module
 from src.ui.vocab_table.column_config import (
-    COLUMN_REGISTRY,
-    COLUMN_ORDER,
-    COLUMN_CONFIG,
-    GUI_DISPLAY_COLUMNS,
-    GUI_DISPLAY_COLUMNS_EXTENDED,
     ALL_EXPORT_COLUMNS,
+    BATCH_INSERT_DELAY_MS,
+    BATCH_INSERT_SIZE,
+    COLUMN_CONFIG,
+    COLUMN_ORDER,
+    COLUMN_REGISTRY,
     DISPLAY_TO_DATA_COLUMN,
-    THUMB_UP_EMPTY,
-    THUMB_UP_FILLED,
+    GUI_DISPLAY_COLUMNS,
+    ROWS_PER_PAGE,
     THUMB_DOWN_EMPTY,
     THUMB_DOWN_FILLED,
-    ROWS_PER_PAGE,
-    BATCH_INSERT_SIZE,
-    BATCH_INSERT_DELAY_MS,
+    THUMB_UP_EMPTY,
+    THUMB_UP_FILLED,
     truncate_text,
 )
+from src.user_preferences import get_user_preferences
 
 
 class DynamicOutputWidget(ctk.CTkFrame):
@@ -633,11 +631,11 @@ class DynamicOutputWidget(ctk.CTkFrame):
             return
 
         # First, restore all previously detached items
+        import contextlib
+
         for item_id in self._detached_items:
-            try:
+            with contextlib.suppress(Exception):
                 self.csv_treeview.reattach(item_id, "", "end")
-            except Exception:
-                pass  # Item may have been deleted
         self._detached_items = []
 
         if not filter_text:
@@ -704,15 +702,15 @@ class DynamicOutputWidget(ctk.CTkFrame):
     def update_outputs(
         self,
         meta_summary: str = "",
-        vocab_csv_data: list = None,
-        document_summaries: dict = None,
-        qa_results: list = None,
+        vocab_csv_data: list | None = None,
+        document_summaries: dict | None = None,
+        qa_results: list | None = None,
         briefing_text: str = "",
-        briefing_sections: dict = None,
+        briefing_sections: dict | None = None,
         # Session 45 new parameters
-        names_vocab_data: list = None,
+        names_vocab_data: list | None = None,
         summary_text: str = "",
-        extraction_source: str = None,
+        extraction_source: str | None = None,
     ):
         """
         Updates the internal storage with new outputs and refreshes the dropdown.
@@ -773,7 +771,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
 
         # Q&A tab - always enabled if Q&A system is ready
         main_window = self.winfo_toplevel()
-        qa_ready = getattr(main_window, "_qa_ready", False)
+        getattr(main_window, "_qa_ready", False)
         qa_data = self._outputs.get("Ask Questions") or self._outputs.get("Q&A Results")
         if qa_data:
             self._display_qa_results(qa_data)
@@ -916,7 +914,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
                     width=col_width,
                     minwidth=60,
                     anchor="w",
-                    stretch=True if col == "Term" else False,  # Term stretches to fill space
+                    stretch=col == "Term",  # Term stretches to fill space
                 )
 
             # Add vertical scrollbar
@@ -1089,10 +1087,14 @@ class DynamicOutputWidget(ctk.CTkFrame):
                     raw_values = (
                         tuple(item) if len(item) >= 4 else tuple(item) + ("",) * (4 - len(item))
                     )
-                    values = tuple(
-                        truncate_text(str(v), COLUMN_CONFIG[current_columns[j]]["max_chars"])
-                        for j, v in enumerate(raw_values[:4])
-                    ) + (THUMB_UP_EMPTY, THUMB_DOWN_EMPTY)
+                    values = (
+                        *tuple(
+                            truncate_text(str(v), COLUMN_CONFIG[current_columns[j]]["max_chars"])
+                            for j, v in enumerate(raw_values[:4])
+                        ),
+                        THUMB_UP_EMPTY,
+                        THUMB_DOWN_EMPTY,
+                    )
 
                 # Apply tag for row coloring based on existing rating or Found By (Session 43)
                 # Session 51: Add alternating row background color
@@ -1315,7 +1317,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
         except Exception as e:
             debug_log(f"[VOCAB UI] Failed to save exclusion: {e}")
             messagebox.showerror(
-                "Error", f"Failed to save exclusion: {e}\n\n" "Please check file permissions."
+                "Error", f"Failed to save exclusion: {e}\n\nPlease check file permissions."
             )
 
     def _copy_selected_term(self):
@@ -1351,7 +1353,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
             # Check if term is already in the list
             existing_terms = set()
             if USER_VOCAB_EXCLUDE_PATH.exists():
-                with open(USER_VOCAB_EXCLUDE_PATH, "r", encoding="utf-8") as f:
+                with open(USER_VOCAB_EXCLUDE_PATH, encoding="utf-8") as f:
                     existing_terms = {line.strip().lower() for line in f if line.strip()}
                 debug_log(f"[FEEDBACK] Existing exclusions: {len(existing_terms)} terms")
 
@@ -1365,7 +1367,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
 
             # Verify write succeeded
             if USER_VOCAB_EXCLUDE_PATH.exists():
-                with open(USER_VOCAB_EXCLUDE_PATH, "r", encoding="utf-8") as f:
+                with open(USER_VOCAB_EXCLUDE_PATH, encoding="utf-8") as f:
                     new_count = sum(1 for line in f if line.strip())
                 debug_log(
                     f"[FEEDBACK] Successfully added '{term}' to exclusion list "
@@ -1604,8 +1606,9 @@ class DynamicOutputWidget(ctk.CTkFrame):
         """
         from datetime import datetime
         from pathlib import Path
-        from src.services import get_export_service
+
         from src.core.utils.text_utils import get_documents_folder
+        from src.services import get_export_service
 
         # Session 80: Use fallback to legacy key like other export functions
         vocab_data = self._outputs.get("Names & Vocabulary") or self._outputs.get(
@@ -1651,8 +1654,9 @@ class DynamicOutputWidget(ctk.CTkFrame):
         """
         from datetime import datetime
         from pathlib import Path
-        from src.services import get_export_service
+
         from src.core.utils.text_utils import get_documents_folder
+        from src.services import get_export_service
 
         # Session 80: Use fallback to legacy key like other export functions
         vocab_data = self._outputs.get("Names & Vocabulary") or self._outputs.get(
@@ -1698,8 +1702,9 @@ class DynamicOutputWidget(ctk.CTkFrame):
         """
         from datetime import datetime
         from pathlib import Path
-        from src.services import get_export_service
+
         from src.core.utils.text_utils import get_documents_folder
+        from src.services import get_export_service
 
         # Session 80: Use fallback to legacy key like other export functions
         vocab_data = self._outputs.get("Names & Vocabulary") or self._outputs.get(
@@ -1744,8 +1749,9 @@ class DynamicOutputWidget(ctk.CTkFrame):
         """
         from datetime import datetime
         from pathlib import Path
-        from src.services import get_export_service
+
         from src.core.utils.text_utils import get_documents_folder
+        from src.services import get_export_service
 
         # Session 80: Use fallback to legacy key like other export functions
         vocab_data = self._outputs.get("Names & Vocabulary") or self._outputs.get(
@@ -1897,10 +1903,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
         current_rating = self._feedback_manager.get_rating(term)
 
         # Toggle logic: if already this rating, clear it; otherwise set it
-        if current_rating == feedback_type:
-            new_rating = 0  # Clear the rating
-        else:
-            new_rating = feedback_type
+        new_rating = 0 if current_rating == feedback_type else feedback_type
 
         # Find full term data from internal storage for ML features
         term_data = self._find_term_data(term)
@@ -1941,9 +1944,8 @@ class DynamicOutputWidget(ctk.CTkFrame):
         lower_term = term.lower().strip()
 
         for item in vocab_data:
-            if isinstance(item, dict):
-                if item.get("Term", "").lower().strip() == lower_term:
-                    return item
+            if isinstance(item, dict) and item.get("Term", "").lower().strip() == lower_term:
+                return item
 
         return None
 

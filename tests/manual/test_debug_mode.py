@@ -3,24 +3,24 @@ Debug Mode Test
 Tests the AI model with a simulated case document using debug mode.
 """
 
-import sys
 import os
-from pathlib import Path
+import sys
 import time
+from pathlib import Path
 
 # Fix Windows console encoding
-if sys.platform == 'win32':
-    os.system('chcp 65001 > nul 2>&1')
-    if hasattr(sys.stdout, 'reconfigure'):
-        sys.stdout.reconfigure(encoding='utf-8')
-    if hasattr(sys.stderr, 'reconfigure'):
-        sys.stderr.reconfigure(encoding='utf-8')
+if sys.platform == "win32":
+    os.system("chcp 65001 > nul 2>&1")
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8")
+    if hasattr(sys.stderr, "reconfigure"):
+        sys.stderr.reconfigure(encoding="utf-8")
 
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent))
 
 # Enable debug mode
-os.environ['DEBUG'] = 'true'
+os.environ["DEBUG"] = "true"
 
 from src.core.ai import ModelManager
 from src.core.utils.logger import debug
@@ -104,6 +104,7 @@ Dated: March 1, 2024
                                     (212) 555-0100
 """
 
+
 def test_debug_mode():
     """Test model with debug mode enabled."""
     print("=" * 70)
@@ -112,6 +113,7 @@ def test_debug_mode():
 
     # Verify debug mode is enabled
     from src.config import DEBUG_MODE
+
     print(f"\n[✓] Debug mode: {DEBUG_MODE}")
 
     if not DEBUG_MODE:
@@ -126,7 +128,7 @@ def test_debug_mode():
     start_time = time.time()
     manager = ModelManager()
     elapsed = time.time() - start_time
-    debug(f"ModelManager initialization took {elapsed*1000:.1f} ms")
+    debug(f"ModelManager initialization took {elapsed * 1000:.1f} ms")
 
     # Check available models
     print("\n" + "=" * 70)
@@ -136,11 +138,11 @@ def test_debug_mode():
     start_time = time.time()
     models = manager.get_available_models()
     elapsed = time.time() - start_time
-    debug(f"Model check took {elapsed*1000:.1f} ms")
+    debug(f"Model check took {elapsed * 1000:.1f} ms")
 
     available_model = None
     for model_key, model_info in models.items():
-        if model_info['available']:
+        if model_info["available"]:
             available_model = model_key
             print(f"\n[✓] Found: {model_info['name']}")
             print(f"    Path: {model_info['path']}")
@@ -180,11 +182,7 @@ def test_debug_mode():
     start_time = time.time()
     try:
         summary = ""
-        for token in manager.generate_summary(
-            case_text=SAMPLE_CASE,
-            max_words=200,
-            stream=True
-        ):
+        for token in manager.generate_summary(case_text=SAMPLE_CASE, max_words=200, stream=True):
             print(token, end="", flush=True)
             summary += token
 
@@ -194,11 +192,11 @@ def test_debug_mode():
         if summary.strip():
             word_count = len(summary.split())
             debug(f"Summary generation took {elapsed:.2f} seconds")
-            print(f"\n[✓] Summary generated successfully!")
+            print("\n[✓] Summary generated successfully!")
             print(f"    Words: {word_count}")
             print(f"    Characters: {len(summary)}")
             print(f"    Time: {elapsed:.2f}s")
-            print(f"    Speed: {word_count/elapsed:.1f} words/second")
+            print(f"    Speed: {word_count / elapsed:.1f} words/second")
 
             # Cleanup
             print("\n" + "=" * 70)
@@ -217,19 +215,22 @@ def test_debug_mode():
 
     except Exception as e:
         elapsed = time.time() - start_time
-        print(f"\n\n[✗] ERROR after {elapsed:.2f}s: {str(e)}")
+        print(f"\n\n[✗] ERROR after {elapsed:.2f}s: {e!s}")
         import traceback
+
         traceback.print_exc()
         return False
     finally:
         manager.unload_model()
+
 
 if __name__ == "__main__":
     try:
         success = test_debug_mode()
         sys.exit(0 if success else 1)
     except Exception as e:
-        print(f"\n[✗] UNEXPECTED ERROR: {str(e)}")
+        print(f"\n[✗] UNEXPECTED ERROR: {e!s}")
         import traceback
+
         traceback.print_exc()
         sys.exit(1)

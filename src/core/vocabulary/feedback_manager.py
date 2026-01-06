@@ -40,7 +40,6 @@ Session 78: Added TermSources-based per-document features:
 
 import csv
 import hashlib
-import os
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -52,8 +51,8 @@ from src.config import (
     ML_MIN_SAMPLES,
     ML_RETRAIN_THRESHOLD,
 )
-from src.logging_config import debug_log
 from src.core.vocabulary.term_sources import TermSources
+from src.logging_config import debug_log
 
 # CSV columns
 # Session 52: Replaced "type" with "is_person" (binary flag, more reliable)
@@ -172,7 +171,7 @@ class FeedbackManager:
             return
 
         try:
-            with open(target_file, "r", encoding="utf-8", newline="") as f:
+            with open(target_file, encoding="utf-8", newline="") as f:
                 reader = csv.DictReader(f)
                 for row in reader:
                     term = row.get("term", "").lower().strip()
@@ -386,7 +385,7 @@ class FeedbackManager:
             return []
 
         try:
-            with open(filepath, "r", encoding="utf-8", newline="") as f:
+            with open(filepath, encoding="utf-8", newline="") as f:
                 reader = csv.DictReader(f)
                 return list(reader)
         except Exception as e:

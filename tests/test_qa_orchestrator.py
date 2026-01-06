@@ -7,11 +7,8 @@ Tests the Q&A system components:
 3. QAOrchestrator - Question loading and answer coordination
 """
 
-import tempfile
 from pathlib import Path
 from unittest.mock import MagicMock, patch
-
-import pytest
 
 
 class TestQAResult:
@@ -24,7 +21,7 @@ class TestQAResult:
         result = QAResult(
             question="Who is the plaintiff?",
             quick_answer="John Smith is the plaintiff.",
-            citation="The plaintiff John Smith filed..."
+            citation="The plaintiff John Smith filed...",
         )
 
         assert result.question == "Who is the plaintiff?"
@@ -49,7 +46,7 @@ class TestQAResult:
             source_summary="complaint.pdf, pages 5-6",
             confidence=0.85,
             retrieval_time_ms=123.4,
-            is_followup=True
+            is_followup=True,
         )
 
         assert result.include_in_export is False
@@ -187,13 +184,11 @@ questions:
         yaml_path.write_text(yaml_content)
 
         # Mock the QARetriever to avoid needing actual vector store
-        with patch('src.core.qa.qa_orchestrator.QARetriever'):
+        with patch("src.core.qa.qa_orchestrator.QARetriever"):
             from src.core.qa import QAOrchestrator
 
             orchestrator = QAOrchestrator(
-                vector_store_path=tmp_path,
-                embeddings=MagicMock(),
-                questions_path=yaml_path
+                vector_store_path=tmp_path, embeddings=MagicMock(), questions_path=yaml_path
             )
 
             questions = orchestrator.get_default_questions()
@@ -207,13 +202,10 @@ questions:
         from src.core.qa import QAResult
 
         # Create mock orchestrator results
-        with patch('src.core.qa.qa_orchestrator.QARetriever'):
+        with patch("src.core.qa.qa_orchestrator.QARetriever"):
             from src.core.qa import QAOrchestrator
 
-            orchestrator = QAOrchestrator(
-                vector_store_path=Path("."),
-                embeddings=MagicMock()
-            )
+            orchestrator = QAOrchestrator(vector_store_path=Path("."), embeddings=MagicMock())
 
             # Add mock results
             orchestrator.results = [
@@ -231,13 +223,10 @@ questions:
         """toggle_export should flip the include_in_export flag."""
         from src.core.qa import QAResult
 
-        with patch('src.core.qa.qa_orchestrator.QARetriever'):
+        with patch("src.core.qa.qa_orchestrator.QARetriever"):
             from src.core.qa import QAOrchestrator
 
-            orchestrator = QAOrchestrator(
-                vector_store_path=Path("."),
-                embeddings=MagicMock()
-            )
+            orchestrator = QAOrchestrator(vector_store_path=Path("."), embeddings=MagicMock())
 
             orchestrator.results = [
                 QAResult(question="Q1", quick_answer="A1", citation="C1", include_in_export=True),
@@ -257,13 +246,10 @@ questions:
         """export_to_text should produce properly formatted text."""
         from src.core.qa import QAResult
 
-        with patch('src.core.qa.qa_orchestrator.QARetriever'):
+        with patch("src.core.qa.qa_orchestrator.QARetriever"):
             from src.core.qa import QAOrchestrator
 
-            orchestrator = QAOrchestrator(
-                vector_store_path=Path("."),
-                embeddings=MagicMock()
-            )
+            orchestrator = QAOrchestrator(vector_store_path=Path("."), embeddings=MagicMock())
 
             orchestrator.results = [
                 QAResult(
@@ -271,7 +257,7 @@ questions:
                     quick_answer="This is a civil personal injury case.",
                     citation="Filed in civil court for personal injury...",
                     source_summary="complaint.pdf",
-                    include_in_export=True
+                    include_in_export=True,
                 ),
             ]
 
@@ -286,17 +272,18 @@ questions:
         """export_to_text should only include checked items."""
         from src.core.qa import QAResult
 
-        with patch('src.core.qa.qa_orchestrator.QARetriever'):
+        with patch("src.core.qa.qa_orchestrator.QARetriever"):
             from src.core.qa import QAOrchestrator
 
-            orchestrator = QAOrchestrator(
-                vector_store_path=Path("."),
-                embeddings=MagicMock()
-            )
+            orchestrator = QAOrchestrator(vector_store_path=Path("."), embeddings=MagicMock())
 
             orchestrator.results = [
-                QAResult(question="Included", quick_answer="Yes", citation="C1", include_in_export=True),
-                QAResult(question="Excluded", quick_answer="No", citation="C2", include_in_export=False),
+                QAResult(
+                    question="Included", quick_answer="Yes", citation="C1", include_in_export=True
+                ),
+                QAResult(
+                    question="Excluded", quick_answer="No", citation="C2", include_in_export=False
+                ),
             ]
 
             text = orchestrator.export_to_text()
@@ -308,13 +295,10 @@ questions:
         """clear_results should empty the results list."""
         from src.core.qa import QAResult
 
-        with patch('src.core.qa.qa_orchestrator.QARetriever'):
+        with patch("src.core.qa.qa_orchestrator.QARetriever"):
             from src.core.qa import QAOrchestrator
 
-            orchestrator = QAOrchestrator(
-                vector_store_path=Path("."),
-                embeddings=MagicMock()
-            )
+            orchestrator = QAOrchestrator(vector_store_path=Path("."), embeddings=MagicMock())
 
             orchestrator.results = [QAResult(question="Q", quick_answer="A", citation="C")]
             assert len(orchestrator.results) == 1
@@ -329,6 +313,7 @@ class TestQAWorker:
     def test_worker_initialization(self):
         """QAWorker should initialize with required parameters."""
         from queue import Queue
+
         from src.ui.workers import QAWorker
 
         queue = Queue()
@@ -336,7 +321,7 @@ class TestQAWorker:
             vector_store_path=Path("."),
             embeddings=MagicMock(),
             ui_queue=queue,
-            answer_mode="extraction"
+            answer_mode="extraction",
         )
 
         assert worker.answer_mode == "extraction"
@@ -345,16 +330,14 @@ class TestQAWorker:
     def test_worker_accepts_custom_questions(self):
         """QAWorker should accept custom question list."""
         from queue import Queue
+
         from src.ui.workers import QAWorker
 
         queue = Queue()
         custom_qs = ["Question 1?", "Question 2?"]
 
         worker = QAWorker(
-            vector_store_path=Path("."),
-            embeddings=MagicMock(),
-            ui_queue=queue,
-            questions=custom_qs
+            vector_store_path=Path("."), embeddings=MagicMock(), ui_queue=queue, questions=custom_qs
         )
 
         assert worker.custom_questions == custom_qs
@@ -362,14 +345,11 @@ class TestQAWorker:
     def test_worker_stop_signal(self):
         """QAWorker should respond to stop signal."""
         from queue import Queue
+
         from src.ui.workers import QAWorker
 
         queue = Queue()
-        worker = QAWorker(
-            vector_store_path=Path("."),
-            embeddings=MagicMock(),
-            ui_queue=queue
-        )
+        worker = QAWorker(vector_store_path=Path("."), embeddings=MagicMock(), ui_queue=queue)
 
         assert not worker._stop_event.is_set()
 

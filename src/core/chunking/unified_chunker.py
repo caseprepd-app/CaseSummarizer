@@ -19,7 +19,6 @@ import re
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Optional
 
 import tiktoken
 from langchain_community.document_loaders import PyPDFLoader
@@ -28,7 +27,6 @@ from langchain_experimental.text_splitter import SemanticChunker
 from langchain_huggingface import HuggingFaceEmbeddings
 
 from src.logging_config import debug_log, debug_timing, error, info
-
 
 # Token limits for chunk sizing (research-based fixed values - Session 67)
 DEFAULT_MIN_TOKENS = 400  # Minimum to prevent fragmentation
@@ -52,8 +50,8 @@ class UnifiedChunk:
     token_count: int
     word_count: int
     char_count: int
-    source_file: Optional[str] = None
-    section_name: Optional[str] = None
+    source_file: str | None = None
+    section_name: str | None = None
 
     # Metadata for downstream processing
     metadata: dict = field(default_factory=dict)
@@ -150,7 +148,7 @@ class UnifiedChunker:
     def chunk_text(
         self,
         text: str,
-        source_file: Optional[str] = None,
+        source_file: str | None = None,
         use_cache: bool = True,
     ) -> list[UnifiedChunk]:
         """
@@ -362,7 +360,7 @@ class UnifiedChunker:
 
         return merged
 
-    def _detect_section(self, text: str) -> Optional[str]:
+    def _detect_section(self, text: str) -> str | None:
         """
         Detect section name from chunk text using common legal patterns.
 
@@ -386,7 +384,7 @@ class UnifiedChunker:
 
         return None
 
-    def chunk_pdf(self, file_path: Path, source_file: Optional[str] = None) -> list[UnifiedChunk]:
+    def chunk_pdf(self, file_path: Path, source_file: str | None = None) -> list[UnifiedChunk]:
         """
         Load and chunk a PDF file.
 

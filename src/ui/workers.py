@@ -14,24 +14,23 @@ Performance Optimizations:
 
 import gc
 import multiprocessing
-from pathlib import Path
 import threading
-import traceback
+from pathlib import Path
 from queue import Empty, Queue
 
 from src.config import DEBUG_MODE, PARALLEL_MAX_WORKERS
 from src.core.extraction import RawTextExtractor
-from src.logging_config import debug_log
 from src.core.parallel import (
     ExecutorStrategy,
     ParallelTaskRunner,
     ProgressAggregator,
     ThreadPoolStrategy,
 )
+from src.core.vocabulary import VocabularyExtractor
+from src.logging_config import debug_log
 from src.ui.base_worker import BaseWorker, CleanupWorker
 from src.ui.ollama_worker import ollama_generation_worker_process
 from src.ui.queue_messages import QueueMessage
-from src.core.vocabulary import VocabularyExtractor
 
 
 class ProcessingWorker(BaseWorker):
@@ -432,11 +431,12 @@ class QAWorker(BaseWorker):
         Returns:
             List of QAResult objects in original question order
         """
+        import os
+        import threading
+
         from src.core.parallel.executor_strategy import ThreadPoolStrategy
         from src.core.parallel.task_runner import ParallelTaskRunner
         from src.system_resources import get_optimal_workers
-        import os
-        import threading
 
         # Decide whether to parallelize
         # Skip for single question or non-Ollama mode (extraction is fast enough)
@@ -499,7 +499,7 @@ class QAWorker(BaseWorker):
 
         try:
             # Build items: (task_id, (index, question))
-            items = [(f"Q{i+1}", (i, q)) for i, q in enumerate(questions)]
+            items = [(f"Q{i + 1}", (i, q)) for i, q in enumerate(questions)]
 
             def on_complete(task_id: str, result):
                 """Callback when question completes - stream to UI."""
@@ -874,16 +874,13 @@ class ProgressiveExtractionWorker(BaseWorker):
         debug_log("[PROGRESSIVE WORKER] Phase 1: Local algorithm extraction starting...")
 
         # Check which algorithms will run for accurate status message
-        from src.core.vocabulary.corpus_manager import get_corpus_manager
         from src.config import CORPUS_MIN_DOCUMENTS
+        from src.core.vocabulary.corpus_manager import get_corpus_manager
 
         corpus_manager = get_corpus_manager()
         bm25_active = corpus_manager.is_corpus_ready(min_docs=CORPUS_MIN_DOCUMENTS)
 
-        if bm25_active:
-            algo_list = "NER, RAKE, BM25"
-        else:
-            algo_list = "NER, RAKE"
+        algo_list = "NER, RAKE, BM25" if bm25_active else "NER, RAKE"
         self.send_progress(10, f"Phase 1: Running local extraction ({algo_list})...")
 
         from src.core.vocabulary import VocabularyExtractor
@@ -1087,7 +1084,7 @@ class BriefingWorker(CleanupWorker):
         debug_log(f"[BRIEFING WORKER] Starting briefing for {len(self.documents)} documents")
 
         # Import briefing components
-        from src.core.briefing import BriefingOrchestrator, BriefingFormatter
+        from src.core.briefing import BriefingFormatter, BriefingOrchestrator
 
         # Initialize orchestrator
         self._orchestrator = BriefingOrchestrator()

@@ -29,10 +29,11 @@ Usage:
             print(f"{result.task_id} failed: {result.error}")
 """
 
-from dataclasses import dataclass
-from typing import Callable, Any
-from concurrent.futures import as_completed
 import threading
+from collections.abc import Callable
+from concurrent.futures import as_completed
+from dataclasses import dataclass
+from typing import Any
 
 from .executor_strategy import ExecutorStrategy
 
@@ -102,7 +103,7 @@ class ParallelTaskRunner:
     """
 
     def __init__(
-        self, strategy: ExecutorStrategy, on_task_complete: Callable[[str, Any], None] = None
+        self, strategy: ExecutorStrategy, on_task_complete: Callable[[str, Any], None] | None = None
     ):
         """
         Initialize the task runner.

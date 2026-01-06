@@ -2,23 +2,23 @@
 Test the new slider configuration and word count range functionality.
 """
 
-import sys
 import os
+import sys
 from pathlib import Path
 
 # Fix Windows console encoding
-if sys.platform == 'win32':
-    os.system('chcp 65001 > nul 2>&1')
-    if hasattr(sys.stdout, 'reconfigure'):
-        sys.stdout.reconfigure(encoding='utf-8')
-    if hasattr(sys.stderr, 'reconfigure'):
-        sys.stderr.reconfigure(encoding='utf-8')
+if sys.platform == "win32":
+    os.system("chcp 65001 > nul 2>&1")
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8")
+    if hasattr(sys.stderr, "reconfigure"):
+        sys.stderr.reconfigure(encoding="utf-8")
 
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent))
 
-from src.core.prompting import get_prompt_config
 from src.core.ai import ModelManager
+from src.core.prompting import get_prompt_config
 
 print("=" * 70)
 print("LocalScribe - Slider Configuration Test")
@@ -56,7 +56,7 @@ print("  ✓ Slider increments verified")
 print("\n[Test 4] Testing ModelManager integration...")
 manager = ModelManager()
 print(f"  ModelManager has prompt_config: {hasattr(manager, 'prompt_config')}")
-if hasattr(manager, 'prompt_config'):
+if hasattr(manager, "prompt_config"):
     print(f"  Temperature: {manager.prompt_config.summary_temperature}")
     print(f"  Top-p: {manager.prompt_config.top_p}")
     print(f"  Tokens per word: {manager.prompt_config.tokens_per_word}")
@@ -79,7 +79,7 @@ prompt_snippet = f"""Instructions:
 - Focus on: key facts, parties involved, legal issues, and outcomes"""
 
 print("\n  Generated prompt instructions:")
-for line in prompt_snippet.split('\n'):
+for line in prompt_snippet.split("\n"):
     print(f"    {line}")
 print("  ✓ Prompt generation verified")
 
@@ -89,5 +89,5 @@ print("=" * 70)
 print("\nSummary:")
 print(f"  • Slider moves in {increment}-word increments")
 print(f"  • Model will generate summaries ±{config.word_count_tolerance} words from target")
-print(f"  • Configuration is loaded from: config/prompt_parameters.json")
-print(f"  • Users can edit that file to customize behavior")
+print("  • Configuration is loaded from: config/prompt_parameters.json")
+print("  • Users can edit that file to customize behavior")

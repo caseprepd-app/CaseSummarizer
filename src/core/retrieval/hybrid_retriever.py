@@ -24,9 +24,9 @@ import time
 from typing import TYPE_CHECKING, Any
 
 from src.config import DEBUG_MODE
-from src.logging_config import debug_log
 from src.core.retrieval.base import AlgorithmRetrievalResult, DocumentChunk
 from src.core.retrieval.chunk_merger import ChunkMerger, MergedRetrievalResult
+from src.logging_config import debug_log
 
 if TYPE_CHECKING:
     from langchain_huggingface import HuggingFaceEmbeddings

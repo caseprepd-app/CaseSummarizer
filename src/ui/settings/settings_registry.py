@@ -23,9 +23,10 @@ Example - Adding a new setting:
     ))
 """
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Callable
+from typing import Any, ClassVar
 
 
 class SettingType(Enum):
@@ -110,9 +111,9 @@ class SettingsRegistry:
         settings = SettingsRegistry.get_settings_for_category("Performance")
     """
 
-    _settings: dict[str, SettingDefinition] = {}
-    _categories: dict[str, list[str]] = {}  # category -> [setting_keys]
-    _category_order: list[str] = []  # Preserve registration order
+    _settings: ClassVar[dict[str, SettingDefinition]] = {}
+    _categories: ClassVar[dict[str, list[str]]] = {}  # category -> [setting_keys]
+    _category_order: ClassVar[list[str]] = []  # Preserve registration order
 
     @classmethod
     def register(cls, setting: SettingDefinition) -> None:
@@ -174,18 +175,19 @@ def _register_all_settings():
     """
     # Import lazily to avoid circular imports
     import os
-    from src.user_preferences import get_user_preferences
+
     from src.config import (
+        BM25_ENABLED,
+        CORPUS_DIR,
+        DEFAULT_SUMMARY_WORDS,
+        MAX_SUMMARY_WORDS,
+        MIN_SUMMARY_WORDS,
         USER_DEFINED_MAX_WORKER_COUNT,
         VOCABULARY_DISPLAY_LIMIT,
         VOCABULARY_DISPLAY_MAX,
         VOCABULARY_SORT_METHOD,
-        DEFAULT_SUMMARY_WORDS,
-        MIN_SUMMARY_WORDS,
-        MAX_SUMMARY_WORDS,
-        CORPUS_DIR,
-        BM25_ENABLED,
     )
+    from src.user_preferences import get_user_preferences
 
     prefs = get_user_preferences()
 
@@ -283,6 +285,7 @@ def _register_all_settings():
     def _create_corpus_warning_widget(parent):
         """Factory for corpus status warning banner with dynamic refresh."""
         import tkinter as tk
+
         from src.core.vocabulary.corpus_manager import get_corpus_manager
 
         frame = tk.Frame(parent)
@@ -491,6 +494,7 @@ def _register_all_settings():
     def _reset_vocab_model():
         """Reset vocabulary ML model to default (keep feedback history)."""
         from tkinter import messagebox
+
         from src.core.vocabulary.meta_learner import get_meta_learner
 
         result = messagebox.askyesno(
@@ -538,8 +542,9 @@ def _register_all_settings():
     def _reset_vocab_model_and_history():
         """Reset vocabulary ML model AND clear all feedback history."""
         from tkinter import messagebox
-        from src.core.vocabulary.meta_learner import get_meta_learner
+
         from src.core.vocabulary.feedback_manager import get_feedback_manager
+        from src.core.vocabulary.meta_learner import get_meta_learner
 
         result = messagebox.askyesno(
             "Reset Model and Clear History",
@@ -795,15 +800,12 @@ def _register_all_settings():
                     # Show model name with size if available
                     info = models[name]
                     size_gb = info.get("size", 0) / (1024**3) if info.get("size") else 0
-                    if size_gb > 0:
-                        display = f"{name} ({size_gb:.1f} GB)"
-                    else:
-                        display = name
+                    display = f"{name} ({size_gb:.1f} GB)" if size_gb > 0 else name
                     options.append((display, name))
                 return options
             return [("(No models installed - run 'ollama pull gemma3:1b')", "")]
-        except Exception as e:
-            return [(f"(Error connecting to Ollama)", "")]
+        except Exception:
+            return [("(Error connecting to Ollama)", "")]
 
     def _set_ollama_model(model_name: str) -> None:
         """Save and activate selected Ollama model."""

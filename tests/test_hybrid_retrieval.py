@@ -10,16 +10,15 @@ Tests the multi-algorithm retrieval architecture:
 
 import pytest
 
+from src.core.retrieval import HybridRetriever
+from src.core.retrieval.algorithms import BM25PlusRetriever, get_all_algorithms
 from src.core.retrieval.base import (
+    AlgorithmRetrievalResult,
     BaseRetrievalAlgorithm,
     DocumentChunk,
     RetrievedChunk,
-    AlgorithmRetrievalResult,
 )
-from src.core.retrieval.algorithms import get_all_algorithms, BM25PlusRetriever
-from src.core.retrieval.chunk_merger import ChunkMerger, MergedChunk
-from src.core.retrieval import HybridRetriever
-
+from src.core.retrieval.chunk_merger import ChunkMerger
 
 # Test data - simulated legal document chunks
 SAMPLE_CHUNKS = [
@@ -253,7 +252,7 @@ class TestHybridRetriever:
                 "chunks": [
                     {"text": "Test chunk one", "chunk_num": 0},
                     {"text": "Test chunk two", "chunk_num": 1},
-                ]
+                ],
             }
         ]
 
@@ -305,5 +304,5 @@ class TestAlgorithmRegistry:
     def test_algorithms_are_subclasses(self):
         """Test registered algorithms inherit from base class."""
         algorithms = get_all_algorithms()
-        for name, cls in algorithms.items():
+        for _name, cls in algorithms.items():
             assert issubclass(cls, BaseRetrievalAlgorithm)

@@ -9,18 +9,17 @@ Session 75: Refactored with _run_export() helper to reduce duplication (REF-002)
 
 import os
 import sys
-from pathlib import Path
-from typing import Callable
+from collections.abc import Callable
 
 from src.core.export import (
-    WordDocumentBuilder,
     PdfDocumentBuilder,
-    export_vocabulary,
-    export_vocabulary_txt,
-    export_vocabulary_html,
-    export_qa_results,
-    export_qa_html,
+    WordDocumentBuilder,
     export_combined,
+    export_qa_html,
+    export_qa_results,
+    export_vocabulary,
+    export_vocabulary_html,
+    export_vocabulary_txt,
 )
 from src.logging_config import debug_log, error, info
 

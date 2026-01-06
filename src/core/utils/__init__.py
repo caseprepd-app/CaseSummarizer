@@ -21,12 +21,12 @@ from .logger import (
 )
 
 __all__ = [
+    "DEBUG_MODE",
+    "Timer",
+    "critical",
     "debug",
     "debug_log",
+    "error",
     "info",
     "warning",
-    "error",
-    "critical",
-    "Timer",
-    "DEBUG_MODE",
 ]

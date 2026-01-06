@@ -43,16 +43,17 @@ from __future__ import annotations
 
 import threading
 import time
-from typing import TYPE_CHECKING, Callable
+from collections.abc import Callable
+from typing import TYPE_CHECKING
 
 from src.config import OLLAMA_CONTEXT_WINDOW, PARALLEL_MAX_WORKERS
-from src.logging_config import debug_log, error, info
 from src.core.parallel import (
     ExecutorStrategy,
     ParallelTaskRunner,
     ProgressAggregator,
     ThreadPoolStrategy,
 )
+from src.logging_config import debug_log, error, info
 
 from .document_summarizer import DocumentSummarizer
 from .result_types import DocumentSummaryResult, MultiDocumentSummaryResult
@@ -95,7 +96,7 @@ class MultiDocumentOrchestrator:
         document_summarizer: DocumentSummarizer,
         model_manager: OllamaModelManager,
         strategy: ExecutorStrategy | None = None,
-        prompt_adapter: "PromptAdapter | None" = None,
+        prompt_adapter: PromptAdapter | None = None,
         preset_id: str = "factual-summary",
     ):
         """

@@ -11,11 +11,11 @@ Usage:
     vocab_data = service.extract_vocabulary(text)
 """
 
-from typing import Callable
+from collections.abc import Callable
 
 from src.config import DEBUG_MODE
-from src.logging_config import debug_log
 from src.core.vocabulary import VocabularyExtractor
+from src.logging_config import debug_log
 
 
 class VocabularyService:

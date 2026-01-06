@@ -26,7 +26,6 @@ import time
 from typing import TYPE_CHECKING, Any
 
 from src.config import DEBUG_MODE
-from src.logging_config import debug_log
 from src.core.retrieval.algorithms import register_algorithm
 from src.core.retrieval.base import (
     AlgorithmRetrievalResult,
@@ -34,6 +33,7 @@ from src.core.retrieval.base import (
     DocumentChunk,
     RetrievedChunk,
 )
+from src.logging_config import debug_log
 
 if TYPE_CHECKING:
     from langchain_community.vectorstores import FAISS
@@ -80,7 +80,7 @@ class FAISSRetriever(BaseRetrievalAlgorithm):
                        If None, will be created on first use.
         """
         self._embeddings = embeddings
-        self._vector_store: "FAISS | None" = None
+        self._vector_store: FAISS | None = None
         self._chunks: list[DocumentChunk] = []
 
     def set_embeddings(self, embeddings: "HuggingFaceEmbeddings") -> None:

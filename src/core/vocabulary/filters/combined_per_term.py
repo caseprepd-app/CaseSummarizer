@@ -12,8 +12,8 @@ NER incorrectly marks as Person (e.g., "ModMess Quanny Desortpdon").
 """
 
 from src.core.vocabulary.filters.base import BaseVocabularyFilter, FilterResult
-from src.core.vocabulary.person_utils import is_person_entry
 from src.core.vocabulary.name_deduplicator import _word_validity_score
+from src.core.vocabulary.person_utils import is_person_entry
 from src.logging_config import debug_log
 
 
@@ -49,14 +49,14 @@ class CombinedPerTermFilter(BaseVocabularyFilter):
             FilterResult with filtered vocabulary and per-sub-filter stats
         """
         # Import filter functions
-        from src.core.vocabulary.rarity_filter import should_filter_phrase
-        from src.core.vocabulary.corpus_familiarity_filter import (
-            should_filter_corpus_familiar,
-            calculate_corpus_familiarity,
-        )
-        from src.core.utils.gibberish_filter import is_gibberish
-
         import time
+
+        from src.core.utils.gibberish_filter import is_gibberish
+        from src.core.vocabulary.corpus_familiarity_filter import (
+            calculate_corpus_familiarity,
+            should_filter_corpus_familiar,
+        )
+        from src.core.vocabulary.rarity_filter import should_filter_phrase
 
         filtered = []
         removed_by_rarity = 0

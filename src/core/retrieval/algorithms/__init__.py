@@ -14,15 +14,13 @@ Example:
     bm25 = get_algorithm("BM25+")
 """
 
-from typing import Type
-
 from src.core.retrieval.base import BaseRetrievalAlgorithm
 
 # Algorithm registry - maps name to class
-_ALGORITHM_REGISTRY: dict[str, Type[BaseRetrievalAlgorithm]] = {}
+_ALGORITHM_REGISTRY: dict[str, type[BaseRetrievalAlgorithm]] = {}
 
 
-def register_algorithm(cls: Type[BaseRetrievalAlgorithm]) -> Type[BaseRetrievalAlgorithm]:
+def register_algorithm(cls: type[BaseRetrievalAlgorithm]) -> type[BaseRetrievalAlgorithm]:
     """
     Decorator to register a retrieval algorithm.
 
@@ -36,7 +34,7 @@ def register_algorithm(cls: Type[BaseRetrievalAlgorithm]) -> Type[BaseRetrievalA
     return cls
 
 
-def get_all_algorithms() -> dict[str, Type[BaseRetrievalAlgorithm]]:
+def get_all_algorithms() -> dict[str, type[BaseRetrievalAlgorithm]]:
     """
     Get all registered retrieval algorithms.
 
@@ -46,7 +44,7 @@ def get_all_algorithms() -> dict[str, Type[BaseRetrievalAlgorithm]]:
     return _ALGORITHM_REGISTRY.copy()
 
 
-def get_algorithm(name: str) -> Type[BaseRetrievalAlgorithm] | None:
+def get_algorithm(name: str) -> type[BaseRetrievalAlgorithm] | None:
     """
     Get a specific algorithm by name.
 
@@ -61,13 +59,13 @@ def get_algorithm(name: str) -> Type[BaseRetrievalAlgorithm] | None:
 
 # Import algorithms to trigger registration
 # These imports must be at the bottom to avoid circular imports
-from src.core.retrieval.algorithms.bm25_plus import BM25PlusRetriever  # noqa: E402, F401
-from src.core.retrieval.algorithms.faiss_semantic import FAISSRetriever  # noqa: E402, F401
+from src.core.retrieval.algorithms.bm25_plus import BM25PlusRetriever  # noqa: E402
+from src.core.retrieval.algorithms.faiss_semantic import FAISSRetriever  # noqa: E402
 
 __all__ = [
-    "register_algorithm",
-    "get_all_algorithms",
-    "get_algorithm",
     "BM25PlusRetriever",
     "FAISSRetriever",
+    "get_algorithm",
+    "get_all_algorithms",
+    "register_algorithm",
 ]

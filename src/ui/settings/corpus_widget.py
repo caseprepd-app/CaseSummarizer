@@ -25,8 +25,8 @@ Layout:
 
 import customtkinter as ctk
 
-from src.ui.theme import FONTS, COLORS
 from src.ui.settings.settings_widgets import TooltipIcon
+from src.ui.theme import COLORS, FONTS
 
 
 class CorpusSettingsWidget(ctk.CTkFrame):

@@ -34,13 +34,13 @@ To add a new widget type:
 """
 
 import tkinter as tk
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 import customtkinter as ctk
 
-from src.ui.theme import FONTS, COLORS
+from src.ui.theme import COLORS, FONTS
 from src.ui.tooltip_manager import tooltip_manager
-
 
 # =============================================================================
 # LAYOUT CONSTANTS — Change these to adjust all settings uniformly
@@ -183,10 +183,10 @@ class TooltipIcon(ctk.CTkLabel):
         if self.tooltip_window:
             # Session 62b: Unregister from global manager
             tooltip_manager.unregister(self.tooltip_window)
-            try:
+            import contextlib
+
+            with contextlib.suppress(tk.TclError, RuntimeError):
                 self.tooltip_window.destroy()
-            except (tk.TclError, RuntimeError):
-                pass  # Window may already be destroyed (common during app shutdown)
             self.tooltip_window = None
 
 
@@ -209,7 +209,12 @@ class SettingRow(ctk.CTkFrame):
     """
 
     def __init__(
-        self, parent, label: str, tooltip: str, on_change: Callable[[Any], None] = None, **kwargs
+        self,
+        parent,
+        label: str,
+        tooltip: str,
+        on_change: Callable[[Any], None] | None = None,
+        **kwargs,
     ):
         """
         Initialize the setting row.
@@ -274,8 +279,8 @@ class SliderSetting(SettingRow):
         min_value: float,
         max_value: float,
         step: float = 1,
-        initial_value: float = None,
-        on_change: Callable[[float], None] = None,
+        initial_value: float | None = None,
+        on_change: Callable[[float], None] | None = None,
         **kwargs,
     ):
         """
@@ -362,7 +367,7 @@ class CheckboxSetting(SettingRow):
         label: str,
         tooltip: str,
         initial_value: bool = False,
-        on_change: Callable[[bool], None] = None,
+        on_change: Callable[[bool], None] | None = None,
         **kwargs,
     ):
         """
@@ -422,7 +427,7 @@ class DropdownSetting(SettingRow):
         tooltip: str,
         options: list[tuple[str, Any]],
         initial_value: Any = None,
-        on_change: Callable[[Any], None] = None,
+        on_change: Callable[[Any], None] | None = None,
         **kwargs,
     ):
         """
@@ -440,7 +445,7 @@ class DropdownSetting(SettingRow):
 
         self.options = options
         # Maps: display_text -> value, value -> display_text
-        self.value_map = {text: val for text, val in options}
+        self.value_map = dict(options)
         self.text_map = {val: text for text, val in options}
 
         display_values = [text for text, _ in options]
@@ -490,8 +495,8 @@ class SpinboxSetting(SettingRow):
         tooltip: str,
         min_value: int,
         max_value: int,
-        initial_value: int = None,
-        on_change: Callable[[int], None] = None,
+        initial_value: int | None = None,
+        on_change: Callable[[int], None] | None = None,
         **kwargs,
     ):
         """
@@ -594,7 +599,13 @@ class ButtonSetting(SettingRow):
     """
 
     def __init__(
-        self, parent, label: str, tooltip: str, action: callable, button_text: str = None, **kwargs
+        self,
+        parent,
+        label: str,
+        tooltip: str,
+        action: callable,
+        button_text: str | None = None,
+        **kwargs,
     ):
         """
         Initialize the button setting.

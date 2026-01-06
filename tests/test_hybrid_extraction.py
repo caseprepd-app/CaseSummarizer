@@ -5,8 +5,9 @@ Session 79: Tests the hybrid extraction pipeline that uses both PyMuPDF
 and pdfplumber, reconciling differences with word-level voting.
 """
 
+from unittest.mock import MagicMock
+
 import pytest
-from unittest.mock import MagicMock, patch
 
 
 class TestWordLevelVoting:
@@ -20,11 +21,39 @@ class TestWordLevelVoting:
         extractor = RawTextExtractor()
         # Use a small test dictionary
         extractor.english_words = {
-            'the', 'and', 'is', 'of', 'in', 'to', 'for', 'with', 'on', 'at',
-            'plaintiff', 'defendant', 'court', 'case', 'motion', 'order',
-            'john', 'smith', 'hospital', 'surgery', 'patient', 'doctor',
-            'january', 'february', 'march', 'april', 'may', 'june',
-            'medical', 'injury', 'negligence', 'damages', 'evidence',
+            "the",
+            "and",
+            "is",
+            "of",
+            "in",
+            "to",
+            "for",
+            "with",
+            "on",
+            "at",
+            "plaintiff",
+            "defendant",
+            "court",
+            "case",
+            "motion",
+            "order",
+            "john",
+            "smith",
+            "hospital",
+            "surgery",
+            "patient",
+            "doctor",
+            "january",
+            "february",
+            "march",
+            "april",
+            "may",
+            "june",
+            "medical",
+            "injury",
+            "negligence",
+            "damages",
+            "evidence",
         }
         return extractor
 
@@ -110,7 +139,7 @@ class TestIsValidWord:
         from src.core.extraction.raw_text_extractor import RawTextExtractor
 
         extractor = RawTextExtractor()
-        extractor.english_words = {'the', 'plaintiff', 'court'}
+        extractor.english_words = {"the", "plaintiff", "court"}
         return extractor
 
     def test_valid_word(self, extractor):
@@ -140,6 +169,7 @@ class TestTokenizeForVoting:
     def extractor(self):
         """Create extractor."""
         from src.core.extraction.raw_text_extractor import RawTextExtractor
+
         return RawTextExtractor()
 
     def test_simple_tokenization(self, extractor):
@@ -159,14 +189,15 @@ class TestPyMuPDFExtraction:
     def test_import_fitz(self):
         """PyMuPDF (fitz) should be importable."""
         import fitz
-        assert hasattr(fitz, 'open')
+
+        assert hasattr(fitz, "open")
 
     def test_method_exists(self):
         """The _extract_text_pymupdf method should exist."""
         from src.core.extraction.raw_text_extractor import RawTextExtractor
 
         extractor = RawTextExtractor()
-        assert hasattr(extractor, '_extract_text_pymupdf')
+        assert hasattr(extractor, "_extract_text_pymupdf")
 
 
 class TestHybridExtractionPipeline:
@@ -176,15 +207,16 @@ class TestHybridExtractionPipeline:
     def extractor(self):
         """Create extractor."""
         from src.core.extraction.raw_text_extractor import RawTextExtractor
+
         return RawTextExtractor()
 
     def test_process_pdf_method_exists(self, extractor):
         """The _process_pdf method should exist."""
-        assert hasattr(extractor, '_process_pdf')
+        assert hasattr(extractor, "_process_pdf")
 
     def test_reconcile_extractions_method_exists(self, extractor):
         """The _reconcile_extractions method should exist."""
-        assert hasattr(extractor, '_reconcile_extractions')
+        assert hasattr(extractor, "_reconcile_extractions")
 
     def test_hybrid_method_reported(self, extractor):
         """When both extractors succeed, method should be 'hybrid_voting'."""
@@ -196,8 +228,9 @@ class TestHybridExtractionPipeline:
         extractor._extract_pdf_text = MagicMock(return_value=(long_text, 1, None))
 
         from pathlib import Path
+
         result = extractor._process_pdf(Path("test.pdf"))
 
-        assert result['method'] == 'hybrid_voting'
-        assert result['status'] == 'success'
-        assert result['confidence'] > 0
+        assert result["method"] == "hybrid_voting"
+        assert result["status"] == "success"
+        assert result["confidence"] > 0

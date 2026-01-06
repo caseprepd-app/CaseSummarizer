@@ -23,10 +23,9 @@ replace this with a learned model once sufficient feedback is collected.
 Session 78: Initial implementation for canonical spelling improvement.
 """
 
-from typing import Optional
-from src.logging_config import debug_log
+from src.core.utils.ocr_patterns import has_ocr_artifacts
 from src.core.vocabulary.term_sources import TermSources
-from src.core.utils.ocr_patterns import has_ocr_artifacts, get_ocr_penalty
+from src.logging_config import debug_log
 
 
 class CanonicalScorer:
@@ -120,7 +119,7 @@ class CanonicalScorer:
             base_score *= 1.0 - penalty
             debug_log(
                 f"[CANONICAL] OCR penalty applied to '{term}': "
-                f"-{penalty*100:.0f}% → score={base_score:.2f}"
+                f"-{penalty * 100:.0f}% → score={base_score:.2f}"
             )
 
         return base_score
@@ -173,7 +172,7 @@ class CanonicalScorer:
         if len(known_variants) == 1:
             # Exactly one known → it wins decisively
             canonical = known_variants[0]
-            debug_log(f"[CANONICAL] '{canonical.get(term_key)}' wins " f"(only known variant)")
+            debug_log(f"[CANONICAL] '{canonical.get(term_key)}' wins (only known variant)")
             return self._merge_into_canonical(canonical, variants, term_key, sources_key)
 
         elif len(known_variants) == 0:
@@ -229,7 +228,7 @@ class CanonicalScorer:
 
         # Winner is the highest score
         canonical, best_score = scored[0]
-        debug_log(f"[CANONICAL] '{canonical.get(term_key)}' wins " f"with score={best_score:.2f}")
+        debug_log(f"[CANONICAL] '{canonical.get(term_key)}' wins with score={best_score:.2f}")
 
         # Return with merged sources from all variants
         return self._merge_into_canonical(
@@ -300,7 +299,7 @@ class CanonicalScorer:
 # -----------------------------------------------------------------------------
 
 
-def create_canonical_scorer(known_words: Optional[set[str]] = None) -> CanonicalScorer:
+def create_canonical_scorer(known_words: set[str] | None = None) -> CanonicalScorer:
     """
     Create a CanonicalScorer with the standard known words dataset.
 
@@ -325,7 +324,7 @@ def create_canonical_scorer(known_words: Optional[set[str]] = None) -> Canonical
 
 def select_canonical_spelling(
     variants: list[dict],
-    known_words: Optional[set[str]] = None,
+    known_words: set[str] | None = None,
 ) -> dict:
     """
     Convenience function to select canonical spelling from variants.

@@ -19,7 +19,6 @@ Privacy: All processing is local - no documents or data are sent externally.
 import hashlib
 import json
 import math
-import os
 import time
 from collections import Counter
 from dataclasses import dataclass
@@ -28,8 +27,8 @@ from pathlib import Path
 from typing import Any
 
 from src.config import CACHE_DIR, CORPUS_DIR
+from src.core.utils.tokenizer import tokenize
 from src.logging_config import debug_log
-from src.core.utils.tokenizer import tokenize, TokenizerConfig
 
 
 @dataclass
@@ -443,7 +442,7 @@ class CorpusManager:
             return False
 
         try:
-            with open(self._cache_file, "r", encoding="utf-8") as f:
+            with open(self._cache_file, encoding="utf-8") as f:
                 cache_data = json.load(f)
 
             # Validate cache version (Session 68: Accept v1 or v2, rebuild for older)

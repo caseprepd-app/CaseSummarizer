@@ -13,12 +13,10 @@ Usage:
 """
 
 import json
-from pathlib import Path
 from functools import lru_cache
-from typing import Optional
+from pathlib import Path
 
 from src.logging_config import debug_log
-
 
 # Path to categories configuration file
 CATEGORIES_FILE = Path(__file__).parent.parent / "config" / "categories.json"
@@ -47,7 +45,7 @@ def load_categories() -> dict:
         return _get_default_config()
 
     try:
-        with open(CATEGORIES_FILE, "r", encoding="utf-8") as f:
+        with open(CATEGORIES_FILE, encoding="utf-8") as f:
             config = json.load(f)
 
         # Validate required keys
@@ -61,10 +59,10 @@ def load_categories() -> dict:
 
     except json.JSONDecodeError as e:
         debug_log(f"[CATEGORIES] Invalid JSON in config file: {e}")
-        raise CategoriesError(f"Invalid JSON in categories config: {e}")
+        raise CategoriesError(f"Invalid JSON in categories config: {e}") from e
     except Exception as e:
         debug_log(f"[CATEGORIES] Error loading config: {e}")
-        raise CategoriesError(f"Error loading categories config: {e}")
+        raise CategoriesError(f"Error loading categories config: {e}") from e
 
 
 def _get_default_config() -> dict:

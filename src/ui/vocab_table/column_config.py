@@ -10,9 +10,9 @@ Contains:
 """
 
 from src.config import (
-    VOCABULARY_ROWS_PER_PAGE,
-    VOCABULARY_BATCH_INSERT_SIZE,
     VOCABULARY_BATCH_INSERT_DELAY_MS,
+    VOCABULARY_BATCH_INSERT_SIZE,
+    VOCABULARY_ROWS_PER_PAGE,
 )
 
 # Feedback icons (Unicode for cross-platform compatibility)

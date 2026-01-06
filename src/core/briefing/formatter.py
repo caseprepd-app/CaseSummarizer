@@ -20,7 +20,7 @@ Output Sections:
 from dataclasses import dataclass
 from datetime import datetime
 
-from .aggregator import AggregatedBriefingData, PersonEntry
+from .aggregator import PersonEntry
 from .orchestrator import BriefingResult
 from .synthesizer import SynthesisResult
 

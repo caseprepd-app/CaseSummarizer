@@ -13,8 +13,9 @@ Key Features:
 """
 
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime
+from typing import ClassVar
 
 from src.logging_config import debug_log
 
@@ -69,7 +70,7 @@ class DocumentChunker:
     """
 
     # Legal section patterns (compiled for performance)
-    SECTION_PATTERNS = [
+    SECTION_PATTERNS: ClassVar[list[tuple[re.Pattern[str], str]]] = [
         # Complaint sections
         (
             re.compile(
@@ -124,7 +125,7 @@ class DocumentChunker:
     ]
 
     # Document type detection patterns
-    DOC_TYPE_PATTERNS = [
+    DOC_TYPE_PATTERNS: ClassVar[list[tuple[re.Pattern[str], str]]] = [
         (re.compile(r"COMPLAINT|PETITION|SUMMONS", re.IGNORECASE), "complaint"),
         (re.compile(r"ANSWER\s+(TO|AND)|DEFENDANT.{0,20}ANSWER", re.IGNORECASE), "answer"),
         (re.compile(r"DEPOSITION|TRANSCRIPT|EXAMINATION", re.IGNORECASE), "transcript"),
@@ -281,13 +282,11 @@ class DocumentChunker:
             should_split = False
 
             # Split if exceeding max and we have content
-            if would_exceed_max and current_text_parts:
-                should_split = True
-            # Split if we're at target and this paragraph would push us well over
-            elif current_chars >= self.target_chars and para_chars > 200:
-                should_split = True
-            # Split at major section boundaries if we have reasonable content
-            elif detected_section and current_chars >= self.min_chars:
+            if (
+                (would_exceed_max and current_text_parts)
+                or (current_chars >= self.target_chars and para_chars > 200)
+                or (detected_section and current_chars >= self.min_chars)
+            ):
                 should_split = True
 
             if should_split:

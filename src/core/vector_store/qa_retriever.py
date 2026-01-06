@@ -55,7 +55,6 @@ def _get_effective_qa_context_window() -> int:
 
 
 if TYPE_CHECKING:
-    from langchain_community.vectorstores import FAISS
     from langchain_huggingface import HuggingFaceEmbeddings
 
 

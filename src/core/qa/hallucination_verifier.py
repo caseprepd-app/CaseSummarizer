@@ -34,13 +34,12 @@ from src.config import (
     DEBUG_MODE,
     HALLUCINATION_MODEL_LOCAL_PATH,
     HF_CACHE_DIR,
-    HALLUCINATION_LOCAL_ONLY,
+)
+from src.core.qa.verification_config import (
+    ANSWER_REJECTION_THRESHOLD,
+    VERIFIER_MODEL_PATH,
 )
 from src.logging_config import debug_log
-from src.core.qa.verification_config import (
-    VERIFIER_MODEL_PATH,
-    ANSWER_REJECTION_THRESHOLD,
-)
 
 
 @dataclass

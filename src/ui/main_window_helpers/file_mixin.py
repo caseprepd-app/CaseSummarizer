@@ -11,12 +11,11 @@ Contains:
 """
 
 from pathlib import Path
-from queue import Queue, Empty
-from tkinter import filedialog, messagebox
+from queue import Empty, Queue
+from tkinter import filedialog
 
 from src.config import DEBUG_MODE
 from src.logging_config import debug_log
-
 
 # Try to import tkinterdnd2 for drag-and-drop support (Session 73)
 try:

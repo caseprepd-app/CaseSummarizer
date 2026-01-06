@@ -12,16 +12,15 @@ Contains:
 """
 
 import tkinter as tk
-from tkinter import ttk, messagebox
+from tkinter import ttk
 
 from src.logging_config import debug_log
 from src.ui.vocab_table.column_config import (
-    COLUMN_REGISTRY,
-    COLUMN_ORDER,
-    DISPLAY_TO_DATA_COLUMN,
-    ROWS_PER_PAGE,
-    BATCH_INSERT_SIZE,
     BATCH_INSERT_DELAY_MS,
+    BATCH_INSERT_SIZE,
+    COLUMN_ORDER,
+    COLUMN_REGISTRY,
+    DISPLAY_TO_DATA_COLUMN,
     truncate_text,
 )
 
@@ -259,7 +258,17 @@ class TreeviewManagerMixin:
         def sort_key(item):
             val = item.get(data_key, item.get(col, ""))
             # Handle numeric sorting
-            if col in ("Score", "Quality Score", "# Docs", "Count", "NER", "RAKE", "BM25", "Algo Count", "Freq Rank"):
+            if col in (
+                "Score",
+                "Quality Score",
+                "# Docs",
+                "Count",
+                "NER",
+                "RAKE",
+                "BM25",
+                "Algo Count",
+                "Freq Rank",
+            ):
                 try:
                     return float(val) if val else 0
                 except (ValueError, TypeError):
@@ -402,7 +411,7 @@ class TreeviewManagerMixin:
         tree["show"] = "headings"
 
         for col in visible_cols:
-            config = COLUMN_REGISTRY.get(col, {})
+            COLUMN_REGISTRY.get(col, {})
             width = self._get_column_width(col)
 
             tree.heading(

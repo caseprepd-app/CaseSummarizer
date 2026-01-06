@@ -12,16 +12,16 @@ Usage:
 """
 
 from src.services.document_service import DocumentService
-from src.services.vocabulary_service import VocabularyService
+from src.services.export_service import ExportService, get_export_service
 from src.services.qa_service import QAService
 from src.services.settings_service import SettingsService
-from src.services.export_service import ExportService, get_export_service
+from src.services.vocabulary_service import VocabularyService
 
 __all__ = [
     "DocumentService",
-    "VocabularyService",
+    "ExportService",
     "QAService",
     "SettingsService",
-    "ExportService",
+    "VocabularyService",
     "get_export_service",
 ]

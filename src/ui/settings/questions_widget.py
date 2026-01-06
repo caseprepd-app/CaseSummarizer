@@ -19,8 +19,8 @@ Layout:
 
 import customtkinter as ctk
 
-from src.ui.theme import FONTS
 from src.ui.settings.settings_widgets import TooltipIcon
+from src.ui.theme import FONTS
 
 
 class DefaultQuestionsWidget(ctk.CTkFrame):

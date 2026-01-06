@@ -27,9 +27,7 @@ from typing import Any
 import numpy as np  # PERF-004: Move to module level
 from rank_bm25 import BM25Plus
 
-from src.config import BM25_K1, BM25_B, BM25_DELTA, DEBUG_MODE
-from src.logging_config import debug_log
-from src.core.utils.tokenizer import tokenize_simple
+from src.config import BM25_B, BM25_DELTA, BM25_K1, DEBUG_MODE
 from src.core.retrieval.algorithms import register_algorithm
 from src.core.retrieval.base import (
     AlgorithmRetrievalResult,
@@ -37,6 +35,8 @@ from src.core.retrieval.base import (
     DocumentChunk,
     RetrievedChunk,
 )
+from src.core.utils.tokenizer import tokenize_simple
+from src.logging_config import debug_log
 
 
 @register_algorithm

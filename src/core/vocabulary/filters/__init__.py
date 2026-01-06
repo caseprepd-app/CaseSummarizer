@@ -17,15 +17,15 @@ Usage:
         print(f"  {name}: {stats['removed_count']} removed")
 """
 
-from src.core.vocabulary.filters.base import BaseVocabularyFilter, FilterResult
-from src.core.vocabulary.filters.filter_chain import VocabularyFilterChain, FilterChainStats
-from src.core.vocabulary.filters.name_dedup import NameDeduplicationFilter
 from src.core.vocabulary.filters.artifact import ArtifactFilter
-from src.core.vocabulary.filters.regularizer import NameRegularizerFilter
-from src.core.vocabulary.filters.rarity import RarityFilter
-from src.core.vocabulary.filters.corpus_familiarity import CorpusFamiliarityFilter
-from src.core.vocabulary.filters.gibberish import GibberishFilter
+from src.core.vocabulary.filters.base import BaseVocabularyFilter, FilterResult
 from src.core.vocabulary.filters.combined_per_term import CombinedPerTermFilter
+from src.core.vocabulary.filters.corpus_familiarity import CorpusFamiliarityFilter
+from src.core.vocabulary.filters.filter_chain import FilterChainStats, VocabularyFilterChain
+from src.core.vocabulary.filters.gibberish import GibberishFilter
+from src.core.vocabulary.filters.name_dedup import NameDeduplicationFilter
+from src.core.vocabulary.filters.rarity import RarityFilter
+from src.core.vocabulary.filters.regularizer import NameRegularizerFilter
 
 
 def create_default_filter_chain() -> VocabularyFilterChain:
@@ -82,19 +82,19 @@ def create_optimized_filter_chain() -> VocabularyFilterChain:
 
 
 __all__ = [
+    "ArtifactFilter",
     # Base classes
     "BaseVocabularyFilter",
-    "FilterResult",
-    "VocabularyFilterChain",
+    "CombinedPerTermFilter",
+    "CorpusFamiliarityFilter",
     "FilterChainStats",
+    "FilterResult",
+    "GibberishFilter",
     # Filters
     "NameDeduplicationFilter",
-    "ArtifactFilter",
     "NameRegularizerFilter",
     "RarityFilter",
-    "CorpusFamiliarityFilter",
-    "GibberishFilter",
-    "CombinedPerTermFilter",
+    "VocabularyFilterChain",
     # Factory functions
     "create_default_filter_chain",
     "create_optimized_filter_chain",

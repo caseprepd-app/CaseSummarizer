@@ -29,32 +29,28 @@ Architecture:
 import re
 import threading
 import time
-from queue import Queue, Empty
+from pathlib import Path
+from queue import Empty, Queue
 from tkinter import filedialog, messagebox
-
-# PERF-001: Pre-compile regex at module level
-_MODEL_PARAM_PATTERN = re.compile(r":(\d+\.?\d*)b")
 
 import customtkinter as ctk
 
-from pathlib import Path
-
 from src.config import DEBUG_MODE, PROMPTS_DIR
-from src.logging_config import debug_log
 from src.core.ai import OllamaModelManager
 from src.core.prompting import PromptTemplateManager
-from src.ui.styles import initialize_all_styles
-from src.ui.workers import (
-    ProcessingWorker,
-    VocabularyWorker,
-    QAWorker,
-    BriefingWorker,
-    ProgressiveExtractionWorker,
-)
-from src.ui.window_layout import WindowLayoutMixin
-from src.core.vocabulary import get_corpus_registry
 from src.core.vector_store import VectorStoreBuilder
+from src.core.vocabulary import get_corpus_registry
+from src.logging_config import debug_log
+from src.ui.styles import initialize_all_styles
 from src.ui.tooltip_manager import tooltip_manager
+from src.ui.window_layout import WindowLayoutMixin
+from src.ui.workers import (
+    BriefingWorker,
+    ProcessingWorker,
+    ProgressiveExtractionWorker,
+    QAWorker,
+    VocabularyWorker,
+)
 
 # Try to import tkinterdnd2 for drag-and-drop support (Session 73)
 try:
@@ -63,6 +59,9 @@ try:
     HAS_DND = True
 except ImportError:
     HAS_DND = False
+
+# PERF-001: Pre-compile regex at module level (after all imports)
+_MODEL_PARAM_PATTERN = re.compile(r":(\d+\.?\d*)b")
 
 
 class MainWindow(WindowLayoutMixin, ctk.CTk):
@@ -572,7 +571,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
     def _handle_queue_message(self, msg_type: str, data):
         """Handle a message from the worker queue."""
         if msg_type == "progress":
-            percentage, message = data
+            _percentage, message = data
             # Append Q&A status if ready (prevents status from hiding Q&A readiness)
             if self._qa_ready and "Q&A ready" not in message and "Questions" not in message:
                 message = f"{message} (Q&A ready)"
@@ -644,13 +643,13 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
 
         # Q&A result handlers (Session 63c: handle messages from default questions worker)
         elif msg_type == "qa_progress":
-            current, total, question = data
+            current, total, _question = data
             debug_log(f"[MainWindow] Q&A progress: {current + 1}/{total}")
             self.set_status(f"Answering default questions: {current + 1}/{total}...")
 
         elif msg_type == "qa_result":
             # Individual Q&A result - add to results and update display
-            debug_log(f"[MainWindow] Q&A result received")
+            debug_log("[MainWindow] Q&A result received")
             with self._qa_results_lock:  # LOG-007: Thread-safe access
                 self._qa_results.append(data)
                 self.output_display.update_outputs(qa_results=self._qa_results)
@@ -770,7 +769,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         # Q&A task
         if self.qa_check.get():
             if self.ask_default_questions_check.get():
-                enabled, total = self._load_default_question_count()
+                enabled, _total = self._load_default_question_count()
                 if enabled > 0:
                     q_word = "question" if enabled == 1 else "questions"
                     parts.append(f"Q&A ({enabled} {q_word})")
@@ -784,10 +783,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             parts.append("Summary (slow)")
 
         # Build preview text
-        if parts:
-            preview = "Will run: " + ", ".join(parts)
-        else:
-            preview = "Select tasks above"
+        preview = "Will run: " + ", ".join(parts) if parts else "Select tasks above"
 
         self.task_preview_label.configure(text=preview)
 
@@ -868,8 +864,8 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         - If vocab_use_llm is "auto" and no GPU: disable and uncheck
         - Otherwise: enable and set based on is_vocab_llm_enabled()
         """
+        from src.core.utils.gpu_detector import get_gpu_status_text, has_dedicated_gpu
         from src.user_preferences import get_user_preferences
-        from src.core.utils.gpu_detector import has_dedicated_gpu, get_gpu_status_text
 
         prefs = get_user_preferences()
         vocab_mode = prefs.get_vocab_llm_mode()  # "auto", "yes", or "no"
@@ -1020,7 +1016,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             if extraction_stats.get("processing_time"):
                 t = extraction_stats["processing_time"]
                 if t >= 60:
-                    ext_parts.append(f"{t/60:.1f}m")
+                    ext_parts.append(f"{t / 60:.1f}m")
                 else:
                     ext_parts.append(f"{t:.1f}s")
 
@@ -1076,12 +1072,12 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
 
     def _start_vocabulary_extraction(self):
         """Start vocabulary extraction task."""
-        from src.core.utils.text_utils import combine_document_texts
         from src.config import (
             LEGAL_EXCLUDE_LIST_PATH,
             MEDICAL_TERMS_LIST_PATH,
             USER_VOCAB_EXCLUDE_PATH,
         )
+        from src.core.utils.text_utils import combine_document_texts
 
         self.set_status("Extracting vocabulary...")
 
@@ -1202,12 +1198,12 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         Phase 2 (Q&A): Builds vector store, enables Q&A panel
         Phase 3 (LLM): Slow enhancement, updates table progressively
         """
-        from src.core.utils.text_utils import combine_document_texts
         from src.config import (
             LEGAL_EXCLUDE_LIST_PATH,
             MEDICAL_TERMS_LIST_PATH,
             USER_VOCAB_EXCLUDE_PATH,
         )
+        from src.core.utils.text_utils import combine_document_texts
 
         self.set_status("Starting extraction (NER first, then LLM enhancement)...")
 
@@ -1291,7 +1287,8 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
 
             except Exception as e:
                 debug_log(f"[MainWindow] Q&A initialization error: {e}")
-                self.after(0, lambda: self._qa_init_complete(False, str(e)))
+                error_msg = str(e)
+                self.after(0, lambda err=error_msg: self._qa_init_complete(False, err))
 
         # Start background thread
         init_thread = threading.Thread(target=initialize_qa, daemon=True)
@@ -1330,7 +1327,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             while True:
                 msg_type, data = self._qa_queue.get_nowait()
                 if msg_type == "qa_progress":
-                    current, total, question = data
+                    current, total, _question = data
                     self.set_status(
                         f"Questions and answers: Processing question {current + 1}/{total}..."
                     )
@@ -1428,7 +1425,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             while True:
                 msg_type, data = self._briefing_queue.get_nowait()
                 if msg_type == "briefing_progress":
-                    phase, current, total, message = data
+                    _phase, _current, _total, message = data
                     self.set_status(f"Case Briefing: {message}")
                 elif msg_type == "briefing_complete":
                     self._on_briefing_complete(data)
@@ -1626,7 +1623,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
                 # Note: QAResult uses 'quick_answer', not 'answer'
                 answer_len = len(data.quick_answer) if data.quick_answer else 0
                 self.set_status(f"Follow-up answered: {answer_len} chars")
-                debug_log(f"[MainWindow] Follow-up result displayed successfully")
+                debug_log("[MainWindow] Follow-up result displayed successfully")
             elif msg_type == "error":
                 self.set_status("Follow-up failed")
                 messagebox.showerror("Error", f"Failed to process follow-up: {data}")
@@ -1634,7 +1631,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             # Catch any errors during result processing
             debug_log(f"[MainWindow] Error processing follow-up result: {e}")
             self.set_status("Follow-up error - check logs")
-            messagebox.showerror("Error", f"Error displaying result: {str(e)}")
+            messagebox.showerror("Error", f"Error displaying result: {e!s}")
 
     def _ask_followup_for_qa_panel(self, question: str):
         """
@@ -1716,8 +1713,9 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
 
         Creates timestamped files for each output type that has data.
         """
-        from datetime import datetime
         import os
+        from datetime import datetime
+
         from src.core.utils.text_utils import get_documents_folder
 
         documents_path = get_documents_folder()
@@ -1759,7 +1757,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
 
         # Flash button and show result
         if exported:
-            self.export_all_btn.configure(text=f"Exported!")
+            self.export_all_btn.configure(text="Exported!")
             self.after(1500, lambda: self.export_all_btn.configure(text="Export All"))
             # Status bar with auto-clear (Session 69)
             self.set_status(f"Exported to Documents: {', '.join(exported)}", duration_ms=5000)
@@ -1776,9 +1774,10 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         from datetime import datetime
         from pathlib import Path
         from tkinter import filedialog
+
+        from src.core.utils.text_utils import get_documents_folder
         from src.services import get_export_service
         from src.user_preferences import get_user_preferences
-        from src.core.utils.text_utils import get_documents_folder
 
         # Gather data
         vocab_data = self.output_display._outputs.get("Names & Vocabulary", [])

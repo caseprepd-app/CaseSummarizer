@@ -20,10 +20,10 @@ It complements (does not replace) name_deduplicator.py which handles
 transcript-specific artifacts like Q/A notation.
 """
 
-from src.logging_config import debug_log
-from src.core.vocabulary.rarity_filter import is_common_word
 from src.core.vocabulary.person_utils import is_person_entry
+from src.core.vocabulary.rarity_filter import is_common_word
 from src.core.vocabulary.string_utils import edit_distance
+from src.logging_config import debug_log
 
 # Default number of top terms to use as canonical candidates
 DEFAULT_CANONICAL_COUNT = 25
@@ -95,10 +95,7 @@ def _is_common_word_variant(term: str, canonical: str) -> bool:
 
     # Check leading: "Patient Luigi Napolitano"
     leading = _get_leading_words(term, canonical)
-    if leading and all(is_common_word(w, COMMON_WORD_THRESHOLD) for w in leading):
-        return True
-
-    return False
+    return bool(leading and all(is_common_word(w, COMMON_WORD_THRESHOLD) for w in leading))
 
 
 def _is_fuzzy_common_word_variant(term: str, canonical: str, max_edit: int = 2) -> bool:
@@ -227,9 +224,7 @@ def filter_substring_artifacts(
 
             # Check if canonical is a substring of this term
             if canonical in term_lower:
-                debug_log(
-                    f"[ARTIFACT-FILTER] Removing '{term}' " f"(contains canonical '{canonical}')"
-                )
+                debug_log(f"[ARTIFACT-FILTER] Removing '{term}' (contains canonical '{canonical}')")
                 is_artifact = True
                 removed_count += 1
                 break

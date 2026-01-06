@@ -433,11 +433,7 @@ USER_DEFINED_MAX_WORKER_COUNT = 2  # Manual count when override enabled (1-8)
 _user_workers = max(1, min(8, USER_DEFINED_MAX_WORKER_COUNT))
 
 # Compute actual max workers based on settings
-if USER_PICKS_MAX_WORKER_COUNT:
-    PARALLEL_MAX_WORKERS = _user_workers
-else:
-    # Auto-detect: min(cpu_count, 4) for memory safety
-    PARALLEL_MAX_WORKERS = min(os.cpu_count() or 4, 4)
+PARALLEL_MAX_WORKERS = _user_workers if USER_PICKS_MAX_WORKER_COUNT else min(os.cpu_count() or 4, 4)
 
 # AI Prompt Templates
 PROMPTS_DIR = Path(__file__).parent.parent / "config" / "prompts"

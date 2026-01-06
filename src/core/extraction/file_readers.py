@@ -93,7 +93,7 @@ class FileReaders:
                 "method": None,
                 "confidence": 0,
                 "status": "error",
-                "error_message": f"Failed to read text file: {str(e)}",
+                "error_message": f"Failed to read text file: {e!s}",
             }
 
     def read_rtf_file(self, file_path: Path) -> dict:
@@ -145,7 +145,7 @@ class FileReaders:
                 "method": None,
                 "confidence": 0,
                 "status": "error",
-                "error_message": f"Failed to read RTF file: {str(e)}",
+                "error_message": f"Failed to read RTF file: {e!s}",
             }
 
     def read_docx_file(self, file_path: Path) -> dict:
@@ -218,7 +218,7 @@ class FileReaders:
                 "confidence": 0,
                 "page_count": 0,
                 "status": "error",
-                "error_message": f"Failed to read Word document: {str(e)}",
+                "error_message": f"Failed to read Word document: {e!s}",
             }
 
     def read_image_file(self, file_path: Path) -> dict:
@@ -271,5 +271,5 @@ class FileReaders:
                 "confidence": 0,
                 "page_count": 1,
                 "status": "error",
-                "error_message": f"Failed to process image: {str(e)}",
+                "error_message": f"Failed to process image: {e!s}",
             }

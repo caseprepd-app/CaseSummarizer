@@ -24,6 +24,7 @@ This module can be run standalone via command line:
     python -m src.core.extraction.raw_text_extractor --input document.pdf
 """
 
+import contextlib
 from pathlib import Path
 
 from src.config import (
@@ -31,6 +32,9 @@ from src.config import (
     MAX_FILE_SIZE_MB,
     OCR_CONFIDENCE_THRESHOLD,
 )
+
+# Character sanitization (external module)
+from src.core.sanitization import CharacterSanitizer
 from src.logging_config import Timer, debug, error, info, warning
 
 # Internal modules (the actual implementation)
@@ -40,9 +44,6 @@ from .file_readers import FileReaders
 from .ocr_processor import OCRProcessor
 from .pdf_extractor import PDFExtractor
 from .text_normalizer import TextNormalizer
-
-# Character sanitization (external module)
-from src.core.sanitization import CharacterSanitizer
 
 
 class RawTextExtractor:
@@ -134,10 +135,8 @@ class RawTextExtractor:
 
         def report_progress(message: str, percent: int):
             if progress_callback:
-                try:
+                with contextlib.suppress(Exception):
                     progress_callback(message, percent)
-                except Exception:
-                    pass
 
         # Initialize result
         result = {
@@ -219,16 +218,18 @@ class RawTextExtractor:
                             debug(f"Sanitization stats: {stats}")
 
                 # Step 6: Set final status based on confidence
-                if result["status"] == "success":
-                    if result["confidence"] < OCR_CONFIDENCE_THRESHOLD:
-                        result["status"] = "warning"
+                if (
+                    result["status"] == "success"
+                    and result["confidence"] < OCR_CONFIDENCE_THRESHOLD
+                ):
+                    result["status"] = "warning"
 
                 report_progress("Complete", 100)
 
         except Exception as e:
             result["status"] = "error"
-            result["error_message"] = f"Unexpected error: {str(e)}"
-            error(f"Error processing {filename}: {str(e)}", exc_info=True)
+            result["error_message"] = f"Unexpected error: {e!s}"
+            error(f"Error processing {filename}: {e!s}", exc_info=True)
             report_progress("Error", 0)
 
         return result
@@ -436,9 +437,6 @@ class RawTextExtractor:
 def main():
     """Command-line interface for the raw text extractor."""
     import argparse
-    import os
-
-    from src.config import DEBUG_DEFAULT_FILE, DEBUG_MODE
 
     parser = argparse.ArgumentParser(
         description="LocalScribe Raw Text Extractor",

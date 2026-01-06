@@ -6,8 +6,7 @@ Both formats share the same interface for consistent output.
 """
 
 from abc import ABC, abstractmethod
-from dataclasses import dataclass, field
-from typing import Optional
+from dataclasses import dataclass
 
 
 @dataclass
@@ -20,7 +19,7 @@ class TextSpan:
     """
 
     text: str
-    color: Optional[tuple[int, int, int]] = None  # RGB tuple
+    color: tuple[int, int, int] | None = None  # RGB tuple
     bold: bool = False
     italic: bool = False
     strikethrough: bool = False

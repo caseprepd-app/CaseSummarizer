@@ -33,55 +33,55 @@ Components by layer:
 
 # Core Q&A orchestration
 from src.core.qa.answer_generator import AnswerGenerator, AnswerMode
-from src.core.qa.qa_orchestrator import QAOrchestrator, QAResult
 from src.core.qa.default_questions_manager import (
-    DefaultQuestionsManager,
     DefaultQuestion,
+    DefaultQuestionsManager,
     get_default_questions_manager,
+)
+from src.core.qa.qa_orchestrator import QAOrchestrator, QAResult
+
+# Hybrid retrieval (re-exported for unified API)
+from src.core.retrieval import (
+    AlgorithmRetrievalResult,
+    BaseRetrievalAlgorithm,
+    ChunkMerger,
+    DocumentChunk,
+    HybridRetriever,
+    MergedChunk,
+    RetrievedChunk,
 )
 
 # Vector store and retrieval (re-exported for unified API)
 from src.core.vector_store import (
-    VectorStoreBuilder,
-    QARetriever,
-    QuestionFlowManager,
-    QuestionAnswer,
     FlowState,
-)
-
-# Hybrid retrieval (re-exported for unified API)
-from src.core.retrieval import (
-    HybridRetriever,
-    ChunkMerger,
-    MergedChunk,
-    BaseRetrievalAlgorithm,
-    RetrievedChunk,
-    AlgorithmRetrievalResult,
-    DocumentChunk,
+    QARetriever,
+    QuestionAnswer,
+    QuestionFlowManager,
+    VectorStoreBuilder,
 )
 
 __all__ = [
-    # Core orchestration
-    "QAOrchestrator",
-    "QAResult",
+    "AlgorithmRetrievalResult",
     "AnswerGenerator",
     "AnswerMode",
+    "BaseRetrievalAlgorithm",
+    "ChunkMerger",
+    "DefaultQuestion",
     # Default questions management (Session 63c)
     "DefaultQuestionsManager",
-    "DefaultQuestion",
-    "get_default_questions_manager",
-    # Vector store
-    "VectorStoreBuilder",
-    "QARetriever",
-    "QuestionFlowManager",
-    "QuestionAnswer",
+    "DocumentChunk",
     "FlowState",
     # Retrieval
     "HybridRetriever",
-    "ChunkMerger",
     "MergedChunk",
-    "BaseRetrievalAlgorithm",
+    # Core orchestration
+    "QAOrchestrator",
+    "QAResult",
+    "QARetriever",
+    "QuestionAnswer",
+    "QuestionFlowManager",
     "RetrievedChunk",
-    "AlgorithmRetrievalResult",
-    "DocumentChunk",
+    # Vector store
+    "VectorStoreBuilder",
+    "get_default_questions_manager",
 ]

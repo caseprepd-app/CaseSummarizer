@@ -8,8 +8,8 @@ import time
 from dataclasses import dataclass, field
 from typing import Any
 
-from src.logging_config import debug_log
 from src.core.vocabulary.filters.base import BaseVocabularyFilter, FilterResult
+from src.logging_config import debug_log
 
 
 @dataclass

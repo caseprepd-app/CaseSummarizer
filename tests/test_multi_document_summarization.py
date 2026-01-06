@@ -9,17 +9,15 @@ Tests the new hierarchical map-reduce summarization architecture:
 Uses SequentialStrategy for deterministic testing.
 """
 
-import pytest
-from unittest.mock import Mock, MagicMock, patch
-from queue import Queue
+from unittest.mock import Mock
 
+from src.core.parallel import SequentialStrategy
 from src.core.summarization import (
     DocumentSummaryResult,
+    MultiDocumentOrchestrator,
     MultiDocumentSummaryResult,
     ProgressiveDocumentSummarizer,
-    MultiDocumentOrchestrator,
 )
-from src.core.parallel import SequentialStrategy
 
 
 class TestDocumentSummaryResult:
@@ -32,7 +30,7 @@ class TestDocumentSummaryResult:
             summary="This is a test summary.",
             word_count=5,
             chunk_count=3,
-            processing_time_seconds=10.5
+            processing_time_seconds=10.5,
         )
 
         assert result.filename == "test.pdf"
@@ -52,7 +50,7 @@ class TestDocumentSummaryResult:
             chunk_count=0,
             processing_time_seconds=1.0,
             success=False,
-            error_message="File not found"
+            error_message="File not found",
         )
 
         assert result.success is False
@@ -66,7 +64,7 @@ class TestDocumentSummaryResult:
             word_count=0,
             chunk_count=0,
             processing_time_seconds=0.0,
-            success=False
+            success=False,
         )
 
         assert result.error_message == "Unknown error during document summarization"
@@ -87,10 +85,7 @@ class TestMultiDocumentSummaryResult:
 
     def test_success_rate_calculation(self):
         """Success rate calculated correctly."""
-        result = MultiDocumentSummaryResult(
-            documents_processed=8,
-            documents_failed=2
-        )
+        result = MultiDocumentSummaryResult(documents_processed=8, documents_failed=2)
 
         assert result.success_rate == 80.0
 
@@ -106,12 +101,10 @@ class TestMultiDocumentSummaryResult:
             summary="Summary of doc1",
             word_count=3,
             chunk_count=1,
-            processing_time_seconds=5.0
+            processing_time_seconds=5.0,
         )
 
-        result = MultiDocumentSummaryResult(
-            individual_summaries={"doc1.pdf": doc_result}
-        )
+        result = MultiDocumentSummaryResult(individual_summaries={"doc1.pdf": doc_result})
 
         assert result.get_summary_for_document("doc1.pdf") == "Summary of doc1"
         assert result.get_summary_for_document("nonexistent.pdf") is None
@@ -123,19 +116,19 @@ class TestMultiDocumentSummaryResult:
             summary="Summary 1",
             word_count=2,
             chunk_count=1,
-            processing_time_seconds=1.0
+            processing_time_seconds=1.0,
         )
         doc2 = DocumentSummaryResult(
             filename="doc2.pdf",
             summary="Summary 2",
             word_count=2,
             chunk_count=1,
-            processing_time_seconds=1.0
+            processing_time_seconds=1.0,
         )
 
         result = MultiDocumentSummaryResult(
             individual_summaries={"doc1.pdf": doc1, "doc2.pdf": doc2},
-            document_order=["doc1.pdf", "doc2.pdf"]
+            document_order=["doc1.pdf", "doc2.pdf"],
         )
 
         formatted = result.get_all_summaries_formatted()
@@ -154,10 +147,7 @@ class TestProgressiveDocumentSummarizer:
         mock_model = Mock()
 
         summarizer = ProgressiveDocumentSummarizer(model_manager=mock_model)
-        result = summarizer.summarize(
-            text="",
-            filename="empty.pdf"
-        )
+        result = summarizer.summarize(text="", filename="empty.pdf")
 
         assert result.success is False
         assert "empty" in result.error_message.lower()
@@ -167,10 +157,7 @@ class TestProgressiveDocumentSummarizer:
         mock_model = Mock()
 
         summarizer = ProgressiveDocumentSummarizer(model_manager=mock_model)
-        result = summarizer.summarize(
-            text="Short",
-            filename="short.pdf"
-        )
+        result = summarizer.summarize(text="Short", filename="short.pdf")
 
         assert result.success is False
 
@@ -186,7 +173,7 @@ class TestMultiDocumentOrchestrator:
         orchestrator = MultiDocumentOrchestrator(
             document_summarizer=mock_summarizer,
             model_manager=mock_model,
-            strategy=SequentialStrategy()
+            strategy=SequentialStrategy(),
         )
 
         result = orchestrator.summarize_documents(documents=[])
@@ -202,7 +189,7 @@ class TestMultiDocumentOrchestrator:
         orchestrator = MultiDocumentOrchestrator(
             document_summarizer=mock_summarizer,
             model_manager=mock_model,
-            strategy=SequentialStrategy()
+            strategy=SequentialStrategy(),
         )
 
         documents = [
@@ -227,9 +214,7 @@ class TestMultiDocumentOrchestrator:
         mock_model = Mock()
 
         orchestrator = MultiDocumentOrchestrator(
-            document_summarizer=mock_summarizer,
-            model_manager=mock_model,
-            strategy=strategy
+            document_summarizer=mock_summarizer, model_manager=mock_model, strategy=strategy
         )
 
         assert orchestrator.strategy.max_workers == 1
@@ -241,11 +226,11 @@ class TestIntegrationImports:
     def test_all_summarization_exports(self):
         """All public components are exported from package."""
         from src.core.summarization import (
-            DocumentSummaryResult,
-            MultiDocumentSummaryResult,
             DocumentSummarizer,
-            ProgressiveDocumentSummarizer,
+            DocumentSummaryResult,
             MultiDocumentOrchestrator,
+            MultiDocumentSummaryResult,
+            ProgressiveDocumentSummarizer,
         )
 
         # Just checking imports work
@@ -280,8 +265,8 @@ class TestIntegrationImports:
 
         # Check handler exists in handlers dict
         handlers = {
-            'progress': handler.handle_progress,
-            'multi_doc_result': handler.handle_multi_doc_result,
+            "progress": handler.handle_progress,
+            "multi_doc_result": handler.handle_multi_doc_result,
         }
 
-        assert 'multi_doc_result' in handlers
+        assert "multi_doc_result" in handlers

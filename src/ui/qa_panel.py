@@ -19,15 +19,15 @@ import io
 import os  # LOG-014: Move to module level
 import queue
 import threading
+from collections.abc import Callable
 from tkinter import filedialog, messagebox
-from typing import Callable
 
 import customtkinter as ctk
 
 from src.config import DEBUG_MODE
-from src.logging_config import debug_log
 from src.core.qa.qa_orchestrator import QAResult
-from src.ui.theme import FONTS, COLORS, BUTTON_STYLES, FRAME_STYLES, QA_TEXT_TAGS
+from src.logging_config import debug_log
+from src.ui.theme import BUTTON_STYLES, COLORS, FONTS, FRAME_STYLES, QA_TEXT_TAGS
 
 
 class QAPanel(ctk.CTkFrame):
@@ -369,7 +369,7 @@ class QAPanel(ctk.CTkFrame):
         if self.on_ask_followup is None:
             messagebox.showwarning(
                 "Not Available",
-                "Follow-up questions are not available. " "Please process a document first.",
+                "Follow-up questions are not available. Please process a document first.",
             )
             return
 
@@ -421,7 +421,7 @@ class QAPanel(ctk.CTkFrame):
                 self.display_results(self._results)
 
                 if DEBUG_MODE:
-                    debug_log(f"[QAPanel] Follow-up completed successfully")
+                    debug_log("[QAPanel] Follow-up completed successfully")
 
             elif msg_type == "error":
                 messagebox.showerror("Error", f"Failed to ask question: {data}")
@@ -448,8 +448,9 @@ class QAPanel(ctk.CTkFrame):
     def _export_to_csv(self):
         """Export selected Q&A results to CSV file."""
         from pathlib import Path
-        from src.user_preferences import get_user_preferences
+
         from src.core.utils.text_utils import get_documents_folder
+        from src.user_preferences import get_user_preferences
 
         exportable = [r for r in self._results if r.include_in_export]
 
@@ -503,8 +504,9 @@ class QAPanel(ctk.CTkFrame):
     def _export_to_txt(self):
         """Export selected Q&A results to TXT file."""
         from pathlib import Path
-        from src.user_preferences import get_user_preferences
+
         from src.core.utils.text_utils import get_documents_folder
+        from src.user_preferences import get_user_preferences
 
         exportable = [r for r in self._results if r.include_in_export]
 
@@ -558,9 +560,10 @@ class QAPanel(ctk.CTkFrame):
     def _export_to_word(self):
         """Export selected Q&A results to Word document (Session 71, updated Session 73)."""
         from pathlib import Path
+
+        from src.core.utils.text_utils import get_documents_folder
         from src.services import get_export_service
         from src.user_preferences import get_user_preferences
-        from src.core.utils.text_utils import get_documents_folder
 
         exportable = [r for r in self._results if r.include_in_export]
 
@@ -617,9 +620,10 @@ class QAPanel(ctk.CTkFrame):
     def _export_to_pdf(self):
         """Export selected Q&A results to PDF document (Session 71, updated Session 73)."""
         from pathlib import Path
+
+        from src.core.utils.text_utils import get_documents_folder
         from src.services import get_export_service
         from src.user_preferences import get_user_preferences
-        from src.core.utils.text_utils import get_documents_folder
 
         exportable = [r for r in self._results if r.include_in_export]
 
@@ -676,9 +680,10 @@ class QAPanel(ctk.CTkFrame):
     def _export_to_html(self):
         """Export selected Q&A results to interactive HTML file (Session 72, updated Session 73)."""
         from pathlib import Path
+
+        from src.core.utils.text_utils import get_documents_folder
         from src.services import get_export_service
         from src.user_preferences import get_user_preferences
-        from src.core.utils.text_utils import get_documents_folder
 
         exportable = [r for r in self._results if r.include_in_export]
 
@@ -817,14 +822,13 @@ class QAPanel(ctk.CTkFrame):
         if not exportable:
             messagebox.showwarning(
                 "No Q&A Selected",
-                "Select at least one Q&A pair to copy.\n\n"
-                "Use 'Select All' to select all results.",
+                "Select at least one Q&A pair to copy.\n\nUse 'Select All' to select all results.",
             )
             return
 
         # Format for clipboard (readable text format)
         lines = []
-        for i, result in enumerate(exportable, 1):
+        for _i, result in enumerate(exportable, 1):
             lines.append(f"Q: {result.question}")
             lines.append(f"A: {result.quick_answer}")
             if result.source_summary:

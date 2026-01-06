@@ -11,7 +11,8 @@ Tests:
 
 import sys
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
+
 import pytest
 
 # Add project root to path for imports
@@ -125,7 +126,7 @@ class TestOptimalContextSize:
         from src.core.utils.gpu_detector import get_optimal_context_size
 
         # Mock 24GB VRAM
-        with patch('src.core.utils.gpu_detector.get_gpu_info') as mock_info:
+        with patch("src.core.utils.gpu_detector.get_gpu_info") as mock_info:
             mock_info.return_value = {
                 "has_gpu": True,
                 "vram_bytes": 24 * 1024**3,  # 24GB
@@ -138,7 +139,7 @@ class TestOptimalContextSize:
         """16-24GB VRAM should get 48K context."""
         from src.core.utils.gpu_detector import get_optimal_context_size
 
-        with patch('src.core.utils.gpu_detector.get_gpu_info') as mock_info:
+        with patch("src.core.utils.gpu_detector.get_gpu_info") as mock_info:
             mock_info.return_value = {
                 "has_gpu": True,
                 "vram_bytes": 16 * 1024**3,  # 16GB
@@ -151,7 +152,7 @@ class TestOptimalContextSize:
         """12-16GB VRAM should get 32K context."""
         from src.core.utils.gpu_detector import get_optimal_context_size
 
-        with patch('src.core.utils.gpu_detector.get_gpu_info') as mock_info:
+        with patch("src.core.utils.gpu_detector.get_gpu_info") as mock_info:
             mock_info.return_value = {
                 "has_gpu": True,
                 "vram_bytes": 12 * 1024**3,  # 12GB
@@ -164,7 +165,7 @@ class TestOptimalContextSize:
         """8-12GB VRAM should get 16K context."""
         from src.core.utils.gpu_detector import get_optimal_context_size
 
-        with patch('src.core.utils.gpu_detector.get_gpu_info') as mock_info:
+        with patch("src.core.utils.gpu_detector.get_gpu_info") as mock_info:
             mock_info.return_value = {
                 "has_gpu": True,
                 "vram_bytes": 8 * 1024**3,  # 8GB
@@ -177,7 +178,7 @@ class TestOptimalContextSize:
         """6-8GB VRAM should get 8K context."""
         from src.core.utils.gpu_detector import get_optimal_context_size
 
-        with patch('src.core.utils.gpu_detector.get_gpu_info') as mock_info:
+        with patch("src.core.utils.gpu_detector.get_gpu_info") as mock_info:
             mock_info.return_value = {
                 "has_gpu": True,
                 "vram_bytes": 6 * 1024**3,  # 6GB
@@ -190,7 +191,7 @@ class TestOptimalContextSize:
         """<6GB VRAM should get 4K context (safe default)."""
         from src.core.utils.gpu_detector import get_optimal_context_size
 
-        with patch('src.core.utils.gpu_detector.get_gpu_info') as mock_info:
+        with patch("src.core.utils.gpu_detector.get_gpu_info") as mock_info:
             mock_info.return_value = {
                 "has_gpu": True,
                 "vram_bytes": 4 * 1024**3,  # 4GB
@@ -203,7 +204,7 @@ class TestOptimalContextSize:
         """No GPU should get 4K context (safe default)."""
         from src.core.utils.gpu_detector import get_optimal_context_size
 
-        with patch('src.core.utils.gpu_detector.get_gpu_info') as mock_info:
+        with patch("src.core.utils.gpu_detector.get_gpu_info") as mock_info:
             mock_info.return_value = {
                 "has_gpu": False,
                 "vram_bytes": 0,
@@ -220,7 +221,7 @@ class TestVramGb:
         """8GB VRAM should convert correctly."""
         from src.core.utils.gpu_detector import get_vram_gb
 
-        with patch('src.core.utils.gpu_detector.get_gpu_info') as mock_info:
+        with patch("src.core.utils.gpu_detector.get_gpu_info") as mock_info:
             mock_info.return_value = {
                 "has_gpu": True,
                 "vram_bytes": 8 * 1024**3,
@@ -233,7 +234,7 @@ class TestVramGb:
         """No GPU should return 0.0 GB."""
         from src.core.utils.gpu_detector import get_vram_gb
 
-        with patch('src.core.utils.gpu_detector.get_gpu_info') as mock_info:
+        with patch("src.core.utils.gpu_detector.get_gpu_info") as mock_info:
             mock_info.return_value = {
                 "has_gpu": False,
                 "vram_bytes": 0,
@@ -250,7 +251,7 @@ class TestGpuStatusText:
         """GPU status should show GPU name when detected."""
         from src.core.utils.gpu_detector import get_gpu_status_text
 
-        with patch('src.core.utils.gpu_detector.get_gpu_info') as mock_info:
+        with patch("src.core.utils.gpu_detector.get_gpu_info") as mock_info:
             mock_info.return_value = {
                 "has_gpu": True,
                 "gpu_name": "NVIDIA GeForce RTX 3080",
@@ -265,7 +266,7 @@ class TestGpuStatusText:
         """No GPU should show appropriate message."""
         from src.core.utils.gpu_detector import get_gpu_status_text
 
-        with patch('src.core.utils.gpu_detector.get_gpu_info') as mock_info:
+        with patch("src.core.utils.gpu_detector.get_gpu_info") as mock_info:
             mock_info.return_value = {
                 "has_gpu": False,
                 "gpu_name": None,
@@ -281,8 +282,9 @@ class TestUserPreferencesContextSize:
 
     def test_context_size_mode_default_auto(self):
         """Default context size mode should be 'auto'."""
-        from src.user_preferences import UserPreferencesManager
         from tempfile import TemporaryDirectory
+
+        from src.user_preferences import UserPreferencesManager
 
         with TemporaryDirectory() as tmpdir:
             prefs_file = Path(tmpdir) / "test_prefs.json"
@@ -293,8 +295,9 @@ class TestUserPreferencesContextSize:
 
     def test_context_size_mode_manual_int(self):
         """Manual context size should return the int value."""
-        from src.user_preferences import UserPreferencesManager
         from tempfile import TemporaryDirectory
+
+        from src.user_preferences import UserPreferencesManager
 
         with TemporaryDirectory() as tmpdir:
             prefs_file = Path(tmpdir) / "test_prefs.json"
@@ -306,8 +309,9 @@ class TestUserPreferencesContextSize:
 
     def test_context_size_mode_validation(self):
         """Invalid context sizes should raise ValueError."""
-        from src.user_preferences import UserPreferencesManager
         from tempfile import TemporaryDirectory
+
+        from src.user_preferences import UserPreferencesManager
 
         with TemporaryDirectory() as tmpdir:
             prefs_file = Path(tmpdir) / "test_prefs.json"
@@ -318,8 +322,9 @@ class TestUserPreferencesContextSize:
 
     def test_effective_context_size_manual(self):
         """Manual mode should return the set value."""
-        from src.user_preferences import UserPreferencesManager
         from tempfile import TemporaryDirectory
+
+        from src.user_preferences import UserPreferencesManager
 
         with TemporaryDirectory() as tmpdir:
             prefs_file = Path(tmpdir) / "test_prefs.json"
@@ -331,8 +336,9 @@ class TestUserPreferencesContextSize:
 
     def test_effective_context_size_auto_uses_gpu(self):
         """Auto mode should use GPU-detected context size."""
-        from src.user_preferences import UserPreferencesManager
         from tempfile import TemporaryDirectory
+
+        from src.user_preferences import UserPreferencesManager
 
         with TemporaryDirectory() as tmpdir:
             prefs_file = Path(tmpdir) / "test_prefs.json"
@@ -342,7 +348,7 @@ class TestUserPreferencesContextSize:
             manager.set_context_size_mode("auto")
 
             # Mock GPU detection
-            with patch('src.core.utils.gpu_detector.get_optimal_context_size') as mock_ctx:
+            with patch("src.core.utils.gpu_detector.get_optimal_context_size") as mock_ctx:
                 mock_ctx.return_value = 48000
                 effective = manager.get_effective_context_size()
                 assert effective == 48000
@@ -374,10 +380,8 @@ class TestVramContextTiers:
         from src.core.utils.gpu_detector import VRAM_CONTEXT_TIERS
 
         valid_sizes = [4000, 8000, 16000, 32000, 48000, 64000]
-        for min_vram, context_size in VRAM_CONTEXT_TIERS:
-            assert context_size in valid_sizes, (
-                f"Context size {context_size} is not in valid sizes"
-            )
+        for _min_vram, context_size in VRAM_CONTEXT_TIERS:
+            assert context_size in valid_sizes, f"Context size {context_size} is not in valid sizes"
 
 
 class TestOptimalChunkSizes:
@@ -405,7 +409,7 @@ class TestOptimalChunkSizes:
 
     def test_fixed_chunk_size_values(self):
         """Chunk sizes should match research-based fixed values."""
-        from src.core.utils.gpu_detector import get_optimal_chunk_sizes, OPTIMAL_CHUNK_SIZES
+        from src.core.utils.gpu_detector import OPTIMAL_CHUNK_SIZES, get_optimal_chunk_sizes
 
         sizes = get_optimal_chunk_sizes(16000)
 
@@ -450,7 +454,7 @@ class TestOptimalChunkSizes:
         """When context not provided, should auto-detect from GPU."""
         from src.core.utils.gpu_detector import get_optimal_chunk_sizes
 
-        with patch('src.core.utils.gpu_detector.get_optimal_context_size') as mock_ctx:
+        with patch("src.core.utils.gpu_detector.get_optimal_context_size") as mock_ctx:
             mock_ctx.return_value = 16000
             sizes = get_optimal_chunk_sizes()  # No context argument
 
@@ -474,8 +478,9 @@ class TestUserPreferencesChunkSizes:
 
     def test_effective_chunk_sizes_fixed_values(self):
         """get_effective_chunk_sizes should return fixed research-based values."""
-        from src.user_preferences import UserPreferencesManager
         from tempfile import TemporaryDirectory
+
+        from src.user_preferences import UserPreferencesManager
 
         with TemporaryDirectory() as tmpdir:
             prefs_file = Path(tmpdir) / "test_prefs.json"
@@ -496,8 +501,9 @@ class TestUserPreferencesChunkSizes:
 
     def test_effective_chunk_sizes_auto_mode(self):
         """Auto mode should pass GPU-detected context but use fixed chunk sizes."""
-        from src.user_preferences import UserPreferencesManager
         from tempfile import TemporaryDirectory
+
+        from src.user_preferences import UserPreferencesManager
 
         with TemporaryDirectory() as tmpdir:
             prefs_file = Path(tmpdir) / "test_prefs.json"
@@ -506,7 +512,7 @@ class TestUserPreferencesChunkSizes:
             # Ensure auto mode
             manager.set_context_size_mode("auto")
 
-            with patch('src.core.utils.gpu_detector.get_optimal_context_size') as mock_ctx:
+            with patch("src.core.utils.gpu_detector.get_optimal_context_size") as mock_ctx:
                 mock_ctx.return_value = 48000
                 sizes = manager.get_effective_chunk_sizes()
 

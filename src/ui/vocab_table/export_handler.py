@@ -13,8 +13,8 @@ Contains all export methods for vocabulary data:
 
 import csv
 import io
-from tkinter import filedialog, messagebox
 from datetime import datetime
+from tkinter import filedialog, messagebox
 
 from src.logging_config import debug_log
 from src.ui.vocab_table.column_config import ALL_EXPORT_COLUMNS, DISPLAY_TO_DATA_COLUMN
@@ -46,12 +46,8 @@ class VocabExportMixin:
         """
         output = io.StringIO()
 
-        if visible_columns:
-            # Session 80: Export only visible columns, preserving GUI column names
-            # Map display names to data field names for lookup
-            columns = visible_columns
-        else:
-            columns = list(ALL_EXPORT_COLUMNS)
+        # Session 80: Export only visible columns, preserving GUI column names
+        columns = visible_columns or list(ALL_EXPORT_COLUMNS)
 
         writer = csv.DictWriter(
             output,
@@ -157,13 +153,12 @@ class VocabExportMixin:
 
         try:
             from docx import Document
-            from docx.shared import Inches, Pt
             from docx.enum.table import WD_TABLE_ALIGNMENT
+            from docx.shared import Inches, Pt  # noqa: F401
         except ImportError:
             messagebox.showerror(
                 "Missing Library",
-                "python-docx is required for Word export.\n\n"
-                "Install with: pip install python-docx",
+                "python-docx is required for Word export.\n\nInstall with: pip install python-docx",
             )
             return
 
@@ -223,7 +218,7 @@ class VocabExportMixin:
         except ImportError:
             messagebox.showerror(
                 "Missing Library",
-                "fpdf2 is required for PDF export.\n\n" "Install with: pip install fpdf2",
+                "fpdf2 is required for PDF export.\n\nInstall with: pip install fpdf2",
             )
             return
 
@@ -236,9 +231,7 @@ class VocabExportMixin:
         pdf.set_font("Helvetica", "B", 16)
         pdf.cell(0, 10, "Vocabulary Export", ln=True, align="C")
         pdf.set_font("Helvetica", "", 10)
-        pdf.cell(
-            0, 8, f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", ln=True
-        )
+        pdf.cell(0, 8, f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", ln=True)
         pdf.cell(0, 8, f"Total terms: {len(sorted_data)}", ln=True)
         pdf.ln(5)
 

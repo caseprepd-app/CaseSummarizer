@@ -7,6 +7,7 @@ If this works, the issue is in the UI/worker integration.
 """
 
 import time
+
 from src.core.ai import ModelManager
 
 print("=" * 60)
@@ -22,18 +23,18 @@ print("\n2. Checking model availability...")
 models = mm.get_available_models()
 print(f"   Standard model available: {models['standard']['available']}")
 
-if not models['standard']['available']:
+if not models["standard"]["available"]:
     print("   ERROR: Model not downloaded!")
     exit(1)
 
 # Load model
 print("\n3. Loading standard model...")
 load_start = time.time()
-success = mm.load_model('standard')
+success = mm.load_model("standard")
 load_time = time.time() - load_start
 
 if not success:
-    print(f"   ERROR: Model failed to load!")
+    print("   ERROR: Model failed to load!")
     exit(1)
 
 print(f"   SUCCESS: Model loaded in {load_time:.1f} seconds")
@@ -46,9 +47,7 @@ print("   Generating...")
 gen_start = time.time()
 try:
     result = mm.generate_text(
-        prompt="Write a 10 word sentence about cats.",
-        max_tokens=50,
-        stream=False
+        prompt="Write a 10 word sentence about cats.", max_tokens=50, stream=False
     )
     gen_time = time.time() - gen_start
     print(f"   SUCCESS (took {gen_time:.1f} seconds):")
@@ -66,12 +65,10 @@ gen_start = time.time()
 try:
     tokens = []
     for token in mm.generate_text(
-        prompt="Count from 1 to 5 with commas.",
-        max_tokens=30,
-        stream=True
+        prompt="Count from 1 to 5 with commas.", max_tokens=30, stream=True
     ):
         tokens.append(token)
-        print(f"   Token: '{token}'", end='', flush=True)
+        print(f"   Token: '{token}'", end="", flush=True)
 
     gen_time = time.time() - gen_start
     print(f"\n   SUCCESS (took {gen_time:.1f} seconds):")
@@ -80,6 +77,7 @@ try:
 except Exception as e:
     print(f"   ERROR: {e}")
     import traceback
+
     traceback.print_exc()
     exit(1)
 
@@ -94,11 +92,7 @@ try:
     tokens = []
     first_token_time = None
 
-    for token in mm.generate_summary(
-        case_text=test_text,
-        max_words=50,
-        stream=True
-    ):
+    for token in mm.generate_summary(case_text=test_text, max_words=50, stream=True):
         if first_token_time is None:
             first_token_time = time.time() - gen_start
             print(f"   First token after {first_token_time:.1f} seconds!")
@@ -106,7 +100,7 @@ try:
         tokens.append(token)
 
     gen_time = time.time() - gen_start
-    full_text = ''.join(tokens)
+    full_text = "".join(tokens)
 
     print(f"   SUCCESS (took {gen_time:.1f} seconds total):")
     print(f"   Summary: {full_text[:200]}...")
@@ -115,6 +109,7 @@ try:
 except Exception as e:
     print(f"   ERROR: {e}")
     import traceback
+
     traceback.print_exc()
     exit(1)
 

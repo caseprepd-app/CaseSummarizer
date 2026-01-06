@@ -161,7 +161,7 @@ class PreprocessingPipeline:
         enabled_count = sum(1 for p in self.preprocessors if p.enabled)
         debug_log(
             f"[PREPROCESSING] Starting pipeline with {enabled_count} "
-            f"enabled preprocessors on {len(text)//1024}KB text"
+            f"enabled preprocessors on {len(text) // 1024}KB text"
         )
 
         for preprocessor in self.preprocessors:
@@ -200,7 +200,7 @@ class PreprocessingPipeline:
         total_time = (time.time() - pipeline_start) * 1000
         debug_log(
             f"[PREPROCESSING] Pipeline complete: {self.total_changes} total changes "
-            f"in {total_time:.1f}ms, output {len(current_text)//1024}KB"
+            f"in {total_time:.1f}ms, output {len(current_text) // 1024}KB"
         )
 
         return current_text

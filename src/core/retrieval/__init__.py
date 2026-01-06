@@ -22,27 +22,27 @@ Example:
 """
 
 from src.core.retrieval.base import (
-    BaseRetrievalAlgorithm,
-    RetrievedChunk,
     AlgorithmRetrievalResult,
+    BaseRetrievalAlgorithm,
     DocumentChunk,
+    RetrievedChunk,
 )
 from src.core.retrieval.chunk_merger import ChunkMerger, MergedChunk
 from src.core.retrieval.hybrid_retriever import HybridRetriever
 from src.core.retrieval.query_transformer import QueryTransformer, QueryTransformResult
 
 __all__ = [
+    "AlgorithmRetrievalResult",
     # Base classes
     "BaseRetrievalAlgorithm",
-    "RetrievedChunk",
-    "AlgorithmRetrievalResult",
-    "DocumentChunk",
     # Merger
     "ChunkMerger",
-    "MergedChunk",
+    "DocumentChunk",
     # Main retriever
     "HybridRetriever",
+    "MergedChunk",
+    "QueryTransformResult",
     # Query transformation (LlamaIndex)
     "QueryTransformer",
-    "QueryTransformResult",
+    "RetrievedChunk",
 ]

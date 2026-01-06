@@ -18,6 +18,8 @@ from datetime import datetime
 # Add project root to Python path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
+import contextlib
+
 import customtkinter as ctk
 
 # CRITICAL: Import src.core.ai BEFORE UI framework to avoid DirectML DLL conflicts on Windows
@@ -41,8 +43,8 @@ def setup_file_logging():
         def __init__(self, filepath):
             self.terminal = sys.stdout
             try:
-                self.logfile = open(filepath, "w", encoding="utf-8")
-            except (OSError, IOError) as e:
+                self.logfile = open(filepath, "w", encoding="utf-8")  # noqa: SIM115
+            except OSError as e:
                 print(f"Warning: Could not open log file {filepath}: {e}", file=sys.stderr)
                 self.logfile = None
 
@@ -52,24 +54,20 @@ def setup_file_logging():
                 try:
                     self.logfile.write(message)
                     self.flush()
-                except (OSError, IOError):
+                except OSError:
                     pass  # Log file may have been closed
 
         def flush(self):
             self.terminal.flush()
             if self.logfile:
-                try:
+                with contextlib.suppress(OSError):
                     self.logfile.flush()
-                except (OSError, IOError):
-                    pass
 
         def close(self):
             """Close the log file when done."""
             if self.logfile:
-                try:
+                with contextlib.suppress(OSError):
                     self.logfile.close()
-                except (OSError, IOError):
-                    pass
                 self.logfile = None
 
     sys.stdout = Logger(log_filename)

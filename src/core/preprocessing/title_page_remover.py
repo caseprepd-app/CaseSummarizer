@@ -13,6 +13,7 @@ Common title page patterns:
 """
 
 import re
+from typing import ClassVar
 
 from src.core.preprocessing.base import BasePreprocessor, PreprocessingResult
 
@@ -47,7 +48,7 @@ class TitlePageRemover(BasePreprocessor):
     LARGE_DOC_THRESHOLD = 10000  # 10KB
 
     # Patterns and their scores
-    TITLE_PAGE_PATTERNS = [
+    TITLE_PAGE_PATTERNS: ClassVar[list[tuple[re.Pattern[str], int]]] = [
         # Court headers
         (re.compile(r"SUPREME\s+COURT", re.IGNORECASE), 2),
         (re.compile(r"CIVIL\s+COURT", re.IGNORECASE), 2),
@@ -86,7 +87,7 @@ class TitlePageRemover(BasePreprocessor):
     ]
 
     # Patterns that indicate substantive content (negative score)
-    CONTENT_PATTERNS = [
+    CONTENT_PATTERNS: ClassVar[list[tuple[re.Pattern[str], int]]] = [
         (re.compile(r"^\s*Q[\.:]", re.MULTILINE), -3),  # Q&A transcript
         (re.compile(r"^\s*A[\.:]", re.MULTILINE), -3),
         (re.compile(r"THE\s+WITNESS:", re.IGNORECASE), -2),

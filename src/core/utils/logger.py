@@ -28,13 +28,13 @@ from src.logging_config import (
 )
 
 __all__ = [
-    "debug_log",
+    "DEBUG_MODE",
+    "Timer",
+    "close_debug_log",
+    "critical",
     "debug",
+    "debug_log",
+    "error",
     "info",
     "warning",
-    "error",
-    "critical",
-    "close_debug_log",
-    "Timer",
-    "DEBUG_MODE",
 ]

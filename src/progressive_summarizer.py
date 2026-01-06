@@ -55,7 +55,7 @@ class ProgressiveSummarizer:
     - Uses pandas DataFrame for organization
     """
 
-    def __init__(self, config_path: Path = None):
+    def __init__(self, config_path: Path | None = None):
         """
         Initialize progressive summarizer.
 
@@ -115,7 +115,7 @@ class ProgressiveSummarizer:
             # Fixed batching
             base_freq = fast_mode.get("base_batch_frequency", 5)
             debug_log(f"Using fixed batching (every {base_freq} chunks)")
-            return list(range(base_freq, total_chunks + 1, base_freq)) + [total_chunks]
+            return [*list(range(base_freq, total_chunks + 1, base_freq)), total_chunks]
 
     def _calculate_section_aware_boundaries(self) -> list[int]:
         """
@@ -353,7 +353,7 @@ Summary:"""
 
         return prompt
 
-    def save_debug_dataframe(self, output_dir: Path = None) -> Path:
+    def save_debug_dataframe(self, output_dir: Path | None = None) -> Path:
         """
         Save the processing DataFrame to CSV for debugging.
 
@@ -445,7 +445,7 @@ Summary:"""
         total_summary_length = 0
 
         for item in summary_data:
-            if "keywords" in item and item["keywords"]:
+            if item.get("keywords"):
                 all_keywords.extend(item["keywords"])
             if "summary" in item:
                 total_summary_length += len(item["summary"].split())
@@ -473,6 +473,6 @@ Summary:"""
         }
 
 
-def create_progressive_summarizer(config_path: Path = None) -> ProgressiveSummarizer:
+def create_progressive_summarizer(config_path: Path | None = None) -> ProgressiveSummarizer:
     """Factory function to create a ProgressiveSummarizer instance."""
     return ProgressiveSummarizer(config_path)

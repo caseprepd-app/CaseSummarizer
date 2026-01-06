@@ -30,7 +30,6 @@ from src.config import DEBUG_MODE, VECTOR_STORE_DIR
 from src.logging_config import debug_log
 
 if TYPE_CHECKING:
-    from langchain_community.vectorstores import FAISS
     from langchain_huggingface import HuggingFaceEmbeddings
 
 
@@ -90,7 +89,6 @@ class VectorStoreBuilder:
         start_time = time.perf_counter()
 
         from langchain_community.vectorstores import FAISS
-        from langchain_core.documents import Document
 
         # Generate case ID if not provided
         if case_id is None:
@@ -180,10 +178,7 @@ class VectorStoreBuilder:
         # Generate case ID if not provided
         if case_id is None:
             # Use source file or hash of first chunk for ID
-            if source_file:
-                hash_input = source_file
-            else:
-                hash_input = chunks[0].text[:100] if chunks else "unknown"
+            hash_input = source_file or (chunks[0].text[:100] if chunks else "unknown")
             hash_prefix = hashlib.md5(hash_input.encode()).hexdigest()[:8]
             date_stamp = datetime.now().strftime("%Y%m%d")
             case_id = f"{hash_prefix}_{date_stamp}"

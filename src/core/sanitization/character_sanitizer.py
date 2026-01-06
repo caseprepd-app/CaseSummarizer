@@ -106,7 +106,7 @@ class CharacterSanitizer:
             )
         except Exception as e:
             duration = time.time() - start
-            self._log(f"  ❌ FAILED ({duration:.3f}s) - {type(e).__name__}: {str(e)}")
+            self._log(f"  ❌ FAILED ({duration:.3f}s) - {type(e).__name__}: {e!s}")
             raise
 
         # Stage 2: Normalize Unicode (NFKC form)
@@ -122,7 +122,7 @@ class CharacterSanitizer:
             )
         except Exception as e:
             duration = time.time() - start
-            self._log(f"  ❌ FAILED ({duration:.3f}s) - {type(e).__name__}: {str(e)}")
+            self._log(f"  ❌ FAILED ({duration:.3f}s) - {type(e).__name__}: {e!s}")
             raise
 
         # Stage 3: Transliterate stray accents (ê → e, é → e, etc.)
@@ -140,7 +140,7 @@ class CharacterSanitizer:
                 )
             except Exception as e:
                 duration = time.time() - start
-                self._log(f"  ❌ FAILED ({duration:.3f}s) - {type(e).__name__}: {str(e)}")
+                self._log(f"  ❌ FAILED ({duration:.3f}s) - {type(e).__name__}: {e!s}")
                 raise
         else:
             self._log("Stage 3: Transliteration (SKIPPED - disabled)")
@@ -159,7 +159,7 @@ class CharacterSanitizer:
             )
         except Exception as e:
             duration = time.time() - start
-            self._log(f"  ❌ FAILED ({duration:.3f}s) - {type(e).__name__}: {str(e)}")
+            self._log(f"  ❌ FAILED ({duration:.3f}s) - {type(e).__name__}: {e!s}")
             raise
 
         # Stage 5: Remove/replace problematic characters
@@ -179,7 +179,7 @@ class CharacterSanitizer:
             )
         except Exception as e:
             duration = time.time() - start
-            self._log(f"  ❌ FAILED ({duration:.3f}s) - {type(e).__name__}: {str(e)}")
+            self._log(f"  ❌ FAILED ({duration:.3f}s) - {type(e).__name__}: {e!s}")
             raise
 
         # Stage 6: Clean up excessive whitespace
@@ -195,7 +195,7 @@ class CharacterSanitizer:
             )
         except Exception as e:
             duration = time.time() - start
-            self._log(f"  ❌ FAILED ({duration:.3f}s) - {type(e).__name__}: {str(e)}")
+            self._log(f"  ❌ FAILED ({duration:.3f}s) - {type(e).__name__}: {e!s}")
             raise
 
         stats["chars_removed"] = removed + control_removed + private_use

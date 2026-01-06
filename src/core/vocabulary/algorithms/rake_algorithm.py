@@ -36,7 +36,6 @@ from typing import Any
 from rake_nltk import Rake
 
 from src.config import VOCAB_ALGORITHM_WEIGHTS
-from src.logging_config import debug_log
 from src.core.utils.tokenizer import STOPWORDS
 from src.core.vocabulary.algorithms import register_algorithm
 from src.core.vocabulary.algorithms.base import (
@@ -44,6 +43,7 @@ from src.core.vocabulary.algorithms.base import (
     BaseExtractionAlgorithm,
     CandidateTerm,
 )
+from src.logging_config import debug_log
 
 
 @register_algorithm("RAKE")
