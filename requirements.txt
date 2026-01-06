@@ -12,6 +12,7 @@ langchain-huggingface>=0.0.3
 sentence-transformers>=3.0.0
 faiss-cpu>=1.7.4
 pdfplumber
+pymupdf>=1.24.0  # Hybrid PDF extraction with word-level voting (Session 79)
 pdf2image
 pytesseract
 requests
