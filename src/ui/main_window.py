@@ -2,6 +2,7 @@
 LocalScribe - Main Window (CustomTkinter)
 Session 29: Two-Panel Q&A-First Layout
 Session 33: Refactored - Layout extracted to WindowLayoutMixin
+Session 82: Related mixin modules created for reference (not inherited)
 
 Main application window with:
 - Header: Corpus dropdown + Settings button
@@ -16,6 +17,13 @@ Architecture:
 
     Layout code is in: src/ui/window_layout.py
     Business logic is in: This file (main_window.py)
+
+    Related helper modules (for reference/future refactoring):
+    - src/ui/main_window_helpers/ollama_mixin.py - Ollama status helpers
+    - src/ui/main_window_helpers/file_mixin.py - File management helpers
+    - src/ui/main_window_helpers/task_mixin.py - Task execution helpers
+    - src/ui/main_window_helpers/export_mixin.py - Export helpers
+    - src/ui/main_window_helpers/timer_mixin.py - Timer helpers
 """
 
 import re
