@@ -388,7 +388,7 @@ src/core/extraction/
 | OCR processing | `extraction/ocr_processor.py` | pdf2image + pytesseract at 300 DPI |
 | **OCR preprocessing** | `extraction/image_preprocessor.py` | 8-stage image enhancement (Session 63, 74) |
 | Text normalization | `extraction/text_normalizer.py` | 4-stage pipeline (dehyphen, page nums, filter, whitespace) |
-| Dictionary utilities | `extraction/dictionary_utils.py` | NLTK words corpus, confidence calculation |
+| Dictionary utilities | `extraction/dictionary_utils.py` | Two-tier confidence: NLTK (1.0) + Google freq fallback (0.5) |
 | Non-PDF files | `extraction/file_readers.py` | TXT, RTF (striprtf), DOCX (python-docx), images (OCR) |
 | Case numbers | `extraction/case_number_extractor.py` | Regex for federal, NY Index, docket formats |
 | Sanitization | `sanitization/character_sanitizer.py` | 6-stage pipeline |

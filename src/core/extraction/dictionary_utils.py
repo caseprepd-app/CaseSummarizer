@@ -113,6 +113,11 @@ class DictionaryUtils:
         or if OCR fallback is needed. A score below 60% typically indicates
         the PDF contains scanned images rather than selectable text.
 
+        Uses a two-tier scoring system:
+        - Words in NLTK dictionary: 1.0 (known valid English)
+        - Words in Google frequency dataset but not NLTK: 0.5 (uncommon but real)
+        - Words in neither: 0.0 (likely garbage/OCR error)
+
         Args:
             text: Text to analyze
 
@@ -135,10 +140,24 @@ class DictionaryUtils:
         if len(tokens) == 0:
             return 0.0
 
-        # Count valid English words
-        valid_words = sum(1 for token in tokens if token in self.english_words)
+        # Load Google word frequency data (cached after first load)
+        from src.core.vocabulary.rarity_filter import _load_scaled_frequencies
 
-        confidence = (valid_words / len(tokens)) * 100
+        google_words = _load_scaled_frequencies()
+
+        # Score each token:
+        # - 1.0 if in NLTK dictionary (known valid English word)
+        # - 0.5 if not in NLTK but in Google (uncommon but real word)
+        # - 0.0 if in neither (likely garbage/OCR error)
+        total_score = 0.0
+        for token in tokens:
+            if token in self.english_words:
+                total_score += 1.0
+            elif token in google_words:
+                total_score += 0.5
+            # else: 0.0 (no addition)
+
+        confidence = (total_score / len(tokens)) * 100
         return confidence
 
     def is_valid_word(self, word: str) -> bool:
