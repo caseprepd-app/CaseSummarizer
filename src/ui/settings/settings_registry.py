@@ -414,7 +414,7 @@ def _register_all_settings():
     # Session 80: Column visibility configuration
     def _create_column_visibility_widget(parent):
         """Factory function to create the ColumnVisibilityWidget."""
-        from src.ui.settings.settings_widgets import ColumnVisibilityWidget
+        from src.ui.settings.columns_widget import ColumnVisibilityWidget
 
         return ColumnVisibilityWidget(parent)
 
@@ -754,7 +754,7 @@ def _register_all_settings():
     # Session 64: Custom widget for corpus management
     def _create_corpus_settings_widget(parent):
         """Factory function to create the CorpusSettingsWidget."""
-        from src.ui.settings.settings_widgets import CorpusSettingsWidget
+        from src.ui.settings.corpus_widget import CorpusSettingsWidget
 
         return CorpusSettingsWidget(parent)
 
@@ -944,7 +944,7 @@ def _register_all_settings():
     # (Replaces the old "Edit Default Questions" YAML editor button)
     def _create_default_questions_widget(parent):
         """Factory function to create the DefaultQuestionsWidget."""
-        from src.ui.settings.settings_widgets import DefaultQuestionsWidget
+        from src.ui.settings.questions_widget import DefaultQuestionsWidget
 
         return DefaultQuestionsWidget(parent)
 
