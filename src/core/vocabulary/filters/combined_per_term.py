@@ -125,8 +125,8 @@ class CombinedPerTermFilter(BaseVocabularyFilter):
             removed_count=total_removed,
             removed_terms=removed_terms,
             metadata={
-                'rarity_removed': removed_by_rarity,
-                'corpus_removed': removed_by_corpus,
-                'gibberish_removed': removed_by_gibberish,
-            }
+                "rarity_removed": removed_by_rarity,
+                "corpus_removed": removed_by_corpus,
+                "gibberish_removed": removed_by_gibberish,
+            },
         )

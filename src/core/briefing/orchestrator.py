@@ -159,7 +159,9 @@ class BriefingOrchestrator:
                 return result
 
             debug_log(f"[BriefingOrchestrator] Starting briefing for {len(valid_docs)} documents")
-            self._notify_progress(progress_callback, "init", 0, 4, "Starting briefing generation...")
+            self._notify_progress(
+                progress_callback, "init", 0, 4, "Starting briefing generation..."
+            )
 
             # Phase 1: Chunking
             chunks = self._phase_chunk(valid_docs, progress_callback, result)

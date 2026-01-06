@@ -25,43 +25,44 @@ class MessageType:
     Use these constants in queue_message_handler.py dispatch dictionary
     to ensure consistency between senders and receivers.
     """
+
     # Core messages
-    PROGRESS = 'progress'
-    ERROR = 'error'
+    PROGRESS = "progress"
+    ERROR = "error"
 
     # Document processing
-    FILE_PROCESSED = 'file_processed'
-    PROCESSING_FINISHED = 'processing_finished'
+    FILE_PROCESSED = "file_processed"
+    PROCESSING_FINISHED = "processing_finished"
 
     # Vocabulary extraction
-    VOCAB_CSV_GENERATED = 'vocab_csv_generated'
+    VOCAB_CSV_GENERATED = "vocab_csv_generated"
 
     # Summarization
-    SUMMARY_RESULT = 'summary_result'
-    MULTI_DOC_RESULT = 'multi_doc_result'
-    META_SUMMARY_GENERATED = 'meta_summary_generated'
+    SUMMARY_RESULT = "summary_result"
+    MULTI_DOC_RESULT = "multi_doc_result"
+    META_SUMMARY_GENERATED = "meta_summary_generated"
 
     # Vector Store (Session 24)
-    VECTOR_STORE_READY = 'vector_store_ready'
-    VECTOR_STORE_ERROR = 'vector_store_error'
+    VECTOR_STORE_READY = "vector_store_ready"
+    VECTOR_STORE_ERROR = "vector_store_error"
 
     # Q&A (Session 28)
-    QA_PROGRESS = 'qa_progress'
-    QA_RESULT = 'qa_result'
-    QA_COMPLETE = 'qa_complete'
-    QA_FOLLOWUP_RESULT = 'qa_followup_result'
-    QA_ERROR = 'qa_error'
-    TRIGGER_DEFAULT_QA = 'trigger_default_qa'
+    QA_PROGRESS = "qa_progress"
+    QA_RESULT = "qa_result"
+    QA_COMPLETE = "qa_complete"
+    QA_FOLLOWUP_RESULT = "qa_followup_result"
+    QA_ERROR = "qa_error"
+    TRIGGER_DEFAULT_QA = "trigger_default_qa"
 
     # Progressive Extraction (Session 48)
-    NER_COMPLETE = 'ner_complete'
-    QA_READY = 'qa_ready'
-    LLM_PROGRESS = 'llm_progress'
-    LLM_COMPLETE = 'llm_complete'
+    NER_COMPLETE = "ner_complete"
+    QA_READY = "qa_ready"
+    LLM_PROGRESS = "llm_progress"
+    LLM_COMPLETE = "llm_complete"
 
     # Case Briefing
-    BRIEFING_PROGRESS = 'briefing_progress'
-    BRIEFING_COMPLETE = 'briefing_complete'
+    BRIEFING_PROGRESS = "briefing_progress"
+    BRIEFING_COMPLETE = "briefing_complete"
 
 
 class QueueMessage:
@@ -151,7 +152,7 @@ class QueueMessage:
         Args:
             summary: Generated summary text
         """
-        return (MessageType.SUMMARY_RESULT, {'summary': summary})
+        return (MessageType.SUMMARY_RESULT, {"summary": summary})
 
     @staticmethod
     def multi_doc_result(result: Any) -> tuple[str, Any]:
@@ -179,10 +180,7 @@ class QueueMessage:
 
     @staticmethod
     def vector_store_ready(
-        path: str,
-        case_id: str,
-        chunk_count: int,
-        creation_time_ms: float
+        path: str, case_id: str, chunk_count: int, creation_time_ms: float
     ) -> tuple[str, dict]:
         """
         Create vector store ready message.
@@ -193,12 +191,15 @@ class QueueMessage:
             chunk_count: Number of chunks indexed
             creation_time_ms: Time to create in milliseconds
         """
-        return (MessageType.VECTOR_STORE_READY, {
-            'path': path,
-            'case_id': case_id,
-            'chunk_count': chunk_count,
-            'creation_time_ms': creation_time_ms,
-        })
+        return (
+            MessageType.VECTOR_STORE_READY,
+            {
+                "path": path,
+                "case_id": case_id,
+                "chunk_count": chunk_count,
+                "creation_time_ms": creation_time_ms,
+            },
+        )
 
     @staticmethod
     def vector_store_error(error: str) -> tuple[str, dict]:
@@ -208,18 +209,14 @@ class QueueMessage:
         Args:
             error: Error message
         """
-        return (MessageType.VECTOR_STORE_ERROR, {'error': error})
+        return (MessageType.VECTOR_STORE_ERROR, {"error": error})
 
     # =========================================================================
     # Q&A (Session 28)
     # =========================================================================
 
     @staticmethod
-    def qa_progress(
-        current: int,
-        total: int,
-        question: str
-    ) -> tuple[str, tuple[int, int, str]]:
+    def qa_progress(current: int, total: int, question: str) -> tuple[str, tuple[int, int, str]]:
         """
         Create Q&A progress message.
 
@@ -268,13 +265,10 @@ class QueueMessage:
         Args:
             error: Error message
         """
-        return (MessageType.QA_ERROR, {'error': error})
+        return (MessageType.QA_ERROR, {"error": error})
 
     @staticmethod
-    def trigger_default_qa(
-        vector_store_path: str,
-        embeddings: Any
-    ) -> tuple[str, dict]:
+    def trigger_default_qa(vector_store_path: str, embeddings: Any) -> tuple[str, dict]:
         """
         Signal to trigger default Q&A questions.
 
@@ -282,10 +276,13 @@ class QueueMessage:
             vector_store_path: Path to vector store
             embeddings: HuggingFaceEmbeddings instance
         """
-        return (MessageType.TRIGGER_DEFAULT_QA, {
-            'vector_store_path': vector_store_path,
-            'embeddings': embeddings,
-        })
+        return (
+            MessageType.TRIGGER_DEFAULT_QA,
+            {
+                "vector_store_path": vector_store_path,
+                "embeddings": embeddings,
+            },
+        )
 
     # =========================================================================
     # Progressive Extraction (Session 48)
@@ -305,11 +302,7 @@ class QueueMessage:
         return (MessageType.NER_COMPLETE, vocab_data)
 
     @staticmethod
-    def qa_ready(
-        vector_store_path: str,
-        embeddings: Any,
-        chunk_count: int
-    ) -> tuple[str, dict]:
+    def qa_ready(vector_store_path: str, embeddings: Any, chunk_count: int) -> tuple[str, dict]:
         """
         Create Q&A ready message (Phase 2).
 
@@ -318,11 +311,14 @@ class QueueMessage:
             embeddings: HuggingFaceEmbeddings instance
             chunk_count: Number of chunks indexed
         """
-        return (MessageType.QA_READY, {
-            'vector_store_path': vector_store_path,
-            'embeddings': embeddings,
-            'chunk_count': chunk_count,
-        })
+        return (
+            MessageType.QA_READY,
+            {
+                "vector_store_path": vector_store_path,
+                "embeddings": embeddings,
+                "chunk_count": chunk_count,
+            },
+        )
 
     @staticmethod
     def llm_progress(current: int, total: int) -> tuple[str, tuple[int, int]]:
@@ -351,10 +347,7 @@ class QueueMessage:
 
     @staticmethod
     def briefing_progress(
-        phase: str,
-        current: int,
-        total: int,
-        message: str
+        phase: str, current: int, total: int, message: str
     ) -> tuple[str, tuple[str, int, int, str]]:
         """
         Create briefing progress message.
@@ -376,7 +369,10 @@ class QueueMessage:
             result: BriefingResult object
             formatted: Formatted briefing output string
         """
-        return (MessageType.BRIEFING_COMPLETE, {
-            'result': result,
-            'formatted': formatted,
-        })
+        return (
+            MessageType.BRIEFING_COMPLETE,
+            {
+                "result": result,
+                "formatted": formatted,
+            },
+        )

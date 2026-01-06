@@ -77,20 +77,20 @@ from src.core.prompting.config import (
 
 __all__ = [
     # Template management
-    'PromptTemplateManager',
-    'SKELETON_FILENAME',
-    'README_FILENAME',
-    'USER_SKELETON_TEMPLATE',
-    'USER_README_CONTENT',
-    'GENERIC_FALLBACK_TEMPLATE',
+    "PromptTemplateManager",
+    "SKELETON_FILENAME",
+    "README_FILENAME",
+    "USER_SKELETON_TEMPLATE",
+    "USER_README_CONTENT",
+    "GENERIC_FALLBACK_TEMPLATE",
     # Focus extraction
-    'FocusExtractor',
-    'AIFocusExtractor',
+    "FocusExtractor",
+    "AIFocusExtractor",
     # Prompt adapters
-    'PromptAdapter',
-    'MultiDocPromptAdapter',
+    "PromptAdapter",
+    "MultiDocPromptAdapter",
     # Configuration
-    'PromptConfig',
-    'get_prompt_config',
-    'PROMPT_PARAMS_FILE',
+    "PromptConfig",
+    "get_prompt_config",
+    "PROMPT_PARAMS_FILE",
 ]

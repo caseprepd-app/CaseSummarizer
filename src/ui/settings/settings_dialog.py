@@ -96,18 +96,14 @@ class SettingsDialog(ctk.CTkToplevel):
         title_frame = ctk.CTkFrame(self, fg_color="transparent")
         title_frame.grid(row=0, column=0, sticky="ew", padx=20, pady=(20, 5))
 
-        title = ctk.CTkLabel(
-            title_frame,
-            text="Application Settings",
-            font=FONTS["heading_xl"]
-        )
+        title = ctk.CTkLabel(title_frame, text="Application Settings", font=FONTS["heading_xl"])
         title.pack(anchor="w")
 
         subtitle = ctk.CTkLabel(
             title_frame,
             text="Configure LocalScribe behavior and performance",
             font=FONTS["body"],
-            text_color=COLORS["text_secondary"]
+            text_color=COLORS["text_secondary"],
         )
         subtitle.pack(anchor="w")
 
@@ -123,10 +119,7 @@ class SettingsDialog(ctk.CTkToplevel):
         self.tabview.grid(row=1, column=0, padx=20, pady=10, sticky="nsew")
 
         # Make tab buttons larger and bolder
-        self.tabview._segmented_button.configure(
-            font=FONTS["heading"],
-            height=36
-        )
+        self.tabview._segmented_button.configure(font=FONTS["heading"], height=36)
 
         # Create tabs from registry
         categories = SettingsRegistry.get_categories()
@@ -160,16 +153,11 @@ class SettingsDialog(ctk.CTkToplevel):
             fg_color="transparent",
             border_width=1,
             text_color=("gray10", "gray90"),
-            hover_color=("gray70", "gray30")
+            hover_color=("gray70", "gray30"),
         )
         cancel_btn.grid(row=0, column=1, padx=(0, 10))
 
-        save_btn = ctk.CTkButton(
-            btn_frame,
-            text="Save",
-            command=self._save,
-            width=100
-        )
+        save_btn = ctk.CTkButton(btn_frame, text="Save", command=self._save, width=100)
         save_btn.grid(row=0, column=2)
 
     def _show_empty_state(self):
@@ -178,7 +166,7 @@ class SettingsDialog(ctk.CTkToplevel):
             self,
             text="No settings available.",
             font=FONTS["heading"],
-            text_color=COLORS["text_secondary"]
+            text_color=COLORS["text_secondary"],
         )
         empty_label.grid(row=1, column=0, pady=50)
 
@@ -286,6 +274,7 @@ class SettingsDialog(ctk.CTkToplevel):
                 except Exception as e:
                     # Use default if getter fails (e.g., missing preference)
                     from src.logging_config import debug_log
+
                     debug_log(f"[Settings] Getter failed for {setting.key}: {e}")
                     widget.set_value(setting.default)
 

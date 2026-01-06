@@ -53,7 +53,7 @@ class QAPanel(ctk.CTkFrame):
         master,
         on_edit_questions: Callable | None = None,
         on_ask_followup: Callable[[str], QAResult | None] | None = None,
-        **kwargs
+        **kwargs,
     ):
         """
         Initialize Q&A panel.
@@ -94,18 +94,11 @@ class QAPanel(ctk.CTkFrame):
         header = ctk.CTkFrame(self, **FRAME_STYLES["transparent"])
         header.grid(row=0, column=0, sticky="ew", padx=5, pady=(5, 0))
 
-        title = ctk.CTkLabel(
-            header,
-            text="Questions & Answers",
-            font=FONTS["heading"]
-        )
+        title = ctk.CTkLabel(header, text="Questions & Answers", font=FONTS["heading"])
         title.pack(side="left")
 
         self.info_label = ctk.CTkLabel(
-            header,
-            text="",
-            font=FONTS["small"],
-            text_color=COLORS["text_secondary"]
+            header, text="", font=FONTS["small"], text_color=COLORS["text_secondary"]
         )
         self.info_label.pack(side="right")
 
@@ -124,7 +117,7 @@ class QAPanel(ctk.CTkFrame):
             fg_color=COLORS["bg_darker"],
             text_color=COLORS["text_primary"],
             scrollbar_button_color=COLORS["bg_input"],
-            scrollbar_button_hover_color=COLORS["bg_hover"]
+            scrollbar_button_hover_color=COLORS["bg_hover"],
         )
         self.text_display.grid(row=0, column=0, sticky="nsew", padx=2, pady=2)
 
@@ -141,10 +134,7 @@ class QAPanel(ctk.CTkFrame):
 
         # Edit Questions button
         self.edit_btn = ctk.CTkButton(
-            button_frame,
-            text="Edit Questions",
-            command=self._on_edit_click,
-            width=130
+            button_frame, text="Edit Questions", command=self._on_edit_click, width=130
         )
         self.edit_btn.pack(side="left", padx=(0, 5))
 
@@ -158,7 +148,7 @@ class QAPanel(ctk.CTkFrame):
             text="Copy to Clipboard",
             command=self._copy_to_clipboard,
             width=120,
-            **BUTTON_STYLES["secondary"]
+            **BUTTON_STYLES["secondary"],
         )
         self.copy_btn.pack(side="left", padx=5)
 
@@ -179,7 +169,7 @@ class QAPanel(ctk.CTkFrame):
             text="Select All",
             command=lambda: self._set_all_include(True),
             width=80,
-            **BUTTON_STYLES["primary"]
+            **BUTTON_STYLES["primary"],
         )
         self.select_all_btn.pack(side="right", padx=5)
 
@@ -188,7 +178,7 @@ class QAPanel(ctk.CTkFrame):
             text="Deselect All",
             command=lambda: self._set_all_include(False),
             width=90,
-            **BUTTON_STYLES["secondary"]
+            **BUTTON_STYLES["secondary"],
         )
         self.deselect_all_btn.pack(side="right", padx=5)
 
@@ -200,9 +190,7 @@ class QAPanel(ctk.CTkFrame):
 
         # Input field
         self.followup_entry = ctk.CTkEntry(
-            self.followup_frame,
-            placeholder_text="Type your question here...",
-            width=400
+            self.followup_frame, placeholder_text="Type your question here...", width=400
         )
         self.followup_entry.pack(side="left", fill="x", expand=True, padx=(10, 5), pady=10)
 
@@ -211,10 +199,7 @@ class QAPanel(ctk.CTkFrame):
 
         # Ask button
         self.followup_ask_btn = ctk.CTkButton(
-            self.followup_frame,
-            text="Ask",
-            command=self._submit_followup,
-            width=80
+            self.followup_frame, text="Ask", command=self._submit_followup, width=80
         )
         self.followup_ask_btn.pack(side="right", padx=(5, 10), pady=10)
 
@@ -253,7 +238,9 @@ class QAPanel(ctk.CTkFrame):
 
                 if result.verification.answer_rejected:
                     # Show rejection message in unreliable color
-                    self.text_display.insert("end", f"{result.quick_answer}\n\n", "verify_unreliable")
+                    self.text_display.insert(
+                        "end", f"{result.quick_answer}\n\n", "verify_unreliable"
+                    )
                     answer_rejected = True
                 else:
                     # Show color-coded verified answer
@@ -353,7 +340,6 @@ class QAPanel(ctk.CTkFrame):
 
         self.text_display.insert("end", "\n")
 
-
     def _set_all_include(self, include: bool):
         """Set include_in_export for all results."""
         for result in self._results:
@@ -383,8 +369,7 @@ class QAPanel(ctk.CTkFrame):
         if self.on_ask_followup is None:
             messagebox.showwarning(
                 "Not Available",
-                "Follow-up questions are not available. "
-                "Please process a document first."
+                "Follow-up questions are not available. " "Please process a document first.",
             )
             return
 
@@ -457,7 +442,7 @@ class QAPanel(ctk.CTkFrame):
         else:
             messagebox.showinfo(
                 "Edit Questions",
-                "Question editor will be available in Settings > Q&A > Edit Default Questions"
+                "Question editor will be available in Settings > Q&A > Edit Default Questions",
             )
 
     def _export_to_csv(self):
@@ -472,7 +457,7 @@ class QAPanel(ctk.CTkFrame):
             messagebox.showwarning(
                 "No Q&A Selected",
                 "Select at least one Q&A pair to export.\n\n"
-                "Click the checkboxes in the Include column."
+                "Click the checkboxes in the Include column.",
             )
             return
 
@@ -485,7 +470,7 @@ class QAPanel(ctk.CTkFrame):
             filetypes=[("CSV files", "*.csv"), ("All files", "*.*")],
             initialfile="document_questions.csv",
             initialdir=initial_dir,
-            title="Export Q&A Results"
+            title="Export Q&A Results",
         )
 
         if not filepath:
@@ -493,7 +478,7 @@ class QAPanel(ctk.CTkFrame):
 
         try:
             content = self._format_csv_export(exportable)
-            with open(filepath, 'w', encoding='utf-8', newline='') as f:
+            with open(filepath, "w", encoding="utf-8", newline="") as f:
                 f.write(content)
 
             # Session 73: Remember export folder
@@ -502,12 +487,11 @@ class QAPanel(ctk.CTkFrame):
             # Status bar confirmation (Session 69)
             # LOG-014: Using module-level os import
             main_window = self.winfo_toplevel()
-            if hasattr(main_window, 'set_status'):
+            if hasattr(main_window, "set_status"):
                 filename = os.path.basename(filepath)
                 pair_word = "pair" if len(exportable) == 1 else "pairs"
                 main_window.set_status(
-                    f"Exported {len(exportable)} Q&A {pair_word} to {filename}",
-                    duration_ms=5000
+                    f"Exported {len(exportable)} Q&A {pair_word} to {filename}", duration_ms=5000
                 )
 
             debug_log(f"[QAPanel] Exported {len(exportable)} Q&A pairs to CSV: {filepath}")
@@ -528,7 +512,7 @@ class QAPanel(ctk.CTkFrame):
             messagebox.showwarning(
                 "No Q&A Selected",
                 "Select at least one Q&A pair to export.\n\n"
-                "Click the checkboxes in the Include column."
+                "Click the checkboxes in the Include column.",
             )
             return
 
@@ -541,7 +525,7 @@ class QAPanel(ctk.CTkFrame):
             filetypes=[("Text files", "*.txt"), ("All files", "*.*")],
             initialfile="document_questions.txt",
             initialdir=initial_dir,
-            title="Export Q&A Results"
+            title="Export Q&A Results",
         )
 
         if not filepath:
@@ -549,7 +533,7 @@ class QAPanel(ctk.CTkFrame):
 
         try:
             content = self._format_txt_export(exportable)
-            with open(filepath, 'w', encoding='utf-8') as f:
+            with open(filepath, "w", encoding="utf-8") as f:
                 f.write(content)
 
             # Session 73: Remember export folder
@@ -558,12 +542,11 @@ class QAPanel(ctk.CTkFrame):
             # Status bar confirmation (Session 69)
             # LOG-014: Using module-level os import
             main_window = self.winfo_toplevel()
-            if hasattr(main_window, 'set_status'):
+            if hasattr(main_window, "set_status"):
                 filename = os.path.basename(filepath)
                 pair_word = "pair" if len(exportable) == 1 else "pairs"
                 main_window.set_status(
-                    f"Exported {len(exportable)} Q&A {pair_word} to {filename}",
-                    duration_ms=5000
+                    f"Exported {len(exportable)} Q&A {pair_word} to {filename}", duration_ms=5000
                 )
 
             debug_log(f"[QAPanel] Exported {len(exportable)} Q&A pairs to TXT: {filepath}")
@@ -585,7 +568,7 @@ class QAPanel(ctk.CTkFrame):
             messagebox.showwarning(
                 "No Q&A Selected",
                 "Select at least one Q&A pair to export.\n\n"
-                "Click the checkboxes in the Include column."
+                "Click the checkboxes in the Include column.",
             )
             return
 
@@ -598,7 +581,7 @@ class QAPanel(ctk.CTkFrame):
             filetypes=[("Word documents", "*.docx"), ("All files", "*.*")],
             initialfile="document_questions.docx",
             initialdir=initial_dir,
-            title="Export Q&A to Word"
+            title="Export Q&A to Word",
         )
 
         if not filepath:
@@ -615,12 +598,12 @@ class QAPanel(ctk.CTkFrame):
                 # Status bar confirmation
                 # LOG-014: Using module-level os import
                 main_window = self.winfo_toplevel()
-                if hasattr(main_window, 'set_status'):
+                if hasattr(main_window, "set_status"):
                     filename = os.path.basename(filepath)
                     pair_word = "pair" if len(exportable) == 1 else "pairs"
                     main_window.set_status(
                         f"Exported {len(exportable)} Q&A {pair_word} to {filename}",
-                        duration_ms=5000
+                        duration_ms=5000,
                     )
 
                 debug_log(f"[QAPanel] Exported {len(exportable)} Q&A pairs to Word: {filepath}")
@@ -644,7 +627,7 @@ class QAPanel(ctk.CTkFrame):
             messagebox.showwarning(
                 "No Q&A Selected",
                 "Select at least one Q&A pair to export.\n\n"
-                "Click the checkboxes in the Include column."
+                "Click the checkboxes in the Include column.",
             )
             return
 
@@ -657,7 +640,7 @@ class QAPanel(ctk.CTkFrame):
             filetypes=[("PDF documents", "*.pdf"), ("All files", "*.*")],
             initialfile="document_questions.pdf",
             initialdir=initial_dir,
-            title="Export Q&A to PDF"
+            title="Export Q&A to PDF",
         )
 
         if not filepath:
@@ -674,12 +657,12 @@ class QAPanel(ctk.CTkFrame):
                 # Status bar confirmation
                 # LOG-014: Using module-level os import
                 main_window = self.winfo_toplevel()
-                if hasattr(main_window, 'set_status'):
+                if hasattr(main_window, "set_status"):
                     filename = os.path.basename(filepath)
                     pair_word = "pair" if len(exportable) == 1 else "pairs"
                     main_window.set_status(
                         f"Exported {len(exportable)} Q&A {pair_word} to {filename}",
-                        duration_ms=5000
+                        duration_ms=5000,
                     )
 
                 debug_log(f"[QAPanel] Exported {len(exportable)} Q&A pairs to PDF: {filepath}")
@@ -703,7 +686,7 @@ class QAPanel(ctk.CTkFrame):
             messagebox.showwarning(
                 "No Q&A Selected",
                 "Select at least one Q&A pair to export.\n\n"
-                "Click the checkboxes in the Include column."
+                "Click the checkboxes in the Include column.",
             )
             return
 
@@ -716,7 +699,7 @@ class QAPanel(ctk.CTkFrame):
             filetypes=[("HTML files", "*.html"), ("All files", "*.*")],
             initialfile="document_questions.html",
             initialdir=initial_dir,
-            title="Export Q&A to HTML"
+            title="Export Q&A to HTML",
         )
 
         if not filepath:
@@ -733,12 +716,12 @@ class QAPanel(ctk.CTkFrame):
                 # Status bar confirmation
                 # LOG-014: Using module-level os import
                 main_window = self.winfo_toplevel()
-                if hasattr(main_window, 'set_status'):
+                if hasattr(main_window, "set_status"):
                     filename = os.path.basename(filepath)
                     pair_word = "pair" if len(exportable) == 1 else "pairs"
                     main_window.set_status(
                         f"Exported {len(exportable)} Q&A {pair_word} to {filename}",
-                        duration_ms=5000
+                        duration_ms=5000,
                     )
 
                 debug_log(f"[QAPanel] Exported {len(exportable)} Q&A pairs to HTML: {filepath}")
@@ -791,12 +774,9 @@ class QAPanel(ctk.CTkFrame):
 
         # Data rows
         for result in results:
-            writer.writerow([
-                result.question,
-                result.quick_answer,
-                result.citation,
-                result.source_summary
-            ])
+            writer.writerow(
+                [result.question, result.quick_answer, result.citation, result.source_summary]
+            )
 
         return output.getvalue()
 
@@ -810,12 +790,7 @@ class QAPanel(ctk.CTkFrame):
         Returns:
             Formatted text string
         """
-        lines = [
-            "=" * 60,
-            "DOCUMENT QUESTIONS & ANSWERS",
-            "=" * 60,
-            ""
-        ]
+        lines = ["=" * 60, "DOCUMENT QUESTIONS & ANSWERS", "=" * 60, ""]
 
         for i, result in enumerate(results, 1):
             lines.append(f"Q{i}: {result.question}")
@@ -843,7 +818,7 @@ class QAPanel(ctk.CTkFrame):
             messagebox.showwarning(
                 "No Q&A Selected",
                 "Select at least one Q&A pair to copy.\n\n"
-                "Use 'Select All' to select all results."
+                "Use 'Select All' to select all results.",
             )
             return
 
@@ -870,11 +845,10 @@ class QAPanel(ctk.CTkFrame):
 
             # Status bar confirmation (Session 69)
             main_window = self.winfo_toplevel()
-            if hasattr(main_window, 'set_status'):
+            if hasattr(main_window, "set_status"):
                 pair_word = "pair" if len(exportable) == 1 else "pairs"
                 main_window.set_status(
-                    f"Copied {len(exportable)} Q&A {pair_word} to clipboard",
-                    duration_ms=5000
+                    f"Copied {len(exportable)} Q&A {pair_word} to clipboard", duration_ms=5000
                 )
 
             debug_log(f"[QAPanel] Copied {len(exportable)} Q&A pairs to clipboard")

@@ -325,7 +325,11 @@ Please check that:
             "",
             "## What Happened",
             "",
-            narrative.narrative if narrative and narrative.narrative else "*No narrative generated*",
+            (
+                narrative.narrative
+                if narrative and narrative.narrative
+                else "*No narrative generated*"
+            ),
             "",
             "---",
             "",
@@ -339,11 +343,13 @@ Please check that:
         else:
             lines.append("*None identified*")
 
-        lines.extend([
-            "",
-            "## Defenses",
-            "",
-        ])
+        lines.extend(
+            [
+                "",
+                "## Defenses",
+                "",
+            ]
+        )
 
         if data.defenses:
             for defense in data.defenses[:10]:
@@ -351,13 +357,15 @@ Please check that:
         else:
             lines.append("*None identified*")
 
-        lines.extend([
-            "",
-            "---",
-            "",
-            "## Names to Know",
-            "",
-        ])
+        lines.extend(
+            [
+                "",
+                "---",
+                "",
+                "## Names to Know",
+                "",
+            ]
+        )
 
         category_order = [
             ("PARTY", "Parties"),
@@ -377,12 +385,14 @@ Please check that:
                 lines.append("")
 
         # Vocabulary section
-        lines.extend([
-            "---",
-            "",
-            "## Vocabulary",
-            "",
-        ])
+        lines.extend(
+            [
+                "---",
+                "",
+                "## Vocabulary",
+                "",
+            ]
+        )
 
         if data.vocabulary:
             lines.append("*Technical and unusual terms for reference:*")

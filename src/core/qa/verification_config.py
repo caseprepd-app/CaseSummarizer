@@ -13,10 +13,10 @@ Score Interpretation:
 # Span classification thresholds
 # These define the boundaries for color-coding answer text
 HALLUCINATION_THRESHOLDS = {
-    "verified": 0.30,      # < 0.30 = green (verified, strongly supported)
-    "uncertain": 0.50,     # 0.30 - 0.50 = yellow (uncertain, borderline)
-    "suspicious": 0.70,    # 0.50 - 0.70 = orange (suspicious, likely unsupported)
-    "unreliable": 0.85,    # 0.70 - 0.85 = red (unreliable, probably hallucinated)
+    "verified": 0.30,  # < 0.30 = green (verified, strongly supported)
+    "uncertain": 0.50,  # 0.30 - 0.50 = yellow (uncertain, borderline)
+    "suspicious": 0.70,  # 0.50 - 0.70 = orange (suspicious, likely unsupported)
+    "unreliable": 0.85,  # 0.70 - 0.85 = red (unreliable, probably hallucinated)
     # >= 0.85 = strikethrough (hallucinated, very high confidence)
 }
 
@@ -29,8 +29,7 @@ VERIFIER_MODEL_PATH = "KRLabsOrg/lettucedect-base-modernbert-en-v1"
 
 # Rejection message shown when answer confidence is too low
 REJECTION_MESSAGE = (
-    "Confidence in answer too low after verification step, "
-    "declining to show answer..."
+    "Confidence in answer too low after verification step, " "declining to show answer..."
 )
 
 

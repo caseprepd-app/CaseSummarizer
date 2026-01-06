@@ -30,6 +30,7 @@ class ColumnDefinition:
         triggers_sort_warning: Whether sorting by this column shows a warning
         is_numeric: Whether column uses numeric sorting (vs string)
     """
+
     name: str
     data_key: str
     width: int
@@ -78,17 +79,13 @@ COLUMN_NAMES = tuple(c.name for c in COLUMN_DEFINITIONS)
 PROTECTED_COLUMNS = frozenset(c.name for c in COLUMN_DEFINITIONS if not c.can_hide)
 
 # Columns that trigger sort warning (all except Score, Keep, Skip)
-SORT_WARNING_COLUMNS = frozenset(
-    c.name for c in COLUMN_DEFINITIONS if c.triggers_sort_warning
-)
+SORT_WARNING_COLUMNS = frozenset(c.name for c in COLUMN_DEFINITIONS if c.triggers_sort_warning)
 
 # Columns that use numeric sorting
 NUMERIC_COLUMNS = frozenset(c.name for c in COLUMN_DEFINITIONS if c.is_numeric)
 
 # Display name to data key mapping (for columns where they differ)
-DISPLAY_TO_DATA_KEY = {
-    c.name: c.data_key for c in COLUMN_DEFINITIONS if c.name != c.data_key
-}
+DISPLAY_TO_DATA_KEY = {c.name: c.data_key for c in COLUMN_DEFINITIONS if c.name != c.data_key}
 
 
 def get_column_by_name(name: str) -> Optional[ColumnDefinition]:

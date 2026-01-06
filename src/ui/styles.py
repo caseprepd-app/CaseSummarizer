@@ -50,33 +50,33 @@ def _configure_vocab_treeview_style(style: ttk.Style) -> None:
         fieldbackground="#2b2b2b",
         borderwidth=0,
         rowheight=25,
-        font=('Segoe UI', 10)
+        font=("Segoe UI", 10),
     )
-    style.map('Vocab.Treeview', background=[('selected', '#3470b6')])
+    style.map("Vocab.Treeview", background=[("selected", "#3470b6")])
 
     style.configure(
         "Vocab.Treeview.Heading",
         background="#404040",
         foreground="white",
         relief="flat",
-        font=('Segoe UI', 10, 'bold'),
-        padding=(8, 4)
+        font=("Segoe UI", 10, "bold"),
+        padding=(8, 4),
     )
-    style.map("Vocab.Treeview.Heading", background=[('active', '#505050')])
+    style.map("Vocab.Treeview.Heading", background=[("active", "#505050")])
 
     style.configure(
         "Vocab.Vertical.TScrollbar",
         background="#404040",
         troughcolor="#2b2b2b",
         borderwidth=0,
-        arrowcolor="white"
+        arrowcolor="white",
     )
     style.configure(
         "Vocab.Horizontal.TScrollbar",
         background="#404040",
         troughcolor="#2b2b2b",
         borderwidth=0,
-        arrowcolor="white"
+        arrowcolor="white",
     )
 
 
@@ -89,33 +89,33 @@ def _configure_qa_table_style(style: ttk.Style) -> None:
         fieldbackground="#2b2b2b",
         borderwidth=0,
         rowheight=28,
-        font=('Segoe UI', 10)
+        font=("Segoe UI", 10),
     )
-    style.map('QATable.Treeview', background=[('selected', '#3470b6')])
+    style.map("QATable.Treeview", background=[("selected", "#3470b6")])
 
     style.configure(
         "QATable.Treeview.Heading",
         background="#404040",
         foreground="white",
         relief="flat",
-        font=('Segoe UI', 10, 'bold'),
-        padding=(8, 4)
+        font=("Segoe UI", 10, "bold"),
+        padding=(8, 4),
     )
-    style.map("QATable.Treeview.Heading", background=[('active', '#505050')])
+    style.map("QATable.Treeview.Heading", background=[("active", "#505050")])
 
     style.configure(
         "QATable.Vertical.TScrollbar",
         background="#404040",
         troughcolor="#2b2b2b",
         borderwidth=0,
-        arrowcolor="white"
+        arrowcolor="white",
     )
     style.configure(
         "QATable.Horizontal.TScrollbar",
         background="#404040",
         troughcolor="#2b2b2b",
         borderwidth=0,
-        arrowcolor="white"
+        arrowcolor="white",
     )
 
 
@@ -126,17 +126,12 @@ def _configure_file_review_style(style: ttk.Style) -> None:
         background="#2b2b2b",
         foreground="white",
         fieldbackground="#2b2b2b",
-        borderwidth=0
+        borderwidth=0,
     )
-    style.map('Treeview', background=[('selected', '#3470b6')])
+    style.map("Treeview", background=[("selected", "#3470b6")])
 
-    style.configure(
-        "Treeview.Heading",
-        background="#565b5e",
-        foreground="white",
-        relief="flat"
-    )
-    style.map("Treeview.Heading", background=[('active', '#6c757d')])
+    style.configure("Treeview.Heading", background="#565b5e", foreground="white", relief="flat")
+    style.map("Treeview.Heading", background=[("active", "#6c757d")])
 
 
 def _configure_question_list_style(style: ttk.Style) -> None:
@@ -148,15 +143,15 @@ def _configure_question_list_style(style: ttk.Style) -> None:
         fieldbackground="#2b2b2b",
         borderwidth=0,
         rowheight=28,
-        font=('Segoe UI', 10)
+        font=("Segoe UI", 10),
     )
-    style.map('QuestionList.Treeview', background=[('selected', '#3470b6')])
+    style.map("QuestionList.Treeview", background=[("selected", "#3470b6")])
 
     style.configure(
         "QuestionList.Treeview.Heading",
         background="#404040",
         foreground="white",
         relief="flat",
-        font=('Segoe UI', 10, 'bold')
+        font=("Segoe UI", 10, "bold"),
     )
-    style.map("QuestionList.Treeview.Heading", background=[('active', '#505050')])
+    style.map("QuestionList.Treeview.Heading", background=[("active", "#505050")])

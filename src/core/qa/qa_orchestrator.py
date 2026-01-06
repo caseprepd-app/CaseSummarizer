@@ -31,7 +31,9 @@ if TYPE_CHECKING:
 
 # Default questions YAML path (relative to this file: src/core/qa/ -> config/)
 DEFAULT_QUESTIONS_PATH = Path(__file__).parent.parent.parent.parent / "config" / "qa_questions.yaml"
-DEFAULT_QUESTIONS_TXT_PATH = Path(__file__).parent.parent.parent.parent / "config" / "qa_default_questions.txt"
+DEFAULT_QUESTIONS_TXT_PATH = (
+    Path(__file__).parent.parent.parent.parent / "config" / "qa_default_questions.txt"
+)
 
 
 @dataclass
@@ -65,7 +67,9 @@ class QAResult:
     retrieval_time_ms: float = 0.0
     is_followup: bool = False
     is_default_question: bool = False  # Marks questions from default list
-    verification: "VerificationResult | None" = None  # Hallucination verification result (Session 60)
+    verification: "VerificationResult | None" = (
+        None  # Hallucination verification result (Session 60)
+    )
 
     @property
     def answer(self) -> str:
@@ -109,7 +113,7 @@ class QAOrchestrator:
         vector_store_path: Path,
         embeddings,
         answer_mode: str = "extraction",
-        questions_path: Path | None = None
+        questions_path: Path | None = None,
     ):
         """
         Initialize Q&A orchestrator.
@@ -130,6 +134,7 @@ class QAOrchestrator:
 
         # Initialize answer generator (lazy import to avoid circular deps)
         from src.core.qa.answer_generator import AnswerGenerator
+
         self.answer_generator = AnswerGenerator(mode=answer_mode)
 
         # Results storage
@@ -149,9 +154,7 @@ class QAOrchestrator:
     def _load_questions(self) -> None:
         """Load question definitions from YAML config."""
         config = load_yaml_with_fallback(
-            self.questions_path,
-            fallback={},
-            log_prefix="[QAOrchestrator]"
+            self.questions_path, fallback={}, log_prefix="[QAOrchestrator]"
         )
 
         if not config or "questions" not in config:
@@ -159,12 +162,14 @@ class QAOrchestrator:
             return
 
         for q in config["questions"]:
-            self._questions.append(QuestionDef(
-                id=q.get("id", ""),
-                text=q.get("text", ""),
-                category=q.get("category", "General"),
-                question_type=q.get("type", "extraction")
-            ))
+            self._questions.append(
+                QuestionDef(
+                    id=q.get("id", ""),
+                    text=q.get("text", ""),
+                    category=q.get("category", "General"),
+                    question_type=q.get("type", "extraction"),
+                )
+            )
 
         if DEBUG_MODE:
             debug_log(f"[QAOrchestrator] Loaded {len(self._questions)} questions")
@@ -187,7 +192,9 @@ class QAOrchestrator:
 
             if DEBUG_MODE:
                 total = manager.get_total_count()
-                debug_log(f"[QAOrchestrator] Loaded {len(questions)}/{total} enabled default questions")
+                debug_log(
+                    f"[QAOrchestrator] Loaded {len(questions)}/{total} enabled default questions"
+                )
 
             return questions
 
@@ -200,10 +207,10 @@ class QAOrchestrator:
 
             questions = []
             try:
-                with open(DEFAULT_QUESTIONS_TXT_PATH, 'r', encoding='utf-8') as f:
+                with open(DEFAULT_QUESTIONS_TXT_PATH, "r", encoding="utf-8") as f:
                     for line in f:
                         line = line.strip()
-                        if line and not line.startswith('#'):
+                        if line and not line.startswith("#"):
                             questions.append(line)
                 return questions
             except Exception:
@@ -240,7 +247,9 @@ class QAOrchestrator:
             self.results.append(result)
 
             if DEBUG_MODE:
-                debug_log(f"[QAOrchestrator] Q{i + 1}/{total}: {question[:40]}... -> {len(result.answer)} chars")
+                debug_log(
+                    f"[QAOrchestrator] Q{i + 1}/{total}: {question[:40]}... -> {len(result.answer)} chars"
+                )
 
         if progress_callback:
             progress_callback(total, total)
@@ -262,10 +271,7 @@ class QAOrchestrator:
         return result
 
     def _ask_single_question(
-        self,
-        question: str,
-        is_followup: bool = False,
-        is_default: bool = False
+        self, question: str, is_followup: bool = False, is_default: bool = False
     ) -> QAResult:
         """
         Ask a single question and generate both quick_answer and citation.
@@ -300,12 +306,11 @@ class QAOrchestrator:
 
             # Run hallucination verification if enabled (Session 60)
             if HALLUCINATION_VERIFICATION_ENABLED and quick_answer:
-                verification = self._verify_answer(
-                    quick_answer, retrieval_result.context, question
-                )
+                verification = self._verify_answer(quick_answer, retrieval_result.context, question)
                 # If answer is rejected, replace with rejection message
                 if verification and verification.answer_rejected:
                     from src.core.qa.verification_config import REJECTION_MESSAGE
+
                     quick_answer = REJECTION_MESSAGE
 
             source_summary = self.retriever.get_relevant_sources_summary(retrieval_result)
@@ -326,7 +331,7 @@ class QAOrchestrator:
             retrieval_time_ms=retrieval_result.retrieval_time_ms,
             is_followup=is_followup,
             is_default_question=is_default,
-            verification=verification
+            verification=verification,
         )
 
     def _generate_quick_answer(self, question: str, context: str) -> str:
@@ -368,6 +373,7 @@ class QAOrchestrator:
         """
         if self._verifier is None:
             from src.core.qa.hallucination_verifier import HallucinationVerifier
+
             self._verifier = HallucinationVerifier()
 
         return self._verifier.verify(answer, context, question)
@@ -387,7 +393,9 @@ class QAOrchestrator:
         if not retrieval_result.sources:
             return 0.0
 
-        avg_score = sum(s.relevance_score for s in retrieval_result.sources) / len(retrieval_result.sources)
+        avg_score = sum(s.relevance_score for s in retrieval_result.sources) / len(
+            retrieval_result.sources
+        )
         return round(avg_score, 2)
 
     def get_exportable_results(self) -> list[QAResult]:
@@ -429,17 +437,16 @@ class QAOrchestrator:
         if not exportable:
             return ""
 
-        lines = [
-            "=" * 60,
-            "DOCUMENT Q&A SUMMARY",
-            "=" * 60,
-            ""
-        ]
+        lines = ["=" * 60, "DOCUMENT Q&A SUMMARY", "=" * 60, ""]
 
         for i, result in enumerate(exportable, 1):
             lines.append(f"Q{i}: {result.question}")
             lines.append(f"Quick Answer: {result.quick_answer}")
-            lines.append(f"Citation: {result.citation[:200]}..." if len(result.citation) > 200 else f"Citation: {result.citation}")
+            lines.append(
+                f"Citation: {result.citation[:200]}..."
+                if len(result.citation) > 200
+                else f"Citation: {result.citation}"
+            )
             if result.source_summary:
                 lines.append(f"   [Source: {result.source_summary}]")
             lines.append("")
@@ -470,11 +477,8 @@ class QAOrchestrator:
 
         # Data rows
         for result in exportable:
-            writer.writerow([
-                result.question,
-                result.quick_answer,
-                result.citation,
-                result.source_summary
-            ])
+            writer.writerow(
+                [result.question, result.quick_answer, result.citation, result.source_summary]
+            )
 
         return output.getvalue()

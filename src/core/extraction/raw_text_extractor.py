@@ -1,438 +1,298 @@
 """
-Raw Text Extraction Module
+Raw Text Extraction Facade.
 
-Extracts raw text from legal documents (PDF, DOCX, TXT, RTF, PNG, JPG) and applies
-basic normalization (de-hyphenation, page number removal, whitespace normalization).
+Provides a unified interface for extracting text from legal documents.
+Delegates to specialized modules for each file format and processing step.
 
-This module implements Steps 1-2 of the document processing pipeline:
-- Step 1: Extract text from files (PDF digital/OCR, DOCX, TXT, RTF, PNG/JPG via OCR)
-- Step 2: Apply basic text normalization (OCR error fixing, structural normalization)
-- Step 2.5: Character sanitization (fix mojibake, remove control chars, redaction handling)
+Supported formats: PDF, DOCX, TXT, RTF, PNG, JPG
 
-Session 73: Added DOCX and direct image (PNG/JPG) import support.
+Pipeline Steps:
+    1. EXTRACTION - Read text from files (digital PDF, OCR, or file readers)
+    2. NORMALIZATION - De-hyphenation, page numbers, line filtering
+    2.5. SANITIZATION - Fix mojibake, control chars, redaction handling
 
-This module can be used standalone via command line or as part of the larger document processing pipeline.
+Example usage:
+    >>> extractor = RawTextExtractor()
+    >>> result = extractor.process_document("complaint.pdf")
+    >>> print(f"Status: {result['status']}, Confidence: {result['confidence']}%")
+    Status: success, Confidence: 85%
+
+    >>> # Access extracted text
+    >>> text = result['extracted_text']
+
+This module can be run standalone via command line:
+    python -m src.core.extraction.raw_text_extractor --input document.pdf
 """
 
-import argparse
-import os
-import re
-import time
 from pathlib import Path
 
-# NLP
-import nltk
-
-# PDF processing
-import pdfplumber
-import fitz  # PyMuPDF - primary PDF text extraction (Session 79)
-import pytesseract
-from nltk.corpus import words
-from difflib import SequenceMatcher
-
-# OCR
-from pdf2image import convert_from_path
-
-# Local imports
 from src.config import (
-    DEBUG_DEFAULT_FILE,
-    DEBUG_MODE,
     LARGE_FILE_WARNING_MB,
     MAX_FILE_SIZE_MB,
-    MIN_DICTIONARY_CONFIDENCE,
-    MIN_LINE_LENGTH,
     OCR_CONFIDENCE_THRESHOLD,
-    OCR_DPI,
-    OCR_PREPROCESSING_ENABLED,
-    OCR_DENOISE_STRENGTH,
-    OCR_ENABLE_CLAHE,
 )
-
-# Image preprocessing for OCR
-from src.core.extraction.image_preprocessor import ImagePreprocessor, PreprocessingStats
-
-# Character sanitization
-from src.core.sanitization import CharacterSanitizer
-
-# Logging (use canonical location for new code)
 from src.logging_config import Timer, debug, error, info, warning
+
+# Internal modules (the actual implementation)
+from .case_number_extractor import CaseNumberExtractor
+from .dictionary_utils import DictionaryUtils
+from .file_readers import FileReaders
+from .ocr_processor import OCRProcessor
+from .pdf_extractor import PDFExtractor
+from .text_normalizer import TextNormalizer
+
+# Character sanitization (external module)
+from src.core.sanitization import CharacterSanitizer
 
 
 class RawTextExtractor:
     """
-    Extracts and normalizes raw text from legal documents.
+    Facade for document text extraction.
 
-    Handles PDF (digital and scanned), TXT, and RTF files.
-    Returns extracted text with confidence scores and processing metadata.
+    Coordinates specialized modules to extract and normalize text from
+    legal documents. Handles PDF (digital/OCR), DOCX, TXT, RTF, and images.
 
-    This class implements Steps 1-2.5 of the document pipeline:
-    1. Text Extraction: Reads PDF/TXT/RTF and applies OCR if needed
-    2. Basic Normalization: De-hyphenation, page number removal, whitespace normalization
-    2.5: Character Sanitization: Fix mojibake, remove control chars, handle redactions
+    This class maintains backward compatibility with existing code while
+    delegating work to focused, testable modules.
+
+    Attributes:
+        dictionary: DictionaryUtils for word validation and confidence
+        normalizer: TextNormalizer for text cleanup pipeline
+        pdf_extractor: PDFExtractor for hybrid PDF extraction
+        ocr_processor: OCRProcessor for scanned documents
+        file_readers: FileReaders for TXT/RTF/DOCX/image files
+        case_extractor: CaseNumberExtractor for legal case numbers
+        character_sanitizer: CharacterSanitizer for encoding cleanup
+
+    Example:
+        >>> extractor = RawTextExtractor()
+        >>> result = extractor.process_document("motion.pdf")
+        >>> if result['status'] == 'success':
+        ...     print(f"Extracted {len(result['extracted_text'])} chars")
     """
 
     def __init__(self, jurisdiction: str = "ny"):
         """
-        Initialize the RawTextExtractor.
+        Initialize the RawTextExtractor with all component modules.
 
         Args:
-            jurisdiction: Legal jurisdiction for keyword loading (ny, ca, federal)
+            jurisdiction: Legal jurisdiction (ny, ca, federal). Currently
+                         only affects logging; keywords are universal.
         """
         self.jurisdiction = jurisdiction
-        self.legal_keywords: set[str] = set()
-        self.english_words: set[str] = set()
-        self.character_sanitizer = CharacterSanitizer()
 
         with Timer("RawTextExtractor initialization"):
-            self._load_keywords()
-            self._load_dictionary()
+            # Initialize component modules
+            self.dictionary = DictionaryUtils()
+            self.normalizer = TextNormalizer(self.dictionary.legal_keywords)
+            self.pdf_extractor = PDFExtractor(self.dictionary)
+            self.ocr_processor = OCRProcessor(self.dictionary)
+            self.file_readers = FileReaders(self.dictionary, self.ocr_processor)
+            self.case_extractor = CaseNumberExtractor()
+            self.character_sanitizer = CharacterSanitizer()
 
-    def _load_keywords(self):
-        """Load legal keywords for the jurisdiction."""
-        debug(f"Loading legal keywords for jurisdiction: {self.jurisdiction}")
-
-        # Hardcoded legal keywords: works offline, no network dependency, covers
-        # common terms across all US jurisdictions. Extensible via config if needed.
-        self.legal_keywords = {
-            "COURT", "PLAINTIFF", "DEFENDANT", "APPEARANCES", "SUPREME",
-            "MOTION", "AFFIDAVIT", "EXHIBIT", "DEPOSITION", "TESTIMONY",
-            "COMPLAINT", "ANSWER", "SUMMONS", "NOTICE", "ORDER",
-            "JUDGE", "ATTORNEY", "COUNSEL", "PARTY", "ACTION"
-        }
-
-        debug(f"Loaded {len(self.legal_keywords)} legal keywords")
-
-    def _load_dictionary(self):
-        """Load NLTK English words corpus."""
-        debug("Loading NLTK English words corpus")
-
-        try:
-            # Try to load the words corpus
-            self.english_words = {word.lower() for word in words.words()}
-            debug(f"Loaded {len(self.english_words)} English words")
-        except LookupError:
-            # Download if not available
-            warning("NLTK words corpus not found. Downloading...")
-            nltk.download('words', quiet=not DEBUG_MODE)
-            self.english_words = {word.lower() for word in words.words()}
-            debug(f"Downloaded and loaded {len(self.english_words)} English words")
+        debug(f"RawTextExtractor initialized for jurisdiction: {jurisdiction}")
 
     def process_document(self, file_path: str, progress_callback=None) -> dict:
         """
-        Process a single document (extraction + basic normalization).
+        Process a single document through the full extraction pipeline.
+
+        Pipeline:
+            1. Validate file (exists, size limits)
+            2. Extract text based on file type
+            3. Extract case numbers from raw text
+            4. Normalize text (de-hyphenation, page numbers, filtering)
+            5. Sanitize characters (mojibake, control chars, redactions)
+            6. Calculate quality confidence
 
         Args:
             file_path: Path to the document file
-            progress_callback: Optional callback function(message: str, percent: int)
-                             for progress updates
+            progress_callback: Optional callback(message: str, percent: int)
 
         Returns:
-            Dictionary with keys:
+            Dict with keys:
                 - filename: Name of the file
                 - file_path: Full path to file
                 - status: 'success', 'warning', or 'error'
-                - method: 'direct_read', 'digital_text', 'ocr', 'rtf_extraction'
-                - confidence: OCR confidence score (0-100)
-                - extracted_text: Extracted and normalized text content
+                - method: Extraction method used
+                - confidence: Quality score (0-100)
+                - extracted_text: Processed text content
                 - page_count: Number of pages (for PDFs)
                 - file_size: File size in bytes
                 - case_numbers: List of detected case numbers
-                - error_message: Error description (if status is 'error')
+                - error_message: Error description (if failed)
+
+        Example:
+            >>> extractor = RawTextExtractor()
+            >>> result = extractor.process_document("brief.pdf")
+            >>> print(f"{result['filename']}: {result['status']}")
         """
         file_path = Path(file_path)
         filename = file_path.name
 
         info(f"Processing document: {filename}")
 
-        # Helper function to report progress
         def report_progress(message: str, percent: int):
             if progress_callback:
                 try:
                     progress_callback(message, percent)
                 except Exception:
-                    pass  # Ignore callback errors
+                    pass
 
+        # Initialize result
         result = {
-            'filename': filename,
-            'file_path': str(file_path),
-            'status': 'success',
-            'method': None,
-            'confidence': 0,
-            'extracted_text': '',
-            'page_count': None,  # Changed from 'pages' to match FileReviewTable
-            'file_size': 0,      # Changed from 'size_mb' to store bytes (not MB)
-            'case_numbers': [],
-            'error_message': None
+            "filename": filename,
+            "file_path": str(file_path),
+            "status": "success",
+            "method": None,
+            "confidence": 0,
+            "extracted_text": "",
+            "page_count": None,
+            "file_size": 0,
+            "case_numbers": [],
+            "error_message": None,
         }
 
         try:
             with Timer(f"Processing {filename}"):
                 report_progress(f"Starting {filename}", 0)
 
-                # Check file exists
-                if not file_path.exists():
-                    result['status'] = 'error'
-                    result['error_message'] = f"File not found: {file_path}"
-                    error(result['error_message'])
+                # Step 1: Validate file
+                validation = self._validate_file(file_path)
+                if validation["error"]:
+                    result["status"] = "error"
+                    result["error_message"] = validation["error"]
+                    error(validation["error"])
                     return result
 
-                # Get file size in bytes (for display in FileReviewTable)
-                result['file_size'] = file_path.stat().st_size
-                size_mb = result['file_size'] / (1024 * 1024)
+                result["file_size"] = validation["file_size"]
 
-                # Check file size limits
-                if size_mb > MAX_FILE_SIZE_MB:
-                    result['status'] = 'error'
-                    result['error_message'] = f"File exceeds maximum size ({MAX_FILE_SIZE_MB}MB). File size: {size_mb:.1f}MB"
-                    error(result['error_message'])
-                    return result
-
-                if size_mb > LARGE_FILE_WARNING_MB:
-                    warning(f"Large file detected ({size_mb:.1f}MB). Processing may take longer.")
-
-                # Determine file type and process
-                file_extension = file_path.suffix.lower()
-
+                # Step 2: Extract text based on file type
                 report_progress("Extracting text", 20)
+                extraction = self._extract_by_type(file_path)
 
-                if file_extension in ['.txt', '.rtf']:
-                    result.update(self._process_text_file(file_path))
-                elif file_extension == '.pdf':
-                    result.update(self._process_pdf(file_path))
-                elif file_extension == '.docx':
-                    # Session 73: DOCX import support
-                    result.update(self._process_docx(file_path))
-                elif file_extension in ['.png', '.jpg', '.jpeg']:
-                    # Session 73: Direct image import support (OCR)
-                    result.update(self._process_image(file_path))
-                else:
-                    result['status'] = 'error'
-                    result['error_message'] = f"Unsupported file type: {file_extension}. Supported formats: PDF, DOCX, TXT, RTF, PNG, JPG"
-                    error(result['error_message'])
+                if extraction["status"] == "error":
+                    result["status"] = "error"
+                    result["error_message"] = extraction["error_message"]
+                    error(extraction["error_message"])
                     return result
 
-                report_progress("Extracting case numbers", 60)
+                result["method"] = extraction["method"]
+                result["confidence"] = extraction["confidence"]
+                result["extracted_text"] = extraction["text"]
+                result["page_count"] = extraction.get("page_count")
 
-                # Extract case numbers from raw text (before normalization removes short lines)
-                if result['status'] != 'error' and result['extracted_text']:
-                    result['case_numbers'] = self._extract_case_numbers(result['extracted_text'])
-                    if result['case_numbers']:
+                # Step 3: Extract case numbers (before normalization)
+                report_progress("Extracting case numbers", 60)
+                if result["extracted_text"]:
+                    result["case_numbers"] = self.case_extractor.extract(result["extracted_text"])
+                    if result["case_numbers"]:
                         debug(f"Found case numbers: {result['case_numbers']}")
 
+                # Step 4: Normalize text
                 report_progress("Normalizing text", 70)
-
-                # Apply basic text normalization
-                if result['status'] != 'error' and result['extracted_text']:
+                if result["extracted_text"]:
                     with Timer("Text normalization"):
-                        result['extracted_text'] = self._normalize_text(result['extracted_text'])
+                        result["extracted_text"] = self.normalizer.normalize(
+                            result["extracted_text"]
+                        )
 
-                    # Check if normalization resulted in empty text
-                    if len(result['extracted_text'].strip()) == 0:
-                        result['status'] = 'error'
-                        result['error_message'] = "Unable to extract readable text. File may be corrupted or contain only images."
-                        error(result['error_message'])
+                    if not result["extracted_text"].strip():
+                        result["status"] = "error"
+                        result["error_message"] = (
+                            "Unable to extract readable text. "
+                            "File may be corrupted or contain only images."
+                        )
+                        error(result["error_message"])
+                        return result
 
+                # Step 5: Sanitize characters
                 report_progress("Sanitizing characters", 80)
-
-                # Apply character sanitization (Step 2.5)
-                # Fixes mojibake, removes control chars, handles redactions, transliterates accents
-                if result['status'] != 'error' and result['extracted_text']:
+                if result["extracted_text"]:
                     with Timer("Character sanitization"):
-                        sanitized_text, sanitization_stats = self.character_sanitizer.sanitize(result['extracted_text'])
-                        result['extracted_text'] = sanitized_text
+                        sanitized, stats = self.character_sanitizer.sanitize(
+                            result["extracted_text"]
+                        )
+                        result["extracted_text"] = sanitized
 
-                        # Log sanitization details
-                        if any(sanitization_stats.values()):
-                            debug(f"Character sanitization stats: {sanitization_stats}")
-                            for log_entry in self.character_sanitizer.get_log():
-                                debug(f"  - {log_entry}")
+                        if any(stats.values()):
+                            debug(f"Sanitization stats: {stats}")
 
-                # Set status based on confidence
-                if result['status'] == 'success':
-                    if result['confidence'] < OCR_CONFIDENCE_THRESHOLD:
-                        result['status'] = 'warning'
+                # Step 6: Set final status based on confidence
+                if result["status"] == "success":
+                    if result["confidence"] < OCR_CONFIDENCE_THRESHOLD:
+                        result["status"] = "warning"
 
                 report_progress("Complete", 100)
-                debug(f"DEBUG_EXTRACTOR: Final result for {filename} - file_size: {result['file_size']}, page_count: {result['page_count']}")
 
         except Exception as e:
-            result['status'] = 'error'
-            result['error_message'] = f"Unexpected error: {str(e)}"
+            result["status"] = "error"
+            result["error_message"] = f"Unexpected error: {str(e)}"
             error(f"Error processing {filename}: {str(e)}", exc_info=True)
             report_progress("Error", 0)
 
         return result
 
-    def _process_text_file(self, file_path: Path) -> dict:
-        """Process TXT or RTF file."""
-        debug(f"Processing as text file: {file_path.name}")
+    def _validate_file(self, file_path: Path) -> dict:
+        """Validate file exists and is within size limits."""
+        if not file_path.exists():
+            return {"error": f"File not found: {file_path}", "file_size": 0}
 
-        try:
-            # Check if RTF or plain text
-            if file_path.suffix.lower() == '.rtf':
-                # RTF file - use striprtf to extract plain text
-                from striprtf.striprtf import rtf_to_text
+        file_size = file_path.stat().st_size
+        size_mb = file_size / (1024 * 1024)
 
-                with open(file_path, encoding='utf-8', errors='ignore') as f:
-                    rtf_content = f.read()
-
-                text = rtf_to_text(rtf_content)
-                method = 'rtf_extraction'
-                debug(f"Extracted {len(text)} characters from RTF")
-            else:
-                # Plain text file
-                with open(file_path, encoding='utf-8', errors='ignore') as f:
-                    text = f.read()
-                method = 'direct_read'
-
-            # Calculate actual text quality confidence
-            confidence = self._calculate_dictionary_confidence(text)
-            debug(f"Text file dictionary confidence: {confidence:.1f}%")
-
+        if size_mb > MAX_FILE_SIZE_MB:
             return {
-                'method': method,
-                'confidence': int(confidence),
-                'extracted_text': text,
-                'status': 'success'
-            }
-        except Exception as e:
-            return {
-                'status': 'error',
-                'error_message': f"Failed to read text file: {str(e)}"
+                "error": f"File exceeds maximum size ({MAX_FILE_SIZE_MB}MB). "
+                f"File size: {size_mb:.1f}MB",
+                "file_size": file_size,
             }
 
-    def _process_docx(self, file_path: Path) -> dict:
-        """
-        Process Word document (.docx).
+        if size_mb > LARGE_FILE_WARNING_MB:
+            warning(f"Large file detected ({size_mb:.1f}MB). Processing may take longer.")
 
-        Session 73: DOCX import support using python-docx (already installed for export).
+        return {"error": None, "file_size": file_size}
 
-        Args:
-            file_path: Path to the DOCX file
+    def _extract_by_type(self, file_path: Path) -> dict:
+        """Route extraction to appropriate handler based on file type."""
+        ext = file_path.suffix.lower()
 
-        Returns:
-            Dict with extracted text, method, status, confidence
-        """
-        debug(f"Processing as Word document: {file_path.name}")
-
-        try:
-            from docx import Document
-
-            doc = Document(file_path)
-
-            # Extract text from all paragraphs
-            paragraphs = [p.text for p in doc.paragraphs if p.text.strip()]
-            text = "\n".join(paragraphs)
-
-            # Also extract text from tables
-            for table in doc.tables:
-                for row in table.rows:
-                    row_text = [cell.text.strip() for cell in row.cells if cell.text.strip()]
-                    if row_text:
-                        text += "\n" + " | ".join(row_text)
-
-            if not text.strip():
-                return {
-                    'status': 'error',
-                    'error_message': "Word document contains no readable text."
-                }
-
-            # Calculate text quality confidence
-            confidence = self._calculate_dictionary_confidence(text)
-            debug(f"DOCX dictionary confidence: {confidence:.1f}%")
-
+        if ext == ".pdf":
+            return self._process_pdf(file_path)
+        elif ext == ".txt":
+            return self.file_readers.read_text_file(file_path)
+        elif ext == ".rtf":
+            return self.file_readers.read_rtf_file(file_path)
+        elif ext == ".docx":
+            return self.file_readers.read_docx_file(file_path)
+        elif ext in [".png", ".jpg", ".jpeg"]:
+            return self.file_readers.read_image_file(file_path)
+        else:
             return {
-                'method': 'docx_extraction',
-                'confidence': int(confidence),
-                'extracted_text': text,
-                'page_count': len(doc.sections) or 1,  # Approximate page count
-                'status': 'success'
-            }
-
-        except Exception as e:
-            return {
-                'status': 'error',
-                'error_message': f"Failed to read Word document: {str(e)}"
-            }
-
-    def _process_image(self, file_path: Path) -> dict:
-        """
-        Process image file (.png, .jpg, .jpeg) using OCR.
-
-        Session 73: Direct image import support. Reuses existing OCR pipeline
-        with image preprocessing.
-
-        Args:
-            file_path: Path to the image file
-
-        Returns:
-            Dict with extracted text, method, status, confidence
-        """
-        debug(f"Processing as image: {file_path.name}")
-
-        try:
-            from PIL import Image
-
-            # Load image
-            img = Image.open(file_path)
-
-            # Preprocess image using existing pipeline
-            if OCR_PREPROCESSING_ENABLED:
-                preprocessor = ImagePreprocessor(
-                    denoise_strength=OCR_DENOISE_STRENGTH,
-                    enable_clahe=OCR_ENABLE_CLAHE
-                )
-                processed_img, preprocessing_stats = preprocessor.preprocess(img)
-                debug(f"Image preprocessing applied: {preprocessing_stats}")
-            else:
-                processed_img = img.convert("L")  # At minimum convert to grayscale
-
-            # Perform OCR
-            text = pytesseract.image_to_string(processed_img)
-
-            if not text.strip():
-                return {
-                    'status': 'error',
-                    'error_message': "Could not extract text from image. Image may not contain readable text."
-                }
-
-            # Calculate OCR quality confidence
-            confidence = self._calculate_dictionary_confidence(text)
-            debug(f"Image OCR dictionary confidence: {confidence:.1f}%")
-
-            return {
-                'method': 'image_ocr',
-                'confidence': int(confidence),
-                'extracted_text': text,
-                'page_count': 1,
-                'status': 'success' if confidence >= OCR_CONFIDENCE_THRESHOLD else 'warning'
-            }
-
-        except Exception as e:
-            return {
-                'status': 'error',
-                'error_message': f"Failed to process image: {str(e)}"
+                "status": "error",
+                "error_message": f"Unsupported file type: {ext}. "
+                f"Supported formats: PDF, DOCX, TXT, RTF, PNG, JPG",
+                "text": None,
+                "method": None,
+                "confidence": 0,
             }
 
     def _process_pdf(self, file_path: Path) -> dict:
-        """
-        Process PDF file using hybrid extraction with word-level voting.
+        """Process PDF with hybrid extraction, falling back to OCR if needed."""
+        from src.config import MIN_DICTIONARY_CONFIDENCE
 
-        Session 79: Hybrid extraction pipeline:
-        1. Extract with PyMuPDF (primary - faster, more accurate)
-        2. Extract with pdfplumber (secondary)
-        3. Reconcile differences using word-level voting
-        4. Fall back to OCR if text quality is insufficient
-        """
-        debug(f"Processing as PDF: {file_path.name}")
+        debug(f"Processing PDF: {file_path.name}")
 
         # Step 1: Try PyMuPDF extraction (primary)
+        # Uses facade methods so tests can mock them
         with Timer("PyMuPDF text extraction"):
             primary_text, page_count, primary_error = self._extract_text_pymupdf(file_path)
 
         # Step 2: Try pdfplumber extraction (secondary)
         with Timer("pdfplumber text extraction"):
-            secondary_text, secondary_page_count, secondary_error = self._extract_pdf_text(file_path)
+            secondary_text, secondary_page_count, secondary_error = self._extract_pdf_text(
+                file_path
+            )
 
         # Use whichever page count we got
         page_count = page_count or secondary_page_count
@@ -445,601 +305,160 @@ class RawTextExtractor:
             # Both succeeded - reconcile with word-level voting
             with Timer("Word-level voting reconciliation"):
                 text = self._reconcile_extractions(primary_text, secondary_text)
-            method = 'hybrid_voting'
-            debug(f"Using hybrid extraction with word-level voting")
+            method = "hybrid_voting"
+            debug("Using hybrid extraction with word-level voting")
+
         elif primary_text:
-            # Only PyMuPDF succeeded
             text = primary_text
-            method = 'pymupdf_only'
-            debug(f"Using PyMuPDF extraction only (pdfplumber failed: {secondary_error})")
+            method = "pymupdf_only"
+            debug(f"Using PyMuPDF only (pdfplumber failed: {secondary_error})")
+
         elif secondary_text:
-            # Only pdfplumber succeeded
             text = secondary_text
-            method = 'pdfplumber_only'
-            debug(f"Using pdfplumber extraction only (PyMuPDF failed: {primary_error})")
+            method = "pdfplumber_only"
+            debug(f"Using pdfplumber only (PyMuPDF failed: {primary_error})")
+
         else:
-            # Both failed - return error
-            error_msg = primary_error or secondary_error or 'unknown'
+            # Both failed
+            error_type = primary_error or secondary_error or "unknown"
             error_messages = {
-                'password': "PDF is password-protected or encrypted",
-                'corrupted': "PDF file appears to be corrupted or damaged",
-                'permission': "Permission denied when accessing PDF",
-                'empty': "PDF has no pages or content",
+                "password": "PDF is password-protected or encrypted",
+                "corrupted": "PDF file appears to be corrupted or damaged",
+                "permission": "Permission denied when accessing PDF",
+                "empty": "PDF has no pages or content",
             }
             return {
-                'status': 'error',
-                'error_message': error_messages.get(error_msg, f"Failed to extract PDF text: {error_msg}"),
-                'page_count': page_count
+                "status": "error",
+                "error_message": error_messages.get(
+                    error_type, f"Failed to extract PDF text: {error_type}"
+                ),
+                "text": None,
+                "method": None,
+                "confidence": 0,
+                "page_count": page_count,
             }
 
         # Step 4: Check text quality
         with Timer("Dictionary confidence check"):
-            dictionary_confidence = self._calculate_dictionary_confidence(text)
-        debug(f"Dictionary confidence: {dictionary_confidence:.1f}% (method: {method})")
+            confidence = self._calculate_dictionary_confidence(text)
+        debug(f"Dictionary confidence: {confidence:.1f}% (method: {method})")
 
         # Decision: Use digital text or fall back to OCR
-        if dictionary_confidence > MIN_DICTIONARY_CONFIDENCE and len(text) > 1000:
-            debug(f"Using {method} extraction")
-            return {
-                'method': method,
-                'confidence': int(dictionary_confidence),
-                'extracted_text': text,
-                'page_count': page_count,
-                'status': 'success'
-            }
-        else:
+        needs_ocr = confidence <= MIN_DICTIONARY_CONFIDENCE or len(text) <= 1000
+
+        if needs_ocr:
             debug("Digital text quality insufficient. Performing OCR...")
             with Timer("OCR Processing"):
-                return self._perform_ocr(file_path, page_count)
+                ocr_result = self.ocr_processor.process_pdf(file_path, page_count)
 
-    def _extract_pdf_text(self, file_path: Path) -> tuple[str | None, int, str | None]:
-        """
-        Extract text from PDF using pdfplumber.
+            return {
+                "status": ocr_result["status"],
+                "error_message": ocr_result.get("error_message"),
+                "text": ocr_result["text"],
+                "method": ocr_result["method"],
+                "confidence": ocr_result["confidence"],
+                "page_count": ocr_result["page_count"],
+            }
 
-        Returns:
-            (text, page_count, error_type) where error_type is None on success,
-            or one of: 'password', 'corrupted', 'empty', 'unknown'
-        """
-        try:
-            text = ""
-            page_count = 0
+        # Digital extraction succeeded
+        return {
+            "status": "success",
+            "error_message": None,
+            "text": text,
+            "method": method,
+            "confidence": int(confidence),
+            "page_count": page_count,
+        }
 
-            with pdfplumber.open(file_path) as pdf:
-                page_count = len(pdf.pages)
-                debug(f"PDF has {page_count} pages")
+    # =========================================================================
+    # BACKWARD COMPATIBILITY - Delegation wrappers for tests
+    # =========================================================================
+    # These methods delegate to component modules but maintain the original
+    # method signatures for test compatibility.
 
-                if page_count == 0:
-                    error("PDF has no pages")
-                    return None, 0, 'empty'
+    @property
+    def english_words(self) -> set[str]:
+        """Access dictionary words (for test mocking)."""
+        return self.dictionary.english_words
 
-                for i, page in enumerate(pdf.pages, 1):
-                    if DEBUG_MODE and i % 10 == 0:
-                        debug(f"Extracting page {i}/{page_count}")
+    @english_words.setter
+    def english_words(self, value: set[str]):
+        """Set dictionary words (for test mocking)."""
+        self.dictionary.english_words = value
 
-                    page_text = page.extract_text()
-                    if page_text:
-                        text += page_text + "\n"
-
-            return text, page_count, None
-
-        except Exception as e:
-            error_msg = str(e).lower()
-
-            # Categorize error types
-            if "password" in error_msg or "encrypted" in error_msg:
-                error("PDF is password-protected or encrypted")
-                return None, 0, 'password'
-            elif "damaged" in error_msg or "corrupt" in error_msg or "invalid" in error_msg:
-                error("PDF file appears to be corrupted or damaged")
-                return None, 0, 'corrupted'
-            elif "permission" in error_msg:
-                error("Permission denied when accessing PDF")
-                return None, 0, 'permission'
-            else:
-                error(f"Failed to extract PDF text: {str(e)}", exc_info=True)
-                return None, 0, 'unknown'
-
-    def _extract_text_pymupdf(self, file_path: Path) -> tuple[str | None, int, str | None]:
-        """
-        Extract text from PDF using PyMuPDF (fitz).
-
-        Session 79: PyMuPDF is faster and more accurate than pdfplumber for
-        text extraction. Used as primary extractor in hybrid mode.
-
-        Returns:
-            (text, page_count, error_type) where error_type is None on success,
-            or one of: 'password', 'corrupted', 'empty', 'unknown'
-        """
-        try:
-            text = ""
-            page_count = 0
-
-            doc = fitz.open(file_path)
-            page_count = len(doc)
-            debug(f"PyMuPDF: PDF has {page_count} pages")
-
-            if page_count == 0:
-                doc.close()
-                error("PyMuPDF: PDF has no pages")
-                return None, 0, 'empty'
-
-            for i, page in enumerate(doc, 1):
-                if DEBUG_MODE and i % 10 == 0:
-                    debug(f"PyMuPDF: Extracting page {i}/{page_count}")
-
-                page_text = page.get_text()
-                if page_text:
-                    text += page_text + "\n"
-
-            doc.close()
-            return text, page_count, None
-
-        except fitz.FileDataError as e:
-            error_msg = str(e).lower()
-            if "password" in error_msg or "encrypted" in error_msg:
-                error("PyMuPDF: PDF is password-protected or encrypted")
-                return None, 0, 'password'
-            else:
-                error("PyMuPDF: PDF file appears to be corrupted")
-                return None, 0, 'corrupted'
-        except Exception as e:
-            error_msg = str(e).lower()
-            if "permission" in error_msg:
-                error("PyMuPDF: Permission denied when accessing PDF")
-                return None, 0, 'permission'
-            else:
-                error(f"PyMuPDF: Failed to extract PDF text: {str(e)}", exc_info=True)
-                return None, 0, 'unknown'
+    @property
+    def legal_keywords(self) -> set[str]:
+        """Access legal keywords."""
+        return self.dictionary.legal_keywords
 
     def _calculate_dictionary_confidence(self, text: str) -> float:
-        """
-        Calculate what percentage of words are valid English words.
-
-        Args:
-            text: Text to analyze
-
-        Returns:
-            Confidence percentage (0-100)
-        """
-        if not text:
-            return 0.0
-
-        # Tokenize (simple split on whitespace and punctuation)
-        tokens = re.findall(r'\b[a-zA-Z]+\b', text.lower())
-
-        if len(tokens) == 0:
-            return 0.0
-
-        # Count valid English words
-        valid_words = sum(1 for token in tokens if token in self.english_words)
-
-        confidence = (valid_words / len(tokens)) * 100
-        return confidence
+        """Delegate to dictionary module (for test compatibility)."""
+        return self.dictionary.calculate_confidence(text)
 
     def _is_valid_word(self, word: str) -> bool:
-        """
-        Check if a word is in the English dictionary.
-
-        Session 79: Used by word-level voting to decide between extractor outputs.
-
-        Args:
-            word: Word to check (will be lowercased)
-
-        Returns:
-            True if word is in dictionary
-        """
-        return word.lower().strip(".,;:'\"()[]{}") in self.english_words
+        """Delegate to dictionary module (for test compatibility)."""
+        return self.dictionary.is_valid_word(word)
 
     def _tokenize_for_voting(self, text: str) -> list[str]:
-        """
-        Tokenize text into words for voting alignment.
-
-        Preserves punctuation attached to words so we can reconstruct text.
-        Splits on whitespace only.
-
-        Args:
-            text: Text to tokenize
-
-        Returns:
-            List of tokens (words with attached punctuation)
-        """
-        return text.split()
-
-    def _reconcile_extractions(self, primary_text: str, secondary_text: str) -> str:
-        """
-        Reconcile two PDF extractions using word-level voting.
-
-        Session 79: When both extractors succeed, align their outputs word-by-word
-        and pick the better word at each position:
-        - If words match: keep them
-        - If words differ and one is in dictionary: use dictionary word
-        - If both valid or both invalid: use primary (PyMuPDF)
-
-        Args:
-            primary_text: Text from PyMuPDF (preferred)
-            secondary_text: Text from pdfplumber (fallback)
-
-        Returns:
-            Reconciled text with best words from each extractor
-        """
-        # Tokenize both texts
-        primary_tokens = self._tokenize_for_voting(primary_text)
-        secondary_tokens = self._tokenize_for_voting(secondary_text)
-
-        if not primary_tokens:
-            return secondary_text
-        if not secondary_tokens:
-            return primary_text
-
-        # Use SequenceMatcher to align the two token sequences
-        matcher = SequenceMatcher(None, primary_tokens, secondary_tokens)
-        result_tokens = []
-        corrections_made = 0
-
-        for tag, i1, i2, j1, j2 in matcher.get_opcodes():
-            if tag == 'equal':
-                # Words match - keep primary
-                result_tokens.extend(primary_tokens[i1:i2])
-            elif tag == 'replace':
-                # Words differ - vote on each pair
-                primary_chunk = primary_tokens[i1:i2]
-                secondary_chunk = secondary_tokens[j1:j2]
-
-                # Align chunks (may be different lengths)
-                max_len = max(len(primary_chunk), len(secondary_chunk))
-                for k in range(max_len):
-                    p_word = primary_chunk[k] if k < len(primary_chunk) else ""
-                    s_word = secondary_chunk[k] if k < len(secondary_chunk) else ""
-
-                    if not p_word:
-                        result_tokens.append(s_word)
-                    elif not s_word:
-                        result_tokens.append(p_word)
-                    else:
-                        # Both have words - vote
-                        p_valid = self._is_valid_word(p_word)
-                        s_valid = self._is_valid_word(s_word)
-
-                        if p_valid and not s_valid:
-                            result_tokens.append(p_word)
-                        elif s_valid and not p_valid:
-                            result_tokens.append(s_word)
-                            corrections_made += 1
-                            debug(f"[VOTING] '{p_word}' → '{s_word}' (dictionary correction)")
-                        else:
-                            # Both valid or both invalid - use primary
-                            result_tokens.append(p_word)
-
-            elif tag == 'delete':
-                # Words only in primary - keep them
-                result_tokens.extend(primary_tokens[i1:i2])
-            elif tag == 'insert':
-                # Words only in secondary - this could be important content
-                # Only add if they look like real words (not extraction artifacts)
-                for token in secondary_tokens[j1:j2]:
-                    if len(token) > 1 and self._is_valid_word(token):
-                        result_tokens.append(token)
-
-        if corrections_made > 0:
-            debug(f"[VOTING] Made {corrections_made} dictionary corrections")
-
-        return " ".join(result_tokens)
-
-    def _perform_ocr(self, file_path: Path, page_count: int) -> dict:
-        """
-        Perform OCR on PDF using Tesseract with optional image preprocessing.
-
-        The preprocessing pipeline (when enabled) applies:
-        1. Grayscale conversion
-        2. Noise removal (denoising)
-        3. Contrast enhancement (CLAHE)
-        4. Adaptive thresholding (binarization)
-        5. Deskewing (rotation correction)
-        6. Border padding
-
-        Research shows preprocessing can improve OCR accuracy by 20-50%.
-
-        Args:
-            file_path: Path to PDF
-            page_count: Number of pages (from pdfplumber)
-
-        Returns:
-            Result dictionary
-        """
-        debug(f"Starting OCR on {file_path.name}")
-
-        try:
-            # Convert PDF to images
-            with Timer("PDF to images conversion"):
-                images = convert_from_path(str(file_path), dpi=OCR_DPI)
-
-            # Initialize preprocessor if enabled
-            preprocessor = None
-            if OCR_PREPROCESSING_ENABLED:
-                preprocessor = ImagePreprocessor(
-                    denoise_strength=OCR_DENOISE_STRENGTH,
-                    enable_clahe=OCR_ENABLE_CLAHE,
-                )
-                debug(f"OCR preprocessing enabled (denoise={OCR_DENOISE_STRENGTH}, clahe={OCR_ENABLE_CLAHE})")
-
-            # Track preprocessing stats across all pages
-            total_preprocessing_time = 0.0
-            total_skew_corrections = 0
-
-            # OCR each page
-            ocr_text = ""
-            for i, image in enumerate(images, 1):
-                if DEBUG_MODE:
-                    debug(f"OCR processing page {i}/{len(images)}")
-
-                # Apply preprocessing if enabled
-                if preprocessor is not None:
-                    with Timer(f"Preprocessing page {i}", auto_log=DEBUG_MODE):
-                        image, stats = preprocessor.preprocess(image)
-                        total_preprocessing_time += stats.total_time_ms
-                        if stats.skew_corrected:
-                            total_skew_corrections += 1
-                            debug(f"  Page {i}: corrected {stats.skew_angle:.1f}° skew")
-
-                with Timer(f"OCR page {i}", auto_log=DEBUG_MODE):
-                    page_text = pytesseract.image_to_string(image)
-                    ocr_text += page_text + "\n"
-
-            # Log preprocessing summary
-            if preprocessor is not None:
-                debug(f"Preprocessing summary: {total_preprocessing_time:.1f}ms total, {total_skew_corrections}/{len(images)} pages deskewed")
-
-            # Calculate confidence
-            confidence = self._calculate_dictionary_confidence(ocr_text)
-            debug(f"OCR confidence: {confidence:.1f}%")
-
-            return {
-                'method': 'ocr' if preprocessor is None else 'ocr_enhanced',
-                'confidence': int(confidence),
-                'extracted_text': ocr_text,
-                'page_count': page_count or len(images),
-                'status': 'success'
-            }
-
-        except Exception as e:
-            return {
-                'status': 'error',
-                'error_message': f"OCR processing failed: {str(e)}",
-                'page_count': page_count
-            }
-
-    def _is_page_number(self, line: str) -> bool:
-        """
-        Check if a line is a page number.
-
-        Common patterns:
-        - "Page 1", "Page 1 of 10"
-        - "- 1 -", "- 2 -"
-        - Just a number: "1", "2"
-        - "P. 1", "Pg. 1"
-        """
-        line = line.strip()
-
-        # Pattern 1: "Page X" or "Page X of Y"
-        if re.match(r'^Page\s+\d+(\s+of\s+\d+)?$', line, re.IGNORECASE):
-            return True
-
-        # Pattern 2: "- X -" or "– X –"
-        if re.match(r'^[-–]\s*\d+\s*[-–]$', line):
-            return True
-
-        # Pattern 3: Just a number (but not if it's part of a list like "1.")
-        if re.match(r'^\d+$', line) and len(line) <= 4:
-            return True
-
-        # Pattern 4: "P. X" or "Pg. X" or "p. X"
-        if re.match(r'^P(g)?\.?\s*\d+$', line, re.IGNORECASE):
-            return True
-
-        # Pattern 5: "X/Y" (page X of Y)
-        if re.match(r'^\d+/\d+$', line):
-            return True
-
-        return False
-
-    def _extract_case_numbers(self, text: str) -> list:
-        """
-        Extract case numbers from text.
-
-        Common patterns:
-        - "Case No. 1:23-cv-12345"
-        - "Index No. 123456/2024"
-        - "Docket No. 2024-12345"
-        - "Case No.: 12345"
-        """
-        case_numbers = []
-
-        # Federal court pattern: "Case No. 1:23-cv-12345"
-        federal = re.findall(r'Case\s+No\.?\s*:?\s*\d+:\d+-\w+-\d+', text, re.IGNORECASE)
-        case_numbers.extend(federal)
-
-        # NY Index Number: "Index No. 123456/2024"
-        index = re.findall(r'Index\s+No\.?\s*:?\s*\d+/\d{4}', text, re.IGNORECASE)
-        case_numbers.extend(index)
-
-        # Generic docket: "Docket No. 2024-12345"
-        docket = re.findall(r'Docket\s+No\.?\s*:?\s*\d+-\d+', text, re.IGNORECASE)
-        case_numbers.extend(docket)
-
-        # Generic case number: "Case No.: 12345"
-        generic = re.findall(r'Case\s+No\.?\s*:?\s*\d+', text, re.IGNORECASE)
-        case_numbers.extend(generic)
-
-        return list(set(case_numbers))  # Remove duplicates
+        """Delegate to dictionary module (for test compatibility)."""
+        return self.dictionary.tokenize_for_voting(text)
 
     def _normalize_text(self, text: str) -> str:
-        """
-        Apply basic text normalization rules (Step 2 of pipeline).
+        """Delegate to normalizer module (for test compatibility)."""
+        return self.normalizer.normalize(text)
 
-        4-stage normalization pipeline with comprehensive logging:
-        1. De-hyphenation
-        2. Page number removal
-        3. Line filtering
-        4. Whitespace normalization
+    def _is_page_number(self, line: str) -> bool:
+        """Delegate to normalizer module (for test compatibility)."""
+        return self.normalizer._is_page_number(line)
 
-        Normalization Rules:
-        1. De-hyphenation (rejoin words split across lines) - FIRST to preserve content
-        2. Page number removal
-        3. Line filtering (remove short lines, require lowercase or legal headers)
-        4. Whitespace normalization
+    def _extract_case_numbers(self, text: str) -> list[str]:
+        """Delegate to case extractor module (for test compatibility)."""
+        return self.case_extractor.extract(text)
 
-        Args:
-            text: Raw extracted text
+    def _reconcile_extractions(self, primary_text: str, secondary_text: str) -> str:
+        """Delegate to PDF extractor module (for test compatibility)."""
+        return self.pdf_extractor.reconcile_extractions(primary_text, secondary_text)
 
-        Returns:
-            Fully normalized text
-        """
-        debug("Applying text normalization rules")
+    def _extract_text_pymupdf(self, file_path) -> tuple:
+        """Delegate to PDF extractor module (for test compatibility)."""
+        return self.pdf_extractor._extract_pymupdf(file_path)
 
-        # Stage 1: De-hyphenation (do this FIRST before line filtering)
-        debug("  Stage 1: De-hyphenation")
-        start = time.time()
-        original_len = len(text)
+    def _extract_pdf_text(self, file_path) -> tuple:
+        """Delegate to PDF extractor module (for test compatibility)."""
+        return self.pdf_extractor._extract_pdfplumber(file_path)
 
-        try:
-            text = re.sub(r'(\w+)-\s*\n\s*(\w+)', r'\1\2', text)
-            duration = time.time() - start
-            debug(f"    ✅ SUCCESS ({duration:.3f}s) - Rejoin hyphenated words")
-            debug(f"       Input: {original_len} | Output: {len(text)} | Delta: {len(text) - original_len:+d}")
-        except Exception as e:
-            duration = time.time() - start
-            debug(f"    ❌ FAILED ({duration:.3f}s) - {type(e).__name__}: {str(e)}")
-            raise
 
-        # Stage 2: Page Number Removal
-        debug("  Stage 2: Page number removal")
-        start = time.time()
-        original_len = len(text)
-
-        try:
-            lines = text.split('\n')
-            lines_filtered = []
-            for line in lines:
-                if not self._is_page_number(line):
-                    lines_filtered.append(line)
-                else:
-                    debug(f"    Removed page number: {line}")
-            removed_count = len(lines) - len(lines_filtered)
-            text = '\n'.join(lines_filtered)
-            duration = time.time() - start
-            debug(f"    ✅ SUCCESS ({duration:.3f}s) - Removed {removed_count} page markers")
-            debug(f"       Input: {original_len} | Output: {len(text)} | Delta: {len(text) - original_len:+d}")
-        except Exception as e:
-            duration = time.time() - start
-            debug(f"    ❌ FAILED ({duration:.3f}s) - {type(e).__name__}: {str(e)}")
-            raise
-
-        # Stage 3: Line Filtering
-        debug("  Stage 3: Line filtering")
-        start = time.time()
-        original_len = len(text)
-
-        try:
-            normalized_lines = []
-            for line in text.split('\n'):
-                # Minimum length check
-                if len(line) <= MIN_LINE_LENGTH:
-                    # Exception: Allow short legal headers even if under minimum length
-                    is_legal_header = (
-                        line.isupper() and
-                        len(line) < 50 and
-                        any(keyword in line for keyword in self.legal_keywords)
-                    )
-                    if not is_legal_header:
-                        continue
-
-                # Check if line has lowercase letters
-                has_lowercase = any(c.islower() for c in line)
-
-                # Check if it's a legal header (all caps + contains legal keyword)
-                is_legal_header = (
-                    line.isupper() and
-                    len(line) < 50 and
-                    any(keyword in line for keyword in self.legal_keywords)
-                )
-
-                # Count character types
-                alpha_count = sum(c.isalpha() for c in line)
-                other_count = sum(not c.isalpha() and not c.isspace() for c in line)
-
-                # Keep line if it passes all tests
-                if (has_lowercase or is_legal_header) and alpha_count > other_count:
-                    normalized_lines.append(line)
-
-            removed_count = len(text.split('\n')) - len(normalized_lines)
-            text = '\n'.join(normalized_lines)
-            duration = time.time() - start
-            debug(f"    ✅ SUCCESS ({duration:.3f}s) - Filtered {removed_count} lines")
-            debug(f"       Input: {original_len} | Output: {len(text)} | Delta: {len(text) - original_len:+d}")
-        except Exception as e:
-            duration = time.time() - start
-            debug(f"    ❌ FAILED ({duration:.3f}s) - {type(e).__name__}: {str(e)}")
-            raise
-
-        # Stage 4: Whitespace Normalization
-        debug("  Stage 4: Whitespace normalization")
-        start = time.time()
-        original_len = len(text)
-
-        try:
-            # Remove excess blank lines (max 1 between paragraphs)
-            text = re.sub(r'\n\s*\n\s*\n+', '\n\n', text)
-            text = text.strip()
-            duration = time.time() - start
-            debug(f"    ✅ SUCCESS ({duration:.3f}s) - Normalize whitespace")
-            debug(f"       Input: {original_len} | Output: {len(text)} | Delta: {len(text) - original_len:+d}")
-        except Exception as e:
-            duration = time.time() - start
-            debug(f"    ❌ FAILED ({duration:.3f}s) - {type(e).__name__}: {str(e)}")
-            raise
-
-        return text
+# =============================================================================
+# COMMAND LINE INTERFACE
+# =============================================================================
 
 
 def main():
     """Command-line interface for the raw text extractor."""
+    import argparse
+    import os
+
+    from src.config import DEBUG_DEFAULT_FILE, DEBUG_MODE
+
     parser = argparse.ArgumentParser(
-        description="LocalScribe Raw Text Extractor - Extract and normalize text from legal documents",
+        description="LocalScribe Raw Text Extractor",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  # Process a single file
-  python raw_text_extractor.py --input complaint.pdf
-
-  # Process multiple files
-  python raw_text_extractor.py --input file1.pdf file2.pdf file3.pdf
-
-  # Specify output directory and jurisdiction
-  python raw_text_extractor.py --input *.pdf --output-dir ./extracted --jurisdiction ny
-
-  # Debug mode (verbose logging)
-  DEBUG=true python raw_text_extractor.py --input test.pdf
-        """
+  python -m src.core.extraction.raw_text_extractor --input complaint.pdf
+  python -m src.core.extraction.raw_text_extractor --input *.pdf --output-dir ./extracted
+        """,
     )
 
+    parser.add_argument("--input", nargs="+", required=True, help="Input file(s) to process")
     parser.add_argument(
-        '--input',
-        nargs='+',
-        required=True,
-        help='Input file(s) to process (PDF, TXT, RTF)'
+        "--output-dir", default="./extracted", help="Output directory (default: ./extracted)"
     )
-
     parser.add_argument(
-        '--output-dir',
-        default='./extracted',
-        help='Output directory for extracted text files (default: ./extracted)'
-    )
-
-    parser.add_argument(
-        '--jurisdiction',
-        default='ny',
-        choices=['ny', 'ca', 'federal'],
-        help='Legal jurisdiction for keyword filtering (default: ny)'
+        "--jurisdiction",
+        default="ny",
+        choices=["ny", "ca", "federal"],
+        help="Legal jurisdiction (default: ny)",
     )
 
     args = parser.parse_args()
@@ -1049,7 +468,7 @@ Examples:
     output_dir.mkdir(parents=True, exist_ok=True)
 
     # Initialize extractor
-    info(f"Initializing LocalScribe Raw Text Extractor (jurisdiction: {args.jurisdiction})")
+    info(f"Initializing extractor (jurisdiction: {args.jurisdiction})")
     extractor = RawTextExtractor(jurisdiction=args.jurisdiction)
 
     # Process files
@@ -1059,56 +478,42 @@ Examples:
         results.append(result)
 
         # Save extracted text if successful
-        if result['status'] in ['success', 'warning'] and result['extracted_text']:
-            # Create output filename
+        if result["status"] in ["success", "warning"] and result["extracted_text"]:
             output_filename = f"{Path(result['filename']).stem}_extracted.txt"
             output_path = output_dir / output_filename
 
-            with open(output_path, 'w', encoding='utf-8') as f:
-                f.write(result['extracted_text'])
+            with open(output_path, "w", encoding="utf-8") as f:
+                f.write(result["extracted_text"])
 
-            info(f"Saved extracted text to: {output_path}")
+            info(f"Saved: {output_path}")
 
-    # Print summary report
+    # Print summary
     print("\n" + "=" * 60)
     print("PROCESSING SUMMARY")
     print("=" * 60)
 
     for result in results:
-        status_symbol = {
-            'success': '[OK]',
-            'warning': '[WARN]',
-            'error': '[ERROR]'
-        }.get(result['status'], '[?]')
-
+        status_symbol = {"success": "[OK]", "warning": "[WARN]", "error": "[ERROR]"}.get(
+            result["status"], "[?]"
+        )
         print(f"\n{status_symbol} {result['filename']}")
-        print(f"  Status: {result['status'].upper()}")
         print(f"  Method: {result['method'] or 'N/A'}")
         print(f"  Confidence: {result['confidence']}%")
-        size_mb = result['file_size'] / (1024 * 1024) if result['file_size'] else 0
-        print(f"  Size: {size_mb:.2f} MB")
 
-        if result.get('page_count'):
+        if result.get("page_count"):
             print(f"  Pages: {result['page_count']}")
 
-        if result['error_message']:
+        if result["error_message"]:
             print(f"  Error: {result['error_message']}")
 
-    # Summary statistics
     total = len(results)
-    success = sum(1 for r in results if r['status'] == 'success')
-    warnings = sum(1 for r in results if r['status'] == 'warning')
-    errors = sum(1 for r in results if r['status'] == 'error')
+    success = sum(1 for r in results if r["status"] == "success")
+    warnings = sum(1 for r in results if r["status"] == "warning")
+    errors = sum(1 for r in results if r["status"] == "error")
 
     print("\n" + "=" * 60)
     print(f"Total: {total} | Success: {success} | Warnings: {warnings} | Errors: {errors}")
-    print("=" * 60)
 
 
 if __name__ == "__main__":
-    # Use debug default file if in debug mode and no args provided
-    if DEBUG_MODE and len(os.sys.argv) == 1 and DEBUG_DEFAULT_FILE.exists():
-        info("DEBUG MODE: Using default test file")
-        os.sys.argv.extend(['--input', str(DEBUG_DEFAULT_FILE)])
-
     main()

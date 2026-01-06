@@ -92,7 +92,7 @@ class TooltipIcon(ctk.CTkLabel):
             font=FONTS["heading"],
             text_color=COLORS["text_secondary"],
             cursor="hand2",
-            **kwargs
+            **kwargs,
         )
         self.tooltip_text = tooltip_text
         self.tooltip_window = None
@@ -148,8 +148,7 @@ class TooltipIcon(ctk.CTkLabel):
             icon_x2 = icon_x1 + self.winfo_width()
             icon_y2 = icon_y1 + self.winfo_height()
 
-            over_icon = (icon_x1 <= mouse_x <= icon_x2 and
-                        icon_y1 <= mouse_y <= icon_y2)
+            over_icon = icon_x1 <= mouse_x <= icon_x2 and icon_y1 <= mouse_y <= icon_y2
 
             # Check if mouse is over the tooltip
             over_tooltip = False
@@ -158,8 +157,7 @@ class TooltipIcon(ctk.CTkLabel):
                 tip_y1 = self.tooltip_window.winfo_rooty()
                 tip_x2 = tip_x1 + self.tooltip_window.winfo_width()
                 tip_y2 = tip_y1 + self.tooltip_window.winfo_height()
-                over_tooltip = (tip_x1 <= mouse_x <= tip_x2 and
-                               tip_y1 <= mouse_y <= tip_y2)
+                over_tooltip = tip_x1 <= mouse_x <= tip_x2 and tip_y1 <= mouse_y <= tip_y2
 
             # Hide if mouse is over neither
             if not over_icon and not over_tooltip:
@@ -211,12 +209,7 @@ class SettingRow(ctk.CTkFrame):
     """
 
     def __init__(
-        self,
-        parent,
-        label: str,
-        tooltip: str,
-        on_change: Callable[[Any], None] = None,
-        **kwargs
+        self, parent, label: str, tooltip: str, on_change: Callable[[Any], None] = None, **kwargs
     ):
         """
         Initialize the setting row.
@@ -246,10 +239,7 @@ class SettingRow(ctk.CTkFrame):
 
         # Label
         self.label_widget = ctk.CTkLabel(
-            label_frame,
-            text=label,
-            anchor="w",
-            font=FONTS["heading_sm"]
+            label_frame, text=label, anchor="w", font=FONTS["heading_sm"]
         )
         self.label_widget.pack(side="left", padx=(0, 5))
 
@@ -286,7 +276,7 @@ class SliderSetting(SettingRow):
         step: float = 1,
         initial_value: float = None,
         on_change: Callable[[float], None] = None,
-        **kwargs
+        **kwargs,
     ):
         """
         Initialize the slider setting.
@@ -317,17 +307,13 @@ class SliderSetting(SettingRow):
             to=max_value,
             number_of_steps=num_steps,
             width=CONTROL_WIDTH,  # Fixed width for all sliders
-            command=self._on_slider_change
+            command=self._on_slider_change,
         )
         self.slider.grid(row=0, column=2, sticky="e", padx=(CONTROL_PADDING_X, 0))
 
         # Value display label (shows current value) - right of slider
         self.value_label = ctk.CTkLabel(
-            self,
-            text="",
-            width=VALUE_LABEL_WIDTH,
-            anchor="e",
-            font=FONTS["heading_sm"]
+            self, text="", width=VALUE_LABEL_WIDTH, anchor="e", font=FONTS["heading_sm"]
         )
         self.value_label.grid(row=0, column=3, sticky="e", padx=(CONTROL_PADDING_X, 0))
 
@@ -377,7 +363,7 @@ class CheckboxSetting(SettingRow):
         tooltip: str,
         initial_value: bool = False,
         on_change: Callable[[bool], None] = None,
-        **kwargs
+        **kwargs,
     ):
         """
         Initialize the checkbox setting.
@@ -399,7 +385,7 @@ class CheckboxSetting(SettingRow):
             command=self._on_checkbox_change,
             width=24,
             checkbox_width=20,
-            checkbox_height=20
+            checkbox_height=20,
         )
         # Session 62b: Left-align checkbox within the control column
         # Checkboxes don't need the full CONTROL_WIDTH but should start at same position
@@ -437,7 +423,7 @@ class DropdownSetting(SettingRow):
         options: list[tuple[str, Any]],
         initial_value: Any = None,
         on_change: Callable[[Any], None] = None,
-        **kwargs
+        **kwargs,
     ):
         """
         Initialize the dropdown setting.
@@ -466,7 +452,7 @@ class DropdownSetting(SettingRow):
             values=display_values,
             command=self._on_dropdown_change,
             state="readonly",
-            width=CONTROL_WIDTH
+            width=CONTROL_WIDTH,
         )
         self.dropdown.set(initial_text)
         self.dropdown.grid(row=0, column=2, sticky="e", padx=(CONTROL_PADDING_X, 0))
@@ -506,7 +492,7 @@ class SpinboxSetting(SettingRow):
         max_value: int,
         initial_value: int = None,
         on_change: Callable[[int], None] = None,
-        **kwargs
+        **kwargs,
     ):
         """
         Initialize the spinbox setting.
@@ -538,16 +524,13 @@ class SpinboxSetting(SettingRow):
             width=32,
             height=28,
             command=self._decrement,
-            font=FONTS["heading_lg"]
+            font=FONTS["heading_lg"],
         )
         self.minus_btn.pack(side="left")
 
         # Value display
         self.value_label = ctk.CTkLabel(
-            spinbox_frame,
-            text=str(self.value),
-            width=45,
-            font=FONTS["heading"]
+            spinbox_frame, text=str(self.value), width=45, font=FONTS["heading"]
         )
         self.value_label.pack(side="left", padx=8)
 
@@ -558,7 +541,7 @@ class SpinboxSetting(SettingRow):
             width=32,
             height=28,
             command=self._increment,
-            font=FONTS["heading_lg"]
+            font=FONTS["heading_lg"],
         )
         self.plus_btn.pack(side="left")
 
@@ -611,13 +594,7 @@ class ButtonSetting(SettingRow):
     """
 
     def __init__(
-        self,
-        parent,
-        label: str,
-        tooltip: str,
-        action: callable,
-        button_text: str = None,
-        **kwargs
+        self, parent, label: str, tooltip: str, action: callable, button_text: str = None, **kwargs
     ):
         """
         Initialize the button setting.
@@ -640,7 +617,7 @@ class ButtonSetting(SettingRow):
             command=self._on_click,
             width=CONTROL_WIDTH,
             height=28,
-            font=FONTS["body"]
+            font=FONTS["body"],
         )
         self.button.grid(row=0, column=2, sticky="w", padx=(CONTROL_PADDING_X, 0))
 
@@ -690,6 +667,7 @@ class DefaultQuestionsWidget(ctk.CTkFrame):
 
         # Get manager instance
         from src.core.qa.default_questions_manager import get_default_questions_manager
+
         self.manager = get_default_questions_manager()
 
         # Track checkbox variables
@@ -707,10 +685,7 @@ class DefaultQuestionsWidget(ctk.CTkFrame):
         header_frame.grid(row=0, column=0, sticky="ew", pady=(0, 5))
 
         header_label = ctk.CTkLabel(
-            header_frame,
-            text="Default Questions",
-            font=FONTS["heading_sm"],
-            anchor="w"
+            header_frame, text="Default Questions", font=FONTS["heading_sm"], anchor="w"
         )
         header_label.pack(side="left", padx=(0, 5))
 
@@ -722,16 +697,13 @@ class DefaultQuestionsWidget(ctk.CTkFrame):
                 "• Click '✕' to delete a question\n"
                 "• Click '+ Add Question' to add new questions\n\n"
                 "Disabled questions are saved but won't be asked."
-            )
+            ),
         )
         tooltip.pack(side="left")
 
         # Scrollable frame for questions
         self.scroll_frame = ctk.CTkScrollableFrame(
-            self,
-            height=180,
-            fg_color=("gray90", "gray17"),
-            corner_radius=6
+            self, height=180, fg_color=("gray90", "gray17"), corner_radius=6
         )
         self.scroll_frame.grid(row=1, column=0, sticky="nsew", pady=(0, 10))
         self.scroll_frame.grid_columnconfigure(0, weight=1)
@@ -749,7 +721,7 @@ class DefaultQuestionsWidget(ctk.CTkFrame):
             command=self._add_question,
             width=140,
             height=28,
-            font=FONTS["body"]
+            font=FONTS["body"],
         )
         self.add_btn.pack(side="left")
 
@@ -780,17 +752,13 @@ class DefaultQuestionsWidget(ctk.CTkFrame):
             command=lambda i=index: self._on_toggle(i),
             width=24,
             checkbox_width=18,
-            checkbox_height=18
+            checkbox_height=18,
         )
         checkbox.grid(row=0, column=0, sticky="w")
 
         # Question text label (clickable to edit)
         text_label = ctk.CTkLabel(
-            row_frame,
-            text=text,
-            anchor="w",
-            font=FONTS["body"],
-            cursor="hand2"
+            row_frame, text=text, anchor="w", font=FONTS["body"], cursor="hand2"
         )
         text_label.grid(row=0, column=1, sticky="ew", padx=(5, 10))
         text_label.bind("<Button-1>", lambda e, i=index: self._edit_question(i))
@@ -805,7 +773,7 @@ class DefaultQuestionsWidget(ctk.CTkFrame):
             fg_color="transparent",
             hover_color=("gray70", "gray30"),
             text_color=("gray40", "gray60"),
-            font=FONTS["body"]
+            font=FONTS["body"],
         )
         delete_btn.grid(row=0, column=2, sticky="e")
 
@@ -819,10 +787,7 @@ class DefaultQuestionsWidget(ctk.CTkFrame):
 
     def _add_question(self):
         """Show dialog to add a new question."""
-        dialog = ctk.CTkInputDialog(
-            text="Enter a new question:",
-            title="Add Question"
-        )
+        dialog = ctk.CTkInputDialog(text="Enter a new question:", title="Add Question")
         text = dialog.get_input()
 
         if text and text.strip():
@@ -844,8 +809,7 @@ class DefaultQuestionsWidget(ctk.CTkFrame):
         # Show current text in the prompt since CTkInputDialog doesn't support pre-fill
         display_text = current_text[:60] + "..." if len(current_text) > 60 else current_text
         dialog = ctk.CTkInputDialog(
-            text=f"Current: \"{display_text}\"\n\nEnter new text:",
-            title="Edit Question"
+            text=f'Current: "{display_text}"\n\nEnter new text:', title="Edit Question"
         )
 
         text = dialog.get_input()
@@ -866,10 +830,7 @@ class DefaultQuestionsWidget(ctk.CTkFrame):
         # Truncate for display
         display_text = question_text[:50] + "..." if len(question_text) > 50 else question_text
 
-        if messagebox.askyesno(
-            "Delete Question",
-            f"Delete this question?\n\n\"{display_text}\""
-        ):
+        if messagebox.askyesno("Delete Question", f'Delete this question?\n\n"{display_text}"'):
             self.manager.remove_question(index)
             self._refresh_question_list()
 
@@ -933,6 +894,7 @@ class CorpusSettingsWidget(ctk.CTkFrame):
 
         # Get corpus registry
         from src.core.vocabulary import get_corpus_registry
+
         self.registry = get_corpus_registry()
 
         self._setup_ui()
@@ -946,10 +908,7 @@ class CorpusSettingsWidget(ctk.CTkFrame):
         header_frame.grid(row=0, column=0, sticky="ew", pady=(0, 10))
 
         header_label = ctk.CTkLabel(
-            header_frame,
-            text="Corpus Management",
-            font=FONTS["heading"],
-            anchor="w"
+            header_frame, text="Corpus Management", font=FONTS["heading"], anchor="w"
         )
         header_label.pack(side="left", padx=(0, 5))
 
@@ -962,7 +921,7 @@ class CorpusSettingsWidget(ctk.CTkFrame):
                 "to find unusual terms - words that appear often in this case but "
                 "rarely in your typical work.\n\n"
                 "Requires 5+ documents to activate. More documents = better results."
-            )
+            ),
         )
         tooltip.pack(side="left")
 
@@ -971,10 +930,7 @@ class CorpusSettingsWidget(ctk.CTkFrame):
         edu_frame.grid(row=1, column=0, sticky="ew", pady=(0, 10))
 
         edu_title = ctk.CTkLabel(
-            edu_frame,
-            text="📚 What is a Corpus?",
-            font=FONTS["heading_sm"],
-            anchor="w"
+            edu_frame, text="📚 What is a Corpus?", font=FONTS["heading_sm"], anchor="w"
         )
         edu_title.pack(anchor="w", padx=15, pady=(10, 5))
 
@@ -986,7 +942,7 @@ class CorpusSettingsWidget(ctk.CTkFrame):
             ),
             font=FONTS["body"],
             anchor="w",
-            justify="left"
+            justify="left",
         )
         edu_text.pack(anchor="w", padx=15, pady=(0, 5))
 
@@ -995,7 +951,7 @@ class CorpusSettingsWidget(ctk.CTkFrame):
             text="✓ 100% local and offline - never leaves your machine",
             font=FONTS["body"],
             text_color=(COLORS["success"], COLORS["success_light"]),
-            anchor="w"
+            anchor="w",
         )
         check1.pack(anchor="w", padx=15, pady=(0, 2))
 
@@ -1004,7 +960,7 @@ class CorpusSettingsWidget(ctk.CTkFrame):
             text="✓ Powers the BM25 vocabulary algorithm",
             font=FONTS["body"],
             text_color=(COLORS["success"], COLORS["success_light"]),
-            anchor="w"
+            anchor="w",
         )
         check2.pack(anchor="w", padx=15, pady=(0, 10))
 
@@ -1013,37 +969,25 @@ class CorpusSettingsWidget(ctk.CTkFrame):
         status_frame.grid(row=2, column=0, sticky="ew", pady=(0, 10))
 
         status_title = ctk.CTkLabel(
-            status_frame,
-            text="Current Status",
-            font=FONTS["heading_sm"],
-            anchor="w"
+            status_frame, text="Current Status", font=FONTS["heading_sm"], anchor="w"
         )
         status_title.pack(anchor="w", padx=15, pady=(10, 5))
 
         # Active corpus line
         self.active_corpus_label = ctk.CTkLabel(
-            status_frame,
-            text="• Active corpus: Loading...",
-            font=FONTS["body"],
-            anchor="w"
+            status_frame, text="• Active corpus: Loading...", font=FONTS["body"], anchor="w"
         )
         self.active_corpus_label.pack(anchor="w", padx=15, pady=(0, 2))
 
         # Document count line
         self.doc_count_label = ctk.CTkLabel(
-            status_frame,
-            text="• Documents: Loading...",
-            font=FONTS["body"],
-            anchor="w"
+            status_frame, text="• Documents: Loading...", font=FONTS["body"], anchor="w"
         )
         self.doc_count_label.pack(anchor="w", padx=15, pady=(0, 2))
 
         # BM25 status line
         self.bm25_status_label = ctk.CTkLabel(
-            status_frame,
-            text="• BM25 Algorithm: Loading...",
-            font=FONTS["body"],
-            anchor="w"
+            status_frame, text="• BM25 Algorithm: Loading...", font=FONTS["body"], anchor="w"
         )
         self.bm25_status_label.pack(anchor="w", padx=15, pady=(0, 10))
 
@@ -1056,7 +1000,7 @@ class CorpusSettingsWidget(ctk.CTkFrame):
             text="Manage Corpus...",
             command=self._open_corpus_dialog,
             width=160,
-            height=32
+            height=32,
         )
         self.manage_btn.pack(side="left")
 
@@ -1078,37 +1022,33 @@ class CorpusSettingsWidget(ctk.CTkFrame):
 
             # Active corpus
             if active_corpus:
-                self.active_corpus_label.configure(
-                    text=f"• Active corpus: {active_corpus.name}"
-                )
+                self.active_corpus_label.configure(text=f"• Active corpus: {active_corpus.name}")
                 doc_count = active_corpus.doc_count
             else:
-                self.active_corpus_label.configure(
-                    text="• Active corpus: (none)"
-                )
+                self.active_corpus_label.configure(text="• Active corpus: (none)")
                 doc_count = 0
 
             # Document count
-            self.doc_count_label.configure(
-                text=f"• Documents: {doc_count} files"
-            )
+            self.doc_count_label.configure(text=f"• Documents: {doc_count} files")
 
             # BM25 status
             from src.config import CORPUS_MIN_DOCUMENTS
+
             if doc_count >= CORPUS_MIN_DOCUMENTS:
                 self.bm25_status_label.configure(
                     text=f"• BM25 Algorithm: ✓ Active ({doc_count}/{CORPUS_MIN_DOCUMENTS}+ documents)",
-                    text_color=(COLORS["success"], COLORS["success_light"])
+                    text_color=(COLORS["success"], COLORS["success_light"]),
                 )
             else:
                 needed = CORPUS_MIN_DOCUMENTS - doc_count
                 self.bm25_status_label.configure(
                     text=f"• BM25 Algorithm: ○ Inactive (need {needed} more documents)",
-                    text_color=(COLORS["warning"], COLORS["warning"])
+                    text_color=(COLORS["warning"], COLORS["warning"]),
                 )
 
         except Exception as e:
             from src.logging_config import debug_log
+
             debug_log(f"[CorpusSettingsWidget] Error refreshing status: {e}")
             self.active_corpus_label.configure(text="• Active corpus: (error)")
             self.doc_count_label.configure(text="• Documents: (error)")
@@ -1131,7 +1071,7 @@ class CorpusSettingsWidget(ctk.CTkFrame):
             # Also notify main window to refresh its corpus dropdown
             try:
                 main_window = parent.master
-                if main_window and hasattr(main_window, '_refresh_corpus_dropdown'):
+                if main_window and hasattr(main_window, "_refresh_corpus_dropdown"):
                     main_window._refresh_corpus_dropdown()
             except Exception:
                 pass  # Main window refresh is best-effort
@@ -1205,11 +1145,9 @@ class ColumnVisibilityWidget(ctk.CTkFrame):
         header_frame = ctk.CTkFrame(self, fg_color="transparent")
         header_frame.grid(row=0, column=0, sticky="ew", pady=(0, 10))
 
-        ctk.CTkLabel(
-            header_frame,
-            text="Default Visible Columns",
-            font=FONTS["label_bold"]
-        ).pack(side="left")
+        ctk.CTkLabel(header_frame, text="Default Visible Columns", font=FONTS["label_bold"]).pack(
+            side="left"
+        )
 
         tooltip_icon = TooltipIcon(
             header_frame,
@@ -1219,7 +1157,7 @@ class ColumnVisibilityWidget(ctk.CTkFrame):
                 "• Right-click on any column header\n"
                 "• 'Columns...' button below the table\n\n"
                 "Changes are saved automatically and persist between sessions."
-            )
+            ),
         )
         tooltip_icon.pack(side="left", padx=(5, 0))
 
@@ -1231,7 +1169,7 @@ class ColumnVisibilityWidget(ctk.CTkFrame):
                 self,
                 text=f"{group_name}:",
                 font=FONTS["small"],
-                text_color=COLORS["text_secondary"]
+                text_color=COLORS["text_secondary"],
             )
             group_label.grid(row=row_idx, column=0, sticky="w", pady=(10, 2))
             row_idx += 1
@@ -1253,7 +1191,7 @@ class ColumnVisibilityWidget(ctk.CTkFrame):
                     width=100,
                     checkbox_width=18,
                     checkbox_height=18,
-                    font=FONTS["small"]
+                    font=FONTS["small"],
                 )
                 cb.pack(side="left", padx=(0, 15))
 
@@ -1274,7 +1212,7 @@ class ColumnVisibilityWidget(ctk.CTkFrame):
             command=self._reset_to_defaults,
             width=120,
             height=28,
-            font=FONTS["small"]
+            font=FONTS["small"],
         )
         reset_btn.pack(side="left")
 

@@ -14,7 +14,7 @@ def export_qa_results(
     results: list,  # list[QAResult] - avoid circular import
     builder: DocumentBuilder,
     include_verification_colors: bool = True,
-    title: str = "Questions & Answers"
+    title: str = "Questions & Answers",
 ) -> None:
     """
     Export Q&A results using provided document builder.
@@ -44,7 +44,7 @@ def export_qa_results(
         builder.add_heading(f"Q{i}: {result.question}", level=2)
 
         # Answer with optional verification coloring
-        if include_verification_colors and hasattr(result, 'verification') and result.verification:
+        if include_verification_colors and hasattr(result, "verification") and result.verification:
             _add_verified_answer(builder, result)
         else:
             builder.add_paragraph(result.quick_answer)
@@ -55,7 +55,7 @@ def export_qa_results(
             builder.add_paragraph(result.citation, italic=True)
 
         # Source
-        if hasattr(result, 'source_summary') and result.source_summary:
+        if hasattr(result, "source_summary") and result.source_summary:
             builder.add_paragraph(f"Source: {result.source_summary}", italic=True)
 
         builder.add_separator()
@@ -94,7 +94,7 @@ def _add_verified_answer(builder: DocumentBuilder, result) -> None:
         builder.add_paragraph(
             "Answer rejected due to low reliability. The AI could not provide "
             "a trustworthy response based on the available documents.",
-            italic=True
+            italic=True,
         )
         return
 
@@ -102,11 +102,7 @@ def _add_verified_answer(builder: DocumentBuilder, result) -> None:
     spans = []
     for span in verification.spans:
         color, strikethrough, _ = get_verification_color(span.hallucination_prob)
-        spans.append(TextSpan(
-            text=span.text,
-            color=color,
-            strikethrough=strikethrough
-        ))
+        spans.append(TextSpan(text=span.text, color=color, strikethrough=strikethrough))
 
     if spans:
         builder.add_styled_paragraph(spans)

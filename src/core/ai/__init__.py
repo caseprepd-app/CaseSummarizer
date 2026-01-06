@@ -31,4 +31,4 @@ from .ollama_model_manager import OllamaModelManager
 # DEFAULT: Use Ollama for all AI operations
 ModelManager = OllamaModelManager
 
-__all__ = ['ModelManager', 'OllamaModelManager']
+__all__ = ["ModelManager", "OllamaModelManager"]

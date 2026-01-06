@@ -172,17 +172,19 @@ class RAKEAlgorithm(BaseExtractionAlgorithm):
             # RAKE scores typically range from 1-50, with most good phrases 3-15
             confidence = min(score / 15.0, 1.0)
 
-            candidates.append(CandidateTerm(
-                term=cleaned_phrase,
-                source_algorithm=self.name,
-                confidence=confidence,
-                suggested_type="Technical",  # RAKE primarily finds technical phrases
-                frequency=actual_frequency,
-                metadata={
-                    "rake_score": score,
-                    "word_count": len(cleaned_phrase.split()),
-                }
-            ))
+            candidates.append(
+                CandidateTerm(
+                    term=cleaned_phrase,
+                    source_algorithm=self.name,
+                    confidence=confidence,
+                    suggested_type="Technical",  # RAKE primarily finds technical phrases
+                    frequency=actual_frequency,
+                    metadata={
+                        "rake_score": score,
+                        "word_count": len(cleaned_phrase.split()),
+                    },
+                )
+            )
 
         processing_time_ms = (time.time() - start_time) * 1000
 
@@ -203,7 +205,7 @@ class RAKEAlgorithm(BaseExtractionAlgorithm):
                 "filtered_by_frequency": filtered_by_frequency,
                 "filtered_by_invalid": filtered_by_invalid,
                 "min_score_threshold": self.min_score,
-            }
+            },
         )
 
     def _preprocess_text(self, text: str) -> str:
@@ -224,13 +226,13 @@ class RAKEAlgorithm(BaseExtractionAlgorithm):
         cleaned = text
 
         # Remove line numbers at start of lines (common in transcripts)
-        cleaned = re.sub(r'^\s*\d{1,2}\s+', '', cleaned, flags=re.MULTILINE)
+        cleaned = re.sub(r"^\s*\d{1,2}\s+", "", cleaned, flags=re.MULTILINE)
 
         # Remove standalone numbers (page numbers, etc.)
-        cleaned = re.sub(r'\b\d+\b', '', cleaned)
+        cleaned = re.sub(r"\b\d+\b", "", cleaned)
 
         # Normalize whitespace
-        cleaned = re.sub(r'\s+', ' ', cleaned)
+        cleaned = re.sub(r"\s+", " ", cleaned)
 
         return cleaned.strip()
 
@@ -250,7 +252,7 @@ class RAKEAlgorithm(BaseExtractionAlgorithm):
         """
         # Use word boundaries for accurate counting
         # \b matches word boundaries (start/end of word)
-        pattern = r'\b' + re.escape(phrase_lower) + r'\b'
+        pattern = r"\b" + re.escape(phrase_lower) + r"\b"
         matches = re.findall(pattern, text_lower)
         return len(matches)
 
@@ -272,7 +274,7 @@ class RAKEAlgorithm(BaseExtractionAlgorithm):
             return ""
 
         # Skip phrases that are just numbers or punctuation
-        if not re.search(r'[a-zA-Z]', cleaned):
+        if not re.search(r"[a-zA-Z]", cleaned):
             return ""
 
         # Skip very long phrases (likely noise)
@@ -280,19 +282,19 @@ class RAKEAlgorithm(BaseExtractionAlgorithm):
             return ""
 
         # Skip phrases starting/ending with common junk
-        junk_starts = ('the', 'a', 'an', 'and', 'or', 'but', 'of', 'in', 'on', 'at', 'to', 'for')
+        junk_starts = ("the", "a", "an", "and", "or", "but", "of", "in", "on", "at", "to", "for")
         lower_cleaned = cleaned.lower()
-        if any(lower_cleaned.startswith(j + ' ') for j in junk_starts):
+        if any(lower_cleaned.startswith(j + " ") for j in junk_starts):
             # Strip the junk prefix
             for j in junk_starts:
-                if lower_cleaned.startswith(j + ' '):
-                    cleaned = cleaned[len(j) + 1:]
+                if lower_cleaned.startswith(j + " "):
+                    cleaned = cleaned[len(j) + 1 :]
                     lower_cleaned = cleaned.lower()
                     break
 
         # Session 53: Filter single-word results that are common stopwords
         # RAKE sometimes returns single common words like "same", "left", "also"
-        if ' ' not in cleaned and lower_cleaned in STOPWORDS:
+        if " " not in cleaned and lower_cleaned in STOPWORDS:
             return ""
 
         # Session 78: Use title case for proper noun consistency

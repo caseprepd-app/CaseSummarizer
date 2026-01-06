@@ -32,6 +32,7 @@ from src.user_preferences import get_user_preferences
 
 class ResourceInfo(NamedTuple):
     """System resource information."""
+
     cpu_count: int
     available_ram_gb: float
     total_ram_gb: float
@@ -51,8 +52,8 @@ def get_system_resources() -> ResourceInfo:
 
     cpu_count = os.cpu_count() or 4
     mem = psutil.virtual_memory()
-    available_ram_gb = mem.available / (1024 ** 3)
-    total_ram_gb = mem.total / (1024 ** 3)
+    available_ram_gb = mem.available / (1024**3)
+    total_ram_gb = mem.total / (1024**3)
 
     return ResourceInfo(
         cpu_count=cpu_count,

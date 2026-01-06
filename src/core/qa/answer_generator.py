@@ -26,13 +26,13 @@ from src.logging_config import debug_log
 
 # Pre-compiled regex patterns (Session 70 optimization)
 # Previously compiled on every call to _split_sentences and _extract_keywords
-_RE_SOURCE_CITATIONS = re.compile(r'\[[^\]]+\]:')
-_RE_ABBREVIATIONS_TITLES = re.compile(r'(Mr\.|Mrs\.|Ms\.|Dr\.|Prof\.|Jr\.|Sr\.)')
-_RE_ABBREVIATIONS_CORP = re.compile(r'(Inc\.|Corp\.|Ltd\.|Co\.)')
-_RE_NUMBERS_PERIOD = re.compile(r'(\d+\.)')
-_RE_SENTENCE_END = re.compile(r'[.!?]+\s+')
-_RE_WORD_EXTRACT = re.compile(r'\b[a-zA-Z]+\b')
-_RE_WHITESPACE = re.compile(r'\s+')
+_RE_SOURCE_CITATIONS = re.compile(r"\[[^\]]+\]:")
+_RE_ABBREVIATIONS_TITLES = re.compile(r"(Mr\.|Mrs\.|Ms\.|Dr\.|Prof\.|Jr\.|Sr\.)")
+_RE_ABBREVIATIONS_CORP = re.compile(r"(Inc\.|Corp\.|Ltd\.|Co\.)")
+_RE_NUMBERS_PERIOD = re.compile(r"(\d+\.)")
+_RE_SENTENCE_END = re.compile(r"[.!?]+\s+")
+_RE_WORD_EXTRACT = re.compile(r"\b[a-zA-Z]+\b")
+_RE_WHITESPACE = re.compile(r"\s+")
 
 
 class AnswerMode(Enum):
@@ -76,6 +76,7 @@ class AnswerGenerator:
         """Lazy-load Ollama manager to avoid startup overhead."""
         if self._ollama_manager is None:
             from src.core.ai.ollama_model_manager import OllamaModelManager
+
             self._ollama_manager = OllamaModelManager()
         return self._ollama_manager
 
@@ -180,16 +181,16 @@ class AnswerGenerator:
         try:
             # Generate response
             response = self.ollama_manager.generate_text(
-                prompt=prompt,
-                max_tokens=QA_MAX_TOKENS,
-                temperature=QA_TEMPERATURE
+                prompt=prompt, max_tokens=QA_MAX_TOKENS, temperature=QA_TEMPERATURE
             )
 
             if response and response.strip():
                 return response.strip()
             else:
                 if DEBUG_MODE:
-                    debug_log("[AnswerGenerator] Empty response from Ollama, falling back to extraction")
+                    debug_log(
+                        "[AnswerGenerator] Empty response from Ollama, falling back to extraction"
+                    )
                 return self._extract_answer(question, context)
 
         except Exception as e:
@@ -232,19 +233,116 @@ ANSWER:"""
         """
         # Common stopwords to filter
         stopwords = {
-            "the", "a", "an", "is", "are", "was", "were", "be", "been", "being",
-            "have", "has", "had", "do", "does", "did", "will", "would", "could",
-            "should", "may", "might", "must", "shall", "can", "need", "dare",
-            "ought", "used", "to", "of", "in", "for", "on", "with", "at", "by",
-            "from", "as", "into", "through", "during", "before", "after",
-            "above", "below", "between", "under", "again", "further", "then",
-            "once", "here", "there", "when", "where", "why", "how", "all",
-            "each", "few", "more", "most", "other", "some", "such", "no", "nor",
-            "not", "only", "own", "same", "so", "than", "too", "very", "just",
-            "also", "now", "what", "who", "which", "this", "that", "these",
-            "those", "i", "you", "he", "she", "it", "we", "they", "them",
-            "his", "her", "its", "our", "their", "my", "your", "and", "but",
-            "or", "if", "because", "while", "although", "though", "unless",
+            "the",
+            "a",
+            "an",
+            "is",
+            "are",
+            "was",
+            "were",
+            "be",
+            "been",
+            "being",
+            "have",
+            "has",
+            "had",
+            "do",
+            "does",
+            "did",
+            "will",
+            "would",
+            "could",
+            "should",
+            "may",
+            "might",
+            "must",
+            "shall",
+            "can",
+            "need",
+            "dare",
+            "ought",
+            "used",
+            "to",
+            "of",
+            "in",
+            "for",
+            "on",
+            "with",
+            "at",
+            "by",
+            "from",
+            "as",
+            "into",
+            "through",
+            "during",
+            "before",
+            "after",
+            "above",
+            "below",
+            "between",
+            "under",
+            "again",
+            "further",
+            "then",
+            "once",
+            "here",
+            "there",
+            "when",
+            "where",
+            "why",
+            "how",
+            "all",
+            "each",
+            "few",
+            "more",
+            "most",
+            "other",
+            "some",
+            "such",
+            "no",
+            "nor",
+            "not",
+            "only",
+            "own",
+            "same",
+            "so",
+            "than",
+            "too",
+            "very",
+            "just",
+            "also",
+            "now",
+            "what",
+            "who",
+            "which",
+            "this",
+            "that",
+            "these",
+            "those",
+            "i",
+            "you",
+            "he",
+            "she",
+            "it",
+            "we",
+            "they",
+            "them",
+            "his",
+            "her",
+            "its",
+            "our",
+            "their",
+            "my",
+            "your",
+            "and",
+            "but",
+            "or",
+            "if",
+            "because",
+            "while",
+            "although",
+            "though",
+            "unless",
         }
 
         # Extract words using pre-compiled regex
@@ -268,19 +366,19 @@ ANSWER:"""
             List of sentences
         """
         # Remove source citations for cleaner sentences (using pre-compiled regex)
-        clean_text = _RE_SOURCE_CITATIONS.sub('', text)
+        clean_text = _RE_SOURCE_CITATIONS.sub("", text)
 
         # Simple sentence splitting
         # Handle common abbreviations (using pre-compiled regex)
-        clean_text = _RE_ABBREVIATIONS_TITLES.sub(r'\1<PERIOD>', clean_text)
-        clean_text = _RE_ABBREVIATIONS_CORP.sub(r'\1<PERIOD>', clean_text)
-        clean_text = _RE_NUMBERS_PERIOD.sub(r'\1<PERIOD>', clean_text)
+        clean_text = _RE_ABBREVIATIONS_TITLES.sub(r"\1<PERIOD>", clean_text)
+        clean_text = _RE_ABBREVIATIONS_CORP.sub(r"\1<PERIOD>", clean_text)
+        clean_text = _RE_NUMBERS_PERIOD.sub(r"\1<PERIOD>", clean_text)
 
         # Split on sentence-ending punctuation (using pre-compiled regex)
         sentences = _RE_SENTENCE_END.split(clean_text)
 
         # Restore periods
-        sentences = [s.replace('<PERIOD>', '.').strip() for s in sentences if s.strip()]
+        sentences = [s.replace("<PERIOD>", ".").strip() for s in sentences if s.strip()]
 
         return sentences
 
@@ -314,11 +412,11 @@ ANSWER:"""
             Cleaned sentence
         """
         # Remove excessive whitespace (using pre-compiled regex)
-        cleaned = _RE_WHITESPACE.sub(' ', sentence).strip()
+        cleaned = _RE_WHITESPACE.sub(" ", sentence).strip()
 
         # LOG-023: Ensure ends with period
-        if cleaned and cleaned[-1] not in '.!?':
-            cleaned += '.'
+        if cleaned and cleaned[-1] not in ".!?":
+            cleaned += "."
 
         return cleaned
 

@@ -28,12 +28,13 @@ from src.user_preferences import get_user_preferences
 CORPORA_DIR = APPDATA_DIR / "corpora"
 
 # Supported file extensions for corpus documents
-SUPPORTED_EXTENSIONS = {'.pdf', '.txt', '.rtf'}
+SUPPORTED_EXTENSIONS = {".pdf", ".txt", ".rtf"}
 
 
 @dataclass
 class CorpusInfo:
     """Information about a single corpus."""
+
     name: str
     path: Path
     doc_count: int
@@ -80,9 +81,11 @@ class CorpusRegistry:
             return
 
         try:
-            with open(self.registry_file, 'r', encoding='utf-8') as f:
+            with open(self.registry_file, "r", encoding="utf-8") as f:
                 self._registry = json.load(f)
-            debug_log(f"[CorpusRegistry] Loaded registry with {len(self._registry.get('corpora', {}))} corpora")
+            debug_log(
+                f"[CorpusRegistry] Loaded registry with {len(self._registry.get('corpora', {}))} corpora"
+            )
         except (json.JSONDecodeError, Exception) as e:
             debug_log(f"[CorpusRegistry] Error loading registry: {e}")
             self._registry = {
@@ -94,7 +97,7 @@ class CorpusRegistry:
     def _save_registry(self) -> None:
         """Save registry to JSON file."""
         try:
-            with open(self.registry_file, 'w', encoding='utf-8') as f:
+            with open(self.registry_file, "w", encoding="utf-8") as f:
                 json.dump(self._registry, f, indent=2, default=str)
             debug_log("[CorpusRegistry] Saved registry")
         except Exception as e:
@@ -247,7 +250,9 @@ class CorpusRegistry:
                     except Exception as e:
                         debug_log(f"[CorpusRegistry] Error copying {file_path.name}: {e}")
 
-        debug_log(f"[CorpusRegistry] Combined {len(source_names)} corpora into '{new_name}' ({copied_count} files)")
+        debug_log(
+            f"[CorpusRegistry] Combined {len(source_names)} corpora into '{new_name}' ({copied_count} files)"
+        )
 
         return new_path
 
@@ -265,13 +270,15 @@ class CorpusRegistry:
             corpus_path = Path(info["path"])
             doc_count = self._count_documents(corpus_path)
 
-            result.append(CorpusInfo(
-                name=info.get("display_name", safe_name),
-                path=corpus_path,
-                doc_count=doc_count,
-                is_active=(info.get("display_name", safe_name) == active),
-                created_at=info.get("created_at"),
-            ))
+            result.append(
+                CorpusInfo(
+                    name=info.get("display_name", safe_name),
+                    path=corpus_path,
+                    doc_count=doc_count,
+                    is_active=(info.get("display_name", safe_name) == active),
+                    created_at=info.get("created_at"),
+                )
+            )
 
         return result
 
@@ -342,6 +349,7 @@ class CorpusRegistry:
         # Reset CorpusManager singleton so it picks up the new path
         # Session 64: Ensures BM25 uses the newly selected corpus
         from src.core.vocabulary.corpus_manager import reset_corpus_manager
+
         reset_corpus_manager()
 
         debug_log(f"[CorpusRegistry] Set active corpus to '{name}'")
@@ -373,8 +381,8 @@ class CorpusRegistry:
         """
         # Remove/replace problematic characters
         safe = name.strip()
-        for char in ['<', '>', ':', '"', '/', '\\', '|', '?', '*']:
-            safe = safe.replace(char, '_')
+        for char in ["<", ">", ":", '"', "/", "\\", "|", "?", "*"]:
+            safe = safe.replace(char, "_")
         return safe
 
     def _count_documents(self, corpus_path: Path) -> int:

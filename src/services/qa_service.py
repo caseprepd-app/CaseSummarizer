@@ -47,9 +47,7 @@ class QAService:
         return self._is_ready
 
     def build_index(
-        self,
-        text: str,
-        progress_callback: Callable[[str], None] | None = None
+        self, text: str, progress_callback: Callable[[str], None] | None = None
     ) -> bool:
         """
         Build the vector index for Q&A.
@@ -68,6 +66,7 @@ class QAService:
             # Lazy-load embeddings
             if self._embeddings is None:
                 from langchain_huggingface import HuggingFaceEmbeddings
+
                 self._embeddings = HuggingFaceEmbeddings(
                     model_name="sentence-transformers/all-MiniLM-L6-v2"
                 )
@@ -77,6 +76,7 @@ class QAService:
 
             # Chunk the text
             from src.core.chunking import create_unified_chunker
+
             chunker = create_unified_chunker()
             chunks = chunker.chunk_text(text)
 
@@ -88,21 +88,21 @@ class QAService:
 
             if self._vector_store_path is None:
                 import tempfile
+
                 self._vector_store_path = Path(tempfile.mkdtemp()) / "qa_index"
 
             builder = VectorStoreBuilder()
             builder.create_from_unified_chunks(
-                chunks=chunks,
-                embeddings=self._embeddings,
-                persist_dir=self._vector_store_path
+                chunks=chunks, embeddings=self._embeddings, persist_dir=self._vector_store_path
             )
 
             # Initialize orchestrator
             from src.core.qa import QAOrchestrator
+
             self._orchestrator = QAOrchestrator(
                 vector_store_path=self._vector_store_path,
                 embeddings=self._embeddings,
-                answer_mode="ollama"
+                answer_mode="ollama",
             )
 
             self._is_ready = True
@@ -121,8 +121,7 @@ class QAService:
             return False
 
     def run_default_questions(
-        self,
-        progress_callback: Callable[[int, int], None] | None = None
+        self, progress_callback: Callable[[int, int], None] | None = None
     ) -> list:
         """
         Run all default questions against the document.
@@ -168,12 +167,10 @@ class QAService:
             from src.core.config import load_yaml_with_fallback
 
             config = load_yaml_with_fallback(
-                DEFAULT_QUESTIONS_PATH,
-                fallback={},
-                log_prefix="[QAService]"
+                DEFAULT_QUESTIONS_PATH, fallback={}, log_prefix="[QAService]"
             )
 
-            return [q.get('text', '') for q in config.get('questions', [])]
+            return [q.get("text", "") for q in config.get("questions", [])]
 
         return self._orchestrator.get_default_questions()
 

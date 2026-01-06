@@ -104,7 +104,7 @@ def create_tooltip(widget, text, delay_ms=500, offset_x=15, offset_y=10):
             corner_radius=5,
             wraplength=250,
             font=FONTS["small"],
-            justify="left"
+            justify="left",
         )
         label.pack(padx=8, pady=6)
 
@@ -187,7 +187,9 @@ def create_tooltip(widget, text, delay_ms=500, offset_x=15, offset_y=10):
     return hide_tooltip
 
 
-def create_tooltip_for_frame(frame, text, child_widgets=None, delay_ms=500, offset_x=15, offset_y=10):
+def create_tooltip_for_frame(
+    frame, text, child_widgets=None, delay_ms=500, offset_x=15, offset_y=10
+):
     """
     Create a tooltip for a frame and optionally its child widgets.
 
@@ -258,7 +260,7 @@ def create_tooltip_for_frame(frame, text, child_widgets=None, delay_ms=500, offs
             corner_radius=5,
             wraplength=250,
             font=FONTS["small"],
-            justify="left"
+            justify="left",
         )
         label.pack(padx=8, pady=6)
 

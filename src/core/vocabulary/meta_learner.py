@@ -56,9 +56,24 @@ from src.core.vocabulary.term_sources import TermSources
 
 # Medical suffixes for domain-specific feature (Session 76)
 MEDICAL_SUFFIXES = (
-    'itis', 'osis', 'ectomy', 'pathy', 'algia', 'emia',
-    'plasty', 'scopy', 'otomy', 'ology', 'oma', 'esis',
-    'iasis', 'trophy', 'megaly', 'rrhea', 'rrhage', 'plegia',
+    "itis",
+    "osis",
+    "ectomy",
+    "pathy",
+    "algia",
+    "emia",
+    "plasty",
+    "scopy",
+    "otomy",
+    "ology",
+    "oma",
+    "esis",
+    "iasis",
+    "trophy",
+    "megaly",
+    "rrhea",
+    "rrhage",
+    "plegia",
 )
 
 
@@ -133,13 +148,13 @@ FEATURE_NAMES = [
     "contains_hyphen",
     # Session 78: TermSources-based per-document confidence features (7 total)
     # These provide richer signals about term reliability across source documents
-    "num_source_documents",    # How many docs contain this term (more = more reliable)
-    "doc_diversity_ratio",     # num_docs / total_docs (0-1, spread across corpus)
-    "mean_doc_confidence",     # Count-weighted mean OCR confidence (0-1)
-    "median_doc_confidence",   # Median confidence - robust to single bad scan (0-1)
-    "confidence_std_dev",      # Consistency of confidence across docs (0-0.5)
-    "high_conf_doc_ratio",     # % of source docs with confidence > 0.80 (0-1)
-    "all_low_conf",            # 1 if ALL source docs have conf < 0.60 (red flag)
+    "num_source_documents",  # How many docs contain this term (more = more reliable)
+    "doc_diversity_ratio",  # num_docs / total_docs (0-1, spread across corpus)
+    "mean_doc_confidence",  # Count-weighted mean OCR confidence (0-1)
+    "median_doc_confidence",  # Median confidence - robust to single bad scan (0-1)
+    "confidence_std_dev",  # Consistency of confidence across docs (0-0.5)
+    "high_conf_doc_ratio",  # % of source docs with confidence > 0.80 (0-1)
+    "all_low_conf",  # 1 if ALL source docs have conf < 0.60 (red flag)
 ]
 
 
@@ -270,8 +285,10 @@ class VocabularyPreferenceLearner:
 
         # === PERSON DETECTION ===
         is_person_val = term_data.get("is_person", 0)
-        is_person = float(is_person_val) if isinstance(is_person_val, (int, float)) else (
-            1.0 if str(is_person_val).lower() in ("1", "yes", "true") else 0.0
+        is_person = (
+            float(is_person_val)
+            if isinstance(is_person_val, (int, float))
+            else (1.0 if str(is_person_val).lower() in ("1", "yes", "true") else 0.0)
         )
 
         # === CHARACTER/FORMAT FEATURES ===
@@ -319,7 +336,7 @@ class VocabularyPreferenceLearner:
 
         # Vowel ratio - gibberish detector
         # Real words ~40% vowels, gibberish often 0% or very low
-        vowels = set('aeiouAEIOU')
+        vowels = set("aeiouAEIOU")
         if alpha_chars:
             vowel_count = sum(1 for c in alpha_chars if c in vowels)
             vowel_ratio = vowel_count / len(alpha_chars)
@@ -338,19 +355,21 @@ class VocabularyPreferenceLearner:
             has_internal_digits = 0.0
 
         # Medical suffix detection - strong signal for legitimate vocabulary
-        has_medical_suffix = 1.0 if any(term_lower.endswith(suffix) for suffix in MEDICAL_SUFFIXES) else 0.0
+        has_medical_suffix = (
+            1.0 if any(term_lower.endswith(suffix) for suffix in MEDICAL_SUFFIXES) else 0.0
+        )
 
         # Repeated characters (3+ in a row) - artifact detection
         # Catches "aaaa", ".....", "---"
         has_repeated_chars = 0.0
         if len(term) >= 3:
             for i in range(len(term) - 2):
-                if term[i] == term[i+1] == term[i+2]:
+                if term[i] == term[i + 1] == term[i + 2]:
                     has_repeated_chars = 1.0
                     break
 
         # Contains hyphen - often legitimate compound terms
-        contains_hyphen = 1.0 if '-' in term else 0.0
+        contains_hyphen = 1.0 if "-" in term else 0.0
 
         # === SESSION 78: TermSources-based per-document features ===
         # These features provide richer signals about term reliability by
@@ -389,45 +408,47 @@ class VocabularyPreferenceLearner:
             high_conf_doc_ratio = 1.0 if source_doc_confidence > 0.80 else 0.0
             all_low_conf = 1.0 if source_doc_confidence < 0.60 else 0.0
 
-        return np.array([
-            # Frequency features (2)
-            log_count,
-            occurrence_ratio,
-            # Algorithm features (3)
-            has_ner,
-            has_rake,
-            has_bm25,
-            # Type feature (1)
-            is_person,
-            # Original artifact features (6)
-            has_trailing_punctuation,
-            has_leading_digit,
-            has_trailing_digit,
-            word_count,
-            is_all_caps,
-            is_title_case,
-            # Quality features (2)
-            source_doc_confidence,
-            corpus_familiarity_score,
-            # Session 76 features (9)
-            freq_dict_word_ratio,
-            all_words_in_freq_dict,
-            term_length,
-            vowel_ratio,
-            is_single_letter,
-            has_internal_digits,
-            has_medical_suffix,
-            has_repeated_chars,
-            contains_hyphen,
-            # Session 78: TermSources features (7)
-            num_source_documents,
-            doc_diversity_ratio,
-            mean_doc_confidence,
-            median_doc_confidence,
-            confidence_std_dev,
-            high_conf_doc_ratio,
-            all_low_conf,
-        ])
+        return np.array(
+            [
+                # Frequency features (2)
+                log_count,
+                occurrence_ratio,
+                # Algorithm features (3)
+                has_ner,
+                has_rake,
+                has_bm25,
+                # Type feature (1)
+                is_person,
+                # Original artifact features (6)
+                has_trailing_punctuation,
+                has_leading_digit,
+                has_trailing_digit,
+                word_count,
+                is_all_caps,
+                is_title_case,
+                # Quality features (2)
+                source_doc_confidence,
+                corpus_familiarity_score,
+                # Session 76 features (9)
+                freq_dict_word_ratio,
+                all_words_in_freq_dict,
+                term_length,
+                vowel_ratio,
+                is_single_letter,
+                has_internal_digits,
+                has_medical_suffix,
+                has_repeated_chars,
+                contains_hyphen,
+                # Session 78: TermSources features (7)
+                num_source_documents,
+                doc_diversity_ratio,
+                mean_doc_confidence,
+                median_doc_confidence,
+                confidence_std_dev,
+                high_conf_doc_ratio,
+                all_low_conf,
+            ]
+        )
 
     def _calculate_sample_weight(
         self, timestamp_str: str, source: str = "user", user_sample_count: int = 0
@@ -492,18 +513,17 @@ class VocabularyPreferenceLearner:
 
         # Filter to only records with +1 or -1 feedback (ignore cleared ratings)
         labeled_records = [
-            r for r in feedback_records
-            if r.get("feedback") in ("+1", "-1", "1", "-1", 1, -1)
+            r for r in feedback_records if r.get("feedback") in ("+1", "-1", "1", "-1", 1, -1)
         ]
 
         if len(labeled_records) < ML_MIN_SAMPLES:
-            debug_log(f"[META-LEARNER] Insufficient training data: {len(labeled_records)} < {ML_MIN_SAMPLES}")
+            debug_log(
+                f"[META-LEARNER] Insufficient training data: {len(labeled_records)} < {ML_MIN_SAMPLES}"
+            )
             return False
 
         # Count user samples for source weighting (Session 55)
-        user_sample_count = sum(
-            1 for r in labeled_records if r.get("source") == "user"
-        )
+        user_sample_count = sum(1 for r in labeled_records if r.get("source") == "user")
         default_sample_count = len(labeled_records) - user_sample_count
         debug_log(
             f"[META-LEARNER] Training on {len(labeled_records)} feedback samples "
@@ -560,16 +580,13 @@ class VocabularyPreferenceLearner:
         # Always train Logistic Regression (works well with small data)
         debug_log("[PREF-LEARNER] Training Logistic Regression...")
         self._lr_model = LogisticRegression(
-            class_weight='balanced',
-            max_iter=1000,
-            random_state=42,
-            solver='lbfgs'
+            class_weight="balanced", max_iter=1000, random_state=42, solver="lbfgs"
         )
         self._lr_model.fit(X_scaled, y, sample_weight=sample_weights)
         self._is_trained = True
 
         # Log LR feature importances
-        if hasattr(self._lr_model, 'coef_'):
+        if hasattr(self._lr_model, "coef_"):
             coefs = self._lr_model.coef_[0]
             importance = list(zip(FEATURE_NAMES, coefs))
             importance.sort(key=lambda x: abs(x[1]), reverse=True)
@@ -580,14 +597,16 @@ class VocabularyPreferenceLearner:
         # Train Random Forest if enough data for ensemble
         n_samples = len(labeled_records)
         if n_samples >= ML_ENSEMBLE_MIN_SAMPLES:
-            debug_log(f"[PREF-LEARNER] Training Random Forest (ensemble mode, {n_samples} samples)...")
+            debug_log(
+                f"[PREF-LEARNER] Training Random Forest (ensemble mode, {n_samples} samples)..."
+            )
             self._rf_model = RandomForestClassifier(
                 n_estimators=23,  # Few trees for speed; 200 samples doesn't need more
                 max_depth=10,  # Prevent overfitting
                 min_samples_leaf=5,  # Require 5 samples per leaf
-                class_weight='balanced',
+                class_weight="balanced",
                 random_state=42,
-                n_jobs=-1  # Use all CPU cores
+                n_jobs=-1,  # Use all CPU cores
             )
             self._rf_model.fit(X_scaled, y, sample_weight=sample_weights)
             self._ensemble_enabled = True
@@ -601,7 +620,9 @@ class VocabularyPreferenceLearner:
         else:
             self._rf_model = None
             self._ensemble_enabled = False
-            debug_log(f"[PREF-LEARNER] RF not trained (need {ML_ENSEMBLE_MIN_SAMPLES} samples, have {n_samples})")
+            debug_log(
+                f"[PREF-LEARNER] RF not trained (need {ML_ENSEMBLE_MIN_SAMPLES} samples, have {n_samples})"
+            )
 
         # Save the trained model(s)
         self._save_model()
@@ -670,10 +691,7 @@ class VocabularyPreferenceLearner:
         if self.is_ensemble:
             probs_rf = self._rf_model.predict_proba(X_scaled)[:, 1]
             # Apply confidence-weighted blend to each pair
-            blended = [
-                confidence_weighted_blend(lr, rf)
-                for lr, rf in zip(probs_lr, probs_rf)
-            ]
+            blended = [confidence_weighted_blend(lr, rf) for lr, rf in zip(probs_lr, probs_rf)]
             return blended
 
         return probs_lr.tolist()
@@ -709,17 +727,17 @@ class VocabularyPreferenceLearner:
 
             # Save both models, scaler, state, and sample counts
             model_data = {
-                'lr_model': self._lr_model,
-                'rf_model': self._rf_model,  # May be None if not enough data
-                'scaler': self._scaler,
-                'ensemble_enabled': self._ensemble_enabled,
-                'feature_names': FEATURE_NAMES,
+                "lr_model": self._lr_model,
+                "rf_model": self._rf_model,  # May be None if not enough data
+                "scaler": self._scaler,
+                "ensemble_enabled": self._ensemble_enabled,
+                "feature_names": FEATURE_NAMES,
                 # Session 55: Sample counts for graduated ML weight
-                'user_sample_count': self._user_sample_count,
-                'total_sample_count': self._total_sample_count,
+                "user_sample_count": self._user_sample_count,
+                "total_sample_count": self._total_sample_count,
             }
 
-            with open(self.model_path, 'wb') as f:
+            with open(self.model_path, "wb") as f:
                 pickle.dump(model_data, f)
 
             mode = "ensemble" if self._ensemble_enabled else "LR-only"
@@ -742,27 +760,27 @@ class VocabularyPreferenceLearner:
             return False
 
         try:
-            with open(self.model_path, 'rb') as f:
+            with open(self.model_path, "rb") as f:
                 model_data = pickle.load(f)
 
             # Handle both old format (single model) and new format (ensemble)
-            if 'lr_model' in model_data:
+            if "lr_model" in model_data:
                 # New ensemble format
-                self._lr_model = model_data.get('lr_model')
-                self._rf_model = model_data.get('rf_model')
-                self._ensemble_enabled = model_data.get('ensemble_enabled', False)
+                self._lr_model = model_data.get("lr_model")
+                self._rf_model = model_data.get("rf_model")
+                self._ensemble_enabled = model_data.get("ensemble_enabled", False)
             else:
                 # Old format - single model was LR
-                self._lr_model = model_data.get('model')
+                self._lr_model = model_data.get("model")
                 self._rf_model = None
                 self._ensemble_enabled = False
 
-            self._scaler = model_data.get('scaler')
-            saved_feature_names = model_data.get('feature_names', [])
+            self._scaler = model_data.get("scaler")
+            saved_feature_names = model_data.get("feature_names", [])
 
             # Session 55: Load sample counts (default to 0 for old models)
-            self._user_sample_count = model_data.get('user_sample_count', 0)
-            self._total_sample_count = model_data.get('total_sample_count', 0)
+            self._user_sample_count = model_data.get("user_sample_count", 0)
+            self._total_sample_count = model_data.get("total_sample_count", 0)
 
             # Check for feature count mismatch (model trained with different features)
             if len(saved_feature_names) != len(FEATURE_NAMES):

@@ -45,38 +45,32 @@ class HeaderFooterRemover(BasePreprocessor):
     # Patterns that indicate a line is likely a header/footer
     HEADER_FOOTER_PATTERNS = [
         # Page numbers with text
-        re.compile(r'^\s*-?\s*\d+\s*-?\s*$'),  # Just a number: "- 12 -" or "12"
-        re.compile(r'page\s+\d+\s*(of\s+\d+)?', re.IGNORECASE),
-        re.compile(r'\bpage\s*:?\s*\d+', re.IGNORECASE),
-
+        re.compile(r"^\s*-?\s*\d+\s*-?\s*$"),  # Just a number: "- 12 -" or "12"
+        re.compile(r"page\s+\d+\s*(of\s+\d+)?", re.IGNORECASE),
+        re.compile(r"\bpage\s*:?\s*\d+", re.IGNORECASE),
         # Case captions
-        re.compile(r'^\s*v\.?\s*$', re.IGNORECASE),  # Just "v." or "vs"
-        re.compile(r'plaintiff.*defendant', re.IGNORECASE),
-        re.compile(r'index\s*(?:no\.?|number)', re.IGNORECASE),
-        re.compile(r'case\s*(?:no\.?|number)', re.IGNORECASE),
-        re.compile(r'docket\s*(?:no\.?|number)', re.IGNORECASE),
-
+        re.compile(r"^\s*v\.?\s*$", re.IGNORECASE),  # Just "v." or "vs"
+        re.compile(r"plaintiff.*defendant", re.IGNORECASE),
+        re.compile(r"index\s*(?:no\.?|number)", re.IGNORECASE),
+        re.compile(r"case\s*(?:no\.?|number)", re.IGNORECASE),
+        re.compile(r"docket\s*(?:no\.?|number)", re.IGNORECASE),
         # Court/reporting headers
-        re.compile(r'supreme\s+court', re.IGNORECASE),
-        re.compile(r'court\s+of\s+(?:the\s+)?state', re.IGNORECASE),
-        re.compile(r'reporting\s+(?:service|company)', re.IGNORECASE),
-        re.compile(r'certified\s+court\s+reporter', re.IGNORECASE),
-
+        re.compile(r"supreme\s+court", re.IGNORECASE),
+        re.compile(r"court\s+of\s+(?:the\s+)?state", re.IGNORECASE),
+        re.compile(r"reporting\s+(?:service|company)", re.IGNORECASE),
+        re.compile(r"certified\s+court\s+reporter", re.IGNORECASE),
         # Confidentiality notices
-        re.compile(r'confidential', re.IGNORECASE),
-        re.compile(r'privileged', re.IGNORECASE),
-        re.compile(r'not\s+for\s+(?:public\s+)?distribution', re.IGNORECASE),
-
+        re.compile(r"confidential", re.IGNORECASE),
+        re.compile(r"privileged", re.IGNORECASE),
+        re.compile(r"not\s+for\s+(?:public\s+)?distribution", re.IGNORECASE),
         # Document titles
-        re.compile(r'deposition\s+of', re.IGNORECASE),
-        re.compile(r'examination\s+before\s+trial', re.IGNORECASE),
-        re.compile(r'transcript\s+of', re.IGNORECASE),
-
+        re.compile(r"deposition\s+of", re.IGNORECASE),
+        re.compile(r"examination\s+before\s+trial", re.IGNORECASE),
+        re.compile(r"transcript\s+of", re.IGNORECASE),
         # Exhibit references in headers
-        re.compile(r'exhibit\s+\d+', re.IGNORECASE),
-
+        re.compile(r"exhibit\s+\d+", re.IGNORECASE),
         # Firm names (ends with common suffixes)
-        re.compile(r',?\s*(?:LLP|PLLC|P\.?C\.?|LLC|L\.L\.C\.)\s*$', re.IGNORECASE),
+        re.compile(r",?\s*(?:LLP|PLLC|P\.?C\.?|LLC|L\.L\.C\.)\s*$", re.IGNORECASE),
     ]
 
     def _normalize_line(self, line: str) -> str:
@@ -96,10 +90,10 @@ class HeaderFooterRemover(BasePreprocessor):
         normalized = line.strip()
 
         # Remove trailing page numbers (common in headers)
-        normalized = re.sub(r'\s*-?\s*\d+\s*-?\s*$', '', normalized)
+        normalized = re.sub(r"\s*-?\s*\d+\s*-?\s*$", "", normalized)
 
         # Collapse whitespace
-        normalized = ' '.join(normalized.split())
+        normalized = " ".join(normalized.split())
 
         return normalized.lower()
 
@@ -141,7 +135,7 @@ class HeaderFooterRemover(BasePreprocessor):
         if not text:
             return PreprocessingResult(text=text, changes_made=0)
 
-        lines = text.split('\n')
+        lines = text.split("\n")
 
         # Pre-compute all normalizations ONCE (Session 70 optimization)
         # Previously _normalize_line() was called 3x per line
@@ -182,11 +176,11 @@ class HeaderFooterRemover(BasePreprocessor):
                 result_lines.append(line)
 
         return PreprocessingResult(
-            text='\n'.join(result_lines),
+            text="\n".join(result_lines),
             changes_made=removed_count,
             metadata={
-                'unique_patterns_removed': len(lines_to_remove),
-                'total_lines_removed': removed_count,
-                'examples': removed_examples,
-            }
+                "unique_patterns_removed": len(lines_to_remove),
+                "total_lines_removed": removed_count,
+                "examples": removed_examples,
+            },
         )

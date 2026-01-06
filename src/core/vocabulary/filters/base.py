@@ -25,6 +25,7 @@ class FilterResult:
         processing_time_ms: Time taken to process in milliseconds
         metadata: Additional info about the filtering (e.g., per-sub-filter stats)
     """
+
     vocabulary: list[dict]
     removed_count: int = 0
     removed_terms: list[str] = field(default_factory=list)

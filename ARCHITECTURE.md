@@ -65,6 +65,7 @@
 - [x] **Column config consolidation** — Shared `column_config.py` as single source of truth for column definitions; sort warning dialogs for non-Score columns (GUI messagebox + HTML confirm); Term column protected from hiding; real-time term filter above treeview with detach/reattach pattern; regex filter option (Session 80b)
 - [x] **Person name casing fix** — ResultMerger forces Title Case for Person entities regardless of algorithm frequency; fixes lowercase names from BM25 ("jenkins" → "Jenkins") (Session 80b)
 - [x] **Common-word variant detection** — ArtifactFilter removes Person terms that are canonical_name + common_word(s); uses Google frequency dataset (top 200K = common); fuzzy prefix matching (edit distance ≤2) catches typos like "Luigi Napontano Dob" → "Luigi Napolitano"; `is_common_word()` helper in rarity_filter.py (Session 80b)
+- [x] **Extraction module refactor** — Split 1100-line `raw_text_extractor.py` into 6 focused modules: `pdf_extractor.py` (hybrid voting), `ocr_processor.py`, `file_readers.py` (TXT/RTF/DOCX/image), `text_normalizer.py`, `dictionary_utils.py`, `case_number_extractor.py`; facade pattern preserves API; black formatting applied to all src/ (Session 81)
 
 ### Partially Implemented ⚡
 
@@ -301,55 +302,93 @@ answer = qa_service.ask_question("Who is the plaintiff?")
 
 ```mermaid
 flowchart TB
-    Input["User selects files"]
-
-    subgraph Stage1["EXTRACTION"]
-        PDF["PDF → pdfplumber"]
-        TXT["TXT → direct read"]
-        RTF["RTF → striprtf"]
-        OCR["Scanned PDF → pytesseract"]
+    subgraph Input["USER INPUT"]
+        Files["PDF / DOCX / TXT / RTF / PNG / JPG"]
     end
 
-    subgraph Stage2["SANITIZATION"]
-        S1["1. Fix mojibake (ftfy)"]
-        S2["2. Unicode normalize (NFKC)"]
-        S3["3. Transliterate accents"]
-        S4["4. Handle redactions"]
-        S5["5. Remove control chars"]
-        S6["6. Normalize whitespace"]
+    subgraph Extract["STEP 1: EXTRACTION"]
+        FileType{File Type?}
+        PDF["PDFExtractor"]
+        DOCX["FileReaders.docx()"]
+        TXT["FileReaders.text()"]
+        IMG["FileReaders.image()"]
     end
 
-    subgraph Stage3["PREPROCESSING"]
-        P1["TitlePageRemover"]
-        P2["HeaderFooterRemover"]
-        P3["LineNumberRemover"]
-        P4["TranscriptCleaner<br/>(page nums, cert, index)"]
-        P5["QAConverter (Q./A. → Question:/Answer:)"]
+    subgraph PDFPipeline["PDF Pipeline (Hybrid)"]
+        PyMuPDF["PyMuPDF<br/>(primary)"]
+        Pdfplumber["pdfplumber<br/>(secondary)"]
+        Vote["Word-Level Voting<br/>Dictionary wins"]
+        Quality{Quality > 60%?}
+        OCR["OCRProcessor"]
     end
 
-    subgraph Stage4["CHUNKING"]
-        Chunker["UnifiedChunker<br/>Semantic boundaries + token limits"]
+    subgraph Normalize["STEP 2: NORMALIZATION"]
+        Dehyphen["1. De-hyphenation"]
+        PageNum["2. Page number removal"]
+        Filter["3. Line filtering"]
+        Whitespace["4. Whitespace cleanup"]
     end
 
-    Output["Clean chunks ready for<br/>extraction, Q&A, summarization"]
+    subgraph Sanitize["STEP 2.5: SANITIZATION"]
+        Mojibake["Fix mojibake"]
+        Unicode["Unicode normalize"]
+        Redact["Handle redactions"]
+    end
 
-    Input --> Stage1
-    Stage1 --> Stage2
-    S1 --> S2 --> S3 --> S4 --> S5 --> S6
-    Stage2 --> Stage3
-    P1 --> P2 --> P3 --> P4 --> P5
-    Stage3 --> Stage4
-    Stage4 --> Output
+    Output["Clean Text + Confidence Score"]
+
+    Files --> FileType
+    FileType -->|.pdf| PDF
+    FileType -->|.docx| DOCX
+    FileType -->|.txt/.rtf| TXT
+    FileType -->|.png/.jpg| IMG
+
+    PDF --> PDFPipeline
+    PyMuPDF --> Vote
+    Pdfplumber --> Vote
+    Vote --> Quality
+    Quality -->|Yes| Normalize
+    Quality -->|No| OCR
+    OCR --> Normalize
+
+    DOCX --> Normalize
+    TXT --> Normalize
+    IMG --> Normalize
+
+    Normalize --> Sanitize
+    Sanitize --> Output
+```
+
+### Extraction Module Structure (Session 81 Refactor)
+
+The `src/core/extraction/` package was refactored from a single 1100-line file into focused modules:
+
+```
+src/core/extraction/
+    __init__.py                    # Re-exports RawTextExtractor (API unchanged)
+    raw_text_extractor.py          # Facade class - orchestration only (~480 lines)
+    pdf_extractor.py               # PDF hybrid extraction + word voting (~260 lines)
+    ocr_processor.py               # OCR with image preprocessing (~160 lines)
+    file_readers.py                # TXT/RTF/DOCX/image readers (~200 lines)
+    text_normalizer.py             # 4-stage normalization pipeline (~270 lines)
+    dictionary_utils.py            # Dictionary confidence + validation (~170 lines)
+    case_number_extractor.py       # Case number regex patterns (~90 lines)
+    image_preprocessor.py          # OCR image enhancement (unchanged)
+    llm_extractor.py               # LLM-based extraction (unchanged)
 ```
 
 ### Extraction Details
 
 | Stage | File | Method |
 |-------|------|--------|
-| PDF text | `extraction/raw_text_extractor.py` | pdfplumber digital extraction |
-| OCR detection | `extraction/raw_text_extractor.py` | Dictionary confidence < 60% triggers OCR |
-| OCR processing | `extraction/raw_text_extractor.py` | pdf2image + pytesseract at 300 DPI |
+| PDF text | `extraction/pdf_extractor.py` | Hybrid PyMuPDF + pdfplumber with word voting |
+| OCR detection | `extraction/pdf_extractor.py` | Dictionary confidence < 60% triggers OCR |
+| OCR processing | `extraction/ocr_processor.py` | pdf2image + pytesseract at 300 DPI |
 | **OCR preprocessing** | `extraction/image_preprocessor.py` | 8-stage image enhancement (Session 63, 74) |
+| Text normalization | `extraction/text_normalizer.py` | 4-stage pipeline (dehyphen, page nums, filter, whitespace) |
+| Dictionary utilities | `extraction/dictionary_utils.py` | NLTK words corpus, confidence calculation |
+| Non-PDF files | `extraction/file_readers.py` | TXT, RTF (striprtf), DOCX (python-docx), images (OCR) |
+| Case numbers | `extraction/case_number_extractor.py` | Regex for federal, NY Index, docket formats |
 | Sanitization | `sanitization/character_sanitizer.py` | 6-stage pipeline |
 | Preprocessing | `preprocessing/*.py` | Pluggable removers |
 
@@ -1055,8 +1094,14 @@ src/
 │   │   ├── prompt_formatter.py      # Model-specific formatting
 │   │   └── summary_post_processor.py # Length enforcement
 │   │
-│   ├── extraction/              # Document extraction
-│   │   ├── raw_text_extractor.py    # PDF/TXT/RTF → text
+│   ├── extraction/              # Document extraction (Session 81 refactor)
+│   │   ├── raw_text_extractor.py    # Facade - orchestration only
+│   │   ├── pdf_extractor.py         # Hybrid PyMuPDF + pdfplumber + voting
+│   │   ├── ocr_processor.py         # OCR with image preprocessing
+│   │   ├── file_readers.py          # TXT/RTF/DOCX/image handlers
+│   │   ├── text_normalizer.py       # 4-stage text normalization
+│   │   ├── dictionary_utils.py      # Dictionary confidence + validation
+│   │   ├── case_number_extractor.py # Legal case number regex
 │   │   ├── image_preprocessor.py    # OCR image preprocessing (Session 63)
 │   │   └── llm_extractor.py         # Ollama-based extraction
 │   │

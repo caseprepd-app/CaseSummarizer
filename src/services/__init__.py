@@ -18,10 +18,10 @@ from src.services.settings_service import SettingsService
 from src.services.export_service import ExportService, get_export_service
 
 __all__ = [
-    'DocumentService',
-    'VocabularyService',
-    'QAService',
-    'SettingsService',
-    'ExportService',
-    'get_export_service',
+    "DocumentService",
+    "VocabularyService",
+    "QAService",
+    "SettingsService",
+    "ExportService",
+    "get_export_service",
 ]

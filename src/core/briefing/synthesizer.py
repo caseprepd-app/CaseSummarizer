@@ -305,7 +305,7 @@ WRITE THE NARRATIVE NOW (no preamble, just the narrative):"""
         ]
         for preamble in preambles:
             if text.strip().startswith(preamble):
-                text = text[len(preamble):].strip()
+                text = text[len(preamble) :].strip()
 
         # Remove trailing artifacts
         text = text.strip()
@@ -313,9 +313,9 @@ WRITE THE NARRATIVE NOW (no preamble, just the narrative):"""
         # Remove any markdown headers that slipped through
         lines = text.split("\n")
         cleaned_lines = [
-            line for line in lines
-            if not line.strip().startswith("#")
-            and not line.strip().startswith("##")
+            line
+            for line in lines
+            if not line.strip().startswith("#") and not line.strip().startswith("##")
         ]
         text = "\n".join(cleaned_lines)
 

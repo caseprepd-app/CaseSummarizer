@@ -142,8 +142,6 @@ def _is_known_term(term: str) -> bool:
     return all(word.strip(".,;:'\"") in known_words for word in words)
 
 
-
-
 def _edit_distance(s1: str, s2: str) -> int:
     """
     Calculate Levenshtein edit distance between two strings.
@@ -249,11 +247,7 @@ def filter_name_fragments(
         return vocabulary
 
     # Sort by count descending
-    sorted_vocab = sorted(
-        vocabulary,
-        key=lambda x: int(x.get(count_key, 0) or 0),
-        reverse=True
-    )
+    sorted_vocab = sorted(vocabulary, key=lambda x: int(x.get(count_key, 0) or 0), reverse=True)
 
     # Split into top quartile and bottom 3/4
     split_index = max(1, int(len(sorted_vocab) * top_fraction))
@@ -330,11 +324,7 @@ def filter_typo_variants(
         return vocabulary
 
     # Sort by count descending
-    sorted_vocab = sorted(
-        vocabulary,
-        key=lambda x: int(x.get(count_key, 0) or 0),
-        reverse=True
-    )
+    sorted_vocab = sorted(vocabulary, key=lambda x: int(x.get(count_key, 0) or 0), reverse=True)
 
     # Split into top quartile and bottom 3/4
     split_index = max(1, int(len(sorted_vocab) * top_fraction))
@@ -351,7 +341,9 @@ def filter_typo_variants(
     if not canonical_terms:
         return vocabulary
 
-    debug_log(f"[NAME-REG] Typo filter: {len(canonical_terms)} canonical terms (len >= {min_term_length})")
+    debug_log(
+        f"[NAME-REG] Typo filter: {len(canonical_terms)} canonical terms (len >= {min_term_length})"
+    )
 
     # Filter bottom terms
     filtered_bottom = []
@@ -432,11 +424,7 @@ def _single_pass_regularize(
         return vocabulary, 0, 0
 
     # Sort by count descending to determine canonical terms for FRAGMENT filter
-    sorted_vocab = sorted(
-        vocabulary,
-        key=lambda x: int(x.get(count_key, 0) or 0),
-        reverse=True
-    )
+    sorted_vocab = sorted(vocabulary, key=lambda x: int(x.get(count_key, 0) or 0), reverse=True)
 
     # Determine split point for fragment filter only
     fraction_index = int(len(sorted_vocab) * top_fraction)
@@ -478,11 +466,7 @@ def _single_pass_regularize(
     terms_to_remove: set[str] = set()
 
     # Build list of terms long enough for typo checking
-    long_terms = [
-        (t, t.get(term_key, ""))
-        for t in all_terms
-        if len(t.get(term_key, "")) >= 5
-    ]
+    long_terms = [(t, t.get(term_key, "")) for t in all_terms if len(t.get(term_key, "")) >= 5]
 
     # Create scorer once for efficiency
     scorer = create_canonical_scorer()
@@ -499,7 +483,7 @@ def _single_pass_regularize(
         similar_group = [(dict_a, term_a)]
         processed.add(term_a.lower())
 
-        for dict_b, term_b in long_terms[i + 1:]:
+        for dict_b, term_b in long_terms[i + 1 :]:
             if term_b.lower() in processed:
                 continue
 
@@ -526,16 +510,17 @@ def _single_pass_regularize(
             if sources is None:
                 # Create legacy sources from frequency
                 sources = TermSources.create_legacy(
-                    term_dict.get(count_key, 1),
-                    term_dict.get("source_doc_confidence", 0.85)
+                    term_dict.get(count_key, 1), term_dict.get("source_doc_confidence", 0.85)
                 )
 
-            variants.append({
-                "Term": term,
-                "sources": sources,
-                "In-Case Freq": term_dict.get(count_key, 1),
-                "_original_dict": term_dict,
-            })
+            variants.append(
+                {
+                    "Term": term,
+                    "sources": sources,
+                    "In-Case Freq": term_dict.get(count_key, 1),
+                    "_original_dict": term_dict,
+                }
+            )
 
         # Let CanonicalScorer select the winner
         canonical = scorer.select_canonical(variants)
@@ -552,10 +537,7 @@ def _single_pass_regularize(
                 )
 
     # Filter out removed terms
-    result = [
-        t for t in all_terms
-        if t.get(term_key, "").lower() not in terms_to_remove
-    ]
+    result = [t for t in all_terms if t.get(term_key, "").lower() not in terms_to_remove]
 
     return result, fragment_removed, typo_removed
 
@@ -604,7 +586,9 @@ def regularize_names(
     if not vocabulary or len(vocabulary) < 4:
         return vocabulary
 
-    debug_log(f"[NAME-REG] Starting regularization on {len(vocabulary)} terms ({num_passes} passes)")
+    debug_log(
+        f"[NAME-REG] Starting regularization on {len(vocabulary)} terms ({num_passes} passes)"
+    )
 
     result = vocabulary
     total_fragments = 0
@@ -619,14 +603,18 @@ def regularize_names(
         total_typos += typos
 
         removed_this_pass = prev_count - len(result)
-        debug_log(f"[NAME-REG] Pass {pass_num}: removed {fragments} fragments, {typos} typos ({removed_this_pass} total)")
+        debug_log(
+            f"[NAME-REG] Pass {pass_num}: removed {fragments} fragments, {typos} typos ({removed_this_pass} total)"
+        )
 
         # Early exit if no changes this pass
         if removed_this_pass == 0:
             debug_log(f"[NAME-REG] No changes in pass {pass_num}, stopping early")
             break
 
-    debug_log(f"[NAME-REG] Regularization complete: removed {total_fragments} fragments, {total_typos} typos total")
+    debug_log(
+        f"[NAME-REG] Regularization complete: removed {total_fragments} fragments, {total_typos} typos total"
+    )
     debug_log(f"[NAME-REG] Final: {len(result)} terms remaining")
 
     return result

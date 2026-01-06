@@ -31,9 +31,9 @@ from src.logging_config import debug_log, debug_timing, error, info
 
 
 # Token limits for chunk sizing (research-based fixed values - Session 67)
-DEFAULT_MIN_TOKENS = 400      # Minimum to prevent fragmentation
-DEFAULT_TARGET_TOKENS = 700   # Optimal for mixed queries (research: 500-800)
-DEFAULT_MAX_TOKENS = 1000     # Upper bound (>1024 hurts retrieval precision)
+DEFAULT_MIN_TOKENS = 400  # Minimum to prevent fragmentation
+DEFAULT_TARGET_TOKENS = 700  # Optimal for mixed queries (research: 500-800)
+DEFAULT_MAX_TOKENS = 1000  # Upper bound (>1024 hurts retrieval precision)
 
 # tiktoken encoding - cl100k_base works well for most models
 TIKTOKEN_ENCODING = "cl100k_base"
@@ -46,6 +46,7 @@ class UnifiedChunk:
 
     Used by both LLM extraction and Q&A indexing systems.
     """
+
     chunk_num: int
     text: str
     token_count: int
@@ -123,12 +124,10 @@ class UnifiedChunker:
         try:
             # Use same embedding model as existing chunking_engine.py
             self.embeddings = HuggingFaceEmbeddings(
-                model_name="all-MiniLM-L6-v2",
-                model_kwargs={'device': 'cpu'}
+                model_name="all-MiniLM-L6-v2", model_kwargs={"device": "cpu"}
             )
             self.semantic_chunker = SemanticChunker(
-                self.embeddings,
-                breakpoint_threshold_type="gradient"
+                self.embeddings, breakpoint_threshold_type="gradient"
             )
             debug_timing("Semantic chunker initialization", time.time() - init_start)
         except Exception as e:
@@ -209,10 +208,10 @@ class UnifiedChunker:
                 source_file=source_file,
                 section_name=self._detect_section(chunk_text),
                 metadata={
-                    'source': source_file,
-                    'chunk_index': i,
-                    'total_chunks': len(enforced_chunks),
-                }
+                    "source": source_file,
+                    "chunk_index": i,
+                    "total_chunks": len(enforced_chunks),
+                },
             )
             final_chunks.append(chunk)
 
@@ -225,8 +224,10 @@ class UnifiedChunker:
         token_counts = [c.token_count for c in final_chunks]
         avg_tokens = sum(token_counts) / len(token_counts) if token_counts else 0
 
-        info(f"Unified chunking complete: {len(final_chunks)} chunks, "
-             f"avg {avg_tokens:.0f} tokens/chunk, {total_time:.2f}s")
+        info(
+            f"Unified chunking complete: {len(final_chunks)} chunks, "
+            f"avg {avg_tokens:.0f} tokens/chunk, {total_time:.2f}s"
+        )
 
         return final_chunks
 
@@ -252,7 +253,7 @@ class UnifiedChunker:
 
         Splits on double newlines (paragraph boundaries).
         """
-        paragraphs = re.split(r'\n\s*\n', text)
+        paragraphs = re.split(r"\n\s*\n", text)
         return [p.strip() for p in paragraphs if p.strip()]
 
     def _enforce_token_limits(self, chunks: list[str]) -> list[str]:
@@ -289,7 +290,7 @@ class UnifiedChunker:
         Uses regex to find sentence endings (., !, ?) followed by space or newline.
         """
         # Sentence boundary pattern
-        sentence_pattern = re.compile(r'(?<=[.!?])\s+')
+        sentence_pattern = re.compile(r"(?<=[.!?])\s+")
         sentences = sentence_pattern.split(text)
 
         chunks = []
@@ -306,7 +307,7 @@ class UnifiedChunker:
             # If single sentence exceeds max, include it anyway (rare edge case)
             if sentence_tokens > self.max_tokens:
                 if current_chunk:
-                    chunks.append(' '.join(current_chunk))
+                    chunks.append(" ".join(current_chunk))
                     current_chunk = []
                     current_tokens = 0
                 chunks.append(sentence)
@@ -314,7 +315,7 @@ class UnifiedChunker:
 
             # Check if adding this sentence exceeds target
             if current_tokens + sentence_tokens > target_tokens and current_chunk:
-                chunks.append(' '.join(current_chunk))
+                chunks.append(" ".join(current_chunk))
                 current_chunk = [sentence]
                 current_tokens = sentence_tokens
             else:
@@ -323,7 +324,7 @@ class UnifiedChunker:
 
         # Don't forget the last chunk
         if current_chunk:
-            chunks.append(' '.join(current_chunk))
+            chunks.append(" ".join(current_chunk))
 
         return chunks
 
@@ -347,7 +348,7 @@ class UnifiedChunker:
             if current_tokens < self.min_tokens:
                 combined_tokens = current_tokens + next_tokens
                 if combined_tokens <= self.max_tokens:
-                    current_chunk = current_chunk + '\n\n' + next_chunk
+                    current_chunk = current_chunk + "\n\n" + next_chunk
                     current_tokens = combined_tokens
                     continue
 
@@ -369,13 +370,13 @@ class UnifiedChunker:
         """
         # Common legal document section patterns
         patterns = [
-            r'^(?:FIRST|SECOND|THIRD|FOURTH|FIFTH)\s+(?:CAUSE\s+OF\s+ACTION|CLAIM)',
-            r'^(?:COUNT|CLAIM)\s+(?:ONE|TWO|THREE|FOUR|FIVE|[IVX]+|\d+)',
-            r'^(?:WHEREFORE|PRAYER\s+FOR\s+RELIEF)',
-            r'^(?:INTRODUCTION|BACKGROUND|STATEMENT\s+OF\s+FACTS)',
-            r'^(?:ALLEGATIONS|AFFIRMATIVE\s+DEFENSES)',
-            r'^(?:DIRECT|CROSS|REDIRECT)\s+EXAMINATION',
-            r'^Q\.\s+',  # Q&A format in depositions
+            r"^(?:FIRST|SECOND|THIRD|FOURTH|FIFTH)\s+(?:CAUSE\s+OF\s+ACTION|CLAIM)",
+            r"^(?:COUNT|CLAIM)\s+(?:ONE|TWO|THREE|FOUR|FIVE|[IVX]+|\d+)",
+            r"^(?:WHEREFORE|PRAYER\s+FOR\s+RELIEF)",
+            r"^(?:INTRODUCTION|BACKGROUND|STATEMENT\s+OF\s+FACTS)",
+            r"^(?:ALLEGATIONS|AFFIRMATIVE\s+DEFENSES)",
+            r"^(?:DIRECT|CROSS|REDIRECT)\s+EXAMINATION",
+            r"^Q\.\s+",  # Q&A format in depositions
         ]
 
         for pattern in patterns:
@@ -407,7 +408,7 @@ class UnifiedChunker:
             documents = loader.load()
 
             # Combine all pages into single text
-            full_text = '\n\n'.join(doc.page_content for doc in documents)
+            full_text = "\n\n".join(doc.page_content for doc in documents)
             debug_log(f"Loaded {len(documents)} pages from PDF: {source}")
 
             # Use standard text chunking
@@ -425,8 +426,8 @@ class UnifiedChunker:
     def get_cache_stats(self) -> dict:
         """Get cache statistics."""
         return {
-            'cached_documents': len(self._chunk_cache),
-            'total_cached_chunks': sum(len(chunks) for chunks in self._chunk_cache.values()),
+            "cached_documents": len(self._chunk_cache),
+            "total_cached_chunks": sum(len(chunks) for chunks in self._chunk_cache.values()),
         }
 
 
@@ -453,6 +454,7 @@ def create_unified_chunker(
     if min_tokens is None and target_tokens is None and max_tokens is None:
         try:
             from src.user_preferences import get_user_preferences
+
             prefs = get_user_preferences()
             sizes = prefs.get_effective_chunk_sizes()
             min_tokens = sizes["min_tokens"]

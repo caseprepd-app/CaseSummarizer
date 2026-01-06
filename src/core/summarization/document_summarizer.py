@@ -63,7 +63,7 @@ class DocumentSummarizer(ABC):
         filename: str,
         max_words: int = 200,
         progress_callback: Callable[[int, str], None] | None = None,
-        stop_check: Callable[[], bool] | None = None
+        stop_check: Callable[[], bool] | None = None,
     ) -> DocumentSummaryResult:
         """
         Summarize a single document.
@@ -111,7 +111,7 @@ class ProgressiveDocumentSummarizer(DocumentSummarizer):
         model_manager: OllamaModelManager,
         config_path: Path | None = None,
         prompt_adapter: "PromptAdapter | None" = None,
-        preset_id: str = "factual-summary"
+        preset_id: str = "factual-summary",
     ):
         """
         Initialize the progressive document summarizer.
@@ -136,7 +136,7 @@ class ProgressiveDocumentSummarizer(DocumentSummarizer):
         filename: str,
         max_words: int = 200,
         progress_callback: Callable[[int, str], None] | None = None,
-        stop_check: Callable[[], bool] | None = None
+        stop_check: Callable[[], bool] | None = None,
     ) -> DocumentSummaryResult:
         """
         Summarize a document using progressive chunking.
@@ -162,7 +162,7 @@ class ProgressiveDocumentSummarizer(DocumentSummarizer):
                 chunk_count=0,
                 processing_time_seconds=time.time() - start_time,
                 success=False,
-                error_message="Document text is empty or too short to summarize"
+                error_message="Document text is empty or too short to summarize",
             )
 
         try:
@@ -184,7 +184,7 @@ class ProgressiveDocumentSummarizer(DocumentSummarizer):
                     chunk_count=0,
                     processing_time_seconds=time.time() - start_time,
                     success=False,
-                    error_message="Document could not be chunked"
+                    error_message="Document could not be chunked",
                 )
 
             debug_log(f"[DOC SUMMARIZER] {filename}: {chunk_count} chunks")
@@ -209,7 +209,7 @@ class ProgressiveDocumentSummarizer(DocumentSummarizer):
                         chunk_count=i,
                         processing_time_seconds=time.time() - start_time,
                         success=False,
-                        error_message="Processing cancelled by user"
+                        error_message="Processing cancelled by user",
                     )
 
                 chunk_num = i + 1
@@ -217,8 +217,7 @@ class ProgressiveDocumentSummarizer(DocumentSummarizer):
 
                 if progress_callback:
                     progress_callback(
-                        progress_percent,
-                        f"{filename}: chunk {chunk_num}/{chunk_count}"
+                        progress_percent, f"{filename}: chunk {chunk_num}/{chunk_count}"
                     )
 
                 # Generate chunk summary with context
@@ -226,27 +225,25 @@ class ProgressiveDocumentSummarizer(DocumentSummarizer):
                     progressive=progressive,
                     chunk_num=chunk_num,
                     chunk_text=chunk.text,
-                    target_words=target_chunk_words
+                    target_words=target_chunk_words,
                 )
 
                 chunk_summaries.append(chunk_summary)
 
                 # Update DataFrame
-                progressive.df.loc[
-                    progressive.df['chunk_num'] == chunk_num,
-                    'chunk_summary'
-                ] = chunk_summary
+                progressive.df.loc[progressive.df["chunk_num"] == chunk_num, "chunk_summary"] = (
+                    chunk_summary
+                )
 
                 # Update progressive summary at batch boundaries
                 if chunk_num in batch_boundaries:
                     progressive.current_progressive_summary = self._update_progressive_summary(
                         chunk_summaries,
                         filename,
-                        max_words=max(50, max_words // 2)  # Progressive summary shorter than final
+                        max_words=max(50, max_words // 2),  # Progressive summary shorter than final
                     )
                     progressive.df.loc[
-                        progressive.df['chunk_num'] == chunk_num,
-                        'progressive_summary'
+                        progressive.df["chunk_num"] == chunk_num, "progressive_summary"
                     ] = progressive.current_progressive_summary
 
             # Step 5: Generate final summary from all chunk summaries
@@ -254,9 +251,7 @@ class ProgressiveDocumentSummarizer(DocumentSummarizer):
                 progress_callback(95, f"Finalizing {filename} summary...")
 
             final_summary = self._generate_final_summary(
-                chunk_summaries=chunk_summaries,
-                filename=filename,
-                max_words=max_words
+                chunk_summaries=chunk_summaries, filename=filename, max_words=max_words
             )
 
             processing_time = time.time() - start_time
@@ -270,7 +265,7 @@ class ProgressiveDocumentSummarizer(DocumentSummarizer):
                 word_count=word_count,
                 chunk_count=chunk_count,
                 processing_time_seconds=processing_time,
-                success=True
+                success=True,
             )
 
         except Exception as e:
@@ -282,7 +277,7 @@ class ProgressiveDocumentSummarizer(DocumentSummarizer):
                 chunk_count=0,
                 processing_time_seconds=time.time() - start_time,
                 success=False,
-                error_message=str(e)
+                error_message=str(e),
             )
 
     def _summarize_chunk(
@@ -290,7 +285,7 @@ class ProgressiveDocumentSummarizer(DocumentSummarizer):
         progressive: ProgressiveSummarizer,
         chunk_num: int,
         chunk_text: str,
-        target_words: int = 75
+        target_words: int = 75,
     ) -> str:
         """
         Generate a summary for a single chunk with context.
@@ -311,14 +306,14 @@ class ProgressiveDocumentSummarizer(DocumentSummarizer):
         # Use focus-aware prompts if adapter is configured
         if self.prompt_adapter:
             # Get context from progressive summarizer
-            global_context = progressive.current_progressive_summary or "Document analysis just started."
+            global_context = (
+                progressive.current_progressive_summary or "Document analysis just started."
+            )
             local_context = self._get_local_context(progressive, chunk_num)
 
             # Get model name for adapter (cached)
             if not self._model_name:
-                self._model_name = getattr(
-                    self.model_manager, 'loaded_model_name', 'phi-3-mini'
-                )
+                self._model_name = getattr(self.model_manager, "loaded_model_name", "phi-3-mini")
 
             prompt = self.prompt_adapter.create_chunk_prompt(
                 preset_id=self.preset_id,
@@ -326,32 +321,23 @@ class ProgressiveDocumentSummarizer(DocumentSummarizer):
                 global_context=global_context,
                 local_context=local_context,
                 chunk_text=chunk_text,
-                max_words=target_words
+                max_words=target_words,
             )
         else:
             # Fallback: use default prompts from ProgressiveSummarizer
             prompt = progressive.create_summarization_prompt(
-                chunk_num=chunk_num,
-                chunk_text=chunk_text,
-                summary_target_words=target_words
+                chunk_num=chunk_num, chunk_text=chunk_text, summary_target_words=target_words
             )
 
         # Generate summary via Ollama
         # Use 1.5x tokens per word with buffer
         max_tokens = int(target_words * 2.0)
 
-        summary = self.model_manager.generate_text(
-            prompt=prompt,
-            max_tokens=max_tokens
-        )
+        summary = self.model_manager.generate_text(prompt=prompt, max_tokens=max_tokens)
 
         return summary.strip()
 
-    def _get_local_context(
-        self,
-        progressive: ProgressiveSummarizer,
-        chunk_num: int
-    ) -> str:
+    def _get_local_context(self, progressive: ProgressiveSummarizer, chunk_num: int) -> str:
         """
         Get local context (previous chunk summary) for chunk prompt.
 
@@ -366,19 +352,16 @@ class ProgressiveDocumentSummarizer(DocumentSummarizer):
             return "This is the first section of the document."
 
         # Get previous chunk's summary from DataFrame
-        prev_row = progressive.df[progressive.df['chunk_num'] == chunk_num - 1]
+        prev_row = progressive.df[progressive.df["chunk_num"] == chunk_num - 1]
         if not prev_row.empty:
-            prev_summary = prev_row['chunk_summary'].iloc[0]
+            prev_summary = prev_row["chunk_summary"].iloc[0]
             if prev_summary and str(prev_summary).strip():
                 return str(prev_summary)
 
         return "Previous section summary not available."
 
     def _update_progressive_summary(
-        self,
-        chunk_summaries: list[str],
-        filename: str,
-        max_words: int = 100
+        self, chunk_summaries: list[str], filename: str, max_words: int = 100
     ) -> str:
         """
         Update the progressive summary from accumulated chunk summaries.
@@ -419,10 +402,7 @@ Progressive Summary:"""
         return summary.strip()
 
     def _generate_final_summary(
-        self,
-        chunk_summaries: list[str],
-        filename: str,
-        max_words: int = 200
+        self, chunk_summaries: list[str], filename: str, max_words: int = 200
     ) -> str:
         """
         Generate the final document summary from all chunk summaries.
@@ -449,16 +429,14 @@ Progressive Summary:"""
         if self.prompt_adapter:
             # Get model name for adapter (cached)
             if not self._model_name:
-                self._model_name = getattr(
-                    self.model_manager, 'loaded_model_name', 'phi-3-mini'
-                )
+                self._model_name = getattr(self.model_manager, "loaded_model_name", "phi-3-mini")
 
             prompt = self.prompt_adapter.create_document_final_prompt(
                 preset_id=self.preset_id,
                 model_name=self._model_name,
                 chunk_summaries=combined,
                 filename=filename,
-                max_words=max_words
+                max_words=max_words,
             )
         else:
             # Fallback: use default prompts

@@ -30,16 +30,11 @@ class NameRegularizerFilter(BaseVocabularyFilter):
 
         original_count = len(vocabulary)
         filtered = regularize_names(
-            vocabulary,
-            top_fraction=self.top_fraction,
-            num_passes=self.num_passes
+            vocabulary, top_fraction=self.top_fraction, num_passes=self.num_passes
         )
 
         return FilterResult(
             vocabulary=filtered,
             removed_count=original_count - len(filtered),
-            metadata={
-                'top_fraction': self.top_fraction,
-                'num_passes': self.num_passes
-            }
+            metadata={"top_fraction": self.top_fraction, "num_passes": self.num_passes},
         )

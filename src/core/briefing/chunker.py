@@ -71,7 +71,13 @@ class DocumentChunker:
     # Legal section patterns (compiled for performance)
     SECTION_PATTERNS = [
         # Complaint sections
-        (re.compile(r"^\s*(FIRST|SECOND|THIRD|FOURTH|FIFTH)\s+CAUSE\s+OF\s+ACTION", re.IGNORECASE | re.MULTILINE), "cause_of_action"),
+        (
+            re.compile(
+                r"^\s*(FIRST|SECOND|THIRD|FOURTH|FIFTH)\s+CAUSE\s+OF\s+ACTION",
+                re.IGNORECASE | re.MULTILINE,
+            ),
+            "cause_of_action",
+        ),
         (re.compile(r"^\s*COUNT\s+[IVX\d]+", re.IGNORECASE | re.MULTILINE), "count"),
         (re.compile(r"^\s*WHEREFORE", re.IGNORECASE | re.MULTILINE), "wherefore"),
         (re.compile(r"^\s*PRAYER\s+FOR\s+RELIEF", re.IGNORECASE | re.MULTILINE), "prayer"),
@@ -79,20 +85,38 @@ class DocumentChunker:
         (re.compile(r"^\s*NATURE\s+OF\s+(THE\s+)?ACTION", re.IGNORECASE | re.MULTILINE), "nature"),
         (re.compile(r"^\s*PARTIES", re.IGNORECASE | re.MULTILINE), "parties"),
         (re.compile(r"^\s*JURISDICTION", re.IGNORECASE | re.MULTILINE), "jurisdiction"),
-
         # Answer sections
-        (re.compile(r"^\s*AFFIRMATIVE\s+DEFENSES?", re.IGNORECASE | re.MULTILINE), "affirmative_defenses"),
-        (re.compile(r"^\s*(FIRST|SECOND|THIRD|FOURTH|FIFTH)\s+AFFIRMATIVE\s+DEFENSE", re.IGNORECASE | re.MULTILINE), "affirmative_defense"),
+        (
+            re.compile(r"^\s*AFFIRMATIVE\s+DEFENSES?", re.IGNORECASE | re.MULTILINE),
+            "affirmative_defenses",
+        ),
+        (
+            re.compile(
+                r"^\s*(FIRST|SECOND|THIRD|FOURTH|FIFTH)\s+AFFIRMATIVE\s+DEFENSE",
+                re.IGNORECASE | re.MULTILINE,
+            ),
+            "affirmative_defense",
+        ),
         (re.compile(r"^\s*ANSWER", re.IGNORECASE | re.MULTILINE), "answer"),
         (re.compile(r"^\s*DENIALS?", re.IGNORECASE | re.MULTILINE), "denials"),
-
         # Transcript sections
-        (re.compile(r"^\s*DIRECT\s+EXAMINATION", re.IGNORECASE | re.MULTILINE), "direct_examination"),
-        (re.compile(r"^\s*CROSS[- ]?EXAMINATION", re.IGNORECASE | re.MULTILINE), "cross_examination"),
-        (re.compile(r"^\s*REDIRECT\s+EXAMINATION", re.IGNORECASE | re.MULTILINE), "redirect_examination"),
+        (
+            re.compile(r"^\s*DIRECT\s+EXAMINATION", re.IGNORECASE | re.MULTILINE),
+            "direct_examination",
+        ),
+        (
+            re.compile(r"^\s*CROSS[- ]?EXAMINATION", re.IGNORECASE | re.MULTILINE),
+            "cross_examination",
+        ),
+        (
+            re.compile(r"^\s*REDIRECT\s+EXAMINATION", re.IGNORECASE | re.MULTILINE),
+            "redirect_examination",
+        ),
         (re.compile(r"^\s*(THE\s+)?WITNESS:", re.IGNORECASE | re.MULTILINE), "witness_statement"),
-        (re.compile(r"^\s*BY\s+(MR\.|MS\.|MRS\.)\s+\w+:", re.IGNORECASE | re.MULTILINE), "attorney_question"),
-
+        (
+            re.compile(r"^\s*BY\s+(MR\.|MS\.|MRS\.)\s+\w+:", re.IGNORECASE | re.MULTILINE),
+            "attorney_question",
+        ),
         # General sections
         (re.compile(r"^\s*INTRODUCTION", re.IGNORECASE | re.MULTILINE), "introduction"),
         (re.compile(r"^\s*BACKGROUND", re.IGNORECASE | re.MULTILINE), "background"),
@@ -126,7 +150,9 @@ class DocumentChunker:
         self.max_chars = max_chars
         self.min_chars = min_chars
 
-        debug_log(f"[DocumentChunker] Initialized: target={target_chars}, max={max_chars}, min={min_chars}")
+        debug_log(
+            f"[DocumentChunker] Initialized: target={target_chars}, max={max_chars}, min={min_chars}"
+        )
 
     def chunk_documents(
         self,
@@ -172,7 +198,9 @@ class DocumentChunker:
 
             debug_log(f"[DocumentChunker] {filename}: {len(doc_chunks)} chunks, type={doc_type}")
 
-        debug_log(f"[DocumentChunker] Total: {len(all_chunks)} chunks from {len(documents)} documents")
+        debug_log(
+            f"[DocumentChunker] Total: {len(all_chunks)} chunks from {len(documents)} documents"
+        )
         return all_chunks
 
     def _detect_document_type(self, text: str, filename: str) -> str:
@@ -321,10 +349,10 @@ class DocumentChunker:
             List of paragraph strings
         """
         # Normalize line endings
-        text = text.replace('\r\n', '\n').replace('\r', '\n')
+        text = text.replace("\r\n", "\n").replace("\r", "\n")
 
         # First try: Split on double newlines (standard paragraph breaks)
-        paragraphs = re.split(r'\n\s*\n', text)
+        paragraphs = re.split(r"\n\s*\n", text)
 
         # Filter empty paragraphs and strip whitespace
         paragraphs = [p.strip() for p in paragraphs if p.strip()]
@@ -334,7 +362,9 @@ class DocumentChunker:
         max_para_len = max(len(p) for p in paragraphs) if paragraphs else 0
 
         if max_para_len > self.max_chars:
-            debug_log(f"[DocumentChunker] Large paragraph detected ({max_para_len} chars), using line-based splitting")
+            debug_log(
+                f"[DocumentChunker] Large paragraph detected ({max_para_len} chars), using line-based splitting"
+            )
             # Re-split using single newlines for documents without proper paragraph breaks
             paragraphs = self._split_on_lines(text)
 
@@ -348,7 +378,9 @@ class DocumentChunker:
                 final_paragraphs.append(para)
 
         if len(final_paragraphs) != len(paragraphs):
-            debug_log(f"[DocumentChunker] Force-split applied: {len(paragraphs)} → {len(final_paragraphs)} paragraphs")
+            debug_log(
+                f"[DocumentChunker] Force-split applied: {len(paragraphs)} → {len(final_paragraphs)} paragraphs"
+            )
 
         return final_paragraphs
 
@@ -365,7 +397,7 @@ class DocumentChunker:
         Returns:
             List of grouped text segments
         """
-        lines = text.split('\n')
+        lines = text.split("\n")
         lines = [line.strip() for line in lines if line.strip()]
 
         if not lines:
@@ -381,7 +413,7 @@ class DocumentChunker:
 
             # If adding this line would exceed target, save current group
             if current_len + line_len > self.target_chars and current_group:
-                result.append('\n'.join(current_group))
+                result.append("\n".join(current_group))
                 current_group = []
                 current_len = 0
 
@@ -390,9 +422,11 @@ class DocumentChunker:
 
         # Don't forget the last group
         if current_group:
-            result.append('\n'.join(current_group))
+            result.append("\n".join(current_group))
 
-        debug_log(f"[DocumentChunker] Line-based split: {len(lines)} lines → {len(result)} segments")
+        debug_log(
+            f"[DocumentChunker] Line-based split: {len(lines)} lines → {len(result)} segments"
+        )
         return result
 
     def _force_split_oversized(self, text: str) -> list[str]:
@@ -428,7 +462,9 @@ class DocumentChunker:
             for i in range(search_end - 1, search_start - 200, -1):
                 if i < 0:
                     break
-                if remaining[i] in '.!?' and (i + 1 >= len(remaining) or remaining[i + 1].isspace()):
+                if remaining[i] in ".!?" and (
+                    i + 1 >= len(remaining) or remaining[i + 1].isspace()
+                ):
                     best_break = i + 1
                     break
 

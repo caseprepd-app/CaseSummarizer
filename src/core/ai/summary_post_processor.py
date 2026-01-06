@@ -43,7 +43,7 @@ class SummaryPostProcessor:
         generate_text_fn: Callable[[str, int], str],
         prompt_template_manager: PromptTemplateManager | None = None,
         tolerance: float = None,
-        max_attempts: int = None
+        max_attempts: int = None,
     ):
         """
         Initialize the post-processor.
@@ -66,14 +66,11 @@ class SummaryPostProcessor:
 
         # Use config values as defaults, allow override
         self.tolerance = tolerance if tolerance is not None else SUMMARY_LENGTH_TOLERANCE
-        self.max_attempts = max_attempts if max_attempts is not None else SUMMARY_MAX_CONDENSE_ATTEMPTS
+        self.max_attempts = (
+            max_attempts if max_attempts is not None else SUMMARY_MAX_CONDENSE_ATTEMPTS
+        )
 
-    def enforce_length(
-        self,
-        summary: str,
-        target_words: int,
-        max_attempts: int = None
-    ) -> str:
+    def enforce_length(self, summary: str, target_words: int, max_attempts: int = None) -> str:
         """
         Enforce summary length by recursively condensing if over target.
 
@@ -95,14 +92,18 @@ class SummaryPostProcessor:
         actual_words = len(summary.split())
         attempt = 0
 
-        debug_log(f"[LENGTH ENFORCE] Target: {target_words} words, "
-                  f"Max acceptable: {max_acceptable_words} words, "
-                  f"Actual: {actual_words} words")
+        debug_log(
+            f"[LENGTH ENFORCE] Target: {target_words} words, "
+            f"Max acceptable: {max_acceptable_words} words, "
+            f"Actual: {actual_words} words"
+        )
 
         while actual_words > max_acceptable_words and attempt < attempts:
             attempt += 1
-            debug_log(f"[LENGTH ENFORCE] Attempt {attempt}/{attempts}: "
-                      f"Summary is {actual_words} words (>{max_acceptable_words}). Condensing...")
+            debug_log(
+                f"[LENGTH ENFORCE] Attempt {attempt}/{attempts}: "
+                f"Summary is {actual_words} words (>{max_acceptable_words}). Condensing..."
+            )
 
             summary = self._condense_summary(summary, target_words)
             actual_words = len(summary.split())
@@ -110,19 +111,19 @@ class SummaryPostProcessor:
             debug_log(f"[LENGTH ENFORCE] After condensation: {actual_words} words")
 
         if actual_words > max_acceptable_words:
-            debug_log(f"[LENGTH ENFORCE] WARNING: After {attempts} attempts, "
-                      f"summary is still {actual_words} words. Returning best effort.")
+            debug_log(
+                f"[LENGTH ENFORCE] WARNING: After {attempts} attempts, "
+                f"summary is still {actual_words} words. Returning best effort."
+            )
         else:
-            debug_log(f"[LENGTH ENFORCE] Success: {actual_words} words "
-                      f"(within {self.tolerance*100:.0f}% tolerance of {target_words})")
+            debug_log(
+                f"[LENGTH ENFORCE] Success: {actual_words} words "
+                f"(within {self.tolerance*100:.0f}% tolerance of {target_words})"
+            )
 
         return summary
 
-    def _condense_summary(
-        self,
-        summary: str,
-        target_words: int
-    ) -> str:
+    def _condense_summary(self, summary: str, target_words: int) -> str:
         """
         Condense an over-length summary to target word count.
 
@@ -147,7 +148,7 @@ class SummaryPostProcessor:
                 min_words=min_words,
                 max_words=target_words,
                 max_words_range=max_words_range,
-                case_text=summary  # The summary becomes the input text
+                case_text=summary,  # The summary becomes the input text
             )
         except FileNotFoundError:
             # Fallback: use a simple inline condensation prompt

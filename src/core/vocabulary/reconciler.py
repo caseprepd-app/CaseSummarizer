@@ -61,6 +61,7 @@ class ReconciledPerson:
         ner_confidence: Confidence from NER (0 if not found by NER)
         llm_confidence: Confidence from LLM (0 if not found by LLM)
     """
+
     name: str
     role: str
     found_by: FoundBy
@@ -94,6 +95,7 @@ class ReconciledTerm:
         ner_confidence: Confidence from NER (0 if not found by NER)
         llm_confidence: Confidence from LLM (0 if not found by LLM)
     """
+
     term: str
     type: str
     found_by: FoundBy
@@ -191,40 +193,43 @@ class VocabularyReconciler:
                 if role == "other" and ner_data.get("role"):
                     role = ner_data["role"]
 
-                results.append(ReconciledPerson(
-                    name=ner_data["name"],  # Use NER's canonical form
-                    role=role,
-                    found_by="NER, LLM",  # Session 61: List algorithms instead of "Both"
-                    ner_confidence=ner_data["confidence"],
-                    llm_confidence=llm_data["confidence"],
-                ))
+                results.append(
+                    ReconciledPerson(
+                        name=ner_data["name"],  # Use NER's canonical form
+                        role=role,
+                        found_by="NER, LLM",  # Session 61: List algorithms instead of "Both"
+                        ner_confidence=ner_data["confidence"],
+                        llm_confidence=llm_data["confidence"],
+                    )
+                )
             else:
                 # NER only
-                results.append(ReconciledPerson(
-                    name=ner_data["name"],
-                    role=ner_data.get("role", "other"),
-                    found_by="NER",
-                    ner_confidence=ner_data["confidence"],
-                    llm_confidence=0.0,
-                ))
+                results.append(
+                    ReconciledPerson(
+                        name=ner_data["name"],
+                        role=ner_data.get("role", "other"),
+                        found_by="NER",
+                        ner_confidence=ner_data["confidence"],
+                        llm_confidence=0.0,
+                    )
+                )
 
         # Add LLM-only people
         for llm_key, llm_data in llm_dict.items():
             if llm_key not in matched_llm_keys:
-                results.append(ReconciledPerson(
-                    name=llm_data["name"],
-                    role=llm_data.get("role", "other"),
-                    found_by="LLM",
-                    ner_confidence=0.0,
-                    llm_confidence=llm_data["confidence"],
-                ))
+                results.append(
+                    ReconciledPerson(
+                        name=llm_data["name"],
+                        role=llm_data.get("role", "other"),
+                        found_by="LLM",
+                        ner_confidence=0.0,
+                        llm_confidence=llm_data["confidence"],
+                    )
+                )
 
         # Sort results: multiple algorithms first, then alphabetically by name
         # Session 61: Sort by comma count (more commas = more algorithms = higher priority)
-        sorted_results = sorted(
-            results,
-            key=lambda p: (-p.found_by.count(","), p.name.lower())
-        )
+        sorted_results = sorted(results, key=lambda p: (-p.found_by.count(","), p.name.lower()))
 
         # Log summary - Session 61: Updated to handle comma-separated found_by
         multi_count = sum(1 for r in sorted_results if "," in r.found_by)
@@ -323,36 +328,42 @@ class VocabularyReconciler:
                 llm_data = llm_dict[llm_match_key]
                 matched_llm_keys.add(llm_match_key)
 
-                results.append(ReconciledTerm(
-                    term=ner_data["term"],  # Use NER's canonical form
-                    type=self._resolve_type(ner_data["type"], llm_data["type"]),
-                    found_by="NER, LLM",  # Session 61: List algorithms instead of "Both"
-                    frequency=ner_data["frequency"] + llm_data["frequency"],
-                    ner_confidence=ner_data["confidence"],
-                    llm_confidence=llm_data["confidence"],
-                ))
+                results.append(
+                    ReconciledTerm(
+                        term=ner_data["term"],  # Use NER's canonical form
+                        type=self._resolve_type(ner_data["type"], llm_data["type"]),
+                        found_by="NER, LLM",  # Session 61: List algorithms instead of "Both"
+                        frequency=ner_data["frequency"] + llm_data["frequency"],
+                        ner_confidence=ner_data["confidence"],
+                        llm_confidence=llm_data["confidence"],
+                    )
+                )
             else:
                 # NER only
-                results.append(ReconciledTerm(
-                    term=ner_data["term"],
-                    type=normalize_category(ner_data["type"]),
-                    found_by="NER",
-                    frequency=ner_data["frequency"],
-                    ner_confidence=ner_data["confidence"],
-                    llm_confidence=0.0,
-                ))
+                results.append(
+                    ReconciledTerm(
+                        term=ner_data["term"],
+                        type=normalize_category(ner_data["type"]),
+                        found_by="NER",
+                        frequency=ner_data["frequency"],
+                        ner_confidence=ner_data["confidence"],
+                        llm_confidence=0.0,
+                    )
+                )
 
         # Add LLM-only terms
         for llm_key, llm_data in llm_dict.items():
             if llm_key not in matched_llm_keys:
-                results.append(ReconciledTerm(
-                    term=llm_data["term"],
-                    type=normalize_category(llm_data["type"]),
-                    found_by="LLM",
-                    frequency=llm_data["frequency"],
-                    ner_confidence=0.0,
-                    llm_confidence=llm_data["confidence"],
-                ))
+                results.append(
+                    ReconciledTerm(
+                        term=llm_data["term"],
+                        type=normalize_category(llm_data["type"]),
+                        found_by="LLM",
+                        frequency=llm_data["frequency"],
+                        ner_confidence=0.0,
+                        llm_confidence=llm_data["confidence"],
+                    )
+                )
 
         # Sort results
         sorted_results = self._sort_results(results)

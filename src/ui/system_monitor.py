@@ -67,25 +67,21 @@ class SystemMonitor(ctk.CTkFrame):
         self.cpu_frame.pack(side="left", padx=(5, 2), pady=3)
 
         self.cpu_label = ctk.CTkLabel(
-            self.cpu_frame,
-            text="CPU: 0%",
-            font=FONTS["tiny"],
-            text_color=COLORS["success_light"]
+            self.cpu_frame, text="CPU: 0%", font=FONTS["tiny"], text_color=COLORS["success_light"]
         )
         self.cpu_label.pack(padx=6, pady=2)
 
         # Separator
-        separator = ctk.CTkLabel(self, text="|", font=FONTS["tiny"], text_color=COLORS["text_disabled"])
+        separator = ctk.CTkLabel(
+            self, text="|", font=FONTS["tiny"], text_color=COLORS["text_disabled"]
+        )
         separator.pack(side="left", padx=2)
 
         self.ram_frame = ctk.CTkFrame(self, fg_color=COLORS["monitor_bg"], corner_radius=4)
         self.ram_frame.pack(side="left", padx=(2, 5), pady=3)
 
         self.ram_label = ctk.CTkLabel(
-            self.ram_frame,
-            text="RAM: 0%",
-            font=FONTS["tiny"],
-            text_color=COLORS["success_light"]
+            self.ram_frame, text="RAM: 0%", font=FONTS["tiny"], text_color=COLORS["success_light"]
         )
         self.ram_label.pack(padx=6, pady=2)
 
@@ -112,6 +108,7 @@ class SystemMonitor(ctk.CTkFrame):
     def _monitoring_loop(self):
         """Background thread that collects metrics."""
         import time
+
         # Initialize CPU percent tracking (first call returns 0)
         psutil.cpu_percent(interval=None)
 
@@ -131,8 +128,8 @@ class SystemMonitor(ctk.CTkFrame):
             # This doesn't block - it returns immediately with delta since last measurement
             cpu_percent = psutil.cpu_percent(interval=None)
             memory = psutil.virtual_memory()
-            ram_used_gb = memory.used / (1024 ** 3)
-            ram_total_gb = memory.total / (1024 ** 3)
+            ram_used_gb = memory.used / (1024**3)
+            ram_total_gb = memory.total / (1024**3)
             ram_percent = memory.percent  # psutil provides this directly
 
             # Store metrics in instance variables (thread-safe reads)
@@ -291,7 +288,7 @@ class SystemMonitor(ctk.CTkFrame):
                 corner_radius=5,
                 wraplength=280,
                 font=FONTS["tiny"],
-                justify="left"
+                justify="left",
             )
             label.pack(padx=8, pady=8)
 

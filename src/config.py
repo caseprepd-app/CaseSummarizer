@@ -14,7 +14,7 @@ DEBUG_MODE = True  # os.environ.get('DEBUG', 'false').lower() == 'true'
 
 # Application Paths
 APP_NAME = "LocalScribe"
-APPDATA_DIR = Path(os.environ.get('APPDATA', os.path.expanduser('~/.config'))) / APP_NAME
+APPDATA_DIR = Path(os.environ.get("APPDATA", os.path.expanduser("~/.config"))) / APP_NAME
 MODELS_DIR = APPDATA_DIR / "models"
 CACHE_DIR = APPDATA_DIR / "cache"
 LOGS_DIR = APPDATA_DIR / "logs"
@@ -75,13 +75,13 @@ ML_DECAY_WEIGHT_FLOOR = 0.55  # Old feedback retains 55% weight minimum
 # The shipped model works from day 0, so we start at 45% ML influence.
 # As user adds more feedback, ML influence increases (more personalized).
 ML_WEIGHT_THRESHOLDS = [
-    (1, 0.45),              # 0 user samples: shipped model (45% ML)
-    (10, 0.50),             # 1-9 samples: 50% ML
-    (25, 0.55),             # 10-24 samples: 55% ML
-    (50, 0.60),             # 25-49 samples: 60% ML
-    (100, 0.70),            # 50-99 samples: 70% ML
-    (200, 0.80),            # 100-199 samples: 80% ML
-    (float('inf'), 0.85),   # 200+ samples: 85% ML
+    (1, 0.45),  # 0 user samples: shipped model (45% ML)
+    (10, 0.50),  # 1-9 samples: 50% ML
+    (25, 0.55),  # 10-24 samples: 55% ML
+    (50, 0.60),  # 25-49 samples: 60% ML
+    (100, 0.70),  # 50-99 samples: 70% ML
+    (200, 0.80),  # 100-199 samples: 80% ML
+    (float("inf"), 0.85),  # 200+ samples: 85% ML
 ]
 
 # Source-Based Training Weights (Session 76)
@@ -92,24 +92,24 @@ ML_WEIGHT_THRESHOLDS = [
 # Thresholds: (min_user_samples, default_weight, user_weight)
 # Influence with 30 defaults: 1 user@1.5x = ~5%, 10 user@2x = ~40%, 100 user@3.5x = ~94%
 ML_SOURCE_WEIGHTS = [
-    (1, 1.0, 1.0),              # 0 user samples: only default data exists
-    (3, 1.0, 1.5),              # 1-2 samples: user 1.5x (early boost)
-    (10, 1.0, 2.0),             # 3-9 samples: user 2x
-    (25, 0.95, 2.5),            # 10-24 samples: user 2.5x, default starts dropping
-    (50, 0.9, 3.0),             # 25-49 samples: user 3x
-    (100, 0.8, 3.5),            # 50-99 samples: user 3.5x
-    (200, 0.7, 4.0),            # 100-199 samples: user 4x
-    (float('inf'), 0.6, 5.0),   # 200+ samples: user 5x, default 0.6x
+    (1, 1.0, 1.0),  # 0 user samples: only default data exists
+    (3, 1.0, 1.5),  # 1-2 samples: user 1.5x (early boost)
+    (10, 1.0, 2.0),  # 3-9 samples: user 2x
+    (25, 0.95, 2.5),  # 10-24 samples: user 2.5x, default starts dropping
+    (50, 0.9, 3.0),  # 25-49 samples: user 3x
+    (100, 0.8, 3.5),  # 50-99 samples: user 3.5x
+    (200, 0.7, 4.0),  # 100-199 samples: user 4x
+    (float("inf"), 0.6, 5.0),  # 200+ samples: user 5x, default 0.6x
 ]
 
 # Rule-Based Quality Score: TermSources Adjustments (Session 79)
 # These adjustments are applied BEFORE ML blending, based on document source quality.
 # All values are additive to the base score (50 points).
-SCORE_MULTI_DOC_BOOST = 10              # Bonus for terms found in 2+ documents
-SCORE_HIGH_CONF_BOOST = 5               # Bonus if high_conf_doc_ratio > 0.8
-SCORE_ALL_LOW_CONF_PENALTY = -10        # Penalty if ALL sources have confidence < 0.60
-SCORE_SINGLE_SOURCE_PENALTY = -10       # Penalty for single low-conf source (conditional)
-SCORE_SINGLE_SOURCE_MIN_DOCS = 3        # Only apply single-source penalty when session has 3+ docs
+SCORE_MULTI_DOC_BOOST = 10  # Bonus for terms found in 2+ documents
+SCORE_HIGH_CONF_BOOST = 5  # Bonus if high_conf_doc_ratio > 0.8
+SCORE_ALL_LOW_CONF_PENALTY = -10  # Penalty if ALL sources have confidence < 0.60
+SCORE_SINGLE_SOURCE_PENALTY = -10  # Penalty for single low-conf source (conditional)
+SCORE_SINGLE_SOURCE_MIN_DOCS = 3  # Only apply single-source penalty when session has 3+ docs
 SCORE_SINGLE_SOURCE_CONF_THRESHOLD = 0.70  # Confidence threshold for single-source penalty
 
 # Ensure ML directories exist
@@ -127,16 +127,16 @@ BM25_WEIGHT = 0.8  # Legacy - kept for backward compatibility
 # BM25+ Algorithm Parameters (unified across vocabulary and retrieval)
 # Using BM25+ parameters which are strictly better than standard BM25
 # (delta parameter prevents zero scores for very long documents)
-BM25_K1 = 1.5      # Term frequency saturation (higher = more weight on repeated terms)
-BM25_B = 0.75      # Length normalization (0 = no normalization, 1 = full normalization)
-BM25_DELTA = 1.0   # BM25+ improvement factor (prevents zero scores)
+BM25_K1 = 1.5  # Term frequency saturation (higher = more weight on repeated terms)
+BM25_B = 0.75  # Length normalization (0 = no normalization, 1 = full normalization)
+BM25_DELTA = 1.0  # BM25+ improvement factor (prevents zero scores)
 
 # Corpus Familiarity Filtering Configuration (Session 68)
 # Filters terms that appear too frequently across the user's corpus.
 # Terms above threshold are removed (user already knows them).
 # Terms below threshold get corpus_familiarity_score as ML feature.
 CORPUS_FAMILIARITY_THRESHOLD = 0.75  # Filter terms in 75%+ of corpus docs
-CORPUS_FAMILIARITY_MIN_DOCS = 10     # Alternative: filter if in 10+ docs
+CORPUS_FAMILIARITY_MIN_DOCS = 10  # Alternative: filter if in 10+ docs
 CORPUS_FAMILIARITY_EXEMPT_PERSONS = True  # Exempt person names from filtering
 
 # Vocabulary Extraction Algorithm Weights (Session 47)
@@ -144,7 +144,7 @@ CORPUS_FAMILIARITY_EXEMPT_PERSONS = True  # Exempt person names from filtering
 # Higher weight = more influence on final confidence score
 # These weights are used by ResultMerger to combine algorithm results
 VOCAB_ALGORITHM_WEIGHTS = {
-    "NER": 1.0,   # Primary - spaCy NER, most precise for names/entities
+    "NER": 1.0,  # Primary - spaCy NER, most precise for names/entities
     "RAKE": 0.7,  # Secondary - good for multi-word technical phrases
     "BM25": 0.8,  # Corpus-based term importance (requires 5+ docs)
 }
@@ -192,25 +192,34 @@ OLLAMA_CONTEXT_WINDOW = 4000  # Fallback default (conservative, CPU-safe)
 MODEL_CONFIG_FILE = Path(__file__).parent.parent / "config" / "models.yaml"
 MODEL_CONFIGS = {}
 
+
 def load_model_configs():
     """Loads model configurations from config/models.yaml."""
     global MODEL_CONFIGS
     try:
         with open(MODEL_CONFIG_FILE) as f:
             data = yaml.safe_load(f)
-            MODEL_CONFIGS = data.get('models', {})
+            MODEL_CONFIGS = data.get("models", {})
         if DEBUG_MODE and MODEL_CONFIGS:
             from src.logging_config import debug_log
-            debug_log(f"[Config] Loaded {len(MODEL_CONFIGS)} model configurations from {MODEL_CONFIG_FILE}")
+
+            debug_log(
+                f"[Config] Loaded {len(MODEL_CONFIGS)} model configurations from {MODEL_CONFIG_FILE}"
+            )
     except FileNotFoundError:
         if DEBUG_MODE:
             from src.logging_config import debug_log
-            debug_log(f"[Config] WARNING: Model config file not found at {MODEL_CONFIG_FILE}. Using fallback values.")
+
+            debug_log(
+                f"[Config] WARNING: Model config file not found at {MODEL_CONFIG_FILE}. Using fallback values."
+            )
         MODEL_CONFIGS = {}
     except Exception as e:
         from src.logging_config import debug_log
+
         debug_log(f"[Config] ERROR: Failed to load or parse model config file: {e}")
         MODEL_CONFIGS = {}
+
 
 def get_model_config(model_name: str) -> dict:
     """
@@ -230,29 +239,39 @@ def get_model_config(model_name: str) -> dict:
         return MODEL_CONFIGS[model_name]
 
     # 2. Fallback for base names (e.g., user has 'gemma3:1b-instruct', config has 'gemma3:1b')
-    base_name = model_name.split(':')[0]
+    base_name = model_name.split(":")[0]
     for name, config in MODEL_CONFIGS.items():
         if name.startswith(base_name):
             if DEBUG_MODE:
                 from src.logging_config import debug_log
-                debug_log(f"[Config] Found partial match for '{model_name}': using config for '{name}'.")
+
+                debug_log(
+                    f"[Config] Found partial match for '{model_name}': using config for '{name}'."
+                )
             return config
 
     # 3. Fallback to the default model name if no match found
     if OLLAMA_MODEL_NAME in MODEL_CONFIGS:
         if DEBUG_MODE:
             from src.logging_config import debug_log
-            debug_log(f"[Config] WARNING: Model '{model_name}' not found. Falling back to default model '{OLLAMA_MODEL_NAME}'.")
+
+            debug_log(
+                f"[Config] WARNING: Model '{model_name}' not found. Falling back to default model '{OLLAMA_MODEL_NAME}'."
+            )
         return MODEL_CONFIGS[OLLAMA_MODEL_NAME]
 
     # 4. Absolute fallback if config is empty or default is missing
     if DEBUG_MODE:
         from src.logging_config import debug_log
-        debug_log("[Config] WARNING: No model configurations found. Using hard-coded fallback values.")
+
+        debug_log(
+            "[Config] WARNING: No model configurations found. Using hard-coded fallback values."
+        )
     return {
-        'context_window': 4096,
-        'max_input_tokens': 2048,
+        "context_window": 4096,
+        "max_input_tokens": 2048,
     }
+
 
 # Note: Model configs loaded lazily by get_model_config() to avoid circular import
 # --- End New Model Configuration System ---
@@ -282,7 +301,9 @@ USER_VOCAB_EXCLUDE_PATH = CONFIG_DIR / "user_vocab_exclude.txt"
 # Vocabulary Extraction Rarity Settings
 # Path to Google word frequency dataset (word\tfrequency_count format)
 # Moved to data/frequency/ in Session 34 for better organization
-GOOGLE_WORD_FREQUENCY_FILE = Path(__file__).parent.parent / "data" / "frequency" / "Word_rarity-count_1w.txt"
+GOOGLE_WORD_FREQUENCY_FILE = (
+    Path(__file__).parent.parent / "data" / "frequency" / "Word_rarity-count_1w.txt"
+)
 # Words with rank >= threshold are considered rare
 # Higher threshold = more aggressive filtering (fewer terms extracted)
 # 150000 = bottom 55% of vocabulary (original, too permissive)
@@ -335,7 +356,7 @@ VOCABULARY_MIN_OCCURRENCES = 2
 #   0.50 = filter top 50% of English vocabulary
 #
 # Person names are exempt (names like "John Smith" use common words but are valuable)
-PHRASE_MAX_COMMONALITY_THRESHOLD = 0.50   # Filter if rarest word in top 50%
+PHRASE_MAX_COMMONALITY_THRESHOLD = 0.50  # Filter if rarest word in top 50%
 PHRASE_MEAN_COMMONALITY_THRESHOLD = 0.40  # Filter if average word in top 40%
 
 # Single-word rarity threshold (Session 58 - rank-based)
@@ -353,20 +374,20 @@ SINGLE_WORD_COMMONALITY_THRESHOLD = 0.50  # Filter top 50% of vocabulary
 # - 200+ rows: Performance degrades, especially with text wrapping
 # Default: 50 rows (conservative for responsiveness)
 # Maximum ceiling: 200 rows (hard limit to prevent GUI freezing)
-VOCABULARY_DISPLAY_LIMIT = 50   # User-configurable default (conservative)
-VOCABULARY_DISPLAY_MAX = 200    # Hard ceiling - cannot exceed this
+VOCABULARY_DISPLAY_LIMIT = 50  # User-configurable default (conservative)
+VOCABULARY_DISPLAY_MAX = 200  # Hard ceiling - cannot exceed this
 
 # Vocabulary Display Pagination (Session 16 - GUI responsiveness)
 # Controls async batch insertion to prevent GUI freezing during large loads
-VOCABULARY_ROWS_PER_PAGE = 50     # Initial rows shown; "Load More" adds more
+VOCABULARY_ROWS_PER_PAGE = 50  # Initial rows shown; "Load More" adds more
 VOCABULARY_BATCH_INSERT_SIZE = 20  # Rows inserted per async batch
 VOCABULARY_BATCH_INSERT_DELAY_MS = 10  # Delay between batches (ms)
 
 # spaCy Model Download Timeouts (Session 15)
 # Controls timeout behavior during automatic spaCy model downloads
-SPACY_DOWNLOAD_TIMEOUT_SEC = 600   # Overall timeout: 10 minutes
-SPACY_SOCKET_TIMEOUT_SEC = 10      # Socket timeout per request
-SPACY_THREAD_TIMEOUT_SEC = 15      # Thread termination timeout
+SPACY_DOWNLOAD_TIMEOUT_SEC = 600  # Overall timeout: 10 minutes
+SPACY_SOCKET_TIMEOUT_SEC = 10  # Socket timeout per request
+SPACY_THREAD_TIMEOUT_SEC = 15  # Thread termination timeout
 
 # Document Chunking (Session 20 - hierarchical summarization)
 # Overlap fraction prevents context loss at chunk boundaries
@@ -375,9 +396,9 @@ CHUNK_OVERLAP_FRACTION = 0.1  # 10% overlap between chunks
 # System Monitor Color Thresholds (CPU and RAM)
 # Used for color-coded status indicators in the system monitor widget
 # Applied independently to both CPU and RAM percentages
-SYSTEM_MONITOR_THRESHOLD_GREEN = 75    # 0-74%: Green (healthy)
-SYSTEM_MONITOR_THRESHOLD_YELLOW = 85   # 75-84%: Yellow (elevated)
-SYSTEM_MONITOR_THRESHOLD_CRITICAL = 90 # 90%+: Red with "!" indicator
+SYSTEM_MONITOR_THRESHOLD_GREEN = 75  # 0-74%: Green (healthy)
+SYSTEM_MONITOR_THRESHOLD_YELLOW = 85  # 75-84%: Yellow (elevated)
+SYSTEM_MONITOR_THRESHOLD_CRITICAL = 90  # 90%+: Red with "!" indicator
 
 # Vocabulary Extraction Performance Settings
 # Max text size in KB for spaCy NLP processing
@@ -406,7 +427,7 @@ VOCABULARY_BATCH_SIZE = 8
 
 # User override settings (change these to customize)
 USER_PICKS_MAX_WORKER_COUNT = False  # Set to True to use manual worker count
-USER_DEFINED_MAX_WORKER_COUNT = 2    # Manual count when override enabled (1-8)
+USER_DEFINED_MAX_WORKER_COUNT = 2  # Manual count when override enabled (1-8)
 
 # Enforce bounds on user-defined count (1 minimum, 8 maximum)
 _user_workers = max(1, min(8, USER_DEFINED_MAX_WORKER_COUNT))
@@ -424,7 +445,9 @@ USER_PROMPTS_DIR = APPDATA_DIR / "prompts"  # User-created prompts survive app u
 
 # Ensure user prompts directory exists
 USER_PROMPTS_DIR.mkdir(parents=True, exist_ok=True)
-LEGAL_KEYWORDS_FEDERAL = Path(__file__).parent.parent / "data" / "keywords" / "legal_keywords_federal.txt"
+LEGAL_KEYWORDS_FEDERAL = (
+    Path(__file__).parent.parent / "data" / "keywords" / "legal_keywords_federal.txt"
+)
 
 # License Configuration
 LICENSE_FILE = CONFIG_DIR / "license.dat"
@@ -451,16 +474,16 @@ VECTOR_STORE_DIR.mkdir(parents=True, exist_ok=True)
 # Q&A Retrieval Settings
 # Set to None to retrieve ALL chunks (searches entire document corpus)
 # Set to a number to limit retrieval to top-K chunks
-QA_RETRIEVAL_K = None           # None = all chunks, or integer for top-K
-QA_MAX_TOKENS = 300             # Maximum tokens for generated answer
-QA_TEMPERATURE = 0.1            # Low temperature for factual, consistent answers
-QA_SIMILARITY_THRESHOLD = 0.5   # Minimum relevance score for chunks
+QA_RETRIEVAL_K = None  # None = all chunks, or integer for top-K
+QA_MAX_TOKENS = 300  # Maximum tokens for generated answer
+QA_TEMPERATURE = 0.1  # Low temperature for factual, consistent answers
+QA_SIMILARITY_THRESHOLD = 0.5  # Minimum relevance score for chunks
 
 # Q&A Context Window
 # Session 67: Now dynamically set to match LLM context window based on GPU VRAM.
 # See qa_retriever._get_effective_qa_context_window() for the dynamic logic.
 # This constant is a FALLBACK value used if user preferences are unavailable.
-QA_CONTEXT_WINDOW = 4096        # Fallback tokens for RAG context
+QA_CONTEXT_WINDOW = 4096  # Fallback tokens for RAG context
 
 # Chat History Settings
 QA_CONVERSATION_CONTEXT_PAIRS = 3  # Include last N Q&A pairs in follow-up questions
@@ -475,21 +498,21 @@ QA_CONVERSATION_CONTEXT_PAIRS = 3  # Include last N Q&A pairs in follow-up quest
 # BM25+ is primary (lexical/keyword matching - reliable for legal terminology)
 # FAISS is secondary (semantic/embedding matching - can find related concepts)
 RETRIEVAL_ALGORITHM_WEIGHTS = {
-    "BM25+": 1.0,   # Primary - exact term matching, reliable for legal docs
-    "FAISS": 0.5,   # Secondary - semantic search, complements BM25+
+    "BM25+": 1.0,  # Primary - exact term matching, reliable for legal docs
+    "FAISS": 0.5,  # Secondary - semantic search, complements BM25+
 }
 
 # Algorithm enable/disable flags
-RETRIEVAL_ENABLE_BM25 = True    # BM25+ lexical search (recommended: always on)
-RETRIEVAL_ENABLE_FAISS = True   # FAISS semantic search (can disable for speed)
+RETRIEVAL_ENABLE_BM25 = True  # BM25+ lexical search (recommended: always on)
+RETRIEVAL_ENABLE_FAISS = True  # FAISS semantic search (can disable for speed)
 
 # Chunking settings for retrieval (smaller chunks = more precise retrieval)
-RETRIEVAL_CHUNK_SIZE = 500      # Characters per chunk
-RETRIEVAL_CHUNK_OVERLAP = 50    # Overlap between chunks
+RETRIEVAL_CHUNK_SIZE = 500  # Characters per chunk
+RETRIEVAL_CHUNK_OVERLAP = 50  # Overlap between chunks
 
 # Minimum relevance score threshold for merged results
 # Lower than before since BM25+ scores are more reliable
-RETRIEVAL_MIN_SCORE = 0.1       # Minimum combined score to include chunk
+RETRIEVAL_MIN_SCORE = 0.1  # Minimum combined score to include chunk
 
 # Multi-algorithm bonus: extra score when multiple algorithms find the same chunk
 # This reflects higher confidence when both BM25+ and FAISS agree
@@ -529,9 +552,9 @@ QUERY_TRANSFORM_TIMEOUT = 30.0
 # See gpu_detector.get_optimal_chunk_sizes() for the research-based values.
 
 # Token limits for chunk sizing (research-based fixed values)
-UNIFIED_CHUNK_MIN_TOKENS = 400      # Minimum to prevent fragmentation
-UNIFIED_CHUNK_TARGET_TOKENS = 700   # Optimal for mixed queries (research: 500-800)
-UNIFIED_CHUNK_MAX_TOKENS = 1000     # Upper bound (>1024 hurts retrieval precision)
+UNIFIED_CHUNK_MIN_TOKENS = 400  # Minimum to prevent fragmentation
+UNIFIED_CHUNK_TARGET_TOKENS = 700  # Optimal for mixed queries (research: 500-800)
+UNIFIED_CHUNK_MAX_TOKENS = 1000  # Upper bound (>1024 hurts retrieval precision)
 
 # tiktoken encoding for token counting
 # cl100k_base is compatible with most modern models (GPT-3.5+, Claude, Llama)

@@ -137,7 +137,7 @@ class TermSources:
 
         mean = sum(self.confidences) / len(self.confidences)
         variance = sum((c - mean) ** 2 for c in self.confidences) / len(self.confidences)
-        return variance ** 0.5
+        return variance**0.5
 
     @property
     def min_confidence(self) -> float:
@@ -221,7 +221,7 @@ class TermSources:
             return 0.0
 
         weighted_sum = sum(c * n for c, n in zip(self.confidences, self.counts_per_doc))
-        return weighted_sum ** 1.1
+        return weighted_sum**1.1
 
     # -------------------------------------------------------------------------
     # Utility Methods
@@ -274,9 +274,7 @@ class TermSources:
         return merged
 
     @classmethod
-    def from_single_document(
-        cls, doc_id: str, confidence: float, count: int
-    ) -> "TermSources":
+    def from_single_document(cls, doc_id: str, confidence: float, count: int) -> "TermSources":
         """
         Create TermSources for a term found in a single document.
 

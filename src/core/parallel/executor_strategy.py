@@ -28,8 +28,8 @@ from concurrent.futures import ThreadPoolExecutor, Future
 from typing import Callable, TypeVar, Iterator
 import os
 
-T = TypeVar('T')
-R = TypeVar('R')
+T = TypeVar("T")
+R = TypeVar("R")
 
 
 class ExecutorStrategy(ABC):

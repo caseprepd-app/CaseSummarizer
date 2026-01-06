@@ -127,7 +127,9 @@ class AIFocusExtractor(FocusExtractor):
         self._cache[template_hash] = focus
 
         # Log extracted emphasis (truncated for readability)
-        emphasis_preview = focus['emphasis'][:60] + "..." if len(focus['emphasis']) > 60 else focus['emphasis']
+        emphasis_preview = (
+            focus["emphasis"][:60] + "..." if len(focus["emphasis"]) > 60 else focus["emphasis"]
+        )
         debug_log(f"[FOCUS] Extracted emphasis: {emphasis_preview}")
 
         return focus
@@ -205,22 +207,22 @@ INSTRUCTIONS:
 4. Note significant evidence and outcomes"""
 
         try:
-            lines = response.strip().split('\n')
+            lines = response.strip().split("\n")
             instructions_lines = []
             in_instructions = False
 
             for line in lines:
                 line_stripped = line.strip()
 
-                if line_stripped.upper().startswith('EMPHASIS:'):
+                if line_stripped.upper().startswith("EMPHASIS:"):
                     # Extract everything after "EMPHASIS:"
-                    emphasis = line_stripped.split(':', 1)[1].strip()
+                    emphasis = line_stripped.split(":", 1)[1].strip()
                     in_instructions = False
 
-                elif line_stripped.upper().startswith('INSTRUCTIONS:'):
+                elif line_stripped.upper().startswith("INSTRUCTIONS:"):
                     in_instructions = True
                     # Check if instructions start on same line
-                    rest = line_stripped.split(':', 1)[1].strip()
+                    rest = line_stripped.split(":", 1)[1].strip()
                     if rest:
                         instructions_lines.append(rest)
 
@@ -228,12 +230,12 @@ INSTRUCTIONS:
                     instructions_lines.append(line_stripped)
 
             if instructions_lines:
-                instructions = '\n'.join(instructions_lines)
+                instructions = "\n".join(instructions_lines)
 
         except Exception as e:
             debug_log(f"[FOCUS] Error parsing AI response: {e}, using defaults")
 
-        return {'emphasis': emphasis, 'instructions': instructions}
+        return {"emphasis": emphasis, "instructions": instructions}
 
     def _generic_fallback(self) -> dict:
         """
@@ -245,11 +247,11 @@ INSTRUCTIONS:
             Dict with generic 'emphasis' and 'instructions'
         """
         return {
-            'emphasis': "key facts, parties involved, timeline, outcomes, and significant evidence",
-            'instructions': """1. Synthesize the overall case narrative and timeline
+            "emphasis": "key facts, parties involved, timeline, outcomes, and significant evidence",
+            "instructions": """1. Synthesize the overall case narrative and timeline
 2. Identify all key parties and their relationships
 3. Highlight primary claims, defenses, and legal issues
-4. Note significant evidence, testimony, and outcomes"""
+4. Note significant evidence, testimony, and outcomes""",
         }
 
     @classmethod

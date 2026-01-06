@@ -53,13 +53,13 @@ from src.progressive_summarizer import ProgressiveSummarizer
 
 __all__ = [
     # Core summarization engine
-    'ProgressiveSummarizer',
+    "ProgressiveSummarizer",
     # Result types
-    'DocumentSummaryResult',
-    'MultiDocumentSummaryResult',
+    "DocumentSummaryResult",
+    "MultiDocumentSummaryResult",
     # Document summarizer
-    'DocumentSummarizer',
-    'ProgressiveDocumentSummarizer',
+    "DocumentSummarizer",
+    "ProgressiveDocumentSummarizer",
     # Multi-document orchestration
-    'MultiDocumentOrchestrator',
+    "MultiDocumentOrchestrator",
 ]

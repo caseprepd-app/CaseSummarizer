@@ -121,7 +121,9 @@ class PdfDocumentBuilder(DocumentBuilder):
             for i, cell_text in enumerate(row_data):
                 if i < col_count:
                     # Truncate long text
-                    display_text = str(cell_text)[:25] if len(str(cell_text)) > 25 else str(cell_text)
+                    display_text = (
+                        str(cell_text)[:25] if len(str(cell_text)) > 25 else str(cell_text)
+                    )
                     self.pdf.cell(col_width, 7, display_text, border=1)
             self.pdf.ln()
 

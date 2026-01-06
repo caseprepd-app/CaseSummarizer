@@ -80,13 +80,13 @@ from .progress_aggregator import ProgressAggregator, ProgressState
 
 __all__ = [
     # Strategies
-    'ExecutorStrategy',
-    'ThreadPoolStrategy',
-    'SequentialStrategy',
+    "ExecutorStrategy",
+    "ThreadPoolStrategy",
+    "SequentialStrategy",
     # Task runner
-    'ParallelTaskRunner',
-    'TaskResult',
+    "ParallelTaskRunner",
+    "TaskResult",
     # Progress tracking
-    'ProgressAggregator',
-    'ProgressState',
+    "ProgressAggregator",
+    "ProgressState",
 ]

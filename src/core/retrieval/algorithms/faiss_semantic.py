@@ -110,7 +110,7 @@ class FAISSRetriever(BaseRetrievalAlgorithm):
             self._embeddings = HuggingFaceEmbeddings(
                 model_name=DEFAULT_EMBEDDING_MODEL,
                 model_kwargs={"device": "cpu"},
-                encode_kwargs={"normalize_embeddings": True}
+                encode_kwargs={"normalize_embeddings": True},
             )
 
         return self._embeddings
@@ -154,7 +154,7 @@ class FAISSRetriever(BaseRetrievalAlgorithm):
                     "chunk_num": chunk.chunk_num,
                     "section_name": chunk.section_name,
                     "word_count": chunk.word_count,
-                }
+                },
             )
             for chunk in chunks
         ]
@@ -163,10 +163,7 @@ class FAISSRetriever(BaseRetrievalAlgorithm):
             debug_log(f"[FAISS] Creating embeddings for {len(lc_documents)} chunks...")
 
         # Build FAISS index
-        self._vector_store = FAISS.from_documents(
-            documents=lc_documents,
-            embedding=embeddings
-        )
+        self._vector_store = FAISS.from_documents(documents=lc_documents, embedding=embeddings)
 
         elapsed_ms = (time.perf_counter() - start_time) * 1000
 
@@ -198,9 +195,7 @@ class FAISSRetriever(BaseRetrievalAlgorithm):
         # Perform similarity search with scores
         # Returns list of (Document, score) tuples
         # Note: FAISS returns cosine distance, so higher = more similar
-        docs_and_scores = self._vector_store.similarity_search_with_relevance_scores(
-            query, k=k
-        )
+        docs_and_scores = self._vector_store.similarity_search_with_relevance_scores(query, k=k)
 
         # Build result chunks
         retrieved_chunks = []
@@ -211,27 +206,31 @@ class FAISSRetriever(BaseRetrievalAlgorithm):
             # Clamp to 0-1 range
             normalized_score = max(0.0, min(1.0, score))
 
-            retrieved_chunks.append(RetrievedChunk(
-                chunk_id=metadata.get("chunk_id", ""),
-                text=doc.page_content,
-                relevance_score=normalized_score,
-                raw_score=score,
-                source_algorithm=self.name,
-                filename=metadata.get("filename", "unknown"),
-                chunk_num=metadata.get("chunk_num", 0),
-                section_name=metadata.get("section_name", "N/A"),
-                metadata={
-                    "word_count": metadata.get("word_count", 0),
-                    "embedding_model": DEFAULT_EMBEDDING_MODEL,
-                }
-            ))
+            retrieved_chunks.append(
+                RetrievedChunk(
+                    chunk_id=metadata.get("chunk_id", ""),
+                    text=doc.page_content,
+                    relevance_score=normalized_score,
+                    raw_score=score,
+                    source_algorithm=self.name,
+                    filename=metadata.get("filename", "unknown"),
+                    chunk_num=metadata.get("chunk_num", 0),
+                    section_name=metadata.get("section_name", "N/A"),
+                    metadata={
+                        "word_count": metadata.get("word_count", 0),
+                        "embedding_model": DEFAULT_EMBEDDING_MODEL,
+                    },
+                )
+            )
 
         elapsed_ms = (time.perf_counter() - start_time) * 1000
 
         if DEBUG_MODE:
             debug_log(f"[FAISS] Retrieved {len(retrieved_chunks)} chunks in {elapsed_ms:.1f}ms")
             for i, chunk in enumerate(retrieved_chunks[:3]):
-                debug_log(f"  [{i + 1}] score={chunk.raw_score:.3f} -> {chunk.relevance_score:.3f} | {chunk.filename}")
+                debug_log(
+                    f"  [{i + 1}] score={chunk.raw_score:.3f} -> {chunk.relevance_score:.3f} | {chunk.filename}"
+                )
 
         return AlgorithmRetrievalResult(
             chunks=retrieved_chunks,
@@ -241,7 +240,7 @@ class FAISSRetriever(BaseRetrievalAlgorithm):
                 "algorithm": self.name,
                 "index_size": len(self._chunks),
                 "embedding_model": DEFAULT_EMBEDDING_MODEL,
-            }
+            },
         )
 
     @property
@@ -252,9 +251,11 @@ class FAISSRetriever(BaseRetrievalAlgorithm):
     def get_config(self) -> dict[str, Any]:
         """Return FAISS configuration."""
         config = super().get_config()
-        config.update({
-            "index_size": len(self._chunks) if self._chunks else 0,
-            "embedding_model": DEFAULT_EMBEDDING_MODEL,
-            "distance_metric": "cosine",
-        })
+        config.update(
+            {
+                "index_size": len(self._chunks) if self._chunks else 0,
+                "embedding_model": DEFAULT_EMBEDDING_MODEL,
+                "distance_metric": "cosine",
+            }
+        )
         return config

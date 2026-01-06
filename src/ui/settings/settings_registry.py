@@ -41,6 +41,7 @@ class SettingType(Enum):
     - BUTTON: ActionButton (executes action on click)
     - CUSTOM: CustomWidgetSetting (custom widget factory)
     """
+
     SLIDER = "slider"
     CHECKBOX = "checkbox"
     DROPDOWN = "dropdown"
@@ -74,6 +75,7 @@ class SettingDefinition:
         action: Function to execute on click (for BUTTON)
         widget_factory: Function(parent) -> widget (for CUSTOM type)
     """
+
     key: str
     label: str
     category: str
@@ -191,78 +193,86 @@ def _register_all_settings():
     # PERFORMANCE TAB
     # ===================================================================
 
-    SettingsRegistry.register(SettingDefinition(
-        key="parallel_workers_auto",
-        label="Auto-detect CPU cores",
-        category="Performance",
-        setting_type=SettingType.CHECKBOX,
-        tooltip=(
-            "When enabled, LocalScribe automatically detects the optimal "
-            "number of parallel workers based on your CPU. Disable this "
-            "to manually set the worker count below."
-        ),
-        default=True,
-        getter=lambda: not prefs.get("user_picks_max_workers", False),
-        setter=lambda v: prefs.set("user_picks_max_workers", not v),
-    ))
+    SettingsRegistry.register(
+        SettingDefinition(
+            key="parallel_workers_auto",
+            label="Auto-detect CPU cores",
+            category="Performance",
+            setting_type=SettingType.CHECKBOX,
+            tooltip=(
+                "When enabled, LocalScribe automatically detects the optimal "
+                "number of parallel workers based on your CPU. Disable this "
+                "to manually set the worker count below."
+            ),
+            default=True,
+            getter=lambda: not prefs.get("user_picks_max_workers", False),
+            setter=lambda v: prefs.set("user_picks_max_workers", not v),
+        )
+    )
 
-    SettingsRegistry.register(SettingDefinition(
-        key="parallel_workers_count",
-        label="Manual worker count",
-        category="Performance",
-        setting_type=SettingType.SPINBOX,
-        tooltip=(
-            "Number of parallel workers when auto-detect is disabled. "
-            "Higher values process documents faster but use more RAM. "
-            "Range: 1-8. Recommended: 2 for most systems, 4 for 16GB+ RAM."
-        ),
-        default=USER_DEFINED_MAX_WORKER_COUNT,
-        min_value=1,
-        max_value=8,
-        getter=lambda: prefs.get("user_defined_max_workers", 2),
-        setter=lambda v: prefs.set("user_defined_max_workers", v),
-    ))
+    SettingsRegistry.register(
+        SettingDefinition(
+            key="parallel_workers_count",
+            label="Manual worker count",
+            category="Performance",
+            setting_type=SettingType.SPINBOX,
+            tooltip=(
+                "Number of parallel workers when auto-detect is disabled. "
+                "Higher values process documents faster but use more RAM. "
+                "Range: 1-8. Recommended: 2 for most systems, 4 for 16GB+ RAM."
+            ),
+            default=USER_DEFINED_MAX_WORKER_COUNT,
+            min_value=1,
+            max_value=8,
+            getter=lambda: prefs.get("user_defined_max_workers", 2),
+            setter=lambda v: prefs.set("user_defined_max_workers", v),
+        )
+    )
 
-    SettingsRegistry.register(SettingDefinition(
-        key="resource_usage_pct",
-        label="System resource usage",
-        category="Performance",
-        setting_type=SettingType.SLIDER,
-        tooltip=(
-            "Percentage of system resources (CPU and RAM) to use for processing. "
-            "Higher values process faster but may slow your computer during processing.\n\n"
-            "• 25%: Minimal impact - computer stays responsive\n"
-            "• 50%: Moderate - some slowdown during processing\n"
-            "• 75%: Recommended - good balance of speed and responsiveness\n"
-            "• 100%: Maximum speed - computer may be slow during processing"
-        ),
-        default=75,
-        min_value=25,
-        max_value=100,
-        step=5,
-        getter=lambda: prefs.get("resource_usage_pct", 75),
-        setter=lambda v: prefs.set("resource_usage_pct", int(v)),
-    ))
+    SettingsRegistry.register(
+        SettingDefinition(
+            key="resource_usage_pct",
+            label="System resource usage",
+            category="Performance",
+            setting_type=SettingType.SLIDER,
+            tooltip=(
+                "Percentage of system resources (CPU and RAM) to use for processing. "
+                "Higher values process faster but may slow your computer during processing.\n\n"
+                "• 25%: Minimal impact - computer stays responsive\n"
+                "• 50%: Moderate - some slowdown during processing\n"
+                "• 75%: Recommended - good balance of speed and responsiveness\n"
+                "• 100%: Maximum speed - computer may be slow during processing"
+            ),
+            default=75,
+            min_value=25,
+            max_value=100,
+            step=5,
+            getter=lambda: prefs.get("resource_usage_pct", 75),
+            setter=lambda v: prefs.set("resource_usage_pct", int(v)),
+        )
+    )
 
     # Session 62b: Summary setting moved to Performance tab (consolidated)
 
-    SettingsRegistry.register(SettingDefinition(
-        key="default_summary_words",
-        label="Default summary length (words)",
-        category="Performance",
-        setting_type=SettingType.SLIDER,
-        tooltip=(
-            "Target word count for AI-generated summaries. The actual "
-            "length may vary slightly. Longer summaries capture more "
-            "detail but take more time to generate."
-        ),
-        default=DEFAULT_SUMMARY_WORDS,
-        min_value=MIN_SUMMARY_WORDS,
-        max_value=MAX_SUMMARY_WORDS,
-        step=50,
-        getter=lambda: prefs.get("summary_words", DEFAULT_SUMMARY_WORDS),
-        setter=lambda v: prefs.set("summary_words", int(v)),
-    ))
+    SettingsRegistry.register(
+        SettingDefinition(
+            key="default_summary_words",
+            label="Default summary length (words)",
+            category="Performance",
+            setting_type=SettingType.SLIDER,
+            tooltip=(
+                "Target word count for AI-generated summaries. The actual "
+                "length may vary slightly. Longer summaries capture more "
+                "detail but take more time to generate."
+            ),
+            default=DEFAULT_SUMMARY_WORDS,
+            min_value=MIN_SUMMARY_WORDS,
+            max_value=MAX_SUMMARY_WORDS,
+            step=50,
+            getter=lambda: prefs.get("summary_words", DEFAULT_SUMMARY_WORDS),
+            setter=lambda v: prefs.set("summary_words", int(v)),
+        )
+    )
 
     # ===================================================================
     # VOCABULARY TAB
@@ -323,110 +333,123 @@ def _register_all_settings():
 
         return frame
 
-    SettingsRegistry.register(SettingDefinition(
-        key="corpus_status_warning",
-        label="",  # No label for banner
-        category="Vocabulary",
-        setting_type=SettingType.CUSTOM,
-        tooltip="",
-        default=None,
-        widget_factory=_create_corpus_warning_widget,
-    ))
+    SettingsRegistry.register(
+        SettingDefinition(
+            key="corpus_status_warning",
+            label="",  # No label for banner
+            category="Vocabulary",
+            setting_type=SettingType.CUSTOM,
+            tooltip="",
+            default=None,
+            widget_factory=_create_corpus_warning_widget,
+        )
+    )
 
-    SettingsRegistry.register(SettingDefinition(
-        key="vocab_display_limit",
-        label="Vocabulary display limit",
-        category="Vocabulary",
-        setting_type=SettingType.SLIDER,
-        tooltip=(
-            f"Maximum terms shown in the vocabulary table. Higher values "
-            f"may slow the GUI on large documents. Range: 10-{VOCABULARY_DISPLAY_MAX}. "
-            f"The full vocabulary is always saved to CSV."
-        ),
-        default=VOCABULARY_DISPLAY_LIMIT,
-        min_value=10,
-        max_value=VOCABULARY_DISPLAY_MAX,
-        step=10,
-        getter=lambda: prefs.get("vocab_display_limit", VOCABULARY_DISPLAY_LIMIT),
-        setter=lambda v: prefs.set("vocab_display_limit", int(v)),
-    ))
+    SettingsRegistry.register(
+        SettingDefinition(
+            key="vocab_display_limit",
+            label="Vocabulary display limit",
+            category="Vocabulary",
+            setting_type=SettingType.SLIDER,
+            tooltip=(
+                f"Maximum terms shown in the vocabulary table. Higher values "
+                f"may slow the GUI on large documents. Range: 10-{VOCABULARY_DISPLAY_MAX}. "
+                f"The full vocabulary is always saved to CSV."
+            ),
+            default=VOCABULARY_DISPLAY_LIMIT,
+            min_value=10,
+            max_value=VOCABULARY_DISPLAY_MAX,
+            step=10,
+            getter=lambda: prefs.get("vocab_display_limit", VOCABULARY_DISPLAY_LIMIT),
+            setter=lambda v: prefs.set("vocab_display_limit", int(v)),
+        )
+    )
 
-    SettingsRegistry.register(SettingDefinition(
-        key="vocab_sort_method",
-        label="Sort vocabulary by",
-        category="Vocabulary",
-        setting_type=SettingType.DROPDOWN,
-        tooltip=(
-            "Controls how vocabulary terms are sorted in the results table.\n\n"
-            "• Quality Score: Terms the ML model predicts you'll approve appear first. "
-            "This improves as you rate more terms.\n\n"
-            "• Rarity: Unusual/rare words appear first (based on Google Books corpus)."
-        ),
-        options=[
-            ("Quality Score", "quality_score"),
-            ("Rarity", "rarity"),
-        ],
-        default="quality_score" if VOCABULARY_SORT_METHOD == "quality_score" else "rarity",
-        getter=lambda: prefs.get("vocab_sort_method", VOCABULARY_SORT_METHOD),
-        setter=lambda v: prefs.set("vocab_sort_method", v),
-    ))
+    SettingsRegistry.register(
+        SettingDefinition(
+            key="vocab_sort_method",
+            label="Sort vocabulary by",
+            category="Vocabulary",
+            setting_type=SettingType.DROPDOWN,
+            tooltip=(
+                "Controls how vocabulary terms are sorted in the results table.\n\n"
+                "• Quality Score: Terms the ML model predicts you'll approve appear first. "
+                "This improves as you rate more terms.\n\n"
+                "• Rarity: Unusual/rare words appear first (based on Google Books corpus)."
+            ),
+            options=[
+                ("Quality Score", "quality_score"),
+                ("Rarity", "rarity"),
+            ],
+            default="quality_score" if VOCABULARY_SORT_METHOD == "quality_score" else "rarity",
+            getter=lambda: prefs.get("vocab_sort_method", VOCABULARY_SORT_METHOD),
+            setter=lambda v: prefs.set("vocab_sort_method", v),
+        )
+    )
 
     # Session 23: CSV export column format setting
-    SettingsRegistry.register(SettingDefinition(
-        key="vocab_export_format",
-        label="CSV export columns",
-        category="Vocabulary",
-        setting_type=SettingType.DROPDOWN,
-        tooltip=(
-            "Controls which columns are included when saving vocabulary to CSV. "
-            "'All columns' includes Quality Score, Frequency, and Rank for "
-            "Excel filtering. 'Basic' exports Term, Type, Role, and Definition. "
-            "'Terms only' exports just the vocabulary terms."
-        ),
-        default="basic",
-        options=[
-            ("All columns (with quality metrics)", "all"),
-            ("Basic (Term, Type, Role, Definition)", "basic"),
-            ("Terms only", "terms_only"),
-        ],
-        getter=lambda: prefs.get("vocab_export_format", "basic"),
-        setter=lambda v: prefs.set("vocab_export_format", v),
-    ))
+    SettingsRegistry.register(
+        SettingDefinition(
+            key="vocab_export_format",
+            label="CSV export columns",
+            category="Vocabulary",
+            setting_type=SettingType.DROPDOWN,
+            tooltip=(
+                "Controls which columns are included when saving vocabulary to CSV. "
+                "'All columns' includes Quality Score, Frequency, and Rank for "
+                "Excel filtering. 'Basic' exports Term, Type, Role, and Definition. "
+                "'Terms only' exports just the vocabulary terms."
+            ),
+            default="basic",
+            options=[
+                ("All columns (with quality metrics)", "all"),
+                ("Basic (Term, Type, Role, Definition)", "basic"),
+                ("Terms only", "terms_only"),
+            ],
+            getter=lambda: prefs.get("vocab_export_format", "basic"),
+            setter=lambda v: prefs.set("vocab_export_format", v),
+        )
+    )
 
     # Session 80: Column visibility configuration
     def _create_column_visibility_widget(parent):
         """Factory function to create the ColumnVisibilityWidget."""
         from src.ui.settings.settings_widgets import ColumnVisibilityWidget
+
         return ColumnVisibilityWidget(parent)
 
-    SettingsRegistry.register(SettingDefinition(
-        key="vocab_column_visibility",
-        label="",  # Widget has its own header
-        category="Vocabulary",
-        setting_type=SettingType.CUSTOM,
-        tooltip="",  # Widget has its own tooltip
-        default=None,
-        widget_factory=_create_column_visibility_widget,
-    ))
+    SettingsRegistry.register(
+        SettingDefinition(
+            key="vocab_column_visibility",
+            label="",  # Widget has its own header
+            category="Vocabulary",
+            setting_type=SettingType.CUSTOM,
+            tooltip="",  # Widget has its own tooltip
+            default=None,
+            widget_factory=_create_column_visibility_widget,
+        )
+    )
 
     # Session 26: BM25 Corpus-based term extraction
-    SettingsRegistry.register(SettingDefinition(
-        key="bm25_enabled",
-        label="Enable Corpus Analysis (BM25)",
-        category="Vocabulary",
-        setting_type=SettingType.CHECKBOX,
-        tooltip=(
-            "Compare your current document against your library of past "
-            "transcripts to identify case-specific terminology. Terms that "
-            "are frequent in this document but rare in your corpus are likely "
-            "important. Requires 5+ documents in your corpus folder.\n\n"
-            "🔒 Privacy: All analysis happens locally on your computer - "
-            "no documents or data are ever sent to external servers."
-        ),
-        default=BM25_ENABLED,
-        getter=lambda: prefs.get("bm25_enabled", BM25_ENABLED),
-        setter=lambda v: prefs.set("bm25_enabled", v),
-    ))
+    SettingsRegistry.register(
+        SettingDefinition(
+            key="bm25_enabled",
+            label="Enable Corpus Analysis (BM25)",
+            category="Vocabulary",
+            setting_type=SettingType.CHECKBOX,
+            tooltip=(
+                "Compare your current document against your library of past "
+                "transcripts to identify case-specific terminology. Terms that "
+                "are frequent in this document but rare in your corpus are likely "
+                "important. Requires 5+ documents in your corpus folder.\n\n"
+                "🔒 Privacy: All analysis happens locally on your computer - "
+                "no documents or data are ever sent to external servers."
+            ),
+            default=BM25_ENABLED,
+            getter=lambda: prefs.get("bm25_enabled", BM25_ENABLED),
+            setter=lambda v: prefs.set("bm25_enabled", v),
+        )
+    )
 
     def _open_corpus_folder():
         """Open the corpus folder in the system file explorer."""
@@ -440,26 +463,29 @@ def _register_all_settings():
             # macOS/Linux fallback
             import subprocess
             import sys
+
             if sys.platform == "darwin":
                 subprocess.run(["open", str(CORPUS_DIR)])
             else:
                 subprocess.run(["xdg-open", str(CORPUS_DIR)])
 
-    SettingsRegistry.register(SettingDefinition(
-        key="open_corpus_folder",
-        label="Open Corpus Folder",
-        category="Vocabulary",
-        setting_type=SettingType.BUTTON,
-        tooltip=(
-            "Add your past transcripts (PDF, TXT, RTF) to this folder to "
-            "build your personal vocabulary baseline. The more documents "
-            "you add, the better the system identifies unusual terms "
-            "specific to each new case.\n\n"
-            "📁 Location: " + str(CORPUS_DIR)
-        ),
-        default=None,
-        action=_open_corpus_folder,
-    ))
+    SettingsRegistry.register(
+        SettingDefinition(
+            key="open_corpus_folder",
+            label="Open Corpus Folder",
+            category="Vocabulary",
+            setting_type=SettingType.BUTTON,
+            tooltip=(
+                "Add your past transcripts (PDF, TXT, RTF) to this folder to "
+                "build your personal vocabulary baseline. The more documents "
+                "you add, the better the system identifies unusual terms "
+                "specific to each new case.\n\n"
+                "📁 Location: " + str(CORPUS_DIR)
+            ),
+            default=None,
+            action=_open_corpus_folder,
+        )
+    )
 
     # Session 47: ML Model Reset buttons
     def _reset_vocab_model():
@@ -473,7 +499,7 @@ def _register_all_settings():
             "This will undo any personalization from your thumbs up/down "
             "feedback, but your feedback history will be preserved.\n\n"
             "You can retrain the model later using your existing feedback.",
-            icon="warning"
+            icon="warning",
         )
 
         if result:
@@ -483,29 +509,31 @@ def _register_all_settings():
                     "Reset Complete",
                     "Vocabulary model has been reset to default.\n\n"
                     "Your feedback history is preserved. The model will "
-                    "retrain when you provide more feedback."
+                    "retrain when you provide more feedback.",
                 )
             else:
                 messagebox.showerror(
                     "Reset Failed",
-                    "Failed to reset vocabulary model. Check the debug log for details."
+                    "Failed to reset vocabulary model. Check the debug log for details.",
                 )
 
-    SettingsRegistry.register(SettingDefinition(
-        key="reset_vocab_model",
-        label="Reset Vocabulary Model",
-        category="Vocabulary",
-        setting_type=SettingType.BUTTON,
-        tooltip=(
-            "Reset the vocabulary ranking model to its default (shipped) state. "
-            "This undoes any personalization from your thumbs up/down feedback, "
-            "but keeps your feedback history so you can retrain later.\n\n"
-            "Use this if the model seems to be ranking terms poorly after "
-            "you've given it feedback."
-        ),
-        default=None,
-        action=_reset_vocab_model,
-    ))
+    SettingsRegistry.register(
+        SettingDefinition(
+            key="reset_vocab_model",
+            label="Reset Vocabulary Model",
+            category="Vocabulary",
+            setting_type=SettingType.BUTTON,
+            tooltip=(
+                "Reset the vocabulary ranking model to its default (shipped) state. "
+                "This undoes any personalization from your thumbs up/down feedback, "
+                "but keeps your feedback history so you can retrain later.\n\n"
+                "Use this if the model seems to be ranking terms poorly after "
+                "you've given it feedback."
+            ),
+            default=None,
+            action=_reset_vocab_model,
+        )
+    )
 
     def _reset_vocab_model_and_history():
         """Reset vocabulary ML model AND clear all feedback history."""
@@ -519,7 +547,7 @@ def _register_all_settings():
             "• Reset the vocabulary ranking model to default\n"
             "• DELETE all your thumbs up/down feedback history\n\n"
             "This action cannot be undone. Are you sure?",
-            icon="warning"
+            icon="warning",
         )
 
         if result:
@@ -528,7 +556,7 @@ def _register_all_settings():
                 "Confirm Complete Reset",
                 "Are you absolutely sure?\n\n"
                 "All feedback you've given will be permanently deleted.",
-                icon="warning"
+                icon="warning",
             )
 
             if confirm:
@@ -542,166 +570,182 @@ def _register_all_settings():
                     messagebox.showinfo(
                         "Reset Complete",
                         "Vocabulary model and feedback history have been reset.\n\n"
-                        "The system is now using default settings."
+                        "The system is now using default settings.",
                     )
                 else:
                     messagebox.showerror(
                         "Reset Partially Failed",
                         f"Model reset: {'OK' if model_ok else 'FAILED'}\n"
                         f"Feedback clear: {'OK' if feedback_ok else 'FAILED'}\n\n"
-                        "Check the debug log for details."
+                        "Check the debug log for details.",
                     )
 
-    SettingsRegistry.register(SettingDefinition(
-        key="reset_vocab_model_and_history",
-        label="Reset Model and Clear History",
-        category="Vocabulary",
-        setting_type=SettingType.BUTTON,
-        tooltip=(
-            "⚠️ COMPLETE RESET: Resets the vocabulary model AND deletes all "
-            "your thumbs up/down feedback history. This cannot be undone.\n\n"
-            "Use this for a complete fresh start if you want to begin "
-            "personalizing from scratch."
-        ),
-        default=None,
-        action=_reset_vocab_model_and_history,
-    ))
+    SettingsRegistry.register(
+        SettingDefinition(
+            key="reset_vocab_model_and_history",
+            label="Reset Model and Clear History",
+            category="Vocabulary",
+            setting_type=SettingType.BUTTON,
+            tooltip=(
+                "⚠️ COMPLETE RESET: Resets the vocabulary model AND deletes all "
+                "your thumbs up/down feedback history. This cannot be undone.\n\n"
+                "Use this for a complete fresh start if you want to begin "
+                "personalizing from scratch."
+            ),
+            default=None,
+            action=_reset_vocab_model_and_history,
+        )
+    )
 
     # Session 59: Vocabulary filtering thresholds (user-configurable)
     # Session 62b: Moved from Advanced to Vocabulary tab (consolidated)
-    SettingsRegistry.register(SettingDefinition(
-        key="single_word_rarity_threshold",
-        label="Single-word filtering threshold",
-        category="Vocabulary",
-        setting_type=SettingType.SLIDER,
-        tooltip=(
-            "Filter single words in the top X% of English vocabulary. "
-            "Lower = more aggressive filtering, Higher = keep more words.\n\n"
-            "Example: 0.50 filters the most common 50% of English words."
-        ),
-        default=0.50,
-        min_value=0.10,
-        max_value=0.90,
-        step=0.05,
-        getter=lambda: prefs.get("single_word_rarity_threshold", 0.50),
-        setter=lambda v: prefs.set("single_word_rarity_threshold", float(v)),
-    ))
+    SettingsRegistry.register(
+        SettingDefinition(
+            key="single_word_rarity_threshold",
+            label="Single-word filtering threshold",
+            category="Vocabulary",
+            setting_type=SettingType.SLIDER,
+            tooltip=(
+                "Filter single words in the top X% of English vocabulary. "
+                "Lower = more aggressive filtering, Higher = keep more words.\n\n"
+                "Example: 0.50 filters the most common 50% of English words."
+            ),
+            default=0.50,
+            min_value=0.10,
+            max_value=0.90,
+            step=0.05,
+            getter=lambda: prefs.get("single_word_rarity_threshold", 0.50),
+            setter=lambda v: prefs.set("single_word_rarity_threshold", float(v)),
+        )
+    )
 
-    SettingsRegistry.register(SettingDefinition(
-        key="phrase_rarity_threshold",
-        label="Phrase filtering threshold",
-        category="Vocabulary",
-        setting_type=SettingType.SLIDER,
-        tooltip=(
-            "Filter multi-word phrases where all words are in the top X% of English. "
-            "Lower = more aggressive filtering, Higher = keep more phrases.\n\n"
-            "Example: 0.50 filters phrases where every word is in the top 50%."
-        ),
-        default=0.50,
-        min_value=0.10,
-        max_value=0.90,
-        step=0.05,
-        getter=lambda: prefs.get("phrase_rarity_threshold", 0.50),
-        setter=lambda v: prefs.set("phrase_rarity_threshold", float(v)),
-    ))
+    SettingsRegistry.register(
+        SettingDefinition(
+            key="phrase_rarity_threshold",
+            label="Phrase filtering threshold",
+            category="Vocabulary",
+            setting_type=SettingType.SLIDER,
+            tooltip=(
+                "Filter multi-word phrases where all words are in the top X% of English. "
+                "Lower = more aggressive filtering, Higher = keep more phrases.\n\n"
+                "Example: 0.50 filters phrases where every word is in the top 50%."
+            ),
+            default=0.50,
+            min_value=0.10,
+            max_value=0.90,
+            step=0.05,
+            getter=lambda: prefs.get("phrase_rarity_threshold", 0.50),
+            setter=lambda v: prefs.set("phrase_rarity_threshold", float(v)),
+        )
+    )
 
     # Session 62: Additional vocabulary filtering controls
-    SettingsRegistry.register(SettingDefinition(
-        key="vocab_min_occurrences",
-        label="Minimum term occurrences",
-        category="Vocabulary",
-        setting_type=SettingType.SPINBOX,
-        tooltip=(
-            "Filter terms appearing fewer than N times in your documents.\n\n"
-            "Higher values filter more aggressively, removing OCR errors and "
-            "one-off terms. Value of 1 keeps all terms.\n\n"
-            "Note: Person names are exempt from this filter."
-        ),
-        default=2,
-        min_value=1,
-        max_value=5,
-        getter=lambda: prefs.get("vocab_min_occurrences", 2),
-        setter=lambda v: prefs.set("vocab_min_occurrences", int(v)),
-    ))
+    SettingsRegistry.register(
+        SettingDefinition(
+            key="vocab_min_occurrences",
+            label="Minimum term occurrences",
+            category="Vocabulary",
+            setting_type=SettingType.SPINBOX,
+            tooltip=(
+                "Filter terms appearing fewer than N times in your documents.\n\n"
+                "Higher values filter more aggressively, removing OCR errors and "
+                "one-off terms. Value of 1 keeps all terms.\n\n"
+                "Note: Person names are exempt from this filter."
+            ),
+            default=2,
+            min_value=1,
+            max_value=5,
+            getter=lambda: prefs.get("vocab_min_occurrences", 2),
+            setter=lambda v: prefs.set("vocab_min_occurrences", int(v)),
+        )
+    )
 
-    SettingsRegistry.register(SettingDefinition(
-        key="phrase_mean_rarity_threshold",
-        label="Phrase mean commonality",
-        category="Vocabulary",
-        setting_type=SettingType.SLIDER,
-        tooltip=(
-            "Filter phrases where the AVERAGE word commonality exceeds this "
-            "threshold. Lower values = more aggressive filtering.\n\n"
-            "Example: 0.40 filters phrases where the average word is in the "
-            "top 40% of common English words.\n\n"
-            "Works alongside 'Phrase filtering threshold' which checks the "
-            "RAREST word in the phrase."
-        ),
-        default=0.40,
-        min_value=0.10,
-        max_value=0.90,
-        step=0.05,
-        getter=lambda: prefs.get("phrase_mean_rarity_threshold", 0.40),
-        setter=lambda v: prefs.set("phrase_mean_rarity_threshold", float(v)),
-    ))
+    SettingsRegistry.register(
+        SettingDefinition(
+            key="phrase_mean_rarity_threshold",
+            label="Phrase mean commonality",
+            category="Vocabulary",
+            setting_type=SettingType.SLIDER,
+            tooltip=(
+                "Filter phrases where the AVERAGE word commonality exceeds this "
+                "threshold. Lower values = more aggressive filtering.\n\n"
+                "Example: 0.40 filters phrases where the average word is in the "
+                "top 40% of common English words.\n\n"
+                "Works alongside 'Phrase filtering threshold' which checks the "
+                "RAREST word in the phrase."
+            ),
+            default=0.40,
+            min_value=0.10,
+            max_value=0.90,
+            step=0.05,
+            getter=lambda: prefs.get("phrase_mean_rarity_threshold", 0.40),
+            setter=lambda v: prefs.set("phrase_mean_rarity_threshold", float(v)),
+        )
+    )
 
     # Session 68: Corpus Familiarity Filtering
-    SettingsRegistry.register(SettingDefinition(
-        key="corpus_familiarity_threshold",
-        label="Corpus familiarity threshold",
-        category="Vocabulary",
-        setting_type=SettingType.SLIDER,
-        tooltip=(
-            "Filter terms appearing in this percentage or more of your corpus "
-            "documents. Terms above this threshold are removed (you likely "
-            "already know them).\n\n"
-            "Example: 0.75 removes terms appearing in 75%+ of your past "
-            "transcripts.\n\n"
-            "Lower values = more aggressive filtering.\n"
-            "Higher values = keep more terms.\n"
-            "Set to 1.0 to disable percentage-based filtering."
-        ),
-        default=0.75,
-        min_value=0.25,
-        max_value=1.0,
-        step=0.05,
-        getter=lambda: prefs.get("corpus_familiarity_threshold", 0.75),
-        setter=lambda v: prefs.set("corpus_familiarity_threshold", float(v)),
-    ))
+    SettingsRegistry.register(
+        SettingDefinition(
+            key="corpus_familiarity_threshold",
+            label="Corpus familiarity threshold",
+            category="Vocabulary",
+            setting_type=SettingType.SLIDER,
+            tooltip=(
+                "Filter terms appearing in this percentage or more of your corpus "
+                "documents. Terms above this threshold are removed (you likely "
+                "already know them).\n\n"
+                "Example: 0.75 removes terms appearing in 75%+ of your past "
+                "transcripts.\n\n"
+                "Lower values = more aggressive filtering.\n"
+                "Higher values = keep more terms.\n"
+                "Set to 1.0 to disable percentage-based filtering."
+            ),
+            default=0.75,
+            min_value=0.25,
+            max_value=1.0,
+            step=0.05,
+            getter=lambda: prefs.get("corpus_familiarity_threshold", 0.75),
+            setter=lambda v: prefs.set("corpus_familiarity_threshold", float(v)),
+        )
+    )
 
-    SettingsRegistry.register(SettingDefinition(
-        key="corpus_familiarity_min_docs",
-        label="Corpus familiarity min docs",
-        category="Vocabulary",
-        setting_type=SettingType.SPINBOX,
-        tooltip=(
-            "Alternative threshold: Filter terms appearing in N or more "
-            "documents. This provides a hard floor regardless of corpus size.\n\n"
-            "Example: 10 removes terms appearing in 10+ documents.\n\n"
-            "Set to 0 to use only percentage-based filtering."
-        ),
-        default=10,
-        min_value=0,
-        max_value=50,
-        getter=lambda: prefs.get("corpus_familiarity_min_docs", 10),
-        setter=lambda v: prefs.set("corpus_familiarity_min_docs", int(v)),
-    ))
+    SettingsRegistry.register(
+        SettingDefinition(
+            key="corpus_familiarity_min_docs",
+            label="Corpus familiarity min docs",
+            category="Vocabulary",
+            setting_type=SettingType.SPINBOX,
+            tooltip=(
+                "Alternative threshold: Filter terms appearing in N or more "
+                "documents. This provides a hard floor regardless of corpus size.\n\n"
+                "Example: 10 removes terms appearing in 10+ documents.\n\n"
+                "Set to 0 to use only percentage-based filtering."
+            ),
+            default=10,
+            min_value=0,
+            max_value=50,
+            getter=lambda: prefs.get("corpus_familiarity_min_docs", 10),
+            setter=lambda v: prefs.set("corpus_familiarity_min_docs", int(v)),
+        )
+    )
 
-    SettingsRegistry.register(SettingDefinition(
-        key="corpus_familiarity_exempt_persons",
-        label="Exempt person names from corpus filter",
-        category="Vocabulary",
-        setting_type=SettingType.CHECKBOX,
-        tooltip=(
-            "When enabled, person names are never filtered by corpus familiarity. "
-            "Recommended: Names in legal documents are always case-specific, "
-            "even common names like 'John Smith'.\n\n"
-            "Disable if you want to filter frequently-appearing party names."
-        ),
-        default=True,
-        getter=lambda: prefs.get("corpus_familiarity_exempt_persons", True),
-        setter=lambda v: prefs.set("corpus_familiarity_exempt_persons", v),
-    ))
+    SettingsRegistry.register(
+        SettingDefinition(
+            key="corpus_familiarity_exempt_persons",
+            label="Exempt person names from corpus filter",
+            category="Vocabulary",
+            setting_type=SettingType.CHECKBOX,
+            tooltip=(
+                "When enabled, person names are never filtered by corpus familiarity. "
+                "Recommended: Names in legal documents are always case-specific, "
+                "even common names like 'John Smith'.\n\n"
+                "Disable if you want to filter frequently-appearing party names."
+            ),
+            default=True,
+            getter=lambda: prefs.get("corpus_familiarity_exempt_persons", True),
+            setter=lambda v: prefs.set("corpus_familiarity_exempt_persons", v),
+        )
+    )
 
     # ===================================================================
     # CORPUS TAB (Session 64)
@@ -711,21 +755,24 @@ def _register_all_settings():
     def _create_corpus_settings_widget(parent):
         """Factory function to create the CorpusSettingsWidget."""
         from src.ui.settings.settings_widgets import CorpusSettingsWidget
+
         return CorpusSettingsWidget(parent)
 
-    SettingsRegistry.register(SettingDefinition(
-        key="corpus_management",
-        label="Corpus Management",
-        category="Corpus",
-        setting_type=SettingType.CUSTOM,
-        tooltip=(
-            "Manage your corpus of past transcripts for BM25 vocabulary extraction. "
-            "The corpus helps identify case-specific terminology by comparing against "
-            "your typical work."
-        ),
-        default=None,
-        widget_factory=_create_corpus_settings_widget,
-    ))
+    SettingsRegistry.register(
+        SettingDefinition(
+            key="corpus_management",
+            label="Corpus Management",
+            category="Corpus",
+            setting_type=SettingType.CUSTOM,
+            tooltip=(
+                "Manage your corpus of past transcripts for BM25 vocabulary extraction. "
+                "The corpus helps identify case-specific terminology by comparing against "
+                "your typical work."
+            ),
+            default=None,
+            widget_factory=_create_corpus_settings_widget,
+        )
+    )
 
     # ===================================================================
     # Q&A TAB
@@ -736,6 +783,7 @@ def _register_all_settings():
         """Fetch available models from Ollama for dropdown options."""
         try:
             from src.core.ai import OllamaModelManager
+
             manager = OllamaModelManager()
             if not manager.is_connected:
                 return [("(Ollama not running - start Ollama first)", "")]
@@ -765,30 +813,34 @@ def _register_all_settings():
         # Also update the model manager to use this model
         try:
             from src.core.ai import OllamaModelManager
+
             manager = OllamaModelManager()
             manager.load_model(model_name)
         except Exception as e:
             # LOG-017: Log exception instead of silent pass
             from src.logging_config import debug_log
+
             debug_log(f"[SETTINGS] Model load deferred: {e}")
 
-    SettingsRegistry.register(SettingDefinition(
-        key="ollama_model",
-        label="AI Model",
-        category="Q&A",
-        setting_type=SettingType.DROPDOWN,
-        tooltip=(
-            "Select which Ollama model to use for AI features.\n\n"
-            "This program was tested with Gemma 3. More parameters generally "
-            "produce better results, but a dedicated GPU is recommended for "
-            "larger models (7B+).\n\n"
-            "Pick the largest Gemma model suitable for your hardware."
-        ),
-        default="gemma3:1b",
-        options=_get_ollama_model_options(),
-        getter=lambda: prefs.get("ollama_model", "gemma3:1b"),
-        setter=_set_ollama_model,
-    ))
+    SettingsRegistry.register(
+        SettingDefinition(
+            key="ollama_model",
+            label="AI Model",
+            category="Q&A",
+            setting_type=SettingType.DROPDOWN,
+            tooltip=(
+                "Select which Ollama model to use for AI features.\n\n"
+                "This program was tested with Gemma 3. More parameters generally "
+                "produce better results, but a dedicated GPU is recommended for "
+                "larger models (7B+).\n\n"
+                "Pick the largest Gemma model suitable for your hardware."
+            ),
+            default="gemma3:1b",
+            options=_get_ollama_model_options(),
+            getter=lambda: prefs.get("ollama_model", "gemma3:1b"),
+            setter=_set_ollama_model,
+        )
+    )
 
     # Session 64: Context window size based on VRAM
     def _get_context_size_options() -> list[tuple[str, str]]:
@@ -825,103 +877,114 @@ def _register_all_settings():
         else:
             prefs.set("llm_context_size", int(value))
 
-    SettingsRegistry.register(SettingDefinition(
-        key="llm_context_size",
-        label="Context window size",
-        category="Q&A",
-        setting_type=SettingType.DROPDOWN,
-        tooltip=(
-            "How much text the AI can process at once (in tokens).\n\n"
-            "Larger context = better comprehension of long documents, but "
-            "requires more GPU memory (VRAM).\n\n"
-            "• Auto: Automatically selects optimal size based on your GPU\n"
-            "• Manual: Override if you experience issues or want to experiment\n\n"
-            "If Ollama becomes slow or unresponsive, try a smaller context size."
-        ),
-        default="auto",
-        options=_get_context_size_options(),
-        getter=_get_context_size,
-        setter=_set_context_size,
-    ))
+    SettingsRegistry.register(
+        SettingDefinition(
+            key="llm_context_size",
+            label="Context window size",
+            category="Q&A",
+            setting_type=SettingType.DROPDOWN,
+            tooltip=(
+                "How much text the AI can process at once (in tokens).\n\n"
+                "Larger context = better comprehension of long documents, but "
+                "requires more GPU memory (VRAM).\n\n"
+                "• Auto: Automatically selects optimal size based on your GPU\n"
+                "• Manual: Override if you experience issues or want to experiment\n\n"
+                "If Ollama becomes slow or unresponsive, try a smaller context size."
+            ),
+            default="auto",
+            options=_get_context_size_options(),
+            getter=_get_context_size,
+            setter=_set_context_size,
+        )
+    )
 
-    SettingsRegistry.register(SettingDefinition(
-        key="qa_answer_mode",
-        label="Answer generation mode",
-        category="Q&A",
-        setting_type=SettingType.DROPDOWN,
-        tooltip=(
-            "How to generate answers from retrieved document context.\n\n"
-            "• Extraction: Finds the most relevant sentences directly from "
-            "your document. Fast and deterministic - same question always "
-            "gives the same answer. Best for quick lookups.\n\n"
-            "• Ollama: Uses AI to synthesize a natural-language answer from "
-            "relevant passages. Slower but produces more readable, comprehensive "
-            "responses. Requires Ollama to be running."
-        ),
-        default="extraction",
-        options=[
-            ("Extraction (fast, from document)", "extraction"),
-            ("Ollama AI (slower, synthesized)", "ollama"),
-        ],
-        getter=lambda: prefs.get("qa_answer_mode", "extraction"),
-        setter=lambda v: prefs.set("qa_answer_mode", v),
-    ))
+    SettingsRegistry.register(
+        SettingDefinition(
+            key="qa_answer_mode",
+            label="Answer generation mode",
+            category="Q&A",
+            setting_type=SettingType.DROPDOWN,
+            tooltip=(
+                "How to generate answers from retrieved document context.\n\n"
+                "• Extraction: Finds the most relevant sentences directly from "
+                "your document. Fast and deterministic - same question always "
+                "gives the same answer. Best for quick lookups.\n\n"
+                "• Ollama: Uses AI to synthesize a natural-language answer from "
+                "relevant passages. Slower but produces more readable, comprehensive "
+                "responses. Requires Ollama to be running."
+            ),
+            default="extraction",
+            options=[
+                ("Extraction (fast, from document)", "extraction"),
+                ("Ollama AI (slower, synthesized)", "ollama"),
+            ],
+            getter=lambda: prefs.get("qa_answer_mode", "extraction"),
+            setter=lambda v: prefs.set("qa_answer_mode", v),
+        )
+    )
 
-    SettingsRegistry.register(SettingDefinition(
-        key="qa_auto_run",
-        label="Auto-run default questions",
-        category="Q&A",
-        setting_type=SettingType.CHECKBOX,
-        tooltip=(
-            "Automatically run the default questions after document processing "
-            "completes. Disable this if you prefer to manually trigger questions "
-            "or if processing large documents where questions add overhead."
-        ),
-        default=True,
-        getter=lambda: prefs.get("qa_auto_run", True),
-        setter=lambda v: prefs.set("qa_auto_run", v),
-    ))
+    SettingsRegistry.register(
+        SettingDefinition(
+            key="qa_auto_run",
+            label="Auto-run default questions",
+            category="Q&A",
+            setting_type=SettingType.CHECKBOX,
+            tooltip=(
+                "Automatically run the default questions after document processing "
+                "completes. Disable this if you prefer to manually trigger questions "
+                "or if processing large documents where questions add overhead."
+            ),
+            default=True,
+            getter=lambda: prefs.get("qa_auto_run", True),
+            setter=lambda v: prefs.set("qa_auto_run", v),
+        )
+    )
 
     # Session 63c: Custom widget for default questions management
     # (Replaces the old "Edit Default Questions" YAML editor button)
     def _create_default_questions_widget(parent):
         """Factory function to create the DefaultQuestionsWidget."""
         from src.ui.settings.settings_widgets import DefaultQuestionsWidget
+
         return DefaultQuestionsWidget(parent)
 
-    SettingsRegistry.register(SettingDefinition(
-        key="qa_default_questions",
-        label="Default Questions",
-        category="Q&A",
-        setting_type=SettingType.CUSTOM,
-        tooltip=(
-            "Manage the questions that are automatically asked after document "
-            "processing. Enable/disable individual questions using checkboxes. "
-            "Add new questions or edit existing ones. Changes are saved automatically."
-        ),
-        default=None,
-        widget_factory=_create_default_questions_widget,
-    ))
+    SettingsRegistry.register(
+        SettingDefinition(
+            key="qa_default_questions",
+            label="Default Questions",
+            category="Q&A",
+            setting_type=SettingType.CUSTOM,
+            tooltip=(
+                "Manage the questions that are automatically asked after document "
+                "processing. Enable/disable individual questions using checkboxes. "
+                "Add new questions or edit existing ones. Changes are saved automatically."
+            ),
+            default=None,
+            widget_factory=_create_default_questions_widget,
+        )
+    )
 
     # ===================================================================
     # EXPORT TAB (Session 73)
     # ===================================================================
 
-    SettingsRegistry.register(SettingDefinition(
-        key="auto_open_exports",
-        label="Auto-open exported files",
-        category="Export",
-        setting_type=SettingType.CHECKBOX,
-        tooltip=(
-            "When enabled, exported files (CSV, Word, PDF, HTML) are "
-            "automatically opened in their default application after export.\n\n"
-            "Disable this if you export many files at once or prefer to "
-            "manually open files."
-        ),
-        default=True,
-        getter=lambda: prefs.get("auto_open_exports", True),
-        setter=lambda v: prefs.set("auto_open_exports", v),
-    ))
+    SettingsRegistry.register(
+        SettingDefinition(
+            key="auto_open_exports",
+            label="Auto-open exported files",
+            category="Export",
+            setting_type=SettingType.CHECKBOX,
+            tooltip=(
+                "When enabled, exported files (CSV, Word, PDF, HTML) are "
+                "automatically opened in their default application after export.\n\n"
+                "Disable this if you export many files at once or prefer to "
+                "manually open files."
+            ),
+            default=True,
+            getter=lambda: prefs.get("auto_open_exports", True),
+            setter=lambda v: prefs.set("auto_open_exports", v),
+        )
+    )
 
     # ===================================================================
     # EXPERIMENTAL TAB (Session 43)
@@ -933,48 +996,53 @@ def _register_all_settings():
         """Get GPU status text for tooltip display."""
         try:
             from src.core.utils.gpu_detector import get_gpu_status_text
+
             return get_gpu_status_text()
         except Exception:
             return "GPU detection unavailable"
 
-    SettingsRegistry.register(SettingDefinition(
-        key="vocab_use_llm",
-        label="LLM vocabulary extraction",
-        category="Performance",
-        setting_type=SettingType.DROPDOWN,
-        tooltip=(
-            "Whether to use LLM (Ollama) for enhanced vocabulary extraction.\n\n"
-            "• Auto: Use LLM if dedicated GPU detected, skip otherwise\n"
-            "• Yes: Always use LLM (slower without GPU)\n"
-            "• No: Never use LLM (fast NER-only extraction)\n\n"
-            f"Current status: {_get_gpu_status_for_tooltip()}"
-        ),
-        default="auto",
-        options=[
-            ("Auto (based on GPU)", "auto"),
-            ("Yes (always use LLM)", "yes"),
-            ("No (NER only)", "no"),
-        ],
-        getter=lambda: prefs.get_vocab_llm_mode(),
-        setter=lambda v: prefs.set_vocab_llm_mode(v),
-    ))
+    SettingsRegistry.register(
+        SettingDefinition(
+            key="vocab_use_llm",
+            label="LLM vocabulary extraction",
+            category="Performance",
+            setting_type=SettingType.DROPDOWN,
+            tooltip=(
+                "Whether to use LLM (Ollama) for enhanced vocabulary extraction.\n\n"
+                "• Auto: Use LLM if dedicated GPU detected, skip otherwise\n"
+                "• Yes: Always use LLM (slower without GPU)\n"
+                "• No: Never use LLM (fast NER-only extraction)\n\n"
+                f"Current status: {_get_gpu_status_for_tooltip()}"
+            ),
+            default="auto",
+            options=[
+                ("Auto (based on GPU)", "auto"),
+                ("Yes (always use LLM)", "yes"),
+                ("No (NER only)", "no"),
+            ],
+            getter=lambda: prefs.get_vocab_llm_mode(),
+            setter=lambda v: prefs.set_vocab_llm_mode(v),
+        )
+    )
 
-    SettingsRegistry.register(SettingDefinition(
-        key="experimental_briefing_enabled",
-        label="Enable Case Briefing (experimental)",
-        category="Experimental",
-        setting_type=SettingType.CHECKBOX,
-        tooltip=(
-            "⚠️ EXPERIMENTAL: Case Briefing extracts parties, allegations, "
-            "and case facts from legal documents. This feature is still "
-            "being refined and may produce incomplete or inaccurate results.\n\n"
-            "When enabled, a 'Case Briefing (experimental)' checkbox will "
-            "appear in the output options. Requires application restart."
-        ),
-        default=False,
-        getter=lambda: prefs.is_experimental_briefing_enabled(),
-        setter=lambda v: prefs.set_experimental_briefing_enabled(v),
-    ))
+    SettingsRegistry.register(
+        SettingDefinition(
+            key="experimental_briefing_enabled",
+            label="Enable Case Briefing (experimental)",
+            category="Experimental",
+            setting_type=SettingType.CHECKBOX,
+            tooltip=(
+                "⚠️ EXPERIMENTAL: Case Briefing extracts parties, allegations, "
+                "and case facts from legal documents. This feature is still "
+                "being refined and may produce incomplete or inaccurate results.\n\n"
+                "When enabled, a 'Case Briefing (experimental)' checkbox will "
+                "appear in the output options. Requires application restart."
+            ),
+            default=False,
+            getter=lambda: prefs.is_experimental_briefing_enabled(),
+            setter=lambda v: prefs.set_experimental_briefing_enabled(v),
+        )
+    )
 
 
 # Register all settings when this module is imported

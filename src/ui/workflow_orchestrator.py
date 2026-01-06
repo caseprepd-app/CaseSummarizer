@@ -46,6 +46,7 @@ class WorkflowState:
         vector_store_path: Path to the created vector store (for Q&A)
         vector_store_ready: Whether vector store is ready for Q&A
     """
+
     extracted_documents: list[dict] = None
     pending_ai_params: dict | None = None
     output_options: dict | None = None
@@ -100,13 +101,11 @@ class WorkflowOrchestrator:
             "individual_summaries": self.main_window.output_options.individual_summaries_check.get(),
             "meta_summary": self.main_window.output_options.meta_summary_check.get(),
             "vocab_csv": self.main_window.output_options.vocab_csv_check.get(),
-            "qa_questions": self.main_window.output_options.qa_questions_check.get()
+            "qa_questions": self.main_window.output_options.qa_questions_check.get(),
         }
 
     def on_extraction_complete(
-        self,
-        extracted_documents: list[dict],
-        ai_params: dict | None
+        self, extracted_documents: list[dict], ai_params: dict | None
     ) -> dict[str, Any]:
         """
         Handle completion of document extraction phase.
@@ -144,34 +143,34 @@ class WorkflowOrchestrator:
         self.state.vector_store_path = None
 
         actions_taken = {
-            'vocab_extraction_started': False,
-            'ai_generation_started': False,
-            'vector_store_started': False,
-            'workflow_complete': False,
-            'combined_text': None
+            "vocab_extraction_started": False,
+            "ai_generation_started": False,
+            "vector_store_started": False,
+            "workflow_complete": False,
+            "combined_text": None,
         }
 
         # Always start vector store creation in background (for Q&A feature)
         # This runs in parallel with vocabulary extraction and AI generation
         if extracted_documents:
             self._create_vector_store_async(extracted_documents)
-            actions_taken['vector_store_started'] = True
+            actions_taken["vector_store_started"] = True
             debug_log("[ORCHESTRATOR] Started vector store creation (background).")
 
         # If no AI generation requested and no vocab requested, workflow is done
         # Note: Vector store creation continues in background even if workflow is "complete"
-        if not ai_params and not self.state.output_options.get('vocab_csv', False):
+        if not ai_params and not self.state.output_options.get("vocab_csv", False):
             debug_log("[ORCHESTRATOR] No outputs requested. Workflow complete.")
             self.state.is_complete = True
-            actions_taken['workflow_complete'] = True
+            actions_taken["workflow_complete"] = True
             return actions_taken
 
         # SEQUENTIAL: Start vocabulary extraction FIRST if requested
         # AI generation will start AFTER vocab completes (in on_vocab_complete)
-        if self.state.output_options.get('vocab_csv', False):
+        if self.state.output_options.get("vocab_csv", False):
             combined_text, doc_count, doc_confidence = self._get_combined_text(extracted_documents)
-            actions_taken['combined_text'] = combined_text
-            actions_taken['vocab_extraction_started'] = True
+            actions_taken["combined_text"] = combined_text
+            actions_taken["vocab_extraction_started"] = True
             self._start_vocab_extraction(combined_text, doc_count, doc_confidence)
             debug_log("[ORCHESTRATOR] Started vocabulary extraction (AI will start after).")
             # Do NOT start AI here - wait for vocab to complete
@@ -180,7 +179,7 @@ class WorkflowOrchestrator:
         # If no vocab requested but AI is, start AI directly
         if ai_params:
             self._start_ai_generation(extracted_documents, ai_params)
-            actions_taken['ai_generation_started'] = True
+            actions_taken["ai_generation_started"] = True
             debug_log("[ORCHESTRATOR] Started AI summary generation (no vocab requested).")
 
         return actions_taken
@@ -200,18 +199,26 @@ class WorkflowOrchestrator:
             Tuple of (combined_text, doc_count, doc_confidence)
         """
         # Disable preprocessing for vocabulary - we want raw text for NER
-        combined = combine_document_texts(extracted_documents, include_headers=False, preprocess=False)
-        doc_count = sum(1 for d in extracted_documents if d.get('extracted_text'))
+        combined = combine_document_texts(
+            extracted_documents, include_headers=False, preprocess=False
+        )
+        doc_count = sum(1 for d in extracted_documents if d.get("extracted_text"))
 
         # Calculate minimum confidence (Session 54)
-        confidences = [d.get('confidence', 100) for d in extracted_documents if d.get('confidence') is not None]
+        confidences = [
+            d.get("confidence", 100) for d in extracted_documents if d.get("confidence") is not None
+        ]
         doc_confidence = min(confidences) if confidences else 100.0
 
-        debug_log(f"[ORCHESTRATOR] Combined {doc_count} documents "
-                  f"({len(combined)} characters total, confidence={doc_confidence:.1f}%).")
+        debug_log(
+            f"[ORCHESTRATOR] Combined {doc_count} documents "
+            f"({len(combined)} characters total, confidence={doc_confidence:.1f}%)."
+        )
         return combined, doc_count, doc_confidence
 
-    def _start_vocab_extraction(self, combined_text: str, doc_count: int = 1, doc_confidence: float = 100.0):
+    def _start_vocab_extraction(
+        self, combined_text: str, doc_count: int = 1, doc_confidence: float = 100.0
+    ):
         """
         Start vocabulary extraction worker thread.
 
@@ -233,7 +240,9 @@ class WorkflowOrchestrator:
             doc_confidence=doc_confidence,  # Session 54: OCR quality for ML
         )
         self.vocab_worker.start()
-        debug_log(f"[ORCHESTRATOR] VocabularyWorker thread started (doc_count={doc_count}, confidence={doc_confidence:.1f}%).")
+        debug_log(
+            f"[ORCHESTRATOR] VocabularyWorker thread started (doc_count={doc_count}, confidence={doc_confidence:.1f}%)."
+        )
 
     def _start_ai_generation(self, extracted_documents: list[dict], ai_params: dict):
         """
@@ -248,7 +257,7 @@ class WorkflowOrchestrator:
             ai_params: AI generation parameters (model, length, options)
         """
         # Count documents with actual text
-        valid_docs = [d for d in extracted_documents if d.get('extracted_text')]
+        valid_docs = [d for d in extracted_documents if d.get("extracted_text")]
         doc_count = len(valid_docs)
 
         debug_log(f"[ORCHESTRATOR] Starting AI generation for {doc_count} document(s)")
@@ -278,9 +287,7 @@ class WorkflowOrchestrator:
 
         # Track worker for cancellation
         self.multi_doc_worker = MultiDocSummaryWorker(
-            documents=documents,
-            ui_queue=self.main_window.ui_queue,
-            ai_params=ai_params
+            documents=documents, ui_queue=self.main_window.ui_queue, ai_params=ai_params
         )
         self.multi_doc_worker.start()
         debug_log(f"[ORCHESTRATOR] MultiDocSummaryWorker started for {len(documents)} documents")
@@ -302,12 +309,9 @@ class WorkflowOrchestrator:
         self.state.vocab_complete = True
 
         # Now start AI generation if it was requested
-        if self.state.pending_ai_params and self.state.output_options.get('meta_summary', False):
+        if self.state.pending_ai_params and self.state.output_options.get("meta_summary", False):
             debug_log("[ORCHESTRATOR] Vocab complete, now starting AI generation...")
-            self._start_ai_generation(
-                self.state.extracted_documents,
-                self.state.pending_ai_params
-            )
+            self._start_ai_generation(self.state.extracted_documents, self.state.pending_ai_params)
         else:
             # No AI requested, workflow is complete
             debug_log("[ORCHESTRATOR] No AI generation requested. Workflow complete.")
@@ -315,8 +319,16 @@ class WorkflowOrchestrator:
 
     def _check_workflow_complete(self):
         """Check if all requested workflow steps are complete."""
-        vocab_needed = self.state.output_options.get('vocab_csv', False) if self.state.output_options else False
-        ai_needed = self.state.output_options.get('meta_summary', False) if self.state.output_options else False
+        vocab_needed = (
+            self.state.output_options.get("vocab_csv", False)
+            if self.state.output_options
+            else False
+        )
+        ai_needed = (
+            self.state.output_options.get("meta_summary", False)
+            if self.state.output_options
+            else False
+        )
 
         vocab_done = self.state.vocab_complete or not vocab_needed
         ai_done = self.state.ai_complete or not ai_needed
@@ -344,13 +356,18 @@ class WorkflowOrchestrator:
         Args:
             extracted_documents: List of document dicts with 'extracted_text'
         """
+
         def build_store():
             try:
                 debug_log("[ORCHESTRATOR] Vector store thread started.")
 
                 # Update status - embedding model load can take 15-30s on first run
-                if self.state.output_options and self.state.output_options.get('qa_questions', False):
-                    self.main_window.ui_queue.put(QueueMessage.progress(65, "Loading AI embedding model..."))
+                if self.state.output_options and self.state.output_options.get(
+                    "qa_questions", False
+                ):
+                    self.main_window.ui_queue.put(
+                        QueueMessage.progress(65, "Loading AI embedding model...")
+                    )
 
                 # Import and initialize embeddings
                 # NOTE: This import triggers torch loading which can take 10-15 seconds
@@ -362,31 +379,37 @@ class WorkflowOrchestrator:
                 # IMPORTANT: Explicitly set device='cpu' to avoid "meta tensor" errors
                 # See: https://discuss.huggingface.co/t/cannot-copy-out-of-meta-tensor-no-data/128996
                 embeddings = HuggingFaceEmbeddings(
-                    model_name="all-MiniLM-L6-v2",
-                    model_kwargs={'device': 'cpu'}
+                    model_name="all-MiniLM-L6-v2", model_kwargs={"device": "cpu"}
                 )
 
                 # Update status now that model is loaded
-                if self.state.output_options and self.state.output_options.get('qa_questions', False):
-                    self.main_window.ui_queue.put(QueueMessage.progress(75, "Building Q&A search index..."))
+                if self.state.output_options and self.state.output_options.get(
+                    "qa_questions", False
+                ):
+                    self.main_window.ui_queue.put(
+                        QueueMessage.progress(75, "Building Q&A search index...")
+                    )
 
                 # Build vector store
                 builder = VectorStoreBuilder()
                 result = builder.create_from_documents(
-                    documents=extracted_documents,
-                    embeddings=embeddings
+                    documents=extracted_documents, embeddings=embeddings
                 )
 
                 # Notify UI that vector store is ready
-                self.main_window.ui_queue.put(QueueMessage.vector_store_ready(
-                    path=result.persist_dir,
-                    case_id=result.case_id,
-                    chunk_count=result.chunk_count,
-                    creation_time_ms=result.creation_time_ms,
-                ))
+                self.main_window.ui_queue.put(
+                    QueueMessage.vector_store_ready(
+                        path=result.persist_dir,
+                        case_id=result.case_id,
+                        chunk_count=result.chunk_count,
+                        creation_time_ms=result.creation_time_ms,
+                    )
+                )
 
-                debug_log(f"[ORCHESTRATOR] Vector store ready: {result.case_id} "
-                         f"({result.chunk_count} chunks, {result.creation_time_ms:.0f}ms)")
+                debug_log(
+                    f"[ORCHESTRATOR] Vector store ready: {result.case_id} "
+                    f"({result.chunk_count} chunks, {result.creation_time_ms:.0f}ms)"
+                )
 
             except Exception as e:
                 debug_log(f"[ORCHESTRATOR] Vector store creation failed: {e}")
@@ -405,12 +428,12 @@ class WorkflowOrchestrator:
         Args:
             result: Dictionary with 'path', 'case_id', 'chunk_count'
         """
-        self.state.vector_store_path = result.get('path')
+        self.state.vector_store_path = result.get("path")
         self.state.vector_store_ready = True
         debug_log(f"[ORCHESTRATOR] Vector store complete: {result.get('case_id')}")
 
         # Start Q&A processing if requested
-        if self.state.output_options and self.state.output_options.get('qa_questions', False):
+        if self.state.output_options and self.state.output_options.get("qa_questions", False):
             self._start_qa_processing(result)
 
     def _start_qa_processing(self, vector_store_result: dict):
@@ -433,15 +456,14 @@ class WorkflowOrchestrator:
         # Initialize embeddings (same model as vector store creation)
         # IMPORTANT: Explicitly set device='cpu' to avoid "meta tensor" errors
         embeddings = HuggingFaceEmbeddings(
-            model_name="all-MiniLM-L6-v2",
-            model_kwargs={'device': 'cpu'}
+            model_name="all-MiniLM-L6-v2", model_kwargs={"device": "cpu"}
         )
 
         self.qa_worker = QAWorker(
-            vector_store_path=Path(vector_store_result['path']),
+            vector_store_path=Path(vector_store_result["path"]),
             embeddings=embeddings,
             ui_queue=self.main_window.ui_queue,
-            answer_mode=answer_mode
+            answer_mode=answer_mode,
         )
         self.qa_worker.start()
         debug_log(f"[ORCHESTRATOR] QAWorker started (mode={answer_mode})")
@@ -457,7 +479,9 @@ class WorkflowOrchestrator:
         """
         if not self.state.vector_store_ready or not self.state.vector_store_path:
             debug_log("[ORCHESTRATOR] Cannot ask follow-up: vector store not ready")
-            self.main_window.ui_queue.put(QueueMessage.qa_error('Vector store not ready. Process documents first.'))
+            self.main_window.ui_queue.put(
+                QueueMessage.qa_error("Vector store not ready. Process documents first.")
+            )
             return
 
         def ask_question():
@@ -475,15 +499,14 @@ class WorkflowOrchestrator:
                 # Initialize embeddings
                 # IMPORTANT: Explicitly set device='cpu' to avoid "meta tensor" errors
                 embeddings = HuggingFaceEmbeddings(
-                    model_name="all-MiniLM-L6-v2",
-                    model_kwargs={'device': 'cpu'}
+                    model_name="all-MiniLM-L6-v2", model_kwargs={"device": "cpu"}
                 )
 
                 # Create orchestrator with vector store path
                 qa_orchestrator = QAOrchestrator(
                     vector_store_path=self.state.vector_store_path,
                     embeddings=embeddings,
-                    answer_mode=answer_mode
+                    answer_mode=answer_mode,
                 )
 
                 # Ask the follow-up question
@@ -491,7 +514,9 @@ class WorkflowOrchestrator:
 
                 # Send result to UI
                 self.main_window.ui_queue.put(QueueMessage.qa_followup_result(result))
-                debug_log(f"[ORCHESTRATOR] Follow-up answered: {result.answer[:50] if result.answer else 'No answer'}...")
+                debug_log(
+                    f"[ORCHESTRATOR] Follow-up answered: {result.answer[:50] if result.answer else 'No answer'}..."
+                )
 
             except Exception as e:
                 debug_log(f"[ORCHESTRATOR] Follow-up error: {e}")

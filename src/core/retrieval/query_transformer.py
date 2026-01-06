@@ -117,7 +117,9 @@ Alternative queries:"""
         self._available: Optional[bool] = None
 
         if DEBUG_MODE:
-            debug_log(f"[QueryTransformer] Initialized (enabled={enabled}, variants={variant_count})")
+            debug_log(
+                f"[QueryTransformer] Initialized (enabled={enabled}, variants={variant_count})"
+            )
 
     def _init_llm(self) -> bool:
         """
@@ -142,7 +144,9 @@ Alternative queries:"""
             )
 
             if DEBUG_MODE:
-                debug_log(f"[QueryTransformer] LlamaIndex Ollama initialized with model: {OLLAMA_MODEL_NAME}")
+                debug_log(
+                    f"[QueryTransformer] LlamaIndex Ollama initialized with model: {OLLAMA_MODEL_NAME}"
+                )
 
             return True
 
@@ -199,10 +203,7 @@ Alternative queries:"""
 
         try:
             # Build prompt
-            prompt = self.PROMPT_TEMPLATE.format(
-                query=query,
-                variant_count=self.variant_count
-            )
+            prompt = self.PROMPT_TEMPLATE.format(query=query, variant_count=self.variant_count)
 
             if DEBUG_MODE:
                 debug_log(f"[QueryTransformer] Transforming: '{query[:50]}...'")
@@ -214,7 +215,7 @@ Alternative queries:"""
             # Parse response into query variants
             variants = self._parse_variants(response_text)
 
-            result.expanded_queries = variants[:self.variant_count]
+            result.expanded_queries = variants[: self.variant_count]
             result.success = True
 
             if DEBUG_MODE:
@@ -246,7 +247,7 @@ Alternative queries:"""
         """
         variants = []
 
-        for line in response.split('\n'):
+        for line in response.split("\n"):
             # Clean the line
             line = line.strip()
 
@@ -257,19 +258,19 @@ Alternative queries:"""
             # Numbered: "1.", "1)", "1:"
             # Bullets: "-", "*", "•"
             # PERF-005: Use module-level re import
-            line = re.sub(r'^[\d]+[.)\:]?\s*', '', line)
-            line = re.sub(r'^[-*•]\s*', '', line)
+            line = re.sub(r"^[\d]+[.)\:]?\s*", "", line)
+            line = re.sub(r"^[-*•]\s*", "", line)
             line = line.strip()
 
             # Skip if too short or looks like a header
             if len(line) < 5:
                 continue
-            if line.endswith(':'):
+            if line.endswith(":"):
                 continue
 
             # Skip if it's a meta-comment
             lower = line.lower()
-            if any(skip in lower for skip in ['here are', 'alternative', 'query:', 'search:']):
+            if any(skip in lower for skip in ["here are", "alternative", "query:", "search:"]):
                 continue
 
             variants.append(line)

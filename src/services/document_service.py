@@ -37,9 +37,7 @@ class DocumentService:
         self.preprocessor = create_default_pipeline()
 
     def process_documents(
-        self,
-        file_paths: list[str],
-        progress_callback: Callable[[int, int], None] | None = None
+        self, file_paths: list[str], progress_callback: Callable[[int, int], None] | None = None
     ) -> list[dict]:
         """
         Process multiple documents through extraction, sanitization, and preprocessing.
@@ -82,8 +80,8 @@ class DocumentService:
         # Extract raw text
         extraction_result = self.extractor.extract(file_path)
 
-        raw_text = extraction_result.get('text', '')
-        confidence = extraction_result.get('confidence', 0)
+        raw_text = extraction_result.get("text", "")
+        confidence = extraction_result.get("confidence", 0)
 
         # Sanitize (fix encoding issues, normalize whitespace)
         sanitized_text, sanitize_stats = self.sanitizer.sanitize(raw_text)
@@ -92,20 +90,16 @@ class DocumentService:
         preprocessed_text = self.preprocessor.process(sanitized_text)
 
         return {
-            'file_path': file_path,
-            'file_name': Path(file_path).name,
-            'raw_text': raw_text,
-            'text': preprocessed_text,
-            'confidence': confidence,
-            'word_count': len(preprocessed_text.split()),
-            'sanitize_stats': sanitize_stats,
+            "file_path": file_path,
+            "file_name": Path(file_path).name,
+            "raw_text": raw_text,
+            "text": preprocessed_text,
+            "confidence": confidence,
+            "word_count": len(preprocessed_text.split()),
+            "sanitize_stats": sanitize_stats,
         }
 
-    def combine_texts(
-        self,
-        results: list[dict],
-        separator: str = "\n\n---\n\n"
-    ) -> str:
+    def combine_texts(self, results: list[dict], separator: str = "\n\n---\n\n") -> str:
         """
         Combine processed texts from multiple documents.
 
@@ -116,7 +110,7 @@ class DocumentService:
         Returns:
             Combined text string
         """
-        texts = [r.get('text', '') for r in results if r.get('text')]
+        texts = [r.get("text", "") for r in results if r.get("text")]
         return separator.join(texts)
 
     def get_total_word_count(self, results: list[dict]) -> int:
@@ -129,4 +123,4 @@ class DocumentService:
         Returns:
             Total word count
         """
-        return sum(r.get('word_count', 0) for r in results)
+        return sum(r.get("word_count", 0) for r in results)

@@ -54,11 +54,27 @@ from src.core.vocabulary.term_sources import TermSources
 
 # Organization indicator words for category detection
 ORGANIZATION_INDICATORS = {
-    'LLP', 'PLLC', 'P.C.', 'LLC', 'Inc', 'Corp', 'Corporation',
-    'Law Firm', 'Law Office', 'Firm',
-    'Hospital', 'Medical', 'Healthcare', 'Health', 'Clinic',
-    'University', 'College', 'School',
-    'Bank', 'Insurance', 'Services',
+    "LLP",
+    "PLLC",
+    "P.C.",
+    "LLC",
+    "Inc",
+    "Corp",
+    "Corporation",
+    "Law Firm",
+    "Law Office",
+    "Firm",
+    "Hospital",
+    "Medical",
+    "Healthcare",
+    "Health",
+    "Clinic",
+    "University",
+    "College",
+    "School",
+    "Bank",
+    "Insurance",
+    "Services",
 }
 
 
@@ -116,7 +132,9 @@ class VocabularyExtractor:
             debug_log(f"[VOCAB] User exclusion list has {len(self.user_exclude_list)} terms")
 
         # Load common medical/legal words blacklist
-        common_blacklist_path = Path(__file__).parent.parent.parent.parent / "config" / "common_medical_legal.txt"
+        common_blacklist_path = (
+            Path(__file__).parent.parent.parent.parent / "config" / "common_medical_legal.txt"
+        )
         self.common_words_blacklist = self._load_word_list(common_blacklist_path)
 
         # Load frequency dataset
@@ -160,7 +178,9 @@ class VocabularyExtractor:
                     corpus_manager = get_corpus_manager()
                     bm25 = BM25Algorithm(corpus_manager=corpus_manager)
                     self.algorithms.append(bm25)
-                    debug_log(f"[VOCAB] BM25 algorithm enabled (corpus: {corpus_manager.get_document_count()} docs)")
+                    debug_log(
+                        f"[VOCAB] BM25 algorithm enabled (corpus: {corpus_manager.get_document_count()} docs)"
+                    )
                 except Exception as e:
                     debug_log(f"[VOCAB] Failed to initialize BM25: {e}")
         else:
@@ -186,7 +206,7 @@ class VocabularyExtractor:
         if self._nlp is None:
             # Try to get from NER algorithm
             for alg in self.algorithms:
-                if hasattr(alg, 'nlp') and alg.nlp is not None:
+                if hasattr(alg, "nlp") and alg.nlp is not None:
                     self._nlp = alg.nlp
                     break
             # Fallback: load minimal model for categorization
@@ -197,7 +217,9 @@ class VocabularyExtractor:
                     self._nlp = spacy.load("en_core_web_sm")
         return self._nlp
 
-    def extract(self, text: str, doc_count: int = 1, doc_confidence: float = 100.0) -> list[dict[str, str]]:
+    def extract(
+        self, text: str, doc_count: int = 1, doc_confidence: float = 100.0
+    ) -> list[dict[str, str]]:
         """
         Extract vocabulary using all enabled algorithms.
 
@@ -236,7 +258,9 @@ class VocabularyExtractor:
         debug_log(f"[VOCAB] After merge: {len(merged_terms)} unique terms")
 
         # 3. Post-process: categorize, detect roles, add definitions
-        debug_log(f"[VOCAB] Post-processing (doc_count={doc_count}, doc_confidence={doc_confidence:.1f}%)...")
+        debug_log(
+            f"[VOCAB] Post-processing (doc_count={doc_count}, doc_confidence={doc_confidence:.1f}%)..."
+        )
         vocabulary = self._post_process(merged_terms, text, doc_count, doc_confidence)
         debug_log(f"[VOCAB] After post-process: {len(vocabulary)} terms")
 
@@ -245,11 +269,14 @@ class VocabularyExtractor:
         # rarity filter, corpus familiarity, and gibberish filter
         debug_log("[VOCAB] Running filter chain...")
         from src.core.vocabulary.filters import create_optimized_filter_chain
+
         filter_chain = create_optimized_filter_chain()
         filter_result = filter_chain.run(vocabulary)
         vocabulary = filter_result.vocabulary
-        debug_log(f"[VOCAB] Filter chain complete: {filter_result.removed_count} removed, "
-                  f"{len(vocabulary)} remaining")
+        debug_log(
+            f"[VOCAB] Filter chain complete: {filter_result.removed_count} removed, "
+            f"{len(vocabulary)} remaining"
+        )
 
         # 8. Sort vocabulary based on configured method
         vocabulary = self._sort_vocabulary(vocabulary)
@@ -331,7 +358,9 @@ class VocabularyExtractor:
         # 3.5 Filter out common words and apply frequency thresholds (Session 45)
         debug_log("[VOCAB] Phase 3.5: Filtering common words...")
         filtered_reconciled = self._filter_reconciled_terms(reconciled, doc_count)
-        debug_log(f"[VOCAB] After filtering: {len(filtered_reconciled)} terms (removed {len(reconciled) - len(filtered_reconciled)})")
+        debug_log(
+            f"[VOCAB] After filtering: {len(filtered_reconciled)} terms (removed {len(reconciled) - len(filtered_reconciled)})"
+        )
         reconciled = filtered_reconciled
 
         # 4. Add definitions for Medical/Technical terms
@@ -355,11 +384,14 @@ class VocabularyExtractor:
         # rarity filter, corpus familiarity, and gibberish filter
         debug_log("[VOCAB] Phase 7: Running filter chain...")
         from src.core.vocabulary.filters import create_optimized_filter_chain
+
         filter_chain = create_optimized_filter_chain()
         filter_result = filter_chain.run(csv_data)
         csv_data = filter_result.vocabulary
-        debug_log(f"[VOCAB] Filter chain complete: {filter_result.removed_count} removed, "
-                  f"{len(csv_data)} remaining")
+        debug_log(
+            f"[VOCAB] Filter chain complete: {filter_result.removed_count} removed, "
+            f"{len(csv_data)} remaining"
+        )
 
         total_time = (time.time() - start_time) * 1000
         debug_log(f"[VOCAB] extract_with_llm complete in {total_time:.1f}ms, {len(csv_data)} terms")
@@ -414,7 +446,9 @@ class VocabularyExtractor:
         # Parallel execution
         # Each algorithm uses ~0.5GB RAM (spaCy model is shared)
         workers = min(len(enabled_algorithms), get_optimal_workers(task_ram_gb=0.5, max_workers=4))
-        debug_log(f"[VOCAB] Running {len(enabled_algorithms)} algorithms in parallel ({workers} workers)")
+        debug_log(
+            f"[VOCAB] Running {len(enabled_algorithms)} algorithms in parallel ({workers} workers)"
+        )
 
         start_time = time.time()
         strategy = ThreadPoolStrategy(max_workers=workers)
@@ -442,7 +476,9 @@ class VocabularyExtractor:
                         f"in {result.processing_time_ms:.1f}ms"
                     )
                 else:
-                    debug_log(f"[VOCAB] Algorithm {task_result.task_id} failed: {task_result.error}")
+                    debug_log(
+                        f"[VOCAB] Algorithm {task_result.task_id} failed: {task_result.error}"
+                    )
 
             total_time = (time.time() - start_time) * 1000
             debug_log(f"[VOCAB] Parallel extraction complete in {total_time:.1f}ms")
@@ -457,7 +493,7 @@ class VocabularyExtractor:
         merged_terms: list[MergedTerm],
         full_text: str,
         doc_count: int,
-        doc_confidence: float = 100.0
+        doc_confidence: float = 100.0,
     ) -> list[dict[str, str]]:
         """
         Post-process merged terms: categorize, detect roles, add definitions.
@@ -497,7 +533,9 @@ class VocabularyExtractor:
 
             # Minimum occurrence filtering (Person names exempt)
             # Session 62: Read from user preferences with config fallback
-            min_occurrences = get_user_preferences().get("vocab_min_occurrences", VOCABULARY_MIN_OCCURRENCES)
+            min_occurrences = get_user_preferences().get(
+                "vocab_min_occurrences", VOCABULARY_MIN_OCCURRENCES
+            )
             if not is_person and merged.frequency < min_occurrences:
                 continue
 
@@ -665,6 +703,7 @@ class VocabularyExtractor:
             # Session 62: Apply rarity filter to catch common words not in frequency dataset
             # This uses the scaled frequency database which has better coverage for LLM terms
             from src.core.vocabulary.rarity_filter import should_filter_phrase
+
             is_person = category == "Person"
             if should_filter_phrase(term, is_person):
                 debug_log(f"[VOCAB FILTER] Skipping common term via rarity filter: {term}")
@@ -672,14 +711,20 @@ class VocabularyExtractor:
 
             # Frequency filtering (PERSON exempt) - skip if too frequent
             if category != "Person" and term_obj.frequency > frequency_threshold:
-                debug_log(f"[VOCAB FILTER] Skipping high-frequency term: {term} (freq={term_obj.frequency})")
+                debug_log(
+                    f"[VOCAB FILTER] Skipping high-frequency term: {term} (freq={term_obj.frequency})"
+                )
                 continue
 
             # Minimum occurrence filtering (PERSON exempt) - skip if too rare
             # Session 62: Read from user preferences with config fallback
-            min_occurrences = get_user_preferences().get("vocab_min_occurrences", VOCABULARY_MIN_OCCURRENCES)
+            min_occurrences = get_user_preferences().get(
+                "vocab_min_occurrences", VOCABULARY_MIN_OCCURRENCES
+            )
             if category != "Person" and term_obj.frequency < min_occurrences:
-                debug_log(f"[VOCAB FILTER] Skipping low-frequency term: {term} (freq={term_obj.frequency})")
+                debug_log(
+                    f"[VOCAB FILTER] Skipping low-frequency term: {term} (freq={term_obj.frequency})"
+                )
                 continue
 
             # Skip single-character terms
@@ -888,11 +933,7 @@ class VocabularyExtractor:
         Returns:
             Sorted vocabulary list (highest Quality Score first)
         """
-        return sorted(
-            vocabulary,
-            key=lambda x: float(x.get("Quality Score", 0) or 0),
-            reverse=True
-        )
+        return sorted(vocabulary, key=lambda x: float(x.get("Quality Score", 0) or 0), reverse=True)
 
     def _sort_by_rarity(self, vocabulary: list[dict]) -> list[dict]:
         """Sort vocabulary list by rarity (rarest first)."""
@@ -906,7 +947,7 @@ class VocabularyExtractor:
             else:
                 in_dataset.append(item)
 
-        in_dataset.sort(key=lambda x: self.frequency_dataset.get(x["Term"].lower(), float('inf')))
+        in_dataset.sort(key=lambda x: self.frequency_dataset.get(x["Term"].lower(), float("inf")))
         return not_in_dataset + in_dataset
 
     # ========================================================================
@@ -947,7 +988,7 @@ class VocabularyExtractor:
             debug_log(f"[VOCAB] Word list not found: {file_path}")
             return set()
 
-        with open(file_path, encoding='utf-8') as f:
+        with open(file_path, encoding="utf-8") as f:
             word_list = {line.strip().lower() for line in f if line.strip()}
             debug_log(f"[VOCAB] Loaded {len(word_list)} words from {file_path}")
             return word_list
@@ -962,9 +1003,9 @@ class VocabularyExtractor:
             return frequency_dict, rank_map
 
         try:
-            with open(GOOGLE_WORD_FREQUENCY_FILE, encoding='utf-8') as f:
+            with open(GOOGLE_WORD_FREQUENCY_FILE, encoding="utf-8") as f:
                 for line in f:
-                    parts = line.strip().split('\t')
+                    parts = line.strip().split("\t")
                     if len(parts) == 2:
                         word, count_str = parts
                         try:
@@ -988,11 +1029,11 @@ class VocabularyExtractor:
     def _ensure_nltk_data(self):
         """Ensure NLTK data is available."""
         try:
-            wordnet.synsets('test')
+            wordnet.synsets("test")
         except LookupError:
             debug_log("[VOCAB] Downloading NLTK wordnet...")
-            nltk.download('wordnet', quiet=True)
-            nltk.download('omw-1.4', quiet=True)
+            nltk.download("wordnet", quiet=True)
+            nltk.download("omw-1.4", quiet=True)
 
     def add_user_exclusion(self, term: str) -> bool:
         """Add a term to the user's exclusion list."""
@@ -1008,7 +1049,7 @@ class VocabularyExtractor:
 
         try:
             os.makedirs(os.path.dirname(self.user_exclude_path), exist_ok=True)
-            with open(self.user_exclude_path, 'a', encoding='utf-8') as f:
+            with open(self.user_exclude_path, "a", encoding="utf-8") as f:
                 f.write(f"{lower_term}\n")
             debug_log(f"[VOCAB] Added '{term}' to user exclusion list")
             return True
@@ -1022,7 +1063,7 @@ class VocabularyExtractor:
             self.user_exclude_list = self._load_word_list(self.user_exclude_path)
             # Also update NER algorithm's exclusion list
             for alg in self.algorithms:
-                if hasattr(alg, 'user_exclude_list'):
+                if hasattr(alg, "user_exclude_list"):
                     alg.user_exclude_list = self.user_exclude_list
 
     def _should_enable_bm25(self) -> bool:
@@ -1051,7 +1092,9 @@ class VocabularyExtractor:
             corpus_manager = get_corpus_manager()
             if not corpus_manager.is_corpus_ready(min_docs=CORPUS_MIN_DOCUMENTS):
                 doc_count = corpus_manager.get_document_count()
-                debug_log(f"[VOCAB] BM25 skipped: corpus has {doc_count}/{CORPUS_MIN_DOCUMENTS} documents")
+                debug_log(
+                    f"[VOCAB] BM25 skipped: corpus has {doc_count}/{CORPUS_MIN_DOCUMENTS} documents"
+                )
                 return False
 
             return True
@@ -1065,10 +1108,7 @@ class VocabularyExtractor:
     # ========================================================================
 
     def extract_from_document(
-        self,
-        text: str,
-        doc_id: str,
-        doc_confidence: float
+        self, text: str, doc_id: str, doc_confidence: float
     ) -> dict[str, int]:
         """
         Extract vocabulary from a single document.
@@ -1109,9 +1149,7 @@ class VocabularyExtractor:
         return term_counts
 
     def merge_document_results(
-        self,
-        doc_results: list[tuple[str, float, dict[str, int]]],
-        full_text: str | None = None
+        self, doc_results: list[tuple[str, float, dict[str, int]]], full_text: str | None = None
     ) -> list[dict]:
         """
         Merge per-document extractions into final vocabulary with TermSources.
@@ -1168,7 +1206,7 @@ class VocabularyExtractor:
             sources = TermSources(
                 doc_ids=data["doc_ids"],
                 confidences=data["confidences"],
-                counts_per_doc=data["counts_per_doc"]
+                counts_per_doc=data["counts_per_doc"],
             )
 
             # Use original term (need to find best-cased version)
@@ -1185,7 +1223,10 @@ class VocabularyExtractor:
             # Calculate base quality score (Session 79: pass TermSources for quality adjustments)
             frequency_rank = self._get_term_frequency_rank(term_lower)
             base_quality_score = self._calculate_quality_score(
-                is_person, data["total_count"], frequency_rank, 1,
+                is_person,
+                data["total_count"],
+                frequency_rank,
+                1,
                 term_sources=sources,
                 total_docs_in_session=total_docs,
             )
@@ -1225,6 +1266,7 @@ class VocabularyExtractor:
         # Run filter chain
         debug_log("[VOCAB] Running filter chain on merged results...")
         from src.core.vocabulary.filters import create_optimized_filter_chain
+
         filter_chain = create_optimized_filter_chain()
         filter_result = filter_chain.run(vocabulary)
         vocabulary = filter_result.vocabulary
@@ -1234,11 +1276,7 @@ class VocabularyExtractor:
         vocabulary = self._sort_vocabulary(vocabulary)
         return vocabulary
 
-    def extract_per_document(
-        self,
-        documents: list[dict],
-        progress_callback=None
-    ) -> list[dict]:
+    def extract_per_document(self, documents: list[dict], progress_callback=None) -> list[dict]:
         """
         High-level per-document extraction with TermSources tracking.
 

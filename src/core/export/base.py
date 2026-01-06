@@ -18,6 +18,7 @@ class TextSpan:
     Used for verification-colored Q&A answers where different parts
     have different reliability scores.
     """
+
     text: str
     color: Optional[tuple[int, int, int]] = None  # RGB tuple
     bold: bool = False
@@ -28,6 +29,7 @@ class TextSpan:
 @dataclass
 class TableCell:
     """Table cell with optional styling."""
+
     text: str
     bold: bool = False
     align: str = "left"  # left, center, right
@@ -104,11 +106,11 @@ class DocumentBuilder(ABC):
 # Verification color constants (from theme.py)
 # Used for Q&A answer span coloring
 VERIFICATION_COLORS = {
-    "verified": (40, 167, 69),       # Green
-    "uncertain": (255, 193, 7),      # Yellow
-    "suspicious": (253, 126, 20),    # Orange
-    "unreliable": (220, 53, 69),     # Red
-    "hallucinated": (136, 136, 136), # Gray (+ strikethrough)
+    "verified": (40, 167, 69),  # Green
+    "uncertain": (255, 193, 7),  # Yellow
+    "suspicious": (253, 126, 20),  # Orange
+    "unreliable": (220, 53, 69),  # Red
+    "hallucinated": (136, 136, 136),  # Gray (+ strikethrough)
 }
 
 

@@ -7,15 +7,16 @@ This module initializes the CustomTkinter application and launches the main wind
 
 # Set environment variables BEFORE any imports that might trigger torch loading.
 import os
-os.environ['TOKENIZERS_PARALLELISM'] = 'false'  # Prevent HuggingFace tokenizer deadlocks
-os.environ['HF_HUB_DISABLE_SYMLINKS_WARNING'] = '1'  # Suppress HuggingFace Hub symlink warning
+
+os.environ["TOKENIZERS_PARALLELISM"] = "false"  # Prevent HuggingFace tokenizer deadlocks
+os.environ["HF_HUB_DISABLE_SYMLINKS_WARNING"] = "1"  # Suppress HuggingFace Hub symlink warning
 
 import multiprocessing
 import sys
 from datetime import datetime
 
 # Add project root to Python path
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 import customtkinter as ctk
 
@@ -36,10 +37,11 @@ def setup_file_logging():
 
     class Logger:
         """LOG-002, LOG-003: Added error handling and close method."""
+
         def __init__(self, filepath):
             self.terminal = sys.stdout
             try:
-                self.logfile = open(filepath, "w", encoding='utf-8')
+                self.logfile = open(filepath, "w", encoding="utf-8")
             except (OSError, IOError) as e:
                 print(f"Warning: Could not open log file {filepath}: {e}", file=sys.stderr)
                 self.logfile = None
@@ -75,6 +77,7 @@ def setup_file_logging():
     print(f"--- Log started at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} ---")
     print(f"Logging to: {log_filename}")
 
+
 def main():
     """
     Main entry point for LocalScribe desktop application.
@@ -92,7 +95,6 @@ def main():
     # Create and run the application
     app = MainWindow()
     app.mainloop()
-
 
 
 if __name__ == "__main__":

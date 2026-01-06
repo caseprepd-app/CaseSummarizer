@@ -33,9 +33,9 @@ class WordDocumentBuilder(DocumentBuilder):
     def _set_document_styles(self) -> None:
         """Configure default document styles."""
         # Set default font
-        style = self.doc.styles['Normal']
+        style = self.doc.styles["Normal"]
         font = style.font
-        font.name = 'Calibri'
+        font.name = "Calibri"
         font.size = Pt(11)
 
     def add_heading(self, text: str, level: int = 1) -> None:
@@ -72,7 +72,7 @@ class WordDocumentBuilder(DocumentBuilder):
 
         # Create table with header row
         table = self.doc.add_table(rows=1, cols=len(headers))
-        table.style = 'Table Grid'
+        table.style = "Table Grid"
         table.alignment = WD_TABLE_ALIGNMENT.LEFT
 
         # Add headers

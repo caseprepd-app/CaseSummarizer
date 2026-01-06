@@ -37,6 +37,7 @@ def _get_deskew():
     if _deskew_module is None:
         try:
             from deskew import determine_skew
+
             _deskew_module = determine_skew
         except ImportError:
             warning("deskew library not installed. Skew correction disabled.")
@@ -47,6 +48,7 @@ def _get_deskew():
 @dataclass
 class PreprocessingStats:
     """Statistics from image preprocessing."""
+
     original_size: tuple[int, int] = (0, 0)
     processed_size: tuple[int, int] = (0, 0)
     # Orientation correction (90°/180°/270°)
@@ -162,7 +164,7 @@ class ImagePreprocessor:
             image = self._detect_and_correct_orientation(image, stats)
         else:
             debug("  [0a] Orientation correction: skipped (disabled)")
-        stats.stage_times['orientation'] = (time.time() - stage_start) * 1000
+        stats.stage_times["orientation"] = (time.time() - stage_start) * 1000
 
         # Stage 0b: Document detection and cropping
         stage_start = time.time()
@@ -170,7 +172,7 @@ class ImagePreprocessor:
             image = self._detect_and_crop_document(image, stats)
         else:
             debug("  [0b] Document detection: skipped (disabled)")
-        stats.stage_times['document_crop'] = (time.time() - stage_start) * 1000
+        stats.stage_times["document_crop"] = (time.time() - stage_start) * 1000
 
         # Convert PIL Image to OpenCV format (numpy array)
         cv_image = self._pil_to_cv2(image)
@@ -183,7 +185,7 @@ class ImagePreprocessor:
         else:
             gray = cv_image
             debug("  [1] Grayscale conversion: already grayscale")
-        stats.stage_times['grayscale'] = (time.time() - stage_start) * 1000
+        stats.stage_times["grayscale"] = (time.time() - stage_start) * 1000
 
         # Stage 2: Noise removal (denoising)
         stage_start = time.time()
@@ -194,15 +196,14 @@ class ImagePreprocessor:
         except Exception as e:
             denoised = gray
             warning(f"  [2] Denoising failed: {e}")
-        stats.stage_times['denoise'] = (time.time() - stage_start) * 1000
+        stats.stage_times["denoise"] = (time.time() - stage_start) * 1000
 
         # Stage 3: Contrast enhancement (CLAHE)
         stage_start = time.time()
         if self.enable_clahe:
             try:
                 clahe = cv2.createCLAHE(
-                    clipLimit=self.clahe_clip_limit,
-                    tileGridSize=self.clahe_grid_size
+                    clipLimit=self.clahe_clip_limit, tileGridSize=self.clahe_grid_size
                 )
                 enhanced = clahe.apply(denoised)
                 stats.contrast_enhanced = True
@@ -213,7 +214,7 @@ class ImagePreprocessor:
         else:
             enhanced = denoised
             debug("  [3] CLAHE contrast enhancement: skipped (disabled)")
-        stats.stage_times['clahe'] = (time.time() - stage_start) * 1000
+        stats.stage_times["clahe"] = (time.time() - stage_start) * 1000
 
         # Stage 4: Adaptive thresholding (binarization)
         stage_start = time.time()
@@ -224,10 +225,12 @@ class ImagePreprocessor:
                 cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
                 cv2.THRESH_BINARY,
                 self.adaptive_block_size,
-                self.adaptive_constant
+                self.adaptive_constant,
             )
             stats.binarized = True
-            debug(f"  [4] Adaptive thresholding: applied (block={self.adaptive_block_size}, C={self.adaptive_constant})")
+            debug(
+                f"  [4] Adaptive thresholding: applied (block={self.adaptive_block_size}, C={self.adaptive_constant})"
+            )
         except Exception as e:
             # Fallback to Otsu's method
             try:
@@ -237,7 +240,7 @@ class ImagePreprocessor:
             except Exception as e2:
                 binary = enhanced
                 warning(f"  [4] All binarization failed: {e2}")
-        stats.stage_times['binarize'] = (time.time() - stage_start) * 1000
+        stats.stage_times["binarize"] = (time.time() - stage_start) * 1000
 
         # Stage 5: Deskewing
         stage_start = time.time()
@@ -248,31 +251,35 @@ class ImagePreprocessor:
             debug(f"  [5] Deskewing: corrected {skew_angle:.2f}° rotation")
         else:
             debug(f"  [5] Deskewing: no significant skew detected ({skew_angle:.2f}°)")
-        stats.stage_times['deskew'] = (time.time() - stage_start) * 1000
+        stats.stage_times["deskew"] = (time.time() - stage_start) * 1000
 
         # Stage 6: Border padding
         stage_start = time.time()
         if self.border_size > 0:
             padded = cv2.copyMakeBorder(
                 deskewed,
-                self.border_size, self.border_size,
-                self.border_size, self.border_size,
+                self.border_size,
+                self.border_size,
+                self.border_size,
+                self.border_size,
                 cv2.BORDER_CONSTANT,
-                value=255  # White border
+                value=255,  # White border
             )
             stats.border_added = True
             debug(f"  [6] Border padding: added {self.border_size}px white border")
         else:
             padded = deskewed
             debug("  [6] Border padding: skipped (disabled)")
-        stats.stage_times['border'] = (time.time() - stage_start) * 1000
+        stats.stage_times["border"] = (time.time() - stage_start) * 1000
 
         # Convert back to PIL Image
         result = self._cv2_to_pil(padded)
         stats.processed_size = result.size
         stats.total_time_ms = (time.time() - start_time) * 1000
 
-        debug(f"Image preprocessing complete: {stats.processed_size[0]}x{stats.processed_size[1]} in {stats.total_time_ms:.1f}ms")
+        debug(
+            f"Image preprocessing complete: {stats.processed_size[0]}x{stats.processed_size[1]} in {stats.total_time_ms:.1f}ms"
+        )
 
         return result, stats
 
@@ -302,7 +309,9 @@ class ImagePreprocessor:
 
             # Limit correction to reasonable angles
             if abs(angle) > self.max_skew_angle:
-                warning(f"Detected skew angle {angle:.2f}° exceeds max {self.max_skew_angle}°, skipping correction")
+                warning(
+                    f"Detected skew angle {angle:.2f}° exceeds max {self.max_skew_angle}°, skipping correction"
+                )
                 return image, angle
 
             # Skip very small corrections (< 0.5 degrees)
@@ -330,7 +339,7 @@ class ImagePreprocessor:
                 (new_w, new_h),
                 flags=cv2.INTER_CUBIC,
                 borderMode=cv2.BORDER_CONSTANT,
-                borderValue=255  # White background
+                borderValue=255,  # White background
             )
 
             return rotated, angle
@@ -374,11 +383,15 @@ class ImagePreprocessor:
                 # PIL rotates counter-clockwise, so we negate
                 corrected = image.rotate(-orientation, expand=True, fillcolor="white")
                 stats.orientation_corrected = True
-                debug(f"  [0a] Orientation correction: rotated {orientation}° (confidence={confidence:.1f})")
+                debug(
+                    f"  [0a] Orientation correction: rotated {orientation}° (confidence={confidence:.1f})"
+                )
                 return corrected
             else:
                 if orientation != 0:
-                    debug(f"  [0a] Orientation detection: {orientation}° detected but confidence too low ({confidence:.1f} < {self.orientation_confidence_threshold})")
+                    debug(
+                        f"  [0a] Orientation detection: {orientation}° detected but confidence too low ({confidence:.1f} < {self.orientation_confidence_threshold})"
+                    )
                 else:
                     debug(f"  [0a] Orientation detection: no rotation needed")
                 return image
@@ -472,12 +485,15 @@ class ImagePreprocessor:
         target_height = int(max(height_left, height_right))
 
         # Define destination points for perspective transform
-        dst_corners = np.array([
-            [0, 0],
-            [target_width - 1, 0],
-            [target_width - 1, target_height - 1],
-            [0, target_height - 1]
-        ], dtype=np.float32)
+        dst_corners = np.array(
+            [
+                [0, 0],
+                [target_width - 1, 0],
+                [target_width - 1, target_height - 1],
+                [0, target_height - 1],
+            ],
+            dtype=np.float32,
+        )
 
         # Apply perspective transform
         src_corners = ordered_corners.astype(np.float32)
@@ -485,7 +501,9 @@ class ImagePreprocessor:
         warped = cv2.warpPerspective(cv_image, matrix, (target_width, target_height))
 
         stats.document_cropped = True
-        debug(f"  [0b] Document detection: cropped {original_w}x{original_h} → {target_width}x{target_height}")
+        debug(
+            f"  [0b] Document detection: cropped {original_w}x{original_h} → {target_width}x{target_height}"
+        )
 
         return self._cv2_to_pil(warped)
 
@@ -514,13 +532,13 @@ class ImagePreprocessor:
     def _pil_to_cv2(self, pil_image: Image.Image) -> np.ndarray:
         """Convert PIL Image to OpenCV format (numpy array)."""
         # Convert to RGB if necessary (PIL might be RGBA, L, etc.)
-        if pil_image.mode == 'RGBA':
-            pil_image = pil_image.convert('RGB')
-        elif pil_image.mode == 'L':
+        if pil_image.mode == "RGBA":
+            pil_image = pil_image.convert("RGB")
+        elif pil_image.mode == "L":
             # Already grayscale
             return np.array(pil_image)
-        elif pil_image.mode != 'RGB':
-            pil_image = pil_image.convert('RGB')
+        elif pil_image.mode != "RGB":
+            pil_image = pil_image.convert("RGB")
 
         return np.array(pil_image)
 
@@ -528,13 +546,13 @@ class ImagePreprocessor:
         """Convert OpenCV format (numpy array) to PIL Image."""
         if len(cv_image.shape) == 2:
             # Grayscale
-            return Image.fromarray(cv_image, mode='L')
+            return Image.fromarray(cv_image, mode="L")
         elif len(cv_image.shape) == 3:
             # Color - convert BGR to RGB if needed
             if cv_image.shape[2] == 3:
                 return Image.fromarray(cv_image)
             elif cv_image.shape[2] == 4:
-                return Image.fromarray(cv_image, mode='RGBA')
+                return Image.fromarray(cv_image, mode="RGBA")
 
         return Image.fromarray(cv_image)
 
@@ -582,7 +600,7 @@ if __name__ == "__main__":
     processed, stats = preprocessor.preprocess(image)
 
     # Save output
-    output_path = input_path.rsplit('.', 1)[0] + '_preprocessed.png'
+    output_path = input_path.rsplit(".", 1)[0] + "_preprocessed.png"
     processed.save(output_path)
 
     print(f"\nPreprocessing Stats:")

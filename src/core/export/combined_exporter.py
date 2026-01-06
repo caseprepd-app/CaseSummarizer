@@ -22,7 +22,7 @@ def export_combined(
     builder: DocumentBuilder,
     include_vocab_details: bool = False,
     include_qa_verification: bool = True,
-    title: str = "Document Analysis Report"
+    title: str = "Document Analysis Report",
 ) -> None:
     """
     Export both vocabulary and Q&A results to a single document.
@@ -35,7 +35,9 @@ def export_combined(
         include_qa_verification: Include verification coloring in Q&A
         title: Document title
     """
-    debug_log(f"[COMBINED EXPORT] Creating combined report: {len(vocab_data)} terms, {len(qa_results)} Q&A pairs")
+    debug_log(
+        f"[COMBINED EXPORT] Creating combined report: {len(vocab_data)} terms, {len(qa_results)} Q&A pairs"
+    )
 
     # Document title
     builder.add_heading(title, level=1)

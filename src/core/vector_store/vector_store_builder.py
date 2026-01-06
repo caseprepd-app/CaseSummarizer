@@ -65,7 +65,7 @@ class VectorStoreBuilder:
         documents: list[dict],
         embeddings: "HuggingFaceEmbeddings",
         persist_dir: Path | None = None,
-        case_id: str | None = None
+        case_id: str | None = None,
     ) -> VectorStoreResult:
         """
         Build vector store from processed documents.
@@ -86,6 +86,7 @@ class VectorStoreBuilder:
             ValueError: If no valid chunks found in documents
         """
         import time
+
         start_time = time.perf_counter()
 
         from langchain_community.vectorstores import FAISS
@@ -117,10 +118,7 @@ class VectorStoreBuilder:
 
         # Create FAISS vector store from documents
         # This embeds all chunks and builds the index
-        vector_store = FAISS.from_documents(
-            documents=lc_documents,
-            embedding=embeddings
-        )
+        vector_store = FAISS.from_documents(documents=lc_documents, embedding=embeddings)
 
         # Save to disk as files (index.faiss + index.pkl)
         vector_store.save_local(str(persist_dir))
@@ -139,7 +137,7 @@ class VectorStoreBuilder:
             persist_dir=persist_dir,
             case_id=case_id,
             chunk_count=len(lc_documents),
-            creation_time_ms=elapsed_ms
+            creation_time_ms=elapsed_ms,
         )
 
     def create_from_unified_chunks(
@@ -148,7 +146,7 @@ class VectorStoreBuilder:
         embeddings: "HuggingFaceEmbeddings",
         source_file: str | None = None,
         persist_dir: Path | None = None,
-        case_id: str | None = None
+        case_id: str | None = None,
     ) -> VectorStoreResult:
         """
         Build vector store from UnifiedChunk objects (Session 45).
@@ -170,6 +168,7 @@ class VectorStoreBuilder:
             ValueError: If no valid chunks provided
         """
         import time
+
         start_time = time.perf_counter()
 
         from langchain_community.vectorstores import FAISS
@@ -186,7 +185,7 @@ class VectorStoreBuilder:
             else:
                 hash_input = chunks[0].text[:100] if chunks else "unknown"
             hash_prefix = hashlib.md5(hash_input.encode()).hexdigest()[:8]
-            date_stamp = datetime.now().strftime('%Y%m%d')
+            date_stamp = datetime.now().strftime("%Y%m%d")
             case_id = f"{hash_prefix}_{date_stamp}"
 
         # Generate persist directory if not provided
@@ -204,39 +203,42 @@ class VectorStoreBuilder:
         lc_documents = []
         for chunk in chunks:
             # Handle UnifiedChunk attributes
-            text = chunk.text if hasattr(chunk, 'text') else str(chunk)
+            text = chunk.text if hasattr(chunk, "text") else str(chunk)
             if not text.strip():
                 continue
 
-            chunk_num = getattr(chunk, 'chunk_num', 0)
-            token_count = getattr(chunk, 'token_count', 0)
-            word_count = getattr(chunk, 'word_count', len(text.split()))
-            section_name = getattr(chunk, 'section_name', None) or 'N/A'
-            chunk_source = getattr(chunk, 'source_file', None) or source_file or 'unknown'
+            chunk_num = getattr(chunk, "chunk_num", 0)
+            token_count = getattr(chunk, "token_count", 0)
+            word_count = getattr(chunk, "word_count", len(text.split()))
+            section_name = getattr(chunk, "section_name", None) or "N/A"
+            chunk_source = getattr(chunk, "source_file", None) or source_file or "unknown"
 
-            lc_documents.append(Document(
-                page_content=text,
-                metadata={
-                    'filename': chunk_source,
-                    'chunk_num': chunk_num,
-                    'section_name': section_name,
-                    'word_count': word_count,
-                    'token_count': token_count,  # Session 45: include token count
-                }
-            ))
+            lc_documents.append(
+                Document(
+                    page_content=text,
+                    metadata={
+                        "filename": chunk_source,
+                        "chunk_num": chunk_num,
+                        "section_name": section_name,
+                        "word_count": word_count,
+                        "token_count": token_count,  # Session 45: include token count
+                    },
+                )
+            )
 
         if not lc_documents:
             raise ValueError("No valid chunks found after conversion")
 
         if DEBUG_MODE:
-            avg_tokens = sum(d.metadata.get('token_count', 0) for d in lc_documents) / len(lc_documents)
-            debug_log(f"[VectorStore] Converting {len(lc_documents)} chunks (avg {avg_tokens:.0f} tokens)")
+            avg_tokens = sum(d.metadata.get("token_count", 0) for d in lc_documents) / len(
+                lc_documents
+            )
+            debug_log(
+                f"[VectorStore] Converting {len(lc_documents)} chunks (avg {avg_tokens:.0f} tokens)"
+            )
 
         # Create FAISS vector store from documents
-        vector_store = FAISS.from_documents(
-            documents=lc_documents,
-            embedding=embeddings
-        )
+        vector_store = FAISS.from_documents(documents=lc_documents, embedding=embeddings)
 
         # Save to disk as files (index.faiss + index.pkl)
         vector_store.save_local(str(persist_dir))
@@ -255,7 +257,7 @@ class VectorStoreBuilder:
             persist_dir=persist_dir,
             case_id=case_id,
             chunk_count=len(lc_documents),
-            creation_time_ms=elapsed_ms
+            creation_time_ms=elapsed_ms,
         )
 
     def _convert_to_langchain_documents(self, documents: list[dict]) -> list:
@@ -279,51 +281,53 @@ class VectorStoreBuilder:
         from langchain_text_splitters import RecursiveCharacterTextSplitter
 
         # PERF-006: Cache text splitter as class attribute
-        if not hasattr(self, '_text_splitter'):
+        if not hasattr(self, "_text_splitter"):
             self._text_splitter = RecursiveCharacterTextSplitter(
                 chunk_size=500,
                 chunk_overlap=50,
                 length_function=len,
-                separators=["\n\n", "\n", ". ", " ", ""]
+                separators=["\n\n", "\n", ". ", " ", ""],
             )
         text_splitter = self._text_splitter
 
         lc_documents = []
 
         for doc in documents:
-            filename = doc.get('filename', 'unknown')
-            chunks = doc.get('chunks', [])
+            filename = doc.get("filename", "unknown")
+            chunks = doc.get("chunks", [])
 
             # If document has pre-computed chunks, use them
             if chunks:
                 for chunk in chunks:
                     # Handle both Chunk dataclass and dict formats
-                    if hasattr(chunk, 'text'):
+                    if hasattr(chunk, "text"):
                         text = chunk.text
                         chunk_num = chunk.chunk_num
-                        section_name = chunk.section_name or 'N/A'
+                        section_name = chunk.section_name or "N/A"
                         word_count = chunk.word_count
                     else:
-                        text = chunk.get('text', '')
-                        chunk_num = chunk.get('chunk_num', 0)
-                        section_name = chunk.get('section_name', 'N/A')
-                        word_count = chunk.get('word_count', len(text.split()))
+                        text = chunk.get("text", "")
+                        chunk_num = chunk.get("chunk_num", 0)
+                        section_name = chunk.get("section_name", "N/A")
+                        word_count = chunk.get("word_count", len(text.split()))
 
                     if not text.strip():
                         continue
 
-                    lc_documents.append(Document(
-                        page_content=text,
-                        metadata={
-                            'filename': filename,
-                            'chunk_num': chunk_num,
-                            'section_name': section_name,
-                            'word_count': word_count
-                        }
-                    ))
+                    lc_documents.append(
+                        Document(
+                            page_content=text,
+                            metadata={
+                                "filename": filename,
+                                "chunk_num": chunk_num,
+                                "section_name": section_name,
+                                "word_count": word_count,
+                            },
+                        )
+                    )
             # Otherwise, chunk the extracted_text
-            elif doc.get('extracted_text'):
-                text = doc['extracted_text']
+            elif doc.get("extracted_text"):
+                text = doc["extracted_text"]
                 if not text.strip():
                     continue
 
@@ -331,15 +335,17 @@ class VectorStoreBuilder:
                 split_texts = text_splitter.split_text(text)
 
                 for i, chunk_text in enumerate(split_texts):
-                    lc_documents.append(Document(
-                        page_content=chunk_text,
-                        metadata={
-                            'filename': filename,
-                            'chunk_num': i,
-                            'section_name': 'Auto-chunked',
-                            'word_count': len(chunk_text.split())
-                        }
-                    ))
+                    lc_documents.append(
+                        Document(
+                            page_content=chunk_text,
+                            metadata={
+                                "filename": filename,
+                                "chunk_num": i,
+                                "section_name": "Auto-chunked",
+                                "word_count": len(chunk_text.split()),
+                            },
+                        )
+                    )
 
                 if DEBUG_MODE:
                     debug_log(f"[VectorStore] Split '{filename}' into {len(split_texts)} chunks")
@@ -360,14 +366,14 @@ class VectorStoreBuilder:
             Unique case identifier string
         """
         # Combine filenames for hashing
-        filenames = sorted([d.get('filename', 'unknown') for d in documents])
-        combined = '|'.join(filenames)
+        filenames = sorted([d.get("filename", "unknown") for d in documents])
+        combined = "|".join(filenames)
 
         # Create MD5 hash (first 8 chars)
         hash_prefix = hashlib.md5(combined.encode()).hexdigest()[:8]
 
         # Add date stamp
-        date_stamp = datetime.now().strftime('%Y%m%d')
+        date_stamp = datetime.now().strftime("%Y%m%d")
 
         return f"{hash_prefix}_{date_stamp}"
 
@@ -413,8 +419,7 @@ class VectorStoreBuilder:
             return []
 
         return [
-            d for d in VECTOR_STORE_DIR.iterdir()
-            if d.is_dir() and (d / "index.faiss").exists()
+            d for d in VECTOR_STORE_DIR.iterdir() if d.is_dir() and (d / "index.faiss").exists()
         ]
 
     @staticmethod

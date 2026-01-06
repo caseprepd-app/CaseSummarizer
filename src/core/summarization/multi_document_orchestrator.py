@@ -96,7 +96,7 @@ class MultiDocumentOrchestrator:
         model_manager: OllamaModelManager,
         strategy: ExecutorStrategy | None = None,
         prompt_adapter: "PromptAdapter | None" = None,
-        preset_id: str = "factual-summary"
+        preset_id: str = "factual-summary",
     ):
         """
         Initialize the multi-document orchestrator.
@@ -131,7 +131,7 @@ class MultiDocumentOrchestrator:
         max_words_per_document: int = 200,
         max_meta_summary_words: int = 500,
         progress_callback: Callable[[int, str], None] | None = None,
-        ui_queue: Queue | None = None
+        ui_queue: Queue | None = None,
     ) -> MultiDocumentSummaryResult:
         """
         Summarize multiple documents with hierarchical map-reduce approach.
@@ -151,14 +151,15 @@ class MultiDocumentOrchestrator:
 
         # Filter documents with actual text
         valid_documents = [
-            doc for doc in documents
-            if doc.get('extracted_text') and len(doc['extracted_text'].strip()) > 50
+            doc
+            for doc in documents
+            if doc.get("extracted_text") and len(doc["extracted_text"].strip()) > 50
         ]
 
         if not valid_documents:
             return MultiDocumentSummaryResult(
                 meta_summary="No valid documents to summarize.",
-                total_processing_time_seconds=time.time() - start_time
+                total_processing_time_seconds=time.time() - start_time,
             )
 
         doc_count = len(valid_documents)
@@ -172,7 +173,7 @@ class MultiDocumentOrchestrator:
             documents=valid_documents,
             max_words=max_words_per_document,
             progress_callback=progress_callback,
-            ui_queue=ui_queue
+            ui_queue=ui_queue,
         )
 
         if self._stop_event.is_set():
@@ -181,7 +182,7 @@ class MultiDocumentOrchestrator:
                 meta_summary="Processing cancelled.",
                 total_processing_time_seconds=time.time() - start_time,
                 documents_processed=sum(1 for r in individual_results.values() if r.success),
-                documents_failed=sum(1 for r in individual_results.values() if not r.success)
+                documents_failed=sum(1 for r in individual_results.values() if not r.success),
             )
 
         # === PHASE 2: REDUCE - Meta-summary generation ===
@@ -192,8 +193,7 @@ class MultiDocumentOrchestrator:
 
         if successful_summaries:
             meta_summary = self._reduce_phase(
-                summaries=successful_summaries,
-                max_words=max_meta_summary_words
+                summaries=successful_summaries, max_words=max_meta_summary_words
             )
         else:
             meta_summary = "No documents were successfully summarized."
@@ -214,7 +214,7 @@ class MultiDocumentOrchestrator:
             total_processing_time_seconds=total_time,
             documents_processed=documents_processed,
             documents_failed=documents_failed,
-            document_order=[doc['filename'] for doc in valid_documents]
+            document_order=[doc["filename"] for doc in valid_documents],
         )
 
     def _map_phase(
@@ -222,7 +222,7 @@ class MultiDocumentOrchestrator:
         documents: list[dict],
         max_words: int,
         progress_callback: Callable[[int, str], None] | None,
-        ui_queue: Queue | None
+        ui_queue: Queue | None,
     ) -> dict[str, DocumentSummaryResult]:
         """
         Phase 1: Summarize each document in parallel.
@@ -251,8 +251,8 @@ class MultiDocumentOrchestrator:
 
         def summarize_single_document(doc: dict) -> DocumentSummaryResult:
             """Process a single document (runs in thread pool)."""
-            filename = doc['filename']
-            text = doc['extracted_text']
+            filename = doc["filename"]
+            text = doc["extracted_text"]
 
             if aggregator:
                 aggregator.update(filename, f"Summarizing {filename}...")
@@ -277,7 +277,7 @@ class MultiDocumentOrchestrator:
                 filename=filename,
                 max_words=max_words,
                 progress_callback=doc_progress,
-                stop_check=should_stop
+                stop_check=should_stop,
             )
 
             if aggregator:
@@ -288,17 +288,16 @@ class MultiDocumentOrchestrator:
         def on_task_complete(task_id: str, result: DocumentSummaryResult):
             """Callback when a document finishes."""
             results[result.filename] = result
-            debug_log(f"[MULTI-DOC] Completed: {result.filename} "
-                     f"({result.word_count} words, {result.chunk_count} chunks)")
+            debug_log(
+                f"[MULTI-DOC] Completed: {result.filename} "
+                f"({result.word_count} words, {result.chunk_count} chunks)"
+            )
 
         # Create task runner with strategy
-        runner = ParallelTaskRunner(
-            strategy=self.strategy,
-            on_task_complete=on_task_complete
-        )
+        runner = ParallelTaskRunner(strategy=self.strategy, on_task_complete=on_task_complete)
 
         # Prepare items: (task_id, payload)
-        items = [(doc['filename'], doc) for doc in documents]
+        items = [(doc["filename"], doc) for doc in documents]
 
         # Execute parallel processing
         task_results = runner.run(summarize_single_document, items)
@@ -314,16 +313,12 @@ class MultiDocumentOrchestrator:
                     chunk_count=0,
                     processing_time_seconds=0,
                     success=False,
-                    error_message=str(task_result.error)
+                    error_message=str(task_result.error),
                 )
 
         return results
 
-    def _reduce_phase(
-        self,
-        summaries: list[DocumentSummaryResult],
-        max_words: int
-    ) -> str:
+    def _reduce_phase(self, summaries: list[DocumentSummaryResult], max_words: int) -> str:
         """
         Phase 2: Combine individual summaries into meta-summary.
 
@@ -352,7 +347,9 @@ class MultiDocumentOrchestrator:
             return self._generate_chunked_meta_summary(summaries, max_words)
         else:
             # Fits in context - direct generation
-            return self._generate_direct_meta_summary(formatted_summaries, max_words, len(summaries))
+            return self._generate_direct_meta_summary(
+                formatted_summaries, max_words, len(summaries)
+            )
 
     def _format_summaries_for_prompt(self, summaries: list[DocumentSummaryResult]) -> str:
         """
@@ -370,10 +367,7 @@ class MultiDocumentOrchestrator:
         return "\n\n".join(parts)
 
     def _generate_direct_meta_summary(
-        self,
-        formatted_summaries: str,
-        max_words: int,
-        doc_count: int
+        self, formatted_summaries: str, max_words: int, doc_count: int
     ) -> str:
         """
         Generate meta-summary when all summaries fit in context window.
@@ -394,16 +388,14 @@ class MultiDocumentOrchestrator:
         if self.prompt_adapter:
             # Get model name for adapter (cached)
             if not self._model_name:
-                self._model_name = getattr(
-                    self.model_manager, 'loaded_model_name', 'phi-3-mini'
-                )
+                self._model_name = getattr(self.model_manager, "loaded_model_name", "phi-3-mini")
 
             prompt = self.prompt_adapter.create_meta_summary_prompt(
                 preset_id=self.preset_id,
                 model_name=self._model_name,
                 formatted_summaries=formatted_summaries,
                 max_words=max_words,
-                doc_count=doc_count
+                doc_count=doc_count,
             )
         else:
             # Fallback: use default prompts
@@ -429,19 +421,14 @@ Meta-Summary:"""
         max_tokens = int(max_words * 2.0)
 
         try:
-            meta_summary = self.model_manager.generate_text(
-                prompt=prompt,
-                max_tokens=max_tokens
-            )
+            meta_summary = self.model_manager.generate_text(prompt=prompt, max_tokens=max_tokens)
             return meta_summary.strip()
         except Exception as e:
             error(f"[MULTI-DOC] Meta-summary generation failed: {e}")
             return f"Meta-summary generation failed: {e}"
 
     def _generate_chunked_meta_summary(
-        self,
-        summaries: list[DocumentSummaryResult],
-        max_words: int
+        self, summaries: list[DocumentSummaryResult], max_words: int
     ) -> str:
         """
         Generate meta-summary for large document sets via chunking.
@@ -463,18 +450,20 @@ Meta-Summary:"""
         context_budget = (OLLAMA_CONTEXT_WINDOW - 500) * 4  # Convert tokens to chars
         summaries_per_batch = max(2, context_budget // (avg_summary_length + 100))
 
-        debug_log(f"[MULTI-DOC] Chunking {len(summaries)} summaries into batches of {summaries_per_batch}")
+        debug_log(
+            f"[MULTI-DOC] Chunking {len(summaries)} summaries into batches of {summaries_per_batch}"
+        )
 
         # Process batches
         intermediate_summaries = []
         for i in range(0, len(summaries), summaries_per_batch):
-            batch = summaries[i:i + summaries_per_batch]
+            batch = summaries[i : i + summaries_per_batch]
             batch_formatted = self._format_summaries_for_prompt(batch)
 
             batch_summary = self._generate_direct_meta_summary(
                 formatted_summaries=batch_formatted,
                 max_words=max_words // 2,  # Shorter intermediate summaries
-                doc_count=len(batch)
+                doc_count=len(batch),
             )
             intermediate_summaries.append(batch_summary)
 
@@ -498,8 +487,7 @@ Final Meta-Summary:"""
 
         try:
             final_summary = self.model_manager.generate_text(
-                prompt=final_prompt,
-                max_tokens=max_tokens
+                prompt=final_prompt, max_tokens=max_tokens
             )
             return final_summary.strip()
         except Exception as e:

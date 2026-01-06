@@ -34,11 +34,10 @@ from typing import Optional
 # Patterns like "cl", "li", "ri" are too common in legitimate names (Clark, Williams, Marie)
 OCR_CONFUSION_PAIRS: list[tuple[str, str]] = [
     # Ligature-like confusions - only the most distinctive ones
-    ("rn", "m"),    # "Srnith" should be "Smith" - very distinctive
-    ("vv", "w"),    # "vvord" should be "word" - unlikely in real names
-    ("iii", "m"),   # Triple i - very suspicious
-    ("lll", "m"),   # Triple l - very suspicious
-
+    ("rn", "m"),  # "Srnith" should be "Smith" - very distinctive
+    ("vv", "w"),  # "vvord" should be "word" - unlikely in real names
+    ("iii", "m"),  # Triple i - very suspicious
+    ("lll", "m"),  # Triple l - very suspicious
     # Note: These patterns removed due to false positives:
     # - "cl" appears in Clark, Clair, Cleveland, etc.
     # - "li" appears in Williams, Oliver, Elizabeth, etc.
@@ -60,10 +59,8 @@ OCR_DIGIT_LETTER_MAP: dict[str, str] = {
 OCR_SUSPICIOUS_PATTERNS: list[tuple[re.Pattern, str]] = [
     # Digits embedded in names (except at boundaries which might be legitimate)
     (re.compile(r"[A-Za-z][0-9][A-Za-z]"), "embedded_digit"),
-
     # Unusual case patterns (lowercase surrounded by uppercase)
     (re.compile(r"[A-Z][a-z][A-Z].*[A-Z]"), "mixed_case_unusual"),
-
     # Multiple consecutive consonants that are unusual in English
     # (More than 4 consonants without a vowel is very suspicious)
     (re.compile(r"[bcdfghjklmnpqrstvwxyzBCDFGHJKLMNPQRSTVWXYZ]{5,}"), "consonant_cluster"),
@@ -73,6 +70,7 @@ OCR_SUSPICIOUS_PATTERNS: list[tuple[re.Pattern, str]] = [
 # -----------------------------------------------------------------------------
 # Main Detection Function
 # -----------------------------------------------------------------------------
+
 
 def has_ocr_artifacts(term: str) -> bool:
     """
@@ -172,6 +170,7 @@ def _has_suspicious_digits(term: str) -> bool:
 # Detailed Analysis (for debugging/logging)
 # -----------------------------------------------------------------------------
 
+
 def analyze_ocr_patterns(term: str) -> dict:
     """
     Provide detailed analysis of OCR patterns in a term.
@@ -214,20 +213,20 @@ def analyze_ocr_patterns(term: str) -> dict:
             next_is_letter = i < len(term) - 1 and term[i + 1].isalpha()
 
             if prev_is_letter or next_is_letter:
-                result["suspicious_chars"].append({
-                    "position": i,
-                    "char": char,
-                    "likely_correct": OCR_DIGIT_LETTER_MAP[char],
-                })
+                result["suspicious_chars"].append(
+                    {
+                        "position": i,
+                        "char": char,
+                        "likely_correct": OCR_DIGIT_LETTER_MAP[char],
+                    }
+                )
                 result["has_artifacts"] = True
 
     # Check regex patterns
     for pattern, description in OCR_SUSPICIOUS_PATTERNS:
         match = pattern.search(term)
         if match:
-            result["patterns_found"].append(
-                f"{description}: found '{match.group()}'"
-            )
+            result["patterns_found"].append(f"{description}: found '{match.group()}'")
             result["has_artifacts"] = True
 
     return result
@@ -263,6 +262,7 @@ def get_ocr_penalty(term: str, base_penalty: float = 0.10) -> float:
 # -----------------------------------------------------------------------------
 # Comparison Utilities
 # -----------------------------------------------------------------------------
+
 
 def compare_variants_for_ocr(variant_a: str, variant_b: str) -> Optional[str]:
     """

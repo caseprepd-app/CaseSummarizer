@@ -40,22 +40,22 @@ from .name_deduplicator import deduplicate_names
 from .name_regularizer import regularize_names, filter_name_fragments, filter_typo_variants
 
 __all__ = [
-    'VocabularyExtractor',
-    'FeedbackManager',
-    'get_feedback_manager',
-    'VocabularyMetaLearner',
-    'get_meta_learner',
+    "VocabularyExtractor",
+    "FeedbackManager",
+    "get_feedback_manager",
+    "VocabularyMetaLearner",
+    "get_meta_learner",
     # Corpus Management (Session 29)
-    'CorpusManager',
-    'CorpusFile',
-    'get_corpus_manager',
-    'CorpusRegistry',
-    'CorpusInfo',
-    'get_corpus_registry',
+    "CorpusManager",
+    "CorpusFile",
+    "get_corpus_manager",
+    "CorpusRegistry",
+    "CorpusInfo",
+    "get_corpus_registry",
     # Name Deduplication
-    'deduplicate_names',
+    "deduplicate_names",
     # Name Regularization (Session 63)
-    'regularize_names',
-    'filter_name_fragments',
-    'filter_typo_variants',
+    "regularize_names",
+    "filter_name_fragments",
+    "filter_typo_variants",
 ]

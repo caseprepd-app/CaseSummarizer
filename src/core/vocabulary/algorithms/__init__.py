@@ -58,6 +58,7 @@ def register_algorithm(name: str):
     Raises:
         ValueError: If name is already registered (prevents accidental overwrites)
     """
+
     def decorator(cls: Type[BaseExtractionAlgorithm]) -> Type[BaseExtractionAlgorithm]:
         if name in _ALGORITHM_REGISTRY:
             raise ValueError(
@@ -66,6 +67,7 @@ def register_algorithm(name: str):
             )
         _ALGORITHM_REGISTRY[name] = cls
         return cls
+
     return decorator
 
 
@@ -135,25 +137,25 @@ def create_default_algorithms(**config) -> list[BaseExtractionAlgorithm]:
     algorithms = []
 
     # NER Algorithm (primary - highest weight)
-    if config.get('ner_enabled', True):
+    if config.get("ner_enabled", True):
         ner_kwargs = {
-            k.replace('ner_', ''): v
+            k.replace("ner_", ""): v
             for k, v in config.items()
-            if k.startswith('ner_') and k != 'ner_enabled'
+            if k.startswith("ner_") and k != "ner_enabled"
         }
         ner = NERAlgorithm(**ner_kwargs)
-        ner.weight = config.get('ner_weight', 1.0)
+        ner.weight = config.get("ner_weight", 1.0)
         algorithms.append(ner)
 
     # RAKE Algorithm (secondary - lower weight by default)
-    if config.get('rake_enabled', True):
+    if config.get("rake_enabled", True):
         rake_kwargs = {
-            k.replace('rake_', ''): v
+            k.replace("rake_", ""): v
             for k, v in config.items()
-            if k.startswith('rake_') and k != 'rake_enabled'
+            if k.startswith("rake_") and k != "rake_enabled"
         }
         rake = RAKEAlgorithm(**rake_kwargs)
-        rake.weight = config.get('rake_weight', 0.7)
+        rake.weight = config.get("rake_weight", 0.7)
         algorithms.append(rake)
 
     return algorithms
@@ -161,11 +163,11 @@ def create_default_algorithms(**config) -> list[BaseExtractionAlgorithm]:
 
 # Re-export key classes for convenient imports
 __all__ = [
-    'AlgorithmResult',
-    'BaseExtractionAlgorithm',
-    'CandidateTerm',
-    'create_default_algorithms',
-    'get_algorithm',
-    'get_available_algorithms',
-    'register_algorithm',
+    "AlgorithmResult",
+    "BaseExtractionAlgorithm",
+    "CandidateTerm",
+    "create_default_algorithms",
+    "get_algorithm",
+    "get_available_algorithms",
+    "register_algorithm",
 ]

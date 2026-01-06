@@ -57,6 +57,7 @@ class TaskResult:
         else:
             log_error(f"Task {result.task_id} failed: {result.error}")
     """
+
     task_id: str
     success: bool
     result: Any = None
@@ -101,9 +102,7 @@ class ParallelTaskRunner:
     """
 
     def __init__(
-        self,
-        strategy: ExecutorStrategy,
-        on_task_complete: Callable[[str, Any], None] = None
+        self, strategy: ExecutorStrategy, on_task_complete: Callable[[str, Any], None] = None
     ):
         """
         Initialize the task runner.
@@ -116,11 +115,7 @@ class ParallelTaskRunner:
         self.on_task_complete = on_task_complete
         self._cancel_event = threading.Event()
 
-    def run(
-        self,
-        fn: Callable[[Any], Any],
-        items: list[tuple[str, Any]]
-    ) -> list[TaskResult]:
+    def run(self, fn: Callable[[Any], Any], items: list[tuple[str, Any]]) -> list[TaskResult]:
         """
         Run function over items in parallel.
 
@@ -169,20 +164,12 @@ class ParallelTaskRunner:
             task_id = futures[future]
             try:
                 result = future.result()
-                task_result = TaskResult(
-                    task_id=task_id,
-                    success=True,
-                    result=result
-                )
+                task_result = TaskResult(task_id=task_id, success=True, result=result)
                 # Invoke callback for successful completion
                 if self.on_task_complete:
                     self.on_task_complete(task_id, result)
             except Exception as e:
-                task_result = TaskResult(
-                    task_id=task_id,
-                    success=False,
-                    error=e
-                )
+                task_result = TaskResult(task_id=task_id, success=False, error=e)
 
             results.append(task_result)
 

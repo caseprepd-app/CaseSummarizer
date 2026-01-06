@@ -35,6 +35,7 @@ from src.core.utils.tokenizer import tokenize, TokenizerConfig
 @dataclass
 class CorpusFile:
     """Information about a file in the corpus."""
+
     path: Path
     name: str
     is_preprocessed: bool
@@ -42,8 +43,9 @@ class CorpusFile:
     size_bytes: int
     modified_at: datetime | None
 
+
 # Supported file extensions for corpus documents
-SUPPORTED_EXTENSIONS = {'.pdf', '.txt', '.rtf'}
+SUPPORTED_EXTENSIONS = {".pdf", ".txt", ".rtf"}
 
 
 class CorpusManager:
@@ -357,7 +359,9 @@ class CorpusManager:
             if result.get("status") == "success":
                 return result.get("extracted_text", "")
             else:
-                debug_log(f"[BM25] Extraction failed for {file_path.name}: {result.get('error_message')}")
+                debug_log(
+                    f"[BM25] Extraction failed for {file_path.name}: {result.get('error_message')}"
+                )
                 return ""
 
         except Exception as e:
@@ -418,7 +422,7 @@ class CorpusManager:
                 "doc_freq": self._doc_freq,  # Session 68: For corpus familiarity
             }
 
-            with open(self._cache_file, 'w', encoding='utf-8') as f:
+            with open(self._cache_file, "w", encoding="utf-8") as f:
                 json.dump(cache_data, f)
 
             debug_log(f"[BM25] Saved IDF cache to {self._cache_file}")
@@ -439,7 +443,7 @@ class CorpusManager:
             return False
 
         try:
-            with open(self._cache_file, 'r', encoding='utf-8') as f:
+            with open(self._cache_file, "r", encoding="utf-8") as f:
                 cache_data = json.load(f)
 
             # Validate cache version (Session 68: Accept v1 or v2, rebuild for older)
@@ -522,14 +526,16 @@ class CorpusManager:
                 modified_at = None
                 size_bytes = 0
 
-            result.append(CorpusFile(
-                path=file_path,
-                name=file_path.name,
-                is_preprocessed=is_preprocessed,
-                preprocessed_path=preprocessed_path if is_preprocessed else None,
-                size_bytes=size_bytes,
-                modified_at=modified_at,
-            ))
+            result.append(
+                CorpusFile(
+                    path=file_path,
+                    name=file_path.name,
+                    is_preprocessed=is_preprocessed,
+                    preprocessed_path=preprocessed_path if is_preprocessed else None,
+                    size_bytes=size_bytes,
+                    modified_at=modified_at,
+                )
+            )
 
         return result
 
@@ -693,6 +699,7 @@ def get_corpus_manager() -> CorpusManager:
         # Session 64: Fixed - was using old CORPUS_DIR instead of registry path
         try:
             from src.core.vocabulary.corpus_registry import get_corpus_registry
+
             registry = get_corpus_registry()
             active_path = registry.get_active_corpus_path()
             _corpus_manager = CorpusManager(corpus_dir=active_path)

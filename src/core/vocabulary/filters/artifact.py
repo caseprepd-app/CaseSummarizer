@@ -28,13 +28,10 @@ class ArtifactFilter(BaseVocabularyFilter):
         from src.core.vocabulary.artifact_filter import filter_substring_artifacts
 
         original_count = len(vocabulary)
-        filtered = filter_substring_artifacts(
-            vocabulary,
-            canonical_count=self.canonical_count
-        )
+        filtered = filter_substring_artifacts(vocabulary, canonical_count=self.canonical_count)
 
         return FilterResult(
             vocabulary=filtered,
             removed_count=original_count - len(filtered),
-            metadata={'canonical_count': self.canonical_count}
+            metadata={"canonical_count": self.canonical_count},
         )

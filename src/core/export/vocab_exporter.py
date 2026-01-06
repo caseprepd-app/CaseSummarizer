@@ -14,7 +14,7 @@ def export_vocabulary(
     vocab_data: list[dict],
     builder: DocumentBuilder,
     include_details: bool = False,
-    title: str = "Names & Vocabulary"
+    title: str = "Names & Vocabulary",
 ) -> None:
     """
     Export vocabulary data using provided document builder.
@@ -48,26 +48,30 @@ def export_vocabulary(
         headers = ["Term", "Score", "Person", "Found By", "NER", "RAKE", "BM25", "Freq"]
         rows = []
         for v in vocab_data:
-            rows.append([
-                v.get("Term", ""),
-                str(v.get("Quality Score", "")),
-                v.get("Is Person", ""),
-                v.get("Found By", ""),
-                v.get("NER", ""),
-                v.get("RAKE", ""),
-                v.get("BM25", ""),
-                str(v.get("In-Case Freq", "")),
-            ])
+            rows.append(
+                [
+                    v.get("Term", ""),
+                    str(v.get("Quality Score", "")),
+                    v.get("Is Person", ""),
+                    v.get("Found By", ""),
+                    v.get("NER", ""),
+                    v.get("RAKE", ""),
+                    v.get("BM25", ""),
+                    str(v.get("In-Case Freq", "")),
+                ]
+            )
     else:
         headers = ["Term", "Score", "Person", "Found By"]
         rows = []
         for v in vocab_data:
-            rows.append([
-                v.get("Term", ""),
-                str(v.get("Quality Score", "")),
-                v.get("Is Person", ""),
-                v.get("Found By", ""),
-            ])
+            rows.append(
+                [
+                    v.get("Term", ""),
+                    str(v.get("Quality Score", "")),
+                    v.get("Is Person", ""),
+                    v.get("Found By", ""),
+                ]
+            )
 
     builder.add_table(headers, rows)
 

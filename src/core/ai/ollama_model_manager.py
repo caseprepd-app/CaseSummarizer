@@ -46,6 +46,7 @@ def _get_context_window() -> int:
     """
     try:
         from src.user_preferences import get_user_preferences
+
         prefs = get_user_preferences()
         return prefs.get_effective_context_size()
     except Exception:
@@ -74,7 +75,7 @@ class OllamaModelManager:
         # Post-processor for summary length enforcement (dependency injection)
         self.post_processor = SummaryPostProcessor(
             generate_text_fn=self._generate_text_for_post_processor,
-            prompt_template_manager=self.prompt_template_manager
+            prompt_template_manager=self.prompt_template_manager,
         )
 
         # Test connection on initialization
@@ -103,10 +104,7 @@ class OllamaModelManager:
             bool: True if Ollama is accessible, False otherwise
         """
         try:
-            response = requests.get(
-                f"{self.api_base}/api/tags",
-                timeout=5
-            )
+            response = requests.get(f"{self.api_base}/api/tags", timeout=5)
             self.is_connected = response.status_code == 200
             if self.is_connected:
                 debug("Successfully connected to Ollama")
@@ -139,20 +137,17 @@ class OllamaModelManager:
 
         if self.is_connected:
             try:
-                response = requests.get(
-                    f"{self.api_base}/api/tags",
-                    timeout=10
-                )
+                response = requests.get(f"{self.api_base}/api/tags", timeout=10)
                 if response.status_code == 200:
                     data = response.json()
-                    for model in data.get('models', []):
-                        model_name = model['name']
+                    for model in data.get("models", []):
+                        model_name = model["name"]
                         models[model_name] = {
-                            'name': model_name,
-                            'available': True,
-                            'size': model.get('size', 0),
-                            'modified': model.get('modified_at', ''),
-                            'description': f"Size: {self._format_size(model.get('size', 0))}"
+                            "name": model_name,
+                            "available": True,
+                            "size": model.get("size", 0),
+                            "modified": model.get("modified_at", ""),
+                            "description": f"Size: {self._format_size(model.get('size', 0))}",
                         }
                     debug(f"Found {len(models)} available models")
                     debug_log(f"[OLLAMA] Found {len(models)} models: {list(models.keys())}")
@@ -169,7 +164,7 @@ class OllamaModelManager:
 
     def _format_size(self, size_bytes: int) -> str:
         """Format bytes to human-readable size."""
-        for unit in ['B', 'KB', 'MB', 'GB']:
+        for unit in ["B", "KB", "MB", "GB"]:
             if size_bytes < 1024:
                 return f"{size_bytes:.1f} {unit}"
             size_bytes /= 1024
@@ -229,11 +224,7 @@ class OllamaModelManager:
         return self.is_connected
 
     def generate_text(
-        self,
-        prompt: str,
-        max_tokens: int = 500,
-        temperature: float = None,
-        top_p: float = None
+        self, prompt: str, max_tokens: int = 500, temperature: float = None, top_p: float = None
     ) -> str:
         """
         Generate text using Ollama REST API.
@@ -309,21 +300,23 @@ class OllamaModelManager:
             # Make request to Ollama
             start_time = time.time()
             response = requests.post(
-                f"{self.api_base}/api/generate",
-                json=payload,
-                timeout=self.timeout
+                f"{self.api_base}/api/generate", json=payload, timeout=self.timeout
             )
 
             if response.status_code != 200:
-                raise RuntimeError(f"Ollama returned status {response.status_code}: {response.text}")
+                raise RuntimeError(
+                    f"Ollama returned status {response.status_code}: {response.text}"
+                )
 
             # Parse response
             result = response.json()
-            generated_text = result.get('response', '')
-            tokens_used = result.get('eval_count', 0)
+            generated_text = result.get("response", "")
+            tokens_used = result.get("eval_count", 0)
             elapsed = time.time() - start_time
 
-            debug_log(f"[OLLAMA GENERATE] Generation complete: {tokens_used} tokens in {elapsed:.2f}s")
+            debug_log(
+                f"[OLLAMA GENERATE] Generation complete: {tokens_used} tokens in {elapsed:.2f}s"
+            )
             debug_log(f"[OLLAMA GENERATE] Output length: {len(generated_text)} chars")
             debug_log(f"[OLLAMA GENERATE] Output preview (first 100 chars): {generated_text[:100]}")
 
@@ -345,10 +338,7 @@ class OllamaModelManager:
             raise RuntimeError(f"Text generation failed: {str(e)}") from e
 
     def generate_summary(
-        self,
-        case_text: str,
-        max_words: int = 200,
-        preset_id: str = "factual-summary"
+        self, case_text: str, max_words: int = 200, preset_id: str = "factual-summary"
     ) -> str:
         """
         Generate a case summary from document text via Ollama.
@@ -378,7 +368,7 @@ class OllamaModelManager:
                 min_words=min_words,
                 max_words=max_words,
                 max_words_range=max_words_range,
-                case_text=case_text
+                case_text=case_text,
             )
         except FileNotFoundError:
             debug(f"Template not found: {preset_id}. Using factual-summary fallback.")
@@ -389,7 +379,7 @@ class OllamaModelManager:
                 min_words=min_words,
                 max_words=max_words,
                 max_words_range=max_words_range,
-                case_text=case_text
+                case_text=case_text,
             )
 
         # Estimate tokens and generate
@@ -397,10 +387,7 @@ class OllamaModelManager:
         buffer_multiplier = self.prompt_config.token_buffer_multiplier
         max_tokens = int(max_words_range * tokens_per_word * buffer_multiplier)
 
-        summary = self.generate_text(
-            prompt=prompt,
-            max_tokens=max_tokens
-        )
+        summary = self.generate_text(prompt=prompt, max_tokens=max_tokens)
 
         # Delegate length enforcement to post-processor
         summary = self.post_processor.enforce_length(summary, max_words)
@@ -421,15 +408,15 @@ class OllamaModelManager:
             dict: Health status and available models
         """
         status = {
-            'connected': self.is_connected,
-            'api_base': self.api_base,
-            'model': self.model_name,
-            'available_models': []
+            "connected": self.is_connected,
+            "api_base": self.api_base,
+            "model": self.model_name,
+            "available_models": [],
         }
 
         if self.is_connected:
             models = self.get_available_models()
-            status['available_models'] = list(models.keys())
+            status["available_models"] = list(models.keys())
 
         return status
 
@@ -495,9 +482,7 @@ class OllamaModelManager:
             # Make request to Ollama
             start_time = time.time()
             response = requests.post(
-                f"{self.api_base}/api/generate",
-                json=payload,
-                timeout=self.timeout
+                f"{self.api_base}/api/generate", json=payload, timeout=self.timeout
             )
 
             if response.status_code != 200:
@@ -506,8 +491,8 @@ class OllamaModelManager:
 
             # Parse response
             result = response.json()
-            generated_text = result.get('response', '').strip()
-            tokens_used = result.get('eval_count', 0)
+            generated_text = result.get("response", "").strip()
+            tokens_used = result.get("eval_count", 0)
             elapsed = time.time() - start_time
 
             debug_log(f"[OLLAMA STRUCTURED] Complete: {tokens_used} tokens in {elapsed:.2f}s")
@@ -563,14 +548,16 @@ class OllamaModelManager:
                 for match in re.finditer(r'"terms"\s*:\s*\[([^\]]*)\]', text):
                     array_content = match.group(1)
                     # Parse individual term objects from the array content
-                    for term_match in re.finditer(r'\{[^{}]+\}', array_content):
+                    for term_match in re.finditer(r"\{[^{}]+\}", array_content):
                         try:
                             term_obj = json.loads(term_match.group())
                             all_terms.append(term_obj)
                         except json.JSONDecodeError:
                             continue
                 if all_terms:
-                    debug_log(f"[OLLAMA STRUCTURED] Merged {len(all_terms)} terms from duplicate arrays")
+                    debug_log(
+                        f"[OLLAMA STRUCTURED] Merged {len(all_terms)} terms from duplicate arrays"
+                    )
                     return {"terms": all_terms}
             except Exception as e:
                 debug_log(f"[OLLAMA STRUCTURED] Duplicate terms merge failed: {e}")
@@ -584,7 +571,7 @@ class OllamaModelManager:
         # Strategy 2: Find JSON object in text (common with chatty models)
         try:
             # Look for {...} pattern
-            match = re.search(r'\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}', text, re.DOTALL)
+            match = re.search(r"\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}", text, re.DOTALL)
             if match:
                 return json.loads(match.group())
         except json.JSONDecodeError:
@@ -593,8 +580,8 @@ class OllamaModelManager:
         # Strategy 3: Try to find the largest valid JSON block
         try:
             # Find all { and } positions
-            start_positions = [m.start() for m in re.finditer(r'\{', text)]
-            end_positions = [m.end() for m in re.finditer(r'\}', text)]
+            start_positions = [m.start() for m in re.finditer(r"\{", text)]
+            end_positions = [m.end() for m in re.finditer(r"\}", text)]
 
             # Try from each start position
             for start in start_positions:
@@ -610,7 +597,7 @@ class OllamaModelManager:
 
         # Strategy 4: If it's a JSON array
         try:
-            match = re.search(r'\[[^\[\]]*(?:\[[^\[\]]*\][^\[\]]*)*\]', text, re.DOTALL)
+            match = re.search(r"\[[^\[\]]*(?:\[[^\[\]]*\][^\[\]]*)*\]", text, re.DOTALL)
             if match:
                 return json.loads(match.group())
         except json.JSONDecodeError:

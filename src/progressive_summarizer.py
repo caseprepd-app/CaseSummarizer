@@ -24,17 +24,19 @@ from src.logging_config import debug_log, debug_timing, error, info
 @dataclass
 class SummarizationContext:
     """Context information passed to summarization function."""
+
     global_context: str  # Summary of all previous chunks (1-2 sentences)
-    local_context: str   # Summary of immediately previous chunk (1-2 sentences)
-    chunk_text: str      # Current chunk text
-    chunk_num: int       # Current chunk number
-    total_chunks: int    # Total number of chunks
+    local_context: str  # Summary of immediately previous chunk (1-2 sentences)
+    chunk_text: str  # Current chunk text
+    chunk_num: int  # Current chunk number
+    total_chunks: int  # Total number of chunks
     section_name: str | None = None  # Detected section name
 
 
 @dataclass
 class SummarizationResult:
     """Result from summarizing a single chunk."""
+
     chunk_num: int
     chunk_summary: str  # Summary of this chunk
     progressive_summary: str  # Updated document summary up to this point
@@ -69,13 +71,13 @@ class ProgressiveSummarizer:
         # DataFrame to track chunks and summaries
         self.df = pd.DataFrame(
             columns=[
-                'chunk_num',
-                'chunk_text',
-                'chunk_summary',
-                'progressive_summary',
-                'section_detected',
-                'word_count',
-                'processing_time_sec'
+                "chunk_num",
+                "chunk_text",
+                "chunk_summary",
+                "progressive_summary",
+                "section_detected",
+                "word_count",
+                "processing_time_sec",
             ]
         )
 
@@ -96,22 +98,22 @@ class ProgressiveSummarizer:
         Returns:
             List of chunk numbers at which to update (e.g., [5, 10, 15, ...])
         """
-        fast_mode = self.config.get('fast_mode', {})
-        if not fast_mode.get('enabled', True):
+        fast_mode = self.config.get("fast_mode", {})
+        if not fast_mode.get("enabled", True):
             # Deep mode: update after every chunk
             return list(range(1, total_chunks + 1))
 
-        if fast_mode.get('section_aware_batching', True):
+        if fast_mode.get("section_aware_batching", True):
             # Section-aware batching (preferred)
             debug_log("Using section-aware batching for progressive updates")
             return self._calculate_section_aware_boundaries()
-        elif fast_mode.get('adaptive_batching', True):
+        elif fast_mode.get("adaptive_batching", True):
             # Adaptive batching (fallback)
             debug_log("Using adaptive batching for progressive updates")
             return self._calculate_adaptive_boundaries(total_chunks)
         else:
             # Fixed batching
-            base_freq = fast_mode.get('base_batch_frequency', 5)
+            base_freq = fast_mode.get("base_batch_frequency", 5)
             debug_log(f"Using fixed batching (every {base_freq} chunks)")
             return list(range(base_freq, total_chunks + 1, base_freq)) + [total_chunks]
 
@@ -124,17 +126,17 @@ class ProgressiveSummarizer:
         if self.df.empty:
             return []
 
-        config = self.config.get('fast_mode', {})
-        min_chunks = config.get('section_batch_min_chunks', 3)
-        _max_chunks = config.get('section_batch_max_chunks', 15)  # Reserved for future use
+        config = self.config.get("fast_mode", {})
+        min_chunks = config.get("section_batch_min_chunks", 3)
+        _max_chunks = config.get("section_batch_max_chunks", 15)  # Reserved for future use
 
         boundaries = []
         current_section = None
         section_start = 0
 
         for _idx, row in self.df.iterrows():
-            section = row['section_detected']
-            chunk_num = row['chunk_num']
+            section = row["section_detected"]
+            chunk_num = row["chunk_num"]
 
             # Check if section changed
             if section != current_section and section_start > 0:
@@ -164,18 +166,18 @@ class ProgressiveSummarizer:
         - Middle chunks: Less frequent (context established)
         - Late chunks: More frequent (important conclusions)
         """
-        config = self.config.get('fast_mode', {})
-        early = config.get('early_document', {})
-        middle = config.get('middle_document', {})
-        late = config.get('late_document', {})
+        config = self.config.get("fast_mode", {})
+        early = config.get("early_document", {})
+        middle = config.get("middle_document", {})
+        late = config.get("late_document", {})
 
-        early_threshold = early.get('threshold_chunks', 20)
-        early_freq = early.get('batch_frequency', 5)
+        early_threshold = early.get("threshold_chunks", 20)
+        early_freq = early.get("batch_frequency", 5)
 
-        middle_threshold = middle.get('threshold_chunks', 80)
-        middle_freq = middle.get('batch_frequency', 10)
+        middle_threshold = middle.get("threshold_chunks", 80)
+        middle_freq = middle.get("batch_frequency", 10)
 
-        late_freq = late.get('batch_frequency', 5)
+        late_freq = late.get("batch_frequency", 5)
 
         boundaries = []
 
@@ -185,7 +187,9 @@ class ProgressiveSummarizer:
 
         # Middle document
         if total_chunks > early_threshold:
-            for chunk in range(early_threshold + middle_freq, min(middle_threshold, total_chunks) + 1, middle_freq):
+            for chunk in range(
+                early_threshold + middle_freq, min(middle_threshold, total_chunks) + 1, middle_freq
+            ):
                 boundaries.append(chunk)
 
         # Late document
@@ -233,15 +237,17 @@ class ProgressiveSummarizer:
         """
         data = []
         for chunk in chunks:
-            data.append({
-                'chunk_num': chunk.chunk_num,
-                'chunk_text': chunk.text,
-                'chunk_summary': '',  # Will be filled during summarization
-                'progressive_summary': '',  # Will be filled during summarization
-                'section_detected': chunk.section_name,
-                'word_count': chunk.word_count,
-                'processing_time_sec': 0.0
-            })
+            data.append(
+                {
+                    "chunk_num": chunk.chunk_num,
+                    "chunk_text": chunk.text,
+                    "chunk_summary": "",  # Will be filled during summarization
+                    "progressive_summary": "",  # Will be filled during summarization
+                    "section_detected": chunk.section_name,
+                    "word_count": chunk.word_count,
+                    "processing_time_sec": 0.0,
+                }
+            )
 
         self.df = pd.DataFrame(data)
         info(f"Prepared DataFrame with {len(self.df)} chunks")
@@ -257,16 +263,18 @@ class ProgressiveSummarizer:
         Returns:
             (global_context, local_context) tuple of strings
         """
-        config = self.config.get('summarization', {})
+        config = self.config.get("summarization", {})
         # global_max_sentences reserved for future progressive summary truncation
-        _global_max_sentences = config.get('progressive_summary_max_sentences', 2)
-        local_max_sentences = config.get('local_context_max_sentences', 2)
+        _global_max_sentences = config.get("progressive_summary_max_sentences", 2)
+        local_max_sentences = config.get("local_context_max_sentences", 2)
 
         # Get global context (progressive summary from previous chunk)
         if chunk_num == 1:
             global_context = "[This is the beginning of the document.]"
         else:
-            previous_progressive = self.df.loc[self.df['chunk_num'] == chunk_num - 1, 'progressive_summary'].iloc[0]
+            previous_progressive = self.df.loc[
+                self.df["chunk_num"] == chunk_num - 1, "progressive_summary"
+            ].iloc[0]
             if previous_progressive:
                 global_context = f"[Document overview: {previous_progressive}]"
             else:
@@ -276,20 +284,23 @@ class ProgressiveSummarizer:
         if chunk_num == 1:
             local_context = "[No preceding content.]"
         else:
-            previous_summary = self.df.loc[self.df['chunk_num'] == chunk_num - 1, 'chunk_summary'].iloc[0]
+            previous_summary = self.df.loc[
+                self.df["chunk_num"] == chunk_num - 1, "chunk_summary"
+            ].iloc[0]
             if previous_summary:
                 # Truncate to max sentences if needed
-                sentences = previous_summary.split('. ')
+                sentences = previous_summary.split(". ")
                 if len(sentences) > local_max_sentences:
-                    previous_summary = '. '.join(sentences[:local_max_sentences]) + '.'
+                    previous_summary = ". ".join(sentences[:local_max_sentences]) + "."
                 local_context = f"[Previous: {previous_summary}]"
             else:
                 local_context = "[Previous chunk summary not yet available]"
 
         return global_context, local_context
 
-    def create_summarization_prompt(self, chunk_num: int, chunk_text: str = "",
-                                   summary_target_words: int = 75) -> str:
+    def create_summarization_prompt(
+        self, chunk_num: int, chunk_text: str = "", summary_target_words: int = 75
+    ) -> str:
         """
         Create the prompt for AI model to summarize a chunk with context.
 
@@ -337,7 +348,7 @@ Summary:"""
             chunk_text=chunk_text,
             min_words=min_words,
             max_words_range=f"{min_words}-{max_words}",
-            max_words=summary_target_words
+            max_words=summary_target_words,
         )
 
         return prompt
@@ -362,16 +373,16 @@ Summary:"""
 
         # Create display version (truncate long text for readability)
         df_display = self.df.copy()
-        df_display['chunk_text'] = df_display['chunk_text'].str[:100] + "..."
-        df_display['chunk_summary'] = df_display['chunk_summary'].str[:75] + "..."
-        df_display['progressive_summary'] = df_display['progressive_summary'].str[:75] + "..."
+        df_display["chunk_text"] = df_display["chunk_text"].str[:100] + "..."
+        df_display["chunk_summary"] = df_display["chunk_summary"].str[:75] + "..."
+        df_display["progressive_summary"] = df_display["progressive_summary"].str[:75] + "..."
 
         df_display.to_csv(filename, index=False)
         info(f"Saved debug DataFrame to {filename}")
 
         # Clean up old files (keep only recent ones)
-        config = self.config.get('processing', {})
-        keep_count = config.get('debug_files_to_keep', 5)
+        config = self.config.get("processing", {})
+        keep_count = config.get("debug_files_to_keep", 5)
         self._cleanup_old_debug_files(output_dir, keep_count)
 
         return filename
@@ -404,7 +415,7 @@ Summary:"""
 
         # Get section name
         if chunk_num <= len(self.df):
-            section = self.df.loc[self.df['chunk_num'] == chunk_num, 'section_detected'].iloc[0]
+            section = self.df.loc[self.df["chunk_num"] == chunk_num, "section_detected"].iloc[0]
             section_str = f" - Section: '{section}'" if section else ""
         else:
             section_str = ""
@@ -423,21 +434,21 @@ Summary:"""
         """
         if not summary_data:
             return {
-                'overall_sentiment': 'Neutral',
-                'key_themes': [],
-                'document_count': 0,
-                'average_summary_length': 0,
-                'most_frequent_keyword': None,
+                "overall_sentiment": "Neutral",
+                "key_themes": [],
+                "document_count": 0,
+                "average_summary_length": 0,
+                "most_frequent_keyword": None,
             }
 
         all_keywords = []
         total_summary_length = 0
 
         for item in summary_data:
-            if 'keywords' in item and item['keywords']:
-                all_keywords.extend(item['keywords'])
-            if 'summary' in item:
-                total_summary_length += len(item['summary'].split())
+            if "keywords" in item and item["keywords"]:
+                all_keywords.extend(item["keywords"])
+            if "summary" in item:
+                total_summary_length += len(item["summary"].split())
 
         document_count = len(summary_data)
         average_summary_length = total_summary_length // document_count if document_count > 0 else 0
@@ -449,15 +460,16 @@ Summary:"""
         most_frequent_keyword = None
         if all_keywords:
             from collections import Counter
+
             keyword_counts = Counter(all_keywords)
             most_frequent_keyword = keyword_counts.most_common(1)[0][0]
 
         return {
-            'overall_sentiment': 'Mixed (Placeholder)',  # Placeholder for future NLP sentiment analysis
-            'key_themes': key_themes,
-            'document_count': document_count,
-            'average_summary_length': average_summary_length,
-            'most_frequent_keyword': most_frequent_keyword,
+            "overall_sentiment": "Mixed (Placeholder)",  # Placeholder for future NLP sentiment analysis
+            "key_themes": key_themes,
+            "document_count": document_count,
+            "average_summary_length": average_summary_length,
+            "most_frequent_keyword": most_frequent_keyword,
         }
 
 

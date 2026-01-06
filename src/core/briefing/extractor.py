@@ -215,6 +215,7 @@ class ChunkExtractor:
         # Auto-calculate workers if not specified
         if max_workers is None:
             from src.system_resources import get_optimal_workers
+
             # Each Ollama extraction uses ~2GB RAM, but prompts are lighter now
             max_workers = get_optimal_workers(task_ram_gb=1.5, max_workers=12)
 
@@ -322,9 +323,7 @@ class ChunkExtractor:
                     partial = future.result()
                     partial_results[(chunk_id, prompt_type)] = partial
                 except Exception as e:
-                    debug_log(
-                        f"[ChunkExtractor] Error for chunk {chunk_id}, {prompt_type}: {e}"
-                    )
+                    debug_log(f"[ChunkExtractor] Error for chunk {chunk_id}, {prompt_type}: {e}")
                     partial_results[(chunk_id, prompt_type)] = PartialExtraction(
                         chunk_id=chunk_id,
                         prompt_type=prompt_type,
@@ -385,9 +384,7 @@ class ChunkExtractor:
             )
 
             if response is None:
-                debug_log(
-                    f"[ChunkExtractor] No response for chunk {chunk.chunk_id}, {prompt_type}"
-                )
+                debug_log(f"[ChunkExtractor] No response for chunk {chunk.chunk_id}, {prompt_type}")
                 return PartialExtraction(
                     chunk_id=chunk.chunk_id,
                     prompt_type=prompt_type,
@@ -402,9 +399,7 @@ class ChunkExtractor:
             )
 
         except Exception as e:
-            debug_log(
-                f"[ChunkExtractor] Error for chunk {chunk.chunk_id}, {prompt_type}: {e}"
-            )
+            debug_log(f"[ChunkExtractor] Error for chunk {chunk.chunk_id}, {prompt_type}: {e}")
             return PartialExtraction(
                 chunk_id=chunk.chunk_id,
                 prompt_type=prompt_type,
@@ -499,18 +494,22 @@ class ChunkExtractor:
         names_mentioned = []
         for name_entry in self._ensure_list(names_raw):
             if isinstance(name_entry, dict):
-                names_mentioned.append({
-                    "name": str(name_entry.get("name", "")),
-                    "role": str(name_entry.get("role", "")),
-                    "category": str(name_entry.get("category", "OTHER")).upper(),
-                })
+                names_mentioned.append(
+                    {
+                        "name": str(name_entry.get("name", "")),
+                        "role": str(name_entry.get("role", "")),
+                        "category": str(name_entry.get("category", "OTHER")).upper(),
+                    }
+                )
             elif isinstance(name_entry, str):
                 # Handle simple string names
-                names_mentioned.append({
-                    "name": name_entry,
-                    "role": "",
-                    "category": "OTHER",
-                })
+                names_mentioned.append(
+                    {
+                        "name": name_entry,
+                        "role": "",
+                        "category": "OTHER",
+                    }
+                )
 
         return ChunkExtraction(
             chunk_id=chunk.chunk_id,

@@ -33,8 +33,8 @@ if TYPE_CHECKING:
 
 # Default algorithm weights - BM25+ is primary for legal documents
 DEFAULT_ALGORITHM_WEIGHTS = {
-    "BM25+": 1.0,   # Primary - reliable for exact legal terminology
-    "FAISS": 0.5,   # Secondary - semantic can help but less reliable
+    "BM25+": 1.0,  # Primary - reliable for exact legal terminology
+    "FAISS": 0.5,  # Secondary - semantic can help but less reliable
 }
 
 
@@ -123,10 +123,7 @@ class HybridRetriever:
             self._algorithms["FAISS"].set_embeddings(embeddings)
 
     def index_documents(
-        self,
-        documents: list[dict],
-        chunk_size: int = 500,
-        chunk_overlap: int = 50
+        self, documents: list[dict], chunk_size: int = 500, chunk_overlap: int = 50
     ) -> int:
         """
         Index documents into all enabled algorithms.
@@ -157,7 +154,9 @@ class HybridRetriever:
             raise ValueError("No valid chunks found in documents")
 
         if DEBUG_MODE:
-            debug_log(f"[HybridRetriever] Indexing {len(self._chunks)} chunks into {len(self._algorithms)} algorithms")
+            debug_log(
+                f"[HybridRetriever] Indexing {len(self._chunks)} chunks into {len(self._algorithms)} algorithms"
+            )
 
         # Index into each algorithm
         for name, algorithm in self._algorithms.items():
@@ -178,10 +177,7 @@ class HybridRetriever:
         return len(self._chunks)
 
     def _convert_to_chunks(
-        self,
-        documents: list[dict],
-        chunk_size: int,
-        chunk_overlap: int
+        self, documents: list[dict], chunk_size: int, chunk_overlap: int
     ) -> list[DocumentChunk]:
         """
         Convert document dicts to DocumentChunk objects.
@@ -202,7 +198,7 @@ class HybridRetriever:
             chunk_size=chunk_size,
             chunk_overlap=chunk_overlap,
             length_function=len,
-            separators=["\n\n", "\n", ". ", " ", ""]
+            separators=["\n\n", "\n", ". ", " ", ""],
         )
 
         chunks = []
@@ -228,13 +224,15 @@ class HybridRetriever:
                     if not text.strip():
                         continue
 
-                    chunks.append(DocumentChunk(
-                        text=text,
-                        chunk_id=f"{filename}_{chunk_counter}",
-                        filename=filename,
-                        chunk_num=chunk_num,
-                        section_name=section_name,
-                    ))
+                    chunks.append(
+                        DocumentChunk(
+                            text=text,
+                            chunk_id=f"{filename}_{chunk_counter}",
+                            filename=filename,
+                            chunk_num=chunk_num,
+                            section_name=section_name,
+                        )
+                    )
                     chunk_counter += 1
 
             # Otherwise, chunk the extracted_text
@@ -246,13 +244,15 @@ class HybridRetriever:
                 split_texts = text_splitter.split_text(text)
 
                 for i, chunk_text in enumerate(split_texts):
-                    chunks.append(DocumentChunk(
-                        text=chunk_text,
-                        chunk_id=f"{filename}_{chunk_counter}",
-                        filename=filename,
-                        chunk_num=i,
-                        section_name="Auto-chunked",
-                    ))
+                    chunks.append(
+                        DocumentChunk(
+                            text=chunk_text,
+                            chunk_id=f"{filename}_{chunk_counter}",
+                            filename=filename,
+                            chunk_num=i,
+                            section_name="Auto-chunked",
+                        )
+                    )
                     chunk_counter += 1
 
         return chunks
@@ -307,7 +307,7 @@ class HybridRetriever:
                 total_algorithms=0,
                 processing_time_ms=0,
                 query=query,
-                metadata={"error": "No algorithms returned results"}
+                metadata={"error": "No algorithms returned results"},
             )
 
         # Merge results
@@ -326,11 +326,7 @@ class HybridRetriever:
     @property
     def is_indexed(self) -> bool:
         """Check if at least one algorithm has indexed documents."""
-        return any(
-            algo.is_indexed
-            for algo in self._algorithms.values()
-            if algo.enabled
-        )
+        return any(algo.is_indexed for algo in self._algorithms.values() if algo.enabled)
 
     def get_algorithm_status(self) -> dict[str, dict[str, Any]]:
         """
@@ -344,7 +340,7 @@ class HybridRetriever:
                 "enabled": algo.enabled,
                 "indexed": algo.is_indexed,
                 "weight": algo.weight,
-                **algo.get_config()
+                **algo.get_config(),
             }
             for name, algo in self._algorithms.items()
         }

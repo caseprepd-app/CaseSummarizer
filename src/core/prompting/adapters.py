@@ -64,19 +64,14 @@ class PromptAdapter(ABC):
         global_context: str,
         local_context: str,
         chunk_text: str,
-        max_words: int
+        max_words: int,
     ) -> str:
         """Create prompt for summarizing a single chunk."""
         pass
 
     @abstractmethod
     def create_document_final_prompt(
-        self,
-        preset_id: str,
-        model_name: str,
-        chunk_summaries: str,
-        filename: str,
-        max_words: int
+        self, preset_id: str, model_name: str, chunk_summaries: str, filename: str, max_words: int
     ) -> str:
         """Create prompt for final document summary from chunk summaries."""
         pass
@@ -88,7 +83,7 @@ class PromptAdapter(ABC):
         model_name: str,
         formatted_summaries: str,
         max_words: int,
-        doc_count: int
+        doc_count: int,
     ) -> str:
         """Create prompt for meta-summary from individual document summaries."""
         pass
@@ -111,7 +106,7 @@ class MultiDocPromptAdapter(PromptAdapter):
         self,
         template_manager: "PromptTemplateManager",
         model_manager: "OllamaModelManager",
-        focus_extractor: FocusExtractor | None = None
+        focus_extractor: FocusExtractor | None = None,
     ):
         """
         Initialize the prompt adapter.
@@ -165,10 +160,10 @@ class MultiDocPromptAdapter(PromptAdapter):
             error(f"[PROMPT ADAPTER] Failed to get focus for '{preset_id}': {e}")
             # Return generic fallback
             return {
-                'emphasis': "key facts, parties, timeline, outcomes",
-                'instructions': """1. Synthesize the overall case narrative
+                "emphasis": "key facts, parties, timeline, outcomes",
+                "instructions": """1. Synthesize the overall case narrative
 2. Identify key parties and their roles
-3. Highlight important findings"""
+3. Highlight important findings""",
             }
 
     def create_chunk_prompt(
@@ -178,7 +173,7 @@ class MultiDocPromptAdapter(PromptAdapter):
         global_context: str,
         local_context: str,
         chunk_text: str,
-        max_words: int
+        max_words: int,
     ) -> str:
         """
         Create chunk summarization prompt with focus emphasis.
@@ -223,12 +218,7 @@ SECTION TEXT:
 """
 
     def create_document_final_prompt(
-        self,
-        preset_id: str,
-        model_name: str,
-        chunk_summaries: str,
-        filename: str,
-        max_words: int
+        self, preset_id: str, model_name: str, chunk_summaries: str, filename: str, max_words: int
     ) -> str:
         """
         Create final document summary prompt with focus emphasis.
@@ -271,7 +261,7 @@ SECTION SUMMARIES:
         model_name: str,
         formatted_summaries: str,
         max_words: int,
-        doc_count: int
+        doc_count: int,
     ) -> str:
         """
         Create meta-summary prompt using user's focus instructions.

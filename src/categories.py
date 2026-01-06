@@ -26,6 +26,7 @@ CATEGORIES_FILE = Path(__file__).parent.parent / "config" / "categories.json"
 
 class CategoriesError(Exception):
     """Exception raised when categories configuration cannot be loaded."""
+
     pass
 
 
@@ -46,13 +47,13 @@ def load_categories() -> dict:
         return _get_default_config()
 
     try:
-        with open(CATEGORIES_FILE, 'r', encoding='utf-8') as f:
+        with open(CATEGORIES_FILE, "r", encoding="utf-8") as f:
             config = json.load(f)
 
         # Validate required keys
-        if 'categories' not in config:
+        if "categories" not in config:
             raise CategoriesError("Missing 'categories' key in config")
-        if 'ner_mapping' not in config:
+        if "ner_mapping" not in config:
             raise CategoriesError("Missing 'ner_mapping' key in config")
 
         debug_log(f"[CATEGORIES] Loaded {len(config['categories'])} categories from config")
@@ -74,15 +75,10 @@ def _get_default_config() -> dict:
             {"id": "Place", "description": "Organizations and locations"},
             {"id": "Medical", "description": "Medical/healthcare terms"},
             {"id": "Technical", "description": "Legal and technical terms"},
-            {"id": "Unknown", "description": "Unclassified terms"}
+            {"id": "Unknown", "description": "Unclassified terms"},
         ],
-        "ner_mapping": {
-            "PERSON": "Person",
-            "ORG": "Place",
-            "GPE": "Place",
-            "LOC": "Place"
-        },
-        "llm_prompt_categories": "Person, Place, Medical, Technical, Unknown"
+        "ner_mapping": {"PERSON": "Person", "ORG": "Place", "GPE": "Place", "LOC": "Place"},
+        "llm_prompt_categories": "Person, Place, Medical, Technical, Unknown",
     }
 
 
@@ -94,7 +90,7 @@ def get_category_list() -> list[str]:
         list[str]: List of category ID strings, e.g., ['Person', 'Place', 'Medical', ...]
     """
     config = load_categories()
-    return [cat['id'] for cat in config['categories']]
+    return [cat["id"] for cat in config["categories"]]
 
 
 def get_category_descriptions() -> dict[str, str]:
@@ -105,7 +101,7 @@ def get_category_descriptions() -> dict[str, str]:
         dict[str, str]: Mapping like {'Person': 'Named individuals', ...}
     """
     config = load_categories()
-    return {cat['id']: cat['description'] for cat in config['categories']}
+    return {cat["id"]: cat["description"] for cat in config["categories"]}
 
 
 def get_ner_mapping() -> dict[str, str]:
@@ -116,7 +112,7 @@ def get_ner_mapping() -> dict[str, str]:
         dict[str, str]: Mapping like {'PERSON': 'Person', 'ORG': 'Place', ...}
     """
     config = load_categories()
-    return config.get('ner_mapping', {})
+    return config.get("ner_mapping", {})
 
 
 def get_llm_prompt_categories() -> str:
@@ -127,7 +123,7 @@ def get_llm_prompt_categories() -> str:
         str: String like "Person, Place, Medical, Technical, Unknown"
     """
     config = load_categories()
-    return config.get('llm_prompt_categories', ', '.join(get_category_list()))
+    return config.get("llm_prompt_categories", ", ".join(get_category_list()))
 
 
 def is_valid_category(category: str) -> bool:
@@ -170,19 +166,19 @@ def normalize_category(category: str) -> str:
 
     # Common variations
     variations = {
-        'name': 'Person',
-        'names': 'Person',
-        'people': 'Person',
-        'individual': 'Person',
-        'org': 'Place',
-        'organization': 'Place',
-        'location': 'Place',
-        'med': 'Medical',
-        'health': 'Medical',
-        'healthcare': 'Medical',
-        'tech': 'Technical',
-        'legal': 'Technical',
-        'other': 'Unknown',
+        "name": "Person",
+        "names": "Person",
+        "people": "Person",
+        "individual": "Person",
+        "org": "Place",
+        "organization": "Place",
+        "location": "Place",
+        "med": "Medical",
+        "health": "Medical",
+        "healthcare": "Medical",
+        "tech": "Technical",
+        "legal": "Technical",
+        "other": "Unknown",
     }
 
     if category_lower in variations:

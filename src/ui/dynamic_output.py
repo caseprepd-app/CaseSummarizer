@@ -52,10 +52,10 @@ from src.ui.theme import FONTS, COLORS, BUTTON_STYLES, FRAME_STYLES, VOCAB_TABLE
 
 # Feedback icons (Unicode for cross-platform compatibility)
 # Using checkmark (✓) and X (✗) for clearer approve/reject semantics
-THUMB_UP_EMPTY = "☐"      # U+2610 Ballot Box (empty checkbox)
-THUMB_UP_FILLED = "✓"     # U+2713 Check Mark (green via tag)
-THUMB_DOWN_EMPTY = "☐"    # U+2610 Ballot Box (empty checkbox)
-THUMB_DOWN_FILLED = "✗"   # U+2717 Ballot X (red via tag)
+THUMB_UP_EMPTY = "☐"  # U+2610 Ballot Box (empty checkbox)
+THUMB_UP_FILLED = "✓"  # U+2713 Check Mark (green via tag)
+THUMB_DOWN_EMPTY = "☐"  # U+2610 Ballot Box (empty checkbox)
+THUMB_DOWN_FILLED = "✗"  # U+2717 Ballot X (red via tag)
 
 # Pagination settings (imported from config.py for centralized tuning)
 ROWS_PER_PAGE = VOCABULARY_ROWS_PER_PAGE
@@ -90,18 +90,53 @@ COLUMN_REGISTRY = {
 
 # Fixed column order (determines display sequence in table)
 COLUMN_ORDER = [
-    "Term", "Score", "Is Person", "Found By",
-    "# Docs", "Count", "Median Conf",
-    "NER", "RAKE", "BM25", "Algo Count",
-    "Freq Rank", "Keep", "Skip"
+    "Term",
+    "Score",
+    "Is Person",
+    "Found By",
+    "# Docs",
+    "Count",
+    "Median Conf",
+    "NER",
+    "RAKE",
+    "BM25",
+    "Algo Count",
+    "Freq Rank",
+    "Keep",
+    "Skip",
 ]
 
 # Backward compatibility: old column lists for reference
 GUI_DISPLAY_COLUMNS = ("Term", "Score", "Is Person", "Found By", "Keep", "Skip")
-GUI_DISPLAY_COLUMNS_EXTENDED = ("Term", "Score", "Is Person", "Found By", "NER", "RAKE", "BM25", "Algo Count", "Keep", "Skip")
+GUI_DISPLAY_COLUMNS_EXTENDED = (
+    "Term",
+    "Score",
+    "Is Person",
+    "Found By",
+    "NER",
+    "RAKE",
+    "BM25",
+    "Algo Count",
+    "Keep",
+    "Skip",
+)
 
 # All columns available for export (includes ML feature columns)
-ALL_EXPORT_COLUMNS = ("Term", "Quality Score", "Is Person", "Found By", "# Docs", "Count", "Median Conf", "NER", "RAKE", "BM25", "Algo Count", "In-Case Freq", "Freq Rank")
+ALL_EXPORT_COLUMNS = (
+    "Term",
+    "Quality Score",
+    "Is Person",
+    "Found By",
+    "# Docs",
+    "Count",
+    "Median Conf",
+    "NER",
+    "RAKE",
+    "BM25",
+    "Algo Count",
+    "In-Case Freq",
+    "Freq Rank",
+)
 
 # UI-002: Centralized mapping from display column names to data field names
 # "Score" in the GUI maps to "Quality Score" in the data dictionary
@@ -110,8 +145,10 @@ DISPLAY_TO_DATA_COLUMN = {
 }
 
 # Legacy COLUMN_CONFIG for backward compatibility
-COLUMN_CONFIG = {name: {"width": cfg["width"], "max_chars": cfg["max_chars"]}
-                 for name, cfg in COLUMN_REGISTRY.items()}
+COLUMN_CONFIG = {
+    name: {"width": cfg["width"], "max_chars": cfg["max_chars"]}
+    for name, cfg in COLUMN_REGISTRY.items()
+}
 
 
 def truncate_text(text: str, max_chars: int) -> str:
@@ -127,10 +164,10 @@ def truncate_text(text: str, max_chars: int) -> str:
     """
     if not text:
         return ""
-    text = str(text).replace('\n', ' ').replace('\r', '').strip()
+    text = str(text).replace("\n", " ").replace("\r", "").strip()
     if len(text) <= max_chars:
         return text
-    return text[:max_chars - 3] + "..."
+    return text[: max_chars - 3] + "..."
 
 
 class DynamicOutputWidget(ctk.CTkFrame):
@@ -139,7 +176,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
     def __init__(self, master, **kwargs):
         # Session 45: Set distinct background color for output pane
         # Slightly darker/different than other panes to distinguish
-        kwargs.setdefault('fg_color', ('#e8e8e8', '#1a1a2e'))  # Light/dark mode colors
+        kwargs.setdefault("fg_color", ("#e8e8e8", "#1a1a2e"))  # Light/dark mode colors
         super().__init__(master, **kwargs)
 
         self.grid_columnconfigure(0, weight=1)
@@ -171,7 +208,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
             self.tabview.tab("Names & Vocab"),
             text="",
             font=FONTS["small"],
-            text_color=("gray50", "gray70")
+            text_color=("gray50", "gray70"),
         )
         self._progress_badge.grid(row=1, column=0, sticky="w", padx=10, pady=(0, 5))
 
@@ -195,24 +232,25 @@ class DynamicOutputWidget(ctk.CTkFrame):
         self._qa_panel.grid(row=0, column=0, sticky="nsew")
 
         # Summary Tab: Textbox for summaries
-        self.summary_text_display = ctk.CTkTextbox(
-            self.tabview.tab("Summary"),
-            wrap="word"
-        )
+        self.summary_text_display = ctk.CTkTextbox(self.tabview.tab("Summary"), wrap="word")
         self.summary_text_display.grid(row=0, column=0, sticky="nsew", padx=5, pady=5)
         self.summary_text_display.insert(
             "0.0",
-            "Generated summaries will appear here.\n\nProcess documents and enable 'Summary' to generate content."
+            "Generated summaries will appear here.\n\nProcess documents and enable 'Summary' to generate content.",
         )
 
         # Button bar (below tabs)
         self.button_frame = ctk.CTkFrame(self)
         self.button_frame.grid(row=1, column=0, sticky="ew", padx=5, pady=5)
 
-        self.copy_btn = ctk.CTkButton(self.button_frame, text="Copy to Clipboard", command=self.copy_to_clipboard)
+        self.copy_btn = ctk.CTkButton(
+            self.button_frame, text="Copy to Clipboard", command=self.copy_to_clipboard
+        )
         self.copy_btn.pack(side="left", padx=5)
 
-        self.save_btn = ctk.CTkButton(self.button_frame, text="Save to File...", command=self.save_to_file)
+        self.save_btn = ctk.CTkButton(
+            self.button_frame, text="Save to File...", command=self.save_to_file
+        )
         self.save_btn.pack(side="left", padx=5)
 
         # Session 80: Column visibility state (replaces Show Details toggle)
@@ -222,7 +260,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
             text="Columns...",
             command=self._show_column_menu,
             width=90,
-            **BUTTON_STYLES["secondary"]
+            **BUTTON_STYLES["secondary"],
         )
         self.column_picker_btn.pack(side="left", padx=5)
 
@@ -324,7 +362,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
 
         # Session 78: Show/hide main window's follow-up frame based on tab
         main_window = self.winfo_toplevel()
-        if hasattr(main_window, 'followup_frame'):
+        if hasattr(main_window, "followup_frame"):
             if current_tab == "Ask Questions":
                 main_window.followup_frame.grid(row=2, column=0, sticky="ew", padx=10, pady=(0, 10))
             else:
@@ -367,13 +405,11 @@ class DynamicOutputWidget(ctk.CTkFrame):
         elif source == "ner":
             # Session 80: More accurate label - results come from NER, RAKE, BM25
             self._progress_badge.configure(
-                text="Results (local algorithms)",
-                text_color=("orange", "#ffaa00")
+                text="Results (local algorithms)", text_color=("orange", "#ffaa00")
             )
         elif source == "both":
             self._progress_badge.configure(
-                text="Enhanced results (+ LLM)",
-                text_color=("green", "#00cc66")
+                text="Enhanced results (+ LLM)", text_color=("green", "#00cc66")
             )
 
     def set_extraction_source(self, source: str):
@@ -434,7 +470,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
         for col in columns:
             try:
                 # Get actual current width from treeview
-                width = self.csv_treeview.column(col, 'width')
+                width = self.csv_treeview.column(col, "width")
                 if isinstance(width, int) and 30 <= width <= 500:
                     widths[col] = width
             except Exception:
@@ -473,7 +509,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
             fg="white",
             activebackground="#505050",
             activeforeground="white",
-            font=('Segoe UI', 10)
+            font=("Segoe UI", 10),
         )
 
         for col_name in COLUMN_ORDER:
@@ -487,8 +523,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
                 is_visible = self._column_visibility.get(col_name, col_config["default"])
                 prefix = "\u2713 " if is_visible else "   "  # ✓ or spaces
                 menu.add_command(
-                    label=f"{prefix}{col_name}",
-                    command=lambda c=col_name: self._toggle_column(c)
+                    label=f"{prefix}{col_name}", command=lambda c=col_name: self._toggle_column(c)
                 )
 
         menu.add_separator()
@@ -512,10 +547,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
 
     def _reset_column_visibility(self):
         """Reset column visibility to defaults."""
-        self._column_visibility = {
-            col: cfg["default"]
-            for col, cfg in COLUMN_REGISTRY.items()
-        }
+        self._column_visibility = {col: cfg["default"] for col, cfg in COLUMN_REGISTRY.items()}
         self._save_column_visibility()
         self._refresh_treeview_columns()
 
@@ -552,7 +584,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
             result = messagebox.askyesno(
                 "Sort Warning",
                 f"Sorting by '{column}' will show lower-quality results first.\n\nContinue?",
-                icon="warning"
+                icon="warning",
             )
             if not result:
                 return  # User cancelled
@@ -578,9 +610,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
         else:
             # Sort by column
             sorted_data = self._sort_vocab_data(
-                self._unsorted_vocab_data,
-                self._sort_column,
-                self._sort_ascending
+                self._unsorted_vocab_data, self._sort_column, self._sort_ascending
             )
 
         # Update header text to show sort indicator
@@ -589,9 +619,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
         # Redisplay with sorted data (without resetting sort state)
         self._redisplay_sorted_data(sorted_data)
 
-    def _sort_vocab_data(
-        self, data: list[dict], column: str, ascending: bool
-    ) -> list[dict]:
+    def _sort_vocab_data(self, data: list[dict], column: str, ascending: bool) -> list[dict]:
         """
         Sort vocabulary data by column with type-aware comparison.
 
@@ -712,7 +740,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
         # First, restore all previously detached items
         for item_id in self._detached_items:
             try:
-                self.csv_treeview.reattach(item_id, '', 'end')
+                self.csv_treeview.reattach(item_id, "", "end")
             except Exception:
                 pass  # Item may have been deleted
         self._detached_items = []
@@ -732,7 +760,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
         # Detach non-matching items
         filter_lower = filter_text.lower()
         for item_id in self.csv_treeview.get_children():
-            values = self.csv_treeview.item(item_id, 'values')
+            values = self.csv_treeview.item(item_id, "values")
             if values:
                 term = str(values[0])  # First column is Term
                 if use_regex and regex_pattern:
@@ -841,14 +869,16 @@ class DynamicOutputWidget(ctk.CTkFrame):
         Enables/disables tabs based on data availability and populates content.
         """
         # Names & Vocabulary tab
-        vocab_data = self._outputs.get("Names & Vocabulary") or self._outputs.get("Rare Word List (CSV)")
+        vocab_data = self._outputs.get("Names & Vocabulary") or self._outputs.get(
+            "Rare Word List (CSV)"
+        )
         if vocab_data:
             self._display_csv(vocab_data)
             self._update_progress_badge(self._extraction_source)
 
         # Q&A tab - always enabled if Q&A system is ready
         main_window = self.winfo_toplevel()
-        qa_ready = getattr(main_window, '_qa_ready', False)
+        qa_ready = getattr(main_window, "_qa_ready", False)
         qa_data = self._outputs.get("Ask Questions") or self._outputs.get("Q&A Results")
         if qa_data:
             self._display_qa_results(qa_data)
@@ -864,9 +894,9 @@ class DynamicOutputWidget(ctk.CTkFrame):
 
         # Individual document summaries (if any) - append to summary tab
         if self._document_summaries:
-            self.summary_text_display.insert("end", "\n\n" + "="*50 + "\n")
+            self.summary_text_display.insert("end", "\n\n" + "=" * 50 + "\n")
             self.summary_text_display.insert("end", "INDIVIDUAL DOCUMENT SUMMARIES\n")
-            self.summary_text_display.insert("end", "="*50 + "\n\n")
+            self.summary_text_display.insert("end", "=" * 50 + "\n\n")
             for doc_name, doc_summary in sorted(self._document_summaries.items()):
                 self.summary_text_display.insert("end", f"{doc_name}:\n{doc_summary}\n\n")
 
@@ -897,8 +927,12 @@ class DynamicOutputWidget(ctk.CTkFrame):
         # This prevents old skipped items from appearing even if not in exclusion file
         original_count = len(data)
         data = [
-            item for item in data
-            if self._feedback_manager.get_rating(item.get("Term", "") if isinstance(item, dict) else "") != -1
+            item
+            for item in data
+            if self._feedback_manager.get_rating(
+                item.get("Term", "") if isinstance(item, dict) else ""
+            )
+            != -1
         ]
         filtered_count = original_count - len(data)
         if filtered_count > 0:
@@ -920,7 +954,9 @@ class DynamicOutputWidget(ctk.CTkFrame):
 
         # Create frame to hold treeview and scrollbars
         if self.treeview_frame is None:
-            self.treeview_frame = ctk.CTkFrame(self.tabview.tab("Names & Vocab"), **FRAME_STYLES["card"])
+            self.treeview_frame = ctk.CTkFrame(
+                self.tabview.tab("Names & Vocab"), **FRAME_STYLES["card"]
+            )
 
         self.treeview_frame.grid(row=0, column=0, sticky="nsew")
         self.treeview_frame.grid_columnconfigure(0, weight=1)
@@ -932,9 +968,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
             self.filter_frame.grid(row=0, column=0, columnspan=2, sticky="ew", padx=5, pady=(5, 2))
 
             self.filter_entry = ctk.CTkEntry(
-                self.filter_frame,
-                placeholder_text="Filter terms...",
-                width=250
+                self.filter_frame, placeholder_text="Filter terms...", width=250
             )
             self.filter_entry.pack(side="left", padx=(0, 5))
             self.filter_entry.bind("<KeyRelease>", self._on_filter_changed)
@@ -944,7 +978,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
                 text="Clear",
                 width=60,
                 command=self._clear_filter,
-                **BUTTON_STYLES["secondary"]
+                **BUTTON_STYLES["secondary"],
             )
             filter_clear_btn.pack(side="left")
 
@@ -970,7 +1004,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
                 columns=columns,
                 show="headings",
                 style="Vocab.Treeview",
-                selectmode="browse"
+                selectmode="browse",
             )
 
             # Configure column headings and widths
@@ -980,17 +1014,14 @@ class DynamicOutputWidget(ctk.CTkFrame):
                 col_width = self._get_column_width(col)
                 # Lambda capture col by default argument to avoid closure issue
                 self.csv_treeview.heading(
-                    col,
-                    text=col,
-                    anchor='w',
-                    command=lambda c=col: self._sort_by_column(c)
+                    col, text=col, anchor="w", command=lambda c=col: self._sort_by_column(c)
                 )
                 self.csv_treeview.column(
                     col,
                     width=col_width,
                     minwidth=60,
-                    anchor='w',
-                    stretch=True if col == "Term" else False  # Term stretches to fill space
+                    anchor="w",
+                    stretch=True if col == "Term" else False,  # Term stretches to fill space
                 )
 
             # Add vertical scrollbar
@@ -998,7 +1029,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
                 self.treeview_frame,
                 orient="vertical",
                 command=self.csv_treeview.yview,
-                style="Vocab.Vertical.TScrollbar"
+                style="Vocab.Vertical.TScrollbar",
             )
             self.csv_treeview.configure(yscrollcommand=vsb.set)
 
@@ -1007,7 +1038,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
                 self.treeview_frame,
                 orient="horizontal",
                 command=self.csv_treeview.xview,
-                style="Vocab.Horizontal.TScrollbar"
+                style="Vocab.Horizontal.TScrollbar",
             )
             self.csv_treeview.configure(xscrollcommand=hsb.set)
 
@@ -1035,8 +1066,10 @@ class DynamicOutputWidget(ctk.CTkFrame):
         # Calculate how many items to load initially
         initial_load = min(ROWS_PER_PAGE, self._vocab_total_items)
 
-        debug_log(f"[VOCAB DISPLAY] Showing {initial_load} of {self._vocab_total_items} terms "
-                  f"(pagination: {ROWS_PER_PAGE} per page)")
+        debug_log(
+            f"[VOCAB DISPLAY] Showing {initial_load} of {self._vocab_total_items} terms "
+            f"(pagination: {ROWS_PER_PAGE} per page)"
+        )
 
         # Start async batch insertion for initial load
         self._async_insert_rows(data, 0, initial_load)
@@ -1056,7 +1089,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
         # (must be done after MainWindow is fully initialized, not in __init__)
         if self._qa_panel.on_ask_followup is None:
             main_window = self.winfo_toplevel()
-            if hasattr(main_window, '_ask_followup_for_qa_panel'):
+            if hasattr(main_window, "_ask_followup_for_qa_panel"):
                 self._qa_panel.set_followup_callback(main_window._ask_followup_for_qa_panel)
                 debug_log("[Q&A DISPLAY] Follow-up callback connected to MainWindow")
 
@@ -1084,7 +1117,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
                 "0.0",
                 "Case Briefing not yet generated.\n\n"
                 "Case Briefing is generated automatically after document extraction "
-                "if enabled in Settings > Q&A/Briefing > Auto-run."
+                "if enabled in Settings > Q&A/Briefing > Auto-run.",
             )
             return
 
@@ -1124,7 +1157,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
             batch_end = min(current_idx + BATCH_INSERT_SIZE, end_idx)
 
             # Session 47: Use stored columns (may be extended with NER/RAKE/BM25)
-            current_columns = getattr(self, '_current_columns', GUI_DISPLAY_COLUMNS)
+            current_columns = getattr(self, "_current_columns", GUI_DISPLAY_COLUMNS)
 
             for i in range(current_idx, batch_end):
                 item = data[i]
@@ -1145,14 +1178,22 @@ class DynamicOutputWidget(ctk.CTkFrame):
                             # Map display column to data field (e.g., "Score" -> "Quality Score")
                             data_col = DISPLAY_TO_DATA_COLUMN[col]
                             value = item.get(data_col, "")
-                            values.append(truncate_text(str(value), COLUMN_CONFIG[col]["max_chars"]))
+                            values.append(
+                                truncate_text(str(value), COLUMN_CONFIG[col]["max_chars"])
+                            )
                         else:
-                            values.append(truncate_text(str(item.get(col, "")), COLUMN_CONFIG[col]["max_chars"]))
+                            values.append(
+                                truncate_text(
+                                    str(item.get(col, "")), COLUMN_CONFIG[col]["max_chars"]
+                                )
+                            )
 
                     values = tuple(values)
                 else:
                     # Handle list format (legacy) - apply truncation, default empty feedback
-                    raw_values = tuple(item) if len(item) >= 4 else tuple(item) + ("",) * (4 - len(item))
+                    raw_values = (
+                        tuple(item) if len(item) >= 4 else tuple(item) + ("",) * (4 - len(item))
+                    )
                     values = tuple(
                         truncate_text(str(v), COLUMN_CONFIG[current_columns[j]]["max_chars"])
                         for j, v in enumerate(raw_values[:4])
@@ -1160,7 +1201,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
 
                 # Apply tag for row coloring based on existing rating or Found By (Session 43)
                 # Session 51: Add alternating row background color
-                row_bg_tag = 'oddrow' if i % 2 else 'evenrow'
+                row_bg_tag = "oddrow" if i % 2 else "evenrow"
 
                 # Session 78: Row coloring should ONLY reflect feedback status
                 # - Thumbs up (rating=1) → green
@@ -1169,9 +1210,9 @@ class DynamicOutputWidget(ctk.CTkFrame):
                 # Removed algorithm-based coloring (found_ner, found_rake, etc.) since
                 # colors should only indicate user/developer feedback, not detection source.
                 if rating == 1:
-                    tag = (row_bg_tag, 'rated_up')
+                    tag = (row_bg_tag, "rated_up")
                 elif rating == -1:
-                    tag = (row_bg_tag, 'rated_down')
+                    tag = (row_bg_tag, "rated_down")
                 else:
                     # No feedback - neutral coloring (just alternating background)
                     tag = (row_bg_tag,)
@@ -1213,32 +1254,31 @@ class DynamicOutputWidget(ctk.CTkFrame):
 
             if self._load_more_btn is None:
                 self._load_more_btn = ctk.CTkButton(
-                    self.treeview_frame,
-                    text="",
-                    height=28,
-                    **BUTTON_STYLES["primary"]
+                    self.treeview_frame, text="", height=28, **BUTTON_STYLES["primary"]
                 )
 
             # Session 80: Always update command to use current data (fixes stale closure)
             self._load_more_btn.configure(
                 text=f"Load More ({remaining} remaining)",
-                command=lambda d=data: self._load_more_rows(d)
+                command=lambda d=data: self._load_more_rows(d),
             )
             self._load_more_btn.grid(row=2, column=0, columnspan=2, sticky="ew", padx=10, pady=5)
             debug_log(f"[PAGINATION] Load More button shown ({remaining} remaining)")
 
             # Update info label
-            if not hasattr(self, 'vocab_info_label'):
+            if not hasattr(self, "vocab_info_label"):
                 self.vocab_info_label = ctk.CTkLabel(
                     self.treeview_frame,
                     text="",
                     font=FONTS["small"],
-                    text_color=COLORS["text_secondary"]
+                    text_color=COLORS["text_secondary"],
                 )
             self.vocab_info_label.configure(
                 text=f"Showing {displayed_items} of {total_items} terms • Full list available via 'Save to File'"
             )
-            self.vocab_info_label.grid(row=3, column=0, columnspan=2, sticky="w", padx=10, pady=(0, 5))
+            self.vocab_info_label.grid(
+                row=3, column=0, columnspan=2, sticky="w", padx=10, pady=(0, 5)
+            )
 
         else:
             # All items displayed
@@ -1246,11 +1286,11 @@ class DynamicOutputWidget(ctk.CTkFrame):
             if self._load_more_btn is not None:
                 self._load_more_btn.grid_remove()
 
-            if hasattr(self, 'vocab_info_label'):
-                self.vocab_info_label.configure(
-                    text=f"Showing all {total_items} terms"
+            if hasattr(self, "vocab_info_label"):
+                self.vocab_info_label.configure(text=f"Showing all {total_items} terms")
+                self.vocab_info_label.grid(
+                    row=2, column=0, columnspan=2, sticky="w", padx=10, pady=5
                 )
-                self.vocab_info_label.grid(row=2, column=0, columnspan=2, sticky="w", padx=10, pady=5)
 
         # PERF-008: Call gc.collect() directly (lightweight operation)
         gc.collect()
@@ -1275,18 +1315,20 @@ class DynamicOutputWidget(ctk.CTkFrame):
 
     def _create_context_menu(self):
         """Create right-click context menu for vocabulary table."""
-        self.context_menu = Menu(self, tearoff=0, bg="#404040", fg="white",
-                                  activebackground="#505050", activeforeground="white",
-                                  font=('Segoe UI', 10))
+        self.context_menu = Menu(
+            self,
+            tearoff=0,
+            bg="#404040",
+            fg="white",
+            activebackground="#505050",
+            activeforeground="white",
+            font=("Segoe UI", 10),
+        )
         self.context_menu.add_command(
-            label="Exclude this term from future lists",
-            command=self._exclude_selected_term
+            label="Exclude this term from future lists", command=self._exclude_selected_term
         )
         self.context_menu.add_separator()
-        self.context_menu.add_command(
-            label="Copy term",
-            command=self._copy_selected_term
-        )
+        self.context_menu.add_command(label="Copy term", command=self._copy_selected_term)
 
     def _on_right_click(self, event):
         """Handle right-click on treeview - show column menu for header, context menu for rows."""
@@ -1303,7 +1345,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
             # Select the row
             self.csv_treeview.selection_set(item_id)
             # Get the term value (first column)
-            values = self.csv_treeview.item(item_id, 'values')
+            values = self.csv_treeview.item(item_id, "values")
             if values:
                 self._selected_term = values[0]  # Term is first column
                 # Show context menu at cursor position
@@ -1316,7 +1358,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
         """Handle double-click to copy the term."""
         item_id = self.csv_treeview.identify_row(event.y)
         if item_id:
-            values = self.csv_treeview.item(item_id, 'values')
+            values = self.csv_treeview.item(item_id, "values")
             if values and len(values) >= 1:
                 term = values[0]  # Term is first column
                 if term:
@@ -1338,7 +1380,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
             f"This will also exclude case variations like '{term.upper()}' and '{term.title()}'.\n\n"
             "You can undo this by editing:\n"
             f"{USER_VOCAB_EXCLUDE_PATH}",
-            icon="question"
+            icon="question",
         )
 
         if not result:
@@ -1350,10 +1392,12 @@ class DynamicOutputWidget(ctk.CTkFrame):
             os.makedirs(os.path.dirname(USER_VOCAB_EXCLUDE_PATH), exist_ok=True)
 
             # Append to file
-            with open(USER_VOCAB_EXCLUDE_PATH, 'a', encoding='utf-8') as f:
+            with open(USER_VOCAB_EXCLUDE_PATH, "a", encoding="utf-8") as f:
                 f.write(f"{lower_term}\n")
 
-            debug_log(f"[VOCAB UI] Added '{term}' to user exclusion list at {USER_VOCAB_EXCLUDE_PATH}")
+            debug_log(
+                f"[VOCAB UI] Added '{term}' to user exclusion list at {USER_VOCAB_EXCLUDE_PATH}"
+            )
 
             # Remove from current display
             selected = self.csv_treeview.selection()
@@ -1362,22 +1406,21 @@ class DynamicOutputWidget(ctk.CTkFrame):
 
                 # Also remove from internal data
                 self._outputs["Rare Word List (CSV)"] = [
-                    item for item in self._outputs.get("Rare Word List (CSV)", [])
+                    item
+                    for item in self._outputs.get("Rare Word List (CSV)", [])
                     if isinstance(item, dict) and item.get("Term", "").lower() != lower_term
                 ]
 
             messagebox.showinfo(
                 "Term Excluded",
                 f"'{term}' will not appear in future rare word lists.\n\n"
-                "Note: This takes effect on the next vocabulary extraction."
+                "Note: This takes effect on the next vocabulary extraction.",
             )
 
         except Exception as e:
             debug_log(f"[VOCAB UI] Failed to save exclusion: {e}")
             messagebox.showerror(
-                "Error",
-                f"Failed to save exclusion: {e}\n\n"
-                "Please check file permissions."
+                "Error", f"Failed to save exclusion: {e}\n\n" "Please check file permissions."
             )
 
     def _copy_selected_term(self):
@@ -1402,7 +1445,9 @@ class DynamicOutputWidget(ctk.CTkFrame):
             return
 
         lower_term = term.lower().strip()
-        debug_log(f"[FEEDBACK] Adding '{lower_term}' to exclusion list at {USER_VOCAB_EXCLUDE_PATH}")
+        debug_log(
+            f"[FEEDBACK] Adding '{lower_term}' to exclusion list at {USER_VOCAB_EXCLUDE_PATH}"
+        )
 
         try:
             # Session 80: Use Path methods instead of os.path for consistency
@@ -1411,7 +1456,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
             # Check if term is already in the list
             existing_terms = set()
             if USER_VOCAB_EXCLUDE_PATH.exists():
-                with open(USER_VOCAB_EXCLUDE_PATH, 'r', encoding='utf-8') as f:
+                with open(USER_VOCAB_EXCLUDE_PATH, "r", encoding="utf-8") as f:
                     existing_terms = {line.strip().lower() for line in f if line.strip()}
                 debug_log(f"[FEEDBACK] Existing exclusions: {len(existing_terms)} terms")
 
@@ -1420,17 +1465,21 @@ class DynamicOutputWidget(ctk.CTkFrame):
                 return
 
             # Append to file
-            with open(USER_VOCAB_EXCLUDE_PATH, 'a', encoding='utf-8') as f:
+            with open(USER_VOCAB_EXCLUDE_PATH, "a", encoding="utf-8") as f:
                 f.write(f"{lower_term}\n")
 
             # Verify write succeeded
             if USER_VOCAB_EXCLUDE_PATH.exists():
-                with open(USER_VOCAB_EXCLUDE_PATH, 'r', encoding='utf-8') as f:
+                with open(USER_VOCAB_EXCLUDE_PATH, "r", encoding="utf-8") as f:
                     new_count = sum(1 for line in f if line.strip())
-                debug_log(f"[FEEDBACK] Successfully added '{term}' to exclusion list "
-                         f"(now {new_count} total exclusions)")
+                debug_log(
+                    f"[FEEDBACK] Successfully added '{term}' to exclusion list "
+                    f"(now {new_count} total exclusions)"
+                )
             else:
-                debug_log(f"[FEEDBACK] WARNING: File not found after write: {USER_VOCAB_EXCLUDE_PATH}")
+                debug_log(
+                    f"[FEEDBACK] WARNING: File not found after write: {USER_VOCAB_EXCLUDE_PATH}"
+                )
 
         except Exception as e:
             debug_log(f"[FEEDBACK] ERROR: Failed to add '{term}' to exclusion list: {e}")
@@ -1478,7 +1527,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
                 writer.writerow(row)
             else:
                 # Legacy list format
-                writer.writerow(item[:len(columns)])
+                writer.writerow(item[: len(columns)])
 
         return output.getvalue()
 
@@ -1494,7 +1543,9 @@ class DynamicOutputWidget(ctk.CTkFrame):
         current_tab = self.tabview.get()
 
         if current_tab == "Names & Vocab":
-            data = self._outputs.get("Names & Vocabulary") or self._outputs.get("Rare Word List (CSV)", [])
+            data = self._outputs.get("Names & Vocabulary") or self._outputs.get(
+                "Rare Word List (CSV)", []
+            )
             return self._build_vocab_csv(data)
         elif current_tab == "Ask Questions":
             # Get export content from QAPanel if available
@@ -1522,8 +1573,12 @@ class DynamicOutputWidget(ctk.CTkFrame):
             current_tab = self.tabview.get()
             main_window = self.winfo_toplevel()
             if current_tab == "Names & Vocab":
-                vocab_data = self._outputs.get("Names & Vocabulary") or self._outputs.get("Rare Word List (CSV)", [])
-                main_window.set_status(f"Copied {len(vocab_data)} terms to clipboard", duration_ms=5000)
+                vocab_data = self._outputs.get("Names & Vocabulary") or self._outputs.get(
+                    "Rare Word List (CSV)", []
+                )
+                main_window.set_status(
+                    f"Copied {len(vocab_data)} terms to clipboard", duration_ms=5000
+                )
             elif current_tab == "Summary":
                 main_window.set_status("Copied summary to clipboard", duration_ms=5000)
         else:
@@ -1553,6 +1608,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
 
         # Session 73: Remember last export folder
         from src.core.utils.text_utils import get_documents_folder
+
         prefs = get_user_preferences()
         initial_dir = prefs.get("last_export_path") or get_documents_folder()
 
@@ -1561,10 +1617,11 @@ class DynamicOutputWidget(ctk.CTkFrame):
             filetypes=filetypes,
             initialfile=default_filename,
             initialdir=initial_dir,
-            title="Save Output"
+            title="Save Output",
         )
         if filepath:
             from pathlib import Path
+
             with open(filepath, "w", encoding="utf-8") as f:
                 f.write(content)
 
@@ -1580,8 +1637,12 @@ class DynamicOutputWidget(ctk.CTkFrame):
             main_window = self.winfo_toplevel()
             filename = os.path.basename(filepath)
             if current_tab == "Names & Vocab":
-                vocab_data = self._outputs.get("Names & Vocabulary") or self._outputs.get("Rare Word List (CSV)", [])
-                main_window.set_status(f"Saved {len(vocab_data)} terms to {filename}", duration_ms=5000)
+                vocab_data = self._outputs.get("Names & Vocabulary") or self._outputs.get(
+                    "Rare Word List (CSV)", []
+                )
+                main_window.set_status(
+                    f"Saved {len(vocab_data)} terms to {filename}", duration_ms=5000
+                )
             elif current_tab == "Ask Questions":
                 main_window.set_status(f"Saved Q&A results to {filename}", duration_ms=5000)
             elif current_tab == "Summary":
@@ -1598,9 +1659,13 @@ class DynamicOutputWidget(ctk.CTkFrame):
         from pathlib import Path
 
         # Check if we have vocabulary data
-        vocab_data = self._outputs.get("Names & Vocabulary") or self._outputs.get("Rare Word List (CSV)", [])
+        vocab_data = self._outputs.get("Names & Vocabulary") or self._outputs.get(
+            "Rare Word List (CSV)", []
+        )
         if not vocab_data:
-            messagebox.showwarning("No Data", "No vocabulary data to export.\n\nProcess documents first.")
+            messagebox.showwarning(
+                "No Data", "No vocabulary data to export.\n\nProcess documents first."
+            )
             return
 
         # Generate CSV content using shared helper
@@ -1608,6 +1673,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
 
         # Session 73: Use last export folder or Documents
         from src.core.utils.text_utils import get_documents_folder
+
         prefs = get_user_preferences()
         export_path = prefs.get("last_export_path") or get_documents_folder()
 
@@ -1630,8 +1696,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
             main_window = self.winfo_toplevel()
             folder_name = Path(export_path).name
             main_window.set_status(
-                f"Exported {len(vocab_data)} terms to {folder_name}/{filename}",
-                duration_ms=5000
+                f"Exported {len(vocab_data)} terms to {folder_name}/{filename}", duration_ms=5000
             )
 
         except Exception as e:
@@ -1648,7 +1713,9 @@ class DynamicOutputWidget(ctk.CTkFrame):
         from src.core.utils.text_utils import get_documents_folder
 
         # Session 80: Use fallback to legacy key like other export functions
-        vocab_data = self._outputs.get("Names & Vocabulary") or self._outputs.get("Rare Word List (CSV)", [])
+        vocab_data = self._outputs.get("Names & Vocabulary") or self._outputs.get(
+            "Rare Word List (CSV)", []
+        )
         if not vocab_data:
             messagebox.showinfo("No Data", "No vocabulary data to export.")
             return
@@ -1665,7 +1732,9 @@ class DynamicOutputWidget(ctk.CTkFrame):
         # Export using service
         export_service = get_export_service()
         # Session 80: Include details if any algorithm columns are visible
-        include_details = any(self._column_visibility.get(col, False) for col in ["NER", "RAKE", "BM25", "Algo Count"])
+        include_details = any(
+            self._column_visibility.get(col, False) for col in ["NER", "RAKE", "BM25", "Algo Count"]
+        )
         success = export_service.export_vocabulary_to_word(vocab_data, filepath, include_details)
 
         if success:
@@ -1676,8 +1745,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
             main_window = self.winfo_toplevel()
             folder_name = Path(export_path).name
             main_window.set_status(
-                f"Exported {len(vocab_data)} terms to {folder_name}/{filename}",
-                duration_ms=5000
+                f"Exported {len(vocab_data)} terms to {folder_name}/{filename}", duration_ms=5000
             )
         else:
             messagebox.showerror("Export Failed", "Could not export to Word document.")
@@ -1692,7 +1760,9 @@ class DynamicOutputWidget(ctk.CTkFrame):
         from src.core.utils.text_utils import get_documents_folder
 
         # Session 80: Use fallback to legacy key like other export functions
-        vocab_data = self._outputs.get("Names & Vocabulary") or self._outputs.get("Rare Word List (CSV)", [])
+        vocab_data = self._outputs.get("Names & Vocabulary") or self._outputs.get(
+            "Rare Word List (CSV)", []
+        )
         if not vocab_data:
             messagebox.showinfo("No Data", "No vocabulary data to export.")
             return
@@ -1709,7 +1779,9 @@ class DynamicOutputWidget(ctk.CTkFrame):
         # Export using service
         export_service = get_export_service()
         # Session 80: Include details if any algorithm columns are visible
-        include_details = any(self._column_visibility.get(col, False) for col in ["NER", "RAKE", "BM25", "Algo Count"])
+        include_details = any(
+            self._column_visibility.get(col, False) for col in ["NER", "RAKE", "BM25", "Algo Count"]
+        )
         success = export_service.export_vocabulary_to_pdf(vocab_data, filepath, include_details)
 
         if success:
@@ -1720,8 +1792,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
             main_window = self.winfo_toplevel()
             folder_name = Path(export_path).name
             main_window.set_status(
-                f"Exported {len(vocab_data)} terms to {folder_name}/{filename}",
-                duration_ms=5000
+                f"Exported {len(vocab_data)} terms to {folder_name}/{filename}", duration_ms=5000
             )
         else:
             messagebox.showerror("Export Failed", "Could not export to PDF document.")
@@ -1736,7 +1807,9 @@ class DynamicOutputWidget(ctk.CTkFrame):
         from src.core.utils.text_utils import get_documents_folder
 
         # Session 80: Use fallback to legacy key like other export functions
-        vocab_data = self._outputs.get("Names & Vocabulary") or self._outputs.get("Rare Word List (CSV)", [])
+        vocab_data = self._outputs.get("Names & Vocabulary") or self._outputs.get(
+            "Rare Word List (CSV)", []
+        )
         if not vocab_data:
             messagebox.showinfo("No Data", "No vocabulary data to export.")
             return
@@ -1762,8 +1835,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
             main_window = self.winfo_toplevel()
             folder_name = Path(export_path).name
             main_window.set_status(
-                f"Exported {len(vocab_data)} terms to {folder_name}/{filename}",
-                duration_ms=5000
+                f"Exported {len(vocab_data)} terms to {folder_name}/{filename}", duration_ms=5000
             )
         else:
             messagebox.showerror("Export Failed", "Could not export to text file.")
@@ -1781,7 +1853,9 @@ class DynamicOutputWidget(ctk.CTkFrame):
         from src.core.utils.text_utils import get_documents_folder
 
         # Session 80: Use fallback to legacy key like other export functions
-        vocab_data = self._outputs.get("Names & Vocabulary") or self._outputs.get("Rare Word List (CSV)", [])
+        vocab_data = self._outputs.get("Names & Vocabulary") or self._outputs.get(
+            "Rare Word List (CSV)", []
+        )
         if not vocab_data:
             messagebox.showinfo("No Data", "No vocabulary data to export.")
             return
@@ -1800,9 +1874,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
 
         # Export using service
         export_service = get_export_service()
-        success = export_service.export_vocabulary_to_html(
-            vocab_data, filepath, visible_columns
-        )
+        success = export_service.export_vocabulary_to_html(vocab_data, filepath, visible_columns)
 
         if success:
             # Session 73: Remember export folder
@@ -1812,8 +1884,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
             main_window = self.winfo_toplevel()
             folder_name = Path(export_path).name
             main_window.set_status(
-                f"Exported {len(vocab_data)} terms to {folder_name}/{filename}",
-                duration_ms=5000
+                f"Exported {len(vocab_data)} terms to {folder_name}/{filename}", duration_ms=5000
             )
         else:
             messagebox.showerror("Export Failed", "Could not export to HTML file.")
@@ -1859,7 +1930,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
             return
 
         # Session 47: Dynamically find Keep and Skip column indices
-        current_columns = getattr(self, '_current_columns', GUI_DISPLAY_COLUMNS)
+        current_columns = getattr(self, "_current_columns", GUI_DISPLAY_COLUMNS)
         try:
             keep_idx = current_columns.index("Keep") + 1  # 1-based
             skip_idx = current_columns.index("Skip") + 1  # 1-based
@@ -1896,13 +1967,14 @@ class DynamicOutputWidget(ctk.CTkFrame):
         self._corpus_warning_shown = True
 
         from tkinter import messagebox
+
         result = messagebox.askyesno(
             "Corpus Not Ready",
             f"Your vocabulary corpus has {corpus_manager.get_document_count()}/5 documents.\n\n"
             "The ML model learns better with a corpus of past transcripts. "
             "Consider adding documents in Settings > Corpus before providing feedback.\n\n"
             "Continue providing feedback anyway?",
-            icon="warning"
+            icon="warning",
         )
         return result
 
@@ -1922,7 +1994,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
             return  # User cancelled
 
         # Get the term from the row
-        values = self.csv_treeview.item(item_id, 'values')
+        values = self.csv_treeview.item(item_id, "values")
         if not values:
             return
 
@@ -1946,8 +2018,10 @@ class DynamicOutputWidget(ctk.CTkFrame):
         if success:
             # Update the visual display
             self._update_feedback_display(item_id, new_rating)
-            debug_log(f"[FEEDBACK UI] {'Cleared' if new_rating == 0 else 'Set'} "
-                      f"feedback for '{term}': {new_rating}")
+            debug_log(
+                f"[FEEDBACK UI] {'Cleared' if new_rating == 0 else 'Set'} "
+                f"feedback for '{term}': {new_rating}"
+            )
 
             # Session 78: Add skipped terms to user exclusion list
             # This filters them out of future extractions
@@ -1986,10 +2060,10 @@ class DynamicOutputWidget(ctk.CTkFrame):
             item_id: Treeview item identifier
             rating: +1 (Keep filled), -1 (Skip filled), 0 (both empty)
         """
-        values = list(self.csv_treeview.item(item_id, 'values'))
+        values = list(self.csv_treeview.item(item_id, "values"))
 
         # Session 47: Dynamically find Keep and Skip column indices
-        current_columns = getattr(self, '_current_columns', GUI_DISPLAY_COLUMNS)
+        current_columns = getattr(self, "_current_columns", GUI_DISPLAY_COLUMNS)
         try:
             keep_idx = current_columns.index("Keep")  # 0-based for list access
             skip_idx = current_columns.index("Skip")  # 0-based for list access
@@ -2003,11 +2077,11 @@ class DynamicOutputWidget(ctk.CTkFrame):
         if rating == 1:
             values[keep_idx] = THUMB_UP_FILLED
             values[skip_idx] = THUMB_DOWN_EMPTY
-            tag = ('rated_up',)
+            tag = ("rated_up",)
         elif rating == -1:
             values[keep_idx] = THUMB_UP_EMPTY
             values[skip_idx] = THUMB_DOWN_FILLED
-            tag = ('rated_down',)
+            tag = ("rated_down",)
         else:  # rating == 0
             values[keep_idx] = THUMB_UP_EMPTY
             values[skip_idx] = THUMB_DOWN_EMPTY

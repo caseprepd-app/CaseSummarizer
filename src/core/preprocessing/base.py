@@ -29,6 +29,7 @@ class PreprocessingResult:
         metadata: Additional info about the processing (e.g., removed lines count)
         processing_time_ms: Time taken to process in milliseconds
     """
+
     text: str
     changes_made: int = 0
     metadata: dict[str, Any] = field(default_factory=dict)
@@ -110,7 +111,7 @@ class PreprocessingPipeline:
         self.total_changes: int = 0
         self._last_run_stats: dict[str, dict[str, Any]] = {}
 
-    def add_preprocessor(self, preprocessor: BasePreprocessor) -> 'PreprocessingPipeline':
+    def add_preprocessor(self, preprocessor: BasePreprocessor) -> "PreprocessingPipeline":
         """
         Add a preprocessor to the pipeline.
 
@@ -158,8 +159,10 @@ class PreprocessingPipeline:
         pipeline_start = time.time()
 
         enabled_count = sum(1 for p in self.preprocessors if p.enabled)
-        debug_log(f"[PREPROCESSING] Starting pipeline with {enabled_count} "
-                  f"enabled preprocessors on {len(text)//1024}KB text")
+        debug_log(
+            f"[PREPROCESSING] Starting pipeline with {enabled_count} "
+            f"enabled preprocessors on {len(text)//1024}KB text"
+        )
 
         for preprocessor in self.preprocessors:
             if not preprocessor.enabled:
@@ -173,13 +176,15 @@ class PreprocessingPipeline:
 
                 self.total_changes += result.changes_made
                 self._last_run_stats[preprocessor.name] = {
-                    'changes': result.changes_made,
-                    'time_ms': elapsed_ms,
-                    'metadata': result.metadata,
+                    "changes": result.changes_made,
+                    "time_ms": elapsed_ms,
+                    "metadata": result.metadata,
                 }
 
-                debug_log(f"[PREPROCESSING] {preprocessor.name}: "
-                          f"{result.changes_made} changes in {elapsed_ms:.1f}ms")
+                debug_log(
+                    f"[PREPROCESSING] {preprocessor.name}: "
+                    f"{result.changes_made} changes in {elapsed_ms:.1f}ms"
+                )
 
                 current_text = result.text
 
@@ -187,14 +192,16 @@ class PreprocessingPipeline:
                 debug_log(f"[PREPROCESSING] Error in {preprocessor.name}: {e}")
                 # Continue with unchanged text on error
                 self._last_run_stats[preprocessor.name] = {
-                    'error': str(e),
-                    'changes': 0,
-                    'time_ms': (time.time() - start_time) * 1000,
+                    "error": str(e),
+                    "changes": 0,
+                    "time_ms": (time.time() - start_time) * 1000,
                 }
 
         total_time = (time.time() - pipeline_start) * 1000
-        debug_log(f"[PREPROCESSING] Pipeline complete: {self.total_changes} total changes "
-                  f"in {total_time:.1f}ms, output {len(current_text)//1024}KB")
+        debug_log(
+            f"[PREPROCESSING] Pipeline complete: {self.total_changes} total changes "
+            f"in {total_time:.1f}ms, output {len(current_text)//1024}KB"
+        )
 
         return current_text
 

@@ -22,9 +22,10 @@ from enum import Enum
 
 class MatchMethod(Enum):
     """How to apply regex patterns."""
-    MATCH = 'match'       # Match at start of string (re.match)
-    SEARCH = 'search'     # Match anywhere in string (re.search)
-    FULLMATCH = 'full'    # Match entire string (re.fullmatch)
+
+    MATCH = "match"  # Match at start of string (re.match)
+    SEARCH = "search"  # Match anywhere in string (re.search)
+    FULLMATCH = "full"  # Match entire string (re.fullmatch)
 
 
 @dataclass
@@ -39,6 +40,7 @@ class PatternFilter:
         method: How to apply the patterns (match, search, fullmatch)
         case_sensitive: Whether matching is case-sensitive (default False)
     """
+
     patterns: tuple[str, ...]
     method: MatchMethod = MatchMethod.SEARCH
     case_sensitive: bool = False
@@ -79,11 +81,11 @@ class PatternFilter:
 # Word variation patterns (plurals, possessives, etc.)
 VARIATION_FILTER = PatternFilter(
     patterns=(
-        r'^[a-z]+\(s\)$',          # plaintiff(s), defendant(s)
-        r'^[a-z]+s\(s\)$',         # defendants(s)
-        r'^[a-z]+\([a-z]+\)$',     # word(variant)
-        r"^[a-z]+'s$",             # plaintiff's
-        r'^[a-z]+-[a-z]+$',        # hyphenated words
+        r"^[a-z]+\(s\)$",  # plaintiff(s), defendant(s)
+        r"^[a-z]+s\(s\)$",  # defendants(s)
+        r"^[a-z]+\([a-z]+\)$",  # word(variant)
+        r"^[a-z]+'s$",  # plaintiff's
+        r"^[a-z]+-[a-z]+$",  # hyphenated words
     ),
     method=MatchMethod.MATCH,
     case_sensitive=True,  # These patterns expect lowercase
@@ -92,12 +94,12 @@ VARIATION_FILTER = PatternFilter(
 # OCR error patterns (line breaks, digit-letter mixups, punctuation errors)
 OCR_ERROR_FILTER = PatternFilter(
     patterns=(
-        r'^[A-Za-z]+-[A-Z][a-z]',     # Line-break artifacts: "Hos-pital"
-        r'.*[0-9][A-Za-z]{2,}[0-9]',  # Digit-letter-digit: "3ohn5mith"
-        r'[A-Za-z]+[0-9]+[A-Za-z]+',  # Digit(s) embedded: "Joh3n", "sp1ne"
-        r'^[0-9]+[A-Za-z]+',          # Leading digit(s): "1earn", "3ohn"
-        r'[A-Za-z]+[0-9]+$',          # Trailing digit(s): "learn1"
-        r'[A-Za-z]+[;:][A-Za-z]+',    # Punctuation errors: "John;Smith"
+        r"^[A-Za-z]+-[A-Z][a-z]",  # Line-break artifacts: "Hos-pital"
+        r".*[0-9][A-Za-z]{2,}[0-9]",  # Digit-letter-digit: "3ohn5mith"
+        r"[A-Za-z]+[0-9]+[A-Za-z]+",  # Digit(s) embedded: "Joh3n", "sp1ne"
+        r"^[0-9]+[A-Za-z]+",  # Leading digit(s): "1earn", "3ohn"
+        r"[A-Za-z]+[0-9]+$",  # Trailing digit(s): "learn1"
+        r"[A-Za-z]+[;:][A-Za-z]+",  # Punctuation errors: "John;Smith"
     ),
     method=MatchMethod.SEARCH,
     case_sensitive=True,
@@ -106,10 +108,10 @@ OCR_ERROR_FILTER = PatternFilter(
 # Legal citation patterns
 LEGAL_CITATION_FILTER = PatternFilter(
     patterns=(
-        r'^[A-Z]{2,}\s+(?:SS|§)\s*\d+',
-        r'^\w+\s+Law\s+(?:SS|§)\s*\d+',
-        r'^\d+\s+[A-Z]+\s+\d+',
-        r'^[A-Z]{2,}\s+\d+',
+        r"^[A-Z]{2,}\s+(?:SS|§)\s*\d+",
+        r"^\w+\s+Law\s+(?:SS|§)\s*\d+",
+        r"^\d+\s+[A-Z]+\s+\d+",
+        r"^[A-Z]{2,}\s+\d+",
     ),
     method=MatchMethod.MATCH,
     case_sensitive=True,
@@ -118,11 +120,11 @@ LEGAL_CITATION_FILTER = PatternFilter(
 # Legal boilerplate phrases
 LEGAL_BOILERPLATE_FILTER = PatternFilter(
     patterns=(
-        r'Verified\s+(?:Bill|Answer|Complaint|Petition)',
-        r'Notice\s+of\s+Commencement',
-        r'Cause\s+of\s+Action',
-        r'Honorable\s+Court',
-        r'Answering\s+Defendant',
+        r"Verified\s+(?:Bill|Answer|Complaint|Petition)",
+        r"Notice\s+of\s+Commencement",
+        r"Cause\s+of\s+Action",
+        r"Honorable\s+Court",
+        r"Answering\s+Defendant",
     ),
     method=MatchMethod.SEARCH,
     case_sensitive=False,
@@ -130,9 +132,7 @@ LEGAL_BOILERPLATE_FILTER = PatternFilter(
 
 # Case citation pattern (X v. Y)
 CASE_CITATION_FILTER = PatternFilter(
-    patterns=(
-        r'^[A-Z][a-zA-Z]+\s+v\.?\s+[A-Z][a-zA-Z]+$',
-    ),
+    patterns=(r"^[A-Z][a-zA-Z]+\s+v\.?\s+[A-Z][a-zA-Z]+$",),
     method=MatchMethod.MATCH,
     case_sensitive=True,
 )
@@ -140,8 +140,8 @@ CASE_CITATION_FILTER = PatternFilter(
 # Geographic code patterns (ZIP codes, etc.)
 GEOGRAPHIC_CODE_FILTER = PatternFilter(
     patterns=(
-        r'^\d{5}(?:-\d{4})?$',   # ZIP codes
-        r'^[A-Z]{2}\s+\d{5}$',   # State + ZIP
+        r"^\d{5}(?:-\d{4})?$",  # ZIP codes
+        r"^[A-Z]{2}\s+\d{5}$",  # State + ZIP
     ),
     method=MatchMethod.MATCH,
     case_sensitive=True,
@@ -150,9 +150,9 @@ GEOGRAPHIC_CODE_FILTER = PatternFilter(
 # Address fragment patterns
 ADDRESS_FILTER = PatternFilter(
     patterns=(
-        r'\d+(?:st|nd|rd|th)\s+Floor',
-        r'\b(?:Street|Drive|Avenue|Road|Lane|Court|Boulevard|Place|Way)\b',
-        r'^\d+\s+[A-Z]',
+        r"\d+(?:st|nd|rd|th)\s+Floor",
+        r"\b(?:Street|Drive|Avenue|Road|Lane|Court|Boulevard|Place|Way)\b",
+        r"^\d+\s+[A-Z]",
     ),
     method=MatchMethod.SEARCH,
     case_sensitive=False,
@@ -161,13 +161,13 @@ ADDRESS_FILTER = PatternFilter(
 # Document fragment patterns
 DOCUMENT_FRAGMENT_FILTER = PatternFilter(
     patterns=(
-        r'^(?:SUPREME|CIVIL|FAMILY|DISTRICT)\s+COURT',
-        r'^NOTICE\s+OF',
-        r'Attorneys?\s+for\s+(?:Plaintiff|Defendant)',
-        r'Services?\s+-\s+(?:Plaintiff|Defendant|None)',
+        r"^(?:SUPREME|CIVIL|FAMILY|DISTRICT)\s+COURT",
+        r"^NOTICE\s+OF",
+        r"Attorneys?\s+for\s+(?:Plaintiff|Defendant)",
+        r"Services?\s+-\s+(?:Plaintiff|Defendant|None)",
         r"^(?:Plaintiff|Defendant)(?:'s)?$",
-        r'^(?:FIRST|SECOND|THIRD|FOURTH|FIFTH)\s+CAUSE',
-        r'^\d+\s+of\s+\d+$',
+        r"^(?:FIRST|SECOND|THIRD|FOURTH|FIFTH)\s+CAUSE",
+        r"^\d+\s+of\s+\d+$",
     ),
     method=MatchMethod.SEARCH,
     case_sensitive=False,
@@ -175,19 +175,45 @@ DOCUMENT_FRAGMENT_FILTER = PatternFilter(
 
 # Acronym pattern (2+ uppercase letters)
 ACRONYM_FILTER = PatternFilter(
-    patterns=(
-        r'[A-Z]{2,}',
-    ),
+    patterns=(r"[A-Z]{2,}",),
     method=MatchMethod.FULLMATCH,
     case_sensitive=True,
 )
 
 # Title abbreviations (as a frozen set for fast lookup)
-TITLE_ABBREVIATIONS: frozenset[str] = frozenset({
-    'dr', 'mr', 'mrs', 'ms', 'md', 'phd', 'esq', 'jr', 'sr', 'ii', 'iii', 'iv',
-    'dds', 'dvm', 'od', 'do', 'rn', 'lpn', 'np', 'pa', 'pt', 'ot', 'cpa',
-    'jd', 'llm', 'mba', 'cfa', 'pe', 'ra',
-})
+TITLE_ABBREVIATIONS: frozenset[str] = frozenset(
+    {
+        "dr",
+        "mr",
+        "mrs",
+        "ms",
+        "md",
+        "phd",
+        "esq",
+        "jr",
+        "sr",
+        "ii",
+        "iii",
+        "iv",
+        "dds",
+        "dvm",
+        "od",
+        "do",
+        "rn",
+        "lpn",
+        "np",
+        "pa",
+        "pt",
+        "ot",
+        "cpa",
+        "jd",
+        "llm",
+        "mba",
+        "cfa",
+        "pe",
+        "ra",
+    }
+)
 
 # Entity length limits
 MIN_ENTITY_LENGTH = 3

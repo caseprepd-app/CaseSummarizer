@@ -43,17 +43,11 @@ class QAConverter(BasePreprocessor):
     # - "Q: text"
     # - "Q   text" (multiple spaces)
     # - "  Q. text" (indented)
-    QA_PATTERN = re.compile(
-        r'^(\s*)([QA])([.:])?\s+',
-        re.MULTILINE
-    )
+    QA_PATTERN = re.compile(r"^(\s*)([QA])([.:])?\s+", re.MULTILINE)
 
     # Alternative pattern for "BY MR./MS." examination markers
     # These indicate a new examiner is asking questions
-    BY_PATTERN = re.compile(
-        r'^(\s*)(BY\s+(?:MR\.|MS\.|MRS\.)\s+[A-Z][A-Za-z]+):?\s*',
-        re.MULTILINE
-    )
+    BY_PATTERN = re.compile(r"^(\s*)(BY\s+(?:MR\.|MS\.|MRS\.)\s+[A-Z][A-Za-z]+):?\s*", re.MULTILINE)
 
     def process(self, text: str) -> PreprocessingResult:
         """
@@ -77,7 +71,7 @@ class QAConverter(BasePreprocessor):
             indent = match.group(1)  # Preserve indentation
             letter = match.group(2).upper()
 
-            if letter == 'Q':
+            if letter == "Q":
                 return f"{indent}Question: "
             else:  # A
                 return f"{indent}Answer: "
@@ -92,8 +86,12 @@ class QAConverter(BasePreprocessor):
             text=result,
             changes_made=changes,
             metadata={
-                'questions_converted': sum(1 for m in re.finditer(r'^(\s*)Q[.:]\s', text, re.MULTILINE)),
-                'answers_converted': sum(1 for m in re.finditer(r'^(\s*)A[.:]\s', text, re.MULTILINE)),
-                'examiner_markers': by_count,
-            }
+                "questions_converted": sum(
+                    1 for m in re.finditer(r"^(\s*)Q[.:]\s", text, re.MULTILINE)
+                ),
+                "answers_converted": sum(
+                    1 for m in re.finditer(r"^(\s*)A[.:]\s", text, re.MULTILINE)
+                ),
+                "examiner_markers": by_count,
+            },
         )

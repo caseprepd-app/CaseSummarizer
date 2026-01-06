@@ -77,15 +77,16 @@ def _detect_gpu_wmi() -> dict | None:
         # Query WMI for video controllers
         result = subprocess.run(
             [
-                "powershell", "-Command",
+                "powershell",
+                "-Command",
                 "Get-WmiObject Win32_VideoController | "
                 "Select-Object Name, AdapterRAM | "
-                "ConvertTo-Json"
+                "ConvertTo-Json",
             ],
             capture_output=True,
             text=True,
             timeout=10,
-            creationflags=subprocess.CREATE_NO_WINDOW  # Hide console window
+            creationflags=subprocess.CREATE_NO_WINDOW,  # Hide console window
         )
 
         if result.returncode != 0 or not result.stdout.strip():
@@ -94,6 +95,7 @@ def _detect_gpu_wmi() -> dict | None:
 
         # Parse JSON output
         import json
+
         output = result.stdout.strip()
 
         # Handle single GPU (returns object) vs multiple (returns array)
@@ -309,12 +311,12 @@ def get_gpu_status_text() -> str:
 # causes severe performance degradation (5-20x slower when spilling to RAM)
 VRAM_CONTEXT_TIERS = [
     # (min_vram_gb, num_ctx)
-    (24, 64000),   # 24GB+ → 64K context
-    (16, 48000),   # 16-24GB → 48K context
-    (12, 32000),   # 12-16GB → 32K context
-    (8, 16000),    # 8-12GB → 16K context
-    (6, 8000),     # 6-8GB → 8K context
-    (0, 4000),     # < 6GB or no GPU → 4K context (safe default)
+    (24, 64000),  # 24GB+ → 64K context
+    (16, 48000),  # 16-24GB → 48K context
+    (12, 32000),  # 12-16GB → 32K context
+    (8, 16000),  # 8-12GB → 16K context
+    (6, 8000),  # 6-8GB → 8K context
+    (0, 4000),  # < 6GB or no GPU → 4K context (safe default)
 ]
 
 
@@ -335,14 +337,12 @@ def get_optimal_context_size() -> int:
     vram_bytes = info.get("vram_bytes", 0)
 
     # Convert to GB
-    vram_gb = vram_bytes / (1024 ** 3) if vram_bytes > 0 else 0
+    vram_gb = vram_bytes / (1024**3) if vram_bytes > 0 else 0
 
     # Find appropriate tier
     for min_vram, context_size in VRAM_CONTEXT_TIERS:
         if vram_gb >= min_vram:
-            logger.info(
-                f"[GPU] VRAM: {vram_gb:.1f}GB → optimal context: {context_size:,} tokens"
-            )
+            logger.info(f"[GPU] VRAM: {vram_gb:.1f}GB → optimal context: {context_size:,} tokens")
             return context_size
 
     # Fallback (shouldn't reach here due to 0 tier)
@@ -358,7 +358,7 @@ def get_vram_gb() -> float:
     """
     info = get_gpu_info()
     vram_bytes = info.get("vram_bytes", 0)
-    return vram_bytes / (1024 ** 3) if vram_bytes > 0 else 0.0
+    return vram_bytes / (1024**3) if vram_bytes > 0 else 0.0
 
 
 # Fixed chunk sizes based on RAG research (Session 67 revised)
@@ -379,9 +379,9 @@ def get_vram_gb() -> float:
 # - https://arxiv.org/html/2407.19794v2 (Context Window Utilization)
 # - https://www.firecrawl.dev/blog/best-chunking-strategies-rag-2025
 OPTIMAL_CHUNK_SIZES = {
-    "min_tokens": 400,      # Minimum to prevent semantic fragmentation
-    "target_tokens": 700,   # Optimal for mixed query types (research: 500-800)
-    "max_tokens": 1000,     # Upper bound (research: >1024 hurts precision)
+    "min_tokens": 400,  # Minimum to prevent semantic fragmentation
+    "target_tokens": 700,  # Optimal for mixed query types (research: 500-800)
+    "max_tokens": 1000,  # Upper bound (research: >1024 hurts precision)
 }
 
 

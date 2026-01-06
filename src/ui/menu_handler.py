@@ -19,36 +19,56 @@ def create_menus(window, select_files_callback, show_settings_callback, quit_cal
         quit_callback: Function to call when "Exit" is clicked
     """
     # Darker colors to blend seamlessly with CustomTkinter dark theme
-    bg_color = "#212121"   # Very dark (blends with UI)
-    fg_color = "#ffffff"   # White text
+    bg_color = "#212121"  # Very dark (blends with UI)
+    fg_color = "#ffffff"  # White text
     active_bg = "#333333"  # Slightly lighter for hover
     active_fg = "#ffffff"  # White text on hover
 
-    menubar = Menu(window, bg=bg_color, fg=fg_color,
-                   activebackground=active_bg, activeforeground=active_fg,
-                   borderwidth=1, relief="flat",
-                   disabledforeground="#666666")
+    menubar = Menu(
+        window,
+        bg=bg_color,
+        fg=fg_color,
+        activebackground=active_bg,
+        activeforeground=active_fg,
+        borderwidth=1,
+        relief="flat",
+        disabledforeground="#666666",
+    )
     window.config(menu=menubar)
 
     # File menu
-    file_menu = Menu(menubar, tearoff=0,
-                     bg=bg_color, fg=fg_color,
-                     activebackground=active_bg, activeforeground=active_fg,
-                     borderwidth=0, relief="flat",
-                     disabledforeground="#666666")
+    file_menu = Menu(
+        menubar,
+        tearoff=0,
+        bg=bg_color,
+        fg=fg_color,
+        activebackground=active_bg,
+        activeforeground=active_fg,
+        borderwidth=0,
+        relief="flat",
+        disabledforeground="#666666",
+    )
     menubar.add_cascade(label="File", menu=file_menu)
-    file_menu.add_command(label="Select Files...", command=select_files_callback, accelerator="Ctrl+O")
+    file_menu.add_command(
+        label="Select Files...", command=select_files_callback, accelerator="Ctrl+O"
+    )
     file_menu.add_separator()
     file_menu.add_command(label="Settings", command=show_settings_callback, accelerator="Ctrl+,")
     file_menu.add_separator()
     file_menu.add_command(label="Exit", command=quit_callback, accelerator="Ctrl+Q")
 
     # Help menu
-    help_menu = Menu(menubar, tearoff=0,
-                     bg=bg_color, fg=fg_color,
-                     activebackground=active_bg, activeforeground=active_fg,
-                     borderwidth=0, relief="flat",
-                     disabledforeground="#666666")
+    help_menu = Menu(
+        menubar,
+        tearoff=0,
+        bg=bg_color,
+        fg=fg_color,
+        activebackground=active_bg,
+        activeforeground=active_fg,
+        borderwidth=0,
+        relief="flat",
+        disabledforeground="#666666",
+    )
     menubar.add_cascade(label="Help", menu=help_menu)
     help_menu.add_command(label="About LocalScribe v2.1", command=lambda: show_about())
 
@@ -60,4 +80,6 @@ def create_menus(window, select_files_callback, show_settings_callback, quit_cal
 
 def show_about():
     """Display about dialog."""
-    messagebox.showinfo("About LocalScribe", "LocalScribe v2.1\n\n100% Offline Legal Document Processor")
+    messagebox.showinfo(
+        "About LocalScribe", "LocalScribe v2.1\n\n100% Offline Legal Document Processor"
+    )

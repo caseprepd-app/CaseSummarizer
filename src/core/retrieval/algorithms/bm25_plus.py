@@ -153,27 +153,31 @@ class BM25PlusRetriever(BaseRetrievalAlgorithm):
             # Using sigmoid-like normalization to handle score distribution
             normalized_score = raw_score / (raw_score + max_score) if max_score > 0 else 0
 
-            retrieved_chunks.append(RetrievedChunk(
-                chunk_id=chunk.chunk_id,
-                text=chunk.text,
-                relevance_score=normalized_score,
-                raw_score=raw_score,
-                source_algorithm=self.name,
-                filename=chunk.filename,
-                chunk_num=chunk.chunk_num,
-                section_name=chunk.section_name,
-                metadata={
-                    "query_tokens": query_tokens,
-                    "chunk_tokens": len(self._tokenized_corpus[idx]),
-                }
-            ))
+            retrieved_chunks.append(
+                RetrievedChunk(
+                    chunk_id=chunk.chunk_id,
+                    text=chunk.text,
+                    relevance_score=normalized_score,
+                    raw_score=raw_score,
+                    source_algorithm=self.name,
+                    filename=chunk.filename,
+                    chunk_num=chunk.chunk_num,
+                    section_name=chunk.section_name,
+                    metadata={
+                        "query_tokens": query_tokens,
+                        "chunk_tokens": len(self._tokenized_corpus[idx]),
+                    },
+                )
+            )
 
         elapsed_ms = (time.perf_counter() - start_time) * 1000
 
         if DEBUG_MODE:
             debug_log(f"[BM25+] Retrieved {len(retrieved_chunks)} chunks in {elapsed_ms:.1f}ms")
             for i, chunk in enumerate(retrieved_chunks[:3]):
-                debug_log(f"  [{i + 1}] score={chunk.raw_score:.2f} -> {chunk.relevance_score:.3f} | {chunk.filename}")
+                debug_log(
+                    f"  [{i + 1}] score={chunk.raw_score:.2f} -> {chunk.relevance_score:.3f} | {chunk.filename}"
+                )
 
         return AlgorithmRetrievalResult(
             chunks=retrieved_chunks,
@@ -184,7 +188,7 @@ class BM25PlusRetriever(BaseRetrievalAlgorithm):
                 "index_size": len(self._chunks),
                 "max_raw_score": max_score,
                 "query_token_count": len(query_tokens),
-            }
+            },
         )
 
     @property
@@ -195,13 +199,15 @@ class BM25PlusRetriever(BaseRetrievalAlgorithm):
     def get_config(self) -> dict[str, Any]:
         """Return BM25+ configuration."""
         config = super().get_config()
-        config.update({
-            "index_size": len(self._chunks) if self._chunks else 0,
-            "algorithm_variant": "BM25Plus",
-            "parameters": {
-                "k1": BM25_K1,
-                "b": BM25_B,
-                "delta": BM25_DELTA,
+        config.update(
+            {
+                "index_size": len(self._chunks) if self._chunks else 0,
+                "algorithm_variant": "BM25Plus",
+                "parameters": {
+                    "k1": BM25_K1,
+                    "b": BM25_B,
+                    "delta": BM25_DELTA,
+                },
             }
-        })
+        )
         return config

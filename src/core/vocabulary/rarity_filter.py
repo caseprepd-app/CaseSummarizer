@@ -107,9 +107,9 @@ def _load_scaled_frequencies() -> dict[str, float]:
     raw_frequencies: dict[str, int] = {}
 
     try:
-        with open(GOOGLE_WORD_FREQUENCY_FILE, encoding='utf-8') as f:
+        with open(GOOGLE_WORD_FREQUENCY_FILE, encoding="utf-8") as f:
             for line in f:
-                parts = line.strip().split('\t')
+                parts = line.strip().split("\t")
                 if len(parts) == 2:
                     word, count_str = parts
                     try:
@@ -132,12 +132,13 @@ def _load_scaled_frequencies() -> dict[str, float]:
         # Convert to rank-based percentile (0.0 = common, 1.0 = rare)
         # rank / total gives the percentile position
         _scaled_frequencies = {
-            word: rank / total_words
-            for rank, (word, count) in enumerate(sorted_words)
+            word: rank / total_words for rank, (word, count) in enumerate(sorted_words)
         }
 
-        debug_log(f"[RARITY] Loaded {len(_scaled_frequencies)} words (rank-based), "
-                  f"max freq: {_max_frequency:,}")
+        debug_log(
+            f"[RARITY] Loaded {len(_scaled_frequencies)} words (rank-based), "
+            f"max freq: {_max_frequency:,}"
+        )
 
     except Exception as e:
         debug_log(f"[RARITY] Error loading frequencies: {e}")
@@ -293,7 +294,9 @@ def should_filter_phrase(phrase: str, is_person: bool = False) -> bool:
     prefs = get_user_preferences()
     single_threshold = prefs.get("single_word_rarity_threshold", SINGLE_WORD_COMMONALITY_THRESHOLD)
     phrase_threshold = prefs.get("phrase_rarity_threshold", PHRASE_MAX_COMMONALITY_THRESHOLD)
-    phrase_mean_threshold = prefs.get("phrase_mean_rarity_threshold", PHRASE_MEAN_COMMONALITY_THRESHOLD)
+    phrase_mean_threshold = prefs.get(
+        "phrase_mean_rarity_threshold", PHRASE_MEAN_COMMONALITY_THRESHOLD
+    )
 
     min_common, mean_common, word_count = calculate_phrase_component_scores(phrase)
 
@@ -307,8 +310,10 @@ def should_filter_phrase(phrase: str, is_person: bool = False) -> bool:
     # Filter if word is in the top X% (score < threshold)
     if word_count == 1:
         if min_common < single_threshold:
-            debug_log(f"[RARITY] Filtering single word '{phrase}': "
-                      f"rank_pct={min_common:.4f} < {single_threshold} (top {min_common*100:.1f}%)")
+            debug_log(
+                f"[RARITY] Filtering single word '{phrase}': "
+                f"rank_pct={min_common:.4f} < {single_threshold} (top {min_common*100:.1f}%)"
+            )
             return True
         return False
 
@@ -317,14 +322,18 @@ def should_filter_phrase(phrase: str, is_person: bool = False) -> bool:
     # min_common = score of the RAREST word in the phrase
     # If this is < threshold, ALL words are in the top X% -> filter
     if min_common < phrase_threshold:
-        debug_log(f"[RARITY] Filtering '{phrase}': min_rank_pct={min_common:.4f} "
-                  f"< {phrase_threshold} (all words in top {min_common*100:.1f}%)")
+        debug_log(
+            f"[RARITY] Filtering '{phrase}': min_rank_pct={min_common:.4f} "
+            f"< {phrase_threshold} (all words in top {min_common*100:.1f}%)"
+        )
         return True
 
     # Filter if the average word is too common
     if mean_common < phrase_mean_threshold:
-        debug_log(f"[RARITY] Filtering '{phrase}': mean_rank_pct={mean_common:.4f} "
-                  f"< {phrase_mean_threshold}")
+        debug_log(
+            f"[RARITY] Filtering '{phrase}': mean_rank_pct={mean_common:.4f} "
+            f"< {phrase_mean_threshold}"
+        )
         return True
 
     return False
@@ -382,7 +391,9 @@ def filter_common_phrases(
         filtered.append(term_data)
 
     if removed_count > 0:
-        debug_log(f"[RARITY] Filtered {removed_count}/{original_count} phrases "
-                  f"with common component words")
+        debug_log(
+            f"[RARITY] Filtered {removed_count}/{original_count} phrases "
+            f"with common component words"
+        )
 
     return filtered

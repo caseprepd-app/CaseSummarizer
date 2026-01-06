@@ -38,6 +38,7 @@ class DocumentSummaryResult:
         success: Whether summarization completed successfully.
         error_message: Error description if success is False.
     """
+
     filename: str
     summary: str
     word_count: int
@@ -68,6 +69,7 @@ class MultiDocumentSummaryResult:
         documents_failed: Count of documents that failed processing.
         document_order: List of filenames in processing order (for display).
     """
+
     individual_summaries: dict[str, DocumentSummaryResult] = field(default_factory=dict)
     meta_summary: str = ""
     total_processing_time_seconds: float = 0.0

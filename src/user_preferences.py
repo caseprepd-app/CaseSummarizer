@@ -35,20 +35,18 @@ class UserPreferencesManager:
         default_structure = {
             "model_defaults": {},
             "last_used_model": None,
-            "processing": {
-                "cpu_fraction": 0.5  # Default: 1/2 cores (0.25, 0.5, or 0.75)
-            },
+            "processing": {"cpu_fraction": 0.5},  # Default: 1/2 cores (0.25, 0.5, or 0.75)
             # Session 43: Experimental features and LLM extraction settings
             # Session 62b: vocab_use_llm changed to tri-state: "auto", "yes", "no"
             "experimental": {
                 "briefing_enabled": False,  # Case Briefing (experimental)
-                "vocab_use_llm": "auto",    # LLM extraction: "auto", "yes", or "no"
-            }
+                "vocab_use_llm": "auto",  # LLM extraction: "auto", "yes", or "no"
+            },
         }
 
         try:
             if self.preferences_file.exists():
-                with open(self.preferences_file, encoding='utf-8') as f:
+                with open(self.preferences_file, encoding="utf-8") as f:
                     prefs = json.load(f)
                     # Ensure structure exists
                     if "model_defaults" not in prefs:
@@ -67,12 +65,13 @@ class UserPreferencesManager:
             # Ensure directory exists
             self.preferences_file.parent.mkdir(parents=True, exist_ok=True)
 
-            with open(self.preferences_file, 'w', encoding='utf-8') as f:
+            with open(self.preferences_file, "w", encoding="utf-8") as f:
                 json.dump(self._preferences, f, indent=2)
 
         except Exception as e:
             # Log error but don't crash
             from src.logging_config import debug_log
+
             debug_log(f"[PREFS] Could not save user preferences: {e}")
 
     def get_default_prompt(self, model_name: str) -> str | None:
@@ -147,9 +146,7 @@ class UserPreferencesManager:
         """
         valid_fractions = [0.25, 0.5, 0.75]
         if cpu_fraction not in valid_fractions:
-            raise ValueError(
-                f"CPU fraction must be one of {valid_fractions}, got {cpu_fraction}"
-            )
+            raise ValueError(f"CPU fraction must be one of {valid_fractions}, got {cpu_fraction}")
 
         if "processing" not in self._preferences:
             self._preferences["processing"] = {}
@@ -213,6 +210,7 @@ class UserPreferencesManager:
             return False
         else:  # "auto" - use GPU detection
             from src.core.utils.gpu_detector import has_dedicated_gpu
+
             return has_dedicated_gpu()
 
     def set_vocab_llm_mode(self, mode: str) -> None:
@@ -271,9 +269,7 @@ class UserPreferencesManager:
         """
         valid_sizes = [4000, 8000, 16000, 32000, 48000, 64000]
         if value != "auto" and value not in valid_sizes:
-            raise ValueError(
-                f"Context size must be 'auto' or one of {valid_sizes}, got {value}"
-            )
+            raise ValueError(f"Context size must be 'auto' or one of {valid_sizes}, got {value}")
         self._preferences["llm_context_size"] = value
         self._save_preferences()
 
@@ -291,6 +287,7 @@ class UserPreferencesManager:
             return mode
         # "auto" mode - use GPU detection
         from src.core.utils.gpu_detector import get_optimal_context_size
+
         return get_optimal_context_size()
 
     def get_effective_chunk_sizes(self) -> dict:
@@ -308,6 +305,7 @@ class UserPreferencesManager:
             - context_window: The context window used for calculation
         """
         from src.core.utils.gpu_detector import get_optimal_chunk_sizes
+
         context_size = self.get_effective_context_size()
         return get_optimal_chunk_sizes(context_size)
 
@@ -348,81 +346,55 @@ class UserPreferencesManager:
         # Validate known keys to prevent invalid configurations
         if key == "vocab_display_limit":
             if not isinstance(value, int) or value < 1 or value > 500:
-                raise ValueError(
-                    f"vocab_display_limit must be 1-500, got {value}"
-                )
+                raise ValueError(f"vocab_display_limit must be 1-500, got {value}")
         elif key == "user_defined_max_workers":
             if not isinstance(value, int) or value < 1 or value > 8:
-                raise ValueError(
-                    f"user_defined_max_workers must be 1-8, got {value}"
-                )
+                raise ValueError(f"user_defined_max_workers must be 1-8, got {value}")
         elif key == "default_model_id":
             if not value or not isinstance(value, str):
                 raise ValueError("default_model_id cannot be empty")
         elif key == "summary_words":
             if not isinstance(value, int) or value < 50 or value > 2000:
-                raise ValueError(
-                    f"summary_words must be 50-2000, got {value}"
-                )
+                raise ValueError(f"summary_words must be 50-2000, got {value}")
         elif key == "resource_usage_pct":
             if not isinstance(value, int) or value < 25 or value > 100:
-                raise ValueError(
-                    f"resource_usage_pct must be 25-100, got {value}"
-                )
+                raise ValueError(f"resource_usage_pct must be 25-100, got {value}")
         # Session 59: Vocabulary filtering threshold validation
         elif key == "single_word_rarity_threshold":
             if not isinstance(value, (int, float)) or value < 0.1 or value > 0.9:
-                raise ValueError(
-                    f"single_word_rarity_threshold must be 0.1-0.9, got {value}"
-                )
+                raise ValueError(f"single_word_rarity_threshold must be 0.1-0.9, got {value}")
         elif key == "phrase_rarity_threshold":
             if not isinstance(value, (int, float)) or value < 0.1 or value > 0.9:
-                raise ValueError(
-                    f"phrase_rarity_threshold must be 0.1-0.9, got {value}"
-                )
+                raise ValueError(f"phrase_rarity_threshold must be 0.1-0.9, got {value}")
         # Session 62: New settings validation
         elif key == "ollama_model":
             if not isinstance(value, str) or not value:
                 raise ValueError("ollama_model must be a non-empty string")
         elif key == "vocab_min_occurrences":
             if not isinstance(value, int) or value < 1 or value > 5:
-                raise ValueError(
-                    f"vocab_min_occurrences must be 1-5, got {value}"
-                )
+                raise ValueError(f"vocab_min_occurrences must be 1-5, got {value}")
         elif key == "phrase_mean_rarity_threshold":
             if not isinstance(value, (int, float)) or value < 0.1 or value > 0.9:
-                raise ValueError(
-                    f"phrase_mean_rarity_threshold must be 0.1-0.9, got {value}"
-                )
+                raise ValueError(f"phrase_mean_rarity_threshold must be 0.1-0.9, got {value}")
         # Session 68: Corpus familiarity threshold validation
         elif key == "corpus_familiarity_threshold":
             if not isinstance(value, (int, float)) or value < 0.25 or value > 1.0:
-                raise ValueError(
-                    f"corpus_familiarity_threshold must be 0.25-1.0, got {value}"
-                )
+                raise ValueError(f"corpus_familiarity_threshold must be 0.25-1.0, got {value}")
         elif key == "corpus_familiarity_min_docs":
             if not isinstance(value, int) or value < 0 or value > 50:
-                raise ValueError(
-                    f"corpus_familiarity_min_docs must be 0-50, got {value}"
-                )
+                raise ValueError(f"corpus_familiarity_min_docs must be 0-50, got {value}")
         elif key == "corpus_familiarity_exempt_persons":
             if not isinstance(value, bool):
-                raise ValueError(
-                    f"corpus_familiarity_exempt_persons must be boolean, got {value}"
-                )
+                raise ValueError(f"corpus_familiarity_exempt_persons must be boolean, got {value}")
         # Session 68: Corpus ready transition flag
         elif key == "corpus_was_ever_ready":
             if not isinstance(value, bool):
-                raise ValueError(
-                    f"corpus_was_ever_ready must be boolean, got {value}"
-                )
+                raise ValueError(f"corpus_was_ever_ready must be boolean, got {value}")
         # Session 62b: LLM extraction mode validation
         elif key == "vocab_use_llm":
             # Accept both legacy boolean and new tri-state string
             if value not in ("auto", "yes", "no") and not isinstance(value, bool):
-                raise ValueError(
-                    f"vocab_use_llm must be 'auto', 'yes', or 'no', got {value}"
-                )
+                raise ValueError(f"vocab_use_llm must be 'auto', 'yes', or 'no', got {value}")
         # Session 64: LLM context window size validation
         elif key == "llm_context_size":
             valid_sizes = [4000, 8000, 16000, 32000, 48000, 64000]
@@ -438,9 +410,20 @@ class UserPreferencesManager:
                 )
             # Validate that all keys are valid column names
             valid_columns = {
-                "Term", "Score", "Is Person", "Found By", "# Docs", "Count",
-                "Median Conf", "NER", "RAKE", "BM25", "Algo Count",
-                "Freq Rank", "Keep", "Skip"
+                "Term",
+                "Score",
+                "Is Person",
+                "Found By",
+                "# Docs",
+                "Count",
+                "Median Conf",
+                "NER",
+                "RAKE",
+                "BM25",
+                "Algo Count",
+                "Freq Rank",
+                "Keep",
+                "Skip",
             }
             invalid = set(value.keys()) - valid_columns
             if invalid:
@@ -457,14 +440,23 @@ class UserPreferencesManager:
         # Session 80: Column widths validation
         elif key == "vocab_column_widths":
             if not isinstance(value, dict):
-                raise ValueError(
-                    f"vocab_column_widths must be a dict, got {type(value).__name__}"
-                )
+                raise ValueError(f"vocab_column_widths must be a dict, got {type(value).__name__}")
             # Validate that all keys are valid column names
             valid_columns = {
-                "Term", "Score", "Is Person", "Found By", "# Docs", "Count",
-                "Median Conf", "NER", "RAKE", "BM25", "Algo Count",
-                "Freq Rank", "Keep", "Skip"
+                "Term",
+                "Score",
+                "Is Person",
+                "Found By",
+                "# Docs",
+                "Count",
+                "Median Conf",
+                "NER",
+                "RAKE",
+                "BM25",
+                "Algo Count",
+                "Freq Rank",
+                "Keep",
+                "Skip",
             }
             invalid = set(value.keys()) - valid_columns
             if invalid:
@@ -472,9 +464,7 @@ class UserPreferencesManager:
             # Validate that all values are positive integers
             for col, width in value.items():
                 if not isinstance(width, int) or width < 30 or width > 500:
-                    raise ValueError(
-                        f"Column width must be int 30-500, got {width} for '{col}'"
-                    )
+                    raise ValueError(f"Column width must be int 30-500, got {width} for '{col}'")
 
         self._preferences[key] = value
         self._save_preferences()
@@ -499,6 +489,7 @@ def get_user_preferences(preferences_file: Path = None) -> UserPreferencesManage
     if _user_prefs is None:
         if preferences_file is None:
             from .config import CONFIG_DIR
+
             preferences_file = CONFIG_DIR / "user_preferences.json"
 
         _user_prefs = UserPreferencesManager(preferences_file)

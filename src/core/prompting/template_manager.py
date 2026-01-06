@@ -190,8 +190,9 @@ class PromptTemplateManager:
             return []
 
         return [
-            d.name for d in self.prompts_base_dir.iterdir()
-            if d.is_dir() and not d.name.startswith('.')
+            d.name
+            for d in self.prompts_base_dir.iterdir()
+            if d.is_dir() and not d.name.startswith(".")
         ]
 
     def get_available_presets(self, model_name: str) -> list[dict[str, str]]:
@@ -216,44 +217,39 @@ class PromptTemplateManager:
         # 1. Load built-in prompts first
         builtin_dir = self.prompts_base_dir / model_name
         if builtin_dir.exists():
-            for template_file in builtin_dir.glob('*.txt'):
+            for template_file in builtin_dir.glob("*.txt"):
                 # Skip underscore-prefixed files (reserved for _template.txt, _README.txt)
-                if template_file.name.startswith('_'):
+                if template_file.name.startswith("_"):
                     continue
                 preset_id = template_file.stem
-                display_name = preset_id.replace('-', ' ').replace('_', ' ').title()
+                display_name = preset_id.replace("-", " ").replace("_", " ").title()
                 presets_by_id[preset_id] = {
-                    'name': display_name,
-                    'id': preset_id,
-                    'file_path': str(template_file),
-                    'source': 'built-in'
+                    "name": display_name,
+                    "id": preset_id,
+                    "file_path": str(template_file),
+                    "source": "built-in",
                 }
 
         # 2. Load user prompts (override built-in if same ID)
         if self.user_prompts_dir:
             user_dir = self.user_prompts_dir / model_name
             if user_dir.exists():
-                for template_file in user_dir.glob('*.txt'):
+                for template_file in user_dir.glob("*.txt"):
                     # Skip underscore-prefixed files (reserved for _template.txt, _README.txt)
-                    if template_file.name.startswith('_'):
+                    if template_file.name.startswith("_"):
                         continue
                     preset_id = template_file.stem
-                    display_name = preset_id.replace('-', ' ').replace('_', ' ').title()
+                    display_name = preset_id.replace("-", " ").replace("_", " ").title()
                     presets_by_id[preset_id] = {
-                        'name': display_name,
-                        'id': preset_id,
-                        'file_path': str(template_file),
-                        'source': 'custom'
+                        "name": display_name,
+                        "id": preset_id,
+                        "file_path": str(template_file),
+                        "source": "custom",
                     }
 
-        return sorted(presets_by_id.values(), key=lambda x: x['name'])
+        return sorted(presets_by_id.values(), key=lambda x: x["name"])
 
-    def load_template(
-        self,
-        model_name: str,
-        preset_id: str,
-        use_cache: bool = True
-    ) -> str:
+    def load_template(self, model_name: str, preset_id: str, use_cache: bool = True) -> str:
         """
         Load a prompt template from file.
 
@@ -300,7 +296,7 @@ class PromptTemplateManager:
                 f"{self.user_prompts_dir / model_name if self.user_prompts_dir else 'N/A'}"
             )
 
-        with open(template_path, encoding='utf-8') as f:
+        with open(template_path, encoding="utf-8") as f:
             template = f.read()
 
         # Validate template
@@ -324,39 +320,34 @@ class PromptTemplateManager:
         errors = []
 
         # Check for required Phi-3 chat tokens
-        required_tokens = ['<|system|>', '<|user|>', '<|end|>', '<|assistant|>']
+        required_tokens = ["<|system|>", "<|user|>", "<|end|>", "<|assistant|>"]
         for token in required_tokens:
             if token not in template:
                 errors.append(f"Missing required token: {token}")
 
         # Check for required template variables
-        required_vars = ['{min_words}', '{max_words}', '{max_words_range}', '{case_text}']
+        required_vars = ["{min_words}", "{max_words}", "{max_words_range}", "{case_text}"]
         for var in required_vars:
             if var not in template:
                 errors.append(f"Missing required variable: {var}")
 
         # Check template structure
-        if template.find('<|system|>') > template.find('<|user|>'):
+        if template.find("<|system|>") > template.find("<|user|>"):
             errors.append("<|system|> must come before <|user|>")
 
-        if template.find('<|user|>') > template.find('<|assistant|>'):
+        if template.find("<|user|>") > template.find("<|assistant|>"):
             errors.append("<|user|> must come before <|assistant|>")
 
         # Raise error if validation failed
         if errors:
             location = f" in {template_path}" if template_path else ""
             raise ValueError(
-                f"Template validation failed{location}:\n" +
-                "\n".join(f"  - {error}" for error in errors)
+                f"Template validation failed{location}:\n"
+                + "\n".join(f"  - {error}" for error in errors)
             )
 
     def format_template(
-        self,
-        template: str,
-        min_words: int,
-        max_words: int,
-        max_words_range: int,
-        case_text: str
+        self, template: str, min_words: int, max_words: int, max_words_range: int, case_text: str
     ) -> str:
         """
         Format a template with provided values.
@@ -375,7 +366,7 @@ class PromptTemplateManager:
             min_words=min_words,
             max_words=max_words,
             max_words_range=max_words_range,
-            case_text=case_text
+            case_text=case_text,
         )
 
     def get_default_preset_id(self, model_name: str) -> str | None:
@@ -391,7 +382,7 @@ class PromptTemplateManager:
         presets = self.get_available_presets(model_name)
         if not presets:
             return None
-        return presets[0]['id']
+        return presets[0]["id"]
 
     def clear_cache(self):
         """Clear the template cache."""
@@ -418,16 +409,12 @@ class PromptTemplateManager:
             generic_file = model_dir / "generic-summary.txt"
 
             if not generic_file.exists():
-                with open(generic_file, 'w', encoding='utf-8') as f:
+                with open(generic_file, "w", encoding="utf-8") as f:
                     f.write(GENERIC_FALLBACK_TEMPLATE)
 
                 debug_log(f"Created generic fallback prompt for {model_name}")
 
-    def get_best_default_preset(
-        self,
-        model_name: str,
-        user_preference: str | None = None
-    ) -> str:
+    def get_best_default_preset(self, model_name: str, user_preference: str | None = None) -> str:
         """
         Get the best default preset to use for a model.
 
@@ -454,12 +441,12 @@ class PromptTemplateManager:
 
         # Try user preference first
         if user_preference:
-            preset_ids = [p['id'] for p in presets]
+            preset_ids = [p["id"] for p in presets]
             if user_preference in preset_ids:
                 return user_preference
 
         # Fall back to first preset alphabetically
-        return presets[0]['id']
+        return presets[0]["id"]
 
     def ensure_user_skeleton(self, model_name: str) -> Path | None:
         """
@@ -486,13 +473,13 @@ class PromptTemplateManager:
         # Create skeleton template (underscore prefix = hidden from dropdown)
         skeleton_file = user_model_dir / SKELETON_FILENAME
         if not skeleton_file.exists():
-            with open(skeleton_file, 'w', encoding='utf-8') as f:
+            with open(skeleton_file, "w", encoding="utf-8") as f:
                 f.write(USER_SKELETON_TEMPLATE)
 
         # Create README with instructions (underscore prefix = hidden from dropdown)
         readme_file = user_model_dir / README_FILENAME
         if not readme_file.exists():
-            with open(readme_file, 'w', encoding='utf-8') as f:
+            with open(readme_file, "w", encoding="utf-8") as f:
                 f.write(USER_README_CONTENT)
 
         return user_model_dir

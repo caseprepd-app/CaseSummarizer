@@ -120,10 +120,7 @@ class CorpusDialog(ctk.CTkToplevel):
         title_frame.grid(row=0, column=0, sticky="ew", padx=15, pady=(15, 5))
 
         title = ctk.CTkLabel(
-            title_frame,
-            text="📚 What is a Corpus?",
-            font=FONTS["heading_xl"],
-            anchor="w"
+            title_frame, text="📚 What is a Corpus?", font=FONTS["heading_xl"], anchor="w"
         )
         title.pack(anchor="w")
 
@@ -136,7 +133,7 @@ class CorpusDialog(ctk.CTkToplevel):
             ),
             font=FONTS["heading_sm"],
             anchor="w",
-            justify="left"
+            justify="left",
         )
         explanation.grid(row=1, column=0, sticky="w", padx=15, pady=(0, 5))
 
@@ -148,7 +145,7 @@ class CorpusDialog(ctk.CTkToplevel):
             privacy_frame,
             text="✓ 100% local and offline - never leaves your machine",
             font=FONTS["body"],
-            text_color=(COLORS["success"], COLORS["success_light"])
+            text_color=(COLORS["success"], COLORS["success_light"]),
         )
         check1.pack(anchor="w")
 
@@ -160,7 +157,7 @@ class CorpusDialog(ctk.CTkToplevel):
             link_frame,
             text="✓ Powers the BM25 vocabulary algorithm",
             font=FONTS["body"],
-            text_color=(COLORS["success"], COLORS["success_light"])
+            text_color=(COLORS["success"], COLORS["success_light"]),
         )
         check2.pack(side="left")
 
@@ -173,7 +170,7 @@ class CorpusDialog(ctk.CTkToplevel):
             hover_color=("gray80", "gray30"),
             width=80,
             height=24,
-            command=self._open_bm25_wiki
+            command=self._open_bm25_wiki,
         )
         learn_more.pack(side="left", padx=(5, 0))
 
@@ -187,7 +184,7 @@ class CorpusDialog(ctk.CTkToplevel):
             font=FONTS["body"],
             text_color=COLORS["text_secondary"],
             anchor="w",
-            justify="left"
+            justify="left",
         )
         note.grid(row=4, column=0, sticky="w", padx=15, pady=(5, 15))
 
@@ -197,11 +194,7 @@ class CorpusDialog(ctk.CTkToplevel):
         section_header = ctk.CTkFrame(self, fg_color="transparent")
         section_header.grid(row=1, column=0, sticky="ew", padx=15, pady=(10, 5))
 
-        label = ctk.CTkLabel(
-            section_header,
-            text="Your Corpora",
-            font=FONTS["heading"]
-        )
+        label = ctk.CTkLabel(section_header, text="Your Corpora", font=FONTS["heading"])
         label.pack(side="left")
 
         # Corpus list frame
@@ -213,11 +206,7 @@ class CorpusDialog(ctk.CTkToplevel):
         # Treeview for corpus list
         columns = ("name", "docs", "path")
         self.corpus_tree = ttk.Treeview(
-            list_frame,
-            columns=columns,
-            show="headings",
-            selectmode="browse",
-            height=4
+            list_frame, columns=columns, show="headings", selectmode="browse", height=4
         )
 
         self.corpus_tree.heading("name", text="Corpus Name")
@@ -244,10 +233,7 @@ class CorpusDialog(ctk.CTkToplevel):
         btn_frame.grid(row=3, column=0, sticky="ew", padx=15, pady=(0, 10))
 
         self.new_corpus_btn = ctk.CTkButton(
-            btn_frame,
-            text="+ New Corpus",
-            width=120,
-            command=self._new_corpus
+            btn_frame, text="+ New Corpus", width=120, command=self._new_corpus
         )
         self.new_corpus_btn.pack(side="left", padx=(0, 5))
 
@@ -257,7 +243,7 @@ class CorpusDialog(ctk.CTkToplevel):
             width=140,
             fg_color=("gray70", "gray30"),
             command=self._combine_corpora,
-            state="disabled"  # Enable when multiple selected
+            state="disabled",  # Enable when multiple selected
         )
         self.combine_btn.pack(side="left", padx=5)
 
@@ -267,7 +253,7 @@ class CorpusDialog(ctk.CTkToplevel):
             width=120,
             fg_color=("gray70", "gray30"),
             hover_color=("#c42b1c", "#a52714"),
-            command=self._delete_corpus
+            command=self._delete_corpus,
         )
         self.delete_corpus_btn.pack(side="left", padx=5)
 
@@ -276,7 +262,7 @@ class CorpusDialog(ctk.CTkToplevel):
             text="Open Folder",
             width=100,
             fg_color=("gray70", "gray30"),
-            command=self._open_corpus_folder
+            command=self._open_corpus_folder,
         )
         self.open_folder_btn.pack(side="left", padx=5)
 
@@ -287,7 +273,7 @@ class CorpusDialog(ctk.CTkToplevel):
             width=110,
             fg_color=("#217346", "#1a5c38"),
             hover_color=("#1a5c38", "#145230"),
-            command=self._set_active_corpus
+            command=self._set_active_corpus,
         )
         self.set_active_btn.pack(side="right")
 
@@ -298,9 +284,7 @@ class CorpusDialog(ctk.CTkToplevel):
         self.doc_header.grid(row=4, column=0, sticky="ew", padx=15, pady=(10, 5))
 
         self.doc_label = ctk.CTkLabel(
-            self.doc_header,
-            text="Documents in Corpus",
-            font=FONTS["heading"]
+            self.doc_header, text="Documents in Corpus", font=FONTS["heading"]
         )
         self.doc_label.pack(side="left")
 
@@ -313,11 +297,7 @@ class CorpusDialog(ctk.CTkToplevel):
         # Treeview for document list
         doc_columns = ("name", "status", "date")
         self.doc_tree = ttk.Treeview(
-            doc_frame,
-            columns=doc_columns,
-            show="headings",
-            selectmode="extended",
-            height=6
+            doc_frame, columns=doc_columns, show="headings", selectmode="extended", height=6
         )
 
         self.doc_tree.heading("name", text="Document")
@@ -340,10 +320,7 @@ class CorpusDialog(ctk.CTkToplevel):
         doc_btn_frame.grid(row=6, column=0, sticky="ew", padx=15, pady=(0, 10))
 
         self.add_files_btn = ctk.CTkButton(
-            doc_btn_frame,
-            text="Add Files...",
-            width=100,
-            command=self._add_files
+            doc_btn_frame, text="Add Files...", width=100, command=self._add_files
         )
         self.add_files_btn.pack(side="left", padx=(0, 5))
 
@@ -352,7 +329,7 @@ class CorpusDialog(ctk.CTkToplevel):
             text="Preprocess All",
             width=120,
             fg_color=("gray70", "gray30"),
-            command=self._preprocess_all
+            command=self._preprocess_all,
         )
         self.preprocess_btn.pack(side="left", padx=5)
 
@@ -362,7 +339,7 @@ class CorpusDialog(ctk.CTkToplevel):
             width=120,
             fg_color=("gray70", "gray30"),
             hover_color=("#c42b1c", "#a52714"),
-            command=self._remove_files
+            command=self._remove_files,
         )
         self.remove_files_btn.pack(side="left", padx=5)
 
@@ -374,21 +351,12 @@ class CorpusDialog(ctk.CTkToplevel):
 
         # Status label
         self.status_label = ctk.CTkLabel(
-            footer,
-            text="",
-            font=FONTS["body"],
-            text_color=COLORS["text_secondary"],
-            anchor="w"
+            footer, text="", font=FONTS["body"], text_color=COLORS["text_secondary"], anchor="w"
         )
         self.status_label.grid(row=0, column=0, sticky="w")
 
         # Close button
-        close_btn = ctk.CTkButton(
-            footer,
-            text="Close",
-            width=100,
-            command=self._on_close
-        )
+        close_btn = ctk.CTkButton(footer, text="Close", width=100, command=self._on_close)
         close_btn.grid(row=0, column=1, sticky="e")
 
     # =========================================================================
@@ -410,11 +378,12 @@ class CorpusDialog(ctk.CTkToplevel):
             if corpus.is_active:
                 name = f"● {corpus.name} (Active)"
 
-            self.corpus_tree.insert("", "end", values=(
-                name,
-                f"{corpus.doc_count} docs",
-                str(corpus.path)
-            ), tags=("active",) if corpus.is_active else ())
+            self.corpus_tree.insert(
+                "",
+                "end",
+                values=(name, f"{corpus.doc_count} docs", str(corpus.path)),
+                tags=("active",) if corpus.is_active else (),
+            )
 
         # Select active corpus
         active = self.registry.get_active_corpus()
@@ -454,23 +423,13 @@ class CorpusDialog(ctk.CTkToplevel):
 
             date_str = f.modified_at.strftime("%Y-%m-%d") if f.modified_at else ""
 
-            self.doc_tree.insert("", "end", values=(
-                f.name,
-                status,
-                date_str
-            ))
+            self.doc_tree.insert("", "end", values=(f.name, status, date_str))
 
         # Update preprocess button state
         if pending_count > 0:
-            self.preprocess_btn.configure(
-                text=f"Preprocess All ({pending_count})",
-                state="normal"
-            )
+            self.preprocess_btn.configure(text=f"Preprocess All ({pending_count})", state="normal")
         else:
-            self.preprocess_btn.configure(
-                text="Preprocess All",
-                state="disabled"
-            )
+            self.preprocess_btn.configure(text="Preprocess All", state="disabled")
 
     def _select_corpus_by_name(self, name: str):
         """Select a corpus in the tree by name."""
@@ -533,10 +492,7 @@ class CorpusDialog(ctk.CTkToplevel):
     def _new_corpus(self):
         """Create a new corpus."""
         # Simple input dialog
-        dialog = ctk.CTkInputDialog(
-            text="Enter name for new corpus:",
-            title="New Corpus"
-        )
+        dialog = ctk.CTkInputDialog(text="Enter name for new corpus:", title="New Corpus")
         name = dialog.get_input()
 
         if not name or not name.strip():
@@ -553,7 +509,7 @@ class CorpusDialog(ctk.CTkToplevel):
             messagebox.showinfo(
                 "Corpus Created",
                 f'Corpus "{name}" created at:\n\n{path}\n\n'
-                "Add your transcript files to this folder."
+                "Add your transcript files to this folder.",
             )
 
         except ValueError as e:
@@ -571,7 +527,7 @@ class CorpusDialog(ctk.CTkToplevel):
         result = messagebox.askyesnocancel(
             "Delete Corpus",
             f'Delete corpus "{self._selected_corpus}"?\n\n'
-            "Choose Yes to delete files too, or No to keep files."
+            "Choose Yes to delete files too, or No to keep files.",
         )
 
         if result is None:  # Cancel
@@ -597,10 +553,7 @@ class CorpusDialog(ctk.CTkToplevel):
             return
 
         # Get name for combined corpus
-        dialog = ctk.CTkInputDialog(
-            text="Enter name for combined corpus:",
-            title="Combine Corpora"
-        )
+        dialog = ctk.CTkInputDialog(text="Enter name for combined corpus:", title="Combine Corpora")
         new_name = dialog.get_input()
 
         if not new_name or not new_name.strip():
@@ -612,10 +565,7 @@ class CorpusDialog(ctk.CTkToplevel):
             self.corpus_changed = True
             self._refresh_corpus_list()
 
-            messagebox.showinfo(
-                "Corpora Combined",
-                f'Created "{new_name.strip()}" at:\n\n{path}'
-            )
+            messagebox.showinfo("Corpora Combined", f'Created "{new_name.strip()}" at:\n\n{path}')
 
         except ValueError as e:
             messagebox.showerror("Error", str(e))
@@ -644,10 +594,10 @@ class CorpusDialog(ctk.CTkToplevel):
 
         try:
             path = self.registry.get_corpus_path(self._selected_corpus)
-            if os.name == 'nt':  # Windows
+            if os.name == "nt":  # Windows
                 os.startfile(str(path))
             else:  # macOS/Linux
-                subprocess.run(['open' if os.name == 'darwin' else 'xdg-open', str(path)])
+                subprocess.run(["open" if os.name == "darwin" else "xdg-open", str(path)])
         except Exception as e:
             messagebox.showerror("Error", f"Failed to open folder: {e}")
 
@@ -673,8 +623,8 @@ class CorpusDialog(ctk.CTkToplevel):
                 ("PDF files", "*.pdf"),
                 ("Text files", "*.txt"),
                 ("RTF files", "*.rtf"),
-                ("All files", "*.*")
-            ]
+                ("All files", "*.*"),
+            ],
         )
 
         if not files:
@@ -685,6 +635,7 @@ class CorpusDialog(ctk.CTkToplevel):
 
             # Copy files to corpus folder
             import shutil
+
             copied = 0
             for file_path in files:
                 src = Path(file_path)
@@ -693,8 +644,7 @@ class CorpusDialog(ctk.CTkToplevel):
                 # Handle duplicates
                 if dst.exists():
                     result = messagebox.askyesno(
-                        "File Exists",
-                        f'"{src.name}" already exists. Overwrite?'
+                        "File Exists", f'"{src.name}" already exists. Overwrite?'
                     )
                     if not result:
                         continue
@@ -714,10 +664,7 @@ class CorpusDialog(ctk.CTkToplevel):
             self._refresh_document_list()
 
             if copied > 0:
-                messagebox.showinfo(
-                    "Files Added",
-                    f"Added {copied} file(s) to corpus."
-                )
+                messagebox.showinfo("Files Added", f"Added {copied} file(s) to corpus.")
 
         except Exception as e:
             messagebox.showerror("Error", f"Failed to add files: {e}")
@@ -733,10 +680,7 @@ class CorpusDialog(ctk.CTkToplevel):
             self._refresh_document_list()
 
             if count > 0:
-                messagebox.showinfo(
-                    "Preprocessing Complete",
-                    f"Preprocessed {count} document(s)."
-                )
+                messagebox.showinfo("Preprocessing Complete", f"Preprocessed {count} document(s).")
             else:
                 messagebox.showinfo("Info", "No documents needed preprocessing.")
 
@@ -754,8 +698,7 @@ class CorpusDialog(ctk.CTkToplevel):
         count = len(selection)
         result = messagebox.askyesno(
             "Remove Documents",
-            f"Remove {count} document(s) from corpus?\n\n"
-            "This will delete the files."
+            f"Remove {count} document(s) from corpus?\n\n" "This will delete the files.",
         )
 
         if not result:

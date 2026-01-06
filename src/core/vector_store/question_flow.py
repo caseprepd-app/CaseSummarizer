@@ -36,7 +36,7 @@ class QuestionAnswer:
     question_text: str
     category: str
     answer_value: str  # For classification: option value; for extraction: full answer
-    answer_text: str   # Full LLM response
+    answer_text: str  # Full LLM response
     sources: list[dict] = field(default_factory=list)
 
 
@@ -85,7 +85,9 @@ class QuestionFlowManager:
         results = flow.get_all_answers()
     """
 
-    DEFAULT_CONFIG_PATH = Path(__file__).parent.parent.parent.parent / "config" / "qa_questions.yaml"
+    DEFAULT_CONFIG_PATH = (
+        Path(__file__).parent.parent.parent.parent / "config" / "qa_questions.yaml"
+    )
 
     def __init__(self, config_path: Path | None = None):
         """
@@ -96,19 +98,21 @@ class QuestionFlowManager:
         """
         self.config_path = config_path or self.DEFAULT_CONFIG_PATH
         self.config = self._load_config()
-        self.questions = {q['id']: q for q in self.config.get('questions', [])}
-        self.entry_point = self.config.get('entry_point', 'is_court_case')
+        self.questions = {q["id"]: q for q in self.config.get("questions", [])}
+        self.entry_point = self.config.get("entry_point", "is_court_case")
         self.state = FlowState(current_question_id=self.entry_point)
 
         if DEBUG_MODE:
-            debug_log(f"[QuestionFlow] Loaded {len(self.questions)} questions from {self.config_path}")
+            debug_log(
+                f"[QuestionFlow] Loaded {len(self.questions)} questions from {self.config_path}"
+            )
 
     def _load_config(self) -> dict:
         """Load question configuration from YAML file."""
         return load_yaml_with_fallback(
             self.config_path,
-            fallback={'questions': [], 'entry_point': 'is_court_case'},
-            log_prefix="[QuestionFlow]"
+            fallback={"questions": [], "entry_point": "is_court_case"},
+            log_prefix="[QuestionFlow]",
         )
 
     def get_current_question(self) -> dict | None:
@@ -135,7 +139,7 @@ class QuestionFlowManager:
         question_id: str,
         answer_value: str,
         answer_text: str,
-        sources: list[dict] | None = None
+        sources: list[dict] | None = None,
     ):
         """
         Record an answer and advance to the next question.
@@ -154,11 +158,11 @@ class QuestionFlowManager:
         # Record the answer
         qa = QuestionAnswer(
             question_id=question_id,
-            question_text=question['text'],
-            category=question.get('category', 'General'),
+            question_text=question["text"],
+            category=question.get("category", "General"),
             answer_value=answer_value,
             answer_text=answer_text,
-            sources=sources or []
+            sources=sources or [],
         )
         self.state.answered.append(qa)
 
@@ -193,25 +197,25 @@ class QuestionFlowManager:
             Next question ID, or None if flow should end
         """
         # Check if this is a terminal question
-        if question.get('terminal', False):
+        if question.get("terminal", False):
             return None
 
         # For classification questions, find the matching option
-        if question.get('type') == 'classification' and 'options' in question:
-            for option in question['options']:
-                if option['value'].lower() == answer_value.lower():
-                    return option.get('next')
+        if question.get("type") == "classification" and "options" in question:
+            for option in question["options"]:
+                if option["value"].lower() == answer_value.lower():
+                    return option.get("next")
 
             # If no exact match, try fuzzy matching or use first option as default
             if DEBUG_MODE:
                 debug_log(f"[QuestionFlow] No exact match for '{answer_value}', using default")
 
             # Default to first option's next if available
-            if question['options']:
-                return question['options'][0].get('next')
+            if question["options"]:
+                return question["options"][0].get("next")
 
         # For extraction questions or fallback, use direct 'next' field
-        return question.get('next')
+        return question.get("next")
 
     def is_complete(self) -> bool:
         """Check if the question flow is complete."""
@@ -259,13 +263,13 @@ class QuestionFlowManager:
             visited.add(current_id)
             remaining += 1
             q = self.questions.get(current_id)
-            if not q or q.get('terminal'):
+            if not q or q.get("terminal"):
                 break
             # Follow first option or direct next
-            if q.get('type') == 'classification' and q.get('options'):
-                current_id = q['options'][0].get('next')
+            if q.get("type") == "classification" and q.get("options"):
+                current_id = q["options"][0].get("next")
             else:
-                current_id = q.get('next')
+                current_id = q.get("next")
 
         return answered, remaining
 
@@ -277,7 +281,7 @@ class QuestionFlowManager:
 
     def get_category_order(self) -> list[str]:
         """Get the display order for categories."""
-        return self.config.get('category_order', [])
+        return self.config.get("category_order", [])
 
     @staticmethod
     def classify_answer(answer_text: str, options: list[dict]) -> str:
@@ -298,34 +302,34 @@ class QuestionFlowManager:
 
         # Direct value matching
         for option in options:
-            value = option['value'].lower()
-            label = option.get('label', '').lower()
+            value = option["value"].lower()
+            label = option.get("label", "").lower()
 
             # Check if option value or label appears in answer
             if value in answer_lower or label in answer_lower:
-                return option['value']
+                return option["value"]
 
         # Keyword-based matching for common cases
         # Note: Simple keyword matching may produce false positives in edge cases
         # (e.g., "not criminal" contains "criminal"). For accuracy-critical use,
         # consider LLM-based classification instead.
         keyword_map = {
-            'yes': ['yes', 'court case', 'legal proceeding', 'lawsuit', 'litigation'],
-            'no': ['no', 'not a court', 'not related'],
-            'criminal': ['criminal', 'crime', 'felony', 'misdemeanor', 'prosecution', 'indictment'],
-            'civil': ['civil', 'plaintiff', 'defendant', 'lawsuit', 'damages', 'complaint'],
-            'administrative': ['administrative', 'agency', 'regulatory', 'board', 'commission'],
+            "yes": ["yes", "court case", "legal proceeding", "lawsuit", "litigation"],
+            "no": ["no", "not a court", "not related"],
+            "criminal": ["criminal", "crime", "felony", "misdemeanor", "prosecution", "indictment"],
+            "civil": ["civil", "plaintiff", "defendant", "lawsuit", "damages", "complaint"],
+            "administrative": ["administrative", "agency", "regulatory", "board", "commission"],
         }
 
         for option in options:
-            keywords = keyword_map.get(option['value'].lower(), [])
+            keywords = keyword_map.get(option["value"].lower(), [])
             for keyword in keywords:
                 if keyword in answer_lower:
-                    return option['value']
+                    return option["value"]
 
         # Default to 'unclear' if available, otherwise first option
         for option in options:
-            if option['value'] == 'unclear':
-                return 'unclear'
+            if option["value"] == "unclear":
+                return "unclear"
 
-        return options[0]['value'] if options else 'unclear'
+        return options[0]["value"] if options else "unclear"

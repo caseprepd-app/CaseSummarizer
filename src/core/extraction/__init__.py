@@ -21,9 +21,9 @@ from src.core.extraction.llm_extractor import (
 )
 
 __all__ = [
-    'RawTextExtractor',
-    'LLMVocabExtractor',
-    'LLMPerson',
-    'LLMTerm',
-    'LLMExtractionResult',
+    "RawTextExtractor",
+    "LLMVocabExtractor",
+    "LLMPerson",
+    "LLMTerm",
+    "LLMExtractionResult",
 ]

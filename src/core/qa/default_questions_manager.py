@@ -17,15 +17,20 @@ from src.config import DEBUG_MODE
 
 
 # Default questions file location
-DEFAULT_QUESTIONS_PATH = Path(__file__).parent.parent.parent.parent / "config" / "default_questions.json"
+DEFAULT_QUESTIONS_PATH = (
+    Path(__file__).parent.parent.parent.parent / "config" / "default_questions.json"
+)
 
 # Legacy text file (for migration)
-LEGACY_QUESTIONS_PATH = Path(__file__).parent.parent.parent.parent / "config" / "qa_default_questions.txt"
+LEGACY_QUESTIONS_PATH = (
+    Path(__file__).parent.parent.parent.parent / "config" / "qa_default_questions.txt"
+)
 
 
 @dataclass
 class DefaultQuestion:
     """A default question with its enabled state."""
+
     text: str
     enabled: bool = True
 
@@ -34,10 +39,7 @@ class DefaultQuestion:
 
     @classmethod
     def from_dict(cls, data: dict) -> "DefaultQuestion":
-        return cls(
-            text=data.get("text", ""),
-            enabled=data.get("enabled", True)
-        )
+        return cls(text=data.get("text", ""), enabled=data.get("enabled", True))
 
 
 class DefaultQuestionsManager:
@@ -74,12 +76,10 @@ class DefaultQuestionsManager:
     def _load_from_json(self):
         """Load questions from JSON file."""
         try:
-            with open(self.config_path, 'r', encoding='utf-8') as f:
+            with open(self.config_path, "r", encoding="utf-8") as f:
                 data = json.load(f)
 
-            self._questions = [
-                DefaultQuestion.from_dict(q) for q in data.get("questions", [])
-            ]
+            self._questions = [DefaultQuestion.from_dict(q) for q in data.get("questions", [])]
 
             if DEBUG_MODE:
                 debug_log(f"[DefaultQuestions] Loaded {len(self._questions)} questions from JSON")
@@ -92,10 +92,10 @@ class DefaultQuestionsManager:
         """Migrate from legacy text file format."""
         try:
             questions = []
-            with open(LEGACY_QUESTIONS_PATH, 'r', encoding='utf-8') as f:
+            with open(LEGACY_QUESTIONS_PATH, "r", encoding="utf-8") as f:
                 for line in f:
                     line = line.strip()
-                    if line and not line.startswith('#'):
+                    if line and not line.startswith("#"):
                         questions.append(DefaultQuestion(text=line, enabled=True))
 
             self._questions = questions
@@ -127,11 +127,9 @@ class DefaultQuestionsManager:
         try:
             self.config_path.parent.mkdir(parents=True, exist_ok=True)
 
-            data = {
-                "questions": [q.to_dict() for q in self._questions]
-            }
+            data = {"questions": [q.to_dict() for q in self._questions]}
 
-            with open(self.config_path, 'w', encoding='utf-8') as f:
+            with open(self.config_path, "w", encoding="utf-8") as f:
                 json.dump(data, f, indent=2, ensure_ascii=False)
 
             if DEBUG_MODE:

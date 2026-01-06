@@ -41,7 +41,7 @@ class VocabularyService:
         self,
         text: str,
         document_id: str | None = None,
-        progress_callback: Callable[[int, int], None] | None = None
+        progress_callback: Callable[[int, int], None] | None = None,
     ) -> list[dict]:
         """
         Extract vocabulary from document text.
@@ -67,9 +67,7 @@ class VocabularyService:
         return result
 
     def extract_vocabulary_per_document(
-        self,
-        documents: list[dict],
-        progress_callback: Callable[[int, int], None] | None = None
+        self, documents: list[dict], progress_callback: Callable[[int, int], None] | None = None
     ) -> list[dict]:
         """
         Extract vocabulary with per-document tracking (Session 78).
@@ -94,22 +92,16 @@ class VocabularyService:
                 debug_log("[VocabularyService] No documents provided, returning empty list")
             return []
 
-        result = self.extractor.extract_per_document(
-            documents,
-            progress_callback=progress_callback
-        )
+        result = self.extractor.extract_per_document(documents, progress_callback=progress_callback)
 
         if DEBUG_MODE:
-            debug_log(f"[VocabularyService] Extracted {len(result)} terms from {len(documents)} documents")
+            debug_log(
+                f"[VocabularyService] Extracted {len(result)} terms from {len(documents)} documents"
+            )
 
         return result
 
-    def record_feedback(
-        self,
-        term: str,
-        is_positive: bool,
-        document_id: str | None = None
-    ) -> None:
+    def record_feedback(self, term: str, is_positive: bool, document_id: str | None = None) -> None:
         """
         Record user feedback on a vocabulary term.
 
@@ -133,9 +125,9 @@ class VocabularyService:
         """
         return [
             {
-                'name': algo.name,
-                'enabled': algo.enabled,
-                'description': algo.description,
+                "name": algo.name,
+                "enabled": algo.enabled,
+                "description": algo.description,
             }
             for algo in self.extractor.algorithms
         ]
@@ -180,7 +172,7 @@ class VocabularyService:
             # Get headers from first item
             headers = list(vocab_data[0].keys())
 
-            with open(file_path, 'w', newline='', encoding='utf-8') as f:
+            with open(file_path, "w", newline="", encoding="utf-8") as f:
                 writer = csv.DictWriter(f, fieldnames=headers)
                 writer.writeheader()
                 writer.writerows(vocab_data)

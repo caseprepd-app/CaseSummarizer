@@ -39,18 +39,18 @@ from src.core.export.combined_exporter import export_combined
 
 __all__ = [
     # Base classes
-    'DocumentBuilder',
-    'TextSpan',
-    'VERIFICATION_COLORS',
-    'get_verification_color',
+    "DocumentBuilder",
+    "TextSpan",
+    "VERIFICATION_COLORS",
+    "get_verification_color",
     # Builders
-    'WordDocumentBuilder',
-    'PdfDocumentBuilder',
+    "WordDocumentBuilder",
+    "PdfDocumentBuilder",
     # Exporters
-    'export_vocabulary',
-    'export_vocabulary_txt',
-    'export_vocabulary_html',
-    'export_qa_results',
-    'export_qa_html',
-    'export_combined',
+    "export_vocabulary",
+    "export_vocabulary_txt",
+    "export_vocabulary_html",
+    "export_qa_results",
+    "export_qa_html",
+    "export_combined",
 ]

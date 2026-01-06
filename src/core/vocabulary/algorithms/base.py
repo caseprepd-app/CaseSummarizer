@@ -41,6 +41,7 @@ class CandidateTerm:
         suggested_type: Optional type hint (Person, Medical, Technical, etc.)
         frequency: Number of occurrences found in the text
     """
+
     term: str
     source_algorithm: str
     confidence: float = 0.5
@@ -67,6 +68,7 @@ class AlgorithmResult:
         processing_time_ms: Time taken to process (for performance tracking)
         metadata: Algorithm-level statistics (total entities processed, etc.)
     """
+
     candidates: list[CandidateTerm]
     processing_time_ms: float = 0.0
     metadata: dict[str, Any] = field(default_factory=dict)

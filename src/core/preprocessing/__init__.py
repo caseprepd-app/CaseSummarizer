@@ -46,21 +46,24 @@ def create_default_pipeline() -> PreprocessingPipeline:
     Returns:
         Configured PreprocessingPipeline instance
     """
-    return PreprocessingPipeline(preprocessors=[
-        TitlePageRemover(),
-        HeaderFooterRemover(),
-        LineNumberRemover(),
-        TranscriptCleaner(),
-        QAConverter(),
-    ])
+    return PreprocessingPipeline(
+        preprocessors=[
+            TitlePageRemover(),
+            HeaderFooterRemover(),
+            LineNumberRemover(),
+            TranscriptCleaner(),
+            QAConverter(),
+        ]
+    )
+
 
 __all__ = [
-    'BasePreprocessor',
-    'PreprocessingPipeline',
-    'LineNumberRemover',
-    'HeaderFooterRemover',
-    'TitlePageRemover',
-    'TranscriptCleaner',
-    'QAConverter',
-    'create_default_pipeline',
+    "BasePreprocessor",
+    "PreprocessingPipeline",
+    "LineNumberRemover",
+    "HeaderFooterRemover",
+    "TitlePageRemover",
+    "TranscriptCleaner",
+    "QAConverter",
+    "create_default_pipeline",
 ]

@@ -110,9 +110,7 @@ class ChunkMerger:
         self.multi_algo_bonus = 0.1
 
     def merge(
-        self,
-        results: list[AlgorithmRetrievalResult],
-        k: int | None = None
+        self, results: list[AlgorithmRetrievalResult], k: int | None = None
     ) -> MergedRetrievalResult:
         """
         Merge results from multiple algorithms.
@@ -168,7 +166,7 @@ class ChunkMerger:
                 "multi_algo_bonus": self.multi_algo_bonus,
                 "total_unique_chunks": len(chunk_groups),
                 "chunks_returned": len(merged_chunks),
-            }
+            },
         )
 
     def _merge_group(self, chunks: list[RetrievedChunk]) -> MergedChunk:
@@ -202,7 +200,7 @@ class ChunkMerger:
                     "algorithm": c.source_algorithm,
                     "relevance_score": c.relevance_score,
                     "raw_score": c.raw_score,
-                    **c.metadata
+                    **c.metadata,
                 }
                 for c in chunks
             ],

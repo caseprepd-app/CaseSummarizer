@@ -45,9 +45,11 @@ def _auto_open_file(file_path: str) -> None:
             os.startfile(file_path)
         elif sys.platform == "darwin":
             import subprocess
+
             subprocess.run(["open", file_path], check=False)
         else:  # Linux/Unix
             import subprocess
+
             subprocess.run(["xdg-open", file_path], check=False)
         debug_log(f"[EXPORT] Auto-opened: {file_path}")
     except Exception as e:
@@ -55,10 +57,7 @@ def _auto_open_file(file_path: str) -> None:
 
 
 def _run_export(
-    description: str,
-    file_path: str,
-    error_prefix: str,
-    export_fn: Callable[[], bool | None]
+    description: str, file_path: str, error_prefix: str, export_fn: Callable[[], bool | None]
 ) -> bool:
     """
     Helper to run export with standard logging and error handling.
@@ -97,10 +96,7 @@ class ExportService:
     """
 
     def export_vocabulary_to_word(
-        self,
-        vocab_data: list[dict],
-        file_path: str,
-        include_details: bool = False
+        self, vocab_data: list[dict], file_path: str, include_details: bool = False
     ) -> bool:
         """
         Export vocabulary to Word document.
@@ -113,23 +109,18 @@ class ExportService:
         Returns:
             True if successful, False otherwise
         """
+
         def do_export():
             builder = WordDocumentBuilder()
             export_vocabulary(vocab_data, builder, include_details)
             builder.save(file_path)
 
         return _run_export(
-            f"{len(vocab_data)} terms to Word",
-            file_path,
-            "vocabulary to Word",
-            do_export
+            f"{len(vocab_data)} terms to Word", file_path, "vocabulary to Word", do_export
         )
 
     def export_vocabulary_to_pdf(
-        self,
-        vocab_data: list[dict],
-        file_path: str,
-        include_details: bool = False
+        self, vocab_data: list[dict], file_path: str, include_details: bool = False
     ) -> bool:
         """
         Export vocabulary to PDF document.
@@ -142,23 +133,18 @@ class ExportService:
         Returns:
             True if successful, False otherwise
         """
+
         def do_export():
             builder = PdfDocumentBuilder()
             export_vocabulary(vocab_data, builder, include_details)
             builder.save(file_path)
 
         return _run_export(
-            f"{len(vocab_data)} terms to PDF",
-            file_path,
-            "vocabulary to PDF",
-            do_export
+            f"{len(vocab_data)} terms to PDF", file_path, "vocabulary to PDF", do_export
         )
 
     def export_qa_to_word(
-        self,
-        results: list,
-        file_path: str,
-        include_verification: bool = True
+        self, results: list, file_path: str, include_verification: bool = True
     ) -> bool:
         """
         Export Q&A results to Word document.
@@ -171,23 +157,16 @@ class ExportService:
         Returns:
             True if successful, False otherwise
         """
+
         def do_export():
             builder = WordDocumentBuilder()
             export_qa_results(results, builder, include_verification)
             builder.save(file_path)
 
-        return _run_export(
-            f"{len(results)} Q&A pairs to Word",
-            file_path,
-            "Q&A to Word",
-            do_export
-        )
+        return _run_export(f"{len(results)} Q&A pairs to Word", file_path, "Q&A to Word", do_export)
 
     def export_qa_to_pdf(
-        self,
-        results: list,
-        file_path: str,
-        include_verification: bool = True
+        self, results: list, file_path: str, include_verification: bool = True
     ) -> bool:
         """
         Export Q&A results to PDF document.
@@ -200,23 +179,15 @@ class ExportService:
         Returns:
             True if successful, False otherwise
         """
+
         def do_export():
             builder = PdfDocumentBuilder()
             export_qa_results(results, builder, include_verification)
             builder.save(file_path)
 
-        return _run_export(
-            f"{len(results)} Q&A pairs to PDF",
-            file_path,
-            "Q&A to PDF",
-            do_export
-        )
+        return _run_export(f"{len(results)} Q&A pairs to PDF", file_path, "Q&A to PDF", do_export)
 
-    def export_vocabulary_to_txt(
-        self,
-        vocab_data: list[dict],
-        file_path: str
-    ) -> bool:
+    def export_vocabulary_to_txt(self, vocab_data: list[dict], file_path: str) -> bool:
         """
         Export vocabulary to plain text (one term per line).
 
@@ -231,14 +202,11 @@ class ExportService:
             f"{len(vocab_data)} terms to TXT",
             file_path,
             "vocabulary to TXT",
-            lambda: export_vocabulary_txt(vocab_data, file_path)
+            lambda: export_vocabulary_txt(vocab_data, file_path),
         )
 
     def export_vocabulary_to_html(
-        self,
-        vocab_data: list[dict],
-        file_path: str,
-        visible_columns: list[str] | None = None
+        self, vocab_data: list[dict], file_path: str, visible_columns: list[str] | None = None
     ) -> bool:
         """
         Export vocabulary to interactive HTML.
@@ -258,14 +226,11 @@ class ExportService:
             f"{len(vocab_data)} terms to HTML",
             file_path,
             "vocabulary to HTML",
-            lambda: export_vocabulary_html(vocab_data, file_path, visible_columns)
+            lambda: export_vocabulary_html(vocab_data, file_path, visible_columns),
         )
 
     def export_qa_to_html(
-        self,
-        results: list,
-        file_path: str,
-        include_verification: bool = True
+        self, results: list, file_path: str, include_verification: bool = True
     ) -> bool:
         """
         Export Q&A results to interactive HTML.
@@ -282,7 +247,7 @@ class ExportService:
             f"{len(results)} Q&A pairs to HTML",
             file_path,
             "Q&A to HTML",
-            lambda: export_qa_html(results, file_path, include_verification)
+            lambda: export_qa_html(results, file_path, include_verification),
         )
 
     def export_combined_to_word(
@@ -291,7 +256,7 @@ class ExportService:
         qa_results: list,
         file_path: str,
         include_vocab_details: bool = False,
-        include_qa_verification: bool = True
+        include_qa_verification: bool = True,
     ) -> bool:
         """
         Export vocabulary and Q&A together to a single Word document.
@@ -308,16 +273,19 @@ class ExportService:
         Returns:
             True if successful, False otherwise
         """
+
         def do_export():
             builder = WordDocumentBuilder()
-            export_combined(vocab_data, qa_results, builder, include_vocab_details, include_qa_verification)
+            export_combined(
+                vocab_data, qa_results, builder, include_vocab_details, include_qa_verification
+            )
             builder.save(file_path)
 
         return _run_export(
             f"combined ({len(vocab_data)} terms, {len(qa_results)} Q&A) to Word",
             file_path,
             "combined to Word",
-            do_export
+            do_export,
         )
 
     def export_combined_to_pdf(
@@ -326,7 +294,7 @@ class ExportService:
         qa_results: list,
         file_path: str,
         include_vocab_details: bool = False,
-        include_qa_verification: bool = True
+        include_qa_verification: bool = True,
     ) -> bool:
         """
         Export vocabulary and Q&A together to a single PDF document.
@@ -343,16 +311,19 @@ class ExportService:
         Returns:
             True if successful, False otherwise
         """
+
         def do_export():
             builder = PdfDocumentBuilder()
-            export_combined(vocab_data, qa_results, builder, include_vocab_details, include_qa_verification)
+            export_combined(
+                vocab_data, qa_results, builder, include_vocab_details, include_qa_verification
+            )
             builder.save(file_path)
 
         return _run_export(
             f"combined ({len(vocab_data)} terms, {len(qa_results)} Q&A) to PDF",
             file_path,
             "combined to PDF",
-            do_export
+            do_export,
         )
 
 

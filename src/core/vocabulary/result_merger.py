@@ -36,6 +36,7 @@ class MergedTerm:
         frequency: Total occurrences across all algorithm detections
         metadata: Combined metadata from all sources (for ML training)
     """
+
     term: str
     sources: list[str]
     combined_confidence: float
@@ -149,7 +150,7 @@ class ResultMerger:
                     "algorithm": c.source_algorithm,
                     "confidence": c.confidence,
                     "suggested_type": c.suggested_type,
-                    **c.metadata
+                    **c.metadata,
                 }
                 for c in candidates
             ],

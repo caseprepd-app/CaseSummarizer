@@ -71,8 +71,8 @@ def _get_trailing_words(term: str, canonical: str) -> list[str] | None:
         return None
 
     # Check exact prefix match
-    if term_words[:len(canonical_words)] == canonical_words:
-        return term_words[len(canonical_words):]
+    if term_words[: len(canonical_words)] == canonical_words:
+        return term_words[len(canonical_words) :]
 
     return None
 
@@ -92,8 +92,8 @@ def _get_leading_words(term: str, canonical: str) -> list[str] | None:
         return None
 
     # Check exact suffix match
-    if term_words[-len(canonical_words):] == canonical_words:
-        return term_words[:-len(canonical_words)]
+    if term_words[-len(canonical_words) :] == canonical_words:
+        return term_words[: -len(canonical_words)]
 
     return None
 
@@ -146,19 +146,19 @@ def _is_fuzzy_common_word_variant(term: str, canonical: str, max_edit: int = 2) 
         return False
 
     # Try fuzzy match on prefix (trailing common words)
-    term_prefix = " ".join(term_words[:len(canonical_words)])
+    term_prefix = " ".join(term_words[: len(canonical_words)])
     canonical_str = " ".join(canonical_words)
 
     if _edit_distance(term_prefix, canonical_str) <= max_edit:
-        trailing = term_words[len(canonical_words):]
+        trailing = term_words[len(canonical_words) :]
         if all(is_common_word(w, COMMON_WORD_THRESHOLD) for w in trailing):
             return True
 
     # Try fuzzy match on suffix (leading common words)
-    term_suffix = " ".join(term_words[-len(canonical_words):])
+    term_suffix = " ".join(term_words[-len(canonical_words) :])
 
     if _edit_distance(term_suffix, canonical_str) <= max_edit:
-        leading = term_words[:-len(canonical_words)]
+        leading = term_words[: -len(canonical_words)]
         if all(is_common_word(w, COMMON_WORD_THRESHOLD) for w in leading):
             return True
 
@@ -194,11 +194,7 @@ def filter_substring_artifacts(
         return vocabulary
 
     # Sort by count descending to identify canonical terms
-    sorted_vocab = sorted(
-        vocabulary,
-        key=lambda x: int(x.get(count_key, 0) or 0),
-        reverse=True
-    )
+    sorted_vocab = sorted(vocabulary, key=lambda x: int(x.get(count_key, 0) or 0), reverse=True)
 
     # Extract canonical terms (top N by count)
     # Only use multi-word canonical terms to avoid false positives where
@@ -229,8 +225,10 @@ def filter_substring_artifacts(
     if not canonical_terms and not all_person_terms:
         return vocabulary
 
-    debug_log(f"[ARTIFACT-FILTER] Using {len(canonical_terms)} canonical terms, "
-              f"{len(all_person_terms)} person terms for common-word detection")
+    debug_log(
+        f"[ARTIFACT-FILTER] Using {len(canonical_terms)} canonical terms, "
+        f"{len(all_person_terms)} person terms for common-word detection"
+    )
 
     # Filter out terms that contain canonical terms as substrings
     filtered = []
@@ -254,8 +252,7 @@ def filter_substring_artifacts(
             # Check if canonical is a substring of this term
             if canonical in term_lower:
                 debug_log(
-                    f"[ARTIFACT-FILTER] Removing '{term}' "
-                    f"(contains canonical '{canonical}')"
+                    f"[ARTIFACT-FILTER] Removing '{term}' " f"(contains canonical '{canonical}')"
                 )
                 is_artifact = True
                 removed_count += 1
@@ -295,8 +292,10 @@ def filter_substring_artifacts(
         if not is_artifact:
             filtered.append(term_dict)
 
-    debug_log(f"[ARTIFACT-FILTER] Removed {removed_count} substring artifacts, "
-              f"{removed_common_word} common-word variants, "
-              f"{len(filtered)} terms remaining")
+    debug_log(
+        f"[ARTIFACT-FILTER] Removed {removed_count} substring artifacts, "
+        f"{removed_common_word} common-word variants, "
+        f"{len(filtered)} terms remaining"
+    )
 
     return filtered

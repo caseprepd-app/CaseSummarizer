@@ -147,7 +147,7 @@ class NERAlgorithm(BaseExtractionAlgorithm):
         start_time = time.time()
 
         # Use provided chunks or chunk the text
-        chunks = kwargs.get('chunks')
+        chunks = kwargs.get("chunks")
         if chunks is None:
             chunks = self._chunk_text(text, chunk_size_kb=50)
 
@@ -179,12 +179,10 @@ class NERAlgorithm(BaseExtractionAlgorithm):
                 "total_entities": total_entities,
                 "chunks_processed": len(chunks),
                 "unique_terms": len(set(c.term.lower() for c in candidates)),
-            }
+            },
         )
 
-    def _extract_from_doc(
-        self, doc, term_frequencies: dict[str, int]
-    ) -> list[CandidateTerm]:
+    def _extract_from_doc(self, doc, term_frequencies: dict[str, int]) -> list[CandidateTerm]:
         """
         Extract candidates from a single spaCy Doc.
 
@@ -225,28 +223,27 @@ class NERAlgorithm(BaseExtractionAlgorithm):
 
                 term_frequencies[lower_term] += 1
 
-                candidates.append(CandidateTerm(
-                    term=term_text,
-                    source_algorithm=self.name,
-                    confidence=0.85,  # High confidence for NER entities
-                    suggested_type=self._map_entity_type(ent.label_),
-                    frequency=1,  # Will be aggregated later
-                    metadata={
-                        "ent_label": ent.label_,
-                        "ent_start_char": ent.start_char,
-                        "ent_end_char": ent.end_char,
-                    }
-                ))
+                candidates.append(
+                    CandidateTerm(
+                        term=term_text,
+                        source_algorithm=self.name,
+                        confidence=0.85,  # High confidence for NER entities
+                        suggested_type=self._map_entity_type(ent.label_),
+                        frequency=1,  # Will be aggregated later
+                        metadata={
+                            "ent_label": ent.label_,
+                            "ent_start_char": ent.start_char,
+                            "ent_end_char": ent.end_char,
+                        },
+                    )
+                )
 
         # Extract unusual single tokens not part of entities
         for token in doc:
             # Skip tokens that are part of ANY entity span (even if entity was filtered)
             # This prevents common words like "leg" from bypassing rarity check
             # when spaCy tagged them as entities but they were filtered for being too common
-            is_part_of_entity = any(
-                ent.start <= token.i < ent.end
-                for ent in doc.ents
-            )
+            is_part_of_entity = any(ent.start <= token.i < ent.end for ent in doc.ents)
             if is_part_of_entity:
                 continue
 
@@ -261,17 +258,19 @@ class NERAlgorithm(BaseExtractionAlgorithm):
                 # Determine suggested type
                 suggested_type = self._get_suggested_type(token)
 
-                candidates.append(CandidateTerm(
-                    term=term_text,
-                    source_algorithm=self.name,
-                    confidence=0.6,  # Lower confidence for single tokens
-                    suggested_type=suggested_type,
-                    frequency=1,
-                    metadata={
-                        "token_pos": token.pos_,
-                        "token_ent_type": token.ent_type_,
-                    }
-                ))
+                candidates.append(
+                    CandidateTerm(
+                        term=term_text,
+                        source_algorithm=self.name,
+                        confidence=0.6,  # Lower confidence for single tokens
+                        suggested_type=suggested_type,
+                        frequency=1,
+                        metadata={
+                            "token_pos": token.pos_,
+                            "token_ent_type": token.ent_type_,
+                        },
+                    )
+                )
 
         return candidates
 
@@ -307,10 +306,10 @@ class NERAlgorithm(BaseExtractionAlgorithm):
     def _clean_entity_text(self, entity_text: str) -> str:
         """Clean spaCy entity text to remove leading/trailing junk."""
         cleaned = entity_text.strip()
-        cleaned = ' '.join(cleaned.split())
-        cleaned = re.sub(r'^(and/or|and|or)\s+', '', cleaned, flags=re.IGNORECASE)
-        cleaned = re.sub(r'\s+(and/or|and|or)$', '', cleaned, flags=re.IGNORECASE)
-        cleaned = cleaned.strip('.,;:!?()[]{}"\'/\\')
+        cleaned = " ".join(cleaned.split())
+        cleaned = re.sub(r"^(and/or|and|or)\s+", "", cleaned, flags=re.IGNORECASE)
+        cleaned = re.sub(r"\s+(and/or|and|or)$", "", cleaned, flags=re.IGNORECASE)
+        cleaned = cleaned.strip(".,;:!?()[]{}\"'/\\")
         return cleaned.strip()
 
     def _matches_entity_filter(self, entity_text: str) -> bool:
@@ -414,7 +413,7 @@ class NERAlgorithm(BaseExtractionAlgorithm):
                     check=True,
                     capture_output=True,
                     text=True,
-                    timeout=SPACY_DOWNLOAD_TIMEOUT_SEC
+                    timeout=SPACY_DOWNLOAD_TIMEOUT_SEC,
                 )
                 debug_log(f"[NER] Download output: {result.stdout[:500]}")
                 downloaded_model[0] = spacy.load(SPACY_MODEL_NAME)
@@ -438,7 +437,7 @@ class NERAlgorithm(BaseExtractionAlgorithm):
     def _chunk_text(self, text: str, chunk_size_kb: int = 50) -> list[str]:
         """Split text into chunks for efficient processing."""
         chunk_size_chars = chunk_size_kb * 1024
-        paragraphs = text.split('\n\n')
+        paragraphs = text.split("\n\n")
 
         chunks = []
         current_chunk = []
@@ -448,7 +447,7 @@ class NERAlgorithm(BaseExtractionAlgorithm):
             para_size = len(para) + 2
 
             if current_size + para_size > chunk_size_chars and current_chunk:
-                chunks.append('\n\n'.join(current_chunk))
+                chunks.append("\n\n".join(current_chunk))
                 current_chunk = [para]
                 current_size = para_size
             else:
@@ -456,7 +455,7 @@ class NERAlgorithm(BaseExtractionAlgorithm):
                 current_size += para_size
 
         if current_chunk:
-            chunks.append('\n\n'.join(current_chunk))
+            chunks.append("\n\n".join(current_chunk))
 
         return chunks
 

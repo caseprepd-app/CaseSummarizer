@@ -6,7 +6,6 @@ Common text processing functions used across the application.
 Includes preprocessing integration for AI summary preparation.
 """
 
-
 from src.logging_config import debug_log
 
 
@@ -14,7 +13,7 @@ def combine_document_texts(
     documents: list[dict],
     include_headers: bool = False,
     separator: str = "\n\n",
-    preprocess: bool = True
+    preprocess: bool = True,
 ) -> str:
     """
     Combine extracted text from multiple documents into a single string.
@@ -47,12 +46,12 @@ def combine_document_texts(
     combined_parts = []
 
     for doc in documents:
-        text = doc.get('extracted_text', '')
+        text = doc.get("extracted_text", "")
         if not text:
             continue
 
         if include_headers:
-            filename = doc.get('filename', 'Unknown')
+            filename = doc.get("filename", "Unknown")
             combined_parts.append(f"--- {filename} ---\n{text}")
         else:
             combined_parts.append(text)
@@ -63,6 +62,7 @@ def combine_document_texts(
     if preprocess and combined_text:
         try:
             from src.core.preprocessing import create_default_pipeline
+
             pipeline = create_default_pipeline()
             combined_text = pipeline.process(combined_text)
             debug_log(f"[TEXT UTILS] Preprocessing applied: {pipeline.total_changes} changes")
@@ -86,11 +86,13 @@ def get_documents_folder() -> str:
     """
     try:
         import winreg
+
         with winreg.OpenKey(
             winreg.HKEY_CURRENT_USER,
-            r"Software\Microsoft\Windows\CurrentVersion\Explorer\Shell Folders"
+            r"Software\Microsoft\Windows\CurrentVersion\Explorer\Shell Folders",
         ) as key:
             return winreg.QueryValueEx(key, "Personal")[0]
     except Exception:
         from pathlib import Path
+
         return str(Path.home() / "Documents")

@@ -34,6 +34,7 @@ from src.config import DEBUG_MODE, LOG_DATE_FORMAT, LOG_FILE, LOG_FORMAT
 # File Logger Setup (debug_flow.txt for debugging sessions)
 # =============================================================================
 
+
 class _DebugFileLogger:
     """
     Manages the debug_flow.txt file for detailed debugging output.
@@ -55,7 +56,7 @@ class _DebugFileLogger:
     def _initialize_log_file(cls):
         """Create and initialize the debug log file."""
         log_path = Path(__file__).parent.parent / "debug_flow.txt"
-        cls._log_file = open(log_path, 'w', encoding='utf-8')
+        cls._log_file = open(log_path, "w", encoding="utf-8")
         cls._log_file.write("=== LocalScribe Debug Log ===\n")
         cls._log_file.write(f"Started: {datetime.now().isoformat()}\n")
         cls._log_file.write(f"DEBUG_MODE: {DEBUG_MODE}\n")
@@ -87,6 +88,7 @@ _debug_file_logger = _DebugFileLogger()
 # Standard Python Logging Setup
 # =============================================================================
 
+
 def _setup_standard_logging() -> logging.Logger:
     """
     Configure the standard Python logging framework.
@@ -95,7 +97,7 @@ def _setup_standard_logging() -> logging.Logger:
         Configured logger instance for LocalScribe
     """
     # Create logger
-    logger = logging.getLogger('LocalScribe')
+    logger = logging.getLogger("LocalScribe")
     logger.setLevel(logging.DEBUG if DEBUG_MODE else logging.INFO)
 
     # Prevent duplicate handlers if called multiple times
@@ -109,7 +111,7 @@ def _setup_standard_logging() -> logging.Logger:
         if not log_dir.exists():
             log_dir.mkdir(parents=True, exist_ok=True)
 
-        file_handler = logging.FileHandler(LOG_FILE, encoding='utf-8')
+        file_handler = logging.FileHandler(LOG_FILE, encoding="utf-8")
         file_handler.setLevel(logging.DEBUG)
         file_handler.setFormatter(logging.Formatter(LOG_FORMAT, datefmt=LOG_DATE_FORMAT))
         logger.addHandler(file_handler)
@@ -135,6 +137,7 @@ _logger = _setup_standard_logging()
 # =============================================================================
 # Timer Context Manager
 # =============================================================================
+
 
 class Timer:
     """
@@ -212,6 +215,7 @@ class Timer:
 # Public Logging Functions
 # =============================================================================
 
+
 def debug_log(message: str):
     """
     Log a debug message to both file and console (if DEBUG_MODE).
@@ -240,7 +244,7 @@ def debug_log(message: str):
         except UnicodeEncodeError:
             # Handle Windows console encoding issues
             try:
-                sys.stdout.buffer.write((formatted + "\n").encode('utf-8', errors='replace'))
+                sys.stdout.buffer.write((formatted + "\n").encode("utf-8", errors="replace"))
                 sys.stdout.buffer.flush()
             except Exception:
                 pass  # Skip console if all else fails
@@ -353,14 +357,14 @@ def close_debug_log():
 
 # These allow existing code to continue working without changes
 __all__ = [
-    'debug_log',
-    'debug',
-    'debug_timing',
-    'info',
-    'warning',
-    'error',
-    'critical',
-    'close_debug_log',
-    'Timer',
-    'DEBUG_MODE',
+    "debug_log",
+    "debug",
+    "debug_timing",
+    "info",
+    "warning",
+    "error",
+    "critical",
+    "close_debug_log",
+    "Timer",
+    "DEBUG_MODE",
 ]

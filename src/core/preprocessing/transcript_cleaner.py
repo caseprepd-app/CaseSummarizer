@@ -65,26 +65,28 @@ class TranscriptCleaner(BasePreprocessor):
 
         # Step 1: Remove page numbers
         text, page_nums_removed = self._remove_page_numbers(text)
-        metadata['page_numbers_removed'] = page_nums_removed
+        metadata["page_numbers_removed"] = page_nums_removed
 
         # Step 2: Remove certification block
         text, cert_removed = self._remove_certification_block(text)
-        metadata['certification_removed'] = cert_removed
+        metadata["certification_removed"] = cert_removed
 
         # Step 3: Remove index pages
         text, index_lines_removed = self._remove_index_pages(text)
-        metadata['index_lines_removed'] = index_lines_removed
+        metadata["index_lines_removed"] = index_lines_removed
 
         # Step 4: Normalize whitespace
         text = self._normalize_whitespace(text)
 
         changes = original_len - len(text)
-        metadata['chars_removed'] = changes
+        metadata["chars_removed"] = changes
 
         if changes > 0:
-            debug_log(f"[TranscriptCleaner] Removed {changes} chars: "
-                      f"page_nums={page_nums_removed}, cert={cert_removed}, "
-                      f"index_lines={index_lines_removed}")
+            debug_log(
+                f"[TranscriptCleaner] Removed {changes} chars: "
+                f"page_nums={page_nums_removed}, cert={cert_removed}, "
+                f"index_lines={index_lines_removed}"
+            )
 
         return PreprocessingResult(
             text=text,
@@ -113,8 +115,8 @@ class TranscriptCleaner(BasePreprocessor):
         Returns:
             Tuple of (cleaned_text, count_of_removed_numbers)
         """
-        lines = text.split('\n')
-        standalone_number_pattern = re.compile(r'^\s*(\d+)\s*$')
+        lines = text.split("\n")
+        standalone_number_pattern = re.compile(r"^\s*(\d+)\s*$")
 
         # Find all standalone numbers and their positions
         potential_page_numbers: List[Tuple[int, int]] = []
@@ -149,24 +151,23 @@ class TranscriptCleaner(BasePreprocessor):
         sorted_positions = [single_occurrence[n] for n in sorted_nums]
 
         # Positions must increase (page 1 before page 2)
-        if not all(sorted_positions[i] < sorted_positions[i + 1]
-                   for i in range(len(sorted_positions) - 1)):
+        if not all(
+            sorted_positions[i] < sorted_positions[i + 1] for i in range(len(sorted_positions) - 1)
+        ):
             return text, 0
 
         # Numbers must be roughly sequential (allow gaps up to 3)
         max_gap = 3
-        if not all(sorted_nums[i + 1] - sorted_nums[i] <= max_gap
-                   for i in range(len(sorted_nums) - 1)):
+        if not all(
+            sorted_nums[i + 1] - sorted_nums[i] <= max_gap for i in range(len(sorted_nums) - 1)
+        ):
             return text, 0
 
         # Remove identified page number lines
         page_line_indices: Set[int] = set(single_occurrence.values())
-        cleaned_lines = [
-            line for i, line in enumerate(lines)
-            if i not in page_line_indices
-        ]
+        cleaned_lines = [line for i, line in enumerate(lines) if i not in page_line_indices]
 
-        return '\n'.join(cleaned_lines), len(page_line_indices)
+        return "\n".join(cleaned_lines), len(page_line_indices)
 
     def _remove_certification_block(self, text: str) -> Tuple[str, bool]:
         """
@@ -184,16 +185,16 @@ class TranscriptCleaner(BasePreprocessor):
             Tuple of (cleaned_text, was_removed)
         """
         certification_patterns = [
-            r'CERTIFIED\s+TO\s+BE\s+A\s+TRUE',
-            r'CERTIFICATE\s+OF\s+TRANSCRIPT',
-            r'REPORTER\'?S?\s+CERTIFICATE',
-            r'I\s+HEREBY\s+CERTIFY',
-            r'CERTIFICATION\s*$',
-            r'C\s*E\s*R\s*T\s*I\s*F\s*I\s*C\s*A\s*T\s*E',  # S P A C E D
-            r'\*{10,}',  # Row of 10+ asterisks (separator)
+            r"CERTIFIED\s+TO\s+BE\s+A\s+TRUE",
+            r"CERTIFICATE\s+OF\s+TRANSCRIPT",
+            r"REPORTER\'?S?\s+CERTIFICATE",
+            r"I\s+HEREBY\s+CERTIFY",
+            r"CERTIFICATION\s*$",
+            r"C\s*E\s*R\s*T\s*I\s*F\s*I\s*C\s*A\s*T\s*E",  # S P A C E D
+            r"\*{10,}",  # Row of 10+ asterisks (separator)
         ]
 
-        combined_pattern = '|'.join(f'({p})' for p in certification_patterns)
+        combined_pattern = "|".join(f"({p})" for p in certification_patterns)
         match = re.search(combined_pattern, text, re.IGNORECASE)
 
         if not match:
@@ -201,7 +202,7 @@ class TranscriptCleaner(BasePreprocessor):
 
         # Find start of the line containing the match
         match_start = match.start()
-        line_start = text.rfind('\n', 0, match_start)
+        line_start = text.rfind("\n", 0, match_start)
         line_start = 0 if line_start == -1 else line_start + 1
 
         return text[:line_start].rstrip(), True
@@ -226,29 +227,29 @@ class TranscriptCleaner(BasePreprocessor):
         Returns:
             Tuple of (cleaned_text, lines_removed)
         """
-        lines = text.split('\n')
+        lines = text.split("\n")
 
         # Pattern: WORD(s) [separator] PAGE:LINE
         single_ref = re.compile(
-            r'^[\s]*'
-            r'[A-Za-z][A-Za-z\s\.\,\-\']*'  # Term
-            r'[\s]*[-\u2013\u2014/]?[\s]*'  # Separator
-            r'\d{1,4}'  # Page
-            r'[\s]*[:/][\s]*'  # Page-line separator
-            r'\d{1,2}'  # Line
-            r'[\s]*$'
+            r"^[\s]*"
+            r"[A-Za-z][A-Za-z\s\.\,\-\']*"  # Term
+            r"[\s]*[-\u2013\u2014/]?[\s]*"  # Separator
+            r"\d{1,4}"  # Page
+            r"[\s]*[:/][\s]*"  # Page-line separator
+            r"\d{1,2}"  # Line
+            r"[\s]*$"
         )
 
         # Pattern: Multiple references
         multi_ref = re.compile(
-            r'^[\s]*'
-            r'[A-Za-z][A-Za-z\s\.\,\-\']*'
-            r'[\s]*[-\u2013\u2014/]?[\s]*'
-            r'('
-            r'\d{1,4}[\s]*[:/][\s]*\d{1,2}'
-            r'[\s]*[,;]?[\s]*'
-            r')+'
-            r'[\s]*$'
+            r"^[\s]*"
+            r"[A-Za-z][A-Za-z\s\.\,\-\']*"
+            r"[\s]*[-\u2013\u2014/]?[\s]*"
+            r"("
+            r"\d{1,4}[\s]*[:/][\s]*\d{1,2}"
+            r"[\s]*[,;]?[\s]*"
+            r")+"
+            r"[\s]*$"
         )
 
         # Mark each line as index-like or not
@@ -300,12 +301,9 @@ class TranscriptCleaner(BasePreprocessor):
             for idx in range(start, end):
                 lines_to_remove.add(idx)
 
-        cleaned_lines = [
-            line for i, line in enumerate(lines)
-            if i not in lines_to_remove
-        ]
+        cleaned_lines = [line for i, line in enumerate(lines) if i not in lines_to_remove]
 
-        return '\n'.join(cleaned_lines), len(lines_to_remove)
+        return "\n".join(cleaned_lines), len(lines_to_remove)
 
     def _normalize_whitespace(self, text: str) -> str:
         """
@@ -323,16 +321,16 @@ class TranscriptCleaner(BasePreprocessor):
             Text with normalized whitespace
         """
         # Reduce multiple blank lines to one
-        text = re.sub(r'\n{3,}', '\n\n', text)
+        text = re.sub(r"\n{3,}", "\n\n", text)
 
         # Normalize spaces within lines
-        lines = text.split('\n')
+        lines = text.split("\n")
         normalized_lines = []
         for line in lines:
             # Multiple spaces -> single space
-            normalized_line = re.sub(r' {2,}', ' ', line)
+            normalized_line = re.sub(r" {2,}", " ", line)
             normalized_lines.append(normalized_line.strip())
 
-        text = '\n'.join(normalized_lines)
+        text = "\n".join(normalized_lines)
 
         return text.strip()

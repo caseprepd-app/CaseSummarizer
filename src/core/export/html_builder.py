@@ -40,7 +40,7 @@ VOCAB_HTML_COLUMNS = [
     if c.name not in ("Keep", "Skip")  # Feedback columns are GUI-only
 ]
 
-VOCAB_HTML_TEMPLATE = '''<!DOCTYPE html>
+VOCAB_HTML_TEMPLATE = """<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -336,14 +336,14 @@ VOCAB_HTML_TEMPLATE = '''<!DOCTYPE html>
         filterTable();
     </script>
 </body>
-</html>'''
+</html>"""
 
 
 def export_vocabulary_html(
     vocab_data: list[dict],
     file_path: str,
     visible_columns: list[str] | None = None,
-    title: str = "Names & Vocabulary"
+    title: str = "Names & Vocabulary",
 ) -> bool:
     """
     Export vocabulary to interactive HTML file.
@@ -387,13 +387,13 @@ def export_vocabulary_html(
                 # Protected column: always visible, checkbox disabled
                 toggle_parts.append(
                     f'<label><input type="checkbox" id="col-{col_id}" '
-                    f'checked disabled> {col_name} (required)</label>'
+                    f"checked disabled> {col_name} (required)</label>"
                 )
             else:
                 checked = " checked" if is_visible else ""
                 toggle_parts.append(
                     f'<label><input type="checkbox" id="col-{col_id}" '
-                    f'onchange="toggleColumn(\'{col_name}\')"{checked}> {col_name}</label>'
+                    f"onchange=\"toggleColumn('{col_name}')\"{checked}> {col_name}</label>"
                 )
         column_toggles = "\n                ".join(toggle_parts)
 
@@ -417,7 +417,7 @@ def export_vocabulary_html(
             for col_name, data_key in VOCAB_HTML_COLUMNS:
                 hidden_class = "" if col_name in visible_columns else ' class="col-hidden"'
                 value = v.get(data_key, "")
-                cells.append(f'<td{hidden_class}>{_escape(value)}</td>')
+                cells.append(f"<td{hidden_class}>{_escape(value)}</td>")
 
             rows.append(f'            <tr{row_class}>{"".join(cells)}</tr>')
 
@@ -445,7 +445,7 @@ def export_vocabulary_html(
 # Q&A HTML Builder
 # ============================================================================
 
-QA_HTML_TEMPLATE = '''<!DOCTYPE html>
+QA_HTML_TEMPLATE = """<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -669,14 +669,14 @@ QA_HTML_TEMPLATE = '''<!DOCTYPE html>
         filterQA();
     </script>
 </body>
-</html>'''
+</html>"""
 
 
 def export_qa_html(
     results: list,
     file_path: str,
     include_verification: bool = True,
-    title: str = "Questions & Answers"
+    title: str = "Questions & Answers",
 ) -> bool:
     """
     Export Q&A results to interactive HTML file.
@@ -705,7 +705,7 @@ def export_qa_html(
             answer_html = ""
             reliability_badge = ""
 
-            if include_verification and hasattr(result, 'verification') and result.verification:
+            if include_verification and hasattr(result, "verification") and result.verification:
                 has_verification = True
                 v = result.verification
 
@@ -746,7 +746,7 @@ def export_qa_html(
             citation = _escape(result.citation) if result.citation else "(no citation)"
             source = _escape(result.source_summary) if result.source_summary else "(source unknown)"
 
-            item = f'''        <div class="qa-item">
+            item = f"""        <div class="qa-item">
             <div class="qa-header" onclick="toggleItem(this)">
                 <span>Q{i}: {_escape(result.question)[:80]}{'...' if len(result.question) > 80 else ''}{reliability_badge}</span>
                 <span class="toggle">▼ Hide</span>
@@ -760,29 +760,27 @@ def export_qa_html(
                 <div class="label">Source</div>
                 <div class="source">{source}</div>
             </div>
-        </div>'''
+        </div>"""
             items.append(item)
 
         qa_items = "\n".join(items)
 
         # Build legend if verification was used
         if has_verification:
-            legend = '''    <div class="legend">
+            legend = """    <div class="legend">
         <span class="legend-title">Verification:</span>
         <span class="verified">■ Verified</span>
         <span class="uncertain">■ Uncertain</span>
         <span class="suspicious">■ Suspicious</span>
         <span class="unreliable">■ Unreliable</span>
         <span class="hallucinated">■ Hallucinated</span>
-    </div>'''
+    </div>"""
         else:
             legend = ""
 
         # Generate HTML
         html_content = QA_HTML_TEMPLATE.format(
-            summary=_escape(summary),
-            qa_items=qa_items,
-            legend=legend
+            summary=_escape(summary), qa_items=qa_items, legend=legend
         )
 
         Path(file_path).write_text(html_content, encoding="utf-8")

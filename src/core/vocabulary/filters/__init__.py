@@ -43,14 +43,16 @@ def create_default_filter_chain() -> VocabularyFilterChain:
     Returns:
         Configured VocabularyFilterChain instance
     """
-    return VocabularyFilterChain([
-        NameDeduplicationFilter(),
-        ArtifactFilter(),
-        NameRegularizerFilter(),
-        RarityFilter(),
-        CorpusFamiliarityFilter(),
-        GibberishFilter(),
-    ])
+    return VocabularyFilterChain(
+        [
+            NameDeduplicationFilter(),
+            ArtifactFilter(),
+            NameRegularizerFilter(),
+            RarityFilter(),
+            CorpusFamiliarityFilter(),
+            GibberishFilter(),
+        ]
+    )
 
 
 def create_optimized_filter_chain() -> VocabularyFilterChain:
@@ -69,29 +71,31 @@ def create_optimized_filter_chain() -> VocabularyFilterChain:
     Returns:
         Configured VocabularyFilterChain instance (optimized)
     """
-    return VocabularyFilterChain([
-        NameDeduplicationFilter(),
-        ArtifactFilter(),
-        NameRegularizerFilter(),
-        CombinedPerTermFilter(),
-    ])
+    return VocabularyFilterChain(
+        [
+            NameDeduplicationFilter(),
+            ArtifactFilter(),
+            NameRegularizerFilter(),
+            CombinedPerTermFilter(),
+        ]
+    )
 
 
 __all__ = [
     # Base classes
-    'BaseVocabularyFilter',
-    'FilterResult',
-    'VocabularyFilterChain',
-    'FilterChainStats',
+    "BaseVocabularyFilter",
+    "FilterResult",
+    "VocabularyFilterChain",
+    "FilterChainStats",
     # Filters
-    'NameDeduplicationFilter',
-    'ArtifactFilter',
-    'NameRegularizerFilter',
-    'RarityFilter',
-    'CorpusFamiliarityFilter',
-    'GibberishFilter',
-    'CombinedPerTermFilter',
+    "NameDeduplicationFilter",
+    "ArtifactFilter",
+    "NameRegularizerFilter",
+    "RarityFilter",
+    "CorpusFamiliarityFilter",
+    "GibberishFilter",
+    "CombinedPerTermFilter",
     # Factory functions
-    'create_default_filter_chain',
-    'create_optimized_filter_chain',
+    "create_default_filter_chain",
+    "create_optimized_filter_chain",
 ]

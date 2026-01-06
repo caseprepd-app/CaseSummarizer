@@ -114,20 +114,13 @@ class HallucinationVerifier:
         from lettucedetect.models.inference import HallucinationDetector
 
         self._detector = HallucinationDetector(
-            method="transformer",
-            model_path=model_path,
-            local_files_only=local_only
+            method="transformer", model_path=model_path, local_files_only=local_only
         )
 
         if DEBUG_MODE:
             debug_log("[HallucinationVerifier] Model loaded successfully")
 
-    def verify(
-        self,
-        answer: str,
-        context: str,
-        question: str
-    ) -> VerificationResult:
+    def verify(self, answer: str, context: str, question: str) -> VerificationResult:
         """
         Verify answer text against source context.
 
@@ -140,11 +133,7 @@ class HallucinationVerifier:
             VerificationResult with spans, reliability score, and rejection flag
         """
         if not answer or not answer.strip():
-            return VerificationResult(
-                spans=[],
-                overall_reliability=0.0,
-                answer_rejected=True
-            )
+            return VerificationResult(spans=[], overall_reliability=0.0, answer_rejected=True)
 
         # Lazy load detector on first use
         if self._detector is None:
@@ -157,7 +146,7 @@ class HallucinationVerifier:
                 context=[context] if context else [""],
                 question=question,
                 answer=answer,
-                output_format="spans"
+                output_format="spans",
             )
 
             if DEBUG_MODE:
@@ -179,7 +168,7 @@ class HallucinationVerifier:
             return VerificationResult(
                 spans=spans,
                 overall_reliability=overall_reliability,
-                answer_rejected=answer_rejected
+                answer_rejected=answer_rejected,
             )
 
         except Exception as e:
@@ -188,21 +177,19 @@ class HallucinationVerifier:
 
             # On error, return the full answer as unverified (uncertain)
             return VerificationResult(
-                spans=[VerifiedSpan(
-                    text=answer,
-                    start=0,
-                    end=len(answer),
-                    hallucination_prob=0.35  # Slightly uncertain
-                )],
+                spans=[
+                    VerifiedSpan(
+                        text=answer,
+                        start=0,
+                        end=len(answer),
+                        hallucination_prob=0.35,  # Slightly uncertain
+                    )
+                ],
                 overall_reliability=0.65,
-                answer_rejected=False
+                answer_rejected=False,
             )
 
-    def _build_complete_spans(
-        self,
-        answer: str,
-        predictions: list[dict]
-    ) -> list[VerifiedSpan]:
+    def _build_complete_spans(self, answer: str, predictions: list[dict]) -> list[VerifiedSpan]:
         """
         Build complete span list covering the entire answer text.
 
@@ -218,12 +205,7 @@ class HallucinationVerifier:
         """
         if not predictions:
             # No hallucinations detected - entire answer is verified
-            return [VerifiedSpan(
-                text=answer,
-                start=0,
-                end=len(answer),
-                hallucination_prob=0.0
-            )]
+            return [VerifiedSpan(text=answer, start=0, end=len(answer), hallucination_prob=0.0)]
 
         spans = []
         current_pos = 0
@@ -241,20 +223,19 @@ class HallucinationVerifier:
             if start > current_pos:
                 gap_text = answer[current_pos:start]
                 if gap_text.strip():  # Only add non-empty gaps
-                    spans.append(VerifiedSpan(
-                        text=gap_text,
-                        start=current_pos,
-                        end=start,
-                        hallucination_prob=0.0  # Verified
-                    ))
+                    spans.append(
+                        VerifiedSpan(
+                            text=gap_text,
+                            start=current_pos,
+                            end=start,
+                            hallucination_prob=0.0,  # Verified
+                        )
+                    )
 
             # Add the hallucinated span
-            spans.append(VerifiedSpan(
-                text=text,
-                start=start,
-                end=end,
-                hallucination_prob=confidence
-            ))
+            spans.append(
+                VerifiedSpan(text=text, start=start, end=end, hallucination_prob=confidence)
+            )
 
             current_pos = end
 
@@ -262,20 +243,18 @@ class HallucinationVerifier:
         if current_pos < len(answer):
             remaining_text = answer[current_pos:]
             if remaining_text.strip():
-                spans.append(VerifiedSpan(
-                    text=remaining_text,
-                    start=current_pos,
-                    end=len(answer),
-                    hallucination_prob=0.0  # Verified
-                ))
+                spans.append(
+                    VerifiedSpan(
+                        text=remaining_text,
+                        start=current_pos,
+                        end=len(answer),
+                        hallucination_prob=0.0,  # Verified
+                    )
+                )
 
         return spans
 
-    def _calculate_reliability(
-        self,
-        spans: list[VerifiedSpan],
-        answer: str
-    ) -> float:
+    def _calculate_reliability(self, spans: list[VerifiedSpan], answer: str) -> float:
         """
         Calculate overall reliability score for the answer.
 

@@ -101,18 +101,14 @@ class QAQuestionEditor(ctk.CTkToplevel):
         header = ctk.CTkFrame(self, fg_color="transparent")
         header.grid(row=0, column=0, sticky="ew", padx=10, pady=(10, 5))
 
-        title = ctk.CTkLabel(
-            header,
-            text="Default Questions",
-            font=FONTS["heading_lg"]
-        )
+        title = ctk.CTkLabel(header, text="Default Questions", font=FONTS["heading_lg"])
         title.pack(side="left")
 
         description = ctk.CTkLabel(
             header,
             text="These questions are asked automatically for every document.",
             font=FONTS["small"],
-            text_color=COLORS["text_secondary"]
+            text_color=COLORS["text_secondary"],
         )
         description.pack(side="left", padx=20)
 
@@ -128,7 +124,7 @@ class QAQuestionEditor(ctk.CTkToplevel):
             columns=("num", "category", "question"),
             show="headings",
             style="QuestionList.Treeview",
-            selectmode="browse"
+            selectmode="browse",
         )
 
         # Configure columns
@@ -143,11 +139,7 @@ class QAQuestionEditor(ctk.CTkToplevel):
         self.question_tree.grid(row=0, column=0, sticky="nsew", padx=2, pady=2)
 
         # Scrollbar
-        scrollbar = ttk.Scrollbar(
-            list_frame,
-            orient="vertical",
-            command=self.question_tree.yview
-        )
+        scrollbar = ttk.Scrollbar(list_frame, orient="vertical", command=self.question_tree.yview)
         self.question_tree.configure(yscrollcommand=scrollbar.set)
         scrollbar.grid(row=0, column=1, sticky="ns")
 
@@ -159,18 +151,12 @@ class QAQuestionEditor(ctk.CTkToplevel):
         edit_frame.grid(row=2, column=0, sticky="ew", padx=10, pady=5)
 
         self.add_btn = ctk.CTkButton(
-            edit_frame,
-            text="+ Add Question",
-            command=self._add_question,
-            width=120
+            edit_frame, text="+ Add Question", command=self._add_question, width=120
         )
         self.add_btn.pack(side="left", padx=(0, 5))
 
         self.edit_btn = ctk.CTkButton(
-            edit_frame,
-            text="Edit Selected",
-            command=self._edit_selected,
-            width=100
+            edit_frame, text="Edit Selected", command=self._edit_selected, width=100
         )
         self.edit_btn.pack(side="left", padx=5)
 
@@ -179,7 +165,7 @@ class QAQuestionEditor(ctk.CTkToplevel):
             text="Delete Selected",
             command=self._delete_selected,
             width=110,
-            **BUTTON_STYLES["danger"]
+            **BUTTON_STYLES["danger"],
         )
         self.delete_btn.pack(side="left", padx=5)
 
@@ -188,7 +174,7 @@ class QAQuestionEditor(ctk.CTkToplevel):
             text="Reset to Defaults",
             command=self._reset_to_defaults,
             width=120,
-            **BUTTON_STYLES["secondary"]
+            **BUTTON_STYLES["secondary"],
         )
         self.reset_btn.pack(side="right", padx=5)
 
@@ -198,7 +184,7 @@ class QAQuestionEditor(ctk.CTkToplevel):
             text="↑ Move Up",
             command=self._move_up,
             width=80,
-            **BUTTON_STYLES["tertiary"]
+            **BUTTON_STYLES["tertiary"],
         )
         self.move_up_btn.pack(side="right", padx=5)
 
@@ -207,7 +193,7 @@ class QAQuestionEditor(ctk.CTkToplevel):
             text="↓ Move Down",
             command=self._move_down,
             width=90,
-            **BUTTON_STYLES["tertiary"]
+            **BUTTON_STYLES["tertiary"],
         )
         self.move_down_btn.pack(side="right", padx=5)
 
@@ -220,24 +206,18 @@ class QAQuestionEditor(ctk.CTkToplevel):
             text="Cancel",
             command=self._on_close,
             width=100,
-            **BUTTON_STYLES["secondary"]
+            **BUTTON_STYLES["secondary"],
         )
         self.cancel_btn.pack(side="right", padx=(5, 0))
 
         self.save_btn = ctk.CTkButton(
-            bottom_frame,
-            text="Save Changes",
-            command=self._save_and_close,
-            width=120
+            bottom_frame, text="Save Changes", command=self._save_and_close, width=120
         )
         self.save_btn.pack(side="right", padx=5)
 
         # Status label
         self.status_label = ctk.CTkLabel(
-            bottom_frame,
-            text="",
-            font=FONTS["small"],
-            text_color=COLORS["text_secondary"]
+            bottom_frame, text="", font=FONTS["small"], text_color=COLORS["text_secondary"]
         )
         self.status_label.pack(side="left")
 
@@ -246,9 +226,7 @@ class QAQuestionEditor(ctk.CTkToplevel):
         import copy
 
         config = load_yaml_with_fallback(
-            self.yaml_path,
-            fallback={},
-            log_prefix="[QAQuestionEditor]"
+            self.yaml_path, fallback={}, log_prefix="[QAQuestionEditor]"
         )
 
         if not config or "questions" not in config:
@@ -257,12 +235,14 @@ class QAQuestionEditor(ctk.CTkToplevel):
             # Extract simplified question list
             self._questions = []
             for q in config.get("questions", []):
-                self._questions.append({
-                    "id": q.get("id", ""),
-                    "text": q.get("text", ""),
-                    "category": q.get("category", "General"),
-                    "type": q.get("type", "extraction")
-                })
+                self._questions.append(
+                    {
+                        "id": q.get("id", ""),
+                        "text": q.get("text", ""),
+                        "category": q.get("category", "General"),
+                        "type": q.get("type", "extraction"),
+                    }
+                )
 
         # Store original for reset/cancel
         self._original_questions = copy.deepcopy(self._questions)
@@ -276,10 +256,7 @@ class QAQuestionEditor(ctk.CTkToplevel):
 
         for i, q in enumerate(self._questions, 1):
             self.question_tree.insert(
-                "",
-                "end",
-                iid=str(i - 1),
-                values=(i, q.get("category", ""), q.get("text", ""))
+                "", "end", iid=str(i - 1), values=(i, q.get("category", ""), q.get("text", ""))
             )
 
     def _add_question(self):
@@ -345,8 +322,10 @@ class QAQuestionEditor(ctk.CTkToplevel):
         try:
             index = int(selection[0])
             if index > 0:
-                self._questions[index], self._questions[index - 1] = \
-                    self._questions[index - 1], self._questions[index]
+                self._questions[index], self._questions[index - 1] = (
+                    self._questions[index - 1],
+                    self._questions[index],
+                )
                 self._has_changes = True
                 self._refresh_list()
                 self.question_tree.selection_set(str(index - 1))
@@ -363,8 +342,10 @@ class QAQuestionEditor(ctk.CTkToplevel):
         try:
             index = int(selection[0])
             if index < len(self._questions) - 1:
-                self._questions[index], self._questions[index + 1] = \
-                    self._questions[index + 1], self._questions[index]
+                self._questions[index], self._questions[index + 1] = (
+                    self._questions[index + 1],
+                    self._questions[index],
+                )
                 self._has_changes = True
                 self._refresh_list()
                 self.question_tree.selection_set(str(index + 1))
@@ -377,7 +358,7 @@ class QAQuestionEditor(ctk.CTkToplevel):
         if not messagebox.askyesno(
             "Reset to Defaults",
             "This will restore the original default questions.\n\n"
-            "Your custom questions will be lost. Continue?"
+            "Your custom questions will be lost. Continue?",
         ):
             return
 
@@ -395,6 +376,7 @@ class QAQuestionEditor(ctk.CTkToplevel):
 
         # If no backup, restore from original
         import copy
+
         self._questions = copy.deepcopy(self._original_questions)
         self._has_changes = True
         self._refresh_list()
@@ -420,22 +402,24 @@ class QAQuestionEditor(ctk.CTkToplevel):
             config = load_yaml_with_fallback(
                 self.yaml_path,
                 fallback={"version": "1.0", "entry_point": "is_court_case"},
-                log_prefix="[QAQuestionEditor]"
+                log_prefix="[QAQuestionEditor]",
             )
 
             # Update questions in config
             config["questions"] = []
             for q in self._questions:
-                config["questions"].append({
-                    "id": q.get("id", "q_" + str(len(config["questions"]))),
-                    "text": q.get("text", ""),
-                    "category": q.get("category", "General"),
-                    "type": q.get("type", "extraction"),
-                    "terminal": True  # All custom questions are terminal for simplicity
-                })
+                config["questions"].append(
+                    {
+                        "id": q.get("id", "q_" + str(len(config["questions"]))),
+                        "text": q.get("text", ""),
+                        "category": q.get("category", "General"),
+                        "type": q.get("type", "extraction"),
+                        "terminal": True,  # All custom questions are terminal for simplicity
+                    }
+                )
 
             # Write back
-            with open(self.yaml_path, 'w', encoding='utf-8') as f:
+            with open(self.yaml_path, "w", encoding="utf-8") as f:
                 yaml.dump(config, f, default_flow_style=False, allow_unicode=True, sort_keys=False)
 
             debug_log(f"[QAQuestionEditor] Saved {len(self._questions)} questions")
@@ -450,8 +434,7 @@ class QAQuestionEditor(ctk.CTkToplevel):
         """Handle window close."""
         if self._has_changes:
             result = messagebox.askyesnocancel(
-                "Unsaved Changes",
-                "You have unsaved changes.\n\nSave before closing?"
+                "Unsaved Changes", "You have unsaved changes.\n\nSave before closing?"
             )
             if result is None:  # Cancel
                 return
@@ -534,16 +517,11 @@ class QuestionEditDialog(ctk.CTkToplevel):
             text="Cancel",
             command=self.destroy,
             width=100,
-            **BUTTON_STYLES["secondary"]
+            **BUTTON_STYLES["secondary"],
         )
         cancel_btn.pack(side="right", padx=(5, 0))
 
-        save_btn = ctk.CTkButton(
-            button_frame,
-            text="Save",
-            command=self._save,
-            width=100
-        )
+        save_btn = ctk.CTkButton(button_frame, text="Save", command=self._save, width=100)
         save_btn.pack(side="right", padx=5)
 
     def _save(self):
@@ -557,6 +535,6 @@ class QuestionEditDialog(ctk.CTkToplevel):
             "id": self._question.get("id", ""),
             "text": text,
             "category": self.category_entry.get().strip() or "General",
-            "type": "extraction"
+            "type": "extraction",
         }
         self.destroy()

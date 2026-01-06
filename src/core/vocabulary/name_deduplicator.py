@@ -31,28 +31,30 @@ NAME_SIMILARITY_THRESHOLD = 0.85
 # Patterns to strip from person names (transcript artifacts)
 TRANSCRIPT_ARTIFACT_PATTERNS = [
     # Q/A notation: "DI LEO 1 Q", "SMITH 2 A", "JONES Q"
-    r'\s+\d*\s*[QA](?:\s+|$)',
+    r"\s+\d*\s*[QA](?:\s+|$)",
     # Speech attribution: "DI LEO: Objection", "SMITH: Yes"
-    r':\s*\w+.*$',
+    r":\s*\w+.*$",
     # Trailing numbers: "Di Leo 17", "Smith 2"
-    r'\s+\d+$',
+    r"\s+\d+$",
     # Leading numbers with notation: "1 MR", "2 MS"
-    r'^\d+\s+(?:MR|MS|MRS|DR)?\s*',
+    r"^\d+\s+(?:MR|MS|MRS|DR)?\s*",
     # Trailing MR/MS with numbers: "Di Leo 1 MR"
-    r'\s+\d+\s*(?:MR|MS|MRS|DR)$',
+    r"\s+\d+\s*(?:MR|MS|MRS|DR)$",
     # "of" artifacts: "DI LEO 1 of"
-    r'\s+\d*\s*of$',
+    r"\s+\d*\s*of$",
     # "Okay" and similar: "DI LEO 1 Q Okay"
-    r'\s+(?:Okay|Yes|No|Right)$',
+    r"\s+(?:Okay|Yes|No|Right)$",
     # Isolated MR/MS/DR at end (without name): "SMITH MR"
-    r'\s+(?:MR|MS|MRS|DR)$',
+    r"\s+(?:MR|MS|MRS|DR)$",
 ]
 
 # Compiled patterns for efficiency
 _ARTIFACT_REGEXES = [re.compile(p, re.IGNORECASE) for p in TRANSCRIPT_ARTIFACT_PATTERNS]
 
 
-def deduplicate_names(terms: list[dict], similarity_threshold: float = NAME_SIMILARITY_THRESHOLD) -> list[dict]:
+def deduplicate_names(
+    terms: list[dict], similarity_threshold: float = NAME_SIMILARITY_THRESHOLD
+) -> list[dict]:
     """
     Merge similar Person names based on artifact removal and fuzzy matching.
 
@@ -83,11 +85,13 @@ def deduplicate_names(terms: list[dict], similarity_threshold: float = NAME_SIMI
     for term in person_terms:
         original = term.get("Term", "")
         cleaned = _strip_transcript_artifacts(original)
-        cleaned_terms.append({
-            "original": term,
-            "cleaned": cleaned,
-            "normalized": _normalize_name(cleaned),
-        })
+        cleaned_terms.append(
+            {
+                "original": term,
+                "cleaned": cleaned,
+                "normalized": _normalize_name(cleaned),
+            }
+        )
 
     # Phase 2: Group by normalized name (exact match after cleaning)
     groups = _group_by_normalized(cleaned_terms)
@@ -103,7 +107,9 @@ def deduplicate_names(terms: list[dict], similarity_threshold: float = NAME_SIMI
 
     merged_count = len(person_terms) - len(deduplicated)
     if merged_count > 0:
-        debug_log(f"[DEDUP] Merged {merged_count} Person variants into {len(deduplicated)} canonical names")
+        debug_log(
+            f"[DEDUP] Merged {merged_count} Person variants into {len(deduplicated)} canonical names"
+        )
 
     return other_terms + deduplicated
 
@@ -121,7 +127,7 @@ def _strip_transcript_artifacts(name: str) -> str:
     result = name.strip()
 
     for regex in _ARTIFACT_REGEXES:
-        result = regex.sub('', result).strip()
+        result = regex.sub("", result).strip()
 
     # If we stripped everything, return original
     if not result:
@@ -147,7 +153,7 @@ def _normalize_name(name: str) -> str:
     # Remove punctuation except hyphens and apostrophes
     normalized = re.sub(r"[^\w\s\-']", "", name)
     # Collapse whitespace
-    normalized = re.sub(r'\s+', ' ', normalized).strip()
+    normalized = re.sub(r"\s+", " ", normalized).strip()
     # Title case
     normalized = normalized.title()
     return normalized
@@ -223,7 +229,9 @@ def _fuzzy_merge_groups(groups: dict[str, list], threshold: float) -> list[list[
             if similarity >= threshold:
                 current_group.extend(groups[key2])
                 merged_indices.add(j)
-                debug_log(f"[DEDUP] Fuzzy merged '{key2}' into '{key1}' (similarity: {similarity:.2f})")
+                debug_log(
+                    f"[DEDUP] Fuzzy merged '{key2}' into '{key1}' (similarity: {similarity:.2f})"
+                )
 
         result_groups.append(current_group)
 
@@ -258,7 +266,7 @@ def _build_candidate_pairs(keys: list[str]) -> set[tuple[int, int]]:
     pairs: set[tuple[int, int]] = set()
     for indices in by_first_letter.values():
         for a, idx1 in enumerate(indices):
-            for idx2 in indices[a + 1:]:
+            for idx2 in indices[a + 1 :]:
                 pairs.add((idx1, idx2))
 
     return pairs
@@ -378,8 +386,7 @@ def _select_canonical_with_scorer(group: list[dict], freq_key: str) -> dict:
         # Create legacy sources if missing
         if variant["sources"] is None:
             variant["sources"] = TermSources.create_legacy(
-                variant["In-Case Freq"],
-                original.get("source_doc_confidence", 0.85)
+                variant["In-Case Freq"], original.get("source_doc_confidence", 0.85)
             )
         variants.append(variant)
 
@@ -406,9 +413,7 @@ def _select_canonical_with_scorer(group: list[dict], freq_key: str) -> dict:
     # Log what we merged
     if len(group) > 1:
         merged_terms = [
-            e["original"].get("Term", "")
-            for e in group
-            if e["normalized"] != canonical["Term"]
+            e["original"].get("Term", "") for e in group if e["normalized"] != canonical["Term"]
         ]
         if merged_terms:
             debug_log(

@@ -75,7 +75,7 @@ class BM25Algorithm(BaseExtractionAlgorithm):
 
     # BM25 tuning parameters (from unified config)
     K1 = BM25_K1  # Term frequency saturation parameter
-    B = BM25_B    # Length normalization parameter
+    B = BM25_B  # Length normalization parameter
 
     # Filtering parameters
     MIN_TERM_LENGTH = 3  # Minimum characters for a term
@@ -97,6 +97,7 @@ class BM25Algorithm(BaseExtractionAlgorithm):
         """
         if corpus_manager is None:
             from src.core.vocabulary.corpus_manager import get_corpus_manager
+
             corpus_manager = get_corpus_manager()
 
         self.corpus_manager = corpus_manager
@@ -119,9 +120,7 @@ class BM25Algorithm(BaseExtractionAlgorithm):
         # Check if corpus is ready
         if not self.corpus_manager.is_corpus_ready():
             doc_count = self.corpus_manager.get_document_count()
-            debug_log(
-                f"[BM25] Skipped: insufficient corpus ({doc_count}/5 documents)"
-            )
+            debug_log(f"[BM25] Skipped: insufficient corpus ({doc_count}/5 documents)")
             return AlgorithmResult(
                 candidates=[],
                 processing_time_ms=0.0,
@@ -129,7 +128,7 @@ class BM25Algorithm(BaseExtractionAlgorithm):
                     "skipped": True,
                     "reason": "insufficient_corpus",
                     "corpus_doc_count": doc_count,
-                }
+                },
             )
 
         # Ensure IDF index is built
@@ -141,8 +140,7 @@ class BM25Algorithm(BaseExtractionAlgorithm):
         term_freqs = Counter(tokens)
 
         debug_log(
-            f"[BM25] Processing document: {doc_length} tokens, "
-            f"{len(term_freqs)} unique terms"
+            f"[BM25] Processing document: {doc_length} tokens, " f"{len(term_freqs)} unique terms"
         )
 
         # Get average document length from corpus
@@ -169,23 +167,25 @@ class BM25Algorithm(BaseExtractionAlgorithm):
                 # Scores typically range from 0 to ~15, so divide by 15
                 normalized_confidence = min(score / 15.0, 1.0)
 
-                candidates.append(CandidateTerm(
-                    term=term,
-                    source_algorithm=self.name,
-                    confidence=normalized_confidence,
-                    suggested_type="Technical",  # Default; NER may override
-                    frequency=tf,
-                    metadata={
-                        "bm25_score": round(score, 4),
-                        "idf": round(idf, 4),
-                        "tf": tf,
-                        "length_normalized": True,
-                    }
-                ))
+                candidates.append(
+                    CandidateTerm(
+                        term=term,
+                        source_algorithm=self.name,
+                        confidence=normalized_confidence,
+                        suggested_type="Technical",  # Default; NER may override
+                        frequency=tf,
+                        metadata={
+                            "bm25_score": round(score, 4),
+                            "idf": round(idf, 4),
+                            "tf": tf,
+                            "length_normalized": True,
+                        },
+                    )
+                )
 
         # Sort by BM25 score (highest first) and limit results
         candidates.sort(key=lambda x: x.metadata["bm25_score"], reverse=True)
-        candidates = candidates[:self.MAX_CANDIDATES]
+        candidates = candidates[: self.MAX_CANDIDATES]
 
         processing_time_ms = (time.time() - start_time) * 1000
 
@@ -207,7 +207,7 @@ class BM25Algorithm(BaseExtractionAlgorithm):
                 "unique_terms_analyzed": len(term_freqs),
                 "candidates_above_threshold": len(candidates),
                 "min_score_threshold": self.min_score_threshold,
-            }
+            },
         )
 
     def _tokenize(self, text: str) -> list[str]:

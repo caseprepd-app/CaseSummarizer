@@ -8,6 +8,7 @@ This module contains reusable CustomTkinter widget components for the main appli
 
 Note: System monitoring is handled by src/ui/system_monitor.py (not in this module).
 """
+
 from tkinter import ttk
 
 import customtkinter as ctk
@@ -31,28 +32,26 @@ class FileReviewTable(ctk.CTkFrame):
             "method": ("Method", 100),
             "confidence": ("Confidence", 100),
             "pages": ("Pages", 50),
-            "size": ("Size", 80)
+            "size": ("Size", 80),
         }
 
         self._create_treeview()
-        self.file_item_map = {} # To map filename to treeview item ID
+        self.file_item_map = {}  # To map filename to treeview item ID
 
     def _create_treeview(self):
         """Create the Treeview widget."""
         # Style configured centrally in src/ui/styles.py at app startup
-        self.tree = ttk.Treeview(self,
-                                 columns=list(self.column_map.keys()),
-                                 show="headings")
+        self.tree = ttk.Treeview(self, columns=list(self.column_map.keys()), show="headings")
 
         for col_id, (text, width) in self.column_map.items():
-            self.tree.heading(col_id, text=text, anchor='w')
-            self.tree.column(col_id, width=width, anchor='w')
+            self.tree.heading(col_id, text=text, anchor="w")
+            self.tree.column(col_id, width=width, anchor="w")
 
         self.tree.pack(expand=True, fill="both")
 
     def add_result(self, result):
         """Add or update a processing result in the table."""
-        filename = result.get('filename', 'Unknown')
+        filename = result.get("filename", "Unknown")
 
         values, status_color_tag = self._prepare_result_for_display(result)
 
@@ -69,48 +68,49 @@ class FileReviewTable(ctk.CTkFrame):
         for tag_name, tag_config in FILE_STATUS_TAGS.items():
             self.tree.tag_configure(tag_name, **tag_config)
 
-
     def _prepare_result_for_display(self, result):
         """Prepares result data for display in the treeview."""
-        status = result.get('status', 'error')
-        confidence = result.get('confidence', 0)
+        status = result.get("status", "error")
+        confidence = result.get("confidence", 0)
 
         status_text, status_color_tag = self._get_status_display(status, confidence)
-        method_display = self._get_method_display(result.get('method', 'unknown'))
-        confidence_display = f"{confidence}%" if status != 'error' and confidence > 0 else "—"
-        pages_display = str(result.get('page_count', 0)) if result.get('page_count') else "—"
-        size_display = self._format_file_size(result.get('file_size', 0)) if status != 'error' else "—"
+        method_display = self._get_method_display(result.get("method", "unknown"))
+        confidence_display = f"{confidence}%" if status != "error" and confidence > 0 else "—"
+        pages_display = str(result.get("page_count", 0)) if result.get("page_count") else "—"
+        size_display = (
+            self._format_file_size(result.get("file_size", 0)) if status != "error" else "—"
+        )
 
         # Using a placeholder for the "Include" checkbox for now
-        include_display = "✓" if status == 'success' and confidence >= 70 else " "
+        include_display = "✓" if status == "success" and confidence >= 70 else " "
 
         values = (
             include_display,
-            result.get('filename', 'Unknown'),
+            result.get("filename", "Unknown"),
             status_text,
             method_display,
             confidence_display,
             pages_display,
-            size_display
+            size_display,
         )
         return values, status_color_tag
 
     def _get_status_display(self, status, confidence):
-        if status == 'error':
+        if status == "error":
             return ("✗ Failed", "red")
-        if status == 'pending':
+        if status == "pending":
             return ("... Pending", "pending")
-        if status == 'success' and confidence >= 70:
+        if status == "success" and confidence >= 70:
             return ("✓ Ready", "green")
         return ("⚠ Low Quality", "yellow")
 
     def _get_method_display(self, method):
-        return method.replace('_', ' ').title()
+        return method.replace("_", " ").title()
 
     def _format_file_size(self, size_bytes):
         if size_bytes == 0:
             return "0 B"
-        units = ['B', 'KB', 'MB', 'GB']
+        units = ["B", "KB", "MB", "GB"]
         size = float(size_bytes)
         unit_index = 0
         while size >= 1024 and unit_index < len(units) - 1:
@@ -125,8 +125,10 @@ class FileReviewTable(ctk.CTkFrame):
         for item in self.tree.get_children():
             self.tree.delete(item)
 
+
 class ModelSelectionWidget(ctk.CTkFrame):
     """Widget for selecting the AI model and prompt style."""
+
     def __init__(self, master, model_manager, prompt_template_manager=None, **kwargs):
         super().__init__(master, **kwargs)
         self.model_manager = model_manager
@@ -139,10 +141,17 @@ class ModelSelectionWidget(ctk.CTkFrame):
         model_label = ctk.CTkLabel(self, text="Model Selection (Ollama)", font=FONTS["body_bold"])
         model_label.grid(row=0, column=0, padx=10, pady=(10, 0), sticky="w")
 
-        self.model_selector = ctk.CTkComboBox(self, values=["Loading..."], command=self._on_model_changed)
+        self.model_selector = ctk.CTkComboBox(
+            self, values=["Loading..."], command=self._on_model_changed
+        )
         self.model_selector.grid(row=1, column=0, padx=10, pady=5, sticky="ew")
 
-        self.local_model_info_label = ctk.CTkLabel(self, text="Models run locally and offline.", text_color=COLORS["text_secondary"], font=FONTS["small"])
+        self.local_model_info_label = ctk.CTkLabel(
+            self,
+            text="Models run locally and offline.",
+            text_color=COLORS["text_secondary"],
+            font=FONTS["small"],
+        )
         self.local_model_info_label.grid(row=2, column=0, padx=10, pady=(0, 5), sticky="w")
 
         # Prompt Style Selection
@@ -160,7 +169,7 @@ class ModelSelectionWidget(ctk.CTkFrame):
             self,
             text="See _README.txt in prompts folder for custom prompt guide.",
             text_color=COLORS["text_secondary"],
-            font=FONTS["small"]
+            font=FONTS["small"],
         )
         self.prompt_info_label.grid(row=5, column=0, padx=10, pady=(0, 10), sticky="w")
 
@@ -221,13 +230,13 @@ class ModelSelectionWidget(ctk.CTkFrame):
         default_selection = None
 
         for preset in presets:
-            display_name = preset['name']
+            display_name = preset["name"]
             # All prompts appear equally in dropdown (no special suffix)
             display_names.append(display_name)
-            self._presets_cache[display_name] = preset['id']
+            self._presets_cache[display_name] = preset["id"]
 
             # Default to "Factual Summary" if available
-            if preset['id'] == 'factual-summary':
+            if preset["id"] == "factual-summary":
                 default_selection = display_name
 
         self.prompt_selector.configure(values=display_names)
@@ -241,7 +250,9 @@ class ModelSelectionWidget(ctk.CTkFrame):
         # Update tooltip with user prompts path
         user_path = self.prompt_template_manager.get_user_prompts_path(model_name)
         if user_path:
-            self._prompt_tooltip_text = f"Choose summarization style.\nAdd custom prompts to:\n{user_path}"
+            self._prompt_tooltip_text = (
+                f"Choose summarization style.\nAdd custom prompts to:\n{user_path}"
+            )
 
     def get_selected_preset_id(self) -> str:
         """
@@ -251,7 +262,7 @@ class ModelSelectionWidget(ctk.CTkFrame):
             Preset ID string (e.g., 'factual-summary')
         """
         display_name = self.prompt_selector.get()
-        return self._presets_cache.get(display_name, 'factual-summary')
+        return self._presets_cache.get(display_name, "factual-summary")
 
     def setup_tooltip(self, create_tooltip_func):
         """
@@ -261,6 +272,7 @@ class ModelSelectionWidget(ctk.CTkFrame):
             create_tooltip_func: The create_tooltip function from tooltip_helper
         """
         create_tooltip_func(self.prompt_selector, self._prompt_tooltip_text)
+
 
 class OutputOptionsWidget(ctk.CTkFrame):
     """Widget for configuring desired outputs (Session 45 Update).
@@ -272,6 +284,7 @@ class OutputOptionsWidget(ctk.CTkFrame):
 
     Session 45: Streamlined to three checkboxes with clear defaults.
     """
+
     def __init__(self, master, **kwargs):
         super().__init__(master, **kwargs)
         self.grid_columnconfigure(0, weight=1)
@@ -281,17 +294,13 @@ class OutputOptionsWidget(ctk.CTkFrame):
         self._row_counter = 0
 
         # === OUTPUT OPTIONS (Session 45: Simplified) ===
-        options_label = ctk.CTkLabel(
-            self, text="Output Options",
-            font=FONTS["body_bold"]
-        )
+        options_label = ctk.CTkLabel(self, text="Output Options", font=FONTS["body_bold"])
         options_label.grid(row=self._row_counter, column=0, padx=10, pady=(10, 5), sticky="w")
         self._row_counter += 1
 
         # Names & Vocabulary - PRIMARY feature, ON by default
         self.vocab_csv_check = ctk.CTkCheckBox(
-            self, text="Extract Names & Vocabulary",
-            command=self._update_generate_button_text
+            self, text="Extract Names & Vocabulary", command=self._update_generate_button_text
         )
         self.vocab_csv_check.grid(row=self._row_counter, column=0, padx=10, pady=5, sticky="w")
         self.vocab_csv_check.select()  # ON by default - primary feature
@@ -299,8 +308,7 @@ class OutputOptionsWidget(ctk.CTkFrame):
 
         # Document Q&A - ON by default (Session 45)
         self.qa_questions_check = ctk.CTkCheckBox(
-            self, text="Enable Q&A",
-            command=self._update_generate_button_text
+            self, text="Enable Q&A", command=self._update_generate_button_text
         )
         self.qa_questions_check.grid(row=self._row_counter, column=0, padx=10, pady=5, sticky="w")
         self.qa_questions_check.select()  # ON by default (Session 45 change)
@@ -308,8 +316,7 @@ class OutputOptionsWidget(ctk.CTkFrame):
 
         # Summary - OFF by default (optional feature)
         self.summary_check = ctk.CTkCheckBox(
-            self, text="Generate Summary",
-            command=self._on_summary_checkbox_changed
+            self, text="Generate Summary", command=self._on_summary_checkbox_changed
         )
         self.summary_check.grid(row=self._row_counter, column=0, padx=10, pady=5, sticky="w")
         self.summary_check.deselect()  # OFF by default - optional
@@ -320,23 +327,18 @@ class OutputOptionsWidget(ctk.CTkFrame):
         self._summary_length_frame.grid_columnconfigure(0, weight=1)
 
         length_label = ctk.CTkLabel(
-            self._summary_length_frame,
-            text="Summary Length:",
-            font=FONTS["body"]
+            self._summary_length_frame, text="Summary Length:", font=FONTS["body"]
         )
         length_label.grid(row=0, column=0, padx=10, pady=(5, 0), sticky="w")
 
         self.length_slider = ctk.CTkSlider(
-            self._summary_length_frame,
-            from_=100, to=500,
-            number_of_steps=40
+            self._summary_length_frame, from_=100, to=500, number_of_steps=40
         )
         self.length_slider.set(200)
         self.length_slider.grid(row=1, column=0, padx=10, pady=2, sticky="ew")
 
         self.length_value_label = ctk.CTkLabel(
-            self._summary_length_frame,
-            text=f"{self.length_slider.get():.0f} words"
+            self._summary_length_frame, text=f"{self.length_slider.get():.0f} words"
         )
         self.length_slider.configure(
             command=lambda v: self.length_value_label.configure(text=f"{v:.0f} words")
@@ -349,12 +351,11 @@ class OutputOptionsWidget(ctk.CTkFrame):
 
         # BM25 Corpus Status Indicator (Session 26)
         self.corpus_status_label = ctk.CTkLabel(
-            self,
-            text="",
-            text_color=COLORS["text_secondary"],
-            font=FONTS["small"]
+            self, text="", text_color=COLORS["text_secondary"], font=FONTS["small"]
         )
-        self.corpus_status_label.grid(row=self._row_counter, column=0, padx=10, pady=(10, 10), sticky="w")
+        self.corpus_status_label.grid(
+            row=self._row_counter, column=0, padx=10, pady=(10, 10), sticky="w"
+        )
         self._row_counter += 1
         self._update_corpus_status()
 
@@ -375,11 +376,7 @@ class OutputOptionsWidget(ctk.CTkFrame):
         """Show summary length options only when summary is checked."""
         if self.summary_check.get():
             self._summary_length_frame.grid(
-                row=self._summary_length_row,
-                column=0,
-                padx=0,
-                pady=0,
-                sticky="ew"
+                row=self._summary_length_row, column=0, padx=0, pady=0, sticky="ew"
             )
         else:
             self._summary_length_frame.grid_forget()
@@ -411,7 +408,7 @@ class OutputOptionsWidget(ctk.CTkFrame):
             return
 
         # Don't update if we're in "generating" mode
-        if hasattr(self, '_is_generating') and self._is_generating:
+        if hasattr(self, "_is_generating") and self._is_generating:
             return
 
         count = self.get_output_count()
@@ -451,7 +448,7 @@ class OutputOptionsWidget(ctk.CTkFrame):
         Names & Vocabulary = 1, Q&A = 1, Summary = 1 per document.
         """
         count = 0
-        doc_count = getattr(self, '_document_count', 0)
+        doc_count = getattr(self, "_document_count", 0)
 
         if self.vocab_csv_check.get():
             count += 1  # Names & Vocabulary table
@@ -502,9 +499,7 @@ class OutputOptionsWidget(ctk.CTkFrame):
             bm25_enabled = prefs.get("bm25_enabled", True)
 
             if not bm25_enabled:
-                self.corpus_status_label.configure(
-                    text="📊 Corpus analysis: Disabled in settings"
-                )
+                self.corpus_status_label.configure(text="📊 Corpus analysis: Disabled in settings")
                 return
 
             manager = get_corpus_manager()
@@ -531,4 +526,3 @@ class OutputOptionsWidget(ctk.CTkFrame):
     def refresh_corpus_status(self):
         """Public method to refresh corpus status (call after settings change)."""
         self._update_corpus_status()
-

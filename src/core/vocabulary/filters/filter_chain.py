@@ -15,6 +15,7 @@ from src.core.vocabulary.filters.base import BaseVocabularyFilter, FilterResult
 @dataclass
 class FilterChainStats:
     """Statistics from a complete filter chain run."""
+
     total_input: int = 0
     total_output: int = 0
     total_removed: int = 0
@@ -49,7 +50,7 @@ class VocabularyFilterChain:
         self._filters: list[BaseVocabularyFilter] = filters or []
         self._last_stats: FilterChainStats | None = None
 
-    def add_filter(self, filter_: BaseVocabularyFilter) -> 'VocabularyFilterChain':
+    def add_filter(self, filter_: BaseVocabularyFilter) -> "VocabularyFilterChain":
         """Add a filter to the chain. Returns self for chaining."""
         self._filters.append(filter_)
         return self
@@ -91,17 +92,16 @@ class VocabularyFilterChain:
             return FilterResult(vocabulary=[], removed_count=0)
 
         # Sort filters by priority (lower = first)
-        sorted_filters = sorted(
-            [f for f in self._filters if f.enabled],
-            key=lambda f: f.priority
-        )
+        sorted_filters = sorted([f for f in self._filters if f.enabled], key=lambda f: f.priority)
 
         stats = FilterChainStats(total_input=len(vocabulary))
         current_vocab = vocabulary
         chain_start = time.time()
 
-        debug_log(f"[FILTER-CHAIN] Starting with {len(current_vocab)} terms, "
-                  f"{len(sorted_filters)} enabled filters")
+        debug_log(
+            f"[FILTER-CHAIN] Starting with {len(current_vocab)} terms, "
+            f"{len(sorted_filters)} enabled filters"
+        )
 
         for filter_ in sorted_filters:
             input_count = len(current_vocab)
@@ -115,16 +115,18 @@ class VocabularyFilterChain:
                 time.sleep(0)
 
                 stats.per_filter_stats[filter_.name] = {
-                    'input_count': input_count,
-                    'output_count': len(result.vocabulary),
-                    'removed_count': result.removed_count,
-                    'time_ms': elapsed_ms,
-                    'metadata': result.metadata,
+                    "input_count": input_count,
+                    "output_count": len(result.vocabulary),
+                    "removed_count": result.removed_count,
+                    "time_ms": elapsed_ms,
+                    "metadata": result.metadata,
                 }
 
                 if result.removed_count > 0:
-                    debug_log(f"[FILTER-CHAIN] {filter_.name}: "
-                              f"{result.removed_count} removed in {elapsed_ms:.1f}ms")
+                    debug_log(
+                        f"[FILTER-CHAIN] {filter_.name}: "
+                        f"{result.removed_count} removed in {elapsed_ms:.1f}ms"
+                    )
 
                 current_vocab = result.vocabulary
 
@@ -132,11 +134,11 @@ class VocabularyFilterChain:
                 elapsed_ms = (time.time() - filter_start) * 1000
                 debug_log(f"[FILTER-CHAIN] Error in {filter_.name}: {e}")
                 stats.per_filter_stats[filter_.name] = {
-                    'input_count': input_count,
-                    'output_count': input_count,
-                    'removed_count': 0,
-                    'error': str(e),
-                    'time_ms': elapsed_ms,
+                    "input_count": input_count,
+                    "output_count": input_count,
+                    "removed_count": 0,
+                    "error": str(e),
+                    "time_ms": elapsed_ms,
                 }
                 # Continue with unchanged vocabulary on error
 
@@ -146,14 +148,16 @@ class VocabularyFilterChain:
 
         self._last_stats = stats
 
-        debug_log(f"[FILTER-CHAIN] Complete: {stats.total_removed} removed "
-                  f"in {stats.total_time_ms:.1f}ms, {stats.total_output} remaining")
+        debug_log(
+            f"[FILTER-CHAIN] Complete: {stats.total_removed} removed "
+            f"in {stats.total_time_ms:.1f}ms, {stats.total_output} remaining"
+        )
 
         return FilterResult(
             vocabulary=current_vocab,
             removed_count=stats.total_removed,
             processing_time_ms=stats.total_time_ms,
-            metadata={'per_filter': stats.per_filter_stats}
+            metadata={"per_filter": stats.per_filter_stats},
         )
 
     def get_last_stats(self) -> FilterChainStats | None:

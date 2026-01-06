@@ -92,9 +92,9 @@ class QueueMessageHandler:
         self.main_window.file_table.add_result(data)
 
         # Display individual document summary if available
-        if data.get('summary'):
+        if data.get("summary"):
             self.main_window.summary_results.update_outputs(
-                document_summaries={data['filename']: data['summary']}
+                document_summaries={data["filename"]: data["summary"]}
             )
 
     def handle_meta_summary_generated(self, data):
@@ -132,20 +132,18 @@ class QueueMessageHandler:
         if self.orchestrator and self.main_window.pending_ai_generation:
             # Delegate to orchestrator for workflow decisions
             actions = self.orchestrator.on_extraction_complete(
-                extracted_documents,
-                self.main_window.pending_ai_generation
+                extracted_documents, self.main_window.pending_ai_generation
             )
 
             # If workflow completed without AI (shouldn't happen normally)
-            if actions.get('workflow_complete'):
+            if actions.get("workflow_complete"):
                 self._reset_ui_after_processing()
                 self.main_window.status_label.configure(text="Processing complete.")
         elif self.main_window.pending_ai_generation:
             # Fallback if orchestrator not set (backward compatibility)
             debug_log("[QUEUE HANDLER] WARNING: Orchestrator not set, using fallback.")
             self.main_window._start_ai_generation(
-                extracted_documents,
-                self.main_window.pending_ai_generation
+                extracted_documents, self.main_window.pending_ai_generation
             )
         else:
             # No AI generation requested
@@ -160,9 +158,7 @@ class QueueMessageHandler:
             data: Dictionary with 'summary' key containing the generated text
         """
         debug_log(f"[QUEUE HANDLER] Summary result received.")
-        self.main_window.summary_results.update_outputs(
-            meta_summary=data.get('summary', '')
-        )
+        self.main_window.summary_results.update_outputs(meta_summary=data.get("summary", ""))
         self.main_window.progress_bar.set(1.0)
         self.main_window.status_label.configure(text="Summary generation complete!")
         self._reset_ui_after_processing()
@@ -183,8 +179,10 @@ class QueueMessageHandler:
         # Import here to avoid circular imports
         from src.core.summarization import MultiDocumentSummaryResult
 
-        debug_log(f"[QUEUE HANDLER] Multi-doc result received: "
-                 f"{data.documents_processed} processed, {data.documents_failed} failed")
+        debug_log(
+            f"[QUEUE HANDLER] Multi-doc result received: "
+            f"{data.documents_processed} processed, {data.documents_failed} failed"
+        )
 
         # Extract individual summaries as dict[filename, summary_text]
         individual_summaries = {}
@@ -196,15 +194,16 @@ class QueueMessageHandler:
 
         # Update UI with both individual summaries and meta-summary
         self.main_window.summary_results.update_outputs(
-            meta_summary=data.meta_summary,
-            document_summaries=individual_summaries
+            meta_summary=data.meta_summary, document_summaries=individual_summaries
         )
 
         # Update progress and status
         self.main_window.progress_bar.set(1.0)
         duration_str = format_duration(data.total_processing_time_seconds)
-        status_msg = (f"Multi-document summarization complete! "
-                     f"{data.documents_processed} documents in {duration_str}")
+        status_msg = (
+            f"Multi-document summarization complete! "
+            f"{data.documents_processed} documents in {duration_str}"
+        )
         if data.documents_failed > 0:
             status_msg += f" ({data.documents_failed} failed)"
         self.main_window.status_label.configure(text=status_msg)
@@ -214,7 +213,7 @@ class QueueMessageHandler:
         self.main_window.pending_ai_generation = None
 
         # Clean up worker reference
-        if self.orchestrator and hasattr(self.orchestrator, 'multi_doc_worker'):
+        if self.orchestrator and hasattr(self.orchestrator, "multi_doc_worker"):
             self.orchestrator.multi_doc_worker = None
 
         if self.orchestrator:
@@ -236,15 +235,15 @@ class QueueMessageHandler:
         debug_log("[QUEUE HANDLER] Resetting UI after processing complete...")
 
         # Stop timer and log metrics to CSV
-        if hasattr(self.main_window, 'processing_timer'):
+        if hasattr(self.main_window, "processing_timer"):
             # Update document metadata with actual page counts from processed results
             if self.main_window.processing_timer._job_metadata:
-                docs_meta = self.main_window.processing_timer._job_metadata.get('documents', [])
+                docs_meta = self.main_window.processing_timer._job_metadata.get("documents", [])
                 for doc_meta in docs_meta:
                     # Find matching processed result to get actual page count
                     for result in self.main_window.processed_results:
-                        if result.get('filename') == doc_meta.get('filename'):
-                            doc_meta['page_count'] = result.get('page_count', 0)
+                        if result.get("filename") == doc_meta.get("filename"):
+                            doc_meta["page_count"] = result.get("page_count", 0)
                             break
 
             self.main_window.processing_timer.stop_and_log()
@@ -258,9 +257,7 @@ class QueueMessageHandler:
 
         # Disable cancel button (grey it out instead of hiding)
         self.main_window.cancel_btn.configure(
-            state="disabled",
-            fg_color="#6c757d",  # Grey when disabled
-            hover_color="#5a6268"
+            state="disabled", fg_color="#6c757d", hover_color="#5a6268"  # Grey when disabled
         )
         debug_log("[QUEUE HANDLER] Cancel button disabled (greyed out)")
 
@@ -292,23 +289,25 @@ class QueueMessageHandler:
         Args:
             data: Dictionary with 'path', 'case_id', 'chunk_count', 'creation_time_ms'
         """
-        debug_log(f"[QUEUE HANDLER] Vector store ready: {data.get('case_id')} "
-                 f"({data.get('chunk_count')} chunks)")
+        debug_log(
+            f"[QUEUE HANDLER] Vector store ready: {data.get('case_id')} "
+            f"({data.get('chunk_count')} chunks)"
+        )
 
         # Update orchestrator state
         if self.orchestrator:
             self.orchestrator.on_vector_store_complete(data)
 
         # Update status to indicate Q&A is available
-        chunk_count = data.get('chunk_count', 0)
-        creation_time = data.get('creation_time_ms', 0)
+        chunk_count = data.get("chunk_count", 0)
+        creation_time = data.get("creation_time_ms", 0)
         self.main_window.status_label.configure(
             text=f"Q&A Ready ({chunk_count} chunks indexed in {creation_time:.0f}ms)"
         )
 
         # Store vector store info on main window for Q&A access
-        self.main_window.vector_store_path = data.get('path')
-        self.main_window.vector_store_case_id = data.get('case_id')
+        self.main_window.vector_store_path = data.get("path")
+        self.main_window.vector_store_case_id = data.get("case_id")
 
         debug_log("[QUEUE HANDLER] Vector store handler complete - Q&A available")
 
@@ -321,13 +320,11 @@ class QueueMessageHandler:
         Args:
             data: Dictionary with 'error' message
         """
-        error_msg = data.get('error', 'Unknown error')
+        error_msg = data.get("error", "Unknown error")
         debug_log(f"[QUEUE HANDLER] Vector store error: {error_msg}")
 
         # Update status to indicate Q&A is not available
-        self.main_window.status_label.configure(
-            text="Q&A unavailable (indexing failed)"
-        )
+        self.main_window.status_label.configure(text="Q&A unavailable (indexing failed)")
 
         # Mark as not available
         self.main_window.vector_store_path = None
@@ -382,7 +379,7 @@ class QueueMessageHandler:
         self.main_window.qa_results = results
 
         # Update the summary results widget to show Q&A results
-        if hasattr(self.main_window, 'summary_results') and results:
+        if hasattr(self.main_window, "summary_results") and results:
             self.main_window.summary_results.update_outputs(qa_results=results)
 
         debug_log("[QUEUE HANDLER] Q&A results delivered to UI")
@@ -397,12 +394,15 @@ class QueueMessageHandler:
             result: QAResult object for the follow-up question
         """
         # Add to existing results
-        if not hasattr(self.main_window, 'qa_results') or self.main_window.qa_results is None:
+        if not hasattr(self.main_window, "qa_results") or self.main_window.qa_results is None:
             self.main_window.qa_results = []
         self.main_window.qa_results.append(result)
 
         # Update QAPanel if visible
-        if hasattr(self.main_window, 'summary_results') and self.main_window.summary_results._qa_panel:
+        if (
+            hasattr(self.main_window, "summary_results")
+            and self.main_window.summary_results._qa_panel
+        ):
             qa_panel = self.main_window.summary_results._qa_panel
             qa_panel.display_results(self.main_window.qa_results)
 
@@ -418,7 +418,7 @@ class QueueMessageHandler:
         Args:
             data: Dictionary with 'error' key containing error message
         """
-        error_msg = data.get('error', 'Unknown Q&A error')
+        error_msg = data.get("error", "Unknown Q&A error")
         self.main_window.status_label.configure(text=f"Q&A Error: {error_msg}")
         debug_log(f"[QUEUE HANDLER] Q&A error: {error_msg}")
 
@@ -458,12 +458,12 @@ class QueueMessageHandler:
         Args:
             data: Dictionary with 'vector_store_path', 'embeddings', 'chunk_count'
         """
-        chunk_count = data.get('chunk_count', 0)
+        chunk_count = data.get("chunk_count", 0)
         debug_log(f"[QUEUE HANDLER] Q&A ready: {chunk_count} chunks indexed")
 
         # Store vector store info on main window
-        self.main_window._vector_store_path = data.get('vector_store_path')
-        self.main_window._embeddings = data.get('embeddings')
+        self.main_window._vector_store_path = data.get("vector_store_path")
+        self.main_window._embeddings = data.get("embeddings")
         self.main_window._qa_ready = True
 
         # Refresh tabs to show Q&A option now that it's ready (Session 51)
@@ -471,8 +471,8 @@ class QueueMessageHandler:
         debug_log("[QUEUE HANDLER] Refreshed tabs - Q&A tab should now be accessible")
 
         # Mark Q&A as complete if it was requested
-        if self.main_window._pending_tasks.get('qa'):
-            self.main_window._completed_tasks.add('qa')
+        if self.main_window._pending_tasks.get("qa"):
+            self.main_window._completed_tasks.add("qa")
             self.main_window.followup_btn.configure(state="normal")
 
         # Update status
@@ -499,8 +499,8 @@ class QueueMessageHandler:
         from src.ui.workers import QAWorker
         from src.user_preferences import get_user_preferences
 
-        vector_store_path = data['vector_store_path']
-        embeddings = data['embeddings']
+        vector_store_path = data["vector_store_path"]
+        embeddings = data["embeddings"]
 
         debug_log("[QUEUE HANDLER] Spawning QAWorker for default questions")
         prefs = get_user_preferences()
@@ -509,9 +509,9 @@ class QueueMessageHandler:
             vector_store_path=vector_store_path,
             embeddings=embeddings,
             ui_queue=self.main_window._ui_queue,
-            answer_mode=prefs.get('qa_answer_mode', 'extraction'),
+            answer_mode=prefs.get("qa_answer_mode", "extraction"),
             questions=None,
-            use_default_questions=True
+            use_default_questions=True,
         )
 
         qa_worker.start()
@@ -546,7 +546,7 @@ class QueueMessageHandler:
         self.main_window.output_display.set_extraction_source("both")
 
         # Mark vocab task complete
-        self.main_window._completed_tasks.add('vocab')
+        self.main_window._completed_tasks.add("vocab")
 
         # Update status
         self.main_window.status_label.configure(
@@ -554,7 +554,7 @@ class QueueMessageHandler:
         )
 
         # Continue to summary if requested, otherwise finalize
-        if self.main_window._pending_tasks.get('summary'):
+        if self.main_window._pending_tasks.get("summary"):
             self.main_window._start_summary_task()
         else:
             self.main_window._finalize_tasks()

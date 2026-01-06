@@ -89,10 +89,7 @@ class CanonicalScorer:
             return False
 
         # Strip common punctuation from each word
-        return all(
-            word.strip(".,;:'\"()-") in self.known_words
-            for word in words
-        )
+        return all(word.strip(".,;:'\"()-") in self.known_words for word in words)
 
     def calculate_score(self, term: str, sources: TermSources) -> float:
         """
@@ -120,7 +117,7 @@ class CanonicalScorer:
         # Apply OCR artifact penalty if detected
         if has_ocr_artifacts(term):
             penalty = self.ocr_penalty
-            base_score *= (1.0 - penalty)
+            base_score *= 1.0 - penalty
             debug_log(
                 f"[CANONICAL] OCR penalty applied to '{term}': "
                 f"-{penalty*100:.0f}% → score={base_score:.2f}"
@@ -176,10 +173,7 @@ class CanonicalScorer:
         if len(known_variants) == 1:
             # Exactly one known → it wins decisively
             canonical = known_variants[0]
-            debug_log(
-                f"[CANONICAL] '{canonical.get(term_key)}' wins "
-                f"(only known variant)"
-            )
+            debug_log(f"[CANONICAL] '{canonical.get(term_key)}' wins " f"(only known variant)")
             return self._merge_into_canonical(canonical, variants, term_key, sources_key)
 
         elif len(known_variants) == 0:
@@ -222,7 +216,7 @@ class CanonicalScorer:
             if sources is None:
                 sources = TermSources.create_legacy(
                     v.get("In-Case Freq", 1),
-                    v.get("source_doc_confidence", 1.0) / 100.0  # Normalize if needed
+                    v.get("source_doc_confidence", 1.0) / 100.0,  # Normalize if needed
                 )
 
             score = self.calculate_score(term, sources)
@@ -235,10 +229,7 @@ class CanonicalScorer:
 
         # Winner is the highest score
         canonical, best_score = scored[0]
-        debug_log(
-            f"[CANONICAL] '{canonical.get(term_key)}' wins "
-            f"with score={best_score:.2f}"
-        )
+        debug_log(f"[CANONICAL] '{canonical.get(term_key)}' wins " f"with score={best_score:.2f}")
 
         # Return with merged sources from all variants
         return self._merge_into_canonical(
@@ -274,8 +265,7 @@ class CanonicalScorer:
 
         # Merge frequencies
         total_freq = sum(
-            v.get("In-Case Freq", 0) or v.get("in_case_freq", 0) or 0
-            for v in all_variants
+            v.get("In-Case Freq", 0) or v.get("in_case_freq", 0) or 0 for v in all_variants
         )
         result["In-Case Freq"] = total_freq
         if "in_case_freq" in result:
@@ -293,8 +283,7 @@ class CanonicalScorer:
         # Log what was merged
         if len(all_variants) > 1:
             others = [
-                v.get(term_key) for v in all_variants
-                if v.get(term_key) != canonical.get(term_key)
+                v.get(term_key) for v in all_variants if v.get(term_key) != canonical.get(term_key)
             ]
             if others:
                 debug_log(
@@ -309,6 +298,7 @@ class CanonicalScorer:
 # -----------------------------------------------------------------------------
 # Factory Functions
 # -----------------------------------------------------------------------------
+
 
 def create_canonical_scorer(known_words: Optional[set[str]] = None) -> CanonicalScorer:
     """
@@ -327,6 +317,7 @@ def create_canonical_scorer(known_words: Optional[set[str]] = None) -> Canonical
     if known_words is None:
         # Load from the same source as name_regularizer
         from src.core.vocabulary.name_regularizer import _load_known_words
+
         known_words = _load_known_words()
 
     return CanonicalScorer(known_words)

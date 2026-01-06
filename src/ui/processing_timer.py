@@ -86,9 +86,9 @@ class ProcessingTimer(ctk.CTkLabel):
             **kwargs: Additional arguments passed to CTkLabel
         """
         # Set default styling for visibility
-        kwargs.setdefault('text', '')
-        kwargs.setdefault('font', FONTS["heading"])
-        kwargs.setdefault('text_color', '#00D4FF')  # Cyan - visible on dark bg
+        kwargs.setdefault("text", "")
+        kwargs.setdefault("font", FONTS["heading"])
+        kwargs.setdefault("text_color", "#00D4FF")  # Cyan - visible on dark bg
 
         super().__init__(master, **kwargs)
 
@@ -158,7 +158,7 @@ class ProcessingTimer(ctk.CTkLabel):
         self.stop()
         self.start_time = None
         self._job_metadata = None
-        self.configure(text='')
+        self.configure(text="")
 
     def get_elapsed(self) -> float:
         """
@@ -211,43 +211,45 @@ class ProcessingTimer(ctk.CTkLabel):
         """
         try:
             metadata = self._job_metadata
-            documents = metadata.get('documents', [])
+            documents = metadata.get("documents", [])
 
             # Calculate aggregates
-            total_pages = sum(d.get('page_count', 0) or 0 for d in documents)
-            total_size = sum(d.get('file_size', 0) or 0 for d in documents)
+            total_pages = sum(d.get("page_count", 0) or 0 for d in documents)
+            total_size = sum(d.get("file_size", 0) or 0 for d in documents)
             doc_count = len(documents)
 
             avg_pages = total_pages / doc_count if doc_count > 0 else 0
             avg_size = total_size / doc_count if doc_count > 0 else 0
 
-            outputs = metadata.get('outputs_requested', [])
-            outputs_str = ','.join(outputs) if outputs else ''
+            outputs = metadata.get("outputs_requested", [])
+            outputs_str = ",".join(outputs) if outputs else ""
 
             row = {
-                'timestamp': datetime.now().isoformat(),
-                'duration_seconds': round(duration_seconds, 2),
-                'document_count': doc_count,
-                'total_pages': total_pages,
-                'total_size_bytes': total_size,
-                'avg_pages': round(avg_pages, 1),
-                'avg_size_bytes': round(avg_size, 0),
-                'model_name': metadata.get('model_name', 'unknown'),
-                'outputs_requested': outputs_str
+                "timestamp": datetime.now().isoformat(),
+                "duration_seconds": round(duration_seconds, 2),
+                "document_count": doc_count,
+                "total_pages": total_pages,
+                "total_size_bytes": total_size,
+                "avg_pages": round(avg_pages, 1),
+                "avg_size_bytes": round(avg_size, 0),
+                "model_name": metadata.get("model_name", "unknown"),
+                "outputs_requested": outputs_str,
             }
 
             # Write to CSV (create with headers if doesn't exist)
             csv_path = Path(PROCESSING_METRICS_CSV)
             file_exists = csv_path.exists()
 
-            with open(csv_path, 'a', newline='', encoding='utf-8') as f:
+            with open(csv_path, "a", newline="", encoding="utf-8") as f:
                 writer = csv.DictWriter(f, fieldnames=row.keys())
                 if not file_exists:
                     writer.writeheader()
                 writer.writerow(row)
 
-            debug_log(f"[TIMER] Logged metrics to {csv_path}: "
-                     f"{doc_count} docs, {total_pages} pages, {duration_seconds:.1f}s")
+            debug_log(
+                f"[TIMER] Logged metrics to {csv_path}: "
+                f"{doc_count} docs, {total_pages} pages, {duration_seconds:.1f}s"
+            )
 
         except Exception as e:
             debug_log(f"[TIMER] Error logging metrics: {e}")

@@ -45,7 +45,12 @@ from src.logging_config import debug_log
 
 
 # Default prompt file path (Session 45: combined extraction)
-PROMPT_FILE = Path(__file__).parent.parent.parent.parent / "config" / "extraction_prompts" / "combined_extraction.txt"
+PROMPT_FILE = (
+    Path(__file__).parent.parent.parent.parent
+    / "config"
+    / "extraction_prompts"
+    / "combined_extraction.txt"
+)
 
 # Chunk size for processing (characters)
 DEFAULT_CHUNK_SIZE = 2000
@@ -64,6 +69,7 @@ class LLMPerson:
         source_chunk: Index of the chunk this person was extracted from
         confidence: Confidence score (0-1), default 0.8 for LLM extractions
     """
+
     name: str
     role: str
     source_chunk: int = 0
@@ -71,9 +77,18 @@ class LLMPerson:
 
     # Valid roles for normalization
     VALID_ROLES = {
-        "plaintiff", "defendant", "attorney", "judge", "witness",
-        "treating_physician", "expert", "nurse", "family_member",
-        "employer", "organization", "other"
+        "plaintiff",
+        "defendant",
+        "attorney",
+        "judge",
+        "witness",
+        "treating_physician",
+        "expert",
+        "nurse",
+        "family_member",
+        "employer",
+        "organization",
+        "other",
     }
 
     def __post_init__(self):
@@ -100,6 +115,7 @@ class LLMTerm:
         source_chunk: Index of the chunk this term was extracted from
         confidence: Confidence score (0-1), default 0.8 for LLM extractions
     """
+
     term: str
     type: str
     source_chunk: int = 0
@@ -123,6 +139,7 @@ class LLMExtractionResult:
         success: Whether extraction completed successfully
         error_message: Error message if success is False
     """
+
     people: list[LLMPerson] = field(default_factory=list)
     terms: list[LLMTerm] = field(default_factory=list)
     chunk_count: int = 0
@@ -248,9 +265,7 @@ DOCUMENT CHUNK:
         chunk_items = [(chunk, i) for i, chunk in enumerate(chunks)]
 
         # Use parallel extraction (Session 69)
-        all_people, all_terms = self._extract_chunks_parallel(
-            chunk_items, progress_callback
-        )
+        all_people, all_terms = self._extract_chunks_parallel(chunk_items, progress_callback)
 
         processing_time = (time.time() - start_time) * 1000
 
@@ -295,7 +310,7 @@ DOCUMENT CHUNK:
                 chunk = text[current_pos:end_pos]
 
                 # Look for sentence-ending punctuation
-                for punct in ['. ', '.\n', '? ', '?\n', '! ', '!\n']:
+                for punct in [". ", ".\n", "? ", "?\n", "! ", "!\n"]:
                     last_punct = chunk.rfind(punct)
                     if last_punct > chunk_size * 0.5:  # At least half the chunk
                         end_pos = current_pos + last_punct + len(punct)
@@ -337,7 +352,9 @@ DOCUMENT CHUNK:
             debug_log(f"[LLMVocabExtractor] Error extracting chunk {chunk_id}: {e}")
             return [], []
 
-    def _parse_response(self, response: dict | str, chunk_id: int) -> tuple[list[LLMPerson], list[LLMTerm]]:
+    def _parse_response(
+        self, response: dict | str, chunk_id: int
+    ) -> tuple[list[LLMPerson], list[LLMTerm]]:
         """
         Parse LLM JSON response into LLMPerson and LLMTerm objects (Session 45).
 
@@ -382,11 +399,13 @@ DOCUMENT CHUNK:
             if name.upper() in ["DR", "MR", "MS", "MRS", "MISS", "THE", "PLAINTIFF", "DEFENDANT"]:
                 continue
 
-            people.append(LLMPerson(
-                name=name,
-                role=role,
-                source_chunk=chunk_id,
-            ))
+            people.append(
+                LLMPerson(
+                    name=name,
+                    role=role,
+                    source_chunk=chunk_id,
+                )
+            )
 
         # Extract vocabulary terms from response
         raw_terms = response.get("vocabulary", [])
@@ -409,11 +428,13 @@ DOCUMENT CHUNK:
             if term_text.upper() in ["Q", "A", "THE", "AND", "OR", "BUT"]:
                 continue
 
-            terms.append(LLMTerm(
-                term=term_text,
-                type=term_type,
-                source_chunk=chunk_id,
-            ))
+            terms.append(
+                LLMTerm(
+                    term=term_text,
+                    type=term_type,
+                    source_chunk=chunk_id,
+                )
+            )
 
         return people, terms
 
@@ -444,9 +465,7 @@ DOCUMENT CHUNK:
         chunk_items = [(chunk, i) for i, chunk in enumerate(chunks)]
 
         # Use parallel extraction (Session 69)
-        all_people, all_terms = self._extract_chunks_parallel(
-            chunk_items, progress_callback
-        )
+        all_people, all_terms = self._extract_chunks_parallel(chunk_items, progress_callback)
 
         processing_time = (time.time() - start_time) * 1000
 
@@ -485,14 +504,12 @@ DOCUMENT CHUNK:
         # Convert UnifiedChunk objects to (chunk_text, chunk_id) tuples
         chunk_items = []
         for i, chunk in enumerate(chunks):
-            chunk_text = chunk.text if hasattr(chunk, 'text') else str(chunk)
-            chunk_id = chunk.chunk_num if hasattr(chunk, 'chunk_num') else i
+            chunk_text = chunk.text if hasattr(chunk, "text") else str(chunk)
+            chunk_id = chunk.chunk_num if hasattr(chunk, "chunk_num") else i
             chunk_items.append((chunk_text, chunk_id))
 
         # Use parallel extraction (Session 69)
-        all_people, all_terms = self._extract_chunks_parallel(
-            chunk_items, progress_callback
-        )
+        all_people, all_terms = self._extract_chunks_parallel(chunk_items, progress_callback)
 
         processing_time = (time.time() - start_time) * 1000
 
@@ -567,10 +584,11 @@ DOCUMENT CHUNK:
         # Parallel execution
         # Limit workers to avoid overloading Ollama (2-3 concurrent LLM calls max)
         workers = min(
-            chunk_count,
-            get_optimal_workers(task_ram_gb=2.0, max_workers=3, min_workers=2)
+            chunk_count, get_optimal_workers(task_ram_gb=2.0, max_workers=3, min_workers=2)
         )
-        debug_log(f"[LLMVocabExtractor] Processing {chunk_count} chunks in parallel ({workers} workers)")
+        debug_log(
+            f"[LLMVocabExtractor] Processing {chunk_count} chunks in parallel ({workers} workers)"
+        )
 
         # Thread-safe result accumulation
         all_people = []
@@ -588,8 +606,10 @@ DOCUMENT CHUNK:
 
         try:
             # Build items: (task_id, (chunk_text, chunk_id))
-            items = [(f"chunk_{chunk_id}", (chunk_text, chunk_id))
-                     for chunk_text, chunk_id in chunk_items]
+            items = [
+                (f"chunk_{chunk_id}", (chunk_text, chunk_id))
+                for chunk_text, chunk_id in chunk_items
+            ]
 
             def on_complete(task_id: str, result):
                 """Callback when chunk completes - accumulate results."""
@@ -610,16 +630,15 @@ DOCUMENT CHUNK:
                     f"extracted {len(chunk_people)} people, {len(chunk_terms)} terms"
                 )
 
-            runner = ParallelTaskRunner(
-                strategy=strategy,
-                on_task_complete=on_complete
-            )
+            runner = ParallelTaskRunner(strategy=strategy, on_task_complete=on_complete)
             task_results = runner.run(extract_single_chunk, items)
 
             # Log any failures
             for task_result in task_results:
                 if not task_result.success:
-                    debug_log(f"[LLMVocabExtractor] Chunk {task_result.task_id} failed: {task_result.error}")
+                    debug_log(
+                        f"[LLMVocabExtractor] Chunk {task_result.task_id} failed: {task_result.error}"
+                    )
 
             return all_people, all_terms
 

@@ -10,14 +10,14 @@ from typing import Any, Optional, TypeVar, Union
 
 import yaml
 
-T = TypeVar('T')
+T = TypeVar("T")
 
 
 def load_yaml(
     config_path: Union[str, Path],
     default: Optional[T] = None,
     raise_on_error: bool = True,
-    log_prefix: str = "[Config]"
+    log_prefix: str = "[Config]",
 ) -> Union[dict, T]:
     """
     Load a YAML configuration file with consistent error handling.
@@ -54,7 +54,7 @@ def load_yaml(
         error = lambda msg: None
 
     try:
-        with open(config_path, encoding='utf-8') as f:
+        with open(config_path, encoding="utf-8") as f:
             config = yaml.safe_load(f)
         debug_log(f"{log_prefix} Loaded config from {config_path}")
         return config if config is not None else {}
@@ -82,9 +82,7 @@ def load_yaml(
 
 
 def load_yaml_with_fallback(
-    config_path: Union[str, Path],
-    fallback: T,
-    log_prefix: str = "[Config]"
+    config_path: Union[str, Path], fallback: T, log_prefix: str = "[Config]"
 ) -> Union[dict, T]:
     """
     Convenience function that loads YAML with a fallback value.
@@ -99,19 +97,10 @@ def load_yaml_with_fallback(
     Returns:
         Parsed YAML content or fallback value
     """
-    return load_yaml(
-        config_path,
-        default=fallback,
-        raise_on_error=False,
-        log_prefix=log_prefix
-    )
+    return load_yaml(config_path, default=fallback, raise_on_error=False, log_prefix=log_prefix)
 
 
-def save_yaml(
-    config_path: Union[str, Path],
-    data: Any,
-    log_prefix: str = "[Config]"
-) -> bool:
+def save_yaml(config_path: Union[str, Path], data: Any, log_prefix: str = "[Config]") -> bool:
     """
     Save data to a YAML file with consistent formatting.
 
@@ -135,7 +124,7 @@ def save_yaml(
         # Ensure parent directory exists
         config_path.parent.mkdir(parents=True, exist_ok=True)
 
-        with open(config_path, 'w', encoding='utf-8') as f:
+        with open(config_path, "w", encoding="utf-8") as f:
             yaml.dump(data, f, default_flow_style=False, allow_unicode=True, sort_keys=False)
 
         debug_log(f"{log_prefix} Saved config to {config_path}")

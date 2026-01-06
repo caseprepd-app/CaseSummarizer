@@ -1,6 +1,7 @@
 """
 LocalScribe - Custom Dialogs (CustomTkinter Refactor)
 """
+
 import time
 
 import customtkinter as ctk
@@ -12,6 +13,7 @@ class ModelLoadProgressDialog(ctk.CTkToplevel):
     """
     Progress dialog for model loading, refactored for CustomTkinter.
     """
+
     def __init__(self, model_name, parent=None):
         super().__init__(parent)
         self.model_name = model_name
@@ -23,10 +25,14 @@ class ModelLoadProgressDialog(ctk.CTkToplevel):
 
         self.grid_columnconfigure(0, weight=1)
 
-        title_label = ctk.CTkLabel(self, text=f"Loading {self.model_name} Model", font=FONTS["heading"])
+        title_label = ctk.CTkLabel(
+            self, text=f"Loading {self.model_name} Model", font=FONTS["heading"]
+        )
         title_label.grid(row=0, column=0, padx=20, pady=(20, 10))
 
-        info_label = ctk.CTkLabel(self, text="This may take 30-60 seconds depending on your hardware.", wraplength=350)
+        info_label = ctk.CTkLabel(
+            self, text="This may take 30-60 seconds depending on your hardware.", wraplength=350
+        )
         info_label.grid(row=1, column=0, padx=20, pady=5)
 
         self.progress_bar = ctk.CTkProgressBar(self, mode="indeterminate")
@@ -45,19 +51,21 @@ class ModelLoadProgressDialog(ctk.CTkToplevel):
         """Update the elapsed time display."""
         elapsed = time.time() - self.start_time
         self.timer_label.configure(text=f"Elapsed time: {elapsed:.1f} seconds")
-        self.after(100, self._update_timer) # Schedule next update
+        self.after(100, self._update_timer)  # Schedule next update
 
     def finish_success(self):
         """Mark loading as complete and close dialog."""
         self.progress_bar.stop()
         self.progress_bar.set(1)
         self.status_label.configure(text="Model loaded successfully!", text_color="green")
-        self.after(1000, self.destroy) # Auto-close after 1s
+        self.after(1000, self.destroy)  # Auto-close after 1s
+
 
 class SimpleProgressDialog(ctk.CTkToplevel):
     """
     Simple progress dialog, refactored for CustomTkinter.
     """
+
     def __init__(self, title, parent=None):
         super().__init__(parent)
         self.title(title)
@@ -77,4 +85,4 @@ class SimpleProgressDialog(ctk.CTkToplevel):
         """Update progress display."""
         self.progress_bar.set(percentage / 100.0)
         self.message_label.configure(text=message)
-        self.update_idletasks() # Force UI update
+        self.update_idletasks()  # Force UI update

@@ -60,9 +60,7 @@ class WindowLayoutMixin:
 
         # App title (left)
         self.title_label = ctk.CTkLabel(
-            self.header_frame,
-            text="LocalScribe",
-            font=FONTS["heading_xl"]
+            self.header_frame, text="LocalScribe", font=FONTS["heading_xl"]
         )
         self.title_label.pack(side="left", padx=15, pady=10)
 
@@ -70,17 +68,11 @@ class WindowLayoutMixin:
         self.model_display_frame = ctk.CTkFrame(self.header_frame, **FRAME_STYLES["transparent"])
         self.model_display_frame.pack(side="left", padx=(20, 10), pady=10)
 
-        model_icon_label = ctk.CTkLabel(
-            self.model_display_frame,
-            text="🤖",
-            font=FONTS["body"]
-        )
+        model_icon_label = ctk.CTkLabel(self.model_display_frame, text="🤖", font=FONTS["body"])
         model_icon_label.pack(side="left", padx=(0, 5))
 
         self.model_name_label = ctk.CTkLabel(
-            self.model_display_frame,
-            text="Loading...",
-            font=FONTS["body"]
+            self.model_display_frame, text="Loading...", font=FONTS["body"]
         )
         self.model_name_label.pack(side="left", padx=(0, 8))
 
@@ -91,16 +83,13 @@ class WindowLayoutMixin:
             height=28,
             font=FONTS["small"],
             fg_color=("gray70", "gray30"),
-            command=self._open_model_settings
+            command=self._open_model_settings,
         )
         self.model_configure_btn.pack(side="left")
 
         # Settings button (right)
         self.settings_btn = ctk.CTkButton(
-            self.header_frame,
-            text="Settings",
-            width=100,
-            command=self._open_settings
+            self.header_frame, text="Settings", width=100, command=self._open_settings
         )
         self.settings_btn.pack(side="right", padx=15, pady=10)
 
@@ -108,27 +97,17 @@ class WindowLayoutMixin:
         self.corpus_frame = ctk.CTkFrame(self.header_frame, **FRAME_STYLES["transparent"])
         self.corpus_frame.pack(side="right", padx=10, pady=10)
 
-        corpus_label = ctk.CTkLabel(
-            self.corpus_frame,
-            text="Corpus:",
-            font=FONTS["body"]
-        )
+        corpus_label = ctk.CTkLabel(self.corpus_frame, text="Corpus:", font=FONTS["body"])
         corpus_label.pack(side="left", padx=(0, 5))
 
         self.corpus_dropdown = ctk.CTkComboBox(
-            self.corpus_frame,
-            values=["Loading..."],
-            width=150,
-            command=self._on_corpus_changed
+            self.corpus_frame, values=["Loading..."], width=150, command=self._on_corpus_changed
         )
         self.corpus_dropdown.pack(side="left")
 
         # Corpus document count badge (Session 67)
         self.corpus_doc_count_label = ctk.CTkLabel(
-            self.corpus_frame,
-            text="",
-            font=FONTS["small"],
-            text_color=COLORS["text_secondary"]
+            self.corpus_frame, text="", font=FONTS["small"], text_color=COLORS["text_secondary"]
         )
         self.corpus_doc_count_label.pack(side="left", padx=(8, 0))
 
@@ -138,7 +117,7 @@ class WindowLayoutMixin:
             text="Manage",
             width=70,
             fg_color=("gray70", "gray30"),
-            command=self._open_corpus_dialog
+            command=self._open_corpus_dialog,
         )
         self.manage_corpus_btn.pack(side="left", padx=(5, 0))
 
@@ -169,11 +148,7 @@ class WindowLayoutMixin:
         self.left_panel.grid_rowconfigure(1, weight=1)  # File table expands
 
         # Section header
-        docs_header = ctk.CTkLabel(
-            self.left_panel,
-            text="SESSION DOCUMENTS",
-            font=FONTS["heading"]
-        )
+        docs_header = ctk.CTkLabel(self.left_panel, text="SESSION DOCUMENTS", font=FONTS["heading"])
         docs_header.grid(row=0, column=0, sticky="w", padx=10, pady=(10, 5))
 
         # File Review Table
@@ -185,10 +160,7 @@ class WindowLayoutMixin:
         file_btn_frame.grid(row=2, column=0, sticky="ew", padx=10, pady=5)
 
         self.add_files_btn = ctk.CTkButton(
-            file_btn_frame,
-            text="+ Add Files",
-            width=100,
-            command=self._select_files
+            file_btn_frame, text="+ Add Files", width=100, command=self._select_files
         )
         self.add_files_btn.pack(side="left", padx=(0, 5))
 
@@ -197,7 +169,7 @@ class WindowLayoutMixin:
             text="Clear All",
             width=80,
             fg_color=("gray70", "gray30"),
-            command=self._clear_files
+            command=self._clear_files,
         )
         self.clear_files_btn.pack(side="left")
 
@@ -208,16 +180,12 @@ class WindowLayoutMixin:
             font=FONTS["small"],
             text_color=COLORS["text_secondary"],
             justify="left",
-            anchor="w"
+            anchor="w",
         )
         self.stats_label.grid(row=3, column=0, sticky="w", padx=10, pady=(5, 0))
 
         # Task checkboxes section
-        task_header = ctk.CTkLabel(
-            self.left_panel,
-            text="TASKS",
-            font=FONTS["body_bold"]
-        )
+        task_header = ctk.CTkLabel(self.left_panel, text="TASKS", font=FONTS["body_bold"])
         task_header.grid(row=4, column=0, sticky="w", padx=10, pady=(10, 5))
 
         task_frame = ctk.CTkFrame(self.left_panel, **FRAME_STYLES["transparent"])
@@ -225,27 +193,21 @@ class WindowLayoutMixin:
 
         # Vocabulary checkbox (default ON) - moved to first position
         self.vocab_check = ctk.CTkCheckBox(
-            task_frame,
-            text="Extract Vocabulary",
-            command=self._on_vocab_check_changed
+            task_frame, text="Extract Vocabulary", command=self._on_vocab_check_changed
         )
         self.vocab_check.pack(anchor="w", pady=2)
         self.vocab_check.select()  # ON by default
 
         # LLM Enhancement sub-checkbox (indented under Vocabulary)
         self.vocab_llm_check = ctk.CTkCheckBox(
-            task_frame,
-            text="  Use LLM Enhancement",
-            command=self._on_vocab_llm_check_changed
+            task_frame, text="  Use LLM Enhancement", command=self._on_vocab_llm_check_changed
         )
         self.vocab_llm_check.pack(anchor="w", pady=(0, 2))
         # Initial state set by _update_vocab_llm_checkbox_state() in MainWindow.__init__
 
         # Q&A checkbox (default ON)
         self.qa_check = ctk.CTkCheckBox(
-            task_frame,
-            text="Ask Questions",
-            command=self._update_generate_button_state
+            task_frame, text="Ask Questions", command=self._update_generate_button_state
         )
         self.qa_check.pack(anchor="w", pady=2)
         self.qa_check.select()  # ON by default
@@ -254,16 +216,14 @@ class WindowLayoutMixin:
         self.ask_default_questions_check = ctk.CTkCheckBox(
             task_frame,
             text="  Ask 0 default questions",  # Initial text with indent
-            command=self._on_default_questions_toggled
+            command=self._on_default_questions_toggled,
         )
         self.ask_default_questions_check.pack(anchor="w", pady=(0, 2))
         self.ask_default_questions_check.select()  # ON by default
 
         # Summary checkbox (default OFF, with warning)
         self.summary_check = ctk.CTkCheckBox(
-            task_frame,
-            text="Generate Summary (slow)",
-            command=self._on_summary_checked
+            task_frame, text="Generate Summary (slow)", command=self._on_summary_checked
         )
         self.summary_check.pack(anchor="w", pady=2)
         # OFF by default - no select()
@@ -274,7 +234,7 @@ class WindowLayoutMixin:
             text="Perform 2 Tasks",
             font=FONTS["heading"],
             height=40,
-            command=self._perform_tasks
+            command=self._perform_tasks,
         )
         self.generate_btn.grid(row=6, column=0, sticky="ew", padx=10, pady=(15, 5))
 
@@ -285,7 +245,7 @@ class WindowLayoutMixin:
             font=FONTS["small"],
             text_color=COLORS["text_secondary"],
             wraplength=280,  # Fixed width suitable for left panel (approx 300px)
-            justify="left"
+            justify="left",
         )
         self.task_preview_label.grid(row=7, column=0, sticky="w", padx=10, pady=(0, 10))
 
@@ -303,11 +263,7 @@ class WindowLayoutMixin:
         results_header = ctk.CTkFrame(self.right_panel, fg_color="transparent")
         results_header.grid(row=0, column=0, sticky="ew", padx=10, pady=(10, 5))
 
-        results_label = ctk.CTkLabel(
-            results_header,
-            text="📋 RESULTS",
-            font=FONTS["heading"]
-        )
+        results_label = ctk.CTkLabel(results_header, text="📋 RESULTS", font=FONTS["heading"])
         results_label.pack(side="left")
 
         # Dynamic Output Widget (contains the results selector and display)
@@ -323,9 +279,7 @@ class WindowLayoutMixin:
         self.followup_frame.grid_remove()
 
         self.followup_entry = ctk.CTkEntry(
-            self.followup_frame,
-            placeholder_text="Ask a follow-up question...",
-            height=35
+            self.followup_frame, placeholder_text="Ask a follow-up question...", height=35
         )
         self.followup_entry.grid(row=0, column=0, sticky="ew", padx=(0, 5))
         self.followup_entry.bind("<Return>", lambda e: self._ask_followup())
@@ -335,7 +289,7 @@ class WindowLayoutMixin:
             text="Ask",
             width=60,
             command=self._ask_followup,
-            state="disabled"  # Enabled after Q&A results exist
+            state="disabled",  # Enabled after Q&A results exist
         )
         self.followup_btn.grid(row=0, column=1)
 
@@ -346,11 +300,7 @@ class WindowLayoutMixin:
         self.status_frame.pack_propagate(False)
 
         # Status text
-        self.status_label = ctk.CTkLabel(
-            self.status_frame,
-            text="Ready",
-            font=FONTS["small"]
-        )
+        self.status_label = ctk.CTkLabel(self.status_frame, text="Ready", font=FONTS["small"])
         self.status_label.pack(side="left", padx=10, pady=5)
 
         # Ollama status indicator (small, less prominent)
@@ -361,7 +311,7 @@ class WindowLayoutMixin:
             self.ollama_status_frame,
             text="●",
             font=FONTS["small"],
-            text_color=COLORS["text_secondary"]  # Default gray until checked
+            text_color=COLORS["text_secondary"],  # Default gray until checked
         )
         self.ollama_status_dot.pack(side="left", padx=(0, 3))
 
@@ -369,7 +319,7 @@ class WindowLayoutMixin:
             self.ollama_status_frame,
             text="Ollama",
             font=FONTS["tiny"],
-            text_color=COLORS["text_secondary"]
+            text_color=COLORS["text_secondary"],
         )
         self.ollama_status_label.pack(side="left")
 
@@ -385,11 +335,7 @@ class WindowLayoutMixin:
         self._activity_indicator_visible = False
 
         # Timer (right side)
-        self.timer_label = ctk.CTkLabel(
-            self.status_frame,
-            text="⏱ 0:00",
-            font=FONTS["small"]
-        )
+        self.timer_label = ctk.CTkLabel(self.status_frame, text="⏱ 0:00", font=FONTS["small"])
         self.timer_label.pack(side="right", padx=10, pady=5)
 
         # Export All button (right side, hidden until processing completes)
@@ -420,9 +366,6 @@ class WindowLayoutMixin:
 
         # Corpus info (middle)
         self.corpus_info_label = ctk.CTkLabel(
-            self.status_frame,
-            text="",
-            font=FONTS["small"],
-            text_color=COLORS["text_secondary"]
+            self.status_frame, text="", font=FONTS["small"], text_color=COLORS["text_secondary"]
         )
         self.corpus_info_label.pack(side="right", padx=20, pady=5)

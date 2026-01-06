@@ -34,10 +34,28 @@ CATEGORY_PRIORITY = {
 
 # Transcript artifacts to filter out (these are headers, not people)
 TRANSCRIPT_ARTIFACTS = {
-    "CROSS", "DIRECT", "RECROSS", "REDIRECT", "RE-DIRECT", "RE-CROSS",
-    "EXAMINATION", "CROSS EXAMINATION", "DIRECT EXAMINATION",
-    "SIR", "MA'AM", "MADAM", "THE COURT", "THE WITNESS", "THE CLERK",
-    "Q", "A", "BY", "MR", "MS", "MRS", "DR",  # Single-letter/title artifacts
+    "CROSS",
+    "DIRECT",
+    "RECROSS",
+    "REDIRECT",
+    "RE-DIRECT",
+    "RE-CROSS",
+    "EXAMINATION",
+    "CROSS EXAMINATION",
+    "DIRECT EXAMINATION",
+    "SIR",
+    "MA'AM",
+    "MADAM",
+    "THE COURT",
+    "THE WITNESS",
+    "THE CLERK",
+    "Q",
+    "A",
+    "BY",
+    "MR",
+    "MS",
+    "MRS",
+    "DR",  # Single-letter/title artifacts
 }
 
 # Minimum name length to accept (filters OCR garbage)
@@ -298,7 +316,9 @@ class DataAggregator:
         # Sort alphabetically for consistent output
         unique_terms.sort(key=str.lower)
 
-        debug_log(f"[DataAggregator] Vocabulary: {len(all_terms)} raw → {len(unique_terms)} unique terms")
+        debug_log(
+            f"[DataAggregator] Vocabulary: {len(all_terms)} raw → {len(unique_terms)} unique terms"
+        )
         return unique_terms
 
     def _determine_case_type(self, extractions: list[ChunkExtraction]) -> str:
@@ -384,10 +404,12 @@ class DataAggregator:
         all_entries = []
         for extraction in extractions:
             for name_dict in extraction.names_mentioned:
-                all_entries.append({
-                    **name_dict,
-                    "source": extraction.source_document,
-                })
+                all_entries.append(
+                    {
+                        **name_dict,
+                        "source": extraction.source_document,
+                    }
+                )
 
         if not all_entries:
             return {}
@@ -491,7 +513,7 @@ class DataAggregator:
                 return True
 
         # Filter names that are just numbers or punctuation
-        alphanumeric = ''.join(c for c in name if c.isalnum())
+        alphanumeric = "".join(c for c in name if c.isalnum())
         if not alphanumeric or alphanumeric.isdigit():
             return True
 
@@ -682,7 +704,7 @@ class DataAggregator:
         # Similarity-based deduplication (O(n²) but avoids list.remove() overhead)
         # Use index tracking instead of list.remove() for better performance
         unique_indices = []  # Track indices of items to keep
-        unique_lower = []    # Lowercase versions for comparison
+        unique_lower = []  # Lowercase versions for comparison
 
         for i, item in enumerate(cleaned):
             item_lower = item.lower()

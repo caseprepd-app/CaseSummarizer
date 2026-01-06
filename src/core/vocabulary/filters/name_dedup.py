@@ -34,5 +34,5 @@ class NameDeduplicationFilter(BaseVocabularyFilter):
         return FilterResult(
             vocabulary=filtered,
             removed_count=original_count - len(filtered),
-            metadata={'similarity_threshold': self.similarity_threshold}
+            metadata={"similarity_threshold": self.similarity_threshold},
         )

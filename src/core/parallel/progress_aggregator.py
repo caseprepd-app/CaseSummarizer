@@ -52,6 +52,7 @@ class ProgressState:
         completed_tasks: Number of tasks that have finished.
         task_messages: Map of task_id -> current status message.
     """
+
     total_tasks: int
     completed_tasks: int = 0
     task_messages: dict = field(default_factory=dict)
@@ -193,9 +194,11 @@ class ProgressAggregator:
                 combined += f" (+{len(messages) - 3} more)"
         else:
             # No active tasks - show overall completion status
-            combined = f"Processed {self._state.completed_tasks}/{self._state.total_tasks} documents"
+            combined = (
+                f"Processed {self._state.completed_tasks}/{self._state.total_tasks} documents"
+            )
 
-        self.ui_queue.put(('progress', (self._state.percentage, combined)))
+        self.ui_queue.put(("progress", (self._state.percentage, combined)))
         self._last_update = time.time() * 1000
 
     @property

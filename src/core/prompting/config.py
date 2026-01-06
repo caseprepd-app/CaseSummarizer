@@ -10,7 +10,9 @@ from pathlib import Path
 from typing import Any
 
 # Path to the prompt parameters file
-PROMPT_PARAMS_FILE = Path(__file__).parent.parent.parent.parent / "config" / "prompt_parameters.json"
+PROMPT_PARAMS_FILE = (
+    Path(__file__).parent.parent.parent.parent / "config" / "prompt_parameters.json"
+)
 
 
 class PromptConfig:
@@ -29,13 +31,13 @@ class PromptConfig:
             "min_words": 100,
             "max_words": 500,
             "default_words": 200,
-            "temperature": 0.3
+            "temperature": 0.3,
         },
         "generation": {
             "top_p": 0.9,
             "tokens_per_word_estimate": 1.5,
-            "token_buffer_multiplier": 1.3
-        }
+            "token_buffer_multiplier": 1.3,
+        },
     }
 
     def __init__(self):
@@ -51,24 +53,29 @@ class PromptConfig:
         """
         try:
             if PROMPT_PARAMS_FILE.exists():
-                with open(PROMPT_PARAMS_FILE, encoding='utf-8') as f:
+                with open(PROMPT_PARAMS_FILE, encoding="utf-8") as f:
                     params = json.load(f)
 
                     # Filter out comment keys (starting with _)
                     return self._filter_comments(params)
             else:
                 from src.logging_config import debug_log
-                debug_log(f"[PROMPT CONFIG] Prompt parameters file not found at {PROMPT_PARAMS_FILE}")
+
+                debug_log(
+                    f"[PROMPT CONFIG] Prompt parameters file not found at {PROMPT_PARAMS_FILE}"
+                )
                 debug_log("[PROMPT CONFIG] Using default values.")
                 return self.DEFAULTS.copy()
 
         except json.JSONDecodeError as e:
             from src.logging_config import debug_log
+
             debug_log(f"[PROMPT CONFIG] Error parsing prompt parameters file: {e}")
             debug_log("[PROMPT CONFIG] Using default values.")
             return self.DEFAULTS.copy()
         except Exception as e:
             from src.logging_config import debug_log
+
             debug_log(f"[PROMPT CONFIG] Error loading prompt parameters: {e}")
             debug_log("[PROMPT CONFIG] Using default values.")
             return self.DEFAULTS.copy()
@@ -87,7 +94,7 @@ class PromptConfig:
             return {
                 key: self._filter_comments(value)
                 for key, value in data.items()
-                if not key.startswith('_')
+                if not key.startswith("_")
             }
         elif isinstance(data, list):
             return [self._filter_comments(item) for item in data]
@@ -121,47 +128,47 @@ class PromptConfig:
     @property
     def word_count_tolerance(self) -> int:
         """Get word count tolerance for summaries."""
-        return self.get('summary', 'word_count_tolerance', default=20)
+        return self.get("summary", "word_count_tolerance", default=20)
 
     @property
     def slider_increment(self) -> int:
         """Get slider increment value."""
-        return self.get('summary', 'slider_increment', default=50)
+        return self.get("summary", "slider_increment", default=50)
 
     @property
     def min_summary_words(self) -> int:
         """Get minimum summary word count."""
-        return self.get('summary', 'min_words', default=100)
+        return self.get("summary", "min_words", default=100)
 
     @property
     def max_summary_words(self) -> int:
         """Get maximum summary word count."""
-        return self.get('summary', 'max_words', default=500)
+        return self.get("summary", "max_words", default=500)
 
     @property
     def default_summary_words(self) -> int:
         """Get default summary word count."""
-        return self.get('summary', 'default_words', default=200)
+        return self.get("summary", "default_words", default=200)
 
     @property
     def summary_temperature(self) -> float:
         """Get temperature for summary generation."""
-        return self.get('summary', 'temperature', default=0.3)
+        return self.get("summary", "temperature", default=0.3)
 
     @property
     def top_p(self) -> float:
         """Get top_p parameter for generation."""
-        return self.get('generation', 'top_p', default=0.9)
+        return self.get("generation", "top_p", default=0.9)
 
     @property
     def tokens_per_word(self) -> float:
         """Get tokens per word estimate."""
-        return self.get('generation', 'tokens_per_word_estimate', default=1.5)
+        return self.get("generation", "tokens_per_word_estimate", default=1.5)
 
     @property
     def token_buffer_multiplier(self) -> float:
         """Get token buffer multiplier to prevent mid-sentence cutoffs."""
-        return self.get('generation', 'token_buffer_multiplier', default=1.3)
+        return self.get("generation", "token_buffer_multiplier", default=1.3)
 
     def get_word_count_range(self, target_words: int) -> tuple:
         """

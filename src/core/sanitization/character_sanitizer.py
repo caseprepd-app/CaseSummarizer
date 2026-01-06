@@ -25,6 +25,7 @@ import ftfy
 
 try:
     from unidecode import unidecode
+
     HAS_UNIDECODE = True
 except ImportError:
     HAS_UNIDECODE = False
@@ -100,7 +101,9 @@ class CharacterSanitizer:
             stats["mojibake_fixed"] = mojibake_count
             duration = time.time() - start
             self._log(f"  ✅ SUCCESS ({duration:.3f}s) - Fixed {mojibake_count} chars")
-            self._log(f"     Input: {original_len} | Output: {len(text)} | Delta: {len(text) - original_len:+d}")
+            self._log(
+                f"     Input: {original_len} | Output: {len(text)} | Delta: {len(text) - original_len:+d}"
+            )
         except Exception as e:
             duration = time.time() - start
             self._log(f"  ❌ FAILED ({duration:.3f}s) - {type(e).__name__}: {str(e)}")
@@ -114,7 +117,9 @@ class CharacterSanitizer:
             text = self._normalize_unicode(text)
             duration = time.time() - start
             self._log(f"  ✅ SUCCESS ({duration:.3f}s)")
-            self._log(f"     Input: {original_len} | Output: {len(text)} | Delta: {len(text) - original_len:+d}")
+            self._log(
+                f"     Input: {original_len} | Output: {len(text)} | Delta: {len(text) - original_len:+d}"
+            )
         except Exception as e:
             duration = time.time() - start
             self._log(f"  ❌ FAILED ({duration:.3f}s) - {type(e).__name__}: {str(e)}")
@@ -130,7 +135,9 @@ class CharacterSanitizer:
                 stats["transliterations"] = trans_count
                 duration = time.time() - start
                 self._log(f"  ✅ SUCCESS ({duration:.3f}s) - Transliterated {trans_count} chars")
-                self._log(f"     Input: {original_len} | Output: {len(text)} | Delta: {len(text) - original_len:+d}")
+                self._log(
+                    f"     Input: {original_len} | Output: {len(text)} | Delta: {len(text) - original_len:+d}"
+                )
             except Exception as e:
                 duration = time.time() - start
                 self._log(f"  ❌ FAILED ({duration:.3f}s) - {type(e).__name__}: {str(e)}")
@@ -147,7 +154,9 @@ class CharacterSanitizer:
             stats["redactions_replaced"] = redactions
             duration = time.time() - start
             self._log(f"  ✅ SUCCESS ({duration:.3f}s) - Replaced {redactions} redaction chars")
-            self._log(f"     Input: {original_len} | Output: {len(text)} | Delta: {len(text) - original_len:+d}")
+            self._log(
+                f"     Input: {original_len} | Output: {len(text)} | Delta: {len(text) - original_len:+d}"
+            )
         except Exception as e:
             duration = time.time() - start
             self._log(f"  ❌ FAILED ({duration:.3f}s) - {type(e).__name__}: {str(e)}")
@@ -162,8 +171,12 @@ class CharacterSanitizer:
             stats["control_chars_removed"] = control_removed
             stats["private_use_removed"] = private_use
             duration = time.time() - start
-            self._log(f"  ✅ SUCCESS ({duration:.3f}s) - Removed {control_removed} control + {private_use} private-use chars")
-            self._log(f"     Input: {original_len} | Output: {len(text)} | Delta: {len(text) - original_len:+d}")
+            self._log(
+                f"  ✅ SUCCESS ({duration:.3f}s) - Removed {control_removed} control + {private_use} private-use chars"
+            )
+            self._log(
+                f"     Input: {original_len} | Output: {len(text)} | Delta: {len(text) - original_len:+d}"
+            )
         except Exception as e:
             duration = time.time() - start
             self._log(f"  ❌ FAILED ({duration:.3f}s) - {type(e).__name__}: {str(e)}")
@@ -177,7 +190,9 @@ class CharacterSanitizer:
             text = self._clean_whitespace(text)
             duration = time.time() - start
             self._log(f"  ✅ SUCCESS ({duration:.3f}s)")
-            self._log(f"     Input: {original_len} | Output: {len(text)} | Delta: {len(text) - original_len:+d}")
+            self._log(
+                f"     Input: {original_len} | Output: {len(text)} | Delta: {len(text) - original_len:+d}"
+            )
         except Exception as e:
             duration = time.time() - start
             self._log(f"  ❌ FAILED ({duration:.3f}s) - {type(e).__name__}: {str(e)}")
@@ -219,7 +234,7 @@ class CharacterSanitizer:
         - Handles ligatures, superscripts, etc.
         """
         original_len = len(text)
-        text = unicodedata.normalize('NFKC', text)
+        text = unicodedata.normalize("NFKC", text)
 
         if len(text) != original_len:
             self._log(f"Unicode normalization: {original_len} → {len(text)} chars")
@@ -264,11 +279,11 @@ class CharacterSanitizer:
         original = text
 
         # Replace sequences of redaction blocks with marker
-        text = re.sub(r'(█{2,})', ' [REDACTED] ', text)
-        text = re.sub(r'(▓{2,})', ' [REDACTED] ', text)
-        text = re.sub(r'(▒{2,})', ' [REDACTED] ', text)
+        text = re.sub(r"(█{2,})", " [REDACTED] ", text)
+        text = re.sub(r"(▓{2,})", " [REDACTED] ", text)
+        text = re.sub(r"(▒{2,})", " [REDACTED] ", text)
 
-        redactions = original.count('█') + original.count('▓') + original.count('▒')
+        redactions = original.count("█") + original.count("▓") + original.count("▒")
 
         if redactions > 0:
             self._log(f"Replaced {redactions} redaction characters with [REDACTED] markers")
@@ -291,9 +306,9 @@ class CharacterSanitizer:
             category = unicodedata.category(char)
 
             # Control characters (C* category)
-            if category[0] == 'C':
+            if category[0] == "C":
                 # Special handling for newlines and tabs (preserve if desired)
-                if char in '\n\t':
+                if char in "\n\t":
                     # Keep newlines/tabs, they're useful for structure
                     cleaned.append(char)
                 else:
@@ -301,32 +316,32 @@ class CharacterSanitizer:
                     control_removed += 1
 
                     # Replace with space for readability (except for invisible chars)
-                    if category == 'Cc':  # Control characters
-                        cleaned.append(' ')
+                    if category == "Cc":  # Control characters
+                        cleaned.append(" ")
                     # Skip format characters (Cf) entirely
                     # Skip other C-category chars entirely
 
             # Private-use characters (Co category)
-            elif category == 'Co':
+            elif category == "Co":
                 private_use_removed += 1
-                cleaned.append(' ')
+                cleaned.append(" ")
 
             # Surrogate characters (Cs category) - malformed UTF-8
-            elif category == 'Cs':
+            elif category == "Cs":
                 private_use_removed += 1
-                cleaned.append('?')
+                cleaned.append("?")
 
             # Other problematic characters
             # Zero-width characters, combining marks that appear corrupted
-            elif char in '\u200b\u200c\u200d\ufeff':  # Zero-width space, ZWJ, BOM, etc.
+            elif char in "\u200b\u200c\u200d\ufeff":  # Zero-width space, ZWJ, BOM, etc.
                 other_replaced += 1
-                cleaned.append(' ')
+                cleaned.append(" ")
 
             # Keep everything else
             else:
                 cleaned.append(char)
 
-        text = ''.join(cleaned)
+        text = "".join(cleaned)
 
         if control_removed > 0:
             self._log(f"Removed {control_removed} control characters")
@@ -346,18 +361,18 @@ class CharacterSanitizer:
         - Preserve leading/trailing newlines for document integrity
         """
         # Replace tabs with spaces
-        text = text.replace('\t', ' ')
+        text = text.replace("\t", " ")
 
         # Replace non-breaking spaces and similar with regular spaces
-        text = text.replace('\u00a0', ' ')  # Non-breaking space
-        text = text.replace('\u2000', ' ')  # En quad
-        text = text.replace('\u2001', ' ')  # Em quad
+        text = text.replace("\u00a0", " ")  # Non-breaking space
+        text = text.replace("\u2000", " ")  # En quad
+        text = text.replace("\u2001", " ")  # Em quad
 
         # Clean up multiple spaces (but not newlines)
-        text = re.sub(r' {2,}', ' ', text)
+        text = re.sub(r" {2,}", " ", text)
 
         # Clean up multiple blank lines (preserve max 2 newlines = 1 blank line)
-        text = re.sub(r'\n{3,}', '\n\n', text)
+        text = re.sub(r"\n{3,}", "\n\n", text)
 
         return text
 
@@ -372,7 +387,8 @@ class CharacterSanitizer:
     @staticmethod
     def example_usage() -> None:
         """Show example usage of CharacterSanitizer."""
-        print("""
+        print(
+            """
         # Usage Example:
 
         from src.core.sanitization import CharacterSanitizer
@@ -394,4 +410,5 @@ class CharacterSanitizer:
 
         # Use cleaned text for AI processing
         summary = ollama_model.generate(cleaned_text)
-        """)
+        """
+        )

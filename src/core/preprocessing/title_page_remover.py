@@ -49,55 +49,48 @@ class TitlePageRemover(BasePreprocessor):
     # Patterns and their scores
     TITLE_PAGE_PATTERNS = [
         # Court headers
-        (re.compile(r'SUPREME\s+COURT', re.IGNORECASE), 2),
-        (re.compile(r'CIVIL\s+COURT', re.IGNORECASE), 2),
-        (re.compile(r'DISTRICT\s+COURT', re.IGNORECASE), 2),
-        (re.compile(r'COURT\s+OF\s+(?:THE\s+)?STATE', re.IGNORECASE), 2),
-        (re.compile(r'COUNTY\s+OF\s+[A-Z]+', re.IGNORECASE), 1),
-
+        (re.compile(r"SUPREME\s+COURT", re.IGNORECASE), 2),
+        (re.compile(r"CIVIL\s+COURT", re.IGNORECASE), 2),
+        (re.compile(r"DISTRICT\s+COURT", re.IGNORECASE), 2),
+        (re.compile(r"COURT\s+OF\s+(?:THE\s+)?STATE", re.IGNORECASE), 2),
+        (re.compile(r"COUNTY\s+OF\s+[A-Z]+", re.IGNORECASE), 1),
         # Case caption markers
-        (re.compile(r'^\s*[-x]+\s*$', re.MULTILINE), 1),  # Separator lines
-        (re.compile(r'PLAINTIFF[,\s]', re.IGNORECASE), 2),
-        (re.compile(r'DEFENDANT[,\s]', re.IGNORECASE), 2),
-        (re.compile(r'\s+-\s*against\s*-\s+', re.IGNORECASE), 2),
-        (re.compile(r'^\s*v\.?\s*$', re.MULTILINE | re.IGNORECASE), 1),
-
+        (re.compile(r"^\s*[-x]+\s*$", re.MULTILINE), 1),  # Separator lines
+        (re.compile(r"PLAINTIFF[,\s]", re.IGNORECASE), 2),
+        (re.compile(r"DEFENDANT[,\s]", re.IGNORECASE), 2),
+        (re.compile(r"\s+-\s*against\s*-\s+", re.IGNORECASE), 2),
+        (re.compile(r"^\s*v\.?\s*$", re.MULTILINE | re.IGNORECASE), 1),
         # Index/case numbers
-        (re.compile(r'INDEX\s*(?:NO\.?|NUMBER)', re.IGNORECASE), 2),
-        (re.compile(r'CASE\s*(?:NO\.?|NUMBER)', re.IGNORECASE), 2),
-        (re.compile(r'DOCKET\s*(?:NO\.?|NUMBER)', re.IGNORECASE), 2),
-
+        (re.compile(r"INDEX\s*(?:NO\.?|NUMBER)", re.IGNORECASE), 2),
+        (re.compile(r"CASE\s*(?:NO\.?|NUMBER)", re.IGNORECASE), 2),
+        (re.compile(r"DOCKET\s*(?:NO\.?|NUMBER)", re.IGNORECASE), 2),
         # Deposition titles
-        (re.compile(r'DEPOSITION\s+OF\s+[A-Z]', re.IGNORECASE), 3),
-        (re.compile(r'EXAMINATION\s+BEFORE\s+TRIAL', re.IGNORECASE), 3),
-        (re.compile(r'ORAL\s+DEPOSITION', re.IGNORECASE), 2),
-
+        (re.compile(r"DEPOSITION\s+OF\s+[A-Z]", re.IGNORECASE), 3),
+        (re.compile(r"EXAMINATION\s+BEFORE\s+TRIAL", re.IGNORECASE), 3),
+        (re.compile(r"ORAL\s+DEPOSITION", re.IGNORECASE), 2),
         # Attorney information
-        (re.compile(r'ATTORNEY[S]?\s+FOR', re.IGNORECASE), 2),
-        (re.compile(r'COUNSEL\s+FOR', re.IGNORECASE), 2),
-        (re.compile(r'LAW\s+OFFICE[S]?\s+OF', re.IGNORECASE), 1),
-        (re.compile(r',?\s*(?:ESQ\.?|ESQUIRE)', re.IGNORECASE), 1),
-
+        (re.compile(r"ATTORNEY[S]?\s+FOR", re.IGNORECASE), 2),
+        (re.compile(r"COUNSEL\s+FOR", re.IGNORECASE), 2),
+        (re.compile(r"LAW\s+OFFICE[S]?\s+OF", re.IGNORECASE), 1),
+        (re.compile(r",?\s*(?:ESQ\.?|ESQUIRE)", re.IGNORECASE), 1),
         # Reporter information
-        (re.compile(r'COURT\s+REPORTER', re.IGNORECASE), 2),
-        (re.compile(r'CERTIFIED\s+SHORTHAND', re.IGNORECASE), 2),
-        (re.compile(r'REPORTING\s+(?:SERVICE|COMPANY)', re.IGNORECASE), 1),
-
+        (re.compile(r"COURT\s+REPORTER", re.IGNORECASE), 2),
+        (re.compile(r"CERTIFIED\s+SHORTHAND", re.IGNORECASE), 2),
+        (re.compile(r"REPORTING\s+(?:SERVICE|COMPANY)", re.IGNORECASE), 1),
         # Appearance markers
-        (re.compile(r'APPEARANCES?:', re.IGNORECASE), 2),
-        (re.compile(r'ALSO\s+PRESENT:', re.IGNORECASE), 1),
-
+        (re.compile(r"APPEARANCES?:", re.IGNORECASE), 2),
+        (re.compile(r"ALSO\s+PRESENT:", re.IGNORECASE), 1),
         # Scheduling information (often on title pages)
-        (re.compile(r'TAKEN\s+(?:ON|AT)\s+', re.IGNORECASE), 1),
-        (re.compile(r'PURSUANT\s+TO', re.IGNORECASE), 1),
+        (re.compile(r"TAKEN\s+(?:ON|AT)\s+", re.IGNORECASE), 1),
+        (re.compile(r"PURSUANT\s+TO", re.IGNORECASE), 1),
     ]
 
     # Patterns that indicate substantive content (negative score)
     CONTENT_PATTERNS = [
-        (re.compile(r'^\s*Q[\.:]', re.MULTILINE), -3),  # Q&A transcript
-        (re.compile(r'^\s*A[\.:]', re.MULTILINE), -3),
-        (re.compile(r'THE\s+WITNESS:', re.IGNORECASE), -2),
-        (re.compile(r'BY\s+(?:MR\.|MS\.|MRS\.)', re.IGNORECASE), -1),
+        (re.compile(r"^\s*Q[\.:]", re.MULTILINE), -3),  # Q&A transcript
+        (re.compile(r"^\s*A[\.:]", re.MULTILINE), -3),
+        (re.compile(r"THE\s+WITNESS:", re.IGNORECASE), -2),
+        (re.compile(r"BY\s+(?:MR\.|MS\.|MRS\.)", re.IGNORECASE), -1),
     ]
 
     def _split_into_pages(self, text: str) -> list:
@@ -114,12 +107,12 @@ class TitlePageRemover(BasePreprocessor):
             List of page-like text chunks
         """
         # Try form feed first
-        if '\f' in text:
-            pages = text.split('\f')
+        if "\f" in text:
+            pages = text.split("\f")
             return [p for p in pages if p.strip()]
 
         # Try page break patterns
-        page_break = re.compile(r'\n{4,}|\n\s*-{10,}\s*\n')
+        page_break = re.compile(r"\n{4,}|\n\s*-{10,}\s*\n")
         parts = page_break.split(text)
 
         if len(parts) > 1:
@@ -181,9 +174,7 @@ class TitlePageRemover(BasePreprocessor):
         # If only one "page", don't remove it
         if len(pages) <= 1:
             return PreprocessingResult(
-                text=text,
-                changes_made=0,
-                metadata={'pages_analyzed': 1, 'pages_removed': 0}
+                text=text, changes_made=0, metadata={"pages_analyzed": 1, "pages_removed": 0}
             )
 
         # Score and filter pages
@@ -215,7 +206,7 @@ class TitlePageRemover(BasePreprocessor):
             kept_pages.append(page)
 
         # Rejoin pages
-        result = '\n\n'.join(kept_pages)
+        result = "\n\n".join(kept_pages)
 
         # Safety check: never return empty text if input had content
         # This prevents over-aggressive removal from destroying all content
@@ -229,8 +220,8 @@ class TitlePageRemover(BasePreprocessor):
             text=result,
             changes_made=removed_count,
             metadata={
-                'pages_analyzed': len(pages),
-                'pages_removed': removed_count,
-                'removed_scores': removed_scores,
-            }
+                "pages_analyzed": len(pages),
+                "pages_removed": removed_count,
+                "removed_scores": removed_scores,
+            },
         )

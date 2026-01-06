@@ -73,14 +73,14 @@ FEEDBACK_COLUMNS = [
     "in_case_freq",
     "freq_rank",
     # Session 78: TermSources-based features
-    "num_source_documents",    # How many docs contain this term
-    "doc_diversity_ratio",     # num_docs / total_docs (0-1)
-    "mean_doc_confidence",     # Count-weighted mean OCR confidence (0-1)
-    "median_doc_confidence",   # Median confidence - robust to outliers (0-1)
-    "confidence_std_dev",      # Standard deviation of confidences (0-0.5)
-    "high_conf_doc_ratio",     # % of source docs with confidence > 0.80 (0-1)
-    "all_low_conf",            # 1 if ALL source docs have conf < 0.60, else 0
-    "total_docs_in_session",   # Total docs in extraction session
+    "num_source_documents",  # How many docs contain this term
+    "doc_diversity_ratio",  # num_docs / total_docs (0-1)
+    "mean_doc_confidence",  # Count-weighted mean OCR confidence (0-1)
+    "median_doc_confidence",  # Median confidence - robust to outliers (0-1)
+    "confidence_std_dev",  # Standard deviation of confidences (0-0.5)
+    "high_conf_doc_ratio",  # % of source docs with confidence > 0.80 (0-1)
+    "all_low_conf",  # 1 if ALL source docs have conf < 0.60, else 0
+    "total_docs_in_session",  # Total docs in extraction session
 ]
 
 
@@ -127,7 +127,9 @@ class FeedbackManager:
 
         # Two-file system: default (shipped) + user (collected)
         # Default file: shipped data, or override for testing
-        self.default_feedback_file = Path(default_feedback_file) if default_feedback_file else DEFAULT_FEEDBACK_CSV
+        self.default_feedback_file = (
+            Path(default_feedback_file) if default_feedback_file else DEFAULT_FEEDBACK_CSV
+        )
         # User file goes in the feedback_dir (which may be overridden for testing)
         self.user_feedback_file = self.feedback_dir / "user_feedback.csv"
 
@@ -170,7 +172,7 @@ class FeedbackManager:
             return
 
         try:
-            with open(target_file, 'r', encoding='utf-8', newline='') as f:
+            with open(target_file, "r", encoding="utf-8", newline="") as f:
                 reader = csv.DictReader(f)
                 for row in reader:
                     term = row.get("term", "").lower().strip()
@@ -181,7 +183,9 @@ class FeedbackManager:
                     except ValueError:
                         continue
 
-            debug_log(f"[FEEDBACK] Loaded {len(self._cache)} {target_type} feedback entries (DEBUG_MODE={DEBUG_MODE})")
+            debug_log(
+                f"[FEEDBACK] Loaded {len(self._cache)} {target_type} feedback entries (DEBUG_MODE={DEBUG_MODE})"
+            )
         except Exception as e:
             debug_log(f"[FEEDBACK] Error loading {target_type} feedback: {e}")
 
@@ -212,14 +216,11 @@ class FeedbackManager:
         """
         # Use first 1000 chars for hash (performance + consistency)
         sample = text[:1000] if len(text) > 1000 else text
-        hash_obj = hashlib.md5(sample.encode('utf-8'))
+        hash_obj = hashlib.md5(sample.encode("utf-8"))
         return f"doc_{hash_obj.hexdigest()[:12]}"
 
     def record_feedback(
-        self,
-        term_data: dict[str, Any],
-        feedback: int,
-        doc_id: str | None = None
+        self, term_data: dict[str, Any], feedback: int, doc_id: str | None = None
     ) -> bool:
         """
         Record user feedback for a term.
@@ -320,7 +321,7 @@ class FeedbackManager:
             # Ensure parent directory exists (needed for default_feedback.csv in config/)
             target_file.parent.mkdir(parents=True, exist_ok=True)
 
-            with open(target_file, 'a', encoding='utf-8', newline='') as f:
+            with open(target_file, "a", encoding="utf-8", newline="") as f:
                 writer = csv.DictWriter(f, fieldnames=FEEDBACK_COLUMNS)
                 if not file_exists:
                     writer.writeheader()
@@ -328,7 +329,9 @@ class FeedbackManager:
 
             self._pending_count += 1
             target_type = "default" if DEBUG_MODE else "user"
-            debug_log(f"[FEEDBACK] Recorded {'+' if feedback > 0 else '-'} for '{term}' ({target_type})")
+            debug_log(
+                f"[FEEDBACK] Recorded {'+' if feedback > 0 else '-'} for '{term}' ({target_type})"
+            )
             return True
 
         except Exception as e:
@@ -383,7 +386,7 @@ class FeedbackManager:
             return []
 
         try:
-            with open(filepath, 'r', encoding='utf-8', newline='') as f:
+            with open(filepath, "r", encoding="utf-8", newline="") as f:
                 reader = csv.DictReader(f)
                 return list(reader)
         except Exception as e:
@@ -432,7 +435,9 @@ class FeedbackManager:
         """Reset pending count after training."""
         self._pending_count = 0
 
-    def should_retrain(self, min_samples: int = ML_MIN_SAMPLES, retrain_threshold: int = ML_RETRAIN_THRESHOLD) -> bool:
+    def should_retrain(
+        self, min_samples: int = ML_MIN_SAMPLES, retrain_threshold: int = ML_RETRAIN_THRESHOLD
+    ) -> bool:
         """
         Check if model should be retrained based on feedback count.
 

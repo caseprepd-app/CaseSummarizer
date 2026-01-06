@@ -25,7 +25,7 @@ from queue import Queue, Empty
 from tkinter import filedialog, messagebox
 
 # PERF-001: Pre-compile regex at module level
-_MODEL_PARAM_PATTERN = re.compile(r':(\d+\.?\d*)b')
+_MODEL_PARAM_PATTERN = re.compile(r":(\d+\.?\d*)b")
 
 import customtkinter as ctk
 
@@ -36,7 +36,13 @@ from src.logging_config import debug_log
 from src.core.ai import OllamaModelManager
 from src.core.prompting import PromptTemplateManager
 from src.ui.styles import initialize_all_styles
-from src.ui.workers import ProcessingWorker, VocabularyWorker, QAWorker, BriefingWorker, ProgressiveExtractionWorker
+from src.ui.workers import (
+    ProcessingWorker,
+    VocabularyWorker,
+    QAWorker,
+    BriefingWorker,
+    ProgressiveExtractionWorker,
+)
 from src.ui.window_layout import WindowLayoutMixin
 from src.core.vocabulary import get_corpus_registry
 from src.core.vector_store import VectorStoreBuilder
@@ -45,6 +51,7 @@ from src.ui.tooltip_manager import tooltip_manager
 # Try to import tkinterdnd2 for drag-and-drop support (Session 73)
 try:
     from tkinterdnd2 import DND_FILES, TkinterDnD
+
     HAS_DND = True
 except ImportError:
     HAS_DND = False
@@ -187,7 +194,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
                 corner_radius=6,
                 padx=10,
                 pady=8,
-                justify="left"
+                justify="left",
             )
             label.pack()
 
@@ -195,7 +202,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             tooltip_manager.register(tooltip, owner=self.ollama_status_dot)
 
         def hide_tooltip(event):
-            if hasattr(self, '_ollama_tooltip') and self._ollama_tooltip:
+            if hasattr(self, "_ollama_tooltip") and self._ollama_tooltip:
                 # Session 62b: Unregister from global manager
                 tooltip_manager.unregister(self._ollama_tooltip)
                 self._ollama_tooltip.destroy()
@@ -216,7 +223,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         self.ollama_status_label.unbind("<Leave>")
 
         # Destroy any existing tooltip
-        if hasattr(self, '_ollama_tooltip') and self._ollama_tooltip:
+        if hasattr(self, "_ollama_tooltip") and self._ollama_tooltip:
             # Session 62b: Unregister from global manager
             tooltip_manager.unregister(self._ollama_tooltip)
             self._ollama_tooltip.destroy()
@@ -285,9 +292,11 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             try:
                 self.model_manager.load_model(new_model)
                 from src.logging_config import info as log_info
+
                 log_info(f"Model changed: {old_model} → {new_model}")
             except Exception as e:
                 from src.logging_config import warning as log_warning
+
                 log_warning(f"Failed to load model {new_model}: {e}")
 
         # Refresh UI after settings change
@@ -337,7 +346,6 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             self.corpus_dropdown.set("Error")
             self.corpus_doc_count_label.configure(text="")
 
-
     def _on_corpus_changed(self, corpus_name: str):
         """Handle corpus selection change."""
         try:
@@ -384,7 +392,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
 
             # Register the left panel (file table area) as a drop target
             self.left_panel.drop_target_register(DND_FILES)
-            self.left_panel.dnd_bind('<<Drop>>', self._on_file_drop)
+            self.left_panel.dnd_bind("<<Drop>>", self._on_file_drop)
 
             if DEBUG_MODE:
                 debug_log("[MainWindow] Drag-drop enabled on file table area")
@@ -405,21 +413,21 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         raw_data = event.data
 
         # Handle Tcl list format (paths with spaces are enclosed in braces)
-        if '{' in raw_data:
+        if "{" in raw_data:
             # Parse as Tcl list - paths with spaces are in braces
             paths = []
             i = 0
             while i < len(raw_data):
-                if raw_data[i] == '{':
+                if raw_data[i] == "{":
                     # Find closing brace
-                    end = raw_data.index('}', i)
-                    paths.append(raw_data[i+1:end])
+                    end = raw_data.index("}", i)
+                    paths.append(raw_data[i + 1 : end])
                     i = end + 1
-                elif raw_data[i] == ' ':
+                elif raw_data[i] == " ":
                     i += 1
                 else:
                     # Find next space or end
-                    end = raw_data.find(' ', i)
+                    end = raw_data.find(" ", i)
                     if end == -1:
                         end = len(raw_data)
                     paths.append(raw_data[i:end])
@@ -429,7 +437,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             paths = raw_data.split()
 
         # Filter to supported file types
-        supported_extensions = {'.pdf', '.txt', '.rtf', '.docx', '.png', '.jpg', '.jpeg'}
+        supported_extensions = {".pdf", ".txt", ".rtf", ".docx", ".png", ".jpg", ".jpeg"}
         valid_files = []
         for path in paths:
             ext = Path(path).suffix.lower()
@@ -467,8 +475,8 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
                 ("Text files", "*.txt"),
                 ("RTF files", "*.rtf"),
                 ("Images (OCR)", "*.png *.jpg *.jpeg"),
-                ("All files", "*.*")
-            ]
+                ("All files", "*.*"),
+            ],
         )
 
         if not files:
@@ -516,8 +524,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
 
         # Create and start worker
         self._processing_worker = ProcessingWorker(
-            file_paths=self.selected_files,
-            ui_queue=self._ui_queue
+            file_paths=self.selected_files, ui_queue=self._ui_queue
         )
         self._processing_worker.start()
 
@@ -584,18 +591,22 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             self.set_status(f"NER complete: {term_count} terms found. LLM enhancement starting...")
 
         elif msg_type == "qa_ready":
-            chunk_count = data.get('chunk_count', 0)
+            chunk_count = data.get("chunk_count", 0)
             debug_log(f"[MainWindow] Q&A ready: {chunk_count} chunks indexed")
-            self._vector_store_path = data.get('vector_store_path')
-            self._embeddings = data.get('embeddings')
+            self._vector_store_path = data.get("vector_store_path")
+            self._embeddings = data.get("embeddings")
             self._qa_ready = True
-            if self._pending_tasks.get('qa'):
-                self._completed_tasks.add('qa')
+            if self._pending_tasks.get("qa"):
+                self._completed_tasks.add("qa")
                 self.followup_btn.configure(state="normal")
-            self.set_status(f"Questions and answers ready ({chunk_count} chunks). LLM enhancement in progress...")
+            self.set_status(
+                f"Questions and answers ready ({chunk_count} chunks). LLM enhancement in progress..."
+            )
 
         elif msg_type == "qa_error":
-            error_msg = data.get('error', 'Unknown Q&A error') if isinstance(data, dict) else str(data)
+            error_msg = (
+                data.get("error", "Unknown Q&A error") if isinstance(data, dict) else str(data)
+            )
             debug_log(f"[MainWindow] Q&A indexing error: {error_msg}")
             self.set_status(f"Questions and answers unavailable: {error_msg[:50]}...")
             # Q&A won't be available but vocab extraction can continue
@@ -613,12 +624,12 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
                 prefs = get_user_preferences()
 
                 qa_worker = QAWorker(
-                    vector_store_path=data['vector_store_path'],
-                    embeddings=data['embeddings'],
+                    vector_store_path=data["vector_store_path"],
+                    embeddings=data["embeddings"],
                     ui_queue=self._ui_queue,
-                    answer_mode=prefs.get('qa_answer_mode', 'extraction'),
+                    answer_mode=prefs.get("qa_answer_mode", "extraction"),
                     questions=None,
-                    use_default_questions=True
+                    use_default_questions=True,
                 )
                 qa_worker.start()
                 debug_log("[MainWindow] Default questions worker started")
@@ -665,8 +676,8 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
                 # LLM was skipped - keep extraction source as "ner" (already set)
                 self.set_status("Complete: NER extraction only (LLM disabled)")
 
-            self._completed_tasks.add('vocab')
-            if self._pending_tasks.get('summary'):
+            self._completed_tasks.add("vocab")
+            if self._pending_tasks.get("summary"):
                 self._start_summary_task()
             else:
                 self._finalize_tasks()
@@ -690,7 +701,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         self._update_generate_button_state()
 
         # Count results
-        success_count = sum(1 for r in results if r.get('status') == 'success')
+        success_count = sum(1 for r in results if r.get("status") == "success")
         failed_count = len(results) - success_count
 
         status = f"Processed {len(results)} file(s): {success_count} ready"
@@ -782,7 +793,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
                 "heavily on your hardware.\n\n"
                 "For quick case familiarization, Q&A is recommended instead.\n\n"
                 "Continue with summary?",
-                icon="warning"
+                icon="warning",
             )
             if not result:
                 self.summary_check.deselect()
@@ -903,7 +914,9 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             )
 
         if DEBUG_MODE:
-            debug_log(f"[MainWindow] LLM checkbox: mode={vocab_mode}, has_gpu={has_gpu}, enabled={llm_enabled}")
+            debug_log(
+                f"[MainWindow] LLM checkbox: mode={vocab_mode}, has_gpu={has_gpu}, enabled={llm_enabled}"
+            )
 
     def _set_vocab_llm_tooltip(self, text: str):
         """
@@ -915,7 +928,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         from src.ui.tooltip_helper import create_tooltip
 
         # Remove existing tooltip bindings
-        if hasattr(self, '_vocab_llm_tooltip_hide') and self._vocab_llm_tooltip_hide:
+        if hasattr(self, "_vocab_llm_tooltip_hide") and self._vocab_llm_tooltip_hide:
             try:
                 self.vocab_llm_check.unbind("<Enter>")
                 self.vocab_llm_check.unbind("<Leave>")
@@ -967,9 +980,9 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
 
         # Document stats from processing_results
         file_count = len(self.processing_results)
-        success_count = sum(1 for r in self.processing_results if r.get('status') == 'success')
-        total_pages = sum(r.get('page_count', 0) or 0 for r in self.processing_results)
-        total_size = sum(r.get('file_size', 0) or 0 for r in self.processing_results)
+        success_count = sum(1 for r in self.processing_results if r.get("status") == "success")
+        total_pages = sum(r.get("page_count", 0) or 0 for r in self.processing_results)
+        total_size = sum(r.get("file_size", 0) or 0 for r in self.processing_results)
 
         # Format file size
         if total_size >= 1024 * 1024:
@@ -990,14 +1003,14 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         # Add extraction stats if available
         if extraction_stats:
             ext_parts = []
-            if extraction_stats.get('vocab_count', 0) > 0:
-                v = extraction_stats['vocab_count']
-                p = extraction_stats.get('person_count', 0)
+            if extraction_stats.get("vocab_count", 0) > 0:
+                v = extraction_stats["vocab_count"]
+                p = extraction_stats.get("person_count", 0)
                 ext_parts.append(f"{v} terms ({p} persons)")
-            if extraction_stats.get('qa_count', 0) > 0:
+            if extraction_stats.get("qa_count", 0) > 0:
                 ext_parts.append(f"{extraction_stats['qa_count']} Q&A")
-            if extraction_stats.get('processing_time'):
-                t = extraction_stats['processing_time']
+            if extraction_stats.get("processing_time"):
+                t = extraction_stats["processing_time"]
                 if t >= 60:
                     ext_parts.append(f"{t/60:.1f}m")
                 else:
@@ -1038,11 +1051,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         do_summary = self.summary_check.get()
 
         # Track pending tasks
-        self._pending_tasks = {
-            'vocab': do_vocab,
-            'qa': do_qa,
-            'summary': do_summary
-        }
+        self._pending_tasks = {"vocab": do_vocab, "qa": do_qa, "summary": do_summary}
         self._completed_tasks = set()
         self._qa_ready = False
 
@@ -1060,15 +1069,23 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
     def _start_vocabulary_extraction(self):
         """Start vocabulary extraction task."""
         from src.core.utils.text_utils import combine_document_texts
-        from src.config import LEGAL_EXCLUDE_LIST_PATH, MEDICAL_TERMS_LIST_PATH, USER_VOCAB_EXCLUDE_PATH
+        from src.config import (
+            LEGAL_EXCLUDE_LIST_PATH,
+            MEDICAL_TERMS_LIST_PATH,
+            USER_VOCAB_EXCLUDE_PATH,
+        )
 
         self.set_status("Extracting vocabulary...")
 
         # Debug: Log what's in processing_results
-        debug_log(f"[MainWindow] Vocabulary: {len(self.processing_results)} documents in processing_results")
+        debug_log(
+            f"[MainWindow] Vocabulary: {len(self.processing_results)} documents in processing_results"
+        )
         for i, doc in enumerate(self.processing_results):
-            text_len = len(doc.get('extracted_text', '') or '')
-            debug_log(f"[MainWindow] Doc {i}: {doc.get('filename', 'unknown')} - {text_len} chars, status={doc.get('status')}")
+            text_len = len(doc.get("extracted_text", "") or "")
+            debug_log(
+                f"[MainWindow] Doc {i}: {doc.get('filename', 'unknown')} - {text_len} chars, status={doc.get('status')}"
+            )
 
         # Combine text from all processed documents
         combined_text = combine_document_texts(self.processing_results)
@@ -1086,6 +1103,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
 
         # Check if LLM extraction is enabled (Session 43)
         from src.user_preferences import get_user_preferences
+
         prefs = get_user_preferences()
         use_llm = prefs.is_vocab_llm_enabled()
         debug_log(f"[MainWindow] Vocabulary extraction with LLM: {use_llm}")
@@ -1146,7 +1164,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
 
     def _on_vocab_complete(self, vocab_data: list):
         """Handle vocabulary extraction completion (legacy - for non-progressive flow)."""
-        self._completed_tasks.add('vocab')
+        self._completed_tasks.add("vocab")
 
         # Display results using update_outputs
         if vocab_data:
@@ -1156,10 +1174,10 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             self.set_status("Vocabulary extraction complete (no terms)")
 
         # Continue to next task
-        if self._pending_tasks.get('qa'):
+        if self._pending_tasks.get("qa"):
             # Use Case Briefing instead of legacy Q&A
             self._start_briefing_task()
-        elif self._pending_tasks.get('summary'):
+        elif self._pending_tasks.get("summary"):
             self._start_summary_task()
         else:
             self._finalize_tasks()
@@ -1177,14 +1195,20 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         Phase 3 (LLM): Slow enhancement, updates table progressively
         """
         from src.core.utils.text_utils import combine_document_texts
-        from src.config import LEGAL_EXCLUDE_LIST_PATH, MEDICAL_TERMS_LIST_PATH, USER_VOCAB_EXCLUDE_PATH
+        from src.config import (
+            LEGAL_EXCLUDE_LIST_PATH,
+            MEDICAL_TERMS_LIST_PATH,
+            USER_VOCAB_EXCLUDE_PATH,
+        )
 
         self.set_status("Starting extraction (NER first, then LLM enhancement)...")
 
         # Combine text from all processed documents
         combined_text = combine_document_texts(self.processing_results)
 
-        debug_log(f"[MainWindow] Progressive extraction: {len(combined_text)} chars from {len(self.processing_results)} docs")
+        debug_log(
+            f"[MainWindow] Progressive extraction: {len(combined_text)} chars from {len(self.processing_results)} docs"
+        )
 
         if not combined_text.strip():
             self.set_status("No text to analyze")
@@ -1225,7 +1249,9 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         """Start Q&A task - build vector store then run questions."""
         import threading
 
-        self.set_status("Questions and answers: Loading embeddings model (this may take a moment)...")
+        self.set_status(
+            "Questions and answers: Loading embeddings model (this may take a moment)..."
+        )
 
         # Run the heavy initialization in a background thread
         def initialize_qa():
@@ -1235,9 +1261,9 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
                 if self._embeddings is None:
                     debug_log("[MainWindow] Loading HuggingFaceEmbeddings model...")
                     from langchain_huggingface import HuggingFaceEmbeddings
+
                     self._embeddings = HuggingFaceEmbeddings(
-                        model_name="all-MiniLM-L6-v2",
-                        model_kwargs={'device': 'cpu'}
+                        model_name="all-MiniLM-L6-v2", model_kwargs={"device": "cpu"}
                     )
                     debug_log("[MainWindow] Embeddings model loaded")
 
@@ -1245,11 +1271,12 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
                 debug_log("[MainWindow] Building vector store...")
                 builder = VectorStoreBuilder()
                 result = builder.create_from_documents(
-                    documents=self.processing_results,
-                    embeddings=self._embeddings
+                    documents=self.processing_results, embeddings=self._embeddings
                 )
                 self._vector_store_path = result.persist_dir
-                debug_log(f"[MainWindow] Vector store created: {result.chunk_count} chunks at {result.persist_dir}")
+                debug_log(
+                    f"[MainWindow] Vector store created: {result.chunk_count} chunks at {result.persist_dir}"
+                )
 
                 # Signal main thread that initialization is complete
                 self.after(0, lambda: self._qa_init_complete(True, None))
@@ -1266,8 +1293,8 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         """Called when Q&A initialization (embeddings + vector store) completes."""
         if not success:
             self.set_status(f"Questions and answers error: {error[:50] if error else 'Unknown'}...")
-            self._completed_tasks.add('qa')
-            if self._pending_tasks.get('summary'):
+            self._completed_tasks.add("qa")
+            if self._pending_tasks.get("summary"):
                 self._start_summary_task()
             else:
                 self._finalize_tasks()
@@ -1281,7 +1308,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             vector_store_path=self._vector_store_path,
             embeddings=self._embeddings,
             ui_queue=self._qa_queue,
-            answer_mode="extraction"  # Fast extraction mode
+            answer_mode="extraction",  # Fast extraction mode
         )
         self._qa_worker.start()
 
@@ -1296,7 +1323,9 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
                 msg_type, data = self._qa_queue.get_nowait()
                 if msg_type == "qa_progress":
                     current, total, question = data
-                    self.set_status(f"Questions and answers: Processing question {current + 1}/{total}...")
+                    self.set_status(
+                        f"Questions and answers: Processing question {current + 1}/{total}..."
+                    )
                 elif msg_type == "qa_result":
                     # Individual result - could update incrementally
                     pass
@@ -1328,7 +1357,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
 
     def _on_qa_complete(self, qa_results: list):
         """Handle Q&A completion."""
-        self._completed_tasks.add('qa')
+        self._completed_tasks.add("qa")
         self._qa_results = qa_results
 
         # Display results using update_outputs
@@ -1341,7 +1370,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             self.set_status("Questions and answers complete (no results)")
 
         # Continue to next task
-        if self._pending_tasks.get('summary'):
+        if self._pending_tasks.get("summary"):
             self._start_summary_task()
         else:
             self._finalize_tasks()
@@ -1351,7 +1380,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         self.set_status("Summary: This feature takes 30+ minutes...")
 
         # Summary is complex - show placeholder for now
-        self._completed_tasks.add('summary')
+        self._completed_tasks.add("summary")
 
         self.output_display.update_outputs(
             meta_summary="Summary generation is a long-running task (30+ minutes). "
@@ -1378,8 +1407,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
 
         # Start briefing worker
         self._briefing_worker = BriefingWorker(
-            documents=self.processing_results,
-            ui_queue=self._briefing_queue
+            documents=self.processing_results, ui_queue=self._briefing_queue
         )
         self._briefing_worker.start()
 
@@ -1422,11 +1450,11 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
 
     def _on_briefing_complete(self, briefing_data: dict | None):
         """Handle briefing generation completion."""
-        self._completed_tasks.add('qa')  # Count as Q&A task for compatibility
+        self._completed_tasks.add("qa")  # Count as Q&A task for compatibility
 
-        if briefing_data and briefing_data.get('formatted'):
-            formatted = briefing_data['formatted']
-            result = briefing_data.get('result')
+        if briefing_data and briefing_data.get("formatted"):
+            formatted = briefing_data["formatted"]
+            result = briefing_data.get("result")
 
             # Store briefing result for export
             self._briefing_result = result
@@ -1434,8 +1462,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
 
             # Display the briefing text in the output widget
             self.output_display.update_outputs(
-                briefing_text=formatted.text,
-                briefing_sections=formatted.sections
+                briefing_text=formatted.text, briefing_sections=formatted.sections
             )
 
             time_str = f"{result.total_time_seconds:.1f}s" if result else ""
@@ -1444,7 +1471,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             self.set_status("Briefing generation failed")
 
         # Continue to next task
-        if self._pending_tasks.get('summary'):
+        if self._pending_tasks.get("summary"):
             self._start_summary_task()
         else:
             self._finalize_tasks()
@@ -1486,21 +1513,20 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         stats = {}
 
         # Vocabulary stats from output display
-        vocab_data = getattr(self.output_display, '_vocab_csv_data', None)
+        vocab_data = getattr(self.output_display, "_vocab_csv_data", None)
         if vocab_data:
-            stats['vocab_count'] = len(vocab_data)
-            stats['person_count'] = sum(
-                1 for v in vocab_data
-                if v.get('Is Person', '').lower() in ('yes', 'true', '1')
+            stats["vocab_count"] = len(vocab_data)
+            stats["person_count"] = sum(
+                1 for v in vocab_data if v.get("Is Person", "").lower() in ("yes", "true", "1")
             )
 
         # Q&A stats
         if self._qa_results:
-            stats['qa_count'] = len(self._qa_results)
+            stats["qa_count"] = len(self._qa_results)
 
         # Processing time
         if self._processing_start_time:
-            stats['processing_time'] = time.time() - self._processing_start_time
+            stats["processing_time"] = time.time() - self._processing_start_time
 
         return stats
 
@@ -1520,12 +1546,16 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
                 "2. Ensure the 'Ask Questions' checkbox is checked\n"
                 "3. Click 'Perform Tasks'\n"
                 "4. Wait for 'Questions and answers ready' status message\n\n"
-                "The question system will be ready once the vector index is built."
+                "The question system will be ready once the vector index is built.",
             )
             return
 
         # Prevent duplicate submissions
-        if hasattr(self, '_followup_thread') and self._followup_thread is not None and self._followup_thread.is_alive():
+        if (
+            hasattr(self, "_followup_thread")
+            and self._followup_thread is not None
+            and self._followup_thread.is_alive()
+        ):
             debug_log("[MainWindow] Follow-up already in progress, ignoring")
             return
 
@@ -1545,10 +1575,11 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         def run_followup():
             try:
                 from src.core.qa import QAOrchestrator
+
                 orchestrator = QAOrchestrator(
                     vector_store_path=self._vector_store_path,
                     embeddings=self._embeddings,
-                    answer_mode="extraction"
+                    answer_mode="extraction",
                 )
                 result = orchestrator.ask_followup(question)
                 self._followup_queue.put(("success", result))
@@ -1628,7 +1659,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             orchestrator = QAOrchestrator(
                 vector_store_path=self._vector_store_path,
                 embeddings=self._embeddings,
-                answer_mode="extraction"
+                answer_mode="extraction",
             )
 
             # Ask the follow-up question
@@ -1764,11 +1795,11 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             filetypes=[
                 ("Word documents", "*.docx"),
                 ("PDF documents", "*.pdf"),
-                ("All files", "*.*")
+                ("All files", "*.*"),
             ],
             initialfile=f"combined_report_{timestamp}.docx",
             initialdir=initial_dir,
-            title="Export Combined Report"
+            title="Export Combined Report",
         )
 
         if not filepath:
@@ -1794,7 +1825,10 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             filename = Path(filepath).name
             term_count = len(vocab_data)
             qa_count = len(qa_results)
-            self.set_status(f"Combined report: {term_count} terms + {qa_count} Q&A → {filename}", duration_ms=5000)
+            self.set_status(
+                f"Combined report: {term_count} terms + {qa_count} Q&A → {filename}",
+                duration_ms=5000,
+            )
             debug_log(f"[MainWindow] Combined report exported: {filepath}")
         else:
             messagebox.showerror("Export Failed", "Failed to create combined report.")
@@ -1824,7 +1858,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
 
     def _start_activity_indicator(self):
         """Show and start the animated activity indicator."""
-        if hasattr(self, 'activity_indicator'):
+        if hasattr(self, "activity_indicator"):
             if not self._activity_indicator_visible:
                 self.activity_indicator.pack(side="right", padx=(0, 5), pady=5)
                 self._activity_indicator_visible = True
@@ -1832,7 +1866,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
 
     def _stop_activity_indicator(self):
         """Stop and hide the activity indicator."""
-        if hasattr(self, 'activity_indicator'):
+        if hasattr(self, "activity_indicator"):
             self.activity_indicator.stop()
             if self._activity_indicator_visible:
                 self.activity_indicator.pack_forget()
@@ -1867,7 +1901,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         """
         confidences = []
         for doc in documents:
-            conf = doc.get('confidence')
+            conf = doc.get("confidence")
             if conf is not None:
                 confidences.append(float(conf))
 
@@ -1892,7 +1926,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
                          Use for temporary confirmations (e.g., "Exported 10 terms").
         """
         # Cancel any pending status clear
-        if hasattr(self, '_status_clear_id') and self._status_clear_id:
+        if hasattr(self, "_status_clear_id") and self._status_clear_id:
             self.after_cancel(self._status_clear_id)
             self._status_clear_id = None
 
@@ -1903,10 +1937,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
 
         # Schedule auto-clear if duration specified
         if duration_ms:
-            self._status_clear_id = self.after(
-                duration_ms,
-                lambda: self._clear_status_to_default()
-            )
+            self._status_clear_id = self.after(duration_ms, lambda: self._clear_status_to_default())
 
     def _clear_status_to_default(self):
         """Clear status bar to default 'Ready' message."""
@@ -1932,7 +1963,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
                 "LocalScribe requires Ollama for Q&A and summaries.\n\n"
                 "To install: Visit https://ollama.ai\n"
                 "To start: Run 'ollama serve' in a terminal\n\n"
-                "Vocabulary extraction will still work without Ollama."
+                "Vocabulary extraction will still work without Ollama.",
             )
 
     # =========================================================================
@@ -1950,7 +1981,11 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         if self._processing_worker and self._processing_worker.is_alive():
             # Worker is a daemon thread, will stop when main thread exits
             pass
-        if self._vocabulary_worker and hasattr(self._vocabulary_worker, 'is_alive') and self._vocabulary_worker.is_alive():
+        if (
+            self._vocabulary_worker
+            and hasattr(self._vocabulary_worker, "is_alive")
+            and self._vocabulary_worker.is_alive()
+        ):
             pass
 
         # Stop timer

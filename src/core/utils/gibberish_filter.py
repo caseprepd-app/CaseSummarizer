@@ -61,7 +61,7 @@ class GibberishFilter:
         self._spell = SpellChecker()
 
     @classmethod
-    def get_instance(cls) -> 'GibberishFilter':
+    def get_instance(cls) -> "GibberishFilter":
         """
         Get singleton instance (lazy load).
 
@@ -184,7 +184,7 @@ class GibberishFilter:
         Returns:
             Cleaned word
         """
-        cleaned = ''.join(c for c in word if c.isalpha())
+        cleaned = "".join(c for c in word if c.isalpha())
         return cleaned.lower()
 
 
