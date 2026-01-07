@@ -286,7 +286,7 @@ def _register_all_settings():
         """Factory for corpus status warning banner with dynamic refresh."""
         import tkinter as tk
 
-        from src.core.vocabulary.corpus_manager import get_corpus_manager
+        from src.services import VocabularyService
 
         frame = tk.Frame(parent)
         frame._warning_frame = None  # Store reference for updates
@@ -294,7 +294,7 @@ def _register_all_settings():
 
         def update_warning():
             """Update the warning banner based on current corpus status."""
-            corpus_manager = get_corpus_manager()
+            corpus_manager = VocabularyService().get_corpus_manager()
             doc_count = corpus_manager.get_document_count()
 
             if doc_count < 5:
@@ -495,8 +495,6 @@ def _register_all_settings():
         """Reset vocabulary ML model to default (keep feedback history)."""
         from tkinter import messagebox
 
-        from src.core.vocabulary.meta_learner import get_meta_learner
-
         result = messagebox.askyesno(
             "Reset Vocabulary Model",
             "Reset the vocabulary ranking model to default settings?\n\n"
@@ -507,7 +505,9 @@ def _register_all_settings():
         )
 
         if result:
-            learner = get_meta_learner()
+            from src.services import VocabularyService
+
+            learner = VocabularyService().get_meta_learner()
             if learner.reset_to_default():
                 messagebox.showinfo(
                     "Reset Complete",
@@ -543,9 +543,6 @@ def _register_all_settings():
         """Reset vocabulary ML model AND clear all feedback history."""
         from tkinter import messagebox
 
-        from src.core.vocabulary.feedback_manager import get_feedback_manager
-        from src.core.vocabulary.meta_learner import get_meta_learner
-
         result = messagebox.askyesno(
             "Reset Model and Clear History",
             "⚠️ CAUTION: This will:\n\n"
@@ -565,8 +562,11 @@ def _register_all_settings():
             )
 
             if confirm:
-                learner = get_meta_learner()
-                feedback_manager = get_feedback_manager()
+                from src.services import VocabularyService
+
+                vocab_svc = VocabularyService()
+                learner = vocab_svc.get_meta_learner()
+                feedback_manager = vocab_svc.get_feedback_manager()
 
                 model_ok = learner.reset_to_default()
                 feedback_ok = feedback_manager.clear_all_feedback()
@@ -787,9 +787,9 @@ def _register_all_settings():
     def _get_ollama_model_options() -> list[tuple[str, str]]:
         """Fetch available models from Ollama for dropdown options."""
         try:
-            from src.core.ai import OllamaModelManager
+            from src.services import AIService
 
-            manager = OllamaModelManager()
+            manager = AIService().get_ollama_manager()
             if not manager.is_connected:
                 return [("(Ollama not running - start Ollama first)", "")]
             models = manager.get_available_models()
@@ -814,9 +814,9 @@ def _register_all_settings():
         prefs.set("ollama_model", model_name)
         # Also update the model manager to use this model
         try:
-            from src.core.ai import OllamaModelManager
+            from src.services import AIService
 
-            manager = OllamaModelManager()
+            manager = AIService().get_ollama_manager()
             manager.load_model(model_name)
         except Exception as e:
             # LOG-017: Log exception instead of silent pass
@@ -847,10 +847,11 @@ def _register_all_settings():
     # Session 64: Context window size based on VRAM
     def _get_context_size_options() -> list[tuple[str, str]]:
         """Generate context size options with auto-detected recommendation."""
-        from src.core.utils.gpu_detector import get_optimal_context_size, get_vram_gb
+        from src.services import AIService
 
-        vram = get_vram_gb()
-        optimal = get_optimal_context_size()
+        ai_svc = AIService()
+        vram = ai_svc.get_vram_gb()
+        optimal = ai_svc.get_optimal_context_size()
 
         if vram > 0:
             auto_label = f"Auto ({optimal // 1000}K - detected {vram:.1f}GB VRAM)"
@@ -997,9 +998,9 @@ def _register_all_settings():
     def _get_gpu_status_for_tooltip() -> str:
         """Get GPU status text for tooltip display."""
         try:
-            from src.core.utils.gpu_detector import get_gpu_status_text
+            from src.services import AIService
 
-            return get_gpu_status_text()
+            return AIService().get_gpu_status_text()
         except Exception:
             return "GPU detection unavailable"
 

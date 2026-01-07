@@ -310,13 +310,14 @@ class TaskMixin:
             MEDICAL_TERMS_LIST_PATH,
             USER_VOCAB_EXCLUDE_PATH,
         )
-        from src.core.utils.text_utils import combine_document_texts
+        from src.services import DocumentService
         from src.services.workers import ProgressiveExtractionWorker
 
         self.set_status("Starting extraction (NER first, then LLM enhancement)...")
 
         # Combine text from all processed documents
-        combined_text = combine_document_texts(self.processing_results)
+        doc_service = DocumentService()
+        combined_text = doc_service.combine_document_texts(self.processing_results)
 
         debug_log(
             f"[MainWindow] Progressive extraction: {len(combined_text)} chars "
@@ -362,7 +363,7 @@ class TaskMixin:
 
     def _start_qa_task(self):
         """Start Q&A task - build vector store then run questions."""
-        from src.core.vector_store import VectorStoreBuilder
+        from src.services import QAService
 
         self.set_status(
             "Questions and answers: Loading embeddings model (this may take a moment)..."
@@ -381,9 +382,10 @@ class TaskMixin:
                     )
                     debug_log("[MainWindow] Embeddings model loaded")
 
-                # Build vector store
+                # Build vector store via QAService
                 debug_log("[MainWindow] Building vector store...")
-                builder = VectorStoreBuilder()
+                qa_service = QAService()
+                builder = qa_service.get_vector_store_builder()
                 result = builder.create_from_documents(
                     documents=self.processing_results, embeddings=self._embeddings
                 )
@@ -667,9 +669,10 @@ class TaskMixin:
 
         def run_followup():
             try:
-                from src.core.qa import QAOrchestrator
+                from src.services import QAService
 
-                orchestrator = QAOrchestrator(
+                qa_service = QAService()
+                orchestrator = qa_service.create_orchestrator(
                     vector_store_path=self._vector_store_path,
                     embeddings=self._embeddings,
                     answer_mode="extraction",
@@ -736,9 +739,10 @@ class TaskMixin:
             return None
 
         try:
-            from src.core.qa import QAOrchestrator
+            from src.services import QAService
 
-            orchestrator = QAOrchestrator(
+            qa_service = QAService()
+            orchestrator = qa_service.create_orchestrator(
                 vector_store_path=self._vector_store_path,
                 embeddings=self._embeddings,
                 answer_mode="extraction",

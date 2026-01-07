@@ -25,8 +25,11 @@ from tkinter import filedialog, messagebox
 import customtkinter as ctk
 
 from src.config import DEBUG_MODE
-from src.core.qa.qa_orchestrator import QAResult
 from src.logging_config import debug_log
+from src.services import QAService
+
+# Get QAResult class from service layer (pipeline architecture)
+QAResult = QAService().get_qa_result_class()
 from src.ui.theme import BUTTON_STYLES, COLORS, FONTS, FRAME_STYLES, QA_TEXT_TAGS
 
 
@@ -288,10 +291,10 @@ class QAPanel(ctk.CTkFrame):
         Args:
             verification: VerificationResult with overall_reliability score
         """
-        from src.core.qa.verification_config import get_reliability_level
+        from src.services import QAService
 
         reliability_pct = int(verification.overall_reliability * 100)
-        level = get_reliability_level(verification.overall_reliability)
+        level = QAService().get_reliability_level(verification.overall_reliability)
 
         # Map level to tag and label
         tag_map = {
@@ -310,10 +313,11 @@ class QAPanel(ctk.CTkFrame):
         Args:
             verification: VerificationResult with spans and probabilities
         """
-        from src.core.qa.verification_config import get_span_category
+        from src.services import QAService
 
+        qa_svc = QAService()
         for span in verification.spans:
-            category = get_span_category(span.hallucination_prob)
+            category = qa_svc.get_span_category(span.hallucination_prob)
             tag = f"verify_{category}"
             self.text_display.insert("end", span.text, tag)
 
@@ -449,7 +453,7 @@ class QAPanel(ctk.CTkFrame):
         """Export selected Q&A results to CSV file."""
         from pathlib import Path
 
-        from src.core.utils.text_utils import get_documents_folder
+        from src.services import DocumentService
         from src.user_preferences import get_user_preferences
 
         exportable = [r for r in self._results if r.include_in_export]
@@ -464,7 +468,9 @@ class QAPanel(ctk.CTkFrame):
 
         # Session 73: Use last export folder or Documents
         prefs = get_user_preferences()
-        initial_dir = prefs.get("last_export_path") or get_documents_folder()
+        initial_dir = (
+            prefs.get("last_export_path") or DocumentService().get_default_documents_folder()
+        )
 
         filepath = filedialog.asksaveasfilename(
             defaultextension=".csv",
@@ -505,7 +511,7 @@ class QAPanel(ctk.CTkFrame):
         """Export selected Q&A results to TXT file."""
         from pathlib import Path
 
-        from src.core.utils.text_utils import get_documents_folder
+        from src.services import DocumentService
         from src.user_preferences import get_user_preferences
 
         exportable = [r for r in self._results if r.include_in_export]
@@ -520,7 +526,9 @@ class QAPanel(ctk.CTkFrame):
 
         # Session 73: Use last export folder or Documents
         prefs = get_user_preferences()
-        initial_dir = prefs.get("last_export_path") or get_documents_folder()
+        initial_dir = (
+            prefs.get("last_export_path") or DocumentService().get_default_documents_folder()
+        )
 
         filepath = filedialog.asksaveasfilename(
             defaultextension=".txt",
@@ -561,8 +569,7 @@ class QAPanel(ctk.CTkFrame):
         """Export selected Q&A results to Word document (Session 71, updated Session 73)."""
         from pathlib import Path
 
-        from src.core.utils.text_utils import get_documents_folder
-        from src.services import get_export_service
+        from src.services import DocumentService, get_export_service
         from src.user_preferences import get_user_preferences
 
         exportable = [r for r in self._results if r.include_in_export]
@@ -577,7 +584,9 @@ class QAPanel(ctk.CTkFrame):
 
         # Session 73: Use last export folder or Documents
         prefs = get_user_preferences()
-        initial_dir = prefs.get("last_export_path") or get_documents_folder()
+        initial_dir = (
+            prefs.get("last_export_path") or DocumentService().get_default_documents_folder()
+        )
 
         filepath = filedialog.asksaveasfilename(
             defaultextension=".docx",
@@ -621,8 +630,7 @@ class QAPanel(ctk.CTkFrame):
         """Export selected Q&A results to PDF document (Session 71, updated Session 73)."""
         from pathlib import Path
 
-        from src.core.utils.text_utils import get_documents_folder
-        from src.services import get_export_service
+        from src.services import DocumentService, get_export_service
         from src.user_preferences import get_user_preferences
 
         exportable = [r for r in self._results if r.include_in_export]
@@ -637,7 +645,9 @@ class QAPanel(ctk.CTkFrame):
 
         # Session 73: Use last export folder or Documents
         prefs = get_user_preferences()
-        initial_dir = prefs.get("last_export_path") or get_documents_folder()
+        initial_dir = (
+            prefs.get("last_export_path") or DocumentService().get_default_documents_folder()
+        )
 
         filepath = filedialog.asksaveasfilename(
             defaultextension=".pdf",
@@ -681,8 +691,7 @@ class QAPanel(ctk.CTkFrame):
         """Export selected Q&A results to interactive HTML file (Session 72, updated Session 73)."""
         from pathlib import Path
 
-        from src.core.utils.text_utils import get_documents_folder
-        from src.services import get_export_service
+        from src.services import DocumentService, get_export_service
         from src.user_preferences import get_user_preferences
 
         exportable = [r for r in self._results if r.include_in_export]
@@ -697,7 +706,9 @@ class QAPanel(ctk.CTkFrame):
 
         # Session 73: Use last export folder or Documents
         prefs = get_user_preferences()
-        initial_dir = prefs.get("last_export_path") or get_documents_folder()
+        initial_dir = (
+            prefs.get("last_export_path") or DocumentService().get_default_documents_folder()
+        )
 
         filepath = filedialog.asksaveasfilename(
             defaultextension=".html",

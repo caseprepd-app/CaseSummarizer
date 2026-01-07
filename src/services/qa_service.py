@@ -295,3 +295,16 @@ class QAService:
         from src.core.qa.qa_orchestrator import QAResult
 
         return QAResult
+
+    def get_vector_store_builder(self):
+        """
+        Get a VectorStoreBuilder instance.
+
+        Used by UI components that need to create vector stores directly.
+
+        Returns:
+            VectorStoreBuilder instance.
+        """
+        from src.core.vector_store import VectorStoreBuilder
+
+        return VectorStoreBuilder()

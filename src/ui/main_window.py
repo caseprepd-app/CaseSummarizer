@@ -35,11 +35,7 @@ from tkinter import filedialog, messagebox
 
 import customtkinter as ctk
 
-from src.config import DEBUG_MODE, PROMPTS_DIR
-from src.core.ai import OllamaModelManager
-from src.core.prompting import PromptTemplateManager
-from src.core.vector_store import VectorStoreBuilder
-from src.core.vocabulary import get_corpus_registry
+from src.config import DEBUG_MODE
 from src.logging_config import debug_log
 from src.services.workers import (
     BriefingWorker,
@@ -97,10 +93,13 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         self._processing_start_time: float | None = None
         self._timer_after_id: str | None = None
 
-        # Managers
-        self.model_manager = OllamaModelManager()
-        self.prompt_template_manager = PromptTemplateManager(PROMPTS_DIR)
-        self.corpus_registry = get_corpus_registry()
+        # Managers (via service layer for pipeline architecture)
+        from src.services import AIService, VocabularyService
+
+        ai_service = AIService()
+        self.model_manager = ai_service.get_ollama_manager()
+        self.prompt_template_manager = ai_service.get_prompt_template_manager()
+        self.corpus_registry = VocabularyService().get_corpus_registry()
 
         # Workers and queue
         self._processing_worker: ProcessingWorker | None = None
@@ -814,9 +813,9 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             Tuple of (enabled_count, total_count)
         """
         try:
-            from src.core.qa.default_questions_manager import get_default_questions_manager
+            from src.services import QAService
 
-            manager = get_default_questions_manager()
+            manager = QAService().get_default_questions_manager()
             return (manager.get_enabled_count(), manager.get_total_count())
 
         except Exception as e:
@@ -864,12 +863,13 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         - If vocab_use_llm is "auto" and no GPU: disable and uncheck
         - Otherwise: enable and set based on is_vocab_llm_enabled()
         """
-        from src.core.utils.gpu_detector import get_gpu_status_text, has_dedicated_gpu
+        from src.services import AIService
         from src.user_preferences import get_user_preferences
 
+        ai_svc = AIService()
         prefs = get_user_preferences()
         vocab_mode = prefs.get_vocab_llm_mode()  # "auto", "yes", or "no"
-        has_gpu = has_dedicated_gpu()
+        has_gpu = ai_svc.has_dedicated_gpu()
         llm_enabled = prefs.is_vocab_llm_enabled()
 
         # Case 1: Vocab is unchecked - disable LLM checkbox
@@ -1077,7 +1077,6 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             MEDICAL_TERMS_LIST_PATH,
             USER_VOCAB_EXCLUDE_PATH,
         )
-        from src.core.utils.text_utils import combine_document_texts
 
         self.set_status("Extracting vocabulary...")
 
@@ -1092,7 +1091,9 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             )
 
         # Combine text from all processed documents
-        combined_text = combine_document_texts(self.processing_results)
+        from src.services import DocumentService
+
+        combined_text = DocumentService().combine_document_texts(self.processing_results)
 
         debug_log(f"[MainWindow] Combined text length: {len(combined_text)} chars")
 
@@ -1203,12 +1204,13 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             MEDICAL_TERMS_LIST_PATH,
             USER_VOCAB_EXCLUDE_PATH,
         )
-        from src.core.utils.text_utils import combine_document_texts
 
         self.set_status("Starting extraction (NER first, then LLM enhancement)...")
 
         # Combine text from all processed documents
-        combined_text = combine_document_texts(self.processing_results)
+        from src.services import DocumentService
+
+        combined_text = DocumentService().combine_document_texts(self.processing_results)
 
         debug_log(
             f"[MainWindow] Progressive extraction: {len(combined_text)} chars from {len(self.processing_results)} docs"
@@ -1579,9 +1581,9 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
 
         def run_followup():
             try:
-                from src.core.qa import QAOrchestrator
+                from src.services import QAService
 
-                orchestrator = QAOrchestrator(
+                orchestrator = QAService().create_orchestrator(
                     vector_store_path=self._vector_store_path,
                     embeddings=self._embeddings,
                     answer_mode="extraction",
@@ -1658,10 +1660,10 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         # Do NOT call GUI methods like set_status() here - it causes freezes!
 
         try:
-            # Import and use QAOrchestrator for follow-up
-            from src.core.qa import QAOrchestrator
+            # Import and use QAOrchestrator for follow-up (via service layer)
+            from src.services import QAService
 
-            orchestrator = QAOrchestrator(
+            orchestrator = QAService().create_orchestrator(
                 vector_store_path=self._vector_store_path,
                 embeddings=self._embeddings,
                 answer_mode="extraction",
@@ -1716,9 +1718,9 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         import os
         from datetime import datetime
 
-        from src.core.utils.text_utils import get_documents_folder
+        from src.services import DocumentService
 
-        documents_path = get_documents_folder()
+        documents_path = DocumentService().get_default_documents_folder()
 
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         exported = []
@@ -1775,8 +1777,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         from pathlib import Path
         from tkinter import filedialog
 
-        from src.core.utils.text_utils import get_documents_folder
-        from src.services import get_export_service
+        from src.services import DocumentService, get_export_service
         from src.user_preferences import get_user_preferences
 
         # Gather data
@@ -1793,7 +1794,9 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
 
         # Get initial directory (last export path or Documents)
         prefs = get_user_preferences()
-        initial_dir = prefs.get("last_export_path") or get_documents_folder()
+        initial_dir = (
+            prefs.get("last_export_path") or DocumentService().get_default_documents_folder()
+        )
 
         # Ask for save location with format choice
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")

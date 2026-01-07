@@ -37,7 +37,6 @@ from tkinter import Menu, filedialog, messagebox, ttk
 import customtkinter as ctk
 
 from src.config import SORT_WARNING_COLUMNS, USER_VOCAB_EXCLUDE_PATH
-from src.core.vocabulary.feedback_manager import get_feedback_manager
 from src.logging_config import debug_log
 from src.ui.qa_panel import QAPanel
 from src.ui.theme import BUTTON_STYLES, COLORS, FONTS, FRAME_STYLES, VOCAB_TABLE_TAGS
@@ -200,7 +199,9 @@ class DynamicOutputWidget(ctk.CTkFrame):
         self._batch_insertion_paused = False  # Pause batch insertion during resize
 
         # Feedback manager for ML learning (Session 25)
-        self._feedback_manager = get_feedback_manager()
+        from src.services import VocabularyService
+
+        self._feedback_manager = VocabularyService().get_feedback_manager()
 
         # Session 68: Track whether corpus warning has been shown this session
         self._corpus_warning_shown = False
@@ -1503,10 +1504,12 @@ class DynamicOutputWidget(ctk.CTkFrame):
             filetypes = [("Text Files", "*.txt"), ("All Files", "*.*")]
 
         # Session 73: Remember last export folder
-        from src.core.utils.text_utils import get_documents_folder
+        from src.services import DocumentService
 
         prefs = get_user_preferences()
-        initial_dir = prefs.get("last_export_path") or get_documents_folder()
+        initial_dir = (
+            prefs.get("last_export_path") or DocumentService().get_default_documents_folder()
+        )
 
         filepath = filedialog.asksaveasfilename(
             defaultextension=".txt",
@@ -1568,10 +1571,12 @@ class DynamicOutputWidget(ctk.CTkFrame):
         csv_content = self._build_vocab_csv(vocab_data)
 
         # Session 73: Use last export folder or Documents
-        from src.core.utils.text_utils import get_documents_folder
+        from src.services import DocumentService
 
         prefs = get_user_preferences()
-        export_path = prefs.get("last_export_path") or get_documents_folder()
+        export_path = (
+            prefs.get("last_export_path") or DocumentService().get_default_documents_folder()
+        )
 
         # Generate timestamped filename
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -1606,8 +1611,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
         from datetime import datetime
         from pathlib import Path
 
-        from src.core.utils.text_utils import get_documents_folder
-        from src.services import get_export_service
+        from src.services import DocumentService, get_export_service
 
         # Session 80: Use fallback to legacy key like other export functions
         vocab_data = self._outputs.get("Names & Vocabulary") or self._outputs.get(
@@ -1619,7 +1623,9 @@ class DynamicOutputWidget(ctk.CTkFrame):
 
         # Session 73: Use last export folder or Documents
         prefs = get_user_preferences()
-        export_path = prefs.get("last_export_path") or get_documents_folder()
+        export_path = (
+            prefs.get("last_export_path") or DocumentService().get_default_documents_folder()
+        )
 
         # Generate timestamped filename
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -1654,8 +1660,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
         from datetime import datetime
         from pathlib import Path
 
-        from src.core.utils.text_utils import get_documents_folder
-        from src.services import get_export_service
+        from src.services import DocumentService, get_export_service
 
         # Session 80: Use fallback to legacy key like other export functions
         vocab_data = self._outputs.get("Names & Vocabulary") or self._outputs.get(
@@ -1667,7 +1672,9 @@ class DynamicOutputWidget(ctk.CTkFrame):
 
         # Session 73: Use last export folder or Documents
         prefs = get_user_preferences()
-        export_path = prefs.get("last_export_path") or get_documents_folder()
+        export_path = (
+            prefs.get("last_export_path") or DocumentService().get_default_documents_folder()
+        )
 
         # Generate timestamped filename
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -1702,8 +1709,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
         from datetime import datetime
         from pathlib import Path
 
-        from src.core.utils.text_utils import get_documents_folder
-        from src.services import get_export_service
+        from src.services import DocumentService, get_export_service
 
         # Session 80: Use fallback to legacy key like other export functions
         vocab_data = self._outputs.get("Names & Vocabulary") or self._outputs.get(
@@ -1715,7 +1721,9 @@ class DynamicOutputWidget(ctk.CTkFrame):
 
         # Session 73: Use last export folder or Documents
         prefs = get_user_preferences()
-        export_path = prefs.get("last_export_path") or get_documents_folder()
+        export_path = (
+            prefs.get("last_export_path") or DocumentService().get_default_documents_folder()
+        )
 
         # Generate timestamped filename
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -1749,8 +1757,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
         from datetime import datetime
         from pathlib import Path
 
-        from src.core.utils.text_utils import get_documents_folder
-        from src.services import get_export_service
+        from src.services import DocumentService, get_export_service
 
         # Session 80: Use fallback to legacy key like other export functions
         vocab_data = self._outputs.get("Names & Vocabulary") or self._outputs.get(
@@ -1762,7 +1769,9 @@ class DynamicOutputWidget(ctk.CTkFrame):
 
         # Session 73: Use last export folder or Documents
         prefs = get_user_preferences()
-        export_path = prefs.get("last_export_path") or get_documents_folder()
+        export_path = (
+            prefs.get("last_export_path") or DocumentService().get_default_documents_folder()
+        )
 
         # Generate timestamped filename
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -1857,9 +1866,9 @@ class DynamicOutputWidget(ctk.CTkFrame):
         if self._corpus_warning_shown:
             return True
 
-        from src.core.vocabulary.corpus_manager import get_corpus_manager
+        from src.services import VocabularyService
 
-        corpus_manager = get_corpus_manager()
+        corpus_manager = VocabularyService().get_corpus_manager()
         if corpus_manager.is_corpus_ready():
             return True  # Corpus OK, proceed
 
