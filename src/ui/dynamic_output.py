@@ -36,8 +36,7 @@ from tkinter import Menu, filedialog, messagebox, ttk
 
 import customtkinter as ctk
 
-from src.config import USER_VOCAB_EXCLUDE_PATH
-from src.core.vocabulary.column_config import SORT_WARNING_COLUMNS
+from src.config import SORT_WARNING_COLUMNS, USER_VOCAB_EXCLUDE_PATH
 from src.core.vocabulary.feedback_manager import get_feedback_manager
 from src.logging_config import debug_log
 from src.ui.qa_panel import QAPanel

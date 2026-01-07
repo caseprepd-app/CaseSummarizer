@@ -48,10 +48,11 @@ class CorpusSettingsWidget(ctk.CTkFrame):
         """
         super().__init__(parent, fg_color="transparent", **kwargs)
 
-        # Get corpus registry
-        from src.core.vocabulary import get_corpus_registry
+        # Get corpus registry via VocabularyService
+        from src.services import VocabularyService
 
-        self.registry = get_corpus_registry()
+        vocab_service = VocabularyService()
+        self.registry = vocab_service.get_corpus_registry()
 
         self._setup_ui()
 

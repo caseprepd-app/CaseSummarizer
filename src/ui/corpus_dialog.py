@@ -21,11 +21,8 @@ from tkinter import filedialog, messagebox, ttk
 import customtkinter as ctk
 
 from src.config import DEBUG_MODE
-from src.core.vocabulary import (
-    CorpusManager,
-    get_corpus_registry,
-)
 from src.logging_config import debug_log
+from src.services import VocabularyService
 from src.ui.base_dialog import BaseModalDialog
 from src.ui.theme import COLORS, FONTS
 
@@ -65,9 +62,10 @@ class CorpusDialog(BaseModalDialog):
         )
 
         self.corpus_changed = False
-        self.registry = get_corpus_registry()
+        vocab_service = VocabularyService()
+        self.registry = vocab_service.get_corpus_registry()
         self._selected_corpus: str | None = None
-        self._corpus_manager: CorpusManager | None = None
+        self._corpus_manager = None  # Set when corpus is selected
 
         # Build UI
         self._create_ui()

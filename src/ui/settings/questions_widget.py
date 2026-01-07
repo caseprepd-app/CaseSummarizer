@@ -41,10 +41,11 @@ class DefaultQuestionsWidget(ctk.CTkFrame):
         """
         super().__init__(parent, fg_color="transparent", **kwargs)
 
-        # Get manager instance
-        from src.core.qa.default_questions_manager import get_default_questions_manager
+        # Get manager instance via QAService
+        from src.services import QAService
 
-        self.manager = get_default_questions_manager()
+        qa_service = QAService()
+        self.manager = qa_service.get_default_questions_manager()
 
         # Track checkbox variables
         self._checkboxes: list[tuple[ctk.CTkCheckBox, ctk.BooleanVar]] = []

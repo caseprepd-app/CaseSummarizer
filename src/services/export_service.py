@@ -228,6 +228,23 @@ class ExportService:
             lambda: export_vocabulary_html(vocab_data, file_path, visible_columns),
         )
 
+    def get_vocabulary_html_content(
+        self, vocab_data: list[dict], visible_columns: list[str] | None = None
+    ) -> str:
+        """
+        Get vocabulary as HTML content string (without saving to file).
+
+        Session 83: Added for UI components that write the file themselves.
+
+        Args:
+            vocab_data: List of vocabulary dicts
+            visible_columns: Columns to show initially (from GUI selection)
+
+        Returns:
+            HTML content as string
+        """
+        return export_vocabulary_html(vocab_data, visible_columns)
+
     def export_qa_to_html(
         self, results: list, file_path: str, include_verification: bool = True
     ) -> bool:

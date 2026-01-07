@@ -276,13 +276,14 @@ class VocabExportMixin:
         Export vocabulary to HTML file.
 
         Session 80: Uses shared HTML builder with visible columns.
+        Session 83: Updated to use ExportService.
         Creates a styled HTML table with sortable columns.
         """
         if not hasattr(self, "_vocab_csv_data") or not self._vocab_csv_data:
             messagebox.showwarning("No Data", "No vocabulary data to export.")
             return
 
-        from src.core.export.html_builder import export_vocabulary_html
+        from src.services import ExportService
 
         visible_columns = self._get_visible_columns()
         sorted_data = self._get_sorted_vocab_data()
@@ -297,7 +298,8 @@ class VocabExportMixin:
         )
 
         if filepath:
-            html_content = export_vocabulary_html(sorted_data, visible_columns)
+            export_service = ExportService()
+            html_content = export_service.get_vocabulary_html_content(sorted_data, visible_columns)
             with open(filepath, "w", encoding="utf-8") as f:
                 f.write(html_content)
             debug_log(f"[VocabExport] Exported {len(sorted_data)} terms to {filepath}")

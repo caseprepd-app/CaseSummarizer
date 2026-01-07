@@ -41,16 +41,16 @@ from src.core.prompting import PromptTemplateManager
 from src.core.vector_store import VectorStoreBuilder
 from src.core.vocabulary import get_corpus_registry
 from src.logging_config import debug_log
-from src.ui.styles import initialize_all_styles
-from src.ui.tooltip_manager import tooltip_manager
-from src.ui.window_layout import WindowLayoutMixin
-from src.ui.workers import (
+from src.services.workers import (
     BriefingWorker,
     ProcessingWorker,
     ProgressiveExtractionWorker,
     QAWorker,
     VocabularyWorker,
 )
+from src.ui.styles import initialize_all_styles
+from src.ui.tooltip_manager import tooltip_manager
+from src.ui.window_layout import WindowLayoutMixin
 
 # Try to import tkinterdnd2 for drag-and-drop support (Session 73)
 try:
@@ -624,7 +624,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
                 debug_log("[MainWindow] Default questions disabled, skipping")
             else:
                 # Spawn QAWorker with default questions
-                from src.ui.workers import QAWorker
+                from src.services.workers import QAWorker
                 from src.user_preferences import get_user_preferences
 
                 debug_log("[MainWindow] Spawning QAWorker for default questions")

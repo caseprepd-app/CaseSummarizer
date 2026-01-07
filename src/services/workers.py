@@ -10,6 +10,9 @@ Performance Optimizations:
 - Session 14: Non-blocking termination for AI worker
 - Session 18: Parallel document extraction via Strategy Pattern
 - Session 49: DRY refactor - BaseWorker eliminates boilerplate
+
+Moved to services layer in Session 83 to enforce pipeline architecture.
+Workers are orchestration, not UI display.
 """
 
 import gc

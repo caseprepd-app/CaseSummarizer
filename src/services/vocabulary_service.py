@@ -185,3 +185,47 @@ class VocabularyService:
         except Exception as e:
             debug_log(f"[VocabularyService] Export failed: {e}")
             return False
+
+    def get_corpus_manager(self):
+        """
+        Get the corpus manager instance.
+
+        Returns:
+            CorpusManager singleton for corpus operations.
+        """
+        from src.core.vocabulary.corpus_manager import get_corpus_manager
+
+        return get_corpus_manager()
+
+    def get_corpus_registry(self):
+        """
+        Get the corpus registry for managing multiple corpora.
+
+        Returns:
+            CorpusRegistry singleton.
+        """
+        from src.core.vocabulary import get_corpus_registry
+
+        return get_corpus_registry()
+
+    def get_feedback_manager(self):
+        """
+        Get the feedback manager instance.
+
+        Returns:
+            FeedbackManager singleton for ML feedback operations.
+        """
+        from src.core.vocabulary.feedback_manager import get_feedback_manager
+
+        return get_feedback_manager()
+
+    def get_meta_learner(self):
+        """
+        Get the meta learner instance.
+
+        Returns:
+            MetaLearner singleton for ML model operations.
+        """
+        from src.core.vocabulary.meta_learner import get_meta_learner
+
+        return get_meta_learner()

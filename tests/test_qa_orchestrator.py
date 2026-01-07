@@ -314,7 +314,7 @@ class TestQAWorker:
         """QAWorker should initialize with required parameters."""
         from queue import Queue
 
-        from src.ui.workers import QAWorker
+        from src.services.workers import QAWorker
 
         queue = Queue()
         worker = QAWorker(
@@ -331,7 +331,7 @@ class TestQAWorker:
         """QAWorker should accept custom question list."""
         from queue import Queue
 
-        from src.ui.workers import QAWorker
+        from src.services.workers import QAWorker
 
         queue = Queue()
         custom_qs = ["Question 1?", "Question 2?"]
@@ -346,7 +346,7 @@ class TestQAWorker:
         """QAWorker should respond to stop signal."""
         from queue import Queue
 
-        from src.ui.workers import QAWorker
+        from src.services.workers import QAWorker
 
         queue = Queue()
         worker = QAWorker(vector_store_path=Path("."), embeddings=MagicMock(), ui_queue=queue)

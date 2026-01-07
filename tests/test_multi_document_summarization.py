@@ -242,7 +242,7 @@ class TestIntegrationImports:
 
     def test_worker_import(self):
         """MultiDocSummaryWorker can be imported."""
-        from src.ui.workers import MultiDocSummaryWorker
+        from src.services.workers import MultiDocSummaryWorker
 
         assert MultiDocSummaryWorker is not None
 

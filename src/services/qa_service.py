@@ -221,3 +221,77 @@ class QAService:
 
         if DEBUG_MODE:
             debug_log("[QAService] Cleared")
+
+    def get_default_questions_manager(self):
+        """
+        Get the default questions manager.
+
+        Returns:
+            DefaultQuestionsManager for managing Q&A questions.
+        """
+        from src.core.qa.default_questions_manager import get_default_questions_manager
+
+        return get_default_questions_manager()
+
+    def get_reliability_level(self, probability: float) -> str:
+        """
+        Get reliability level string for a probability value.
+
+        Used for displaying verification results with color coding.
+
+        Args:
+            probability: Hallucination probability (0-1).
+
+        Returns:
+            Reliability level string (e.g., "verified", "uncertain").
+        """
+        from src.core.qa.verification_config import get_reliability_level
+
+        return get_reliability_level(probability)
+
+    def get_span_category(self, span_dict: dict) -> str:
+        """
+        Get span category for color coding verification results.
+
+        Args:
+            span_dict: Span dictionary with hallucination probability.
+
+        Returns:
+            Category string for CSS styling.
+        """
+        from src.core.qa.verification_config import get_span_category
+
+        return get_span_category(span_dict)
+
+    def create_orchestrator(self, vector_store_path=None, embeddings=None, answer_mode="ollama"):
+        """
+        Create a new QAOrchestrator instance.
+
+        Used by workers that need direct access to the orchestrator.
+
+        Args:
+            vector_store_path: Path to vector store directory.
+            embeddings: Embeddings model instance.
+            answer_mode: "ollama" or "retrieval_only".
+
+        Returns:
+            QAOrchestrator instance.
+        """
+        from src.core.qa import QAOrchestrator
+
+        return QAOrchestrator(
+            vector_store_path=vector_store_path,
+            embeddings=embeddings,
+            answer_mode=answer_mode,
+        )
+
+    def get_qa_result_class(self):
+        """
+        Get the QAResult class for type checking.
+
+        Returns:
+            QAResult class from qa_orchestrator.
+        """
+        from src.core.qa.qa_orchestrator import QAResult
+
+        return QAResult

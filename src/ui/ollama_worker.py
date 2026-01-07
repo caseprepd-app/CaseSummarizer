@@ -3,8 +3,8 @@ import time
 import traceback
 
 from src.config import QUEUE_TIMEOUT_SECONDS
-from src.core.ai.ollama_model_manager import OllamaModelManager
 from src.logging_config import debug_log
+from src.services import AIService
 
 
 def ollama_generation_worker_process(
@@ -16,10 +16,11 @@ def ollama_generation_worker_process(
     model_manager = None
     model_initialized = False
     try:
-        # Instantiate OllamaModelManager within the new process
-        model_manager = OllamaModelManager()
+        # Instantiate OllamaModelManager within the new process via AIService
+        ai_service = AIService()
+        model_manager = ai_service.get_ollama_manager()
         model_initialized = True
-        debug_log("[OLLAMA WORKER] OllamaModelManager instantiated.")
+        debug_log("[OLLAMA WORKER] OllamaModelManager instantiated via AIService.")
 
         while True:
             # Check for termination signal or new tasks

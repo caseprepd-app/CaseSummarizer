@@ -124,3 +124,28 @@ class DocumentService:
             Total word count
         """
         return sum(r.get("word_count", 0) for r in results)
+
+    def get_default_documents_folder(self) -> str:
+        """
+        Get the user's default documents folder path.
+
+        Returns:
+            Path to Documents folder (Windows) or home directory.
+        """
+        from src.core.utils.text_utils import get_documents_folder
+
+        return get_documents_folder()
+
+    def combine_document_texts(self, documents: list[dict]) -> str:
+        """
+        Combine text from multiple document dicts.
+
+        Args:
+            documents: List of dicts with 'text' key.
+
+        Returns:
+            Combined text string with document separators.
+        """
+        from src.core.utils.text_utils import combine_document_texts
+
+        return combine_document_texts(documents)

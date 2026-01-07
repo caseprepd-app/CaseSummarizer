@@ -228,7 +228,7 @@ class WorkflowOrchestrator:
             doc_confidence: Aggregate OCR confidence (0-100) for ML feature (Session 54)
         """
         # Import here to avoid circular imports
-        from src.ui.workers import VocabularyWorker
+        from src.services.workers import VocabularyWorker
 
         self.vocab_worker = VocabularyWorker(
             combined_text=combined_text,
@@ -283,7 +283,7 @@ class WorkflowOrchestrator:
             documents: List of documents with 'filename' and 'extracted_text'
             ai_params: AI parameters (model_name, summary_length, etc.)
         """
-        from src.ui.workers import MultiDocSummaryWorker
+        from src.services.workers import MultiDocSummaryWorker
 
         # Track worker for cancellation
         self.multi_doc_worker = MultiDocSummaryWorker(
@@ -446,7 +446,7 @@ class WorkflowOrchestrator:
         """
         from langchain_huggingface import HuggingFaceEmbeddings
 
-        from src.ui.workers import QAWorker
+        from src.services.workers import QAWorker
         from src.user_preferences import get_user_preferences
 
         debug_log("[ORCHESTRATOR] Starting Q&A processing...")

@@ -172,7 +172,7 @@ class FileMixin:
 
     def _start_preprocessing(self):
         """Start preprocessing selected files."""
-        from src.ui.workers import ProcessingWorker
+        from src.services.workers import ProcessingWorker
 
         if not self.selected_files:
             return

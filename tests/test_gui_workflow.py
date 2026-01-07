@@ -222,7 +222,7 @@ class TestHeadlessPreprocessing:
 
     def test_preprocessing_worker_completes(self, sample_pdfs, ui_queue, progress_tracker):
         """Test that ProcessingWorker extracts all sample PDFs."""
-        from src.ui.workers import ProcessingWorker
+        from src.services.workers import ProcessingWorker
 
         # Start worker
         worker = ProcessingWorker(file_paths=sample_pdfs, ui_queue=ui_queue)
@@ -247,7 +247,7 @@ class TestHeadlessPreprocessing:
 
     def test_preprocessing_results_have_text(self, sample_pdfs, ui_queue, progress_tracker):
         """Test that extracted documents contain text."""
-        from src.ui.workers import ProcessingWorker
+        from src.services.workers import ProcessingWorker
 
         worker = ProcessingWorker(
             file_paths=sample_pdfs[:1],  # Just first file for speed
@@ -272,7 +272,7 @@ class TestHeadlessVocabulary:
     @pytest.fixture
     def extracted_text(self, sample_pdfs, ui_queue, progress_tracker):
         """Pre-extract text from sample PDFs for vocabulary tests."""
-        from src.ui.workers import ProcessingWorker
+        from src.services.workers import ProcessingWorker
 
         worker = ProcessingWorker(file_paths=sample_pdfs, ui_queue=ui_queue)
         worker.start()
@@ -296,7 +296,7 @@ class TestHeadlessVocabulary:
     def test_ner_extraction_completes(self, extracted_text, ui_queue, progress_tracker):
         """Test that NER extraction completes within timeout."""
         from src.core.utils.text_utils import combine_document_texts
-        from src.ui.workers import VocabularyWorker
+        from src.services.workers import VocabularyWorker
 
         if not extracted_text:
             pytest.skip("No extracted text available")
@@ -342,7 +342,7 @@ class TestHeadlessProgressiveExtraction:
         This is the core test that reproduces the "stuck" issue.
         """
         from src.core.utils.text_utils import combine_document_texts
-        from src.ui.workers import ProcessingWorker, ProgressiveExtractionWorker
+        from src.services.workers import ProcessingWorker, ProgressiveExtractionWorker
 
         # Phase 0: Preprocessing
         debug_log("[TEST] Starting preprocessing...")
@@ -559,7 +559,7 @@ class TestDiagnostics:
 
     def test_worker_thread_health(self, sample_pdfs, ui_queue):
         """Test that worker threads start and stop properly."""
-        from src.ui.workers import ProcessingWorker
+        from src.services.workers import ProcessingWorker
 
         worker = ProcessingWorker(
             file_paths=sample_pdfs[:1],  # Just one file

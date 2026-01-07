@@ -33,9 +33,10 @@ class ExportMixin:
 
         Creates timestamped files for each output type that has data.
         """
-        from src.core.utils.text_utils import get_documents_folder
+        from src.services import DocumentService
 
-        documents_path = get_documents_folder()
+        doc_service = DocumentService()
+        documents_path = doc_service.get_default_documents_folder()
 
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         exported = []
@@ -88,8 +89,7 @@ class ExportMixin:
 
         Session 73: Combined export feature - creates unified report.
         """
-        from src.core.utils.text_utils import get_documents_folder
-        from src.services import get_export_service
+        from src.services import DocumentService, get_export_service
         from src.user_preferences import get_user_preferences
 
         # Gather data
@@ -106,7 +106,8 @@ class ExportMixin:
 
         # Get initial directory (last export path or Documents)
         prefs = get_user_preferences()
-        initial_dir = prefs.get("last_export_path") or get_documents_folder()
+        doc_service = DocumentService()
+        initial_dir = prefs.get("last_export_path") or doc_service.get_default_documents_folder()
 
         # Ask for save location with format choice
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")

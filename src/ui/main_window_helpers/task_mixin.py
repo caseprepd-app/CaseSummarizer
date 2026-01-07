@@ -231,7 +231,7 @@ class TaskMixin:
             debug_log("[MainWindow] Default questions disabled, skipping")
             return
 
-        from src.ui.workers import QAWorker
+        from src.services.workers import QAWorker
         from src.user_preferences import get_user_preferences
 
         debug_log("[MainWindow] Spawning QAWorker for default questions")
@@ -311,7 +311,7 @@ class TaskMixin:
             USER_VOCAB_EXCLUDE_PATH,
         )
         from src.core.utils.text_utils import combine_document_texts
-        from src.ui.workers import ProgressiveExtractionWorker
+        from src.services.workers import ProgressiveExtractionWorker
 
         self.set_status("Starting extraction (NER first, then LLM enhancement)...")
 
@@ -405,7 +405,7 @@ class TaskMixin:
 
     def _qa_init_complete(self, success: bool, error: str | None):
         """Called when Q&A initialization completes."""
-        from src.ui.workers import QAWorker
+        from src.services.workers import QAWorker
 
         if not success:
             self.set_status(f"Questions and answers error: {error[:50] if error else 'Unknown'}...")
@@ -501,7 +501,7 @@ class TaskMixin:
 
     def _start_briefing_task(self):
         """Start case briefing generation task."""
-        from src.ui.workers import BriefingWorker
+        from src.services.workers import BriefingWorker
 
         self.set_status("Case Briefing: Starting document analysis...")
 

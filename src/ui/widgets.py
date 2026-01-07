@@ -492,7 +492,7 @@ class OutputOptionsWidget(ctk.CTkFrame):
         more documents are needed to activate it.
         """
         try:
-            from src.core.vocabulary.corpus_manager import get_corpus_manager
+            from src.services import VocabularyService
             from src.user_preferences import get_user_preferences
 
             prefs = get_user_preferences()
@@ -502,7 +502,8 @@ class OutputOptionsWidget(ctk.CTkFrame):
                 self.corpus_status_label.configure(text="📊 Corpus analysis: Disabled in settings")
                 return
 
-            manager = get_corpus_manager()
+            vocab_service = VocabularyService()
+            manager = vocab_service.get_corpus_manager()
             doc_count = manager.get_document_count()
             min_docs = 5
 

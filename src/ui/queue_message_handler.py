@@ -498,7 +498,7 @@ class QueueMessageHandler:
             return
 
         # Spawn QAWorker with default questions
-        from src.ui.workers import QAWorker
+        from src.services.workers import QAWorker
         from src.user_preferences import get_user_preferences
 
         vector_store_path = data["vector_store_path"]

@@ -14,7 +14,7 @@ import json
 from datetime import datetime
 from pathlib import Path
 
-from src.core.vocabulary.column_config import (
+from src.config import (
     COLUMN_DEFINITIONS,
     NUMERIC_COLUMNS,
     PROTECTED_COLUMNS,
