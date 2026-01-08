@@ -138,6 +138,76 @@ def _is_fuzzy_common_word_variant(term: str, canonical: str, max_edit: int = 2) 
     return False
 
 
+def _remove_component_names(
+    vocabulary: list[dict],
+    term_key: str = "Term",
+) -> list[dict]:
+    """
+    Remove single-word Person names that are components of multi-word Person names.
+
+    When a full name like "Arthur Jenkins" exists in the vocabulary, we don't want
+    "Arthur" or "Jenkins" appearing as separate entries since they're just parts
+    of the full name, not standalone entities.
+
+    Session 84: Only applies to Person entities, not vocabulary terms.
+
+    Args:
+        vocabulary: List of term dictionaries
+        term_key: Dictionary key for the term string
+
+    Returns:
+        Filtered vocabulary list with component names removed
+
+    Example:
+        If "Arthur Jenkins" exists as Person:
+        - "Arthur" (Person) → removed (is first name of Arthur Jenkins)
+        - "Jenkins" (Person) → removed (is last name of Arthur Jenkins)
+        - "Arthur" (Vocabulary) → kept (not a Person entity)
+    """
+    if not vocabulary:
+        return vocabulary
+
+    # Collect all multi-word Person names and their components
+    multi_word_person_components: set[str] = set()
+    for term_dict in vocabulary:
+        if not is_person_entry(term_dict):
+            continue
+        term = term_dict.get(term_key, "")
+        words = term.lower().split()
+        if len(words) >= 2:
+            # Add all components (first name, middle names, last name)
+            for word in words:
+                if word:  # Skip empty strings
+                    multi_word_person_components.add(word)
+
+    if not multi_word_person_components:
+        return vocabulary
+
+    # Filter out single-word Person terms that are components of multi-word names
+    filtered = []
+    removed_count = 0
+
+    for term_dict in vocabulary:
+        term = term_dict.get(term_key, "")
+        term_lower = term.lower().strip()
+
+        # Only filter single-word Person entities
+        if is_person_entry(term_dict) and " " not in term:
+            if term_lower in multi_word_person_components:
+                debug_log(
+                    f"[ARTIFACT-FILTER] Removing '{term}' (component of multi-word Person name)"
+                )
+                removed_count += 1
+                continue
+
+        filtered.append(term_dict)
+
+    if removed_count > 0:
+        debug_log(f"[ARTIFACT-FILTER] Removed {removed_count} component names")
+
+    return filtered
+
+
 def filter_substring_artifacts(
     vocabulary: list[dict],
     canonical_count: int = DEFAULT_CANONICAL_COUNT,
@@ -268,5 +338,8 @@ def filter_substring_artifacts(
         f"{removed_common_word} common-word variants, "
         f"{len(filtered)} terms remaining"
     )
+
+    # Session 84: Remove single-word Person names that are components of full names
+    filtered = _remove_component_names(filtered, term_key=term_key)
 
     return filtered

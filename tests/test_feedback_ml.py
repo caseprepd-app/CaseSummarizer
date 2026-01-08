@@ -170,69 +170,77 @@ class TestVocabularyMetaLearner:
             "total_unique_terms": 100,
         }
         features = meta_learner._extract_features(term_data)
-        assert len(features) == 30  # Session 78: 30 features (23 from Session 76 + 7 TermSources)
-        # features[0] is log_count: log(3) ≈ 1.099
-        assert abs(features[0] - 1.099) < 0.01
-        # features[1] is occurrence_ratio: 3/100 = 0.03
-        assert features[1] == 0.03
-        # features[2-4] are algorithm flags
-        assert features[2] == 1.0  # has_ner
-        assert features[3] == 1.0  # has_rake
-        assert features[4] == 0.0  # has_bm25
-        # features[6] is has_trailing_punctuation: "hypertension" has none
-        assert features[6] == 0.0
-        # features[7] is has_leading_digit: "hypertension" has none
-        assert features[7] == 0.0
-        # features[9] is word_count: "hypertension" is 1 word
-        assert features[9] == 1.0
-        # features[10] is is_all_caps: "hypertension" is not all caps
+        assert (
+            len(features) == 39
+        )  # Session 84: 39 features (35 + 4 net from count bins replacing log_count)
+        # features[0-4] are count bins: count=3 → count_bin_3=1.0
+        assert features[0] == 0.0  # count_bin_1
+        assert features[1] == 0.0  # count_bin_2
+        assert features[2] == 1.0  # count_bin_3 (count=3)
+        assert features[3] == 0.0  # count_bin_4_6
+        assert features[4] == 0.0  # count_bin_7_plus
+        # features[5] is occurrence_ratio: 3/100 = 0.03
+        assert features[5] == 0.03
+        # features[6-8] are algorithm flags
+        assert features[6] == 1.0  # has_ner
+        assert features[7] == 1.0  # has_rake
+        assert features[8] == 0.0  # has_bm25
+        # features[10] is has_trailing_punctuation: "hypertension" has none
         assert features[10] == 0.0
-        # features[20] is has_medical_suffix: "hypertension" ends with -ion (not medical suffix)
-        assert features[20] == 0.0
+        # features[11] is has_leading_digit: "hypertension" has none
+        assert features[11] == 0.0
+        # features[13] is word_count: "hypertension" is 1 word
+        assert features[13] == 1.0
+        # features[14] is is_all_caps: "hypertension" is not all caps
+        assert features[14] == 0.0
+        # features[24] is has_medical_suffix: "hypertension" ends with -ion (not medical suffix)
+        assert features[24] == 0.0
 
     def test_feature_extraction_artifacts(self, meta_learner):
         """Test that artifact patterns are detected correctly.
 
-        Session 76: Feature indices updated after overhaul:
-        6: has_trailing_punctuation, 7: has_leading_digit,
-        8: has_trailing_digit, 9: word_count, 10: is_all_caps
+        Session 84: Feature indices updated for count bins:
+        10: has_trailing_punctuation, 11: has_leading_digit,
+        12: has_trailing_digit, 13: word_count, 14: is_all_caps
+        22: is_single_letter, 24: has_medical_suffix,
+        25: has_repeated_chars, 26: contains_hyphen
         """
         # Test trailing punctuation
         term_data = {"Term": "Smith:", "type": "Person"}
         features = meta_learner._extract_features(term_data)
-        assert features[6] == 1.0  # has_trailing_punctuation
+        assert features[10] == 1.0  # has_trailing_punctuation
 
         # Test leading digit
         term_data = {"Term": "4 Ms. Di Leo", "type": "Person"}
         features = meta_learner._extract_features(term_data)
-        assert features[7] == 1.0  # has_leading_digit
-        assert features[9] == 4.0  # word_count: "4", "Ms.", "Di", "Leo"
+        assert features[11] == 1.0  # has_leading_digit
+        assert features[13] == 4.0  # word_count: "4", "Ms.", "Di", "Leo"
 
         # Test all caps
         term_data = {"Term": "PLAINTIFF", "type": "Unknown"}
         features = meta_learner._extract_features(term_data)
-        assert features[10] == 1.0  # is_all_caps
+        assert features[14] == 1.0  # is_all_caps
 
-        # Session 76: Test new features
+        # Session 76: Test new features (indices shifted +4 for count bins)
         # Test medical suffix
         term_data = {"Term": "radiculopathy"}
         features = meta_learner._extract_features(term_data)
-        assert features[20] == 1.0  # has_medical_suffix (-pathy)
+        assert features[24] == 1.0  # has_medical_suffix (-pathy)
 
         # Test single letter
         term_data = {"Term": "Q"}
         features = meta_learner._extract_features(term_data)
-        assert features[18] == 1.0  # is_single_letter
+        assert features[22] == 1.0  # is_single_letter
 
         # Test repeated chars
         term_data = {"Term": "aaaa"}
         features = meta_learner._extract_features(term_data)
-        assert features[21] == 1.0  # has_repeated_chars
+        assert features[25] == 1.0  # has_repeated_chars
 
         # Test contains hyphen
         term_data = {"Term": "anti-inflammatory"}
         features = meta_learner._extract_features(term_data)
-        assert features[22] == 1.0  # contains_hyphen
+        assert features[26] == 1.0  # contains_hyphen
 
     def test_training_insufficient_data_no_defaults(self, temp_feedback_dir, meta_learner):
         """Test that training fails with insufficient data when no defaults exist.

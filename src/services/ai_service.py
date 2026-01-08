@@ -108,9 +108,10 @@ class AIService:
         Returns:
             PromptTemplateManager for loading and managing prompts.
         """
+        from src.config import PROMPTS_DIR, USER_PROMPTS_DIR
         from src.core.prompting.template_manager import PromptTemplateManager
 
-        return PromptTemplateManager()
+        return PromptTemplateManager(PROMPTS_DIR, USER_PROMPTS_DIR)
 
     def check_ollama_connection(self) -> bool:
         """

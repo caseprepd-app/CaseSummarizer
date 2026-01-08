@@ -891,9 +891,11 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
 
         # Case 3: Auto mode with no GPU detected
         if vocab_mode == "auto" and not has_gpu:
+            from src.services import AIService
+
             self.vocab_llm_check.deselect()
             self.vocab_llm_check.configure(state="disabled")
-            gpu_status = get_gpu_status_text()
+            gpu_status = AIService().get_gpu_status_text()
             self._set_vocab_llm_tooltip(
                 f"LLM enhancement requires a dedicated GPU.\n\n"
                 f"{gpu_status}\n\n"

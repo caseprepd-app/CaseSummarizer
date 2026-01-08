@@ -27,7 +27,6 @@ identified as vocabulary). This feedback should persist strongly. Career changes
 that affect preferences (new courthouse, new case types) are infrequent (~years).
 """
 
-import math
 import pickle
 import shutil
 from datetime import datetime
@@ -251,8 +250,13 @@ def confidence_weighted_blend(prob_lr: float, prob_rf: float) -> float:
 # Session 68: Added corpus_familiarity_score and is_title_case
 # Session 78: Added 7 TermSources features for per-document confidence tracking
 FEATURE_NAMES = [
-    # Frequency features (kept for backward compat, used by Session 76)
-    "log_count",  # Replaces in_case_freq - better low-count discrimination
+    # Count bin features (Session 84) - one-hot encoded occurrence count bins
+    # Rationale: count=1 could be OCR error, higher counts progressively more reliable
+    "count_bin_1",  # Exactly 1 occurrence (possible OCR error)
+    "count_bin_2",  # Exactly 2 occurrences
+    "count_bin_3",  # Exactly 3 occurrences
+    "count_bin_4_6",  # 4-6 occurrences
+    "count_bin_7_plus",  # 7 or more occurrences (high confidence)
     "occurrence_ratio",  # Document-relative frequency (count / total_unique_terms)
     # Algorithm features
     "has_ner",
@@ -417,7 +421,7 @@ class VocabularyPreferenceLearner:
                       May include "sources" (TermSources) and "total_docs_in_session"
 
         Returns:
-            numpy array of 35 features
+            numpy array of 39 features
         """
         # Get the term text
         term = str(term_data.get("Term", "") or term_data.get("term", "") or "")
@@ -425,9 +429,15 @@ class VocabularyPreferenceLearner:
 
         # === FREQUENCY FEATURES ===
         in_case_freq = float(term_data.get("in_case_freq", 1) or 1)
+        count = int(in_case_freq)
 
-        # Log-transformed count - better discrimination at low counts
-        log_count = math.log(max(in_case_freq, 1))
+        # Count bins (Session 84) - one-hot encoded
+        # Rationale: count=1 could be OCR error, higher counts more reliable
+        count_bin_1 = 1.0 if count == 1 else 0.0
+        count_bin_2 = 1.0 if count == 2 else 0.0
+        count_bin_3 = 1.0 if count == 3 else 0.0
+        count_bin_4_6 = 1.0 if 4 <= count <= 6 else 0.0
+        count_bin_7_plus = 1.0 if count >= 7 else 0.0
 
         # Document-relative frequency - normalizes for document size
         total_unique_terms = float(term_data.get("total_unique_terms", 0) or 0)
@@ -603,8 +613,12 @@ class VocabularyPreferenceLearner:
 
         return np.array(
             [
-                # Frequency features (2)
-                log_count,
+                # Count bin features (5) + occurrence_ratio (1)
+                count_bin_1,
+                count_bin_2,
+                count_bin_3,
+                count_bin_4_6,
+                count_bin_7_plus,
                 occurrence_ratio,
                 # Algorithm features (3)
                 has_ner,

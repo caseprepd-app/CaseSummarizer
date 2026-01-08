@@ -66,8 +66,10 @@ class TranscriptCleaner(BasePreprocessor):
         text, page_nums_removed = self._remove_page_numbers(text)
         metadata["page_numbers_removed"] = page_nums_removed
 
-        # Step 2: Remove certification block
-        text, cert_removed = self._remove_certification_block(text)
+        # Step 2: Certification block removal DISABLED (Session 84)
+        # Was causing false positives - "I HEREBY CERTIFY" appears in affidavits,
+        # certificates of merit, etc. throughout legal documents, not just at end.
+        cert_removed = False
         metadata["certification_removed"] = cert_removed
 
         # Step 3: Remove index pages
