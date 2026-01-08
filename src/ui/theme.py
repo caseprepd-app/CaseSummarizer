@@ -83,6 +83,7 @@ COLORS = {
     "success_light": "#90EE90",  # Light green (system monitor)
     "warning": "#ffc107",  # Warning (yellow)
     "danger": "#dc3545",  # Error/rejected/skip (red)
+    "danger_light": "#f5a9b0",  # Light red (loaded feedback) - Session 84
     "info": "#17a2b8",  # Info/LLM (blue)
     # Q&A Panel text tags
     "qa_question": "#5dade2",  # Question text (light blue)
@@ -255,8 +256,11 @@ QA_TEXT_TAGS = {
 # Used with ttk.Treeview.tag_configure()
 
 VOCAB_TABLE_TAGS = {
-    "rated_up": {"foreground": COLORS["success"]},
-    "rated_down": {"foreground": COLORS["danger"]},
+    # Session 84: Distinguish session (user clicked) vs loaded (from dataset) feedback
+    "rated_up_session": {"foreground": COLORS["success"]},  # User clicked Keep (darker green)
+    "rated_up_loaded": {"foreground": COLORS["success_light"]},  # From dataset (lighter green)
+    "rated_down_session": {"foreground": COLORS["danger"]},  # User clicked Skip (darker red)
+    "rated_down_loaded": {"foreground": COLORS["danger_light"]},  # From dataset (lighter red)
     "found_multi": {"foreground": COLORS["algo_multi"]},
     "found_ner": {"foreground": COLORS["algo_ner"]},
     "found_rake": {"foreground": COLORS["algo_rake"]},

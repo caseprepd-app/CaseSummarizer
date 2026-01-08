@@ -136,6 +136,10 @@ class FeedbackManager:
         # Only tracks USER feedback for display purposes
         self._cache: dict[str, int] = {}
 
+        # Session 84: Track terms rated in current GUI session (vs loaded from file)
+        # Used to distinguish user clicks (darker green) from dataset entries (lighter green)
+        self._session_rated: set[str] = set()
+
         # Track pending feedback count (for retraining threshold)
         self._pending_count = 0
 
@@ -243,8 +247,11 @@ class FeedbackManager:
         # Update cache
         if feedback == 0:
             self._cache.pop(lower_term, None)
+            self._session_rated.discard(lower_term)
         else:
             self._cache[lower_term] = feedback
+            # Session 84: Mark as session-rated (user clicked in GUI)
+            self._session_rated.add(lower_term)
 
         # Build feedback record
         # Parse algorithms string to create boolean detection columns
@@ -352,6 +359,28 @@ class FeedbackManager:
     def has_rating(self, term: str) -> bool:
         """Check if a term has been rated."""
         return term.lower().strip() in self._cache
+
+    def get_rating_source(self, term: str) -> str | None:
+        """
+        Get the source of a term's rating.
+
+        Session 84: Used to distinguish colors in GUI:
+        - "session": User clicked Keep/Skip in current session (darker green/red)
+        - "loaded": Rating from loaded dataset file (lighter green/red)
+        - None: No rating exists
+
+        Args:
+            term: The vocabulary term (case-insensitive)
+
+        Returns:
+            "session", "loaded", or None
+        """
+        lower_term = term.lower().strip()
+        if lower_term not in self._cache:
+            return None
+        if lower_term in self._session_rated:
+            return "session"
+        return "loaded"
 
     def clear_rating(self, term: str) -> bool:
         """

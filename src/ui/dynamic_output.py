@@ -1106,10 +1106,18 @@ class DynamicOutputWidget(ctk.CTkFrame):
                 # - No feedback (rating=0) → neutral (just alternating row background)
                 # Removed algorithm-based coloring (found_ner, found_rake, etc.) since
                 # colors should only indicate user/developer feedback, not detection source.
+                # Session 84: Distinguish feedback source (session vs loaded)
+                rating_source = self._feedback_manager.get_rating_source(term)
                 if rating == 1:
-                    tag = (row_bg_tag, "rated_up")
+                    if rating_source == "session":
+                        tag = (row_bg_tag, "rated_up_session")
+                    else:
+                        tag = (row_bg_tag, "rated_up_loaded")
                 elif rating == -1:
-                    tag = (row_bg_tag, "rated_down")
+                    if rating_source == "session":
+                        tag = (row_bg_tag, "rated_down_session")
+                    else:
+                        tag = (row_bg_tag, "rated_down_loaded")
                 else:
                     # No feedback - neutral coloring (just alternating background)
                     tag = (row_bg_tag,)
@@ -1979,14 +1987,15 @@ class DynamicOutputWidget(ctk.CTkFrame):
             return
 
         # Update the icon values at dynamic positions
+        # Session 84: User clicks always use session tags (darker colors)
         if rating == 1:
             values[keep_idx] = THUMB_UP_FILLED
             values[skip_idx] = THUMB_DOWN_EMPTY
-            tag = ("rated_up",)
+            tag = ("rated_up_session",)
         elif rating == -1:
             values[keep_idx] = THUMB_UP_EMPTY
             values[skip_idx] = THUMB_DOWN_FILLED
-            tag = ("rated_down",)
+            tag = ("rated_down_session",)
         else:  # rating == 0
             values[keep_idx] = THUMB_UP_EMPTY
             values[skip_idx] = THUMB_DOWN_EMPTY
