@@ -49,11 +49,24 @@ VOCAB_FEEDBACK_CSV = FEEDBACK_DIR / "vocab_feedback.csv"
 # Users can reset to this model if they accidentally train in a bad direction
 DEFAULT_VOCAB_MODEL_PATH = Path(__file__).parent.parent / "config" / "default_vocab_model.pkl"
 
-# ML Training Thresholds (Session 76)
-# Program ships with 30+ default observations, so training is always viable.
-ML_MIN_SAMPLES = 1  # Train on any feedback (always have 30+ defaults)
-ML_ENSEMBLE_MIN_SAMPLES = 200  # Minimum samples to enable ensemble (LR + RF)
+# ML Training Thresholds (Session 84)
+# Don't train until we have enough samples to matter.
+ML_MIN_SAMPLES = 30  # Minimum samples before ML training starts
+ML_ENSEMBLE_MIN_SAMPLES = 40  # Minimum samples to enable ensemble (LR + RF)
 ML_RETRAIN_THRESHOLD = 1  # Retrain on ANY new user feedback (was 10)
+
+# Graduated RF Weight in Ensemble (Session 84)
+# RF starts with low weight and increases as samples grow.
+# Below 200 samples: fixed weight blend. At 200+: confidence-weighted blend.
+# Thresholds: (min_samples, rf_weight) - finds first threshold where count < min
+ML_RF_WEIGHT_THRESHOLDS = [
+    (40, 0.0),  # < 40 samples: LR only (RF not trained)
+    (60, 0.10),  # 40-59 samples: 10% RF
+    (100, 0.20),  # 60-99 samples: 20% RF
+    (150, 0.30),  # 100-149 samples: 30% RF
+    (200, 0.40),  # 150-199 samples: 40% RF
+    # 200+: confidence_weighted_blend (dynamic based on model confidence)
+]
 
 # ML Time Decay Configuration (Session 47)
 # Older feedback is weighted less to adapt to changing user preferences
@@ -67,21 +80,19 @@ ML_RETRAIN_THRESHOLD = 1  # Retrain on ANY new user feedback (was 10)
 ML_DECAY_HALF_LIFE_DAYS = 1270  # ~3.5 years - tuned so weight hits floor at 3 years
 ML_DECAY_WEIGHT_FLOOR = 0.55  # Old feedback retains 55% weight minimum
 
-# Graduated ML Weight (Session 76)
+# Graduated ML Weight (Session 84)
 # ML influence on final score increases with user's training corpus size.
 # Formula: score = base_score * (1 - ml_weight) + ml_probability * 100 * ml_weight
-# Thresholds: (min_user_samples, ml_weight) - finds first threshold where count < min
+# Thresholds: (min_samples, ml_weight) - finds first threshold where count < min
 #
-# The shipped model works from day 0, so we start at 45% ML influence.
-# As user adds more feedback, ML influence increases (more personalized).
+# Conservative ramp: pure rules until 30 samples, then gradual handover.
+# ML caps at 80% - rules always have 20% say as a safety net.
 ML_WEIGHT_THRESHOLDS = [
-    (1, 0.45),  # 0 user samples: shipped model (45% ML)
-    (10, 0.50),  # 1-9 samples: 50% ML
-    (25, 0.55),  # 10-24 samples: 55% ML
-    (50, 0.60),  # 25-49 samples: 60% ML
-    (100, 0.70),  # 50-99 samples: 70% ML
-    (200, 0.80),  # 100-199 samples: 80% ML
-    (float("inf"), 0.85),  # 200+ samples: 85% ML
+    (30, 0.0),  # 0-29 samples: pure rules (no ML)
+    (41, 0.40),  # 30-40 samples: 40% ML
+    (61, 0.50),  # 41-60 samples: 50% ML
+    (101, 0.60),  # 61-100 samples: 60% ML
+    (float("inf"), 0.80),  # 100+ samples: 80% ML (cap)
 ]
 
 # Source-Based Training Weights (Session 76)

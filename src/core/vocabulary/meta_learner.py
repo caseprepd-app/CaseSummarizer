@@ -45,6 +45,7 @@ from src.config import (
     ML_ENSEMBLE_MIN_SAMPLES,
     ML_MIN_SAMPLES,
     ML_RETRAIN_THRESHOLD,
+    ML_RF_WEIGHT_THRESHOLDS,
     ML_SOURCE_WEIGHTS,
     ML_WEIGHT_THRESHOLDS,
     VOCAB_MODEL_PATH,
@@ -75,6 +76,139 @@ MEDICAL_SUFFIXES = (
     "rrhage",
     "plegia",
 )
+
+# Legal suffixes for domain-specific feature (Session 83)
+LEGAL_SUFFIXES = (
+    "ant",  # defendant, complainant, claimant
+    "ent",  # respondent, decedent
+    "ee",  # appellee, mortgagee, payee, lessee
+    "or",  # mortgagor, payor, lessor (when legal context)
+)
+
+# Title prefixes indicating person names (Session 83)
+TITLE_PREFIXES = (
+    "dr.",
+    "dr ",
+    "mr.",
+    "mr ",
+    "ms.",
+    "ms ",
+    "mrs.",
+    "mrs ",
+    "hon.",
+    "hon ",
+    "judge ",
+    "justice ",
+    "senator ",
+    "rep.",
+    "rep ",
+)
+
+# Professional suffixes indicating person names (Session 83)
+PROFESSIONAL_SUFFIXES = (
+    "m.d.",
+    "md",
+    "esq.",
+    "esq",
+    "ph.d.",
+    "phd",
+    "r.n.",
+    "rn",
+    "d.o.",
+    "do",
+    "j.d.",
+    "jd",
+    "d.d.s.",
+    "dds",
+    "p.a.",
+    "pa",
+    "n.p.",
+    "np",
+)
+
+# Module-level cache for names datasets (Session 83)
+_forenames_set: set[str] | None = None
+_surnames_set: set[str] | None = None
+
+
+def _load_names_datasets() -> tuple[set[str], set[str]]:
+    """
+    Load international forenames and surnames datasets.
+
+    Returns:
+        Tuple of (forenames_set, surnames_set) - lowercase name sets
+
+    Data files are in data/names/ directory:
+    - international_forenames.csv (2,480 names)
+    - international_surnames.csv (2,576 names)
+    """
+    global _forenames_set, _surnames_set
+
+    if _forenames_set is not None and _surnames_set is not None:
+        return _forenames_set, _surnames_set
+
+    import csv
+
+    data_dir = Path(__file__).parent.parent.parent.parent / "data" / "names"
+
+    # Load forenames
+    _forenames_set = set()
+    forenames_file = data_dir / "international_forenames.csv"
+    if forenames_file.exists():
+        try:
+            with open(forenames_file, encoding="utf-8") as f:
+                reader = csv.DictReader(f)
+                for row in reader:
+                    name = row.get("Romanized Name", "").strip().lower()
+                    if name:
+                        _forenames_set.add(name)
+            debug_log(f"[META-LEARNER] Loaded {len(_forenames_set)} forenames")
+        except Exception as e:
+            debug_log(f"[META-LEARNER] Error loading forenames: {e}")
+
+    # Load surnames
+    _surnames_set = set()
+    surnames_file = data_dir / "international_surnames.csv"
+    if surnames_file.exists():
+        try:
+            with open(surnames_file, encoding="utf-8") as f:
+                reader = csv.DictReader(f)
+                for row in reader:
+                    name = row.get("Romanized Name", "").strip().lower()
+                    if name:
+                        _surnames_set.add(name)
+            debug_log(f"[META-LEARNER] Loaded {len(_surnames_set)} surnames")
+        except Exception as e:
+            debug_log(f"[META-LEARNER] Error loading surnames: {e}")
+
+    return _forenames_set, _surnames_set
+
+
+def _max_consonant_run(text: str) -> int:
+    """
+    Calculate the maximum run of consecutive consonants in text.
+
+    Real English words rarely have more than 3 consecutive consonants
+    (e.g., "strengths" = 3). Gibberish often has longer runs.
+
+    Args:
+        text: Text to analyze
+
+    Returns:
+        Length of longest consonant run
+    """
+    consonants = set("bcdfghjklmnpqrstvwxyzBCDFGHJKLMNPQRSTVWXYZ")
+    max_run = 0
+    current_run = 0
+
+    for char in text:
+        if char in consonants:
+            current_run += 1
+            max_run = max(max_run, current_run)
+        else:
+            current_run = 0
+
+    return max_run
 
 
 def confidence_weighted_blend(prob_lr: float, prob_rf: float) -> float:
@@ -155,6 +289,12 @@ FEATURE_NAMES = [
     "confidence_std_dev",  # Consistency of confidence across docs (0-0.5)
     "high_conf_doc_ratio",  # % of source docs with confidence > 0.80 (0-1)
     "all_low_conf",  # 1 if ALL source docs have conf < 0.60 (red flag)
+    # Session 83: Name validation and domain-specific features (5 total)
+    "is_in_names_dataset",  # Any word in international forenames/surnames datasets
+    "has_legal_suffix",  # -ant, -ent, -ee, -or (defendant, appellee, etc.)
+    "has_title_prefix",  # Dr., Mr., Ms., Hon., Judge, etc.
+    "has_professional_suffix",  # M.D., Esq., Ph.D., R.N., etc.
+    "max_consonant_run",  # Longest consonant streak (gibberish detector)
 ]
 
 
@@ -239,6 +379,25 @@ class VocabularyPreferenceLearner:
         # Fallback (shouldn't reach here due to inf threshold)
         return ML_WEIGHT_THRESHOLDS[-1][1]
 
+    def _get_rf_blend_weight(self) -> float | None:
+        """
+        Get RF weight for ensemble blending based on sample count.
+
+        Below 200 samples: returns fixed weight (0.0 to 0.4) based on thresholds.
+        At 200+ samples: returns None to signal confidence-weighted blend.
+
+        Returns:
+            RF weight (0.0-0.4) for fixed blend, or None for confidence-weighted.
+        """
+        if self._total_sample_count >= 200:
+            return None  # Use confidence-weighted blend at 200+
+
+        for threshold, weight in ML_RF_WEIGHT_THRESHOLDS:
+            if self._total_sample_count < threshold:
+                return weight
+
+        return None  # Fallback to confidence-weighted
+
     def _extract_features(self, term_data: dict[str, Any]) -> np.ndarray:
         """
         Extract feature vector from term data.
@@ -258,7 +417,7 @@ class VocabularyPreferenceLearner:
                       May include "sources" (TermSources) and "total_docs_in_session"
 
         Returns:
-            numpy array of 30 features
+            numpy array of 35 features
         """
         # Get the term text
         term = str(term_data.get("Term", "") or term_data.get("term", "") or "")
@@ -371,6 +530,40 @@ class VocabularyPreferenceLearner:
         # Contains hyphen - often legitimate compound terms
         contains_hyphen = 1.0 if "-" in term else 0.0
 
+        # === SESSION 83: Name validation and domain-specific features ===
+
+        # Check if any word is in the names dataset
+        forenames, surnames = _load_names_datasets()
+        all_names = forenames | surnames
+        is_in_names_dataset = 0.0
+        if words_lower:
+            for w in words_lower:
+                if w in all_names:
+                    is_in_names_dataset = 1.0
+                    break
+
+        # Legal suffix detection (like medical suffix but for legal terms)
+        has_legal_suffix = (
+            1.0 if any(term_lower.endswith(suffix) for suffix in LEGAL_SUFFIXES) else 0.0
+        )
+
+        # Title prefix detection (Dr., Mr., Judge, etc.)
+        has_title_prefix = (
+            1.0 if any(term_lower.startswith(prefix) for prefix in TITLE_PREFIXES) else 0.0
+        )
+
+        # Professional suffix detection (M.D., Esq., etc.)
+        # Check if term ends with any professional suffix (with optional trailing punct)
+        term_lower_stripped = term_lower.rstrip(".,;:")
+        has_professional_suffix = (
+            1.0
+            if any(term_lower_stripped.endswith(suffix) for suffix in PROFESSIONAL_SUFFIXES)
+            else 0.0
+        )
+
+        # Maximum consonant run (gibberish detector)
+        max_consonant_run_val = float(_max_consonant_run(term))
+
         # === SESSION 78: TermSources-based per-document features ===
         # These features provide richer signals about term reliability by
         # tracking which source documents contributed each occurrence.
@@ -447,6 +640,12 @@ class VocabularyPreferenceLearner:
                 confidence_std_dev,
                 high_conf_doc_ratio,
                 all_low_conf,
+                # Session 83: Name validation and domain features (5)
+                is_in_names_dataset,
+                has_legal_suffix,
+                has_title_prefix,
+                has_professional_suffix,
+                max_consonant_run_val,
             ]
         )
 
@@ -638,8 +837,10 @@ class VocabularyPreferenceLearner:
         """
         Predict user preference probability for a term.
 
-        Uses LR-only when ensemble is not enabled, otherwise blends
-        LR and RF predictions using confidence-weighted averaging.
+        Uses graduated blending strategy:
+        - LR-only when ensemble not enabled (< 40 samples)
+        - Fixed-weight blend (10-40% RF) for 40-199 samples
+        - Confidence-weighted blend at 200+ samples
 
         Args:
             term_data: Dictionary with term information
@@ -660,16 +861,28 @@ class VocabularyPreferenceLearner:
         # Get LR probability
         prob_lr = self._lr_model.predict_proba(X_scaled)[0][1]
 
-        # If ensemble enabled, blend with RF
+        # If ensemble enabled, blend with RF using graduated weight
         if self.is_ensemble:
             prob_rf = self._rf_model.predict_proba(X_scaled)[0][1]
-            return confidence_weighted_blend(prob_lr, prob_rf)
+
+            # Get RF blend weight based on sample count
+            rf_weight = self._get_rf_blend_weight()
+
+            if rf_weight is None:
+                # 200+ samples: use confidence-weighted blend
+                return confidence_weighted_blend(prob_lr, prob_rf)
+            elif rf_weight > 0:
+                # 40-199 samples: use fixed-weight blend
+                return prob_lr * (1 - rf_weight) + prob_rf * rf_weight
+            # rf_weight == 0: fall through to return LR only
 
         return float(prob_lr)
 
     def predict_batch(self, terms_data: list[dict[str, Any]]) -> list[float]:
         """
         Predict user preference for multiple terms at once.
+
+        Uses graduated blending strategy (same as predict_preference).
 
         Args:
             terms_data: List of term data dictionaries
@@ -689,15 +902,27 @@ class VocabularyPreferenceLearner:
         # Get LR probabilities
         probs_lr = self._lr_model.predict_proba(X_scaled)[:, 1]
 
-        # If ensemble enabled, blend with RF
+        # If ensemble enabled, blend with RF using graduated weight
         if self.is_ensemble:
             probs_rf = self._rf_model.predict_proba(X_scaled)[:, 1]
-            # Apply confidence-weighted blend to each pair
-            blended = [
-                confidence_weighted_blend(lr, rf)
-                for lr, rf in zip(probs_lr, probs_rf, strict=False)
-            ]
-            return blended
+
+            # Get RF blend weight based on sample count
+            rf_weight = self._get_rf_blend_weight()
+
+            if rf_weight is None:
+                # 200+ samples: use confidence-weighted blend
+                blended = [
+                    confidence_weighted_blend(lr, rf)
+                    for lr, rf in zip(probs_lr, probs_rf, strict=False)
+                ]
+                return blended
+            elif rf_weight > 0:
+                # 40-199 samples: use fixed-weight blend
+                return [
+                    lr * (1 - rf_weight) + rf * rf_weight
+                    for lr, rf in zip(probs_lr, probs_rf, strict=False)
+                ]
+            # rf_weight == 0: fall through to return LR only
 
         return probs_lr.tolist()
 
