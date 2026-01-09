@@ -200,14 +200,14 @@ class WindowLayoutMixin:
 
         # LLM Enhancement sub-checkbox (indented under Vocabulary)
         self.vocab_llm_check = ctk.CTkCheckBox(
-            task_frame, text="  Use LLM Enhancement", command=self._on_vocab_llm_check_changed
+            task_frame, text="Use LLM Enhancement", command=self._on_vocab_llm_check_changed
         )
-        self.vocab_llm_check.pack(anchor="w", pady=(0, 2))
+        self.vocab_llm_check.pack(anchor="w", pady=(0, 2), padx=(20, 0))
         # Initial state set by _update_vocab_llm_checkbox_state() in MainWindow.__init__
 
         # Q&A checkbox (default ON)
         self.qa_check = ctk.CTkCheckBox(
-            task_frame, text="Ask Questions", command=self._update_generate_button_state
+            task_frame, text="Ask Questions", command=self._on_qa_check_changed
         )
         self.qa_check.pack(anchor="w", pady=2)
         self.qa_check.select()  # ON by default
@@ -215,10 +215,10 @@ class WindowLayoutMixin:
         # Default questions sub-checkbox (indented under Q&A)
         self.ask_default_questions_check = ctk.CTkCheckBox(
             task_frame,
-            text="  Ask 0 default questions",  # Initial text with indent
+            text="Ask 0 default questions",
             command=self._on_default_questions_toggled,
         )
-        self.ask_default_questions_check.pack(anchor="w", pady=(0, 2))
+        self.ask_default_questions_check.pack(anchor="w", pady=(0, 2), padx=(20, 0))
         self.ask_default_questions_check.select()  # ON by default
 
         # Summary checkbox (default OFF, with warning)
@@ -279,7 +279,10 @@ class WindowLayoutMixin:
         self.followup_frame.grid_remove()
 
         self.followup_entry = ctk.CTkEntry(
-            self.followup_frame, placeholder_text="Ask a follow-up question...", height=35
+            self.followup_frame,
+            placeholder_text="Q&A not ready - run tasks first",
+            height=35,
+            state="disabled",  # Enabled after Q&A vector store is built
         )
         self.followup_entry.grid(row=0, column=0, sticky="ew", padx=(0, 5))
         self.followup_entry.bind("<Return>", lambda e: self._ask_followup())
@@ -289,7 +292,7 @@ class WindowLayoutMixin:
             text="Ask",
             width=60,
             command=self._ask_followup,
-            state="disabled",  # Enabled after Q&A results exist
+            state="disabled",  # Enabled after Q&A vector store is built
         )
         self.followup_btn.grid(row=0, column=1)
 

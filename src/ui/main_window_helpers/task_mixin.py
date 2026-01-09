@@ -165,10 +165,14 @@ class TaskMixin:
             self._qa_ready = True
             if self._pending_tasks.get("qa"):
                 self._completed_tasks.add("qa")
+                # Enable follow-up controls now that Q&A is ready
                 self.followup_btn.configure(state="normal")
-            self.set_status(
-                f"Questions and answers ready ({chunk_count} chunks). LLM enhancement in progress..."
-            )
+                self.followup_entry.configure(
+                    state="normal", placeholder_text="Ask a follow-up question..."
+                )
+            # Session 84: Update status but don't finalize yet - wait for trigger_default_qa
+            # which arrives right after qa_ready
+            self.set_status(f"Q&A ready ({chunk_count} chunks). Running default questions...")
 
         elif msg_type == "qa_error":
             error_msg = (
@@ -199,7 +203,20 @@ class TaskMixin:
             if qa_results:
                 self.output_display.update_outputs(qa_results=qa_results)
                 self.set_status(f"Default questions answered: {len(qa_results)} responses")
+            else:
+                self.set_status("Q&A complete (no default questions enabled)")
+            # Enable follow-up controls
             self.followup_btn.configure(state="normal")
+            self.followup_entry.configure(
+                state="normal", placeholder_text="Ask a follow-up question..."
+            )
+
+            # Session 84: Finalize tasks after default questions complete
+            if "vocab" in self._completed_tasks:
+                if self._pending_tasks.get("summary"):
+                    self._start_summary_task()
+                else:
+                    self._finalize_tasks()
 
         elif msg_type == "llm_progress":
             current, total = data
@@ -217,7 +234,13 @@ class TaskMixin:
                 self.set_status("Complete: NER extraction only (LLM disabled)")
 
             self._completed_tasks.add("vocab")
-            if self._pending_tasks.get("summary"):
+
+            # Session 84: Don't finalize until Q&A is ready (if Q&A enabled)
+            # The vector store builds in parallel and triggers default questions when done
+            if self._pending_tasks.get("qa") and not self._qa_ready:
+                debug_log("[MainWindow] Waiting for Q&A index before finalizing...")
+                self.set_status("Building Q&A index...")
+            elif self._pending_tasks.get("summary"):
                 self._start_summary_task()
             else:
                 self._finalize_tasks()
@@ -229,6 +252,12 @@ class TaskMixin:
         """Handle trigger_default_qa message - spawn QAWorker for default questions."""
         if not self.ask_default_questions_check.get():
             debug_log("[MainWindow] Default questions disabled, skipping")
+            # Session 84: Still need to finalize tasks when default questions are disabled
+            if "vocab" in self._completed_tasks:
+                if self._pending_tasks.get("summary"):
+                    self._start_summary_task()
+                else:
+                    self._finalize_tasks()
             return
 
         from src.services.workers import QAWorker
@@ -587,9 +616,12 @@ class TaskMixin:
         self.add_files_btn.configure(state="normal")
         self._update_generate_button_state()
 
-        # Enable follow-up if Q&A was run
-        if self.qa_check.get() and success:
+        # Enable follow-up if Q&A was run AND vector store is ready
+        if self.qa_check.get() and success and self._qa_ready:
             self.followup_btn.configure(state="normal")
+            self.followup_entry.configure(
+                state="normal", placeholder_text="Ask a follow-up question..."
+            )
 
         # Show Export buttons after successful processing
         if success and not self._export_all_visible:

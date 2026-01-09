@@ -830,12 +830,12 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         if enabled == total:
             # All questions enabled - simple display
             self.ask_default_questions_check.configure(
-                text=f"  Ask {enabled} default {question_word}"
+                text=f"Ask {enabled} default {question_word}"
             )
         else:
             # Some questions disabled - show enabled/total
             self.ask_default_questions_check.configure(
-                text=f"  Ask {enabled}/{total} default {question_word}"
+                text=f"Ask {enabled}/{total} default {question_word}"
             )
 
     def _on_default_questions_toggled(self):
@@ -846,6 +846,34 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         if DEBUG_MODE:
             state = "enabled" if self.ask_default_questions_check.get() else "disabled"
             debug_log(f"[MainWindow] Default questions {state}")
+
+    def _on_qa_check_changed(self):
+        """Handle Q&A checkbox state change."""
+        self._update_generate_button_state()
+        self._update_default_questions_checkbox_state()
+
+        if DEBUG_MODE:
+            state = "enabled" if self.qa_check.get() else "disabled"
+            debug_log(f"[MainWindow] Q&A {state}")
+
+    def _update_default_questions_checkbox_state(self):
+        """
+        Update default questions sub-checkbox based on Q&A checkbox state.
+
+        When Q&A is unchecked:
+        - Disable the default questions checkbox
+        - Auto-uncheck it (since we won't be asking questions)
+
+        When Q&A is checked:
+        - Enable the default questions checkbox
+        """
+        if self.qa_check.get():
+            # Q&A is enabled - allow user to toggle default questions
+            self.ask_default_questions_check.configure(state="normal")
+        else:
+            # Q&A is disabled - disable and uncheck default questions
+            self.ask_default_questions_check.deselect()
+            self.ask_default_questions_check.configure(state="disabled")
 
     # =========================================================================
     # LLM Enhancement Checkbox State Management (Session 63b)

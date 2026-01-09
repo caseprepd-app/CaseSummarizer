@@ -73,7 +73,7 @@ class ColumnVisibilityWidget(ctk.CTkFrame):
         header_frame = ctk.CTkFrame(self, fg_color="transparent")
         header_frame.grid(row=0, column=0, sticky="ew", pady=(0, 10))
 
-        ctk.CTkLabel(header_frame, text="Default Visible Columns", font=FONTS["label_bold"]).pack(
+        ctk.CTkLabel(header_frame, text="Default Visible Columns", font=FONTS["heading_sm"]).pack(
             side="left"
         )
 

@@ -589,6 +589,12 @@ HALLUCINATION_MODEL = "KRLabsOrg/lettucedect-base-modernbert-en-v1"
 BUNDLED_MODELS_DIR = Path(__file__).parent.parent / "models"
 HALLUCINATION_MODEL_LOCAL_PATH = BUNDLED_MODELS_DIR / "lettucedect-base-modernbert-en-v1"
 
+# Embedding model for FAISS semantic search (Session 85)
+# Upgraded from all-MiniLM-L6-v2 (33MB) to bge-base-en-v1.5 (110MB) for better retrieval
+# BGE models are trained specifically for retrieval tasks and understand legal/medical terminology better
+EMBEDDING_MODEL_NAME = "BAAI/bge-base-en-v1.5"
+EMBEDDING_MODEL_LOCAL_PATH = BUNDLED_MODELS_DIR / "embeddings" / "bge-base-en-v1.5"
+
 # HuggingFace cache directory (used if bundled model not found)
 # Falls back to downloading if bundled model is missing (dev mode)
 HF_CACHE_DIR = BUNDLED_MODELS_DIR / ".hf_cache"

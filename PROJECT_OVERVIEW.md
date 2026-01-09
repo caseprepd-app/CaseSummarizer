@@ -58,6 +58,8 @@ Build a **100% offline, private, commercial Windows desktop application** for co
 | **16GB RAM minimum** | AI models and vector stores need memory headroom |
 | **Commercial licensing** | App will be sold; all dependencies must allow commercial use |
 | **Handle poor-quality scans** | Many legal documents are OCR'd with errors |
+| **Standalone installer** | All assets bundled with installer — no post-install downloads (except Ollama) |
+| **Ollama user-managed** | User installs Ollama separately and chooses their own LLM models |
 
 ---
 

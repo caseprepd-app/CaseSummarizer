@@ -828,7 +828,7 @@ def _register_all_settings():
         SettingDefinition(
             key="ollama_model",
             label="AI Model",
-            category="Q&A",
+            category="AI Model",
             setting_type=SettingType.DROPDOWN,
             tooltip=(
                 "Select which Ollama model to use for AI features.\n\n"
@@ -841,6 +841,174 @@ def _register_all_settings():
             options=_get_ollama_model_options(),
             getter=lambda: prefs.get("ollama_model", "gemma3:1b"),
             setter=_set_ollama_model,
+        )
+    )
+
+    # Session 85: "Learn more about LLMs" educational link
+    def _show_ollama_education_dialog():
+        """Show educational popup about Ollama and local LLMs."""
+        import webbrowser
+
+        import customtkinter as ctk
+
+        from src.ui.theme import COLORS, FONTS
+
+        # Create modal dialog - larger to fit new content
+        dialog = ctk.CTkToplevel()
+        dialog.title("Understanding Local LLM Models")
+        dialog.geometry("550x580")
+        dialog.resizable(False, False)
+        dialog.grab_set()  # Modal behavior
+
+        # Center on screen
+        dialog.update_idletasks()
+        x = (dialog.winfo_screenwidth() - 550) // 2
+        y = (dialog.winfo_screenheight() - 580) // 2
+        dialog.geometry(f"+{x}+{y}")
+
+        # Scrollable content frame
+        content = ctk.CTkScrollableFrame(dialog, fg_color="transparent")
+        content.pack(fill="both", expand=True, padx=20, pady=20)
+
+        # Title
+        title = ctk.CTkLabel(
+            content,
+            text="Understanding Local LLM Models",
+            font=FONTS["heading"],
+        )
+        title.pack(anchor="w", pady=(0, 10))
+
+        # Intro text
+        intro = ctk.CTkLabel(
+            content,
+            text=(
+                "LocalScribe uses Ollama to run AI language models locally on your\n"
+                "computer for summaries and Q&A. Your documents never leave your machine."
+            ),
+            font=FONTS["body"],
+            text_color=COLORS["text_secondary"],
+            justify="left",
+            anchor="w",
+        )
+        intro.pack(anchor="w", pady=(0, 10))
+
+        # YouTube button - understand how LLMs work (in Understanding LLMs section)
+        youtube_btn = ctk.CTkButton(
+            content,
+            text="Watch: How LLMs Work (YouTube)",
+            command=lambda: webbrowser.open("https://www.youtube.com/watch?v=LPZh9BOjkQs"),
+            width=200,
+        )
+        youtube_btn.pack(anchor="w", pady=(0, 10))
+
+        # Sections with updated content
+        sections = [
+            (
+                "HOW PARAMETERS AFFECT QUALITY",
+                "The 'parameters' in a model name (e.g., 27B = 27 billion) indicate\n"
+                "the model's size and capability. More parameters generally means:\n"
+                "• Better understanding of complex questions\n"
+                "• More accurate and coherent summaries\n"
+                "• Fewer hallucinations (made-up facts)",
+            ),
+            (
+                "HARDWARE CONSIDERATIONS",
+                "• Dedicated GPU (NVIDIA/AMD): Can run 12B-27B models efficiently\n"
+                "• No dedicated GPU (CPU only): Limited to smaller models, slower\n"
+                "  processing, and higher hallucination rates",
+            ),
+            (
+                "OUR RECOMMENDATIONS",
+                "• With dedicated GPU: gemma3:27b (best quality)\n"
+                "• Without dedicated GPU: gemma3:12b (good balance)\n"
+                "• Models 4B or smaller: Not recommended - we've observed poor\n"
+                "  performance and frequent hallucinations with these models",
+            ),
+            (
+                "GETTING STARTED",
+                "1. Download Ollama from ollama.ai\n"
+                "2. Open a terminal and run: ollama pull gemma3:27b\n"
+                "   (or gemma3:12b for CPU-only systems)\n"
+                "3. Restart LocalScribe and select your model in Settings",
+            ),
+        ]
+
+        for section_title, section_text in sections:
+            section_label = ctk.CTkLabel(
+                content,
+                text=section_title,
+                font=FONTS["heading_sm"],
+                anchor="w",
+            )
+            section_label.pack(anchor="w", pady=(10, 2))
+
+            section_content = ctk.CTkLabel(
+                content,
+                text=section_text,
+                font=FONTS["body"],
+                text_color=COLORS["text_secondary"],
+                justify="left",
+                anchor="w",
+            )
+            section_content.pack(anchor="w", pady=(0, 5))
+
+        # Button frame
+        button_frame = ctk.CTkFrame(content, fg_color="transparent")
+        button_frame.pack(fill="x", pady=(15, 0))
+
+        # Visit ollama.ai button
+        visit_btn = ctk.CTkButton(
+            button_frame,
+            text="Visit ollama.ai",
+            command=lambda: webbrowser.open("https://ollama.ai"),
+            width=120,
+        )
+        visit_btn.pack(side="left")
+
+        # Close button
+        close_btn = ctk.CTkButton(
+            button_frame,
+            text="Close",
+            command=dialog.destroy,
+            width=80,
+            fg_color="gray40",
+            hover_color="gray30",
+        )
+        close_btn.pack(side="right")
+
+    def _create_ollama_learn_more_link(parent):
+        """Create a 'Learn more' link widget for Ollama education."""
+        import customtkinter as ctk
+
+        from src.ui.theme import FONTS
+
+        frame = ctk.CTkFrame(parent, fg_color="transparent")
+
+        link = ctk.CTkButton(
+            frame,
+            text="Learn more about local LLM models ↗",
+            font=FONTS["small"],
+            fg_color="transparent",
+            text_color=("#1f6aa5", "#3B8ED0"),
+            hover_color=("gray90", "gray25"),
+            anchor="w",
+            width=250,
+            height=24,
+            command=_show_ollama_education_dialog,
+        )
+        link.pack(anchor="w")
+
+        return frame
+
+    SettingsRegistry.register(
+        SettingDefinition(
+            key="ollama_learn_more",
+            label="",  # No label - link speaks for itself
+            category="AI Model",
+            setting_type=SettingType.CUSTOM,
+            tooltip="",
+            default=None,
+            widget_factory=_create_ollama_learn_more_link,
         )
     )
 
@@ -884,7 +1052,7 @@ def _register_all_settings():
         SettingDefinition(
             key="llm_context_size",
             label="Context window size",
-            category="Q&A",
+            category="AI Model",
             setting_type=SettingType.DROPDOWN,
             tooltip=(
                 "How much text the AI can process at once (in tokens).\n\n"

@@ -13,19 +13,19 @@ Why Include Semantic Search:
 - "Who are the parties?" may find "plaintiff and defendant" even without exact match
 - Complements BM25 for comprehensive retrieval
 
-Limitations:
-- all-MiniLM-L6-v2 is a general-purpose model, not trained on legal text
-- May produce low relevance scores for domain-specific terminology
-- Currently uses a high threshold (0.5) which filters out many results
+Model Choice (Session 85):
+- Uses BAAI/bge-base-en-v1.5 (~110MB) - trained specifically for retrieval tasks
+- Significantly better than previous all-MiniLM-L6-v2 for legal/medical terminology
+- Bundled locally for offline use (no download at runtime)
 
-This algorithm has lower weight (0.5) compared to BM25+ (1.0) to reflect
-its lower reliability for legal document retrieval.
+This algorithm has lower weight (0.5) compared to BM25+ (1.0) since
+semantic search is secondary to exact term matching for legal documents.
 """
 
 import time
 from typing import TYPE_CHECKING, Any
 
-from src.config import DEBUG_MODE
+from src.config import DEBUG_MODE, EMBEDDING_MODEL_LOCAL_PATH, EMBEDDING_MODEL_NAME
 from src.core.retrieval.algorithms import register_algorithm
 from src.core.retrieval.base import (
     AlgorithmRetrievalResult,
@@ -40,8 +40,21 @@ if TYPE_CHECKING:
     from langchain_huggingface import HuggingFaceEmbeddings
 
 
-# Default embedding model - general purpose, lightweight
-DEFAULT_EMBEDDING_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
+def _get_embedding_model_path() -> str:
+    """
+    Get the embedding model path, preferring local bundled model.
+
+    Returns:
+        Local path if bundled model exists, otherwise HuggingFace model name
+        for automatic download.
+    """
+    if EMBEDDING_MODEL_LOCAL_PATH.exists():
+        return str(EMBEDDING_MODEL_LOCAL_PATH)
+    return EMBEDDING_MODEL_NAME
+
+
+# Embedding model - uses bundled local model if available, otherwise downloads
+DEFAULT_EMBEDDING_MODEL = _get_embedding_model_path()
 
 
 @register_algorithm
