@@ -48,6 +48,7 @@ from src.config import (
     ML_SOURCE_WEIGHTS,
     ML_WEIGHT_THRESHOLDS,
     VOCAB_MODEL_PATH,
+    get_count_bin_features,
 )
 from src.core.vocabulary.feedback_manager import FeedbackManager, get_feedback_manager
 from src.core.vocabulary.rarity_filter import _load_scaled_frequencies
@@ -431,13 +432,11 @@ class VocabularyPreferenceLearner:
         in_case_freq = float(term_data.get("in_case_freq", 1) or 1)
         count = int(in_case_freq)
 
-        # Count bins (Session 84) - one-hot encoded
+        # Count bins (Session 84/85) - one-hot encoded via centralized config
         # Rationale: count=1 could be OCR error, higher counts more reliable
-        count_bin_1 = 1.0 if count == 1 else 0.0
-        count_bin_2 = 1.0 if count == 2 else 0.0
-        count_bin_3 = 1.0 if count == 3 else 0.0
-        count_bin_4_6 = 1.0 if 4 <= count <= 6 else 0.0
-        count_bin_7_plus = 1.0 if count >= 7 else 0.0
+        count_bin_1, count_bin_2, count_bin_3, count_bin_4_6, count_bin_7_plus = (
+            get_count_bin_features(count)
+        )
 
         # Document-relative frequency - normalizes for document size
         total_unique_terms = float(term_data.get("total_unique_terms", 0) or 0)

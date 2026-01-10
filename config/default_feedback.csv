@@ -1,0 +1,29 @@
+timestamp,document_id,term,feedback,is_person,algorithms,NER_detection,RAKE_detection,BM25_detection,algo_count,quality_score,in_case_freq,freq_rank,num_source_documents,doc_diversity_ratio,mean_doc_confidence,median_doc_confidence,confidence_std_dev,high_conf_doc_ratio,all_low_conf,total_docs_in_session
+2026-01-09T12:23:18.289024,unknown,R.N,-1,1,NER,True,False,False,1,100.0,92,0,1,0.2,0.8600000000000001,0.86,0.0,1.0,0,5
+2026-01-09T12:23:21.882307,unknown,Luigi Napolitano,1,1,NER,True,False,False,1,100.0,52,0,1,0.2,0.86,0.86,0.0,1.0,0,5
+2026-01-09T12:23:24.278395,unknown,Di Leo,1,1,NER,True,False,False,1,100.0,51,0,1,0.2,0.86,0.86,0.0,1.0,0,5
+2026-01-09T12:23:25.303474,unknown,Madeline Fils-Alme,1,1,NER,True,False,False,1,100.0,52,0,1,0.2,0.86,0.86,0.0,1.0,0,5
+2026-01-09T13:28:04.567125,unknown,Joseph Demonte,1,1,NER,True,False,False,1,100.0,39,0,1,0.2,0.86,0.86,0.0,1.0,0,5
+2026-01-09T12:23:28.490985,unknown,Sulman Mahmood,1,1,NER,True,False,False,1,100.0,31,0,1,0.2,0.86,0.86,0.0,1.0,0,5
+2026-01-09T12:23:30.637573,unknown,D.O,-1,1,NER,True,False,False,1,100.0,30,0,1,0.2,0.86,0.86,0.0,1.0,0,5
+2026-01-09T12:23:34.386779,unknown,Karyn Carlson,1,1,NER,True,False,False,1,100.0,30,0,1,0.2,0.86,0.86,0.0,1.0,0,5
+2026-01-09T14:15:43.010075,unknown,M Fils-Aime - Plaintiff - D...,-1,0,,False,False,False,0,0,1,0,1,1.0,1.0,1.0,0.0,1.0,0,1
+2026-01-09T16:06:41.775595,unknown,Nc Direct - Fils-Aime - Pla...,-1,0,,False,False,False,0,0,1,0,1,1.0,1.0,1.0,0.0,1.0,0,1
+2026-01-09T16:07:31.198801,unknown,Dc M. Fils-Aime - Plaintiff...,-1,0,,False,False,False,0,0,1,0,1,1.0,1.0,1.0,0.0,1.0,0,1
+2026-01-09T12:24:06.068864,unknown,Winthrop,1,1,NER,True,False,False,1,65.0,1,24150,1,0.2,0.86,0.86,0.0,1.0,0,5
+2026-01-09T12:24:14.434924,unknown,Goldfarb,1,1,NER,True,False,False,1,75.0,3,67750,1,0.2,0.86,0.86,0.0,1.0,0,5
+2026-01-09T12:24:24.300476,unknown,Arthur Jenkins,1,1,NER,True,False,False,1,85.0,6,0,1,0.2,0.86,0.86,0.0,1.0,0,5
+2026-01-09T12:24:32.563001,unknown,Q. Nurse,-1,1,NER,True,False,False,1,90.0,2,0,1,0.2,0.86,0.86,0.0,1.0,0,5
+2026-01-09T12:24:42.019394,unknown,Tracy Catapano-Fox,1,1,NER,True,False,False,1,90.0,2,0,1,0.2,0.86,0.86,0.0,1.0,0,5
+2026-01-09T12:24:46.698606,unknown,Marla Stein,1,1,NER,True,False,False,1,90.0,2,0,1,0.2,0.86,0.86,0.0,1.0,0,5
+2026-01-09T13:27:27.146996,unknown,Dalila Cummings,1,1,NER,True,False,False,1,90.0,2,0,1,0.2,0.86,0.86,0.0,1.0,0,5
+2026-01-09T13:27:45.853399,unknown,Samantha Walton,1,1,NER,True,False,False,1,85.0,1,0,1,0.2,0.86,0.86,0.0,1.0,0,5
+2026-01-09T13:27:53.606197,unknown,Noah Collin,1,1,NER,True,False,False,1,85.0,1,0,1,0.2,0.86,0.86,0.0,1.0,0,5
+2026-01-09T13:28:05.719994,unknown,Robert L Wighton,1,1,NER,True,False,False,1,100.0,32,0,1,0.2,0.86,0.86,0.0,1.0,0,5
+2026-01-09T13:28:50.530993,unknown,Jason Kaufer,1,1,NER,True,False,False,1,90.0,2,0,1,0.2,0.86,0.86,0.0,1.0,0,5
+2026-01-09T13:31:19.648039,unknown,Bill,-1,1,NER,True,False,False,1,80.0,8,812,1,0.2,0.86,0.86,0.0,1.0,0,5
+2026-01-09T13:31:23.420611,unknown,thecal,1,0,NER,True,False,False,1,80.0,3,327655,1,0.2,0.86,0.86,0.0,1.0,0,5
+2026-01-09T14:15:09.785132,unknown,METRx,1,0,NER,True,False,False,1,75.0,2,259208,1,0.2,0.86,0.86,0.0,1.0,0,5
+2026-01-09T14:15:17.384090,unknown,Esq,-1,1,NER,True,False,False,1,65.0,1,15052,1,0.2,0.86,0.86,0.0,1.0,0,5
+2026-01-09T14:15:26.927887,unknown,Nurse Fils-Aime,1,1,NER,True,False,False,1,90.0,2,0,1,0.2,0.86,0.86,0.0,1.0,0,5
+2026-01-09T14:16:15.810579,unknown,Carol Curry,1,1,NER,True,False,False,1,100.0,29,0,1,0.2,0.8600000000000001,0.86,0.0,1.0,0,5

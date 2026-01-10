@@ -113,6 +113,58 @@ ML_SOURCE_WEIGHTS = [
     (float("inf"), 0.6, 5.0),  # 200+ samples: user 5x, default 0.6x
 ]
 
+# Count Bin Configuration (Session 85)
+# Centralized definition of occurrence count bins for ML features and deduplication.
+# Rationale: count=1 could be OCR error, higher counts are progressively more reliable.
+#
+# Used by:
+# - feedback_manager.py: Deduplication key (term, count_bin)
+# - meta_learner.py: One-hot encoded features for ML model
+COUNT_BIN_NAMES = ("bin_1", "bin_2", "bin_3", "bin_4_6", "bin_7_plus")
+
+
+def get_count_bin(count: int) -> str:
+    """
+    Get count bin name for a given occurrence count.
+
+    Args:
+        count: Term occurrence count (in_case_freq)
+
+    Returns:
+        Bin name: "bin_1", "bin_2", "bin_3", "bin_4_6", or "bin_7_plus"
+    """
+    if count == 1:
+        return "bin_1"
+    if count == 2:
+        return "bin_2"
+    if count == 3:
+        return "bin_3"
+    if 4 <= count <= 6:
+        return "bin_4_6"
+    return "bin_7_plus"
+
+
+def get_count_bin_features(count: int) -> tuple[float, float, float, float, float]:
+    """
+    Get one-hot encoded count bin features for ML model.
+
+    Args:
+        count: Term occurrence count (in_case_freq)
+
+    Returns:
+        Tuple of 5 floats: (bin_1, bin_2, bin_3, bin_4_6, bin_7_plus)
+        One value will be 1.0, rest will be 0.0
+    """
+    bin_name = get_count_bin(count)
+    return (
+        1.0 if bin_name == "bin_1" else 0.0,
+        1.0 if bin_name == "bin_2" else 0.0,
+        1.0 if bin_name == "bin_3" else 0.0,
+        1.0 if bin_name == "bin_4_6" else 0.0,
+        1.0 if bin_name == "bin_7_plus" else 0.0,
+    )
+
+
 # Rule-Based Quality Score: TermSources Adjustments (Session 79)
 # These adjustments are applied BEFORE ML blending, based on document source quality.
 # All values are additive to the base score (50 points).

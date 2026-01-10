@@ -50,6 +50,7 @@ from src.config import (
     FEEDBACK_DIR,
     ML_MIN_SAMPLES,
     ML_RETRAIN_THRESHOLD,
+    get_count_bin,
 )
 from src.core.vocabulary.term_sources import TermSources
 from src.logging_config import debug_log
@@ -222,6 +223,70 @@ class FeedbackManager:
         hash_obj = hashlib.md5(sample.encode("utf-8"))
         return f"doc_{hash_obj.hexdigest()[:12]}"
 
+    def _delete_feedback_from_csv(self, lower_term: str, term_data: dict[str, Any]) -> bool:
+        """
+        Delete a feedback entry from CSV when user clears their rating.
+
+        Session 85: Instead of recording feedback=0, we delete the row entirely.
+        Matches by (term, count_bin) key.
+
+        Args:
+            lower_term: Lowercase term to delete
+            term_data: Term data dict (used to get count for bin calculation)
+
+        Returns:
+            True if deletion succeeded (or no matching row existed)
+        """
+        target_file = self.default_feedback_file if DEBUG_MODE else self.user_feedback_file
+
+        if not target_file.exists():
+            return True  # Nothing to delete
+
+        try:
+            # Get count bin for the term being deleted
+            try:
+                count = int(term_data.get("In-Case Freq", 1) or 1)
+            except (ValueError, TypeError):
+                count = 1
+            delete_key = (lower_term, get_count_bin(count))
+
+            # Read all rows, filter out matching ones
+            kept_records: list[dict] = []
+            deleted = False
+
+            with open(target_file, encoding="utf-8", newline="") as f:
+                reader = csv.DictReader(f)
+                for row in reader:
+                    row_term = row.get("term", "").lower().strip()
+                    try:
+                        row_count = int(row.get("in_case_freq", 1) or 1)
+                    except (ValueError, TypeError):
+                        row_count = 1
+                    row_key = (row_term, get_count_bin(row_count))
+
+                    if row_key == delete_key:
+                        deleted = True  # Skip this row (delete it)
+                    else:
+                        kept_records.append(row)
+
+            # Write remaining records back
+            with open(target_file, "w", encoding="utf-8", newline="") as f:
+                writer = csv.DictWriter(f, fieldnames=FEEDBACK_COLUMNS)
+                writer.writeheader()
+                writer.writerows(kept_records)
+
+            target_type = "default" if DEBUG_MODE else "user"
+            if deleted:
+                debug_log(f"[FEEDBACK] Deleted '{lower_term}' from {target_type} feedback")
+            else:
+                debug_log(f"[FEEDBACK] No matching entry to delete for '{lower_term}'")
+
+            return True
+
+        except Exception as e:
+            debug_log(f"[FEEDBACK] Error deleting feedback: {e}")
+            return False
+
     def record_feedback(
         self, term_data: dict[str, Any], feedback: int, doc_id: str | None = None
     ) -> bool:
@@ -248,6 +313,8 @@ class FeedbackManager:
         if feedback == 0:
             self._cache.pop(lower_term, None)
             self._session_rated.discard(lower_term)
+            # Session 85: Delete from CSV instead of recording feedback=0
+            return self._delete_feedback_from_csv(lower_term, term_data)
         else:
             self._cache[lower_term] = feedback
             # Session 84: Mark as session-rated (user clicked in GUI)
@@ -322,21 +389,49 @@ class FeedbackManager:
         target_file = self.default_feedback_file if DEBUG_MODE else self.user_feedback_file
 
         try:
-            file_exists = target_file.exists()
-
             # Ensure parent directory exists (needed for default_feedback.csv in config/)
             target_file.parent.mkdir(parents=True, exist_ok=True)
 
-            with open(target_file, "a", encoding="utf-8", newline="") as f:
+            # Session 85: Deduplicate by (term, count_bin) at write time
+            # If same (term, count_bin) exists, replace it; otherwise append
+            new_count_bin = get_count_bin(int(record.get("in_case_freq", 1) or 1))
+            new_key = (lower_term, new_count_bin)
+
+            existing_records: list[dict] = []
+            replaced = False
+
+            if target_file.exists():
+                with open(target_file, encoding="utf-8", newline="") as f:
+                    reader = csv.DictReader(f)
+                    for row in reader:
+                        row_term = row.get("term", "").lower().strip()
+                        try:
+                            row_count = int(row.get("in_case_freq", 1) or 1)
+                        except (ValueError, TypeError):
+                            row_count = 1
+                        row_key = (row_term, get_count_bin(row_count))
+
+                        if row_key == new_key:
+                            # Replace this row with new record
+                            existing_records.append(record)
+                            replaced = True
+                        else:
+                            existing_records.append(row)
+
+            if not replaced:
+                existing_records.append(record)
+
+            # Write all records back to file
+            with open(target_file, "w", encoding="utf-8", newline="") as f:
                 writer = csv.DictWriter(f, fieldnames=FEEDBACK_COLUMNS)
-                if not file_exists:
-                    writer.writeheader()
-                writer.writerow(record)
+                writer.writeheader()
+                writer.writerows(existing_records)
 
             self._pending_count += 1
             target_type = "default" if DEBUG_MODE else "user"
+            action = "replaced" if replaced else "added"
             debug_log(
-                f"[FEEDBACK] Recorded {'+' if feedback > 0 else '-'} for '{term}' ({target_type})"
+                f"[FEEDBACK] {action.capitalize()} {'+' if feedback > 0 else '-'} for '{term}' ({target_type})"
             )
             return True
 
@@ -384,7 +479,11 @@ class FeedbackManager:
 
     def clear_rating(self, term: str) -> bool:
         """
-        Clear the rating for a term.
+        Clear ALL ratings for a term (all count bins).
+
+        Session 85: Deletes all entries for this term from CSV,
+        regardless of count bin. Use record_feedback(term_data, 0)
+        to clear a specific (term, count_bin) entry.
 
         Args:
             term: The vocabulary term
@@ -393,12 +492,38 @@ class FeedbackManager:
             True if a rating was cleared, False if term was unrated
         """
         lower_term = term.lower().strip()
-        if lower_term in self._cache:
-            del self._cache[lower_term]
-            # Record the clear as feedback=0
-            self.record_feedback({"Term": term}, 0)
+        if lower_term not in self._cache:
+            return False
+
+        del self._cache[lower_term]
+        self._session_rated.discard(lower_term)
+
+        # Delete ALL entries for this term from CSV (any count bin)
+        target_file = self.default_feedback_file if DEBUG_MODE else self.user_feedback_file
+
+        if not target_file.exists():
             return True
-        return False
+
+        try:
+            kept_records: list[dict] = []
+            with open(target_file, encoding="utf-8", newline="") as f:
+                reader = csv.DictReader(f)
+                for row in reader:
+                    row_term = row.get("term", "").lower().strip()
+                    if row_term != lower_term:
+                        kept_records.append(row)
+
+            with open(target_file, "w", encoding="utf-8", newline="") as f:
+                writer = csv.DictWriter(f, fieldnames=FEEDBACK_COLUMNS)
+                writer.writeheader()
+                writer.writerows(kept_records)
+
+            debug_log(f"[FEEDBACK] Cleared all ratings for '{term}'")
+            return True
+
+        except Exception as e:
+            debug_log(f"[FEEDBACK] Error clearing rating: {e}")
+            return True  # Cache was cleared, file error is secondary
 
     def _load_feedback_from_file(self, filepath: Path) -> list[dict]:
         """
@@ -532,7 +657,12 @@ class FeedbackManager:
         Export combined feedback data formatted for ML training.
 
         Combines default (shipped) and user feedback with source tags.
-        Aggregates feedback by term (most recent user feedback wins over default).
+        Deduplicates by (term, count_bin) - keeps most recent feedback.
+
+        Session 85: Changed from term-only to (term, count_bin) deduplication.
+        Rationale: Same term at count=1 (possible OCR error) is semantically
+        different from count=50 (definitely real). But same term+bin with
+        multiple entries is a duplicate that would over-weight that observation.
 
         Returns:
             List of training records with features, labels, and source tags
@@ -547,26 +677,43 @@ class FeedbackManager:
         for record in user_feedback:
             record["source"] = "user"
 
-        # Combine with user feedback taking precedence
-        # (user feedback for same term overwrites default)
-        term_feedback: dict[str, dict] = {}
+        # Combine all feedback, then deduplicate by (term, count_bin)
+        # Later entries (by timestamp) win over earlier ones
+        # User feedback files are loaded after default, so user wins over default
+        all_feedback = default_feedback + user_feedback
 
-        # First, add all default feedback
-        for record in default_feedback:
+        # Sort by timestamp so most recent entry wins when we deduplicate
+        def get_timestamp(record: dict) -> str:
+            return record.get("timestamp", "")
+
+        all_feedback.sort(key=get_timestamp)
+
+        # Deduplicate by (term, count_bin) - last entry wins
+        term_bin_feedback: dict[tuple[str, str], dict] = {}
+        for record in all_feedback:
             term = record.get("term", "").lower().strip()
-            if term:
-                term_feedback[term] = record
+            if not term:
+                continue
 
-        # Then, add/overwrite with user feedback
-        for record in user_feedback:
-            term = record.get("term", "").lower().strip()
-            if term:
-                term_feedback[term] = record
+            # Get count bin for deduplication key
+            try:
+                count = int(record.get("in_case_freq", 1) or 1)
+            except (ValueError, TypeError):
+                count = 1
+            count_bin = get_count_bin(count)
 
-        result = list(term_feedback.values())
+            key = (term, count_bin)
+            term_bin_feedback[key] = record
+
+        result = list(term_bin_feedback.values())
         default_count = sum(1 for r in result if r.get("source") == "default")
         user_count = sum(1 for r in result if r.get("source") == "user")
-        debug_log(f"[FEEDBACK] Exported training data: {default_count} default, {user_count} user")
+        total_raw = len(default_feedback) + len(user_feedback)
+        deduped = total_raw - len(result)
+        debug_log(
+            f"[FEEDBACK] Exported training data: {len(result)} records "
+            f"({default_count} default, {user_count} user, {deduped} duplicates removed)"
+        )
 
         return result
 
