@@ -28,3 +28,20 @@ timestamp,document_id,term,feedback,is_person,algorithms,NER_detection,RAKE_dete
 2026-01-10T16:28:59.199892,unknown,Dc M. Fils-Aime - Plaintiff...,-1,0,,False,False,False,0,0,1,0,1,1.0,1.0,1.0,0.0,1.0,0,1
 2026-01-10T16:29:08.909281,unknown,Seth A Harris,1,1,NER,True,False,False,1,85.0,2,0,1,0.2,0.86,0.86,0.0,1.0,0,5
 2026-01-10T16:29:20.601334,unknown,M Fils-Aime - Plaintiff - D...,-1,0,,False,False,False,0,0,1,0,1,1.0,1.0,1.0,0.0,1.0,0,1
+2026-01-10T17:04:02.031919,unknown,Nc Proceedings,-1,1,NER,True,False,False,1,100.0,25,0,1,1.0,0.94,0.94,0.0,1.0,0,1
+2026-01-10T17:04:07.756612,unknown,Jt Eide - Plaintiff -,-1,1,NER,True,False,False,1,100.0,5,0,1,1.0,0.9399999999999998,0.94,0.0,1.0,0,1
+2026-01-10T17:04:10.856573,unknown,Jt Proceeding,-1,1,NER,True,False,False,1,95.0,3,0,1,1.0,0.94,0.94,0.0,1.0,0,1
+2026-01-10T17:04:27.164949,unknown,Jasmin Trovato,1,1,NER,True,False,False,1,100.0,4,0,1,1.0,0.94,0.94,0.0,1.0,0,1
+2026-01-10T17:04:35.501732,unknown,Harold Krongelb,1,1,NER,True,False,False,1,90.0,4,0,1,1.0,0.94,0.94,0.0,1.0,0,1
+2026-01-10T17:04:55.797230,unknown,Corey Wasserman,1,1,NER,True,False,False,1,85.0,1,0,1,1.0,0.94,0.94,0.0,1.0,0,1
+2026-01-10T17:04:58.946815,unknown,Jeffrey Bloomfield,1,1,NER,True,False,False,1,85.0,1,0,1,1.0,0.94,0.94,0.0,1.0,0,1
+2026-01-10T17:05:05.040833,unknown,Eduardo Bonilla,1,1,NER,True,False,False,1,90.0,2,0,1,1.0,0.94,0.94,0.0,1.0,0,1
+2026-01-10T17:05:12.822819,unknown,Douglas S. Roy,1,1,NER,True,False,False,1,90.0,2,0,1,1.0,0.94,0.94,0.0,1.0,0,1
+2026-01-10T17:05:19.499317,unknown,Restani,1,1,"BM25,NER",True,False,True,2,100.0,156,0,1,1.0,0.94,0.94,0.0,1.0,0,1
+2026-01-10T17:05:25.730635,unknown,Sofia Eide,1,1,NER,True,False,False,1,100.0,5,0,1,1.0,0.9399999999999998,0.94,0.0,1.0,0,1
+2026-01-10T17:05:32.175863,unknown,Andrew Showers,1,1,NER,True,False,False,1,85.0,3,0,1,1.0,0.94,0.94,0.0,1.0,0,1
+2026-01-10T17:05:34.523899,unknown,Steven Ateshoglou,1,1,NER,True,False,False,1,85.0,2,0,1,1.0,0.94,0.94,0.0,1.0,0,1
+2026-01-10T17:05:40.324599,unknown,Q. Hi,-1,1,NER,True,False,False,1,85.0,1,0,1,1.0,0.94,0.94,0.0,1.0,0,1
+2026-01-10T17:05:45.805386,unknown,"Ken 74:21,24",-1,1,NER,True,False,False,1,85.0,1,0,1,1.0,0.94,0.94,0.0,1.0,0,1
+2026-01-10T17:06:46.858329,unknown,Patrick Garvey,1,1,NER,True,False,False,1,90.0,2,0,1,1.0,0.94,0.94,0.0,1.0,0,1
+2026-01-10T17:07:03.102692,unknown,Mcmanus,1,1,NER,True,False,False,1,70.0,2,31106,1,1.0,0.94,0.94,0.0,1.0,0,1
