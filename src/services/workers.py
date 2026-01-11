@@ -872,8 +872,11 @@ class ProgressiveExtractionWorker(BaseWorker):
         """Execute three-phase progressive extraction."""
         debug_log("[PROGRESSIVE WORKER] Starting progressive extraction")
 
-        # ===== PHASE 1: Local Algorithms (Fast - ~5 seconds) =====
-        # Runs NER, RAKE, and BM25 (if corpus has 5+ documents)
+        # Session 85: Signal extraction started (dims feedback buttons)
+        self.ui_queue.put(QueueMessage.extraction_started())
+
+        # ===== PHASE 1: Local Algorithms (Progressive - Session 85) =====
+        # Runs BM25 + RAKE first (fast), then NER with chunk progress
         debug_log("[PROGRESSIVE WORKER] Phase 1: Local algorithm extraction starting...")
 
         # Check which algorithms will run for accurate status message
@@ -894,18 +897,37 @@ class ProgressiveExtractionWorker(BaseWorker):
             user_exclude_path=self.user_exclude_path,
         )
 
-        # Local algorithms only (NER, RAKE, BM25) - fast, no LLM
-        # Use extract() which runs all enabled algorithms, not extract_with_llm()
-        ner_results = extractor.extract(
+        # Session 85: Progressive extraction with callbacks for fast UX
+        def on_partial_complete(partial_vocab):
+            """Called when BM25 + RAKE complete (before NER)."""
+            debug_log(f"[PROGRESSIVE WORKER] Partial results: {len(partial_vocab)} terms")
+            self.ui_queue.put(QueueMessage.partial_vocab_complete(partial_vocab))
+
+        def on_ner_progress(chunk_candidates, chunk_num, total_chunks):
+            """Called after each NER chunk completes."""
+            pct = int((chunk_num / total_chunks) * 100)
+            self.send_progress(
+                10 + int((chunk_num / total_chunks) * 20),  # 10-30% range for NER
+                f"NER: {pct}% complete (chunk {chunk_num}/{total_chunks})...",
+            )
+            self.ui_queue.put(QueueMessage.ner_progress(chunk_candidates, chunk_num, total_chunks))
+
+        # Use progressive extraction: BM25+RAKE first, then NER with progress
+        ner_results = extractor.extract_progressive(
             self.combined_text,
             doc_count=len(self.documents),
-            doc_confidence=self.doc_confidence,  # Session 54: OCR quality for ML
+            doc_confidence=self.doc_confidence,
+            partial_callback=on_partial_complete,
+            ner_progress_callback=on_ner_progress,
         )
 
         debug_log(
             f"[PROGRESSIVE WORKER] Phase 1 complete: {len(ner_results)} terms from local algorithms"
         )
         self.ui_queue.put(QueueMessage.ner_complete(ner_results))
+
+        # Session 85: Signal extraction complete (re-enables feedback buttons)
+        self.ui_queue.put(QueueMessage.extraction_complete())
 
         self.check_cancelled()
 

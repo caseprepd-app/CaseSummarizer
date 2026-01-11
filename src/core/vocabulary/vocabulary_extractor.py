@@ -277,6 +277,148 @@ class VocabularyExtractor:
 
         return vocabulary
 
+    def extract_progressive(
+        self,
+        text: str,
+        doc_count: int = 1,
+        doc_confidence: float = 100.0,
+        partial_callback=None,
+        ner_progress_callback=None,
+    ) -> list[dict[str, str]]:
+        """
+        Extract vocabulary with progressive updates for better UX (Session 85).
+
+        Runs BM25 and RAKE first, sends partial results, then runs NER with
+        progress updates for each chunk. This allows the GUI to show results
+        quickly while NER processes large documents.
+
+        Args:
+            text: The document text to analyze
+            doc_count: Number of documents being processed
+            doc_confidence: Average confidence score of source documents (0-100)
+            partial_callback: Optional callback(vocab_data) called after BM25+RAKE complete
+            ner_progress_callback: Optional callback(vocab_data, chunk_num, total_chunks)
+                                   called after each NER chunk completes
+
+        Returns:
+            Final merged vocabulary list (same format as extract())
+        """
+        from src.core.parallel.executor_strategy import ThreadPoolStrategy
+        from src.core.parallel.task_runner import ParallelTaskRunner
+        from src.system_resources import get_optimal_workers
+
+        original_kb = len(text) // 1024
+        debug_log(f"[VOCAB] Starting progressive extraction on {original_kb}KB document")
+
+        # Limit text size
+        max_chars = VOCABULARY_MAX_TEXT_KB * 1024
+        if len(text) > max_chars:
+            text = text[:max_chars]
+            debug_log(f"[VOCAB] Truncated to {VOCABULARY_MAX_TEXT_KB}KB for processing")
+
+        # Separate algorithms into fast (BM25, RAKE) and slow (NER)
+        fast_algorithms = []
+        ner_algorithm = None
+        for alg in self.algorithms:
+            if not alg.enabled:
+                continue
+            if alg.name == "NER":
+                ner_algorithm = alg
+            else:
+                fast_algorithms.append(alg)
+
+        all_results = []
+
+        # Phase 1: Run fast algorithms (BM25, RAKE) in parallel
+        if fast_algorithms:
+            debug_log(f"[VOCAB] Phase 1: Running {len(fast_algorithms)} fast algorithms...")
+            workers = min(len(fast_algorithms), get_optimal_workers(task_ram_gb=0.5, max_workers=4))
+
+            if len(fast_algorithms) == 1:
+                # Sequential for single algorithm
+                result = fast_algorithms[0].extract(text)
+                all_results.append(result)
+                debug_log(f"[VOCAB] {fast_algorithms[0].name}: {len(result.candidates)} candidates")
+            else:
+                # Parallel execution
+                strategy = ThreadPoolStrategy(max_workers=workers)
+                try:
+
+                    def run_algorithm(algorithm):
+                        result = algorithm.extract(text)
+                        return (algorithm.name, result)
+
+                    items = [(alg.name, alg) for alg in fast_algorithms]
+                    runner = ParallelTaskRunner(strategy=strategy)
+                    task_results = runner.run(run_algorithm, items)
+
+                    for task_result in task_results:
+                        if task_result.success:
+                            alg_name, result = task_result.result
+                            all_results.append(result)
+                            debug_log(f"[VOCAB] {alg_name}: {len(result.candidates)} candidates")
+                finally:
+                    strategy.shutdown(wait=True)
+
+            # Send partial results if callback provided
+            if partial_callback is not None and all_results:
+                debug_log("[VOCAB] Sending partial results (BM25+RAKE)...")
+                partial_merged = self.merger.merge(all_results)
+                partial_vocab = self._post_process(partial_merged, text, doc_count, doc_confidence)
+                # Apply lightweight filter chain (Session 85: skip rarity filter for partial results)
+                # BM25 and RAKE find common keyphrases that rarity filter removes
+                from src.core.vocabulary.filters import create_partial_results_filter_chain
+
+                filter_chain = create_partial_results_filter_chain()
+                filter_result = filter_chain.run(partial_vocab)
+                partial_vocab = self._sort_vocabulary(filter_result.vocabulary)
+                debug_log(
+                    f"[VOCAB] Partial filter chain: {filter_result.removed_count} removed, "
+                    f"{len(partial_vocab)} remaining"
+                )
+                try:
+                    partial_callback(partial_vocab)
+                except Exception as e:
+                    debug_log(f"[VOCAB] Partial callback error: {e}")
+
+        # Phase 2: Run NER with progress callback
+        if ner_algorithm is not None:
+            debug_log("[VOCAB] Phase 2: Running NER with progress updates...")
+
+            # Wrapper to post-process NER chunk results before sending
+            def ner_chunk_callback(chunk_candidates, chunk_num, total_chunks):
+                if ner_progress_callback is None:
+                    return
+                # Convert candidates to vocab format for GUI
+                # Note: These are raw candidates, not fully processed
+                # The callback handler should merge with existing data
+                ner_progress_callback(chunk_candidates, chunk_num, total_chunks)
+
+            result = ner_algorithm.extract(text, progress_callback=ner_chunk_callback)
+            all_results.append(result)
+            debug_log(f"[VOCAB] NER complete: {len(result.candidates)} candidates")
+
+        # Final merge and post-process
+        debug_log(f"[VOCAB] Merging results from {len(all_results)} algorithms...")
+        merged_terms = self.merger.merge(all_results)
+        debug_log(f"[VOCAB] After merge: {len(merged_terms)} unique terms")
+
+        vocabulary = self._post_process(merged_terms, text, doc_count, doc_confidence)
+
+        # Apply filter chain
+        from src.core.vocabulary.filters import create_optimized_filter_chain
+
+        filter_chain = create_optimized_filter_chain()
+        filter_result = filter_chain.run(vocabulary)
+        vocabulary = filter_result.vocabulary
+        debug_log(
+            f"[VOCAB] Filter chain complete: {filter_result.removed_count} removed, "
+            f"{len(vocabulary)} remaining"
+        )
+
+        vocabulary = self._sort_vocabulary(vocabulary)
+        return vocabulary
+
     def extract_with_llm(
         self,
         text: str,
@@ -1275,6 +1417,10 @@ class VocabularyExtractor:
         extraction workflow. Extracts from each document individually,
         then merges with TermSources for canonical selection.
 
+        Session 86: Now applies preprocessing pipeline to each document
+        before extraction (fixes transcript artifact bug where Q./A. notation
+        and headers were appearing in vocabulary results).
+
         Args:
             documents: List of dicts with keys:
                       - 'text': Document text
@@ -1291,6 +1437,12 @@ class VocabularyExtractor:
         total_docs = len(documents)
         debug_log(f"[VOCAB] Starting per-document extraction for {total_docs} documents")
 
+        # Session 86: Create preprocessing pipeline to clean transcript artifacts
+        # (headers, Q./A. notation, line numbers, etc.) before NER extraction
+        from src.core.preprocessing import create_default_pipeline
+
+        preprocessing_pipeline = create_default_pipeline()
+
         # Extract from each document
         doc_results = []
         combined_text_parts = []
@@ -1302,6 +1454,10 @@ class VocabularyExtractor:
 
             if not text.strip():
                 continue
+
+            # Session 86: Preprocess text before extraction
+            # This removes headers, Q./A. notation, line numbers, etc.
+            text = preprocessing_pipeline.process(text)
 
             # Extract terms from this document
             term_counts = self.extract_from_document(text, doc_id, confidence)

@@ -117,6 +117,9 @@ class DynamicOutputWidget(ctk.CTkFrame):
         self.context_menu = None
         self._selected_term = None
 
+        # Session 85: Extraction state for feedback blocking
+        self._extraction_in_progress = False
+
         # Q&A Tab: Q&A panel (created eagerly to prevent tab switching artifacts)
         # See: https://github.com/TomSchimansky/CustomTkinter/issues/1508
         self._qa_panel = QAPanel(self.tabview.tab("Ask Questions"))
@@ -295,6 +298,11 @@ class DynamicOutputWidget(ctk.CTkFrame):
         """
         if source == "none":
             self._progress_badge.configure(text="")
+        elif source == "partial":
+            # Session 85: BM25 + RAKE results shown before NER completes
+            self._progress_badge.configure(
+                text="Partial results (BM25+RAKE)", text_color=("gray50", "gray70")
+            )
         elif source == "ner":
             # Session 80: More accurate label - results come from NER, RAKE, BM25
             self._progress_badge.configure(
@@ -312,13 +320,34 @@ class DynamicOutputWidget(ctk.CTkFrame):
         Called by workflow orchestrator to update progress badge.
 
         Args:
-            source: "none", "ner", or "both"
+            source: "none", "ner", "partial" (BM25+RAKE only), or "both"
         """
         self._extraction_source = source
         # Update badge if Names & Vocabulary tab is currently active
         current_tab = self.tabview.get()
         if current_tab == "Names & Vocab":
             self._update_progress_badge(source)
+
+    def set_extraction_in_progress(self, in_progress: bool):
+        """
+        Set whether vocabulary extraction is in progress (Session 85).
+
+        When in progress, feedback buttons are visually dimmed and clicks
+        show a message asking user to wait for extraction to complete.
+
+        Args:
+            in_progress: True to dim buttons, False to re-enable
+        """
+        self._extraction_in_progress = in_progress
+
+        # Update progress badge to indicate extraction state
+        if in_progress:
+            self._progress_badge.configure(
+                text="Extracting... (feedback disabled)",
+                text_color=("gray50", "gray70"),
+            )
+        elif self._extraction_source:
+            self._update_progress_badge(self._extraction_source)
 
     # -------------------------------------------------------------------------
     # Session 80: Column Visibility Management
@@ -1906,6 +1935,18 @@ class DynamicOutputWidget(ctk.CTkFrame):
             item_id: Treeview item identifier
             feedback_type: +1 for Keep, -1 for Skip
         """
+        # Session 85: Block feedback while extraction is in progress
+        # Session 86: Use non-blocking status message instead of modal dialog
+        # (modal messagebox blocks UI event loop, causing freeze during NER)
+        if self._extraction_in_progress:
+            main_window = self.winfo_toplevel()
+            if hasattr(main_window, "set_status"):
+                main_window.set_status(
+                    "Feedback disabled during extraction. Please wait for NER to complete.",
+                    duration_ms=3000,
+                )
+            return
+
         # Session 68: Warn about missing corpus (once per session)
         if not self._check_corpus_and_warn():
             return  # User cancelled

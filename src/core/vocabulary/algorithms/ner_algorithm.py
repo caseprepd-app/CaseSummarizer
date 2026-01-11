@@ -133,6 +133,8 @@ class NERAlgorithm(BaseExtractionAlgorithm):
             **kwargs:
                 - doc: Pre-processed spaCy Doc object (optional)
                 - chunks: Pre-chunked text list (optional)
+                - progress_callback: Optional callback(candidates, chunk_num, total_chunks)
+                                     Called after each chunk completes for progressive updates.
 
         Returns:
             AlgorithmResult with candidate terms
@@ -144,6 +146,10 @@ class NERAlgorithm(BaseExtractionAlgorithm):
         if chunks is None:
             chunks = self._chunk_text(text, chunk_size_kb=50)
 
+        # Session 85: Progress callback for progressive vocabulary loading
+        progress_callback = kwargs.get("progress_callback")
+        total_chunks = len(chunks)
+
         candidates = []
         term_frequencies: dict[str, int] = defaultdict(int)
         total_tokens = 0
@@ -151,13 +157,22 @@ class NERAlgorithm(BaseExtractionAlgorithm):
 
         # Process chunks using nlp.pipe() for efficiency
         # Session 80: Add GIL yield after each chunk to keep GUI responsive
+        chunk_num = 0
         for doc in self.nlp.pipe(chunks, batch_size=VOCABULARY_BATCH_SIZE):
+            chunk_num += 1
             total_tokens += len(doc)
             total_entities += len(doc.ents)
 
             # Extract from this chunk
             chunk_candidates = self._extract_from_doc(doc, term_frequencies)
             candidates.extend(chunk_candidates)
+
+            # Session 85: Call progress callback if provided
+            if progress_callback is not None:
+                try:
+                    progress_callback(chunk_candidates, chunk_num, total_chunks)
+                except Exception as e:
+                    debug_log(f"[NER] Progress callback error: {e}")
 
             # Yield GIL to allow GUI updates (prevents freezing)
             time.sleep(0)

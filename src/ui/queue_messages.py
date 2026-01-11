@@ -60,6 +60,12 @@ class MessageType:
     LLM_PROGRESS = "llm_progress"
     LLM_COMPLETE = "llm_complete"
 
+    # Progressive Vocabulary Loading (Session 85)
+    PARTIAL_VOCAB_COMPLETE = "partial_vocab_complete"  # BM25 + RAKE results before NER
+    NER_PROGRESS = "ner_progress"  # NER chunk progress update
+    EXTRACTION_STARTED = "extraction_started"  # Signals extraction has begun (dim buttons)
+    EXTRACTION_COMPLETE = "extraction_complete"  # Signals all extraction done (enable buttons)
+
     # Case Briefing
     BRIEFING_PROGRESS = "briefing_progress"
     BRIEFING_COMPLETE = "briefing_complete"
@@ -340,6 +346,61 @@ class QueueMessage:
             vocab_data: Reconciled NER + LLM vocabulary terms
         """
         return (MessageType.LLM_COMPLETE, vocab_data)
+
+    # =========================================================================
+    # Progressive Vocabulary Loading (Session 85)
+    # =========================================================================
+
+    @staticmethod
+    def partial_vocab_complete(vocab_data: list[dict]) -> tuple[str, list[dict]]:
+        """
+        Create partial vocabulary complete message (BM25 + RAKE results).
+
+        Sent before NER completes to show initial results quickly.
+
+        Args:
+            vocab_data: List of vocabulary terms from BM25 and RAKE only
+        """
+        return (MessageType.PARTIAL_VOCAB_COMPLETE, vocab_data)
+
+    @staticmethod
+    def ner_progress(vocab_data: list[dict], chunk_num: int, total_chunks: int) -> tuple[str, dict]:
+        """
+        Create NER chunk progress message.
+
+        Sent after each NER chunk completes with new terms found.
+
+        Args:
+            vocab_data: New vocabulary terms found in this chunk
+            chunk_num: Current chunk number (1-indexed)
+            total_chunks: Total number of chunks to process
+        """
+        return (
+            MessageType.NER_PROGRESS,
+            {
+                "vocab_data": vocab_data,
+                "chunk_num": chunk_num,
+                "total_chunks": total_chunks,
+            },
+        )
+
+    @staticmethod
+    def extraction_started() -> tuple[str, None]:
+        """
+        Signal that vocabulary extraction has started.
+
+        Used to dim feedback buttons in the UI.
+        """
+        return (MessageType.EXTRACTION_STARTED, None)
+
+    @staticmethod
+    def extraction_complete() -> tuple[str, None]:
+        """
+        Signal that vocabulary extraction is complete.
+
+        Used to re-enable feedback buttons in the UI.
+        """
+        return (MessageType.EXTRACTION_COMPLETE, None)
 
     # =========================================================================
     # Case Briefing

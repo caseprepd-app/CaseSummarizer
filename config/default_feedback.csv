@@ -24,7 +24,6 @@ timestamp,document_id,term,feedback,is_person,algorithms,NER_detection,RAKE_dete
 2026-01-09T14:15:17.384090,unknown,Esq,-1,1,NER,True,False,False,1,65.0,1,15052,1,0.2,0.86,0.86,0.0,1.0,0,5
 2026-01-09T14:15:26.927887,unknown,Nurse Fils-Aime,1,1,NER,True,False,False,1,90.0,2,0,1,0.2,0.86,0.86,0.0,1.0,0,5
 2026-01-09T14:16:15.810579,unknown,Carol Curry,1,1,NER,True,False,False,1,100.0,29,0,1,0.2,0.8600000000000001,0.86,0.0,1.0,0,5
-2026-01-10T16:28:46.517333,unknown,Nc Direct - Fils-Aime - Pla...,-1,0,,False,False,False,0,0,1,0,1,1.0,1.0,1.0,0.0,1.0,0,1
 2026-01-10T16:28:59.199892,unknown,Dc M. Fils-Aime - Plaintiff...,-1,0,,False,False,False,0,0,1,0,1,1.0,1.0,1.0,0.0,1.0,0,1
 2026-01-10T16:29:08.909281,unknown,Seth A Harris,1,1,NER,True,False,False,1,85.0,2,0,1,0.2,0.86,0.86,0.0,1.0,0,5
 2026-01-10T16:29:20.601334,unknown,M Fils-Aime - Plaintiff - D...,-1,0,,False,False,False,0,0,1,0,1,1.0,1.0,1.0,0.0,1.0,0,1
@@ -45,3 +44,34 @@ timestamp,document_id,term,feedback,is_person,algorithms,NER_detection,RAKE_dete
 2026-01-10T17:05:45.805386,unknown,"Ken 74:21,24",-1,1,NER,True,False,False,1,85.0,1,0,1,1.0,0.94,0.94,0.0,1.0,0,1
 2026-01-10T17:06:46.858329,unknown,Patrick Garvey,1,1,NER,True,False,False,1,90.0,2,0,1,1.0,0.94,0.94,0.0,1.0,0,1
 2026-01-10T17:07:03.102692,unknown,Mcmanus,1,1,NER,True,False,False,1,70.0,2,31106,1,1.0,0.94,0.94,0.0,1.0,0,1
+2026-01-10T18:31:39.685873,unknown,Nc Direct - Fils-Aime - Pla...,-1,0,,False,False,False,0,0,1,0,1,1.0,1.0,1.0,0.0,1.0,0,1
+2026-01-10T18:31:47.090960,unknown,Q. Good,-1,1,NER,True,False,False,1,85.0,1,0,1,1.0,0.95,0.95,0.0,1.0,0,1
+2026-01-10T18:31:48.546168,unknown,Q. Patient,-1,1,NER,True,False,False,1,85.0,1,0,1,1.0,0.95,0.95,0.0,1.0,0,1
+2026-01-10T18:32:01.019127,unknown,M Fils-Aime - Plaintiff -,-1,1,NER,True,False,False,1,100.0,12,0,1,1.0,0.9499999999999998,0.95,0.0,1.0,0,1
+2026-01-10T18:32:02.064033,unknown,Nc Napolitano - Plaintiff -...,-1,0,,False,False,False,0,0,1,0,1,1.0,1.0,1.0,0.0,1.0,0,1
+2026-01-10T18:32:07.432547,unknown,J Demonte - Plaintiff -,-1,1,NER,True,False,False,1,100.0,21,0,1,1.0,0.95,0.95,0.0,1.0,0,1
+2026-01-10T18:53:22.378350,unknown,Eitan Mizrahi,1,1,NER,True,False,False,1,100.0,4,0,1,1.0,0.94,0.94,0.0,1.0,0,1
+2026-01-10T18:53:27.416094,unknown,Steven Adler,1,1,NER,True,False,False,1,85.0,1,0,1,1.0,0.94,0.94,0.0,1.0,0,1
+2026-01-10T18:53:32.304607,unknown,Devany,1,1,"BM25,NER",True,False,True,2,100.0,130,0,1,1.0,0.94,0.94,0.0,1.0,0,1
+2026-01-10T18:56:46.097841,unknown,Emil Mizrahi,1,1,NER,True,False,False,1,85.0,1,0,1,1.0,0.94,0.94,0.0,1.0,0,1
+2026-01-10T22:23:02.465543,unknown,376:1;377:18 John,-1,1,NER,True,False,False,1,85.0,1,0,1,1.0,0.94,0.94,0.0,1.0,0,1
+2026-01-10T22:23:09.940518,unknown,Mt. Hawley,1,1,NER,True,False,False,1,100.0,23,0,1,1.0,0.9399999999999998,0.94,0.0,1.0,0,1
+2026-01-10T22:23:14.152502,unknown,Nc Cameron - Defense,-1,1,NER,True,False,False,1,100.0,11,0,1,1.0,0.94,0.94,0.0,1.0,0,1
+2026-01-10T22:23:34.732204,unknown,Jerry Silver,1,1,NER,True,False,False,1,100.0,10,0,1,1.0,0.9399999999999998,0.94,0.0,1.0,0,1
+2026-01-10T22:23:36.158692,unknown,Chris Bournias,1,1,NER,True,False,False,1,100.0,9,0,1,1.0,0.94,0.94,0.0,1.0,0,1
+2026-01-10T22:23:38.895928,unknown,Steve Varkaris,1,1,NER,True,False,False,1,100.0,6,0,1,1.0,0.94,0.94,0.0,1.0,0,1
+2026-01-10T22:23:40.185212,unknown,James Konstantatos,1,1,NER,True,False,False,1,100.0,5,0,1,1.0,0.9399999999999998,0.94,0.0,1.0,0,1
+2026-01-10T22:23:41.911068,unknown,Jimmy Varkaris,1,1,NER,True,False,False,1,95.0,3,0,1,1.0,0.94,0.94,0.0,1.0,0,1
+2026-01-10T22:23:52.085830,unknown,Comiskey,1,1,"NER,BM25",True,False,True,2,86.0,129,96755,1,1.0,0.94,0.94,0.0,1.0,0,1
+2026-01-10T22:24:14.229989,unknown,334:4,-1,1,NER,True,False,False,1,85.0,1,0,1,1.0,0.94,0.94,0.0,1.0,0,1
+2026-01-10T22:24:21.169975,unknown,332:15 Steve,-1,1,NER,True,False,False,1,85.0,1,0,1,1.0,0.94,0.94,0.0,1.0,0,1
+2026-01-10T22:25:26.485338,unknown,Rainis,1,1,"NER,BM25",True,False,True,2,100.0,163,0,1,1.0,0.94,0.94,0.0,1.0,0,1
+2026-01-10T23:05:03.561357,unknown,John Steven Vlattas,1,1,"RAKE,NER",True,True,False,2,89.1,2,0,1,1.0,0.94,0.94,0.0,1.0,0,1
+2026-01-10T23:05:08.098888,unknown,Devi Nampiaparampil,1,1,NER,True,False,False,1,87.8,1,0,1,1.0,0.94,0.94,0.0,1.0,0,1
+2026-01-10T23:05:09.702247,unknown,Scott Occhiogrosso,1,1,NER,True,False,False,1,87.5,1,0,1,1.0,0.94,0.94,0.0,1.0,0,1
+2026-01-10T23:05:17.020429,unknown,Hansraj,1,1,"NER,BM25",True,False,True,2,76.4,193,0,1,1.0,0.94,0.94,0.0,1.0,0,1
+2026-01-10T23:05:33.565461,unknown,Vab,-1,1,"NER,BM25",True,False,True,2,68.0,92,109643,1,1.0,0.9399999999999998,0.94,0.0,1.0,0,1
+2026-01-10T23:06:16.077126,unknown,Hal Epstein,1,1,NER,True,False,False,1,89.8,2,0,1,1.0,0.94,0.94,0.0,1.0,0,1
+2026-01-10T23:06:50.617793,unknown,John 13 Vlattas,-1,1,NER,True,False,False,1,56.4,1,0,1,1.0,0.94,0.94,0.0,1.0,0,1
+2026-01-10T23:07:12.274312,unknown,Kim Townsend 2,-1,1,NER,True,False,False,1,69.3,1,0,1,1.0,0.94,0.94,0.0,1.0,0,1
+2026-01-10T23:08:15.307564,unknown,De Moura,1,1,NER,True,False,False,1,63.9,14,0,1,1.0,0.9400000000000001,0.94,0.0,1.0,0,1

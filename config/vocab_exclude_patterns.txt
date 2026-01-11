@@ -1,0 +1,17 @@
+# Vocabulary Exclusion Patterns
+# =============================
+# Each line is a regex pattern. Terms matching ANY pattern are excluded.
+# Lines starting with # are comments.
+# Blank lines are ignored.
+# Invalid regexes are skipped with a warning in the log.
+#
+# Test your patterns at: https://regex101.com (use Python flavor)
+#
+# Pattern format: Standard Python regex syntax
+# The pattern is matched against the full term (case-insensitive by default)
+
+# Q&A transcript artifacts: "Q. Good", "A. Patient", etc.
+[QA]\.?\s+[A-Z]\w+
+
+# Party designation artifacts: "- Plaintiff -", "- Defendant -", etc.
+-+\s+[A-Z]\w+\s+-+\s*

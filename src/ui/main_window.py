@@ -554,9 +554,15 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         # Continue polling if any worker is running OR if we hit the message limit (more messages may be waiting)
         processing_alive = self._processing_worker and self._processing_worker.is_alive()
         progressive_alive = self._progressive_worker and self._progressive_worker.is_alive()
+        # Session 86: Also check default questions worker so Q&A results are received
+        default_qa_alive = (
+            hasattr(self, "_default_qa_worker")
+            and self._default_qa_worker
+            and self._default_qa_worker.is_alive()
+        )
         more_messages_likely = messages_processed >= max_messages_per_poll
 
-        if processing_alive or progressive_alive or more_messages_likely:
+        if processing_alive or progressive_alive or default_qa_alive or more_messages_likely:
             self._queue_poll_id = self.after(50, self._poll_queue)
         else:
             # Final poll to catch any remaining messages
@@ -588,7 +594,34 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             messagebox.showerror("Processing Error", str(data))
             self._on_preprocessing_complete([])
 
-        # Progressive Extraction handlers (Session 48)
+        # Progressive Extraction handlers (Session 48, Session 85)
+        elif msg_type == "extraction_started":
+            # Session 85: Dim feedback buttons while extraction is in progress
+            debug_log("[MainWindow] Extraction started - dimming feedback buttons")
+            self.output_display.set_extraction_in_progress(True)
+
+        elif msg_type == "extraction_complete":
+            # Session 85: Re-enable feedback buttons after extraction completes
+            debug_log("[MainWindow] Extraction complete - enabling feedback buttons")
+            self.output_display.set_extraction_in_progress(False)
+
+        elif msg_type == "partial_vocab_complete":
+            # Session 85: Show BM25 + RAKE results before NER completes
+            term_count = len(data) if data else 0
+            debug_log(f"[MainWindow] Partial results: {term_count} terms from BM25+RAKE")
+            self.output_display.update_outputs(vocab_csv_data=data)
+            self.output_display.set_extraction_source("partial")
+            self.set_status(f"Found {term_count} terms (BM25+RAKE). Running NER...")
+
+        elif msg_type == "ner_progress":
+            # Session 85: Update status bar with NER chunk progress
+            chunk_num = data.get("chunk_num", 0)
+            total_chunks = data.get("total_chunks", 1)
+            pct = int((chunk_num / total_chunks) * 100)
+            self.set_status(f"NER: {pct}% complete (chunk {chunk_num}/{total_chunks})...")
+            # Note: We don't update the vocab table with each chunk because raw NER
+            # candidates need post-processing. The final merged results come with ner_complete.
+
         elif msg_type == "ner_complete":
             term_count = len(data) if data else 0
             debug_log(f"[MainWindow] NER complete: {term_count} terms - displaying immediately")
@@ -629,7 +662,8 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
                 debug_log("[MainWindow] Spawning QAWorker for default questions")
                 prefs = get_user_preferences()
 
-                qa_worker = QAWorker(
+                # Session 86: Store as instance variable so _poll_queue() keeps polling
+                self._default_qa_worker = QAWorker(
                     vector_store_path=data["vector_store_path"],
                     embeddings=data["embeddings"],
                     ui_queue=self._ui_queue,
@@ -637,7 +671,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
                     questions=None,
                     use_default_questions=True,
                 )
-                qa_worker.start()
+                self._default_qa_worker.start()
                 debug_log("[MainWindow] Default questions worker started")
 
         # Q&A result handlers (Session 63c: handle messages from default questions worker)

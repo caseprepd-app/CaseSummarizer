@@ -348,6 +348,15 @@ class VocabularyPreferenceLearner:
         # Load existing model if available
         self._load_model()
 
+        # Session 86: Auto-train if model doesn't exist but sufficient data is available
+        # This ensures ML kicks in as soon as we have enough feedback, without needing
+        # a manual retrain trigger
+        if not self._is_trained:
+            debug_log(
+                "[META-LEARNER] No trained model - checking for sufficient data to auto-train"
+            )
+            self.train()  # train() internally checks for min samples
+
     @property
     def is_trained(self) -> bool:
         """Check if at least the LR model has been trained."""
@@ -376,9 +385,11 @@ class VocabularyPreferenceLearner:
         if not self.is_trained:
             return 0.0
 
-        # Find the appropriate weight based on user sample count
+        # Find the appropriate weight based on total sample count
+        # Session 86: Changed from _user_sample_count to _total_sample_count
+        # so default samples contribute to ML weight (user feedback is upweighted anyway)
         for threshold, weight in ML_WEIGHT_THRESHOLDS:
-            if self._user_sample_count < threshold:
+            if self._total_sample_count < threshold:
                 return weight
 
         # Fallback (shouldn't reach here due to inf threshold)

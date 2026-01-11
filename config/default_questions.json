@@ -10,11 +10,11 @@
     },
     {
       "text": "Who are the plaintiffs?",
-      "enabled": true
+      "enabled": false
     },
     {
       "text": "Who are the defendants?",
-      "enabled": true
+      "enabled": false
     },
     {
       "text": "What is the date of the incident?",
