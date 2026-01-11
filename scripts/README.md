@@ -1,6 +1,6 @@
 # Development Scripts
 
-Utility scripts for setting up and testing LocalScribe.
+Utility scripts for setting up and testing CasePrepd.
 
 ## Scripts
 
@@ -23,5 +23,5 @@ python scripts/download_onnx_models.py
 
 ## Notes
 
-- `download_onnx_models.py` is kept for reference but LocalScribe now uses Ollama for inference
+- `download_onnx_models.py` is kept for reference but CasePrepd now uses Ollama for inference
 - These scripts are not part of the main application; they're development/setup utilities

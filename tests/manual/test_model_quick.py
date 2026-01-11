@@ -24,7 +24,7 @@ from src.core.ai import ModelManager
 def test_model_loading():
     """Test basic model loading and text generation."""
     print("=" * 60)
-    print("LocalScribe Model Test")
+    print("CasePrepd Model Test")
     print("=" * 60)
 
     # Initialize model manager

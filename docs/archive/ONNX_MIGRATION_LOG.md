@@ -35,7 +35,7 @@ Downloaded Phi-3 Mini ONNX INT4-AWQ model from HuggingFace:
 - Path: `microsoft/Phi-3-mini-4k-instruct-onnx`
 - Variant: `directml/directml-int4-awq-block-128`
 - Size: 2.0 GB
-- Location: `%APPDATA%\LocalScribe\models\phi-3-mini-onnx-directml\`
+- Location: `%APPDATA%\CasePrepd\models\phi-3-mini-onnx-directml\`
 
 Used Python API (huggingface-cli didn't work):
 ```python

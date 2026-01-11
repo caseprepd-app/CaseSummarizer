@@ -33,13 +33,13 @@ ENV/
 *.swo
 *~
 
-# LocalScribe specific
+# CasePrepd specific
 cleaned/
 *.log
 config/user_preferences.json  # User settings - never commit (defaults in code)
 
 # User data (never commit)
-%APPDATA%/LocalScribe/
+%APPDATA%/CasePrepd/
 AppData/
 data/keywords/*.txt
 data/frequency/*.txt

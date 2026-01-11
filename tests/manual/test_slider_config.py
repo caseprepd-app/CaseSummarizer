@@ -21,7 +21,7 @@ from src.core.ai import ModelManager
 from src.core.prompting import get_prompt_config
 
 print("=" * 70)
-print("LocalScribe - Slider Configuration Test")
+print("CasePrepd - Slider Configuration Test")
 print("=" * 70)
 
 # Test 1: Load configuration

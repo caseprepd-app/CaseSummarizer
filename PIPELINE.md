@@ -1,4 +1,4 @@
-# LocalScribe Pipeline Architecture
+# CasePrepd Pipeline Architecture
 
 > **Purpose:** Defines the ONLY allowed data flow. If code violates this, it's a bug.
 

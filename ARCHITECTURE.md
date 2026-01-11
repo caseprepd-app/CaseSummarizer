@@ -1,4 +1,4 @@
-# LocalScribe - Architecture
+# CasePrepd - Architecture
 
 > For WHAT and WHY, see [PROJECT_OVERVIEW.md](PROJECT_OVERVIEW.md).
 > For technical research decisions, see [RESEARCH_LOG.md](RESEARCH_LOG.md).

@@ -1,4 +1,4 @@
-# Ruff configuration for LocalScribe
+# Ruff configuration for CasePrepd
 # https://docs.astral.sh/ruff/configuration/
 
 target-version = "py311"

@@ -1,4 +1,4 @@
-# LocalScribe Refactoring Checklist
+# CasePrepd Refactoring Checklist
 
 > **How to use:** Work through this checklist in order. Each phase builds on the previous.
 > Check off items as you complete them. Run `python find_violations.py` after each phase.
@@ -276,7 +276,7 @@ Work in focused sessions. Commit after each phase. Take breaks.
 
 Ask Claude Code:
 ```
-I'm refactoring LocalScribe. I have this import violation:
+I'm refactoring CasePrepd. I have this import violation:
 
 [paste the violation]
 

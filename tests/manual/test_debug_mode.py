@@ -108,7 +108,7 @@ Dated: March 1, 2024
 def test_debug_mode():
     """Test model with debug mode enabled."""
     print("=" * 70)
-    print("LocalScribe Debug Mode Test")
+    print("CasePrepd Debug Mode Test")
     print("=" * 70)
 
     # Verify debug mode is enabled

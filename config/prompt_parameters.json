@@ -1,5 +1,5 @@
 {
-  "_comment": "LocalScribe AI Prompt Parameters - User-configurable settings for AI behavior",
+  "_comment": "CasePrepd AI Prompt Parameters - User-configurable settings for AI behavior",
   "_instructions": "Edit these values to customize how the AI model generates summaries",
 
   "summary": {

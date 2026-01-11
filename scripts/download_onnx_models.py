@@ -8,7 +8,7 @@ from pathlib import Path
 import sys
 
 # Get models directory
-models_dir = Path.home() / "AppData" / "Roaming" / "LocalScribe" / "models"
+models_dir = Path.home() / "AppData" / "Roaming" / "CasePrepd" / "models"
 models_dir.mkdir(parents=True, exist_ok=True)
 
 print("=" * 60)

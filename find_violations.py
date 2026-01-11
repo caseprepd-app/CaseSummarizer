@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-find_violations.py - Detect import violations in LocalScribe
+find_violations.py - Detect import violations in CasePrepd
 
 Run from project root:
     python find_violations.py
@@ -256,7 +256,7 @@ if __name__ == "__main__":
 
     project_root = Path.cwd()
 
-    print("LocalScribe Import Violation Finder")
+    print("CasePrepd Import Violation Finder")
     print("=" * 70)
     print(f"Scanning: {project_root / 'src'}")
 
