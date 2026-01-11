@@ -1,5 +1,5 @@
 """
-Settings UI Package for LocalScribe.
+Settings UI Package for CasePrepd.
 
 Provides an extensible settings dialog with:
 - Tabbed interface organized by category

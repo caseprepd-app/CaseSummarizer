@@ -1,10 +1,10 @@
 """
-Prompt Template Manager for LocalScribe
+Prompt Template Manager for CasePrepd
 Manages model-specific prompt templates with validation and preset discovery.
 
 Supports dual-directory system:
 - Built-in prompts in config/prompts/ (shipped with app)
-- User prompts in %APPDATA%/LocalScribe/prompts/ (persist through updates)
+- User prompts in %APPDATA%/CasePrepd/prompts/ (persist through updates)
 
 Moved from src/prompt_template_manager.py to src/prompting/template_manager.py in Session 33.
 """
@@ -40,9 +40,9 @@ DOCUMENT:
 """
 
 # README content explaining how to create custom prompts
-USER_README_CONTENT = """# Creating Custom Prompts for LocalScribe
+USER_README_CONTENT = """# Creating Custom Prompts for CasePrepd
 
-This folder contains prompt templates that control how LocalScribe summarizes your documents.
+This folder contains prompt templates that control how CasePrepd summarizes your documents.
 Any .txt file you place here (except files starting with underscore _) will appear in the
 "Prompt Style" dropdown in the application.
 
@@ -50,7 +50,7 @@ Any .txt file you place here (except files starting with underscore _) will appe
 
 1. Copy `_template.txt` and rename it (e.g., `my-custom-prompt.txt`)
 2. Edit the file to customize the summarization instructions
-3. Restart LocalScribe - your prompt will appear in the dropdown
+3. Restart CasePrepd - your prompt will appear in the dropdown
 
 ## Required Format
 
@@ -66,7 +66,7 @@ Your prompt MUST include these Phi-3 chat tokens in this order:
 
 ## Required Variables
 
-Include these placeholders - LocalScribe will replace them automatically:
+Include these placeholders - CasePrepd will replace them automatically:
 
     {min_words}      - Minimum word count (e.g., 180)
     {max_words}      - Target word count (e.g., 200)
@@ -111,7 +111,7 @@ See the built-in prompts in the application's config/prompts folder for examples
 If your prompt doesn't appear in the dropdown:
 - Make sure the filename ends in .txt
 - Make sure the filename does NOT start with underscore (_)
-- Restart LocalScribe after adding the file
+- Restart CasePrepd after adding the file
 
 If you get validation errors:
 - Check that all four Phi-3 tokens are present
@@ -159,7 +159,7 @@ class PromptTemplateManager:
 
     Supports a dual-directory system:
     - Built-in prompts in prompts_base_dir (config/prompts/{model_name}/)
-    - User prompts in user_prompts_dir (%APPDATA%/LocalScribe/prompts/{model_name}/)
+    - User prompts in user_prompts_dir (%APPDATA%/CasePrepd/prompts/{model_name}/)
 
     User prompts override built-in prompts with the same name.
     Each template file can use variables: {min_words}, {max_words},
@@ -172,7 +172,7 @@ class PromptTemplateManager:
 
         Args:
             prompts_base_dir: Base directory for built-in prompts (config/prompts/)
-            user_prompts_dir: Base directory for user prompts (%APPDATA%/LocalScribe/prompts/)
+            user_prompts_dir: Base directory for user prompts (%APPDATA%/CasePrepd/prompts/)
                              If None, only built-in prompts are used.
         """
         self.prompts_base_dir = Path(prompts_base_dir)

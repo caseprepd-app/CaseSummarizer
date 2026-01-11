@@ -1,5 +1,5 @@
 """
-Summarization Package for LocalScribe - Unified API for Document Summarization.
+Summarization Package for CasePrepd - Unified API for Document Summarization.
 
 This is the main entry point for all summarization functionality. Import
 everything summarization-related from this package:

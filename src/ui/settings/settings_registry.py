@@ -1,5 +1,5 @@
 """
-Settings Registry for LocalScribe.
+Settings Registry for CasePrepd.
 
 Provides a declarative way to define application settings with metadata
 for automatic UI generation. Adding a new setting requires only a single
@@ -163,7 +163,7 @@ class SettingsRegistry:
 
 def _register_all_settings():
     """
-    Register all LocalScribe settings.
+    Register all CasePrepd settings.
 
     This function is called on module import. To add a new setting,
     add a SettingsRegistry.register() call here.
@@ -202,7 +202,7 @@ def _register_all_settings():
             category="Performance",
             setting_type=SettingType.CHECKBOX,
             tooltip=(
-                "When enabled, LocalScribe automatically detects the optimal "
+                "When enabled, CasePrepd automatically detects the optimal "
                 "number of parallel workers based on your CPU. Disable this "
                 "to manually set the worker count below."
             ),
@@ -882,7 +882,7 @@ def _register_all_settings():
         intro = ctk.CTkLabel(
             content,
             text=(
-                "LocalScribe uses Ollama to run AI language models locally on your\n"
+                "CasePrepd uses Ollama to run AI language models locally on your\n"
                 "computer for summaries and Q&A. Your documents never leave your machine."
             ),
             font=FONTS["body"],
@@ -929,7 +929,7 @@ def _register_all_settings():
                 "1. Download Ollama from ollama.ai\n"
                 "2. Open a terminal and run: ollama pull gemma3:27b\n"
                 "   (or gemma3:12b for CPU-only systems)\n"
-                "3. Restart LocalScribe and select your model in Settings",
+                "3. Restart CasePrepd and select your model in Settings",
             ),
         ]
 

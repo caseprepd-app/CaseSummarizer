@@ -1,5 +1,5 @@
 """
-LocalScribe AI Module
+CasePrepd AI Module
 Handles AI model loading and text generation via Ollama.
 
 Architecture:

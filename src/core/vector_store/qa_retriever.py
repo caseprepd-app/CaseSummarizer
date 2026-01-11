@@ -1,5 +1,5 @@
 """
-Q&A Retriever for LocalScribe.
+Q&A Retriever for CasePrepd.
 
 Retrieves relevant document context for user questions using hybrid search
 combining BM25+ (lexical) and FAISS (semantic) algorithms.

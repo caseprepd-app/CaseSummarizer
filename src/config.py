@@ -1,5 +1,5 @@
 """
-LocalScribe Configuration Module
+CasePrepd Configuration Module
 Centralized configuration for the application.
 """
 
@@ -12,8 +12,13 @@ import yaml
 # TEMP: Hard-coded for Session 77 debugging and feedback collection
 DEBUG_MODE = True  # os.environ.get('DEBUG', 'false').lower() == 'true'
 
-# Application Paths
-APP_NAME = "LocalScribe"
+# Application Name (loaded from config/app_name.txt for easy rebranding)
+# This file contains just the app name on a single line
+_APP_NAME_FILE = Path(__file__).parent.parent / "config" / "app_name.txt"
+if _APP_NAME_FILE.exists():
+    APP_NAME = _APP_NAME_FILE.read_text().strip()
+else:
+    APP_NAME = "CasePrepd"  # Fallback default
 APPDATA_DIR = Path(os.environ.get("APPDATA", os.path.expanduser("~/.config"))) / APP_NAME
 MODELS_DIR = APPDATA_DIR / "models"
 CACHE_DIR = APPDATA_DIR / "cache"

@@ -1,5 +1,5 @@
 """
-Parallel execution strategies for LocalScribe.
+Parallel execution strategies for CasePrepd.
 
 Implements Strategy Pattern to separate "what to parallelize" from
 "how to parallelize". Enables dependency injection for testing.

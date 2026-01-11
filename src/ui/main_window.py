@@ -1,5 +1,5 @@
 """
-LocalScribe - Main Window (CustomTkinter)
+CasePrepd - Main Window (CustomTkinter)
 Session 29: Two-Panel Q&A-First Layout
 Session 33: Refactored - Layout extracted to WindowLayoutMixin
 Session 82: Related mixin modules created for reference (not inherited)
@@ -62,7 +62,7 @@ _MODEL_PARAM_PATTERN = re.compile(r":(\d+\.?\d*)b")
 
 class MainWindow(WindowLayoutMixin, ctk.CTk):
     """
-    Main application window for LocalScribe.
+    Main application window for CasePrepd.
 
     Session 29: Q&A-first two-panel layout with corpus management.
     Session 33: Layout methods moved to WindowLayoutMixin for better code organization.
@@ -82,7 +82,9 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
     def __init__(self):
         super().__init__()
 
-        self.title("LocalScribe")
+        from src.config import APP_NAME
+
+        self.title(APP_NAME)
         self.geometry("1200x750")
         self.iconbitmap("assets/icon.ico")  # Custom app icon
         self.minsize(900, 600)
@@ -124,6 +126,16 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         self._create_header()
         self._create_main_panels()
         self._create_status_bar()
+
+        # Create menu bar (File, Help)
+        from src.ui.menu_handler import create_menus
+
+        create_menus(
+            window=self,
+            select_files_callback=self._select_files,
+            show_settings_callback=self._open_settings,
+            quit_callback=self.quit,
+        )
 
         # Initialize state
         self._refresh_corpus_dropdown()
@@ -915,14 +927,14 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
 
     def _update_vocab_llm_checkbox_state(self):
         """
-        Update LLM Enhancement checkbox state based on settings and GPU availability.
+        Update LLM Enhancement checkbox state based on GPU availability and settings.
 
         Called at startup, when settings change, and when vocab checkbox is toggled.
 
-        Greying logic:
+        Greying logic (in order of precedence):
         - If vocab checkbox is unchecked: disable LLM checkbox
+        - If no dedicated GPU detected: disable (requires GPU)
         - If vocab_use_llm setting is "no": disable and uncheck
-        - If vocab_use_llm is "auto" and no GPU: disable and uncheck
         - Otherwise: enable and set based on is_vocab_llm_enabled()
         """
         from src.services import AIService
@@ -941,27 +953,25 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             self._set_vocab_llm_tooltip("Enable 'Extract Vocabulary' first")
             return
 
-        # Case 2: User explicitly disabled LLM in settings
+        # Case 2: No GPU detected - always disable regardless of settings
+        if not has_gpu:
+            self.vocab_llm_check.deselect()
+            self.vocab_llm_check.configure(state="disabled")
+            gpu_status = ai_svc.get_gpu_status_text()
+            self._set_vocab_llm_tooltip(
+                f"LLM enhancement requires a dedicated GPU.\n\n"
+                f"{gpu_status}\n\n"
+                "NER-only extraction will be used."
+            )
+            return
+
+        # Case 3: User explicitly disabled LLM in settings
         if vocab_mode == "no":
             self.vocab_llm_check.deselect()
             self.vocab_llm_check.configure(state="disabled")
             self._set_vocab_llm_tooltip(
                 "LLM extraction disabled in Settings.\n\n"
                 "To enable: Settings > Performance > 'LLM vocabulary extraction'"
-            )
-            return
-
-        # Case 3: Auto mode with no GPU detected
-        if vocab_mode == "auto" and not has_gpu:
-            from src.services import AIService
-
-            self.vocab_llm_check.deselect()
-            self.vocab_llm_check.configure(state="disabled")
-            gpu_status = AIService().get_gpu_status_text()
-            self._set_vocab_llm_tooltip(
-                f"LLM enhancement requires a dedicated GPU.\n\n"
-                f"{gpu_status}\n\n"
-                "To force LLM (slow): Settings > Performance > Set to 'Yes'"
             )
             return
 
@@ -2031,10 +2041,12 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             debug_log(f"[MainWindow] Ollama service not accessible: {e}")
 
             # Show warning
+            from src.config import APP_NAME
+
             messagebox.showwarning(
                 "Ollama Not Found",
                 "Ollama service is not running.\n\n"
-                "LocalScribe requires Ollama for Q&A and summaries.\n\n"
+                f"{APP_NAME} requires Ollama for Q&A and summaries.\n\n"
                 "To install: Visit https://ollama.ai\n"
                 "To start: Run 'ollama serve' in a terminal\n\n"
                 "Vocabulary extraction will still work without Ollama.",

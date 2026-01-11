@@ -1,5 +1,5 @@
 """
-Corpus Management Dialog for LocalScribe.
+Corpus Management Dialog for CasePrepd.
 
 Full-featured dialog for managing multiple corpora. Allows users to:
 - Create, delete, and combine corpora
@@ -9,7 +9,7 @@ Full-featured dialog for managing multiple corpora. Allows users to:
 
 Educational content explains what a corpus is and why it matters.
 
-Privacy: All data is stored locally in %APPDATA%/LocalScribe/corpora/
+Privacy: All data is stored locally in %APPDATA%/CasePrepd/corpora/
 """
 
 import os
@@ -62,10 +62,10 @@ class CorpusDialog(BaseModalDialog):
         )
 
         self.corpus_changed = False
-        vocab_service = VocabularyService()
-        self.registry = vocab_service.get_corpus_registry()
+        self._vocab_service = VocabularyService()
+        self.registry = self._vocab_service.get_corpus_registry()
         self._selected_corpus: str | None = None
-        self._corpus_manager = None  # Set when corpus is selected
+        self._corpus_path = None  # Set when corpus is selected
 
         # Build UI
         self._create_ui()
@@ -116,7 +116,7 @@ class CorpusDialog(BaseModalDialog):
         explanation = ctk.CTkLabel(
             header,
             text=(
-                "A corpus is a collection of YOUR past transcripts that helps LocalScribe\n"
+                "A corpus is a collection of YOUR past transcripts that helps CasePrepd\n"
                 "understand which words are common in your work vs. unusual for a specific case."
             ),
             font=FONTS["heading_sm"],
@@ -393,11 +393,10 @@ class CorpusDialog(BaseModalDialog):
         # Update header
         self.doc_label.configure(text=f'Documents in "{self._selected_corpus}"')
 
-        # Get corpus path and create manager
+        # Get corpus path and load files via service layer
         try:
-            corpus_path = self.registry.get_corpus_path(self._selected_corpus)
-            self._corpus_manager = CorpusManager(corpus_dir=corpus_path)
-            files = self._corpus_manager.get_corpus_files_with_status()
+            self._corpus_path = self.registry.get_corpus_path(self._selected_corpus)
+            files = self._vocab_service.get_corpus_files_with_status(self._corpus_path)
         except Exception as e:
             debug_log(f"[CorpusDialog] Error loading documents: {e}")
             return
@@ -641,9 +640,9 @@ class CorpusDialog(BaseModalDialog):
                 copied += 1
 
                 # Preprocess immediately
-                if self._corpus_manager:
+                if self._corpus_path:
                     try:
-                        self._corpus_manager.preprocess_file(dst)
+                        self._vocab_service.preprocess_corpus_file(self._corpus_path, dst)
                     except Exception as e:
                         debug_log(f"[CorpusDialog] Preprocess error: {e}")
 
@@ -659,11 +658,11 @@ class CorpusDialog(BaseModalDialog):
 
     def _preprocess_all(self):
         """Preprocess all pending documents."""
-        if not self._corpus_manager:
+        if not self._corpus_path:
             return
 
         try:
-            count = self._corpus_manager.preprocess_pending()
+            count = self._vocab_service.preprocess_corpus_pending(self._corpus_path)
             self.corpus_changed = True
             self._refresh_document_list()
 

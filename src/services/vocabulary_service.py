@@ -1,5 +1,5 @@
 """
-Vocabulary Service for LocalScribe.
+Vocabulary Service for CasePrepd.
 
 Provides a clean interface for vocabulary extraction operations.
 Wraps the VocabularyExtractor and related components.
@@ -207,6 +207,49 @@ class VocabularyService:
         from src.core.vocabulary import get_corpus_registry
 
         return get_corpus_registry()
+
+    def get_corpus_files_with_status(self, corpus_path):
+        """
+        Get files in a corpus with their preprocessing status.
+
+        Args:
+            corpus_path: Path to the corpus directory.
+
+        Returns:
+            List of CorpusFileInfo objects with name, is_preprocessed, modified_at.
+        """
+        from src.core.vocabulary.corpus_manager import CorpusManager
+
+        manager = CorpusManager(corpus_dir=corpus_path)
+        return manager.get_corpus_files_with_status()
+
+    def preprocess_corpus_file(self, corpus_path, file_path):
+        """
+        Preprocess a single file in a corpus.
+
+        Args:
+            corpus_path: Path to the corpus directory.
+            file_path: Path to the file to preprocess.
+        """
+        from src.core.vocabulary.corpus_manager import CorpusManager
+
+        manager = CorpusManager(corpus_dir=corpus_path)
+        manager.preprocess_file(file_path)
+
+    def preprocess_corpus_pending(self, corpus_path):
+        """
+        Preprocess all pending files in a corpus.
+
+        Args:
+            corpus_path: Path to the corpus directory.
+
+        Returns:
+            Number of files preprocessed.
+        """
+        from src.core.vocabulary.corpus_manager import CorpusManager
+
+        manager = CorpusManager(corpus_dir=corpus_path)
+        return manager.preprocess_pending()
 
     def get_feedback_manager(self):
         """

@@ -20,7 +20,7 @@ class WordDocumentBuilder(DocumentBuilder):
     and Q&A exports including colored verification spans.
     """
 
-    def __init__(self, title: str = "LocalScribe Export"):
+    def __init__(self, title: str = "CasePrepd Export"):
         """
         Initialize a new Word document.
 

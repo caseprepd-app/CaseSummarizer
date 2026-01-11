@@ -1,5 +1,5 @@
 """
-System Monitor Widget for LocalScribe
+System Monitor Widget for CasePrepd
 
 Real-time CPU and RAM monitoring with color-coded status indicators.
 """

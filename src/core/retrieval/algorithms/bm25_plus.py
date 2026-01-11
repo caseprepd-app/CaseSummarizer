@@ -1,5 +1,5 @@
 """
-BM25+ Retrieval Algorithm for LocalScribe Q&A.
+BM25+ Retrieval Algorithm for CasePrepd Q&A.
 
 Implements lexical (keyword-based) retrieval using BM25+, an improved version
 of the classic BM25 algorithm that addresses term frequency saturation issues.

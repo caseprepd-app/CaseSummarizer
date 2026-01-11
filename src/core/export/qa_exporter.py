@@ -65,7 +65,7 @@ def export_qa_results(
         _add_verification_legend(builder)
 
     # Add footer
-    builder.add_paragraph("Exported from LocalScribe", italic=True)
+    builder.add_paragraph("Exported from CasePrepd", italic=True)
 
 
 def _add_verified_answer(builder: DocumentBuilder, result) -> None:

@@ -1,5 +1,5 @@
 """
-LocalScribe - Main Application Entry Point
+CasePrepd - Main Application Entry Point
 Phase 2.1: CustomTkinter UI
 
 This module initializes the CustomTkinter application and launches the main window.
@@ -78,7 +78,7 @@ def setup_file_logging():
 
 def main():
     """
-    Main entry point for LocalScribe desktop application.
+    Main entry point for CasePrepd desktop application.
     """
     # Setup file logging
     setup_file_logging()

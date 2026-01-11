@@ -1,5 +1,5 @@
 """
-Q&A Service for LocalScribe.
+Q&A Service for CasePrepd.
 
 Provides a clean interface for question-answering operations.
 Wraps the QAOrchestrator, vector store, and retrieval components.

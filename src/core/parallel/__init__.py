@@ -1,5 +1,5 @@
 """
-Parallel processing utilities for LocalScribe.
+Parallel processing utilities for CasePrepd.
 
 This module provides Strategy Pattern-based parallel execution with support
 for progress reporting, cancellation, and testability. It is designed for

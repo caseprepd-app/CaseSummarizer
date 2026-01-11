@@ -1,5 +1,5 @@
 """
-Base Modal Dialog for LocalScribe.
+Base Modal Dialog for CasePrepd.
 
 Provides a base class for modal dialogs with common boilerplate:
 - Modal behavior (transient + grab_set)

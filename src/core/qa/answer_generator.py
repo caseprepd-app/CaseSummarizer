@@ -1,5 +1,5 @@
 """
-Answer Generator for LocalScribe Q&A System.
+Answer Generator for CasePrepd Q&A System.
 
 Generates answers from retrieved document context using two modes:
 1. Extraction mode - Fast, deterministic sentence extraction

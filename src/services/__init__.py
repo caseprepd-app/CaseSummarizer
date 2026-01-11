@@ -1,5 +1,5 @@
 """
-LocalScribe Services Layer
+CasePrepd Services Layer
 
 Provides a clean interface between the UI and core business logic.
 Services are thin wrappers that coordinate between components.

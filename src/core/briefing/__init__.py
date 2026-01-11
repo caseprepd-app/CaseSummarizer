@@ -1,5 +1,5 @@
 """
-Case Briefing Generator Package for LocalScribe.
+Case Briefing Generator Package for CasePrepd.
 
 This package implements LLM-First structured extraction using a Map-Reduce
 pattern to generate Case Briefing Sheets for court reporters.

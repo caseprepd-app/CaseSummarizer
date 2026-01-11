@@ -1,5 +1,5 @@
 """
-Question Flow Manager for LocalScribe Q&A System.
+Question Flow Manager for CasePrepd Q&A System.
 
 Manages the branching question tree for document analysis.
 Loads questions from config/qa_questions.yaml and tracks flow state.

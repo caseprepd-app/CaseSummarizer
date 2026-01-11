@@ -1,5 +1,5 @@
 """
-Q&A Package for LocalScribe - Unified API for Question Answering.
+Q&A Package for CasePrepd - Unified API for Question Answering.
 
 This is the main entry point for all Q&A functionality. Import everything
 Q&A-related from this package:

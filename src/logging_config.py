@@ -1,5 +1,5 @@
 """
-Unified Logging Configuration for LocalScribe
+Unified Logging Configuration for CasePrepd
 
 This module provides a centralized logging system that combines:
 - Console output with timestamps
@@ -57,7 +57,7 @@ class _DebugFileLogger:
         """Create and initialize the debug log file."""
         log_path = Path(__file__).parent.parent / "debug_flow.txt"
         cls._log_file = open(log_path, "w", encoding="utf-8")  # noqa: SIM115
-        cls._log_file.write("=== LocalScribe Debug Log ===\n")
+        cls._log_file.write("=== CasePrepd Debug Log ===\n")
         cls._log_file.write(f"Started: {datetime.now().isoformat()}\n")
         cls._log_file.write(f"DEBUG_MODE: {DEBUG_MODE}\n")
         cls._log_file.write("=" * 60 + "\n\n")
@@ -94,10 +94,10 @@ def _setup_standard_logging() -> logging.Logger:
     Configure the standard Python logging framework.
 
     Returns:
-        Configured logger instance for LocalScribe
+        Configured logger instance for CasePrepd
     """
     # Create logger
-    logger = logging.getLogger("LocalScribe")
+    logger = logging.getLogger("CasePrepd")
     logger.setLevel(logging.DEBUG if DEBUG_MODE else logging.INFO)
 
     # Prevent duplicate handlers if called multiple times
@@ -220,7 +220,7 @@ def debug_log(message: str):
     """
     Log a debug message to both file and console (if DEBUG_MODE).
 
-    This is the primary debug function for LocalScribe. It always writes to
+    This is the primary debug function for CasePrepd. It always writes to
     debug_flow.txt for troubleshooting, and optionally to console based on
     DEBUG_MODE setting.
 

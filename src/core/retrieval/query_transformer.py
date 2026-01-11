@@ -1,5 +1,5 @@
 """
-Query Transformer for LocalScribe Q&A.
+Query Transformer for CasePrepd Q&A.
 
 Uses LlamaIndex + Ollama to expand vague user queries into multiple specific
 search terms. This improves retrieval for imprecise questions like "what

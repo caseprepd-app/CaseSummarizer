@@ -1,4 +1,4 @@
-# LocalScribe
+# CasePrepd
 
 100% offline, private document processing for court reporters. Extracts names, vocabulary, and answers questions from legal documents without any data leaving your computer.
 
@@ -12,7 +12,7 @@
 
 ```bash
 # Clone and enter directory
-cd LocalScribe
+cd CasePrepd
 
 # Create virtual environment
 python -m venv .venv

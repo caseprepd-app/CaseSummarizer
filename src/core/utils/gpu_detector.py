@@ -1,5 +1,5 @@
 """
-GPU Detection Utility for LocalScribe.
+GPU Detection Utility for CasePrepd.
 
 Detects whether the machine has a dedicated NVIDIA or AMD GPU.
 Used to automatically enable/disable LLM vocabulary extraction.

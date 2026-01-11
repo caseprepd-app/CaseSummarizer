@@ -1,5 +1,5 @@
 """
-Hallucination Verification Module for LocalScribe Q&A.
+Hallucination Verification Module for CasePrepd Q&A.
 
 Uses LettuceDetect to analyze answer text against source context,
 returning span-level hallucination probabilities for color-coded display.

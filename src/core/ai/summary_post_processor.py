@@ -1,5 +1,5 @@
 """
-Summary Post-Processor for LocalScribe
+Summary Post-Processor for CasePrepd
 
 Handles post-processing of AI-generated summaries, including:
 - Length enforcement (recursive condensation if over target)

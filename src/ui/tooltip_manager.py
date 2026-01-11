@@ -1,5 +1,5 @@
 """
-Global Tooltip Manager for LocalScribe.
+Global Tooltip Manager for CasePrepd.
 
 Session 62b: Centralized tooltip management to ensure only ONE tooltip
 is visible at any time across the entire application.

@@ -92,7 +92,7 @@ class FeedbackManager:
     - Default feedback: Ships with app (developer's training data)
       Location: config/default_feedback.csv
     - User feedback: Collected during normal use
-      Location: %APPDATA%/LocalScribe/feedback/user_feedback.csv
+      Location: %APPDATA%/CasePrepd/feedback/user_feedback.csv
 
     Routing (Session 76):
     - DEBUG_MODE=True: Feedback writes to default_feedback.csv (for development)
@@ -119,7 +119,7 @@ class FeedbackManager:
 
         Args:
             feedback_dir: Directory to store user feedback files.
-                         Defaults to %APPDATA%/LocalScribe/feedback/
+                         Defaults to %APPDATA%/CasePrepd/feedback/
             default_feedback_file: Path to default feedback CSV (for testing).
                          Defaults to config/default_feedback.csv
         """

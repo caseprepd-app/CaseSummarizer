@@ -1,5 +1,5 @@
 """
-Utility Modules for LocalScribe
+Utility Modules for CasePrepd
 
 This package provides shared utility functions used across the application:
 - Logging utilities (debug, info, warning, error, critical, Timer)

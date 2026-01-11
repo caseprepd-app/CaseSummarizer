@@ -1,5 +1,5 @@
 """
-Dynamic Output Display Widget for LocalScribe (Session 51 Update)
+Dynamic Output Display Widget for CasePrepd (Session 51 Update)
 
 Displays Names & Vocabulary tables, Q&A results, and summaries using tab navigation.
 Provides copy/save functionality for export.

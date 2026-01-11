@@ -1,5 +1,5 @@
 """
-Settings Dialog for LocalScribe.
+Settings Dialog for CasePrepd.
 
 Dynamically generates a tabbed settings interface by reading from
 the SettingsRegistry. Each category becomes a tab, and each setting
@@ -85,7 +85,7 @@ class SettingsDialog(BaseModalDialog):
 
         subtitle = ctk.CTkLabel(
             title_frame,
-            text="Configure LocalScribe behavior and performance",
+            text="Configure CasePrepd behavior and performance",
             font=FONTS["body"],
             text_color=COLORS["text_secondary"],
         )

@@ -1,5 +1,5 @@
 """
-Q&A Panel Widget for LocalScribe.
+Q&A Panel Widget for CasePrepd.
 
 Displays Q&A results in plain text format:
 - Question: The question asked

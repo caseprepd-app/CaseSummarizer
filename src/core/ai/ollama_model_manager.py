@@ -1,5 +1,5 @@
 """
-Ollama Model Manager for LocalScribe
+Ollama Model Manager for CasePrepd
 Handles loading and managing models through Ollama's REST API.
 
 This is the next-generation model manager optimized for commercial use:

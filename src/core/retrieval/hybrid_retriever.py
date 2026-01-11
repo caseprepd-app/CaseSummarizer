@@ -1,5 +1,5 @@
 """
-Hybrid Retriever for LocalScribe Q&A.
+Hybrid Retriever for CasePrepd Q&A.
 
 Coordinates multiple retrieval algorithms (BM25+, FAISS) and merges their
 results for comprehensive document search. This is the main entry point for

@@ -1,5 +1,5 @@
 """
-Prompting Package for LocalScribe - Unified API for Prompt Management.
+Prompting Package for CasePrepd - Unified API for Prompt Management.
 
 This is the main entry point for all prompt-related functionality. Import
 everything prompting-related from this package:

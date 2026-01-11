@@ -2,7 +2,7 @@
 Settings widgets with integrated tooltips.
 
 Each widget includes an info icon that shows explanatory text on hover.
-Uses CustomTkinter for modern appearance consistent with LocalScribe.
+Uses CustomTkinter for modern appearance consistent with CasePrepd.
 
 Widget Types:
 - TooltipIcon: Info icon with hover tooltip

@@ -1,5 +1,5 @@
 """
-Centralized Theme Configuration for LocalScribe
+Centralized Theme Configuration for CasePrepd
 
 All fonts, colors, and common widget configurations are defined here.
 This prevents scattered magic values and ensures consistency.

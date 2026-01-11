@@ -1,5 +1,5 @@
 """
-LocalScribe - Custom Dialogs (CustomTkinter Refactor)
+CasePrepd - Custom Dialogs (CustomTkinter Refactor)
 """
 
 import time

@@ -1,5 +1,5 @@
 """
-AI Service for LocalScribe.
+AI Service for CasePrepd.
 
 Provides a clean interface for AI/Ollama operations and GPU detection.
 Wraps OllamaModelManager, GPU detector, and prompt template components.

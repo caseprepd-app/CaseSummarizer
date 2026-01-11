@@ -3,10 +3,14 @@
 You are helping a non-developer who designs through conversation. They read logs and diagrams, not implementation code.
 
 ## Session Start
-1. Read PROJECT_OVERVIEW.md and README.md
-2. Give a 2-3 sentence status summary
-3. Ask for time budget
-4. Proceed
+1. **Activate the virtual environment first:**
+   ```
+   .venv\Scripts\activate
+   ```
+2. Read PROJECT_OVERVIEW.md and README.md
+3. Give a 2-3 sentence status summary
+4. Ask for time budget
+5. Proceed
 
 ## Before Any Code Change
 1. Describe approach in plain English

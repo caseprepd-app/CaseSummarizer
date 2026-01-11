@@ -1,4 +1,4 @@
-# LocalScribe - Project Overview
+# CasePrepd - Project Overview
 
 > **Document Type:** Prescriptive (upstream) — Defines WHAT we're building and WHY.
 > For HOW it's built, see [ARCHITECTURE.md](ARCHITECTURE.md).

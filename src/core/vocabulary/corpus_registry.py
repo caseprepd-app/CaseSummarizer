@@ -10,7 +10,7 @@ Key responsibilities:
 3. Create/delete corpus directories
 4. Combine corpora by copying files
 
-Privacy: All data is stored locally in %APPDATA%/LocalScribe/corpora/
+Privacy: All data is stored locally in %APPDATA%/CasePrepd/corpora/
 """
 
 import contextlib
@@ -47,7 +47,7 @@ class CorpusRegistry:
     """
     Manages multiple named corpora with flexible paths.
 
-    Registry stored in: %APPDATA%/LocalScribe/corpora/corpora_registry.json
+    Registry stored in: %APPDATA%/CasePrepd/corpora/corpora_registry.json
 
     Example:
         registry = CorpusRegistry()

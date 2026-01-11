@@ -5,7 +5,9 @@ Encapsulates menu creation and menu-related callbacks.
 Separates menu logic from main window to keep main_window.py focused on layout.
 """
 
-from tkinter import Menu, messagebox
+from tkinter import Menu
+
+from src.ui.help_about_dialogs import AboutDialog, HelpDialog
 
 
 def create_menus(window, select_files_callback, show_settings_callback, quit_callback):
@@ -70,16 +72,19 @@ def create_menus(window, select_files_callback, show_settings_callback, quit_cal
         disabledforeground="#666666",
     )
     menubar.add_cascade(label="Help", menu=help_menu)
-    help_menu.add_command(label="About LocalScribe v2.1", command=lambda: show_about())
+    help_menu.add_command(
+        label="Getting Started...",
+        command=lambda: HelpDialog(window),
+    )
+    help_menu.add_separator()
+    from src.config import APP_NAME
+
+    help_menu.add_command(
+        label=f"About {APP_NAME}",
+        command=lambda: AboutDialog(window),
+    )
 
     # Bind keyboard shortcuts
     window.bind("<Control-o>", lambda e: select_files_callback())
     window.bind("<Control-comma>", lambda e: show_settings_callback())
     window.bind("<Control-q>", lambda e: quit_callback())
-
-
-def show_about():
-    """Display about dialog."""
-    messagebox.showinfo(
-        "About LocalScribe", "LocalScribe v2.1\n\n100% Offline Legal Document Processor"
-    )

@@ -1,5 +1,5 @@
 """
-LocalScribe - UI Utility Functions
+CasePrepd - UI Utility Functions
 
 Re-exports tooltip functionality from tooltip_helper for backward compatibility.
 """

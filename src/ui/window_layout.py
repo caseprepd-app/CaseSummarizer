@@ -60,7 +60,7 @@ class WindowLayoutMixin:
 
         # App title (left)
         self.title_label = ctk.CTkLabel(
-            self.header_frame, text="LocalScribe", font=FONTS["heading_xl"]
+            self.header_frame, text="CasePrepd", font=FONTS["heading_xl"]
         )
         self.title_label.pack(side="left", padx=15, pady=10)
 

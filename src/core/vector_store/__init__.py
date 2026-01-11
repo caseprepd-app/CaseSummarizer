@@ -1,5 +1,5 @@
 """
-Vector Store Package for LocalScribe Q&A System.
+Vector Store Package for CasePrepd Q&A System.
 
 Provides FAISS-based vector storage for RAG (Retrieval-Augmented Generation)
 question answering over legal documents.

@@ -1,5 +1,5 @@
 """
-Document Service for LocalScribe.
+Document Service for CasePrepd.
 
 Provides a clean interface for document processing operations.
 Wraps the extraction and preprocessing core modules.

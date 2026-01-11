@@ -51,8 +51,8 @@ class CorpusManager:
     """
     Manages corpus of previous transcripts for BM25 algorithm.
 
-    Stores documents in: %APPDATA%/LocalScribe/corpus/
-    Caches IDF index in: %APPDATA%/LocalScribe/cache/bm25_idf_index.json
+    Stores documents in: %APPDATA%/CasePrepd/corpus/
+    Caches IDF index in: %APPDATA%/CasePrepd/cache/bm25_idf_index.json
 
     Example:
         manager = CorpusManager()
@@ -66,9 +66,9 @@ class CorpusManager:
 
         Args:
             corpus_dir: Directory containing corpus documents.
-                       Defaults to %APPDATA%/LocalScribe/corpus/
+                       Defaults to %APPDATA%/CasePrepd/corpus/
             cache_dir: Directory for caching IDF index.
-                      Defaults to %APPDATA%/LocalScribe/cache/
+                      Defaults to %APPDATA%/CasePrepd/cache/
         """
         self.corpus_dir = Path(corpus_dir) if corpus_dir else CORPUS_DIR
         self.cache_dir = Path(cache_dir) if cache_dir else CACHE_DIR

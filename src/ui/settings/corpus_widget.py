@@ -94,7 +94,7 @@ class CorpusSettingsWidget(ctk.CTkFrame):
         edu_text = ctk.CTkLabel(
             edu_frame,
             text=(
-                "A corpus is a collection of YOUR past transcripts that helps LocalScribe\n"
+                "A corpus is a collection of YOUR past transcripts that helps CasePrepd\n"
                 "understand which words are common in your work vs. unusual for a specific case."
             ),
             font=FONTS["body"],

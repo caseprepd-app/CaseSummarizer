@@ -1,5 +1,5 @@
 """
-Vector Store Builder for LocalScribe Q&A System (Session 45 Update).
+Vector Store Builder for CasePrepd Q&A System (Session 45 Update).
 
 Creates FAISS-based vector stores from processed document chunks.
 Uses file-based persistence for standalone Windows distribution.
@@ -257,7 +257,7 @@ class VectorStoreBuilder:
 
     def _convert_to_langchain_documents(self, documents: list[dict]) -> list:
         """
-        Convert LocalScribe documents to LangChain Documents.
+        Convert CasePrepd documents to LangChain Documents.
 
         Handles two scenarios:
         1. Documents with pre-computed chunks (from ChunkingEngine)

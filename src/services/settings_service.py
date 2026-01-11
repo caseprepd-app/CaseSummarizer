@@ -1,5 +1,5 @@
 """
-Settings Service for LocalScribe.
+Settings Service for CasePrepd.
 
 Provides a clean interface for application settings and preferences.
 Wraps UserPreferencesManager and related config components.

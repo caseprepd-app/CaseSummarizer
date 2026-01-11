@@ -77,7 +77,7 @@ def export_vocabulary(
 
     # Add footer
     builder.add_separator()
-    builder.add_paragraph("Exported from LocalScribe", italic=True)
+    builder.add_paragraph("Exported from CasePrepd", italic=True)
 
 
 def export_vocabulary_txt(vocab_data: list[dict], file_path: str) -> bool:

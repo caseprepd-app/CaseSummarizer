@@ -1,5 +1,5 @@
 """
-User Preferences Manager for LocalScribe
+User Preferences Manager for CasePrepd
 Manages user-specific preferences like default prompts per model.
 """
 

@@ -1,3 +1,3 @@
 """
-UI package for LocalScribe desktop application.
+UI package for CasePrepd desktop application.
 """

@@ -211,7 +211,7 @@ class OllamaMixin:
             messagebox.showwarning(
                 "Ollama Not Found",
                 "Ollama service is not running.\n\n"
-                "LocalScribe requires Ollama for Q&A and summaries.\n\n"
+                "CasePrepd requires Ollama for Q&A and summaries.\n\n"
                 "To install: Visit https://ollama.ai\n"
                 "To start: Run 'ollama serve' in a terminal\n\n"
                 "Vocabulary extraction will still work without Ollama.",

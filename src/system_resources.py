@@ -1,5 +1,5 @@
 """
-System Resource Manager for LocalScribe.
+System Resource Manager for CasePrepd.
 
 Provides dynamic calculation of optimal worker counts based on available
 system resources (CPU cores, RAM) and user-configurable resource usage

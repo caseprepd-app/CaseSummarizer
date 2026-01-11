@@ -439,7 +439,7 @@ def main():
     import argparse
 
     parser = argparse.ArgumentParser(
-        description="LocalScribe Raw Text Extractor",
+        description="CasePrepd Raw Text Extractor",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:

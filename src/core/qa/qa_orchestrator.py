@@ -1,5 +1,5 @@
 """
-Q&A Orchestrator for LocalScribe.
+Q&A Orchestrator for CasePrepd.
 
 Coordinates the Q&A process: loading questions, performing vector search,
 and generating answers. Manages the list of QAResult objects for display

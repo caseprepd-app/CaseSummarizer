@@ -1,5 +1,5 @@
 """
-FAISS Semantic Retrieval Algorithm for LocalScribe Q&A.
+FAISS Semantic Retrieval Algorithm for CasePrepd Q&A.
 
 Implements semantic (embedding-based) retrieval using FAISS vector store
 with HuggingFace sentence transformers.

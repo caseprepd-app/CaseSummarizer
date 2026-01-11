@@ -1,5 +1,5 @@
 """
-Q&A Question Editor Widget for LocalScribe.
+Q&A Question Editor Widget for CasePrepd.
 
 GUI for editing the default questions asked of every document.
 Questions are stored in config/qa_questions.yaml.

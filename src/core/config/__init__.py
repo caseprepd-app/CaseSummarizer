@@ -1,7 +1,7 @@
 """
 Configuration Management Package
 
-Provides unified configuration loading and management for LocalScribe.
+Provides unified configuration loading and management for CasePrepd.
 """
 
 from .loader import load_yaml, load_yaml_with_fallback, save_yaml
