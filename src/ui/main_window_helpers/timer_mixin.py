@@ -52,6 +52,7 @@ class TimerMixin:
                 self.activity_indicator.pack(side="right", padx=(0, 5), pady=5)
                 self._activity_indicator_visible = True
             self.activity_indicator.start()
+            self.update_idletasks()  # Force initial render for smooth animation
 
     def _stop_activity_indicator(self):
         """Stop and hide the activity indicator."""

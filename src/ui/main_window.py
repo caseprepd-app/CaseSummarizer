@@ -563,6 +563,9 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         except Empty:
             pass
 
+        # Force GUI refresh to keep animations smooth (activity indicator, etc.)
+        self.update_idletasks()
+
         # Continue polling if any worker is running OR if we hit the message limit (more messages may be waiting)
         processing_alive = self._processing_worker and self._processing_worker.is_alive()
         progressive_alive = self._progressive_worker and self._progressive_worker.is_alive()
@@ -575,7 +578,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         more_messages_likely = messages_processed >= max_messages_per_poll
 
         if processing_alive or progressive_alive or default_qa_alive or more_messages_likely:
-            self._queue_poll_id = self.after(50, self._poll_queue)
+            self._queue_poll_id = self.after(33, self._poll_queue)  # ~30fps for smooth animation
         else:
             # Final poll to catch any remaining messages
             try:
@@ -1947,6 +1950,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
                 self.activity_indicator.pack(side="right", padx=(0, 5), pady=5)
                 self._activity_indicator_visible = True
             self.activity_indicator.start()
+            self.update_idletasks()  # Force initial render for smooth animation
 
     def _stop_activity_indicator(self):
         """Stop and hide the activity indicator."""
