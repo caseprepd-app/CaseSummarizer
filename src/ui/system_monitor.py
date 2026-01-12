@@ -9,7 +9,14 @@ import platform
 import threading
 
 import customtkinter as ctk
-import psutil
+
+try:
+    import psutil
+
+    PSUTIL_AVAILABLE = True
+except ImportError:
+    psutil = None
+    PSUTIL_AVAILABLE = False
 
 from src.config import (
     SYSTEM_MONITOR_THRESHOLD_CRITICAL,
@@ -60,8 +67,14 @@ class SystemMonitor(ctk.CTkFrame):
         except Exception:
             self.cpu_model = "Unknown CPU"
 
-        self.physical_cores = psutil.cpu_count(logical=False) or 1
-        self.logical_cores = psutil.cpu_count(logical=True) or 1
+        if PSUTIL_AVAILABLE:
+            self.physical_cores = psutil.cpu_count(logical=False) or 1
+            self.logical_cores = psutil.cpu_count(logical=True) or 1
+        else:
+            import os
+
+            self.physical_cores = os.cpu_count() or 1
+            self.logical_cores = os.cpu_count() or 1
 
         # Create separate frames for CPU and RAM with independent colors
         self.cpu_frame = ctk.CTkFrame(self, fg_color=COLORS["monitor_bg"], corner_radius=4)
@@ -110,6 +123,10 @@ class SystemMonitor(ctk.CTkFrame):
         """Background thread that collects metrics."""
         import time
 
+        if not PSUTIL_AVAILABLE:
+            # Without psutil, can't collect real metrics
+            return
+
         # Initialize CPU percent tracking (first call returns 0)
         psutil.cpu_percent(interval=None)
 
@@ -124,6 +141,9 @@ class SystemMonitor(ctk.CTkFrame):
 
     def _collect_metrics(self):
         """Collect current system metrics (background thread safe)."""
+        if not PSUTIL_AVAILABLE:
+            return
+
         try:
             # NON-BLOCKING: Use interval=None to get CPU since last call
             # This doesn't block - it returns immediately with delta since last measurement
@@ -254,10 +274,13 @@ class SystemMonitor(ctk.CTkFrame):
 
             # Get CPU frequency
             try:
-                cpu_freq = psutil.cpu_freq()
-                freq_text = f"Base: {cpu_freq.current:.1f} GHz"
-                if cpu_freq.max:
-                    freq_text += f" | Max: {cpu_freq.max:.1f} GHz"
+                if PSUTIL_AVAILABLE:
+                    cpu_freq = psutil.cpu_freq()
+                    freq_text = f"Base: {cpu_freq.current:.1f} GHz"
+                    if cpu_freq.max:
+                        freq_text += f" | Max: {cpu_freq.max:.1f} GHz"
+                else:
+                    freq_text = "Frequency: Unknown (psutil not available)"
             except Exception:
                 freq_text = "Frequency: Unknown"
 

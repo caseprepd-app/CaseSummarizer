@@ -66,8 +66,18 @@ class OllamaModelManager:
     def __init__(self):
         """Initialize the Ollama model manager."""
         self.api_base = OLLAMA_API_BASE
-        self.model_name = OLLAMA_MODEL_NAME
-        self.current_model_name = OLLAMA_MODEL_NAME  # For compatibility with worker code
+
+        # Read saved model preference, fall back to config default
+        try:
+            from src.user_preferences import get_user_preferences
+
+            prefs = get_user_preferences()
+            saved_model = prefs.get("ollama_model", "")
+            self.model_name = saved_model if saved_model else OLLAMA_MODEL_NAME
+        except Exception:
+            self.model_name = OLLAMA_MODEL_NAME
+
+        self.current_model_name = self.model_name  # For compatibility with worker code
         self.timeout = OLLAMA_TIMEOUT_SECONDS
         self.is_connected = False
         self.prompt_config = get_prompt_config()

@@ -18,16 +18,33 @@ Usage:
 from src.config import DEBUG_MODE
 from src.logging_config import debug_log
 
+# Module-level singleton instance
+_ai_service_instance = None
+
 
 class AIService:
     """
     Service layer for AI/Ollama operations.
 
     Provides access to LLM management, GPU detection, and prompt templates.
+
+    This is a singleton class - all calls to AIService() return the same instance,
+    ensuring consistent state for the Ollama model manager across the application.
     """
 
+    def __new__(cls):
+        """Ensure only one instance of AIService exists."""
+        global _ai_service_instance
+        if _ai_service_instance is None:
+            _ai_service_instance = super().__new__(cls)
+            _ai_service_instance._initialized = False
+        return _ai_service_instance
+
     def __init__(self):
-        """Initialize the AI service."""
+        """Initialize the AI service (only runs once due to singleton)."""
+        if self._initialized:
+            return
+        self._initialized = True
         self._ollama_manager = None
 
     def get_ollama_manager(self):

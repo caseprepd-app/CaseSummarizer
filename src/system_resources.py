@@ -24,7 +24,12 @@ Usage:
 import os
 from typing import NamedTuple
 
-import psutil
+try:
+    import psutil
+
+    PSUTIL_AVAILABLE = True
+except ImportError:
+    PSUTIL_AVAILABLE = False
 
 from src.logging_config import debug_log
 from src.user_preferences import get_user_preferences
@@ -51,9 +56,16 @@ def get_system_resources() -> ResourceInfo:
     resource_pct = prefs.get("resource_usage_pct", 75)
 
     cpu_count = os.cpu_count() or 4
-    mem = psutil.virtual_memory()
-    available_ram_gb = mem.available / (1024**3)
-    total_ram_gb = mem.total / (1024**3)
+
+    if PSUTIL_AVAILABLE:
+        mem = psutil.virtual_memory()
+        available_ram_gb = mem.available / (1024**3)
+        total_ram_gb = mem.total / (1024**3)
+    else:
+        # Fallback: assume 16GB total, 8GB available (conservative defaults)
+        debug_log("[Resources] psutil not available, using conservative defaults")
+        available_ram_gb = 8.0
+        total_ram_gb = 16.0
 
     return ResourceInfo(
         cpu_count=cpu_count,

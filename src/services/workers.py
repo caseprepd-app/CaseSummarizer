@@ -189,6 +189,20 @@ class ProcessingWorker(BaseWorker):
                     f"[PROCESSING WORKER] Document failed: {task_result.task_id} - {task_result.error}"
                 )
 
+        # Apply preprocessing to all results (removes line numbers, headers, etc.)
+        # Store as "preprocessed_text" so downstream consumers don't need to preprocess again
+        if self.processed_results:
+            from src.core.preprocessing import create_default_pipeline
+
+            preprocessor = create_default_pipeline()
+            for result in self.processed_results:
+                extracted = result.get("extracted_text", "")
+                if extracted:
+                    result["preprocessed_text"] = preprocessor.process(extracted)
+            debug_log(
+                f"[PROCESSING WORKER] Preprocessing applied to {len(self.processed_results)} documents"
+            )
+
         # Send completion message if not cancelled
         if not self.is_stopped:
             self.ui_queue.put(QueueMessage.processing_finished(self.processed_results))
@@ -1026,11 +1040,13 @@ class ProgressiveExtractionWorker(BaseWorker):
 
             # Create unified chunks from each document with source attribution
             # This ensures each chunk knows which document it came from
+            # Use preprocessed_text (already cleaned by ProcessingWorker) to avoid redundant work
             chunker = create_unified_chunker()
             all_chunks = []
             for doc in self.documents:
                 filename = doc.get("filename", "unknown")
-                text = doc.get("extracted_text", "")
+                # Prefer preprocessed_text (already cleaned) over extracted_text (raw)
+                text = doc.get("preprocessed_text") or doc.get("extracted_text", "")
                 if text.strip():
                     doc_chunks = chunker.chunk_text(text, source_file=filename)
                     all_chunks.extend(doc_chunks)

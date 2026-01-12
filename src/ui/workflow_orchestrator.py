@@ -188,8 +188,8 @@ class WorkflowOrchestrator:
         Get combined text from all documents for vocabulary extraction.
 
         Uses the shared utility function from src/utils/text_utils.
-        Preprocessing is disabled for vocabulary extraction to preserve
-        original terms (line numbers, Q/A markers, etc. don't affect NER).
+        Text is already preprocessed by ProcessingWorker (stored as 'preprocessed_text'),
+        so this just combines the documents.
 
         Args:
             extracted_documents: List of document result dictionaries
@@ -197,14 +197,15 @@ class WorkflowOrchestrator:
         Returns:
             Tuple of (combined_text, doc_count, doc_confidence)
         """
-        # Disable preprocessing for vocabulary - we want raw text for NER
+        # Text is already preprocessed by ProcessingWorker
+        # combine_document_texts prefers 'preprocessed_text' over 'extracted_text'
         from src.services import DocumentService
 
         doc_service = DocumentService()
-        combined = doc_service.combine_document_texts(
-            extracted_documents, include_headers=False, preprocess=False
+        combined = doc_service.combine_document_texts(extracted_documents, include_headers=False)
+        doc_count = sum(
+            1 for d in extracted_documents if d.get("preprocessed_text") or d.get("extracted_text")
         )
-        doc_count = sum(1 for d in extracted_documents if d.get("extracted_text"))
 
         # Calculate minimum confidence (Session 54)
         confidences = [

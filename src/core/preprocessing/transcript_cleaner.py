@@ -212,9 +212,11 @@ class TranscriptCleaner(BasePreprocessor):
         """
         Remove index/concordance pages from transcript end.
 
-        Index entries have formats like:
-        - "Fabuloso - 34:5" (word - page:line)
-        - "objection 34:5, 45:6" (multiple references)
+        Handles multiple index formats:
+        1. Simple format: "Fabuloso - 34:5" (word - page:line)
+        2. Multi-ref format: "objection 34:5, 45:6" (multiple references)
+        3. Min-U-Script format: Dense word indexes with semicolon-separated refs
+           Example: "Counsel (59) 1258:11,13;1259:9, 21;1260:4,10"
 
         Detection:
         1. Identify lines matching index entry patterns
@@ -230,7 +232,7 @@ class TranscriptCleaner(BasePreprocessor):
         """
         lines = text.split("\n")
 
-        # Pattern: WORD(s) [separator] PAGE:LINE
+        # Pattern: WORD(s) [separator] PAGE:LINE (simple format)
         single_ref = re.compile(
             r"^[\s]*"
             r"[A-Za-z][A-Za-z\s\.\,\-\']*"  # Term
@@ -241,7 +243,7 @@ class TranscriptCleaner(BasePreprocessor):
             r"[\s]*$"
         )
 
-        # Pattern: Multiple references
+        # Pattern: Multiple references (traditional format)
         multi_ref = re.compile(
             r"^[\s]*"
             r"[A-Za-z][A-Za-z\s\.\,\-\']*"
@@ -253,13 +255,66 @@ class TranscriptCleaner(BasePreprocessor):
             r"[\s]*$"
         )
 
+        # Pattern: Dense page:line references (concordance format)
+        # Matches: "1260:12" or "1258:11" - 3-4 digit page, 1-2 digit line
+        dense_refs = re.compile(r"\d{3,4}:\d{1,2}")
+
+        # Pattern: Word with occurrence count like "Counsel (59)" or "damages (19)"
+        # Common in concordance indexes to show how many times a word appears
+        word_with_count = re.compile(r"[A-Za-z]+\s*\(\d+\)")
+
+        # Pattern: Semicolon-separated reference chains like "1260:12;1261:8;1262:1"
+        ref_chain = re.compile(r"\d{3,4}:\d{1,2}\s*[;,]\s*\d{3,4}:\d{1,2}")
+
+        def is_concordance_index_line(line: str) -> bool:
+            """
+            Check if line looks like concordance/word index content.
+
+            Detection is purely regex-based - no keyword dependencies.
+            Identifies lines with high density of page:line references.
+            """
+            stripped = line.strip()
+            if not stripped:
+                return False
+
+            # Count page:line references (like 1260:12)
+            ref_count = len(dense_refs.findall(line))
+
+            # Count word(count) patterns (like "Counsel (59)")
+            word_count_matches = len(word_with_count.findall(line))
+
+            # Check for reference chains (semicolon/comma separated refs)
+            has_ref_chain = bool(ref_chain.search(line))
+
+            # Index lines have high density of page:line refs
+            # Typically 3+ refs per line is a strong indicator
+            if ref_count >= 3:
+                return True
+
+            # Lines with 2+ refs AND word counts are likely index
+            if ref_count >= 2 and word_count_matches >= 1:
+                return True
+
+            # Lines with reference chains (even just 2 refs chained) are index
+            if has_ref_chain and ref_count >= 2:
+                return True
+
+            # Lines that are mostly numbers/punctuation with few words
+            # Calculate ratio of digits+punctuation to letters
+            digits_punct = sum(1 for c in stripped if c.isdigit() or c in ":;,()[]")
+            letters = sum(1 for c in stripped if c.isalpha())
+            if letters > 0 and digits_punct / letters > 1.5 and ref_count >= 1:
+                return True
+
+            return False
+
         # Mark each line as index-like or not
         is_index_line: list[bool] = []
         for line in lines:
             stripped = line.strip()
             if not stripped:
                 is_index_line.append(False)
-            elif single_ref.match(line) or multi_ref.match(line):
+            elif single_ref.match(line) or multi_ref.match(line) or is_concordance_index_line(line):
                 is_index_line.append(True)
             else:
                 is_index_line.append(False)
@@ -303,6 +358,11 @@ class TranscriptCleaner(BasePreprocessor):
                 lines_to_remove.add(idx)
 
         cleaned_lines = [line for i, line in enumerate(lines) if i not in lines_to_remove]
+
+        debug_log(
+            f"[TranscriptCleaner] Removed {len(lines_to_remove)} index lines "
+            f"from {len(clusters_to_remove)} cluster(s)"
+        )
 
         return "\n".join(cleaned_lines), len(lines_to_remove)
 

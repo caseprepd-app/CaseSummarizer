@@ -753,6 +753,15 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             self.after_cancel(self._queue_poll_id)
             self._queue_poll_id = None
 
+        # Update processing_results with final preprocessed data
+        # The results contain 'preprocessed_text' added by ProcessingWorker
+        # which wasn't present in the individual 'file_processed' messages
+        if results:
+            self.processing_results = results
+            debug_log(
+                f"[MainWindow] Updated processing_results with {len(results)} preprocessed documents"
+            )
+
         # Re-enable controls
         self.add_files_btn.configure(state="normal")
         self._update_generate_button_state()

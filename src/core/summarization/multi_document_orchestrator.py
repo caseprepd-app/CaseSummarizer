@@ -253,7 +253,8 @@ class MultiDocumentOrchestrator:
         def summarize_single_document(doc: dict) -> DocumentSummaryResult:
             """Process a single document (runs in thread pool)."""
             filename = doc["filename"]
-            text = doc["extracted_text"]
+            # Prefer preprocessed_text (already cleaned by ProcessingWorker) over raw extracted_text
+            text = doc.get("preprocessed_text") or doc.get("extracted_text", "")
 
             if aggregator:
                 aggregator.update(filename, f"Summarizing {filename}...")

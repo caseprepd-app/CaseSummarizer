@@ -18,20 +18,21 @@ def combine_document_texts(
     """
     Combine extracted text from multiple documents into a single string.
 
-    Optionally applies smart preprocessing to clean text before AI summarization.
+    Prefers 'preprocessed_text' (already cleaned) over 'extracted_text' (raw).
+    Falls back to preprocessing if preprocessed_text is not available.
 
     Args:
         documents: List of document result dictionaries. Each dict should have
-                  'extracted_text' key (and optionally 'filename' for headers).
+                  'preprocessed_text' or 'extracted_text' key (and optionally
+                  'filename' for headers).
         include_headers: If True, prefix each document's text with its filename
                         formatted as "--- filename ---"
         separator: String to use between documents (default: double newline)
-        preprocess: If True, apply preprocessing pipeline (line number removal,
-                   header/footer removal, Q/A conversion). Default True.
+        preprocess: If True and 'preprocessed_text' not available, apply
+                   preprocessing pipeline as fallback. Default True.
 
     Returns:
-        Combined text from all documents. Documents without 'extracted_text'
-        or with empty text are skipped.
+        Combined text from all documents. Documents without text are skipped.
 
     Example:
         >>> docs = [
@@ -46,7 +47,8 @@ def combine_document_texts(
     combined_parts = []
 
     for doc in documents:
-        text = doc.get("extracted_text", "")
+        # Prefer preprocessed_text (already cleaned) over extracted_text (raw)
+        text = doc.get("preprocessed_text") or doc.get("extracted_text", "")
         if not text:
             continue
 
@@ -58,18 +60,25 @@ def combine_document_texts(
 
     combined_text = separator.join(combined_parts)
 
-    # Apply preprocessing if enabled
-    if preprocess and combined_text:
+    # Check if any documents had preprocessed_text (already cleaned)
+    has_preprocessed = any(doc.get("preprocessed_text") for doc in documents)
+
+    # Only apply preprocessing as fallback if no preprocessed_text was available
+    if preprocess and combined_text and not has_preprocessed:
         try:
             from src.core.preprocessing import create_default_pipeline
 
             pipeline = create_default_pipeline()
             combined_text = pipeline.process(combined_text)
-            debug_log(f"[TEXT UTILS] Preprocessing applied: {pipeline.total_changes} changes")
+            debug_log(
+                f"[TEXT UTILS] Preprocessing applied (fallback): {pipeline.total_changes} changes"
+            )
         except ImportError as e:
             debug_log(f"[TEXT UTILS] Preprocessing not available: {e}")
         except Exception as e:
             debug_log(f"[TEXT UTILS] Preprocessing error (using raw text): {e}")
+    elif has_preprocessed:
+        debug_log("[TEXT UTILS] Using pre-cleaned text (no additional preprocessing needed)")
 
     return combined_text
 

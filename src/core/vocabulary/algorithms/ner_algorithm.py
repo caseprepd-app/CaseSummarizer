@@ -158,6 +158,8 @@ class NERAlgorithm(BaseExtractionAlgorithm):
         # Process chunks using nlp.pipe() for efficiency
         # Session 80: Add GIL yield after each chunk to keep GUI responsive
         chunk_num = 0
+        last_reported_pct = 0  # Track last reported percentage for throttling
+
         for doc in self.nlp.pipe(chunks, batch_size=VOCABULARY_BATCH_SIZE):
             chunk_num += 1
             total_tokens += len(doc)
@@ -167,12 +169,16 @@ class NERAlgorithm(BaseExtractionAlgorithm):
             chunk_candidates = self._extract_from_doc(doc, term_frequencies)
             candidates.extend(chunk_candidates)
 
-            # Session 85: Call progress callback if provided
+            # Session 85: Throttled progress callback - only fire every 10%
+            # This dramatically reduces overhead vs calling after every chunk
             if progress_callback is not None:
-                try:
-                    progress_callback(chunk_candidates, chunk_num, total_chunks)
-                except Exception as e:
-                    debug_log(f"[NER] Progress callback error: {e}")
+                current_pct = int((chunk_num / total_chunks) * 100)
+                if current_pct >= last_reported_pct + 10:  # Fire every 10%
+                    try:
+                        progress_callback(chunk_candidates, chunk_num, total_chunks)
+                        last_reported_pct = current_pct
+                    except Exception as e:
+                        debug_log(f"[NER] Progress callback error: {e}")
 
             # Yield GIL to allow GUI updates (prevents freezing)
             time.sleep(0)
