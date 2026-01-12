@@ -209,8 +209,14 @@ class AnswerGenerator:
         Returns:
             Formatted prompt string
         """
-        return f"""Based on the following document excerpts, answer the question concisely and accurately.
-If the information is not found in the excerpts, say "The documents do not contain information about this."
+        return f"""You are a legal document analyst. Answer the question using ONLY the information explicitly stated in the document excerpts below.
+
+STRICT RULES:
+1. Use ONLY information directly stated in the excerpts - do not infer, extrapolate, or add outside knowledge
+2. If the excerpts do not contain the answer, respond: "The documents do not contain this information."
+3. If you are uncertain, say so rather than guessing
+4. Quote relevant phrases from the excerpts when possible
+5. Keep your answer concise (1-3 sentences)
 
 DOCUMENT EXCERPTS:
 {context}

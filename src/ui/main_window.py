@@ -142,6 +142,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         self._update_generate_button_state()
         self._update_default_questions_label()  # Set initial question count
         self._update_vocab_llm_checkbox_state()  # Set LLM checkbox based on settings/GPU
+        self._update_qa_checkbox_state()  # Set Q&A checkbox based on model size
 
         # Initialize drag-and-drop support (Session 73)
         self._setup_drag_drop()
@@ -322,6 +323,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         self._update_model_display()
         self._update_ollama_status()
         self._update_vocab_llm_checkbox_state()  # Session 63b: Refresh LLM checkbox
+        self._update_qa_checkbox_state()  # Session 90: Refresh Q&A checkbox for model size
 
     # =========================================================================
     # Corpus Management
@@ -1018,6 +1020,73 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
 
         # Create new tooltip
         self._vocab_llm_tooltip_hide = create_tooltip(self.vocab_llm_check, text)
+
+    # =========================================================================
+    # Q&A Checkbox State Management (Session 90 - Model Size Requirements)
+    # =========================================================================
+
+    def _update_qa_checkbox_state(self):
+        """
+        Update Q&A checkbox state based on model size requirements.
+
+        Q&A requires a 9B+ parameter model for quality answers.
+        Users can override this in Settings.
+
+        Called at startup and when model changes.
+        """
+        from src.user_preferences import get_user_preferences
+
+        prefs = get_user_preferences()
+        model_name = prefs.get("ollama_model", "")
+
+        # Check if Q&A is allowed for current model
+        allowed, reason = prefs.is_qa_allowed_for_model(model_name)
+
+        if allowed:
+            # Enable Q&A checkbox
+            self.qa_check.configure(state="normal")
+            self._set_qa_tooltip("")  # Clear any warning tooltip
+        else:
+            # Disable Q&A checkbox and show reason
+            self.qa_check.deselect()
+            self.qa_check.configure(state="disabled")
+            self._set_qa_tooltip(reason)
+            # Also disable the sub-checkbox
+            self._update_default_questions_checkbox_state()
+
+        if DEBUG_MODE:
+            debug_log(f"[MainWindow] Q&A checkbox: model={model_name}, allowed={allowed}")
+
+    def _set_qa_tooltip(self, text: str):
+        """
+        Update the tooltip for the Q&A checkbox.
+
+        Args:
+            text: New tooltip text to display (empty to remove)
+        """
+        if not text:
+            # Remove tooltip if no text
+            if hasattr(self, "_qa_tooltip_hide") and self._qa_tooltip_hide:
+                try:
+                    self.qa_check.unbind("<Enter>")
+                    self.qa_check.unbind("<Leave>")
+                except Exception:
+                    pass
+                self._qa_tooltip_hide = None
+            return
+
+        from src.ui.tooltip_helper import create_tooltip
+
+        # Remove existing tooltip bindings
+        if hasattr(self, "_qa_tooltip_hide") and self._qa_tooltip_hide:
+            try:
+                self.qa_check.unbind("<Enter>")
+                self.qa_check.unbind("<Leave>")
+            except Exception:
+                pass
+
+        # Create new tooltip
+        self._qa_tooltip_hide = create_tooltip(self.qa_check, text)
 
     def _on_vocab_check_changed(self):
         """Handle Vocabulary checkbox state change."""
@@ -1781,6 +1850,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         self._update_model_display()
         self._update_ollama_status()
         self._update_vocab_llm_checkbox_state()  # Session 63b: Refresh LLM checkbox
+        self._update_qa_checkbox_state()  # Session 90: Refresh Q&A checkbox for model size
 
     # =========================================================================
     # Export All (Session 68)

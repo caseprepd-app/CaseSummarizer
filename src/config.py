@@ -538,7 +538,7 @@ VECTOR_STORE_DIR.mkdir(parents=True, exist_ok=True)
 # Q&A Retrieval Settings
 # Set to None to retrieve ALL chunks (searches entire document corpus)
 # Set to a number to limit retrieval to top-K chunks
-QA_RETRIEVAL_K = None  # None = all chunks, or integer for top-K
+QA_RETRIEVAL_K = 20  # Top 20 chunks by hybrid score (BM25 + FAISS)
 QA_MAX_TOKENS = 300  # Maximum tokens for generated answer
 QA_TEMPERATURE = 0.1  # Low temperature for factual, consistent answers
 QA_SIMILARITY_THRESHOLD = 0.5  # Minimum relevance score for chunks
@@ -559,11 +559,11 @@ QA_CONVERSATION_CONTEXT_PAIRS = 3  # Include last N Q&A pairs in follow-up quest
 
 # Algorithm weights for result merging
 # Higher weight = more influence on final relevance score
-# BM25+ is primary (lexical/keyword matching - reliable for legal terminology)
-# FAISS is secondary (semantic/embedding matching - can find related concepts)
+# FAISS is primary (semantic/embedding matching - finds conceptually related content)
+# BM25+ is secondary (lexical/keyword matching - helps with exact terminology)
 RETRIEVAL_ALGORITHM_WEIGHTS = {
-    "BM25+": 1.0,  # Primary - exact term matching, reliable for legal docs
-    "FAISS": 0.5,  # Secondary - semantic search, complements BM25+
+    "BM25+": 0.2,  # Secondary - exact term matching
+    "FAISS": 0.8,  # Primary - semantic search for conceptual relevance
 }
 
 # Algorithm enable/disable flags
@@ -576,7 +576,7 @@ RETRIEVAL_CHUNK_OVERLAP = 50  # Overlap between chunks
 
 # Minimum relevance score threshold for merged results
 # Lower than before since BM25+ scores are more reliable
-RETRIEVAL_MIN_SCORE = 0.1  # Minimum combined score to include chunk
+RETRIEVAL_MIN_SCORE = 0.01  # Lowered from 0.1 to include more potentially relevant chunks
 
 # Multi-algorithm bonus: extra score when multiple algorithms find the same chunk
 # This reflects higher confidence when both BM25+ and FAISS agree
@@ -589,7 +589,8 @@ RETRIEVAL_MULTI_ALGO_BONUS = 0.1
 # Example: "What happened?" → ["What happened?", "plaintiff injuries", "defendant actions"]
 
 # Enable/disable query transformation (disable for faster retrieval)
-QUERY_TRANSFORM_ENABLED = True
+# Disabled: Query expansion was generating off-target search terms for legal docs
+QUERY_TRANSFORM_ENABLED = False
 
 # Number of query variants to generate (1-5)
 # More variants = broader search but slower
@@ -659,6 +660,17 @@ HF_CACHE_DIR = BUNDLED_MODELS_DIR / ".hf_cache"
 # Prevent network calls when bundled model exists
 # Set to True for production/installer builds, False for development
 HALLUCINATION_LOCAL_ONLY = HALLUCINATION_MODEL_LOCAL_PATH.exists()
+
+# ============================================================================
+# Cross-Encoder Reranking Configuration
+# ============================================================================
+# Uses BAAI/bge-reranker-base to rerank candidate chunks after hybrid retrieval.
+# Cross-encoders process query+document pairs together for more accurate relevance.
+
+RERANKING_ENABLED = True  # Enable cross-encoder reranking for improved precision
+RERANKER_MODEL_NAME = "BAAI/bge-reranker-base"  # ~400MB model, downloads on first use
+RERANKER_MODEL_LOCAL_PATH = BUNDLED_MODELS_DIR / "bge-reranker-base"
+RERANKER_TOP_K = 5  # Keep top 5 chunks after reranking (from initial 20)
 
 
 # ============================================================================

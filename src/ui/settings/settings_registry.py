@@ -1198,6 +1198,30 @@ def _register_all_settings():
 
     SettingsRegistry.register(
         SettingDefinition(
+            key="qa_model_override",
+            label="Q&A model size requirement",
+            category="Performance",
+            setting_type=SettingType.DROPDOWN,
+            tooltip=(
+                "Q&A requires a 9B+ parameter model for quality answers.\n\n"
+                "• Auto: Require 9B+ model (recommended)\n"
+                "• Yes: Allow any model size (may reduce answer quality)\n"
+                "• No: Disable Q&A entirely\n\n"
+                "Smaller models may produce more hallucinations and less accurate answers."
+            ),
+            default="auto",
+            options=[
+                ("Auto (require 9B+ model)", "auto"),
+                ("Yes (allow any model)", "yes"),
+                ("No (disable Q&A)", "no"),
+            ],
+            getter=lambda: prefs.get_qa_model_override_mode(),
+            setter=lambda v: prefs.set_qa_model_override_mode(v),
+        )
+    )
+
+    SettingsRegistry.register(
+        SettingDefinition(
             key="experimental_briefing_enabled",
             label="Enable Case Briefing (experimental)",
             category="Experimental",

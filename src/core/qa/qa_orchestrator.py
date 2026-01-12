@@ -295,10 +295,10 @@ class QAOrchestrator:
         verification = None
 
         if retrieval_result.context:
-            # Citation: raw retrieved text (truncated for display)
+            # Citation: raw retrieved text (truncated only for very long contexts)
             citation = retrieval_result.context.strip()
-            if len(citation) > 1000:
-                citation = citation[:1000] + "..."
+            if len(citation) > 3000:
+                citation = citation[:3000] + "..."
 
             # Quick Answer: AI-synthesized from Ollama
             # Always try Ollama mode for quick_answer, regardless of configured answer_mode
@@ -442,11 +442,7 @@ class QAOrchestrator:
         for i, result in enumerate(exportable, 1):
             lines.append(f"Q{i}: {result.question}")
             lines.append(f"Quick Answer: {result.quick_answer}")
-            lines.append(
-                f"Citation: {result.citation[:200]}..."
-                if len(result.citation) > 200
-                else f"Citation: {result.citation}"
-            )
+            lines.append(f"Citation: {result.citation}")
             if result.source_summary:
                 lines.append(f"   [Source: {result.source_summary}]")
             lines.append("")

@@ -326,6 +326,12 @@ class VectorStoreBuilder:
                 if not text.strip():
                     continue
 
+                # Apply preprocessing to remove line numbers, headers/footers, etc.
+                # This improves Q&A quality by removing noise from citations
+                text = self._preprocess_text(text)
+                if not text.strip():
+                    continue
+
                 # Split into chunks using LangChain text splitter
                 split_texts = text_splitter.split_text(text)
 
@@ -371,6 +377,33 @@ class VectorStoreBuilder:
         date_stamp = datetime.now().strftime("%Y%m%d")
 
         return f"{hash_prefix}_{date_stamp}"
+
+    def _preprocess_text(self, text: str) -> str:
+        """
+        Apply preprocessing pipeline to clean text before vectorization.
+
+        Removes line numbers, headers/footers, and other noise that would
+        degrade Q&A citation quality.
+
+        Args:
+            text: Raw extracted text
+
+        Returns:
+            Cleaned text suitable for vector search and citation display
+        """
+        try:
+            from src.core.preprocessing import create_default_pipeline
+
+            pipeline = create_default_pipeline()
+            cleaned = pipeline.process(text)
+
+            if DEBUG_MODE:
+                debug_log(f"[VectorStore] Preprocessing applied: {pipeline.total_changes} changes")
+
+            return cleaned
+        except Exception as e:
+            debug_log(f"[VectorStore] Preprocessing error (using raw text): {e}")
+            return text
 
     def _save_integrity_hash(self, persist_dir: Path) -> None:
         """

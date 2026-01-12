@@ -383,19 +383,18 @@ class QAWorker(BaseWorker):
         )
 
         # Determine which questions to ask and whether they are default questions
-        if self.use_default_questions:
-            # Load from qa_default_questions.txt
+        if self.custom_questions:
+            # User provided specific custom questions
+            questions = self.custom_questions
+            is_default = False
+            if DEBUG_MODE:
+                debug_log(f"[QA WORKER] Using {len(questions)} custom questions")
+        else:
+            # Use enabled questions from DefaultQuestionsManager (respects user toggles)
             questions = orchestrator.load_default_questions_from_txt()
             is_default = True
             if DEBUG_MODE:
-                debug_log(f"[QA WORKER] Using {len(questions)} default questions from txt file")
-        elif self.custom_questions:
-            questions = self.custom_questions
-            is_default = False
-        else:
-            # Use questions from qa_questions.yaml (branching flow)
-            questions = orchestrator.get_default_questions()
-            is_default = False
+                debug_log(f"[QA WORKER] Using {len(questions)} enabled default questions")
 
         total = len(questions)
         if total == 0:

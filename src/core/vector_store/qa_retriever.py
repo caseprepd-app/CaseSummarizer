@@ -144,6 +144,9 @@ class QARetriever:
         # Initialize query transformer (LlamaIndex + Ollama)
         self._query_transformer = self._init_query_transformer()
 
+        # Initialize cross-encoder reranker (lazy-loaded on first use)
+        self._reranker = self._init_reranker()
+
         # PERF-007: LRU cache for query transformation results
         self._query_cache: dict[str, list[str]] = {}
         self._query_cache_maxsize = 50
@@ -154,6 +157,8 @@ class QARetriever:
             )
             if self._query_transformer:
                 debug_log("[QARetriever] Query transformer enabled")
+            if self._reranker:
+                debug_log("[QARetriever] Cross-encoder reranking enabled")
 
     def _verify_integrity_hash(self, persist_dir: Path) -> None:
         """
@@ -313,6 +318,32 @@ class QARetriever:
                 debug_log(f"[QARetriever] Query transformer init failed: {e}")
             return None
 
+    def _init_reranker(self):
+        """
+        Initialize the cross-encoder reranker for improved precision.
+
+        Returns:
+            CrossEncoderReranker instance or None if disabled
+        """
+        from src.config import RERANKING_ENABLED
+
+        if not RERANKING_ENABLED:
+            return None
+
+        try:
+            from src.core.retrieval import CrossEncoderReranker
+
+            return CrossEncoderReranker()
+
+        except ImportError as e:
+            if DEBUG_MODE:
+                debug_log(f"[QARetriever] Reranker import failed: {e}")
+            return None
+        except Exception as e:
+            if DEBUG_MODE:
+                debug_log(f"[QARetriever] Reranker init failed: {e}")
+            return None
+
     def retrieve_context(
         self, question: str, k: int | None = None, min_score: float | None = None
     ) -> RetrievalResult:
@@ -400,6 +431,18 @@ class QARetriever:
             debug_log(
                 f"[QARetriever] Merged {len(all_chunks)} unique chunks from {len(queries_to_search)} queries"
             )
+
+        # Rerank with cross-encoder if enabled (improves precision)
+        if self._reranker and sorted_chunks:
+            from src.config import RERANKER_TOP_K
+
+            sorted_chunks = self._reranker.rerank(
+                query=question,
+                chunks=sorted_chunks,
+                top_k=RERANKER_TOP_K,
+            )
+            if DEBUG_MODE:
+                debug_log(f"[QARetriever] Reranked to top {len(sorted_chunks)} chunks")
 
         # Filter by minimum score and build results
         # Track token count to stay within context window (approx 1 word = 1.3 tokens)
