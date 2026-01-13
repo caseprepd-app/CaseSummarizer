@@ -120,3 +120,7 @@ timestamp,document_id,term,feedback,is_person,algorithms,NER_detection,RAKE_dete
 2026-01-12T14:27:54.727173,unknown,Ncv,-1,1,NER,True,False,False,1,43.5,1,75642,1,1.0,0.93,0.93,0.0,1.0,0,1
 2026-01-12T15:29:09.418130,unknown,Jordan Nc,-1,1,NER,True,False,False,1,62.0,1,0,1,1.0,0.93,0.93,0.0,1.0,0,1
 2026-01-12T15:38:08.124354,unknown,Gulati,1,1,"NER,BM25",True,False,True,2,83.6,41,123193,1,1.0,0.93,0.93,0.0,1.0,0,1
+2026-01-13T15:47:52.391750,unknown,Maloney,1,1,"BM25,NER",True,False,True,2,81.6,59,29034,1,1.0,0.93,0.93,0.0,1.0,0,1
+2026-01-13T15:48:51.974644,unknown,Mj Opening,-1,1,NER,True,False,False,1,70.4,1,0,1,1.0,0.93,0.93,0.0,1.0,0,1
+2026-01-13T15:49:10.772553,unknown,F. Mr,-1,1,NER,True,False,False,1,44.3,1,0,1,1.0,0.93,0.93,0.0,1.0,0,1
+2026-01-13T15:49:30.786676,unknown,Bell Velovic,1,1,NER,True,False,False,1,80.4,1,0,1,1.0,0.93,0.93,0.0,1.0,0,1

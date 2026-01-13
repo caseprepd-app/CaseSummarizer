@@ -667,6 +667,27 @@ def _register_all_settings():
 
     SettingsRegistry.register(
         SettingDefinition(
+            key="vocab_score_floor",
+            label="Minimum quality score",
+            category="Vocabulary",
+            setting_type=SettingType.SLIDER,
+            tooltip=(
+                "Filter terms with quality scores below this threshold.\n\n"
+                "Higher values show only high-confidence results. "
+                "Lower values include more terms but may include noise.\n\n"
+                "The quality score is based on ML predictions of term usefulness."
+            ),
+            default=55,
+            min_value=45,
+            max_value=85,
+            step=5,
+            getter=lambda: prefs.get("vocab_score_floor", 55),
+            setter=lambda v: prefs.set("vocab_score_floor", int(v)),
+        )
+    )
+
+    SettingsRegistry.register(
+        SettingDefinition(
             key="phrase_mean_rarity_threshold",
             label="Phrase mean commonality",
             category="Vocabulary",
@@ -1094,23 +1115,6 @@ def _register_all_settings():
         )
     )
 
-    SettingsRegistry.register(
-        SettingDefinition(
-            key="qa_auto_run",
-            label="Auto-run default questions",
-            category="Q&A",
-            setting_type=SettingType.CHECKBOX,
-            tooltip=(
-                "Automatically run the default questions after document processing "
-                "completes. Disable this if you prefer to manually trigger questions "
-                "or if processing large documents where questions add overhead."
-            ),
-            default=True,
-            getter=lambda: prefs.get("qa_auto_run", True),
-            setter=lambda v: prefs.set("qa_auto_run", v),
-        )
-    )
-
     # Session 63c: Custom widget for default questions management
     # (Replaces the old "Edit Default Questions" YAML editor button)
     def _create_default_questions_widget(parent):
@@ -1217,25 +1221,6 @@ def _register_all_settings():
             ],
             getter=lambda: prefs.get_qa_model_override_mode(),
             setter=lambda v: prefs.set_qa_model_override_mode(v),
-        )
-    )
-
-    SettingsRegistry.register(
-        SettingDefinition(
-            key="experimental_briefing_enabled",
-            label="Enable Case Briefing (experimental)",
-            category="Experimental",
-            setting_type=SettingType.CHECKBOX,
-            tooltip=(
-                "⚠️ EXPERIMENTAL: Case Briefing extracts parties, allegations, "
-                "and case facts from legal documents. This feature is still "
-                "being refined and may produce incomplete or inaccurate results.\n\n"
-                "When enabled, a 'Case Briefing (experimental)' checkbox will "
-                "appear in the output options. Requires application restart."
-            ),
-            default=False,
-            getter=lambda: prefs.is_experimental_briefing_enabled(),
-            setter=lambda v: prefs.set_experimental_briefing_enabled(v),
         )
     )
 

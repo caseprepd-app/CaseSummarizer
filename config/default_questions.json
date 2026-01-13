@@ -1,14 +1,6 @@
 {
   "questions": [
     {
-      "text": "What court is this case filed in?",
-      "enabled": true
-    },
-    {
-      "text": "What is the date of the incident?",
-      "enabled": true
-    },
-    {
       "text": "What injuries were sustained?",
       "enabled": true
     },

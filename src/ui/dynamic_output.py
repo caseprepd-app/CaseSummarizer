@@ -864,6 +864,27 @@ class DynamicOutputWidget(ctk.CTkFrame):
             debug_log("[VOCAB DISPLAY] All items were filtered (previously skipped)")
             return
 
+        # Filter by quality score floor
+        from src.user_preferences import get_user_preferences
+
+        prefs = get_user_preferences()
+        score_floor = prefs.get("vocab_score_floor", 55)
+        pre_score_count = len(data)
+        data = [
+            item
+            for item in data
+            if isinstance(item, dict) and item.get("Quality Score", 0) >= score_floor
+        ]
+        score_filtered = pre_score_count - len(data)
+        if score_filtered > 0:
+            debug_log(
+                f"[VOCAB DISPLAY] Filtered {score_filtered} items below score floor {score_floor}"
+            )
+
+        if not data:
+            debug_log("[VOCAB DISPLAY] All items filtered by score floor")
+            return
+
         # Session 80: Store unsorted data for sort operations and reset sort state
         self._unsorted_vocab_data = list(data)
         self._sort_column = None
