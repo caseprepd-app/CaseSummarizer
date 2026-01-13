@@ -278,13 +278,23 @@ class WindowLayoutMixin:
         # Start hidden - only shown when Q&A tab is active
         self.followup_frame.grid_remove()
 
+        # Tip label above question input
+        tip_label = ctk.CTkLabel(
+            self.followup_frame,
+            text="Tip: Ask one specific question at a time (dates, injuries, warnings) - not broad or compound questions.",
+            font=FONTS["small"],
+            text_color=COLORS["text_secondary"],
+            anchor="w",
+        )
+        tip_label.grid(row=0, column=0, columnspan=2, sticky="w", pady=(0, 4))
+
         self.followup_entry = ctk.CTkEntry(
             self.followup_frame,
             placeholder_text="Q&A not ready - run tasks first",
             height=35,
             state="disabled",  # Enabled after Q&A vector store is built
         )
-        self.followup_entry.grid(row=0, column=0, sticky="ew", padx=(0, 5))
+        self.followup_entry.grid(row=1, column=0, sticky="ew", padx=(0, 5))
         self.followup_entry.bind("<Return>", lambda e: self._ask_followup())
 
         self.followup_btn = ctk.CTkButton(
@@ -294,7 +304,7 @@ class WindowLayoutMixin:
             command=self._ask_followup,
             state="disabled",  # Enabled after Q&A vector store is built
         )
-        self.followup_btn.grid(row=0, column=1)
+        self.followup_btn.grid(row=1, column=1)
 
     def _create_status_bar(self):
         """Create status bar at bottom of window."""

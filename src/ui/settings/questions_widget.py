@@ -55,7 +55,7 @@ class DefaultQuestionsWidget(ctk.CTkFrame):
     def _setup_ui(self):
         """Create the widget layout."""
         self.grid_columnconfigure(0, weight=1)
-        self.grid_rowconfigure(1, weight=1)
+        self.grid_rowconfigure(2, weight=1)  # Scrollable frame expands
 
         # Header row with label and tooltip
         header_frame = ctk.CTkFrame(self, fg_color="transparent")
@@ -78,11 +78,27 @@ class DefaultQuestionsWidget(ctk.CTkFrame):
         )
         tooltip.pack(side="left")
 
+        # Guidance text with examples
+        guidance_text = (
+            "Tip: Ask one specific question at a time about facts stated in the documents.\n\n"
+            'Good: "What injuries were sustained?", "What warnings were given?"\n'
+            'Avoid: "What is this case about?", "When and where did the accident happen?"'
+        )
+        guidance_label = ctk.CTkLabel(
+            self,
+            text=guidance_text,
+            font=FONTS["small"],
+            text_color=("gray40", "gray60"),
+            anchor="w",
+            justify="left",
+        )
+        guidance_label.grid(row=1, column=0, sticky="ew", pady=(0, 8))
+
         # Scrollable frame for questions
         self.scroll_frame = ctk.CTkScrollableFrame(
             self, height=180, fg_color=("gray90", "gray17"), corner_radius=6
         )
-        self.scroll_frame.grid(row=1, column=0, sticky="nsew", pady=(0, 10))
+        self.scroll_frame.grid(row=2, column=0, sticky="nsew", pady=(0, 10))
         self.scroll_frame.grid_columnconfigure(0, weight=1)
 
         # Populate with existing questions
@@ -90,7 +106,7 @@ class DefaultQuestionsWidget(ctk.CTkFrame):
 
         # Add question button
         add_frame = ctk.CTkFrame(self, fg_color="transparent")
-        add_frame.grid(row=2, column=0, sticky="w")
+        add_frame.grid(row=3, column=0, sticky="w")
 
         self.add_btn = ctk.CTkButton(
             add_frame,

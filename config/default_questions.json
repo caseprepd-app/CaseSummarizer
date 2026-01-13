@@ -1,23 +1,19 @@
 {
   "questions": [
     {
-      "text": "What is this case about?",
+      "text": "What court is this case filed in?",
       "enabled": true
-    },
-    {
-      "text": "What are the main allegations?",
-      "enabled": true
-    },
-    {
-      "text": "Who are the plaintiffs?",
-      "enabled": false
-    },
-    {
-      "text": "Who are the defendants?",
-      "enabled": false
     },
     {
       "text": "What is the date of the incident?",
+      "enabled": true
+    },
+    {
+      "text": "What injuries were sustained?",
+      "enabled": true
+    },
+    {
+      "text": "What warnings were given?",
       "enabled": true
     }
   ]
