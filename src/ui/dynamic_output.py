@@ -865,6 +865,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
             return
 
         # Filter by quality score floor
+        # TODO: Test score floor filtering for both GUI display and CSV export
         from src.user_preferences import get_user_preferences
 
         prefs = get_user_preferences()

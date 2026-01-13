@@ -391,6 +391,7 @@ def _register_all_settings():
     )
 
     # Session 23: CSV export column format setting
+    # TODO: Investigate definition quality - are WordNet definitions useful for legal terms?
     SettingsRegistry.register(
         SettingDefinition(
             key="vocab_export_format",
