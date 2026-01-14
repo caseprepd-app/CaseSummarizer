@@ -90,7 +90,7 @@ class ChunkMerger:
     3. Final score clamped to 0-1 range
 
     Example:
-        merger = ChunkMerger(algorithm_weights={"BM25+": 1.0, "FAISS": 0.5})
+        merger = ChunkMerger(algorithm_weights={"FAISS": 0.8, "BM25+": 0.2})
         merged = merger.merge([bm25_result, faiss_result], k=10)
     """
 

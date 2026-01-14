@@ -31,10 +31,10 @@ from src.logging_config import debug_log
 if TYPE_CHECKING:
     from langchain_huggingface import HuggingFaceEmbeddings
 
-# Default algorithm weights - BM25+ is primary for legal documents
+# Default algorithm weights - FAISS is primary for semantic understanding
 DEFAULT_ALGORITHM_WEIGHTS = {
-    "BM25+": 1.0,  # Primary - reliable for exact legal terminology
-    "FAISS": 0.5,  # Secondary - semantic can help but less reliable
+    "FAISS": 0.8,  # Primary - semantic similarity for comprehensive retrieval
+    "BM25+": 0.2,  # Secondary - exact term matching for precision boost
 }
 
 
@@ -71,7 +71,7 @@ class HybridRetriever:
         Initialize hybrid retriever.
 
         Args:
-            algorithm_weights: Custom weights for algorithms (default: BM25+=1.0, FAISS=0.5)
+            algorithm_weights: Custom weights for algorithms (default: FAISS=0.8, BM25+=0.2)
             embeddings: Pre-loaded embeddings for FAISS (optional, loaded on demand)
             enable_bm25: Whether to use BM25+ algorithm
             enable_faiss: Whether to use FAISS semantic algorithm
@@ -103,12 +103,12 @@ class HybridRetriever:
 
         if self._enable_bm25:
             bm25 = BM25PlusRetriever()
-            bm25.weight = self.algorithm_weights.get("BM25+", 1.0)
+            bm25.weight = self.algorithm_weights.get("BM25+", 0.2)
             self._algorithms["BM25+"] = bm25
 
         if self._enable_faiss:
             faiss = FAISSRetriever(embeddings=self._embeddings)
-            faiss.weight = self.algorithm_weights.get("FAISS", 0.5)
+            faiss.weight = self.algorithm_weights.get("FAISS", 0.8)
             self._algorithms["FAISS"] = faiss
 
     def set_embeddings(self, embeddings: "HuggingFaceEmbeddings") -> None:
@@ -123,7 +123,7 @@ class HybridRetriever:
             self._algorithms["FAISS"].set_embeddings(embeddings)
 
     def index_documents(
-        self, documents: list[dict], chunk_size: int = 500, chunk_overlap: int = 50
+        self, documents: list[dict], chunk_size: int | None = None, chunk_overlap: int | None = None
     ) -> int:
         """
         Index documents into all enabled algorithms.
@@ -136,8 +136,10 @@ class HybridRetriever:
                 - 'filename': str
                 - 'chunks': list[dict] (optional, pre-computed chunks)
                 - 'extracted_text': str (optional, will be chunked)
-            chunk_size: Characters per chunk for text splitting
-            chunk_overlap: Overlap between chunks
+            chunk_size: Characters per chunk for text splitting.
+                        Defaults to RETRIEVAL_CHUNK_SIZE from config.
+            chunk_overlap: Overlap between chunks.
+                           Defaults to RETRIEVAL_CHUNK_OVERLAP from config.
 
         Returns:
             Number of chunks indexed
@@ -145,6 +147,11 @@ class HybridRetriever:
         Raises:
             ValueError: If no valid content found in documents
         """
+        from src.config import RETRIEVAL_CHUNK_OVERLAP, RETRIEVAL_CHUNK_SIZE
+
+        chunk_size = chunk_size if chunk_size is not None else RETRIEVAL_CHUNK_SIZE
+        chunk_overlap = chunk_overlap if chunk_overlap is not None else RETRIEVAL_CHUNK_OVERLAP
+
         start_time = time.perf_counter()
 
         # Convert documents to DocumentChunks

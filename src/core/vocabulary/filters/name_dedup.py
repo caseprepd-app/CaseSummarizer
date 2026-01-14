@@ -5,6 +5,7 @@ Wraps the existing deduplicate_names() function for FilterChain integration.
 Merges similar Person names (OCR variants, transcript artifacts).
 """
 
+from src.config import NAME_SIMILARITY_THRESHOLD
 from src.core.vocabulary.filters.base import BaseVocabularyFilter, FilterResult
 
 
@@ -21,8 +22,10 @@ class NameDeduplicationFilter(BaseVocabularyFilter):
     priority = 10  # Must run first
     exempt_persons = False  # Operates on persons only
 
-    def __init__(self, similarity_threshold: float = 0.85):
-        self.similarity_threshold = similarity_threshold
+    def __init__(self, similarity_threshold: float | None = None):
+        self.similarity_threshold = (
+            similarity_threshold if similarity_threshold is not None else NAME_SIMILARITY_THRESHOLD
+        )
 
     def filter(self, vocabulary: list[dict]) -> FilterResult:
         """Deduplicate person names in vocabulary."""

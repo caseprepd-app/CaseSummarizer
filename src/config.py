@@ -217,6 +217,13 @@ VOCAB_ALGORITHM_WEIGHTS = {
     "BM25": 0.8,  # Corpus-based term importance (requires 5+ docs)
 }
 
+# Similarity Thresholds (consolidated from scattered definitions)
+# Used for name deduplication, fuzzy matching, and text similarity
+NAME_SIMILARITY_THRESHOLD = 0.85  # Min similarity to consider names as same person
+TEXT_SIMILARITY_THRESHOLD = 0.80  # Min similarity to consider text as duplicate
+EDIT_DISTANCE_RATIO_THRESHOLD = 0.35  # Max edit distance ratio for typo detection
+GIBBERISH_SIMILARITY_THRESHOLD = 0.80  # Min similarity to dictionary word (not gibberish)
+
 # Ensure corpus directory exists
 CORPUS_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -248,6 +255,11 @@ OLLAMA_MODEL_NAME = "gemma3:1b"  # Default model for the application
 OLLAMA_MODEL_FALLBACK = "gemma3:1b"  # Fallback if the primary model fails
 OLLAMA_TIMEOUT_SECONDS = 600  # 10 minutes for long summaries
 QUEUE_TIMEOUT_SECONDS = 2.0  # Timeout for multiprocessing queue operations
+
+# Network/API Timeout Constants (for quick checks, not long operations)
+OLLAMA_CONNECTION_TIMEOUT = 5  # Seconds for initial connection check
+OLLAMA_API_TIMEOUT = 10  # Seconds for API calls (model list, status)
+GPU_DETECTION_TIMEOUT = 10  # Seconds for GPU/VRAM detection via WMI
 
 # Context Window Configuration
 # Session 64: Now dynamically set based on GPU VRAM via user preferences.
@@ -349,6 +361,16 @@ def get_model_config(model_name: str) -> dict:
 DEFAULT_SUMMARY_WORDS = 200
 MIN_SUMMARY_WORDS = 100
 MAX_SUMMARY_WORDS = 500
+
+# Summary Generation Parameters (defaults for PromptConfig)
+SUMMARY_WORD_COUNT_TOLERANCE = 20  # Absolute word tolerance (+/- from target)
+SUMMARY_SLIDER_INCREMENT = 50  # UI slider step size
+SUMMARY_TEMPERATURE = 0.3  # Temperature for summary generation (higher = more creative)
+
+# LLM Generation Parameters
+LLM_TOP_P = 0.9  # Nucleus sampling parameter
+LLM_TOKENS_PER_WORD = 1.5  # Estimate for token budget calculation
+LLM_TOKEN_BUFFER_MULTIPLIER = 1.3  # Safety buffer to prevent mid-sentence cutoffs
 
 # Summary Length Enforcement Settings
 # When a generated summary exceeds target by more than TOLERANCE, it will be condensed
@@ -639,6 +661,25 @@ HALLUCINATION_VERIFICATION_ENABLED = True
 # Options: "KRLabsOrg/lettucedect-base-modernbert-en-v1" (~150MB, recommended)
 #          "KRLabsOrg/tinylettuce-17m-v1" (~35MB, faster but less accurate)
 HALLUCINATION_MODEL = "KRLabsOrg/lettucedect-base-modernbert-en-v1"
+
+# Span classification thresholds for color-coding answer text
+# LettuceDetect returns probability of hallucination (0.0-1.0)
+# LOWER scores = more reliable, HIGHER scores = less reliable
+HALLUCINATION_THRESHOLDS = {
+    "verified": 0.30,  # < 0.30 = green (verified, strongly supported)
+    "uncertain": 0.50,  # 0.30 - 0.50 = yellow (uncertain, borderline)
+    "suspicious": 0.70,  # 0.50 - 0.70 = orange (suspicious, likely unsupported)
+    "unreliable": 0.85,  # 0.70 - 0.85 = red (unreliable, probably hallucinated)
+    # >= 0.85 = strikethrough (hallucinated, very high confidence)
+}
+
+# Overall answer rejection threshold - reject if reliability below this
+ANSWER_REJECTION_THRESHOLD = 0.50  # Reject if reliability < 50%
+
+# Message shown when answer confidence is too low
+HALLUCINATION_REJECTION_MESSAGE = (
+    "Confidence in answer too low after verification step, declining to show answer..."
+)
 
 # Bundled model configuration for Windows installer
 # Models are stored in PROJECT_ROOT/models/ and shipped with the installer

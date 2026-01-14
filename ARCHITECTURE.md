@@ -272,8 +272,8 @@ FILES IN → Extract → Sanitize → Preprocess → Chunk → [3 parallel paths
 ## 5. Questions & Answers
 
 ### Hybrid Retrieval
-- **BM25+** (weight 1.0) — Exact term matching
-- **FAISS** (weight 0.5) — Semantic similarity
+- **FAISS** (weight 0.8) — Semantic similarity (primary)
+- **BM25+** (weight 0.2) — Exact term matching (secondary)
 - Query expansion via LlamaIndex
 
 ### Key Components

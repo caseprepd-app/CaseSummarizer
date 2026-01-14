@@ -3,11 +3,26 @@ Prompt Parameters Configuration Loader
 Loads and manages user-configurable AI prompt settings.
 
 Moved from src/prompt_config.py to src/prompting/config.py in Session 33.
+
+Note: Default values are imported from src/config.py as the single source of truth.
+The JSON file allows user customization that overrides these defaults.
 """
 
 import json
 from pathlib import Path
 from typing import Any, ClassVar
+
+from src.config import (
+    DEFAULT_SUMMARY_WORDS,
+    LLM_TOKEN_BUFFER_MULTIPLIER,
+    LLM_TOKENS_PER_WORD,
+    LLM_TOP_P,
+    MAX_SUMMARY_WORDS,
+    MIN_SUMMARY_WORDS,
+    SUMMARY_SLIDER_INCREMENT,
+    SUMMARY_TEMPERATURE,
+    SUMMARY_WORD_COUNT_TOLERANCE,
+)
 
 # Path to the prompt parameters file
 PROMPT_PARAMS_FILE = (
@@ -20,10 +35,30 @@ class PromptConfig:
     Loads and provides access to prompt parameters.
 
     This class reads the prompt_parameters.json file and provides
-    easy access to settings with fallback defaults if file is missing.
+    easy access to settings with fallback defaults from src/config.py.
     """
 
-    # Default values (used if config file is missing or corrupted)
+    # Default values sourced from src/config.py (single source of truth)
+    @classmethod
+    def _get_defaults(cls) -> dict[str, dict[str, float | int]]:
+        """Get defaults from central config."""
+        return {
+            "summary": {
+                "word_count_tolerance": SUMMARY_WORD_COUNT_TOLERANCE,
+                "slider_increment": SUMMARY_SLIDER_INCREMENT,
+                "min_words": MIN_SUMMARY_WORDS,
+                "max_words": MAX_SUMMARY_WORDS,
+                "default_words": DEFAULT_SUMMARY_WORDS,
+                "temperature": SUMMARY_TEMPERATURE,
+            },
+            "generation": {
+                "top_p": LLM_TOP_P,
+                "tokens_per_word_estimate": LLM_TOKENS_PER_WORD,
+                "token_buffer_multiplier": LLM_TOKEN_BUFFER_MULTIPLIER,
+            },
+        }
+
+    # Legacy class variable for backward compatibility
     DEFAULTS: ClassVar[dict[str, dict[str, float | int]]] = {
         "summary": {
             "word_count_tolerance": 20,
@@ -49,8 +84,9 @@ class PromptConfig:
         Load parameters from JSON file.
 
         Returns:
-            dict: Loaded parameters, or defaults if file not found
+            dict: Loaded parameters, or defaults from src/config.py if file not found
         """
+        defaults = self._get_defaults()
         try:
             if PROMPT_PARAMS_FILE.exists():
                 with open(PROMPT_PARAMS_FILE, encoding="utf-8") as f:
@@ -64,21 +100,21 @@ class PromptConfig:
                 debug_log(
                     f"[PROMPT CONFIG] Prompt parameters file not found at {PROMPT_PARAMS_FILE}"
                 )
-                debug_log("[PROMPT CONFIG] Using default values.")
-                return self.DEFAULTS.copy()
+                debug_log("[PROMPT CONFIG] Using default values from config.py.")
+                return defaults
 
         except json.JSONDecodeError as e:
             from src.logging_config import debug_log
 
             debug_log(f"[PROMPT CONFIG] Error parsing prompt parameters file: {e}")
-            debug_log("[PROMPT CONFIG] Using default values.")
-            return self.DEFAULTS.copy()
+            debug_log("[PROMPT CONFIG] Using default values from config.py.")
+            return defaults
         except Exception as e:
             from src.logging_config import debug_log
 
             debug_log(f"[PROMPT CONFIG] Error loading prompt parameters: {e}")
-            debug_log("[PROMPT CONFIG] Using default values.")
-            return self.DEFAULTS.copy()
+            debug_log("[PROMPT CONFIG] Using default values from config.py.")
+            return defaults
 
     def _filter_comments(self, data: Any) -> Any:
         """

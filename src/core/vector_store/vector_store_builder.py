@@ -275,11 +275,13 @@ class VectorStoreBuilder:
         from langchain_core.documents import Document
         from langchain_text_splitters import RecursiveCharacterTextSplitter
 
+        from src.config import RETRIEVAL_CHUNK_OVERLAP, RETRIEVAL_CHUNK_SIZE
+
         # PERF-006: Cache text splitter as class attribute
         if not hasattr(self, "_text_splitter"):
             self._text_splitter = RecursiveCharacterTextSplitter(
-                chunk_size=500,
-                chunk_overlap=50,
+                chunk_size=RETRIEVAL_CHUNK_SIZE,
+                chunk_overlap=RETRIEVAL_CHUNK_OVERLAP,
                 length_function=len,
                 separators=["\n\n", "\n", ". ", " ", ""],
             )

@@ -28,14 +28,13 @@ from difflib import SequenceMatcher
 
 from spellchecker import SpellChecker
 
+from src.config import EDIT_DISTANCE_RATIO_THRESHOLD, GIBBERISH_SIMILARITY_THRESHOLD
 from src.core.vocabulary.string_utils import edit_distance
 
 logger = logging.getLogger(__name__)
 
-# Thresholds for combined algorithm (Session 79)
-# Both must pass for a word to be considered a valid typo (not gibberish)
-EDIT_DISTANCE_RATIO_THRESHOLD = 0.35  # Max 35% of characters can differ
-SIMILARITY_THRESHOLD = 0.80  # Must be at least 80% similar to correction
+# Alias for backward compatibility (used by is_gibberish function)
+SIMILARITY_THRESHOLD = GIBBERISH_SIMILARITY_THRESHOLD
 
 
 class GibberishFilter:

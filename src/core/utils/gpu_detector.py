@@ -71,6 +71,8 @@ def _detect_gpu_wmi() -> dict | None:
         Dict with GPU info if dedicated GPU found, None otherwise.
         Keys: gpu_name, vendor ('nvidia' or 'amd'), vram_bytes
     """
+    from src.config import GPU_DETECTION_TIMEOUT
+
     if platform.system() != "Windows":
         return None
 
@@ -86,7 +88,7 @@ def _detect_gpu_wmi() -> dict | None:
             ],
             capture_output=True,
             text=True,
-            timeout=10,
+            timeout=GPU_DETECTION_TIMEOUT,
             creationflags=subprocess.CREATE_NO_WINDOW,  # Hide console window
         )
 

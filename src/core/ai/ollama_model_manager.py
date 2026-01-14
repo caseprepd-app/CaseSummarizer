@@ -114,8 +114,10 @@ class OllamaModelManager:
         Returns:
             bool: True if Ollama is accessible, False otherwise
         """
+        from src.config import OLLAMA_CONNECTION_TIMEOUT
+
         try:
-            response = requests.get(f"{self.api_base}/api/tags", timeout=5)
+            response = requests.get(f"{self.api_base}/api/tags", timeout=OLLAMA_CONNECTION_TIMEOUT)
             self.is_connected = response.status_code == 200
             if self.is_connected:
                 debug("Successfully connected to Ollama")
@@ -141,6 +143,8 @@ class OllamaModelManager:
         Returns:
             dict: Model names mapped to availability and metadata
         """
+        from src.config import OLLAMA_API_TIMEOUT
+
         if not self.is_connected:
             self._check_connection()
 
@@ -148,7 +152,7 @@ class OllamaModelManager:
 
         if self.is_connected:
             try:
-                response = requests.get(f"{self.api_base}/api/tags", timeout=10)
+                response = requests.get(f"{self.api_base}/api/tags", timeout=OLLAMA_API_TIMEOUT)
                 if response.status_code == 200:
                     data = response.json()
                     for model in data.get("models", []):

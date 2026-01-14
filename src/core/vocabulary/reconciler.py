@@ -43,9 +43,6 @@ from src.logging_config import debug_log
 # Session 61: Changed from Literal to str to support comma-separated algorithms
 FoundBy = str  # e.g., "NER", "LLM", "NER, LLM", "NER, RAKE, BM25"
 
-# Similarity threshold for fuzzy matching
-DEFAULT_SIMILARITY_THRESHOLD = 0.85
-
 
 @dataclass
 class ReconciledPerson:
@@ -138,16 +135,21 @@ class VocabularyReconciler:
             print(f"{term.term}: {term.type} ({term.found_by})")
     """
 
-    def __init__(self, similarity_threshold: float = DEFAULT_SIMILARITY_THRESHOLD):
+    def __init__(self, similarity_threshold: float | None = None):
         """
         Initialize the reconciler.
 
         Args:
             similarity_threshold: Minimum similarity ratio (0-1) for fuzzy matching.
-                                 Default 0.85 catches variations like "Dr. John Smith"
+                                 Defaults to NAME_SIMILARITY_THRESHOLD from config.
+                                 0.85 catches variations like "Dr. John Smith"
                                  vs "Dr John Smith" or "LLC" vs "L.L.C."
         """
-        self.similarity_threshold = similarity_threshold
+        from src.config import NAME_SIMILARITY_THRESHOLD
+
+        self.similarity_threshold = (
+            similarity_threshold if similarity_threshold is not None else NAME_SIMILARITY_THRESHOLD
+        )
 
     def reconcile_people(
         self,

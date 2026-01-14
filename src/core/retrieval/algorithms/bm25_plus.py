@@ -49,7 +49,7 @@ class BM25PlusRetriever(BaseRetrievalAlgorithm):
 
     Attributes:
         name: Algorithm identifier ("BM25+")
-        weight: Default weight for merging (1.0 - primary algorithm)
+        weight: Default weight for merging (0.2 - secondary algorithm)
         enabled: Whether this algorithm is active
 
     Example:
@@ -59,7 +59,7 @@ class BM25PlusRetriever(BaseRetrievalAlgorithm):
     """
 
     name: str = "BM25+"
-    weight: float = 1.0
+    weight: float = 0.2  # Secondary weight - exact term matching for precision
     enabled: bool = True
 
     def __init__(self):

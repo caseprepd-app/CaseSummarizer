@@ -18,8 +18,8 @@ Model Choice (Session 85):
 - Significantly better than previous all-MiniLM-L6-v2 for legal/medical terminology
 - Bundled locally for offline use (no download at runtime)
 
-This algorithm has lower weight (0.5) compared to BM25+ (1.0) since
-semantic search is secondary to exact term matching for legal documents.
+This algorithm has higher weight (0.8) compared to BM25+ (0.2) since
+semantic search is primary for comprehensive retrieval of relevant content.
 """
 
 import time
@@ -67,7 +67,7 @@ class FAISSRetriever(BaseRetrievalAlgorithm):
 
     Attributes:
         name: Algorithm identifier ("FAISS")
-        weight: Default weight for merging (0.5 - secondary to BM25+)
+        weight: Default weight for merging (0.8 - primary algorithm)
         enabled: Whether this algorithm is active
 
     Example:
@@ -81,7 +81,7 @@ class FAISSRetriever(BaseRetrievalAlgorithm):
     """
 
     name: str = "FAISS"
-    weight: float = 0.5  # Lower weight - semantic less reliable for legal docs
+    weight: float = 0.8  # Primary weight - semantic for comprehensive retrieval
     enabled: bool = True
 
     def __init__(self, embeddings: "HuggingFaceEmbeddings | None" = None):

@@ -141,22 +141,34 @@ class DataAggregator:
 
     def __init__(
         self,
-        name_similarity_threshold: float = 0.85,
-        text_similarity_threshold: float = 0.80,
+        name_similarity_threshold: float | None = None,
+        text_similarity_threshold: float | None = None,
     ):
         """
         Initialize the aggregator.
 
         Args:
-            name_similarity_threshold: Min similarity (0-1) to consider names as same person
-            text_similarity_threshold: Min similarity (0-1) to consider text as duplicate
+            name_similarity_threshold: Min similarity (0-1) to consider names as same person.
+                                       Defaults to NAME_SIMILARITY_THRESHOLD from config.
+            text_similarity_threshold: Min similarity (0-1) to consider text as duplicate.
+                                       Defaults to TEXT_SIMILARITY_THRESHOLD from config.
         """
-        self.name_similarity_threshold = name_similarity_threshold
-        self.text_similarity_threshold = text_similarity_threshold
+        from src.config import NAME_SIMILARITY_THRESHOLD, TEXT_SIMILARITY_THRESHOLD
+
+        self.name_similarity_threshold = (
+            name_similarity_threshold
+            if name_similarity_threshold is not None
+            else NAME_SIMILARITY_THRESHOLD
+        )
+        self.text_similarity_threshold = (
+            text_similarity_threshold
+            if text_similarity_threshold is not None
+            else TEXT_SIMILARITY_THRESHOLD
+        )
 
         debug_log(
-            f"[DataAggregator] Initialized: name_sim={name_similarity_threshold}, "
-            f"text_sim={text_similarity_threshold}"
+            f"[DataAggregator] Initialized: name_sim={self.name_similarity_threshold}, "
+            f"text_sim={self.text_similarity_threshold}"
         )
 
     def aggregate(self, extractions: list[ChunkExtraction]) -> AggregatedBriefingData:
