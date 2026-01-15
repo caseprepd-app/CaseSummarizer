@@ -191,6 +191,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
         self._vocab_total_items = 0  # Total items in vocabulary data
         self._load_more_btn = None  # "Load More" button reference
         self._is_loading = False  # Prevents duplicate load operations
+        self._insertion_cancelled = False  # Cancels pending async insertions
 
         # Session 80: Sort state for vocabulary table
         self._sort_column = None  # Currently sorted column name
@@ -200,6 +201,11 @@ class DynamicOutputWidget(ctk.CTkFrame):
         # Resize event debouncing to prevent glitchiness (Session 51)
         self._resize_after_id = None  # Track pending resize callbacks
         self._batch_insertion_paused = False  # Pause batch insertion during resize
+
+        # Tooltip for potential duplicates
+        self._tooltip = None  # Tooltip window
+        self._tooltip_after_id = None  # Delayed tooltip show
+        self._item_to_data: dict[str, dict] = {}  # Treeview item ID -> term data mapping
 
         # Feedback manager for ML learning (Session 25)
         from src.services import VocabularyService
@@ -548,6 +554,8 @@ class DynamicOutputWidget(ctk.CTkFrame):
         Numeric columns (Score, # Docs, Count, etc.) sort numerically.
         Other columns sort alphabetically, case-insensitive.
 
+        After sorting, groups potential duplicates together so they appear adjacent.
+
         Args:
             data: List of vocabulary dicts
             column: Column name to sort by
@@ -586,7 +594,52 @@ class DynamicOutputWidget(ctk.CTkFrame):
                 # String comparison, case-insensitive
                 return str(value).lower()
 
-        return sorted(data, key=sort_key, reverse=not ascending)
+        sorted_data = sorted(data, key=sort_key, reverse=not ascending)
+
+        # Group potential duplicates together after sorting
+        return self._group_potential_duplicates(sorted_data)
+
+    def _group_potential_duplicates(self, data: list[dict]) -> list[dict]:
+        """
+        Reorder list so potential duplicates appear adjacent to their matches.
+
+        Moves items with _potential_duplicate_of to be immediately after their
+        matching longer name, making it easy for users to review related names.
+
+        Args:
+            data: Sorted vocabulary list
+
+        Returns:
+            Reordered list with potential duplicates grouped
+        """
+        # Build index of term positions
+        term_to_index = {item.get("Term", ""): i for i, item in enumerate(data)}
+
+        # Find items that need to be moved
+        items_to_move = []
+        for i, item in enumerate(data):
+            match = item.get("_potential_duplicate_of")
+            if match and match in term_to_index:
+                items_to_move.append((i, item, match))
+
+        if not items_to_move:
+            return data  # Nothing to group
+
+        # Create result list, skipping items that will be moved
+        indices_to_skip = {i for i, _, _ in items_to_move}
+        result = []
+
+        for i, item in enumerate(data):
+            if i in indices_to_skip:
+                continue
+            result.append(item)
+            # Insert any items that should follow this one
+            term = item.get("Term", "")
+            for _, moved_item, match in items_to_move:
+                if match == term:
+                    result.append(moved_item)
+
+        return result
 
     def _update_sort_headers(self):
         """Update column header text to show sort indicator (▲/▼)."""
@@ -887,13 +940,16 @@ class DynamicOutputWidget(ctk.CTkFrame):
             return
 
         # Session 80: Store unsorted data for sort operations and reset sort state
-        self._unsorted_vocab_data = list(data)
+        # Group potential duplicates together for easier review
+        grouped_data = self._group_potential_duplicates(list(data))
+        self._unsorted_vocab_data = grouped_data
         self._sort_column = None
         self._sort_ascending = True
 
         # Reset pagination state
         self._vocab_display_offset = 0
-        self._vocab_total_items = len(data)
+        self._vocab_total_items = len(grouped_data)
+        data = grouped_data  # Use grouped data for display
         self._is_loading = False
 
         # Create frame to hold treeview and scrollbars
@@ -996,6 +1052,9 @@ class DynamicOutputWidget(ctk.CTkFrame):
             self.csv_treeview.bind("<Double-1>", self._on_double_click)
             # Bind left-click for feedback columns (Session 25)
             self.csv_treeview.bind("<Button-1>", self._on_treeview_click)
+            # Bind hover for potential duplicate tooltip
+            self.csv_treeview.bind("<Motion>", self._on_treeview_hover)
+            self.csv_treeview.bind("<Leave>", self._hide_tooltip)
 
             # Create context menu
             self._create_context_menu()
@@ -1004,8 +1063,16 @@ class DynamicOutputWidget(ctk.CTkFrame):
             for tag_name, tag_config in VOCAB_TABLE_TAGS.items():
                 self.csv_treeview.tag_configure(tag_name, **tag_config)
 
-        # Clear existing data
+        # Cancel any pending async insertion before starting new one
+        # This fixes race condition when ner_complete arrives before partial_vocab_complete finishes
+        if self._is_loading:
+            debug_log("[VOCAB DISPLAY] Cancelling pending async insertion for new data")
+            self._insertion_cancelled = True
+            self._is_loading = False
+
+        # Clear existing data and item mapping
         self.csv_treeview.delete(*self.csv_treeview.get_children())
+        self._item_to_data.clear()
 
         # Calculate how many items to load initially
         initial_load = min(ROWS_PER_PAGE, self._vocab_total_items)
@@ -1086,11 +1153,18 @@ class DynamicOutputWidget(ctk.CTkFrame):
         if self._is_loading:
             return
         self._is_loading = True
+        self._insertion_cancelled = False  # Reset cancellation flag for new operation
 
         current_idx = start_idx
 
         def insert_batch():
             nonlocal current_idx
+
+            # Check if this operation was cancelled (new data arrived)
+            if self._insertion_cancelled:
+                debug_log("[VOCAB DISPLAY] Async insertion cancelled - stopping")
+                self._is_loading = False
+                return
 
             # If paused by window resize, reschedule and wait
             if self._batch_insertion_paused:
@@ -1118,6 +1192,14 @@ class DynamicOutputWidget(ctk.CTkFrame):
                             values.append(THUMB_UP_FILLED if rating == 1 else THUMB_UP_EMPTY)
                         elif col == "Skip":
                             values.append(THUMB_DOWN_FILLED if rating == -1 else THUMB_DOWN_EMPTY)
+                        elif col == "Term":
+                            # Special handling for Term column - add 🔗 for potential duplicates
+                            term_display = item.get("Term", "")
+                            if item.get("_potential_duplicate_of"):
+                                term_display = f"🔗 {term_display}"
+                            values.append(
+                                truncate_text(str(term_display), COLUMN_CONFIG[col]["max_chars"])
+                            )
                         elif col in DISPLAY_TO_DATA_COLUMN:
                             # Map display column to data field (e.g., "Score" -> "Quality Score")
                             data_col = DISPLAY_TO_DATA_COLUMN[col]
@@ -1172,7 +1254,10 @@ class DynamicOutputWidget(ctk.CTkFrame):
                 else:
                     # No feedback - neutral coloring (just alternating background)
                     tag = (row_bg_tag,)
-                self.csv_treeview.insert("", "end", values=values, tags=tag)
+                item_id = self.csv_treeview.insert("", "end", values=values, tags=tag)
+                # Store mapping for tooltip lookup
+                if isinstance(item, dict):
+                    self._item_to_data[item_id] = item
 
             current_idx = batch_end
 
@@ -2066,3 +2151,89 @@ class DynamicOutputWidget(ctk.CTkFrame):
 
         # Update the item with new values and tag for coloring
         self.csv_treeview.item(item_id, values=tuple(values), tags=tag)
+
+    def _on_treeview_hover(self, event):
+        """
+        Handle mouse hover over treeview rows.
+
+        Shows a tooltip with potential duplicate information when hovering
+        over rows that have been flagged as possible duplicates.
+        """
+        # Cancel any pending tooltip
+        if self._tooltip_after_id:
+            self.after_cancel(self._tooltip_after_id)
+            self._tooltip_after_id = None
+
+        # Identify the row under the cursor
+        item_id = self.csv_treeview.identify_row(event.y)
+        if not item_id:
+            self._hide_tooltip(None)
+            return
+
+        # Get term data from our mapping
+        term_data = self._item_to_data.get(item_id)
+        if not term_data:
+            self._hide_tooltip(None)
+            return
+
+        # Check if this term has a potential duplicate
+        duplicate_of = term_data.get("_potential_duplicate_of")
+        if not duplicate_of:
+            self._hide_tooltip(None)
+            return
+
+        # Show tooltip after a short delay (300ms)
+        tooltip_text = f"Possible duplicate: {duplicate_of}"
+        self._tooltip_after_id = self.after(
+            300,
+            lambda: self._show_tooltip(tooltip_text, event.x_root + 15, event.y_root + 10),
+        )
+
+    def _show_tooltip(self, text: str, x: int, y: int):
+        """
+        Display a tooltip window at the specified screen coordinates.
+
+        Args:
+            text: The text to display in the tooltip
+            x: Screen x-coordinate for tooltip position
+            y: Screen y-coordinate for tooltip position
+        """
+        # Hide any existing tooltip first
+        self._hide_tooltip(None)
+
+        # Create tooltip as a toplevel window
+        self._tooltip = ctk.CTkToplevel(self)
+        self._tooltip.wm_overrideredirect(True)  # No window decorations
+        self._tooltip.wm_geometry(f"+{x}+{y}")
+
+        # Prevent tooltip from taking focus
+        self._tooltip.attributes("-topmost", True)
+
+        # Create tooltip label with styling
+        label = ctk.CTkLabel(
+            self._tooltip,
+            text=text,
+            fg_color=("#FFF9C4", "#424242"),  # Light yellow / dark gray
+            text_color=("#333333", "#FFFFFF"),
+            corner_radius=4,
+            padx=8,
+            pady=4,
+        )
+        label.pack()
+
+    def _hide_tooltip(self, event):
+        """
+        Hide and destroy the tooltip window.
+
+        Args:
+            event: The event that triggered hiding (can be None)
+        """
+        # Cancel any pending tooltip show
+        if self._tooltip_after_id:
+            self.after_cancel(self._tooltip_after_id)
+            self._tooltip_after_id = None
+
+        # Destroy existing tooltip
+        if self._tooltip:
+            self._tooltip.destroy()
+            self._tooltip = None

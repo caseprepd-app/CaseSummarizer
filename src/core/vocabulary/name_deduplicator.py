@@ -493,3 +493,73 @@ def _select_canonical_legacy(group: list[dict], freq_key: str) -> dict:
         )
 
     return canonical
+
+
+def find_potential_duplicates(terms: list[dict]) -> dict[str, str]:
+    """
+    Find Person names where one is a word-subset of another.
+
+    Detects cases like "Antonio Vargas" being a subset of "Antonio Fernandez Vargas"
+    where first and last names match but middle name(s) differ.
+
+    These are NOT auto-merged (could be different people) but flagged for user review.
+
+    Args:
+        terms: List of vocabulary term dicts with "Term" and "Is Person" keys
+
+    Returns:
+        Dict mapping shorter_term -> longer_term for potential duplicates
+        e.g., {"Antonio Vargas": "Antonio Fernandez Vargas"}
+    """
+    # Get Person terms only
+    person_terms = [t for t in terms if is_person_entry(t)]
+
+    if len(person_terms) < 2:
+        return {}
+
+    potential_duplicates: dict[str, str] = {}
+
+    # Build word sets for each person name
+    name_data = []
+    for term in person_terms:
+        name = term.get("Term", "").strip()
+        if not name:
+            continue
+        words = name.lower().split()
+        if len(words) < 2:
+            continue  # Skip single-word names
+        name_data.append(
+            {
+                "term": name,
+                "words": set(words),
+                "first": words[0],
+                "last": words[-1],
+                "word_count": len(words),
+            }
+        )
+
+    # Compare pairs looking for subset relationships
+    for i, a in enumerate(name_data):
+        for b in name_data[i + 1 :]:
+            # Check if first and last names match
+            if a["first"] != b["first"] or a["last"] != b["last"]:
+                continue
+
+            # Check if one is a proper subset of the other
+            if a["words"] < b["words"]:
+                # a is subset of b (a is shorter)
+                potential_duplicates[a["term"]] = b["term"]
+                debug_log(
+                    f"[DEDUP] Potential duplicate: '{a['term']}' may be same as '{b['term']}'"
+                )
+            elif b["words"] < a["words"]:
+                # b is subset of a (b is shorter)
+                potential_duplicates[b["term"]] = a["term"]
+                debug_log(
+                    f"[DEDUP] Potential duplicate: '{b['term']}' may be same as '{a['term']}'"
+                )
+
+    if potential_duplicates:
+        debug_log(f"[DEDUP] Found {len(potential_duplicates)} potential duplicate name(s)")
+
+    return potential_duplicates

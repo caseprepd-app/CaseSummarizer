@@ -29,13 +29,29 @@ class NameDeduplicationFilter(BaseVocabularyFilter):
 
     def filter(self, vocabulary: list[dict]) -> FilterResult:
         """Deduplicate person names in vocabulary."""
-        from src.core.vocabulary.name_deduplicator import deduplicate_names
+        from src.core.vocabulary.name_deduplicator import (
+            deduplicate_names,
+            find_potential_duplicates,
+        )
 
         original_count = len(vocabulary)
         filtered = deduplicate_names(vocabulary, self.similarity_threshold)
 
+        # Find potential duplicates (names where one is subset of another)
+        # These are flagged for user review, not auto-merged
+        potential_dupes = find_potential_duplicates(filtered)
+
+        # Attach metadata to flagged terms
+        for term in filtered:
+            term_name = term.get("Term", "")
+            if term_name in potential_dupes:
+                term["_potential_duplicate_of"] = potential_dupes[term_name]
+
         return FilterResult(
             vocabulary=filtered,
             removed_count=original_count - len(filtered),
-            metadata={"similarity_threshold": self.similarity_threshold},
+            metadata={
+                "similarity_threshold": self.similarity_threshold,
+                "potential_duplicates": len(potential_dupes),
+            },
         )

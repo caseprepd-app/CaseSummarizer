@@ -18,10 +18,31 @@ Usage:
     Runs after LineNumberRemover, before QAConverter.
 """
 
+import json
 import re
+from pathlib import Path
 
 from src.core.preprocessing.base import BasePreprocessor, PreprocessingResult
 from src.logging_config import debug_log
+
+
+def _load_transcript_patterns() -> dict:
+    """
+    Load transcript cleaning patterns from config file.
+
+    Returns:
+        Dict with pattern configurations, or empty dict if file not found.
+    """
+    config_path = Path(__file__).parent.parent.parent.parent / "config" / "transcript_patterns.json"
+    if not config_path.exists():
+        debug_log(f"[TranscriptCleaner] Config not found: {config_path}, using defaults")
+        return {}
+    try:
+        with open(config_path, encoding="utf-8") as f:
+            return json.load(f)
+    except (json.JSONDecodeError, OSError) as e:
+        debug_log(f"[TranscriptCleaner] Error loading config: {e}, using defaults")
+        return {}
 
 
 class TranscriptCleaner(BasePreprocessor):
@@ -180,13 +201,12 @@ class TranscriptCleaner(BasePreprocessor):
         """
         Strip inline concordance citations embedded in body text.
 
-        These are word+count patterns followed by page:line references that
-        appear throughout the transcript (not just in index sections).
+        Patterns are loaded from config/transcript_patterns.json.
+        Falls back to hardcoded defaults if config unavailable.
 
         Pattern examples:
         - "told (5) 959:14;1003:24" -> "told"
-        - "injuries (3) 100:5,101:2" -> "injuries"
-        - "damages (19) 1258:11,13;1259:9" -> "damages"
+        - "Antonio 59:12;60:21;62:12" -> "Antonio"
 
         Args:
             text: Input text
@@ -194,23 +214,50 @@ class TranscriptCleaner(BasePreprocessor):
         Returns:
             Tuple of (cleaned_text, count_of_patterns_removed)
         """
-        # Pattern: word (count) followed by page:line references
-        # Matches: word (number) page:line[;,\s page:line]*
-        # The \b ensures we match whole words
-        inline_citation_pattern = re.compile(
-            r"\b(\w+)"  # Capture the word (group 1) to keep it
-            r"\s*\(\d+\)"  # Count in parentheses like (5)
-            r"\s*"  # Optional whitespace
-            r"(?:\d{2,4}:\d{1,2}[;,\s]*)+"  # One or more page:line refs
-        )
+        config = _load_transcript_patterns()
+        patterns = config.get("inline_citation_patterns", [])
 
-        # Replace pattern with just the captured word
-        cleaned_text, count = inline_citation_pattern.subn(r"\1", text)
+        # Fallback defaults if config not available
+        if not patterns:
+            patterns = [
+                {
+                    "name": "word_with_count_refs",
+                    "pattern": r"\b(\w+)\s*\(\d+\)\s*(?:\d{2,4}:\d{1,2}[;,\s]*)+",
+                    "replacement": r"\1",
+                    "enabled": True,
+                },
+                {
+                    "name": "name_with_refs",
+                    "pattern": r"\b([A-Z][a-z]+)\s+\d{2,4}:\d{1,2}(?:[;,]\s*\d{2,4}:\d{1,2})*",
+                    "replacement": r"\1",
+                    "enabled": True,
+                },
+            ]
 
-        if count > 0:
-            debug_log(f"[TranscriptCleaner] Stripped {count} inline citation(s)")
+        total_count = 0
+        cleaned_text = text
 
-        return cleaned_text, count
+        for pattern_config in patterns:
+            if not pattern_config.get("enabled", True):
+                continue
+
+            try:
+                pattern = re.compile(pattern_config["pattern"])
+                replacement = pattern_config.get("replacement", r"\1")
+                cleaned_text, count = pattern.subn(replacement, cleaned_text)
+                if count > 0:
+                    debug_log(
+                        f"[TranscriptCleaner] Pattern '{pattern_config.get('name', 'unnamed')}' "
+                        f"stripped {count} match(es)"
+                    )
+                    total_count += count
+            except re.error as e:
+                debug_log(
+                    f"[TranscriptCleaner] Invalid regex in pattern "
+                    f"'{pattern_config.get('name', 'unnamed')}': {e}"
+                )
+
+        return cleaned_text, total_count
 
     def _remove_certification_block(self, text: str) -> tuple[str, bool]:
         """
@@ -254,11 +301,7 @@ class TranscriptCleaner(BasePreprocessor):
         """
         Remove index/concordance pages from transcript end.
 
-        Handles multiple index formats:
-        1. Simple format: "Fabuloso - 34:5" (word - page:line)
-        2. Multi-ref format: "objection 34:5, 45:6" (multiple references)
-        3. Min-U-Script format: Dense word indexes with semicolon-separated refs
-           Example: "Counsel (59) 1258:11,13;1259:9, 21;1260:4,10"
+        Patterns and thresholds loaded from config/transcript_patterns.json.
 
         Detection:
         1. Identify lines matching index entry patterns
@@ -272,6 +315,16 @@ class TranscriptCleaner(BasePreprocessor):
         Returns:
             Tuple of (cleaned_text, lines_removed)
         """
+        config = _load_transcript_patterns()
+        index_config = config.get("index_line_detection", {})
+        thresholds = config.get("index_detection_thresholds", {})
+
+        # Load thresholds from config or use defaults
+        min_cluster = thresholds.get("min_cluster_size", min_cluster_size)
+        min_refs_for_index = thresholds.get("min_refs_for_index_line", 3)
+        min_refs_with_count = thresholds.get("min_refs_with_word_count", 2)
+        digit_letter_ratio = thresholds.get("digit_to_letter_ratio", 1.5)
+
         lines = text.split("\n")
 
         # Pattern: WORD(s) [separator] PAGE:LINE (simple format)
@@ -297,16 +350,18 @@ class TranscriptCleaner(BasePreprocessor):
             r"[\s]*$"
         )
 
-        # Pattern: Dense page:line references (concordance format)
-        # Matches: "1260:12" or "1258:11" - 3-4 digit page, 1-2 digit line
-        dense_refs = re.compile(r"\d{3,4}:\d{1,2}")
+        # Load detection patterns from config or use defaults
+        dense_refs_pattern = index_config.get("dense_refs", {}).get("pattern", r"\d{3,4}:\d{1,2}")
+        word_count_pattern = index_config.get("word_with_count", {}).get(
+            "pattern", r"[A-Za-z]+\s*\(\d+\)"
+        )
+        ref_chain_pattern = index_config.get("ref_chain", {}).get(
+            "pattern", r"\d{3,4}:\d{1,2}\s*[;,]\s*\d{3,4}:\d{1,2}"
+        )
 
-        # Pattern: Word with occurrence count like "Counsel (59)" or "damages (19)"
-        # Common in concordance indexes to show how many times a word appears
-        word_with_count = re.compile(r"[A-Za-z]+\s*\(\d+\)")
-
-        # Pattern: Semicolon-separated reference chains like "1260:12;1261:8;1262:1"
-        ref_chain = re.compile(r"\d{3,4}:\d{1,2}\s*[;,]\s*\d{3,4}:\d{1,2}")
+        dense_refs = re.compile(dense_refs_pattern)
+        word_with_count = re.compile(word_count_pattern)
+        ref_chain = re.compile(ref_chain_pattern)
 
         def is_concordance_index_line(line: str) -> bool:
             """
@@ -329,23 +384,23 @@ class TranscriptCleaner(BasePreprocessor):
             has_ref_chain = bool(ref_chain.search(line))
 
             # Index lines have high density of page:line refs
-            # Typically 3+ refs per line is a strong indicator
-            if ref_count >= 3:
+            # Thresholds loaded from config
+            if ref_count >= min_refs_for_index:
                 return True
 
-            # Lines with 2+ refs AND word counts are likely index
-            if ref_count >= 2 and word_count_matches >= 1:
+            # Lines with refs AND word counts are likely index
+            if ref_count >= min_refs_with_count and word_count_matches >= 1:
                 return True
 
-            # Lines with reference chains (even just 2 refs chained) are index
-            if has_ref_chain and ref_count >= 2:
+            # Lines with reference chains are index
+            if has_ref_chain and ref_count >= min_refs_with_count:
                 return True
 
             # Lines that are mostly numbers/punctuation with few words
             # Calculate ratio of digits+punctuation to letters
             digits_punct = sum(1 for c in stripped if c.isdigit() or c in ":;,()[]")
             letters = sum(1 for c in stripped if c.isalpha())
-            if letters > 0 and digits_punct / letters > 1.5 and ref_count >= 1:
+            if letters > 0 and digits_punct / letters > digit_letter_ratio and ref_count >= 1:
                 return True
 
             return False
@@ -382,7 +437,7 @@ class TranscriptCleaner(BasePreprocessor):
 
                 cluster_end = j - gap
 
-                if index_count >= min_cluster_size:
+                if index_count >= min_cluster:
                     clusters_to_remove.append((cluster_start, cluster_end))
                     i = cluster_end
                 else:

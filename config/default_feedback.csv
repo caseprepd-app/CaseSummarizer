@@ -124,3 +124,17 @@ timestamp,document_id,term,feedback,is_person,algorithms,NER_detection,RAKE_dete
 2026-01-13T15:48:51.974644,unknown,Mj Opening,-1,1,NER,True,False,False,1,70.4,1,0,1,1.0,0.93,0.93,0.0,1.0,0,1
 2026-01-13T15:49:10.772553,unknown,F. Mr,-1,1,NER,True,False,False,1,44.3,1,0,1,1.0,0.93,0.93,0.0,1.0,0,1
 2026-01-13T15:49:30.786676,unknown,Bell Velovic,1,1,NER,True,False,False,1,80.4,1,0,1,1.0,0.93,0.93,0.0,1.0,0,1
+2026-01-14T15:15:43.039516,unknown,Cheryl Gellis,1,1,NER,True,False,False,1,85.4,2,0,1,1.0,0.94,0.94,0.0,1.0,0,1
+2026-01-14T15:15:44.910394,unknown,Appell,1,1,"NER,BM25",True,False,True,2,85.3,301,149974,1,1.0,0.94,0.94,0.0,1.0,0,1
+2026-01-14T15:15:49.107371,unknown,Morris,1,1,"NER,BM25",True,False,True,2,90.6,253,5365,1,1.0,0.94,0.94,0.0,1.0,0,1
+2026-01-14T15:15:53.011771,unknown,Mario Osorio,1,1,NER,True,False,False,1,98.4,4,0,1,1.0,0.94,0.94,0.0,1.0,0,1
+2026-01-14T15:16:17.842158,unknown,Surgery,-1,1,"NER,BM25",True,False,True,2,79.2,26,2024,1,1.0,0.94,0.94,0.0,1.0,0,1
+2026-01-14T15:16:25.835773,unknown,arthrography,1,0,NER,True,False,False,1,86.3,3,230617,1,1.0,0.94,0.94,0.0,1.0,0,1
+2026-01-14T15:16:31.961566,unknown,osteoarthritic,1,0,NER,True,False,False,1,88.0,3,239696,1,1.0,0.94,0.94,0.0,1.0,0,1
+2026-01-15T09:13:31.512778,unknown,Joel 82:2;90:7;91:7,-1,1,NER,True,False,False,1,69.5,1,0,1,1.0,0.95,0.95,0.0,1.0,0,1
+2026-01-15T09:13:35.185255,unknown,Antonio 59:12;60:21;62:12,-1,1,NER,True,False,False,1,86.4,1,0,1,1.0,0.95,0.95,0.0,1.0,0,1
+2026-01-15T09:13:42.773679,unknown,"Ivan 96:11,15",-1,1,NER,True,False,False,1,59.6,1,0,1,1.0,0.95,0.95,0.0,1.0,0,1
+2026-01-15T09:16:09.095604,unknown,Nicholas Bellizzi,1,1,NER,True,False,False,1,75.1,2,0,1,1.0,0.95,0.95,0.0,1.0,0,1
+2026-01-15T09:16:15.749531,unknown,Antonio Fernandez Vargas,1,1,"RAKE,NER",True,True,False,2,96.0,2,0,1,1.0,0.95,0.95,0.0,1.0,0,1
+2026-01-15T09:21:57.122001,unknown,Antonio Vargas,1,1,NER,True,False,False,1,94.4,16,0,1,1.0,0.95,0.95,0.0,1.0,0,1
+2026-01-15T10:18:08.026527,unknown,Mui,1,1,"NER,BM25",True,False,True,2,88.8,190,51551,1,1.0,0.95,0.95,0.0,1.0,0,1

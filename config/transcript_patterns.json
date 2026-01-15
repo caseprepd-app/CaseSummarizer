@@ -1,0 +1,44 @@
+{
+  "_description": "Patterns for cleaning transcript text. Edit regexes here without touching code.",
+  "_usage": "Patterns are applied during preprocessing to remove index/concordance artifacts.",
+
+  "inline_citation_patterns": [
+    {
+      "name": "word_with_count_refs",
+      "description": "Matches: word (count) page:line;... e.g., 'told (5) 959:14;1003:24'",
+      "pattern": "\\b(\\w+)\\s*\\(\\d+\\)\\s*(?:\\d{2,4}:\\d{1,2}[;,\\s]*)+",
+      "replacement": "\\1",
+      "enabled": true
+    },
+    {
+      "name": "name_with_refs",
+      "description": "Matches: Name page:line;... e.g., 'Antonio 59:12;60:21;62:12'",
+      "pattern": "\\b([A-Z][a-z]+)\\s+\\d{2,4}:\\d{1,2}(?:[;,]\\s*\\d{2,4}:\\d{1,2})*",
+      "replacement": "\\1",
+      "enabled": true
+    }
+  ],
+
+  "index_line_detection": {
+    "_description": "Patterns used to identify index/concordance lines for cluster-based removal",
+    "dense_refs": {
+      "description": "Page:line reference like 959:14 or 1260:12",
+      "pattern": "\\d{3,4}:\\d{1,2}"
+    },
+    "word_with_count": {
+      "description": "Word with occurrence count like 'Counsel (59)'",
+      "pattern": "[A-Za-z]+\\s*\\(\\d+\\)"
+    },
+    "ref_chain": {
+      "description": "Semicolon-separated reference chains like '1260:12;1261:8'",
+      "pattern": "\\d{3,4}:\\d{1,2}\\s*[;,]\\s*\\d{3,4}:\\d{1,2}"
+    }
+  },
+
+  "index_detection_thresholds": {
+    "min_cluster_size": 5,
+    "min_refs_for_index_line": 3,
+    "min_refs_with_word_count": 2,
+    "digit_to_letter_ratio": 1.5
+  }
+}
