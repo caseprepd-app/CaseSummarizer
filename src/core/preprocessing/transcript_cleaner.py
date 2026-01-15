@@ -72,6 +72,11 @@ class TranscriptCleaner(BasePreprocessor):
         cert_removed = False
         metadata["certification_removed"] = cert_removed
 
+        # Step 2.5: Strip inline concordance citations
+        # Catches patterns like "told (5) 959:14;1003:24" embedded in body text
+        text, inline_citations_removed = self._strip_inline_citations(text)
+        metadata["inline_citations_removed"] = inline_citations_removed
+
         # Step 3: Remove index pages
         text, index_lines_removed = self._remove_index_pages(text)
         metadata["index_lines_removed"] = index_lines_removed
@@ -86,6 +91,7 @@ class TranscriptCleaner(BasePreprocessor):
             debug_log(
                 f"[TranscriptCleaner] Removed {changes} chars: "
                 f"page_nums={page_nums_removed}, cert={cert_removed}, "
+                f"inline_citations={inline_citations_removed}, "
                 f"index_lines={index_lines_removed}"
             )
 
@@ -169,6 +175,42 @@ class TranscriptCleaner(BasePreprocessor):
         cleaned_lines = [line for i, line in enumerate(lines) if i not in page_line_indices]
 
         return "\n".join(cleaned_lines), len(page_line_indices)
+
+    def _strip_inline_citations(self, text: str) -> tuple[str, int]:
+        """
+        Strip inline concordance citations embedded in body text.
+
+        These are word+count patterns followed by page:line references that
+        appear throughout the transcript (not just in index sections).
+
+        Pattern examples:
+        - "told (5) 959:14;1003:24" -> "told"
+        - "injuries (3) 100:5,101:2" -> "injuries"
+        - "damages (19) 1258:11,13;1259:9" -> "damages"
+
+        Args:
+            text: Input text
+
+        Returns:
+            Tuple of (cleaned_text, count_of_patterns_removed)
+        """
+        # Pattern: word (count) followed by page:line references
+        # Matches: word (number) page:line[;,\s page:line]*
+        # The \b ensures we match whole words
+        inline_citation_pattern = re.compile(
+            r"\b(\w+)"  # Capture the word (group 1) to keep it
+            r"\s*\(\d+\)"  # Count in parentheses like (5)
+            r"\s*"  # Optional whitespace
+            r"(?:\d{2,4}:\d{1,2}[;,\s]*)+"  # One or more page:line refs
+        )
+
+        # Replace pattern with just the captured word
+        cleaned_text, count = inline_citation_pattern.subn(r"\1", text)
+
+        if count > 0:
+            debug_log(f"[TranscriptCleaner] Stripped {count} inline citation(s)")
+
+        return cleaned_text, count
 
     def _remove_certification_block(self, text: str) -> tuple[str, bool]:
         """

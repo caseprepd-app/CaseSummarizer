@@ -561,7 +561,9 @@ VECTOR_STORE_DIR.mkdir(parents=True, exist_ok=True)
 # Set to None to retrieve ALL chunks (searches entire document corpus)
 # Set to a number to limit retrieval to top-K chunks
 QA_RETRIEVAL_K = 20  # Top 20 chunks by hybrid score (BM25 + FAISS)
-QA_MAX_TOKENS = 300  # Maximum tokens for generated answer
+QA_MAX_TOKENS = (
+    750  # Maximum tokens for generated answer (increased to prevent mid-sentence cutoff)
+)
 QA_TEMPERATURE = 0.1  # Low temperature for factual, consistent answers
 QA_SIMILARITY_THRESHOLD = 0.5  # Minimum relevance score for chunks
 
