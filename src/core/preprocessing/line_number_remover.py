@@ -6,11 +6,13 @@ Common in deposition transcripts and court filings.
 
 Patterns handled:
 - "1  ", "2  ", ..., "25  " at line start (transcript format)
+- "24   text" - numbers 1-25 followed by 3+ spaces anywhere (strong signal)
 - "  1", "  2", ..., "  25" at line end (some PDF exports)
 - "|1", "|2", etc. (some legal document formats)
 - "25THE COURT:" - numbers attached to uppercase content (PDF extraction error)
 - "Thank you.25" - numbers attached to punctuation (PDF extraction error)
 - "back 16 in August" - collapsed line numbers from PDF line joining
+- "monitored. 24 Plaintiff's" - line numbers after sentence punctuation
 
 Does NOT remove:
 - Numbers that are part of content (dates, case numbers, citations)
@@ -46,6 +48,28 @@ class LineNumberRemover(BasePreprocessor):
     # Matches: "1  ", "12  ", "25  " but not "100  " or numbers mid-sentence
     # The \s{2,} requires at least 2 spaces after the number (typical transcript format)
     LINE_START_PATTERN = re.compile(r"^(\s*)([1-9]|1[0-9]|2[0-5])\s{2,}", re.MULTILINE)
+
+    # Pattern for line numbers followed by 3+ spaces ANYWHERE in text
+    #
+    # What it matches:
+    #   "sentence end. 24   Plaintiff's" -> removes "24   " (line number with padding)
+    #   "text here 5   More text" -> removes "5   "
+    #
+    # Breakdown:
+    #   (?<!\d)                    - Negative lookbehind: not preceded by a digit
+    #                                (avoids matching "125   " as "25   ")
+    #   ([1-9]|1[0-9]|2[0-5])      - Match line numbers 1-25
+    #   \s{3,}                     - Three or more whitespace characters
+    #
+    # Why this pattern exists:
+    #   In source transcripts, line numbers only appear at line start.
+    #   After PDF extraction joins lines, they can appear mid-text.
+    #   3+ spaces after a number 1-25 is a very strong signal it was a line number
+    #   with formatting padding - normal text rarely has 3+ consecutive spaces.
+    TRIPLE_SPACE_LINE_PATTERN = re.compile(
+        r"(?<!\d)([1-9]|1[0-9]|2[0-5])\s{3,}",
+        re.MULTILINE,
+    )
 
     # Pattern for line numbers at end of line (less common, some PDF exports)
     # Matches: "  1\n", "  25\n" at very end of line
@@ -93,6 +117,31 @@ class LineNumberRemover(BasePreprocessor):
         re.MULTILINE,
     )
 
+    # Pattern for line numbers after sentence-ending punctuation, followed by capitalized word
+    #
+    # What it matches:
+    #   "monitored. 24 Plaintiff's" -> removes "24 " -> "monitored. Plaintiff's"
+    #   "the fall. 5 Immediately"   -> removes "5 "  -> "the fall. Immediately"
+    #
+    # Breakdown:
+    #   (?<=[.?!]\s)               - Lookbehind: must be preceded by . or ? or ! then a space
+    #   ([1-9]|1[0-9]|2[0-5])      - Match line numbers 1-25:
+    #                                  [1-9]    = 1 through 9
+    #                                  1[0-9]   = 10 through 19
+    #                                  2[0-5]   = 20 through 25
+    #   \s+                        - One or more spaces after the number
+    #   (?=[A-Z])                  - Lookahead: must be followed by capital letter (not consumed)
+    #
+    # Why this pattern exists:
+    #   When PDF text extraction joins transcript lines, line numbers that were
+    #   at the start of a new line become inline after the previous sentence.
+    #   Example: Original transcript has "monitored.\n24  Plaintiff's expert..."
+    #   After extraction: "monitored. 24 Plaintiff's expert..."
+    PUNCTUATION_LINE_PATTERN = re.compile(
+        r"(?<=[.?!]\s)([1-9]|1[0-9]|2[0-5])\s+(?=[A-Z])",
+        re.MULTILINE,
+    )
+
     def process(self, text: str) -> PreprocessingResult:
         """
         Remove line numbers from text margins.
@@ -118,6 +167,11 @@ class LineNumberRemover(BasePreprocessor):
             return match.group(1)
 
         result = self.LINE_START_PATTERN.sub(replace_start, result)
+
+        # Remove line numbers followed by 3+ spaces (strong signal, anywhere in text)
+        # "sentence. 24   Plaintiff's" -> "sentence. Plaintiff's"
+        result, triple_space_count = self.TRIPLE_SPACE_LINE_PATTERN.subn("", result)
+        changes += triple_space_count
 
         # Remove line numbers at end of lines
         result, end_count = self.LINE_END_PATTERN.subn("", result)
@@ -159,14 +213,21 @@ class LineNumberRemover(BasePreprocessor):
         result, lower_upper_count = self.LOWERCASE_TO_UPPER_PATTERN.subn(" ", result)
         changes += lower_upper_count
 
+        # Remove line numbers after sentence punctuation followed by capitalized word
+        # "monitored. 24 Plaintiff's" -> "monitored. Plaintiff's"
+        result, punctuation_count = self.PUNCTUATION_LINE_PATTERN.subn("", result)
+        changes += punctuation_count
+
         return PreprocessingResult(
             text=result,
             changes_made=changes,
             metadata={
                 "start_line_numbers": attached_start_count,
+                "triple_space_line_numbers": triple_space_count,
                 "end_line_numbers": end_count,
                 "pipe_line_numbers": pipe_count,
                 "attached_end_numbers": attached_end_count,
                 "collapsed_line_numbers": collapsed_count,
+                "punctuation_line_numbers": punctuation_count,
             },
         )

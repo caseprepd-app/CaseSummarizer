@@ -213,7 +213,8 @@ class QAOrchestrator:
                         if line and not line.startswith("#"):
                             questions.append(line)
                 return questions
-            except Exception:
+            except Exception as e:
+                debug_log(f"[QAOrchestrator] Failed to load questions from txt file: {e}")
                 return []
 
     def get_default_questions(self) -> list[str]:

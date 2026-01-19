@@ -44,7 +44,6 @@ timestamp,document_id,term,feedback,is_person,algorithms,NER_detection,RAKE_dete
 2026-01-10T17:05:45.805386,unknown,"Ken 74:21,24",-1,1,NER,True,False,False,1,85.0,1,0,1,1.0,0.94,0.94,0.0,1.0,0,1
 2026-01-10T17:06:46.858329,unknown,Patrick Garvey,1,1,NER,True,False,False,1,90.0,2,0,1,1.0,0.94,0.94,0.0,1.0,0,1
 2026-01-10T17:07:03.102692,unknown,Mcmanus,1,1,NER,True,False,False,1,70.0,2,31106,1,1.0,0.94,0.94,0.0,1.0,0,1
-2026-01-10T18:31:39.685873,unknown,Nc Direct - Fils-Aime - Pla...,-1,0,,False,False,False,0,0,1,0,1,1.0,1.0,1.0,0.0,1.0,0,1
 2026-01-10T18:31:47.090960,unknown,Q. Good,-1,1,NER,True,False,False,1,85.0,1,0,1,1.0,0.95,0.95,0.0,1.0,0,1
 2026-01-10T18:31:48.546168,unknown,Q. Patient,-1,1,NER,True,False,False,1,85.0,1,0,1,1.0,0.95,0.95,0.0,1.0,0,1
 2026-01-10T18:32:01.019127,unknown,M Fils-Aime - Plaintiff -,-1,1,NER,True,False,False,1,100.0,12,0,1,1.0,0.9499999999999998,0.95,0.0,1.0,0,1
@@ -138,3 +137,6 @@ timestamp,document_id,term,feedback,is_person,algorithms,NER_detection,RAKE_dete
 2026-01-15T09:16:15.749531,unknown,Antonio Fernandez Vargas,1,1,"RAKE,NER",True,True,False,2,96.0,2,0,1,1.0,0.95,0.95,0.0,1.0,0,1
 2026-01-15T09:21:57.122001,unknown,Antonio Vargas,1,1,NER,True,False,False,1,94.4,16,0,1,1.0,0.95,0.95,0.0,1.0,0,1
 2026-01-15T10:18:08.026527,unknown,Mui,1,1,"NER,BM25",True,False,True,2,88.8,190,51551,1,1.0,0.95,0.95,0.0,1.0,0,1
+2026-01-18T22:59:42.813456,unknown,Human Immun,-1,1,NER,True,False,False,1,76.7,1,0,1,0.2,0.86,0.86,0.0,1.0,0,5
+2026-01-18T22:59:48.257283,unknown,D. Plaintiff'S,-1,1,NER,True,False,False,1,75.4,1,0,1,0.2,0.86,0.86,0.0,1.0,0,5
+2026-01-18T23:00:05.286604,unknown,Nc Direct - Fils-Aime - Pla...,-1,0,,False,False,False,0,0,1,0,1,1.0,1.0,1.0,0.0,1.0,0,1

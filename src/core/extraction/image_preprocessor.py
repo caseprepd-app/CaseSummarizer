@@ -157,26 +157,68 @@ class ImagePreprocessor:
 
         debug(f"Starting image preprocessing: {image.size[0]}x{image.size[1]}")
 
-        # Stage 0a: Orientation correction (90°/180°/270°)
+        # Stage 0a: Orientation correction
+        image = self._stage_orientation(image, stats)
+
+        # Stage 0b: Document detection and cropping
+        image = self._stage_document_detection(image, stats)
+
+        # Convert PIL Image to OpenCV format
+        cv_image = self._pil_to_cv2(image)
+
+        # Stage 1: Grayscale conversion
+        gray = self._stage_grayscale(cv_image, stats)
+
+        # Stage 2: Noise removal
+        denoised = self._stage_denoise(gray, stats)
+
+        # Stage 3: Contrast enhancement
+        enhanced = self._stage_contrast(denoised, stats)
+
+        # Stage 4: Binarization
+        binary = self._stage_binarize(enhanced, stats)
+
+        # Stage 5: Deskewing
+        deskewed = self._stage_deskew(binary, stats)
+
+        # Stage 6: Border padding
+        padded = self._stage_border(deskewed, stats)
+
+        # Convert back to PIL Image
+        result = self._cv2_to_pil(padded)
+        stats.processed_size = result.size
+        stats.total_time_ms = (time.time() - start_time) * 1000
+
+        debug(
+            f"Image preprocessing complete: {stats.processed_size[0]}x{stats.processed_size[1]} in {stats.total_time_ms:.1f}ms"
+        )
+
+        return result, stats
+
+    def _stage_orientation(self, image: Image.Image, stats: PreprocessingStats) -> Image.Image:
+        """Stage 0a: Detect and correct 90°/180°/270° rotation."""
         stage_start = time.time()
         if self.enable_orientation_correction:
             image = self._detect_and_correct_orientation(image, stats)
         else:
             debug("  [0a] Orientation correction: skipped (disabled)")
         stats.stage_times["orientation"] = (time.time() - stage_start) * 1000
+        return image
 
-        # Stage 0b: Document detection and cropping
+    def _stage_document_detection(
+        self, image: Image.Image, stats: PreprocessingStats
+    ) -> Image.Image:
+        """Stage 0b: Detect document edges and crop."""
         stage_start = time.time()
         if self.enable_document_detection:
             image = self._detect_and_crop_document(image, stats)
         else:
             debug("  [0b] Document detection: skipped (disabled)")
         stats.stage_times["document_crop"] = (time.time() - stage_start) * 1000
+        return image
 
-        # Convert PIL Image to OpenCV format (numpy array)
-        cv_image = self._pil_to_cv2(image)
-
-        # Stage 1: Grayscale conversion
+    def _stage_grayscale(self, cv_image: np.ndarray, stats: PreprocessingStats) -> np.ndarray:
+        """Stage 1: Convert to grayscale."""
         stage_start = time.time()
         if len(cv_image.shape) == 3:
             gray = cv2.cvtColor(cv_image, cv2.COLOR_RGB2GRAY)
@@ -185,8 +227,10 @@ class ImagePreprocessor:
             gray = cv_image
             debug("  [1] Grayscale conversion: already grayscale")
         stats.stage_times["grayscale"] = (time.time() - stage_start) * 1000
+        return gray
 
-        # Stage 2: Noise removal (denoising)
+    def _stage_denoise(self, gray: np.ndarray, stats: PreprocessingStats) -> np.ndarray:
+        """Stage 2: Apply noise removal."""
         stage_start = time.time()
         try:
             denoised = cv2.fastNlMeansDenoising(gray, None, self.denoise_strength, 7, 21)
@@ -196,8 +240,10 @@ class ImagePreprocessor:
             denoised = gray
             warning(f"  [2] Denoising failed: {e}")
         stats.stage_times["denoise"] = (time.time() - stage_start) * 1000
+        return denoised
 
-        # Stage 3: Contrast enhancement (CLAHE)
+    def _stage_contrast(self, denoised: np.ndarray, stats: PreprocessingStats) -> np.ndarray:
+        """Stage 3: Apply CLAHE contrast enhancement."""
         stage_start = time.time()
         if self.enable_clahe:
             try:
@@ -214,8 +260,10 @@ class ImagePreprocessor:
             enhanced = denoised
             debug("  [3] CLAHE contrast enhancement: skipped (disabled)")
         stats.stage_times["clahe"] = (time.time() - stage_start) * 1000
+        return enhanced
 
-        # Stage 4: Adaptive thresholding (binarization)
+    def _stage_binarize(self, enhanced: np.ndarray, stats: PreprocessingStats) -> np.ndarray:
+        """Stage 4: Apply adaptive thresholding (binarization)."""
         stage_start = time.time()
         try:
             binary = cv2.adaptiveThreshold(
@@ -240,19 +288,23 @@ class ImagePreprocessor:
                 binary = enhanced
                 warning(f"  [4] All binarization failed: {e2}")
         stats.stage_times["binarize"] = (time.time() - stage_start) * 1000
+        return binary
 
-        # Stage 5: Deskewing
+    def _stage_deskew(self, binary: np.ndarray, stats: PreprocessingStats) -> np.ndarray:
+        """Stage 5: Detect and correct skew."""
         stage_start = time.time()
         deskewed, skew_angle = self._deskew(binary)
         stats.skew_angle = skew_angle
-        stats.skew_corrected = abs(skew_angle) > 0.5  # Only count if significant correction
+        stats.skew_corrected = abs(skew_angle) > 0.5
         if stats.skew_corrected:
             debug(f"  [5] Deskewing: corrected {skew_angle:.2f}° rotation")
         else:
             debug(f"  [5] Deskewing: no significant skew detected ({skew_angle:.2f}°)")
         stats.stage_times["deskew"] = (time.time() - stage_start) * 1000
+        return deskewed
 
-        # Stage 6: Border padding
+    def _stage_border(self, deskewed: np.ndarray, stats: PreprocessingStats) -> np.ndarray:
+        """Stage 6: Add white border padding."""
         stage_start = time.time()
         if self.border_size > 0:
             padded = cv2.copyMakeBorder(
@@ -262,7 +314,7 @@ class ImagePreprocessor:
                 self.border_size,
                 self.border_size,
                 cv2.BORDER_CONSTANT,
-                value=255,  # White border
+                value=255,
             )
             stats.border_added = True
             debug(f"  [6] Border padding: added {self.border_size}px white border")
@@ -270,17 +322,7 @@ class ImagePreprocessor:
             padded = deskewed
             debug("  [6] Border padding: skipped (disabled)")
         stats.stage_times["border"] = (time.time() - stage_start) * 1000
-
-        # Convert back to PIL Image
-        result = self._cv2_to_pil(padded)
-        stats.processed_size = result.size
-        stats.total_time_ms = (time.time() - start_time) * 1000
-
-        debug(
-            f"Image preprocessing complete: {stats.processed_size[0]}x{stats.processed_size[1]} in {stats.total_time_ms:.1f}ms"
-        )
-
-        return result, stats
+        return padded
 
     def _deskew(self, image: np.ndarray) -> tuple[np.ndarray, float]:
         """

@@ -436,7 +436,10 @@ def export_vocabulary_html(
 
         Path(file_path).write_text(html_content, encoding="utf-8")
         return True
-    except Exception:
+    except Exception as e:
+        from src.logging_config import error
+
+        error(f"[HTML Export] Failed to export vocabulary HTML to '{file_path}': {e}")
         return False
 
 
@@ -784,5 +787,8 @@ def export_qa_html(
 
         Path(file_path).write_text(html_content, encoding="utf-8")
         return True
-    except Exception:
+    except Exception as e:
+        from src.logging_config import error
+
+        error(f"[HTML Export] Failed to export Q&A HTML to '{file_path}': {e}")
         return False

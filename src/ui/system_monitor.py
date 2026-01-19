@@ -64,7 +64,8 @@ class SystemMonitor(ctk.CTkFrame):
         # Get CPU info
         try:
             self.cpu_model = platform.processor() or "Unknown CPU"
-        except Exception:
+        except Exception as e:
+            debug_log(f"[SystemMonitor] Failed to get CPU model: {e}")
             self.cpu_model = "Unknown CPU"
 
         if PSUTIL_AVAILABLE:
@@ -136,8 +137,12 @@ class SystemMonitor(ctk.CTkFrame):
                 self._collect_metrics()
                 # Sleep for update interval (metrics collection is now non-blocking)
                 time.sleep(self.update_interval_ms / 1000.0)
-            except Exception:
-                pass  # Silently ignore errors to avoid console spam
+            except Exception as e:
+                # Log but don't spam - background thread errors are expected during shutdown
+                debug_log(
+                    f"[SystemMonitor] Monitoring loop error (may be normal during shutdown): {e}"
+                )
+                pass
 
     def _collect_metrics(self):
         """Collect current system metrics (background thread safe)."""
@@ -161,8 +166,8 @@ class SystemMonitor(ctk.CTkFrame):
             self.current_ram_percent = ram_percent
             self._metrics_updated = True
 
-        except Exception:
-            pass  # Silently ignore errors
+        except Exception as e:
+            debug_log(f"[SystemMonitor] Failed to collect metrics: {e}")
 
     def _schedule_main_thread_update(self):
         """Schedule the next display update check (main thread only)."""
@@ -281,7 +286,8 @@ class SystemMonitor(ctk.CTkFrame):
                         freq_text += f" | Max: {cpu_freq.max:.1f} GHz"
                 else:
                     freq_text = "Frequency: Unknown (psutil not available)"
-            except Exception:
+            except Exception as e:
+                debug_log(f"[SystemMonitor] Failed to get CPU frequency: {e}")
                 freq_text = "Frequency: Unknown"
 
             # Build tooltip text with RAM percentage and GB breakdown
@@ -327,7 +333,8 @@ class SystemMonitor(ctk.CTkFrame):
                 screen_height = self.winfo_screenheight()
                 vroot_x = self.winfo_vrootx()
                 vroot_y = self.winfo_vrooty()
-            except Exception:
+            except Exception as e:
+                debug_log(f"[SystemMonitor] Failed to get screen dimensions: {e}")
                 screen_width, screen_height = 1920, 1080
                 vroot_x, vroot_y = 0, 0
 

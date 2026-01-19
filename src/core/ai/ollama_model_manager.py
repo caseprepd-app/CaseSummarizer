@@ -50,8 +50,9 @@ def _get_context_window() -> int:
 
         prefs = get_user_preferences()
         return prefs.get_effective_context_size()
-    except Exception:
+    except Exception as e:
         # Fallback to config default if preferences unavailable
+        debug_log(f"[OLLAMA] Could not load user preferences for context size: {e}")
         return OLLAMA_CONTEXT_WINDOW
 
 
@@ -74,7 +75,8 @@ class OllamaModelManager:
             prefs = get_user_preferences()
             saved_model = prefs.get("ollama_model", "")
             self.model_name = saved_model if saved_model else OLLAMA_MODEL_NAME
-        except Exception:
+        except Exception as e:
+            debug_log(f"[OLLAMA] Could not load saved model preference: {e}")
             self.model_name = OLLAMA_MODEL_NAME
 
         self.current_model_name = self.model_name  # For compatibility with worker code
@@ -611,8 +613,8 @@ class OllamaModelManager:
                             return json.loads(candidate)
                         except json.JSONDecodeError:
                             continue
-        except Exception:
-            pass
+        except Exception as e:
+            debug_log(f"[OLLAMA STRUCTURED] JSON block extraction failed: {e}")
 
         # Strategy 4: If it's a JSON array
         try:
