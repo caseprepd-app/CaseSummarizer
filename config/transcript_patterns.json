@@ -40,5 +40,11 @@
     "min_refs_for_index_line": 3,
     "min_refs_with_word_count": 2,
     "digit_to_letter_ratio": 1.5
+  },
+
+  "index_page_detection": {
+    "_description": "Thresholds for IndexPageRemover preprocessor (whole-page removal)",
+    "min_index_lines": 10,
+    "min_density_percent": 30
   }
 }

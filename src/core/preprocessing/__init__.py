@@ -25,6 +25,7 @@ Usage:
 
 from src.core.preprocessing.base import BasePreprocessor, PreprocessingPipeline
 from src.core.preprocessing.header_footer_remover import HeaderFooterRemover
+from src.core.preprocessing.index_page_remover import IndexPageRemover
 from src.core.preprocessing.line_number_remover import LineNumberRemover
 from src.core.preprocessing.qa_converter import QAConverter
 from src.core.preprocessing.title_page_remover import TitlePageRemover
@@ -38,10 +39,11 @@ def create_default_pipeline() -> PreprocessingPipeline:
 
     Order matters:
     1. TitlePageRemover - Removes cover/title pages first
-    2. HeaderFooterRemover - Removes repetitive headers/footers
-    3. LineNumberRemover - Removes line numbers from margins
-    4. TranscriptCleaner - Removes page numbers, certification, index pages
-    5. QAConverter - Converts Q./A. notation to readable format
+    2. IndexPageRemover - Removes index/concordance pages (and all after)
+    3. HeaderFooterRemover - Removes repetitive headers/footers
+    4. LineNumberRemover - Removes line numbers from margins
+    5. TranscriptCleaner - Removes page numbers, certification, index pages
+    6. QAConverter - Converts Q./A. notation to readable format
 
     Returns:
         Configured PreprocessingPipeline instance
@@ -49,6 +51,7 @@ def create_default_pipeline() -> PreprocessingPipeline:
     return PreprocessingPipeline(
         preprocessors=[
             TitlePageRemover(),
+            IndexPageRemover(),
             HeaderFooterRemover(),
             LineNumberRemover(),
             TranscriptCleaner(),
@@ -60,6 +63,7 @@ def create_default_pipeline() -> PreprocessingPipeline:
 __all__ = [
     "BasePreprocessor",
     "HeaderFooterRemover",
+    "IndexPageRemover",
     "LineNumberRemover",
     "PreprocessingPipeline",
     "QAConverter",
