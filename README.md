@@ -37,6 +37,27 @@ python src/main.py
 set DEBUG=true && python src/main.py
 ```
 
+## For Claude Code Sessions
+
+The virtual environment is at `.venv`. Claude Code's bash tool runs in a Linux shell, so use PowerShell to run commands on Windows:
+
+```bash
+# Run the app (normal mode)
+powershell -Command "& '.venv\Scripts\python.exe' src/main.py"
+
+# Run the app with DEBUG=true
+powershell -Command "$env:DEBUG='true'; & '.venv\Scripts\python.exe' src/main.py"
+
+# Run any Python command
+powershell -Command "& '.venv\Scripts\python.exe' -c \"print('hello')\""
+
+# Run tests
+powershell -Command "& '.venv\Scripts\python.exe' -m pytest tests/ -v"
+
+# Check import violations
+powershell -Command "& '.venv\Scripts\python.exe' find_violations.py --quick"
+```
+
 ## Tests
 
 ```bash
