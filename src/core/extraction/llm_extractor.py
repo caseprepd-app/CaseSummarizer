@@ -41,6 +41,7 @@ from pathlib import Path
 from typing import ClassVar
 
 from src.categories import get_llm_prompt_categories, normalize_category
+from src.config import LLM_EXTRACTOR_MAX_TOKENS
 from src.core.ai.ollama_model_manager import OllamaModelManager
 from src.logging_config import debug_log
 
@@ -52,11 +53,8 @@ PROMPT_FILE = (
     / "combined_extraction.txt"
 )
 
-# Chunk size for processing (characters)
-DEFAULT_CHUNK_SIZE = 2000
-
-# Maximum tokens for LLM response
-DEFAULT_MAX_TOKENS = 1000
+# Maximum tokens for LLM response - from config with fallback
+DEFAULT_MAX_TOKENS = LLM_EXTRACTOR_MAX_TOKENS  # Fallback: 1000
 
 
 @dataclass
@@ -236,90 +234,35 @@ DOCUMENT CHUNK:
     def extract(
         self,
         text: str,
-        chunk_size_chars: int = DEFAULT_CHUNK_SIZE,
         progress_callback: Callable[[int, int], None] | None = None,
     ) -> LLMExtractionResult:
         """
         Extract people and vocabulary from text using single LLM prompt per chunk.
 
+        Uses token-based UnifiedChunker for optimal chunk sizes (400-1000 tokens).
         Results are stored in memory as lists of LLMPerson and LLMTerm objects.
-        Session 69: Uses parallel processing when beneficial.
 
         Args:
             text: Full document text to process
-            chunk_size_chars: Size of each chunk in characters
             progress_callback: Optional callback(current, total) for progress updates
 
         Returns:
             LLMExtractionResult with all extracted people and terms
         """
-        start_time = time.time()
+        # Import here to avoid circular import at module level
+        from src.core.chunking.unified_chunker import create_unified_chunker
 
-        # Chunk the text
-        chunks = self._chunk_text(text, chunk_size_chars)
-        chunk_count = len(chunks)
-
-        debug_log(f"[LLMVocabExtractor] Processing {chunk_count} chunks")
-
-        # Convert to (chunk_text, chunk_id) tuples for parallel processing
-        chunk_items = [(chunk, i) for i, chunk in enumerate(chunks)]
-
-        # Use parallel extraction (Session 69)
-        all_people, all_terms = self._extract_chunks_parallel(chunk_items, progress_callback)
-
-        processing_time = (time.time() - start_time) * 1000
+        # Use UnifiedChunker for token-based chunking (research-optimal 400-1000 tokens)
+        chunker = create_unified_chunker()
+        chunks = chunker.chunk_text(text)
 
         debug_log(
-            f"[LLMVocabExtractor] Complete: {len(all_people)} people, {len(all_terms)} terms "
-            f"from {chunk_count} chunks in {processing_time:.1f}ms"
+            f"[LLMVocabExtractor] Using UnifiedChunker: {len(chunks)} chunks "
+            f"(token-based, target={chunker.target_tokens})"
         )
 
-        return LLMExtractionResult(
-            people=all_people,
-            terms=all_terms,
-            chunk_count=chunk_count,
-            processing_time_ms=processing_time,
-            success=True,
-        )
-
-    def _chunk_text(self, text: str, chunk_size: int) -> list[str]:
-        """
-        Split text into chunks for processing.
-
-        Attempts to split on sentence boundaries when possible.
-
-        Args:
-            text: Full text to chunk
-            chunk_size: Target chunk size in characters
-
-        Returns:
-            List of text chunks
-        """
-        if len(text) <= chunk_size:
-            return [text]
-
-        chunks = []
-        current_pos = 0
-
-        while current_pos < len(text):
-            # Get chunk of target size
-            end_pos = min(current_pos + chunk_size, len(text))
-
-            if end_pos < len(text):
-                # Try to find a sentence boundary
-                chunk = text[current_pos:end_pos]
-
-                # Look for sentence-ending punctuation
-                for punct in [". ", ".\n", "? ", "?\n", "! ", "!\n"]:
-                    last_punct = chunk.rfind(punct)
-                    if last_punct > chunk_size * 0.5:  # At least half the chunk
-                        end_pos = current_pos + last_punct + len(punct)
-                        break
-
-            chunks.append(text[current_pos:end_pos].strip())
-            current_pos = end_pos
-
-        return [c for c in chunks if c]  # Remove empty chunks
+        # Delegate to the unified chunk extraction method
+        return self.extract_from_unified_chunks(chunks, progress_callback)
 
     def _extract_chunk(self, chunk: str, chunk_id: int) -> tuple[list[LLMPerson], list[LLMTerm]]:
         """

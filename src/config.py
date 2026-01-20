@@ -372,6 +372,10 @@ LLM_TOP_P = 0.9  # Nucleus sampling parameter
 LLM_TOKENS_PER_WORD = 1.5  # Estimate for token budget calculation
 LLM_TOKEN_BUFFER_MULTIPLIER = 1.3  # Safety buffer to prevent mid-sentence cutoffs
 
+# LLM Vocabulary Extractor Settings
+# Used by llm_extractor.py for vocabulary extraction
+LLM_EXTRACTOR_MAX_TOKENS = 1000  # Maximum tokens for LLM response
+
 # Summary Length Enforcement Settings
 # When a generated summary exceeds target by more than TOLERANCE, it will be condensed
 SUMMARY_LENGTH_TOLERANCE = 0.20  # 20% overage allowed (200 words → accepts up to 240)
@@ -456,6 +460,11 @@ PHRASE_MEAN_COMMONALITY_THRESHOLD = 0.40  # Filter if average word in top 40%
 #   "cervical" (rank ~50000, score 0.15) < 0.50 -> FILTERED (top 15%)
 #   "radiculopathy" (rank ~250000, score 0.75) > 0.50 -> KEPT (bottom 25%)
 SINGLE_WORD_COMMONALITY_THRESHOLD = 0.50  # Filter top 50% of vocabulary
+
+# Artifact Filter: Common word threshold for detecting name+common-word artifacts
+# Used to identify patterns like "Luigi Napolitano Patient" where "Patient" is common
+# Words with rank below this threshold are considered "common" for artifact detection
+ARTIFACT_FILTER_COMMON_WORD_THRESHOLD = 200000
 
 # GUI Display Limits for Vocabulary Table
 # Based on tkinter Treeview performance testing:
@@ -648,6 +657,17 @@ UNIFIED_CHUNK_MAX_TOKENS = 1000  # Upper bound (>1024 hurts retrieval precision)
 # tiktoken encoding for token counting
 # cl100k_base is compatible with most modern models (GPT-3.5+, Claude, Llama)
 UNIFIED_CHUNK_ENCODING = "cl100k_base"
+
+# ============================================================================
+# Case Briefing Chunking Configuration
+# ============================================================================
+# Used by briefing/chunker.py for section-aware document splitting
+# Chunk sizes are in characters (not tokens) for simplicity in legal docs
+# Target ~1500-2000 chars fits well in Ollama's context window
+
+BRIEFING_CHUNK_TARGET_CHARS = 1800  # Target chunk size in characters
+BRIEFING_CHUNK_MAX_CHARS = 2500  # Maximum chunk size (hard limit)
+BRIEFING_CHUNK_MIN_CHARS = 500  # Minimum chunk size (avoids tiny chunks)
 
 # ============================================================================
 # Hallucination Verification Configuration (Session 60)
