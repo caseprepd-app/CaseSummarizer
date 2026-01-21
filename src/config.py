@@ -9,8 +9,7 @@ from pathlib import Path
 import yaml
 
 # Debug Mode Configuration
-# TEMP: Hard-coded for Session 77 debugging and feedback collection
-DEBUG_MODE = True  # os.environ.get('DEBUG', 'false').lower() == 'true'
+DEBUG_MODE = os.environ.get("DEBUG", "false").lower() == "true"
 
 # Application Name (loaded from config/app_name.txt for easy rebranding)
 # This file contains just the app name on a single line
@@ -482,6 +481,26 @@ SINGLE_WORD_COMMONALITY_THRESHOLD = 0.50  # Filter top 50% of vocabulary
 # Used to identify patterns like "Luigi Napolitano Patient" where "Patient" is common
 # Words with rank below this threshold are considered "common" for artifact detection
 ARTIFACT_FILTER_COMMON_WORD_THRESHOLD = 200000
+
+# Artifact Filter: Maximum edit distance for fuzzy matching
+# Used when checking if terms are fuzzy matches of canonical terms
+ARTIFACT_FILTER_FUZZY_MAX_EDIT_DISTANCE = 2
+
+# Index Page Remover Configuration
+# Thresholds for detecting index/concordance pages in legal transcripts
+INDEX_MIN_INDEX_LINES = 10  # Require 10+ index-like lines to detect
+INDEX_MIN_DENSITY_PERCENT = 30  # At least 30% of lines must match patterns
+INDEX_DETECTION_WINDOW_SIZE = 50  # Lines to analyze per window
+INDEX_MIN_TEXT_LENGTH = 1000  # Minimum chars before checking for index
+INDEX_TAIL_CHECK_FRACTION = 10  # Check 1/10 of document tail
+INDEX_MAX_CHECK_LENGTH = 20000  # Maximum chars to check in tail
+INDEX_ESTIMATED_CHARS_PER_LINE = 60  # For estimating line count from chars
+INDEX_PAGE_REF_DIVISOR = 2  # Divide page refs by this for density calc
+INDEX_CHAR_WINDOW_SIZE = 2000  # Character window size for char-based detection
+
+# Semantic Chunker Embedding Model
+# Used by UnifiedChunker for semantic text splitting
+SEMANTIC_CHUNKER_EMBEDDING_MODEL = "all-MiniLM-L6-v2"
 
 # GUI Display Limits for Vocabulary Table
 # Based on tkinter Treeview performance testing:

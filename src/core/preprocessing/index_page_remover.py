@@ -11,6 +11,10 @@ the index page AND all subsequent pages are removed.
 
 import re
 
+from src.config import (
+    INDEX_MIN_DENSITY_PERCENT,
+    INDEX_MIN_INDEX_LINES,
+)
 from src.core.preprocessing.base import BasePreprocessor, PreprocessingResult
 from src.logging_config import debug_log
 
@@ -23,16 +27,14 @@ class IndexPageRemover(BasePreprocessor):
     references like "330:7,8,17;331:15". Once detected, the index page
     and ALL subsequent pages are removed (indexes are always at the end).
 
-    Detection is conservative:
-    - Requires 10+ index-like lines per page
-    - At least 30% of lines must match index patterns
+    Detection is conservative - thresholds configured in src/config.py.
     """
 
     name = "Index Page Remover"
 
-    # Thresholds (very conservative to avoid false positives)
-    MIN_INDEX_LINES = 10  # Require 10+ index-like lines
-    MIN_DENSITY_PERCENT = 30  # At least 30% of lines must match
+    # Thresholds from config (very conservative to avoid false positives)
+    MIN_INDEX_LINES = INDEX_MIN_INDEX_LINES
+    MIN_DENSITY_PERCENT = INDEX_MIN_DENSITY_PERCENT
 
     # Patterns for detecting index content
     WORD_WITH_COUNT = re.compile(r"[A-Za-z]+\s*\(\d+\)")  # "morning (14)"
@@ -125,7 +127,7 @@ class IndexPageRemover(BasePreprocessor):
     def _check_tail_by_lines(self, lines: list[str]) -> PreprocessingResult:
         """Line-based index detection for text with preserved newlines."""
         total_lines = len(lines)
-        window_size = 50
+        window_size = INDEX_DETECTION_WINDOW_SIZE
         index_start_line = None
 
         # First, check the very last window
@@ -192,24 +194,26 @@ class IndexPageRemover(BasePreprocessor):
         in character windows at the end of the document.
         """
         text_len = len(text)
-        if text_len < 1000:
+        if text_len < INDEX_MIN_TEXT_LENGTH:
             return PreprocessingResult(
                 text=text,
                 changes_made=0,
                 metadata={"pages_analyzed": 1, "index_start": None},
             )
 
-        # Check last 10% of document for index patterns
-        check_len = min(text_len // 10, 20000)  # Max 20KB to check
+        # Check last 1/N of document for index patterns
+        check_len = min(text_len // INDEX_TAIL_CHECK_FRACTION, INDEX_MAX_CHECK_LENGTH)
         tail = text[-check_len:]
 
         # Count index patterns in the tail
         word_counts = len(self.WORD_WITH_COUNT.findall(tail))
         page_refs = len(self.PAGE_LINE_REF.findall(tail))
 
-        # Estimate "line equivalents" - roughly 60 chars per line
-        estimated_lines = check_len // 60
-        pattern_density = (word_counts + page_refs / 2) / max(estimated_lines, 1) * 100
+        # Estimate "line equivalents" based on chars per line
+        estimated_lines = check_len // INDEX_ESTIMATED_CHARS_PER_LINE
+        pattern_density = (
+            (word_counts + page_refs / INDEX_PAGE_REF_DIVISOR) / max(estimated_lines, 1) * 100
+        )
 
         debug_log(
             f"[Index Page Remover] Tail analysis ({check_len} chars): "
@@ -227,15 +231,15 @@ class IndexPageRemover(BasePreprocessor):
             )
 
         # Scan backwards to find where index content starts
-        window_size = 2000  # 2KB windows
+        window_size = INDEX_CHAR_WINDOW_SIZE
         index_start_pos = None
 
         for pos in range(text_len - window_size, 0, -window_size // 2):
             window = text[pos : pos + window_size]
             wc = len(self.WORD_WITH_COUNT.findall(window))
             pr = len(self.PAGE_LINE_REF.findall(window))
-            est_lines = window_size // 60
-            density = (wc + pr / 2) / max(est_lines, 1) * 100
+            est_lines = window_size // INDEX_ESTIMATED_CHARS_PER_LINE
+            density = (wc + pr / INDEX_PAGE_REF_DIVISOR) / max(est_lines, 1) * 100
 
             if density >= self.MIN_DENSITY_PERCENT:
                 index_start_pos = pos

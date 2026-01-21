@@ -211,7 +211,7 @@ def filter_name_fragments(
         return vocabulary
 
     # Sort by count descending
-    sorted_vocab = sorted(vocabulary, key=lambda x: int(x.get(count_key, 0) or 0), reverse=True)
+    sorted_vocab = sorted(vocabulary, key=lambda x: int(x.get(count_key) or 0), reverse=True)
 
     # Split into top quartile and bottom 3/4
     split_index = max(1, int(len(sorted_vocab) * top_fraction))
@@ -288,7 +288,7 @@ def filter_typo_variants(
         return vocabulary
 
     # Sort by count descending
-    sorted_vocab = sorted(vocabulary, key=lambda x: int(x.get(count_key, 0) or 0), reverse=True)
+    sorted_vocab = sorted(vocabulary, key=lambda x: int(x.get(count_key) or 0), reverse=True)
 
     # Split into top quartile and bottom 3/4
     split_index = max(1, int(len(sorted_vocab) * top_fraction))
@@ -387,7 +387,7 @@ def _single_pass_regularize(
         return vocabulary, 0, 0
 
     # Sort by count descending to determine canonical terms for FRAGMENT filter
-    sorted_vocab = sorted(vocabulary, key=lambda x: int(x.get(count_key, 0) or 0), reverse=True)
+    sorted_vocab = sorted(vocabulary, key=lambda x: int(x.get(count_key) or 0), reverse=True)
 
     # Determine split point for fragment filter only
     fraction_index = int(len(sorted_vocab) * top_fraction)

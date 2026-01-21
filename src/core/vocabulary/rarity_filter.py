@@ -54,6 +54,7 @@ Rank-based scoring is more intuitive:
 - A court reporter filtering top 50% keeps only specialized terms
 """
 
+import threading
 from functools import lru_cache
 
 from src.config import (
@@ -66,14 +67,17 @@ from src.core.vocabulary.person_utils import is_person_entry
 from src.logging_config import debug_log
 from src.user_preferences import get_user_preferences
 
-# Module-level cache for scaled frequencies (loaded once)
+# Module-level cache for scaled frequencies (loaded once) with thread-safe initialization
 _scaled_frequencies: dict[str, float] | None = None
 _max_frequency: int = 0
+_freq_lock = threading.Lock()
 
 
 def _load_scaled_frequencies() -> dict[str, float]:
     """
     Load Google word frequencies and convert to rank-based percentile scores.
+
+    Thread-safe with double-check locking pattern.
 
     Returns:
         Dictionary mapping lowercase words to their rarity score.
@@ -92,56 +96,63 @@ def _load_scaled_frequencies() -> dict[str, float]:
     """
     global _scaled_frequencies, _max_frequency
 
+    # Fast path: already loaded
     if _scaled_frequencies is not None:
         return _scaled_frequencies
 
-    if not GOOGLE_WORD_FREQUENCY_FILE.exists():
-        debug_log(f"[RARITY] Frequency file not found: {GOOGLE_WORD_FREQUENCY_FILE}")
-        _scaled_frequencies = {}
-        return _scaled_frequencies
+    # Slow path: need to load (with lock)
+    with _freq_lock:
+        # Double-check after acquiring lock
+        if _scaled_frequencies is not None:
+            return _scaled_frequencies
 
-    # Load raw frequencies
-    raw_frequencies: dict[str, int] = {}
-
-    try:
-        with open(GOOGLE_WORD_FREQUENCY_FILE, encoding="utf-8") as f:
-            for line in f:
-                parts = line.strip().split("\t")
-                if len(parts) == 2:
-                    word, count_str = parts
-                    try:
-                        count = int(count_str)
-                        raw_frequencies[word.lower()] = count
-                    except ValueError:
-                        continue
-
-        if not raw_frequencies:
-            debug_log("[RARITY] No valid entries found in frequency file")
+        if not GOOGLE_WORD_FREQUENCY_FILE.exists():
+            debug_log(f"[RARITY] Frequency file not found: {GOOGLE_WORD_FREQUENCY_FILE}")
             _scaled_frequencies = {}
             return _scaled_frequencies
 
-        # Sort by frequency (descending) to get ranks
-        # Most common word = rank 0, rarest = rank (n-1)
-        sorted_words = sorted(raw_frequencies.items(), key=lambda x: -x[1])
-        total_words = len(sorted_words)
-        _max_frequency = sorted_words[0][1] if sorted_words else 0
+        # Load raw frequencies
+        raw_frequencies: dict[str, int] = {}
 
-        # Convert to rank-based percentile (0.0 = common, 1.0 = rare)
-        # rank / total gives the percentile position
-        _scaled_frequencies = {
-            word: rank / total_words for rank, (word, count) in enumerate(sorted_words)
-        }
+        try:
+            with open(GOOGLE_WORD_FREQUENCY_FILE, encoding="utf-8") as f:
+                for line in f:
+                    parts = line.strip().split("\t")
+                    if len(parts) == 2:
+                        word, count_str = parts
+                        try:
+                            count = int(count_str)
+                            raw_frequencies[word.lower()] = count
+                        except ValueError:
+                            continue
 
-        debug_log(
-            f"[RARITY] Loaded {len(_scaled_frequencies)} words (rank-based), "
-            f"max freq: {_max_frequency:,}"
-        )
+            if not raw_frequencies:
+                debug_log("[RARITY] No valid entries found in frequency file")
+                _scaled_frequencies = {}
+                return _scaled_frequencies
 
-    except Exception as e:
-        debug_log(f"[RARITY] Error loading frequencies: {e}")
-        _scaled_frequencies = {}
+            # Sort by frequency (descending) to get ranks
+            # Most common word = rank 0, rarest = rank (n-1)
+            sorted_words = sorted(raw_frequencies.items(), key=lambda x: -x[1])
+            total_words = len(sorted_words)
+            _max_frequency = sorted_words[0][1] if sorted_words else 0
 
-    return _scaled_frequencies
+            # Convert to rank-based percentile (0.0 = common, 1.0 = rare)
+            # rank / total gives the percentile position
+            _scaled_frequencies = {
+                word: rank / total_words for rank, (word, count) in enumerate(sorted_words)
+            }
+
+            debug_log(
+                f"[RARITY] Loaded {len(_scaled_frequencies)} words (rank-based), "
+                f"max freq: {_max_frequency:,}"
+            )
+
+        except Exception as e:
+            debug_log(f"[RARITY] Error loading frequencies: {e}")
+            _scaled_frequencies = {}
+
+        return _scaled_frequencies
 
 
 def get_word_commonality(word: str) -> float:

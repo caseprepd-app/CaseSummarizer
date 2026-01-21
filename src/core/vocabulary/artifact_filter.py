@@ -20,7 +20,10 @@ It complements (does not replace) name_deduplicator.py which handles
 transcript-specific artifacts like Q/A notation.
 """
 
-from src.config import ARTIFACT_FILTER_COMMON_WORD_THRESHOLD
+from src.config import (
+    ARTIFACT_FILTER_COMMON_WORD_THRESHOLD,
+    ARTIFACT_FILTER_FUZZY_MAX_EDIT_DISTANCE,
+)
 from src.core.vocabulary.person_utils import is_person_entry
 from src.core.vocabulary.rarity_filter import is_common_word
 from src.core.vocabulary.string_utils import edit_distance
@@ -31,7 +34,10 @@ DEFAULT_CANONICAL_COUNT = 25
 
 # Threshold for common word detection (top N words in Google dataset)
 # From config with fallback
-COMMON_WORD_THRESHOLD = ARTIFACT_FILTER_COMMON_WORD_THRESHOLD  # Fallback: 200000
+COMMON_WORD_THRESHOLD = ARTIFACT_FILTER_COMMON_WORD_THRESHOLD
+
+# Maximum edit distance for fuzzy matching
+FUZZY_MAX_EDIT_DISTANCE = ARTIFACT_FILTER_FUZZY_MAX_EDIT_DISTANCE
 
 
 def _get_trailing_words(term: str, canonical: str) -> list[str] | None:
@@ -100,7 +106,9 @@ def _is_common_word_variant(term: str, canonical: str) -> bool:
     return bool(leading and all(is_common_word(w, COMMON_WORD_THRESHOLD) for w in leading))
 
 
-def _is_fuzzy_common_word_variant(term: str, canonical: str, max_edit: int = 2) -> bool:
+def _is_fuzzy_common_word_variant(
+    term: str, canonical: str, max_edit: int = FUZZY_MAX_EDIT_DISTANCE
+) -> bool:
     """
     Check if term is fuzzy-canonical + common word(s).
 
@@ -239,7 +247,7 @@ def filter_substring_artifacts(
         return vocabulary
 
     # Sort by count descending to identify canonical terms
-    sorted_vocab = sorted(vocabulary, key=lambda x: int(x.get(count_key, 0) or 0), reverse=True)
+    sorted_vocab = sorted(vocabulary, key=lambda x: int(x.get(count_key) or 0), reverse=True)
 
     # Extract canonical terms (top N by count)
     # Only use multi-word canonical terms to avoid false positives where

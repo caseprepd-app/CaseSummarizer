@@ -1089,7 +1089,7 @@ class VocabularyExtractor:
         Returns:
             Sorted vocabulary list (highest Quality Score first)
         """
-        return sorted(vocabulary, key=lambda x: float(x.get("Quality Score", 0) or 0), reverse=True)
+        return sorted(vocabulary, key=lambda x: float(x.get("Quality Score") or 0), reverse=True)
 
     def _sort_by_rarity(self, vocabulary: list[dict]) -> list[dict]:
         """Sort vocabulary list by rarity (rarest first)."""

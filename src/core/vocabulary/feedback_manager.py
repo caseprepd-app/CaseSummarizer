@@ -40,6 +40,7 @@ Session 78: Added TermSources-based per-document features:
 
 import csv
 import hashlib
+import threading
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -54,6 +55,27 @@ from src.config import (
 )
 from src.core.vocabulary.term_sources import TermSources
 from src.logging_config import debug_log
+
+# Required fields for valid feedback records
+REQUIRED_FEEDBACK_FIELDS = {"term", "feedback", "timestamp"}
+
+
+def _validate_record(record: dict) -> bool:
+    """
+    Check if feedback record has required fields.
+
+    Args:
+        record: Feedback record dictionary
+
+    Returns:
+        True if record has all required fields with non-empty values
+    """
+    for field in REQUIRED_FEEDBACK_FIELDS:
+        value = record.get(field)
+        if value is None or (isinstance(value, str) and not value.strip()):
+            return False
+    return True
+
 
 # CSV columns
 # Session 52: Replaced "type" with "is_person" (binary flag, more reliable)
@@ -245,7 +267,7 @@ class FeedbackManager:
         try:
             # Get count bin for the term being deleted
             try:
-                count = int(term_data.get("In-Case Freq", 1) or 1)
+                count = int(term_data.get("In-Case Freq") or 1)
             except (ValueError, TypeError):
                 count = 1
             delete_key = (lower_term, get_count_bin(count))
@@ -259,7 +281,7 @@ class FeedbackManager:
                 for row in reader:
                     row_term = row.get("term", "").lower().strip()
                     try:
-                        row_count = int(row.get("in_case_freq", 1) or 1)
+                        row_count = int(row.get("in_case_freq") or 1)
                     except (ValueError, TypeError):
                         row_count = 1
                     row_key = (row_term, get_count_bin(row_count))
@@ -394,7 +416,7 @@ class FeedbackManager:
 
             # Session 85: Deduplicate by (term, count_bin) at write time
             # If same (term, count_bin) exists, replace it; otherwise append
-            new_count_bin = get_count_bin(int(record.get("in_case_freq", 1) or 1))
+            new_count_bin = get_count_bin(int(record.get("in_case_freq") or 1))
             new_key = (lower_term, new_count_bin)
 
             existing_records: list[dict] = []
@@ -406,7 +428,7 @@ class FeedbackManager:
                     for row in reader:
                         row_term = row.get("term", "").lower().strip()
                         try:
-                            row_count = int(row.get("in_case_freq", 1) or 1)
+                            row_count = int(row.get("in_case_freq") or 1)
                         except (ValueError, TypeError):
                             row_count = 1
                         row_key = (row_term, get_count_bin(row_count))
@@ -689,15 +711,22 @@ class FeedbackManager:
         all_feedback.sort(key=get_timestamp)
 
         # Deduplicate by (term, count_bin) - last entry wins
+        # Also validate each record has required fields
         term_bin_feedback: dict[tuple[str, str], dict] = {}
+        skipped_invalid = 0
         for record in all_feedback:
+            # Validate required fields
+            if not _validate_record(record):
+                skipped_invalid += 1
+                continue
+
             term = record.get("term", "").lower().strip()
             if not term:
                 continue
 
             # Get count bin for deduplication key
             try:
-                count = int(record.get("in_case_freq", 1) or 1)
+                count = int(record.get("in_case_freq") or 1)
             except (ValueError, TypeError):
                 count = 1
             count_bin = get_count_bin(count)
@@ -709,27 +738,39 @@ class FeedbackManager:
         default_count = sum(1 for r in result if r.get("source") == "default")
         user_count = sum(1 for r in result if r.get("source") == "user")
         total_raw = len(default_feedback) + len(user_feedback)
-        deduped = total_raw - len(result)
+        deduped = total_raw - len(result) - skipped_invalid
         debug_log(
             f"[FEEDBACK] Exported training data: {len(result)} records "
-            f"({default_count} default, {user_count} user, {deduped} duplicates removed)"
+            f"({default_count} default, {user_count} user, {deduped} duplicates removed"
+            + (f", {skipped_invalid} invalid)" if skipped_invalid else ")")
         )
 
         return result
 
 
-# Global singleton instance
+# Global singleton instance with thread-safe initialization
 _feedback_manager: FeedbackManager | None = None
+_feedback_lock = threading.Lock()
 
 
 def get_feedback_manager() -> FeedbackManager:
     """
     Get the global FeedbackManager singleton.
 
+    Thread-safe with double-check locking pattern.
+
     Returns:
         FeedbackManager instance
     """
     global _feedback_manager
-    if _feedback_manager is None:
-        _feedback_manager = FeedbackManager()
+
+    # Fast path: already initialized
+    if _feedback_manager is not None:
+        return _feedback_manager
+
+    # Slow path: need to initialize (with lock)
+    with _feedback_lock:
+        # Double-check after acquiring lock
+        if _feedback_manager is None:
+            _feedback_manager = FeedbackManager()
     return _feedback_manager

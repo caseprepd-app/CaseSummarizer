@@ -1,0 +1,453 @@
+"""
+Feature Extraction for Vocabulary Meta-Learner
+
+Extracts feature vectors from term data for ML model training and prediction.
+
+Features include:
+- Count bins (one-hot encoded occurrence frequency)
+- Algorithm source features (NER, RAKE, BM25)
+- Character/format features (artifact detection)
+- Document quality features
+- Name validation features
+- TermSources-based per-document confidence features
+"""
+
+from typing import Any
+
+import numpy as np
+
+from src.config import get_count_bin_features
+from src.core.vocabulary.meta_learner_text_analysis import (
+    _load_names_datasets,
+    _log_rarity_score,
+    _max_consonant_run,
+)
+from src.core.vocabulary.rarity_filter import _load_scaled_frequencies
+from src.core.vocabulary.term_sources import TermSources
+
+# Medical suffixes for domain-specific feature (Session 76)
+MEDICAL_SUFFIXES = (
+    "itis",
+    "osis",
+    "ectomy",
+    "pathy",
+    "algia",
+    "emia",
+    "plasty",
+    "scopy",
+    "otomy",
+    "ology",
+    "oma",
+    "esis",
+    "iasis",
+    "trophy",
+    "megaly",
+    "rrhea",
+    "rrhage",
+    "plegia",
+)
+
+# Legal suffixes for domain-specific feature (Session 83)
+LEGAL_SUFFIXES = (
+    "ant",  # defendant, complainant, claimant
+    "ent",  # respondent, decedent
+    "ee",  # appellee, mortgagee, payee, lessee
+    "or",  # mortgagor, payor, lessor (when legal context)
+)
+
+# Title prefixes indicating person names (Session 83)
+TITLE_PREFIXES = (
+    "dr.",
+    "dr ",
+    "mr.",
+    "mr ",
+    "ms.",
+    "ms ",
+    "mrs.",
+    "mrs ",
+    "hon.",
+    "hon ",
+    "judge ",
+    "justice ",
+    "senator ",
+    "rep.",
+    "rep ",
+)
+
+# Professional suffixes indicating person names (Session 83)
+PROFESSIONAL_SUFFIXES = (
+    "m.d.",
+    "md",
+    "esq.",
+    "esq",
+    "ph.d.",
+    "phd",
+    "r.n.",
+    "rn",
+    "d.o.",
+    "do",
+    "j.d.",
+    "jd",
+    "d.d.s.",
+    "dds",
+    "p.a.",
+    "pa",
+    "n.p.",
+    "np",
+)
+
+# Feature indices for interpretability
+# Session 52: Removed unreliable type features (is_medical, is_technical, is_place, is_unknown)
+# Only is_person is reliable (NER person detection)
+# Session 54: Added source_doc_confidence to weight terms by OCR quality
+# Session 68: Added corpus_familiarity_score and is_title_case
+# Session 78: Added 7 TermSources features for per-document confidence tracking
+FEATURE_NAMES = [
+    # Count bin features (Session 84, expanded Session 130) - one-hot encoded
+    # Rationale: count=1 could be OCR error, higher counts progressively more reliable
+    # Session 130: Added granularity above 7 to distinguish frequent names (119 occ)
+    "count_bin_1",  # Exactly 1 occurrence (possible OCR error)
+    "count_bin_2",  # Exactly 2 occurrences
+    "count_bin_3",  # Exactly 3 occurrences
+    "count_bin_4_6",  # 4-6 occurrences
+    "count_bin_7_20",  # 7-20 occurrences (mentioned multiple times)
+    "count_bin_21_50",  # 21-50 occurrences (appears throughout document)
+    "count_bin_51_plus",  # 51+ occurrences (major figure in transcript)
+    "log_count",  # Session 131: Log-scaled count preserving magnitude (log10(count+1))
+    "occurrence_ratio",  # Document-relative frequency (count / total_unique_terms)
+    # Algorithm features
+    "has_ner",
+    "has_rake",
+    "has_bm25",  # Added in Session 47 for per-algorithm tracking
+    "is_person",  # NER person detection - the only reliable type info
+    # Character/format features for artifact detection
+    "has_trailing_punctuation",  # "Smith:", "Di Leo." - likely artifacts
+    "has_leading_digit",  # "4 Ms. Di Leo", "17 SMITH" - line numbers
+    "has_trailing_digit",  # "Smith 17", "Di Leo 2" - page/line number suffixes
+    "word_count",  # 1-3 words = good, 4+ = suspicious over-extraction
+    "is_all_caps",  # "PLAINTIFF'S EXHIBIT" - headers, not vocabulary
+    "is_title_case",  # 1.0 if term.istitle() (proper nouns), 0.0 otherwise
+    # Document quality feature (Session 54)
+    "source_doc_confidence",  # OCR/extraction confidence (0-100) - lower = more OCR errors
+    # Corpus familiarity features (Session 68)
+    "corpus_familiarity_score",  # 0.0-1.0, proportion of corpus docs containing term
+    # Session 76 features (9 total) + Session 130 rarity score
+    "freq_dict_word_ratio",
+    "all_words_in_freq_dict",
+    "word_log_rarity_score",  # Session 130: Mean log-scaled rarity (0=common, 1=rare)
+    "term_length",
+    "vowel_ratio",
+    "is_single_letter",
+    "has_internal_digits",
+    "has_medical_suffix",
+    "has_repeated_chars",
+    "contains_hyphen",
+    # Session 78: TermSources-based per-document confidence features (7 total)
+    # These provide richer signals about term reliability across source documents
+    "num_source_documents",  # How many docs contain this term (more = more reliable)
+    "doc_diversity_ratio",  # num_docs / total_docs (0-1, spread across corpus)
+    "mean_doc_confidence",  # Count-weighted mean OCR confidence (0-1)
+    "median_doc_confidence",  # Median confidence - robust to single bad scan (0-1)
+    "confidence_std_dev",  # Consistency of confidence across docs (0-0.5)
+    "high_conf_doc_ratio",  # % of source docs with confidence > 0.80 (0-1)
+    "all_low_conf",  # 1 if ALL source docs have conf < 0.60 (red flag)
+    # Session 83: Name validation and domain-specific features (5 total)
+    "is_in_names_dataset",  # Any word in international forenames/surnames datasets
+    "has_legal_suffix",  # -ant, -ent, -ee, -or (defendant, appellee, etc.)
+    "has_title_prefix",  # Dr., Mr., Ms., Hon., Judge, etc.
+    "has_professional_suffix",  # M.D., Esq., Ph.D., R.N., etc.
+    "max_consonant_run",  # Longest consonant streak (gibberish detector)
+]
+
+
+def extract_features(term_data: dict[str, Any]) -> np.ndarray:
+    """
+    Extract feature vector from term data.
+
+    Session 76: Major feature overhaul
+    - Removed: quality_score (circular), num_algorithms (redundant), freq_rank_normalized
+    - Added: 9 new features including word-level frequency, vowel ratio, medical suffix
+
+    Session 78: Added 7 TermSources-based per-document features:
+    - num_source_documents, doc_diversity_ratio, mean_doc_confidence,
+      median_doc_confidence, confidence_std_dev, high_conf_doc_ratio, all_low_conf
+    - These provide richer signals about term reliability across source documents
+    - Falls back to sensible defaults when TermSources not available (legacy data)
+
+    Args:
+        term_data: Dictionary with term information (from feedback CSV or extractor)
+                  May include "sources" (TermSources) and "total_docs_in_session"
+
+    Returns:
+        numpy array of 43 features (7 count bins + log_count + 35 other features)
+
+    Raises:
+        ValueError: If term_data is not a dict or missing required fields
+    """
+    # Validate required fields
+    if not isinstance(term_data, dict):
+        raise ValueError(f"term_data must be dict, got {type(term_data)}")
+
+    # Get the term text
+    term = str(term_data.get("Term", "") or term_data.get("term", "") or "")
+    if not term:
+        raise ValueError("term_data must contain 'Term' or 'term' key with non-empty value")
+
+    term_lower = term.lower()
+
+    # === FREQUENCY FEATURES ===
+    in_case_freq = float(term_data.get("in_case_freq") or 1)
+    count = int(in_case_freq)
+
+    # Count bins (Session 84/85, expanded Session 130) - one-hot encoded via config
+    # Rationale: count=1 could be OCR error, higher counts more reliable
+    # Session 130: Added granularity above 7 (bin_7_20, bin_21_50, bin_51_plus)
+    (
+        count_bin_1,
+        count_bin_2,
+        count_bin_3,
+        count_bin_4_6,
+        count_bin_7_20,
+        count_bin_21_50,
+        count_bin_51_plus,
+    ) = get_count_bin_features(count)
+
+    # Session 131: Log-scaled count to preserve magnitude within bins
+    # bin_51_plus covers 51-∞ with no distinction; log_count provides continuous signal
+    # Examples: 1→0, 10→1.0, 100→2.0, 301→2.48
+    log_count = np.log10(count + 1)
+
+    # Document-relative frequency - normalizes for document size
+    total_unique_terms = float(term_data.get("total_unique_terms") or 0)
+    if total_unique_terms > 0:
+        occurrence_ratio = in_case_freq / total_unique_terms
+    else:
+        occurrence_ratio = in_case_freq / 100.0  # Fallback for legacy data
+
+    # === ALGORITHM SOURCE FEATURES ===
+    algorithms = str(term_data.get("algorithms", "")).lower()
+    has_ner = 1.0 if "ner" in algorithms else 0.0
+    has_rake = 1.0 if "rake" in algorithms else 0.0
+    has_bm25 = 1.0 if "bm25" in algorithms else 0.0
+
+    # === PERSON DETECTION ===
+    is_person_val = term_data.get("is_person", 0)
+    is_person = (
+        float(is_person_val)
+        if isinstance(is_person_val, (int, float))
+        else (1.0 if str(is_person_val).lower() in ("1", "yes", "true") else 0.0)
+    )
+
+    # === CHARACTER/FORMAT FEATURES ===
+    # Trailing punctuation (":Smith", "Di Leo.") - likely artifacts
+    trailing_punct = ":;.,!?"
+    has_trailing_punctuation = 1.0 if term and term[-1] in trailing_punct else 0.0
+
+    # Leading/trailing digits
+    has_leading_digit = 1.0 if term and term[0].isdigit() else 0.0
+    has_trailing_digit = 1.0 if term and term[-1].isdigit() else 0.0
+
+    # Word count
+    words = term.split() if term else []
+    word_count = float(len(words)) if words else 1.0
+
+    # All caps detection
+    alpha_chars = [c for c in term if c.isalpha()]
+    is_all_caps = 1.0 if alpha_chars and all(c.isupper() for c in alpha_chars) else 0.0
+
+    # Source document confidence (Session 54)
+    source_doc_confidence_raw = float(term_data.get("source_doc_confidence") or 100)
+    source_doc_confidence = source_doc_confidence_raw / 100.0
+
+    # Corpus familiarity (Session 68)
+    corpus_familiarity_score = float(term_data.get("corpus_familiarity_score") or 0)
+
+    # Title case detection (Session 68)
+    is_title_case = 1.0 if term and term.istitle() else 0.0
+
+    # === NEW SESSION 76 FEATURES ===
+
+    # Word-level frequency dictionary features
+    freq_dict = _load_scaled_frequencies()
+    words_lower = [w.lower() for w in words] if words else []
+    if words_lower:
+        words_in_dict = [1.0 if w in freq_dict else 0.0 for w in words_lower]
+        freq_dict_word_ratio = sum(words_in_dict) / len(words_in_dict)
+        all_words_in_freq_dict = 1.0 if all(w in freq_dict for w in words_lower) else 0.0
+
+        # Session 130: Log-scaled rarity score (mean across words)
+        # Distinguishes "Comiskey" (rank 96755, rare) from "Clerk" (rank 5435, common)
+        rarity_scores = []
+        for w in words_lower:
+            linear_score = freq_dict.get(w, 1.0)  # Unknown words = rare (1.0)
+            rarity_scores.append(_log_rarity_score(linear_score))
+        word_log_rarity_score = sum(rarity_scores) / len(rarity_scores)
+    else:
+        freq_dict_word_ratio = 0.0
+        all_words_in_freq_dict = 0.0
+        word_log_rarity_score = 0.5  # Default for empty terms
+
+    # Term length (character count)
+    term_length = float(len(term))
+
+    # Vowel ratio - gibberish detector
+    # Real words ~40% vowels, gibberish often 0% or very low
+    vowels = set("aeiouAEIOU")
+    if alpha_chars:
+        vowel_count = sum(1 for c in alpha_chars if c in vowels)
+        vowel_ratio = vowel_count / len(alpha_chars)
+    else:
+        vowel_ratio = 0.0
+
+    # Single letter detection ("Q", "A" - transcript artifacts)
+    is_single_letter = 1.0 if len(term.strip()) == 1 and term.strip().isalpha() else 0.0
+
+    # Internal digits (digits not at start or end)
+    # "Smith17" has trailing, "17Smith" has leading, "Sm1th" has internal
+    if len(term) > 2:
+        internal_chars = term[1:-1]
+        has_internal_digits = 1.0 if any(c.isdigit() for c in internal_chars) else 0.0
+    else:
+        has_internal_digits = 0.0
+
+    # Medical suffix detection - strong signal for legitimate vocabulary
+    has_medical_suffix = (
+        1.0 if any(term_lower.endswith(suffix) for suffix in MEDICAL_SUFFIXES) else 0.0
+    )
+
+    # Repeated characters (3+ in a row) - artifact detection
+    # Catches "aaaa", ".....", "---"
+    has_repeated_chars = 0.0
+    if len(term) >= 3:
+        for i in range(len(term) - 2):
+            if term[i] == term[i + 1] == term[i + 2]:
+                has_repeated_chars = 1.0
+                break
+
+    # Contains hyphen - often legitimate compound terms
+    contains_hyphen = 1.0 if "-" in term else 0.0
+
+    # === SESSION 83: Name validation and domain-specific features ===
+
+    # Check if any word is in the names dataset
+    forenames, surnames = _load_names_datasets()
+    all_names = forenames | surnames
+    is_in_names_dataset = 0.0
+    if words_lower:
+        for w in words_lower:
+            if w in all_names:
+                is_in_names_dataset = 1.0
+                break
+
+    # Legal suffix detection (like medical suffix but for legal terms)
+    has_legal_suffix = 1.0 if any(term_lower.endswith(suffix) for suffix in LEGAL_SUFFIXES) else 0.0
+
+    # Title prefix detection (Dr., Mr., Judge, etc.)
+    has_title_prefix = (
+        1.0 if any(term_lower.startswith(prefix) for prefix in TITLE_PREFIXES) else 0.0
+    )
+
+    # Professional suffix detection (M.D., Esq., etc.)
+    # Check if term ends with any professional suffix (with optional trailing punct)
+    term_lower_stripped = term_lower.rstrip(".,;:")
+    has_professional_suffix = (
+        1.0
+        if any(term_lower_stripped.endswith(suffix) for suffix in PROFESSIONAL_SUFFIXES)
+        else 0.0
+    )
+
+    # Maximum consonant run (gibberish detector)
+    max_consonant_run_val = float(_max_consonant_run(term))
+
+    # === SESSION 78: TermSources-based per-document features ===
+    # These features provide richer signals about term reliability by
+    # tracking which source documents contributed each occurrence.
+    #
+    # When TermSources is available:
+    # - Multiple high-confidence documents → more reliable term
+    # - Single low-confidence document → potentially OCR error
+    # - High confidence_std_dev → inconsistent quality (red flag)
+    #
+    # NOTE: An ML model trained on user feedback could learn to weight
+    # these features based on the user's document types and preferences.
+
+    # Check if TermSources is available
+    sources = term_data.get("sources")
+    total_docs_in_session = float(term_data.get("total_docs_in_session") or 1)
+
+    if isinstance(sources, TermSources) and sources.num_documents > 0:
+        # Extract features from actual TermSources
+        num_source_documents = float(sources.num_documents)
+        doc_diversity_ratio = sources.doc_diversity_ratio(int(total_docs_in_session))
+        mean_doc_confidence = sources.mean_confidence
+        median_doc_confidence = sources.median_confidence
+        confidence_std_dev = sources.confidence_std_dev
+        high_conf_doc_ratio = sources.high_conf_doc_ratio
+        all_low_conf = 1.0 if sources.all_low_conf else 0.0
+    else:
+        # Legacy fallback: no TermSources available
+        # Use sensible defaults based on available data
+        num_source_documents = 1.0
+        doc_diversity_ratio = 1.0 / total_docs_in_session
+        # Use source_doc_confidence as a single-doc approximation
+        mean_doc_confidence = source_doc_confidence
+        median_doc_confidence = source_doc_confidence
+        confidence_std_dev = 0.0  # No variance with single source
+        high_conf_doc_ratio = 1.0 if source_doc_confidence > 0.80 else 0.0
+        all_low_conf = 1.0 if source_doc_confidence < 0.60 else 0.0
+
+    return np.array(
+        [
+            # Count bin features (7 - expanded Session 130) + log_count (1) + occurrence_ratio (1)
+            count_bin_1,
+            count_bin_2,
+            count_bin_3,
+            count_bin_4_6,
+            count_bin_7_20,
+            count_bin_21_50,
+            count_bin_51_plus,
+            log_count,  # Session 131: Log-scaled count for magnitude within bins
+            occurrence_ratio,
+            # Algorithm features (3)
+            has_ner,
+            has_rake,
+            has_bm25,
+            # Type feature (1)
+            is_person,
+            # Original artifact features (6)
+            has_trailing_punctuation,
+            has_leading_digit,
+            has_trailing_digit,
+            word_count,
+            is_all_caps,
+            is_title_case,
+            # Quality features (2)
+            source_doc_confidence,
+            corpus_familiarity_score,
+            # Session 76 features (9) + Session 130 rarity score (1)
+            freq_dict_word_ratio,
+            all_words_in_freq_dict,
+            word_log_rarity_score,  # Session 130: log-scaled word rarity
+            term_length,
+            vowel_ratio,
+            is_single_letter,
+            has_internal_digits,
+            has_medical_suffix,
+            has_repeated_chars,
+            contains_hyphen,
+            # Session 78: TermSources features (7)
+            num_source_documents,
+            doc_diversity_ratio,
+            mean_doc_confidence,
+            median_doc_confidence,
+            confidence_std_dev,
+            high_conf_doc_ratio,
+            all_low_conf,
+            # Session 83: Name validation and domain features (5)
+            is_in_names_dataset,
+            has_legal_suffix,
+            has_title_prefix,
+            has_professional_suffix,
+            max_consonant_run_val,
+        ]
+    )

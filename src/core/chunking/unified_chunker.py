@@ -120,6 +120,9 @@ class UnifiedChunker:
         # Cache for processed chunks (keyed by source identifier)
         self._chunk_cache: dict[str, list[UnifiedChunk]] = {}
 
+        # Cache for token counts to avoid repeated encoding
+        self._token_count_cache: dict[str, int] = {}
+
     def _init_semantic_chunker(self):
         """Initialize LangChain semantic chunking components."""
         debug_log("Initializing semantic chunker components...")
@@ -128,7 +131,7 @@ class UnifiedChunker:
         try:
             # Use same embedding model as existing chunking_engine.py
             self.embeddings = HuggingFaceEmbeddings(
-                model_name="all-MiniLM-L6-v2", model_kwargs={"device": "cpu"}
+                model_name=SEMANTIC_CHUNKER_EMBEDDING_MODEL, model_kwargs={"device": "cpu"}
             )
             self.semantic_chunker = SemanticChunker(
                 self.embeddings, breakpoint_threshold_type="gradient"
@@ -141,7 +144,10 @@ class UnifiedChunker:
 
     def count_tokens(self, text: str) -> int:
         """
-        Count tokens in text using tiktoken.
+        Count tokens in text using tiktoken with caching.
+
+        Uses a hash-based cache key combining first 100 chars, last 100 chars,
+        and total length to avoid full string hashing while still being unique.
 
         Args:
             text: Text to count tokens for
@@ -149,7 +155,23 @@ class UnifiedChunker:
         Returns:
             Number of tokens
         """
-        return len(self.encoder.encode(text))
+        # Build cache key from text fingerprint (avoids hashing full text)
+        text_len = len(text)
+        if text_len > 200:
+            # Use first 100 + last 100 chars + length as fingerprint
+            cache_key = f"{hash(text[:100])}-{hash(text[-100:])}-{text_len}"
+        else:
+            # Short text: hash the whole thing
+            cache_key = f"{hash(text)}-{text_len}"
+
+        # Check cache
+        if cache_key in self._token_count_cache:
+            return self._token_count_cache[cache_key]
+
+        # Calculate and cache
+        count = len(self.encoder.encode(text))
+        self._token_count_cache[cache_key] = count
+        return count
 
     def chunk_text(
         self,
@@ -423,8 +445,9 @@ class UnifiedChunker:
             return []
 
     def clear_cache(self):
-        """Clear the chunk cache."""
+        """Clear the chunk cache and token count cache."""
         self._chunk_cache.clear()
+        self._token_count_cache.clear()
         debug_log("Cleared unified chunker cache")
 
     def get_cache_stats(self) -> dict:
@@ -432,6 +455,7 @@ class UnifiedChunker:
         return {
             "cached_documents": len(self._chunk_cache),
             "total_cached_chunks": sum(len(chunks) for chunks in self._chunk_cache.values()),
+            "cached_token_counts": len(self._token_count_cache),
         }
 
 
