@@ -10,6 +10,7 @@ Tests cover:
 import sys
 import tempfile
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
@@ -42,10 +43,19 @@ def feedback_manager(temp_feedback_dir):
 
 
 @pytest.fixture
-def meta_learner(temp_feedback_dir):
-    """Create VocabularyMetaLearner with temp model path."""
+def meta_learner(temp_feedback_dir, feedback_manager):
+    """Create VocabularyMetaLearner with temp model path and no auto-training.
+
+    Uses the clean feedback_manager fixture (no default feedback) to prevent
+    auto-training during initialization.
+    """
     model_path = temp_feedback_dir / "test_model.pkl"
-    return VocabularyMetaLearner(model_path=model_path)
+    # Patch get_feedback_manager to return our clean fixture during init
+    with patch(
+        "src.core.vocabulary.meta_learner.get_feedback_manager",
+        return_value=feedback_manager,
+    ):
+        return VocabularyMetaLearner(model_path=model_path)
 
 
 class TestFeedbackManager:
@@ -170,77 +180,78 @@ class TestVocabularyMetaLearner:
             "total_unique_terms": 100,
         }
         features = meta_learner._extract_features(term_data)
-        assert (
-            len(features) == 39
-        )  # Session 84: 39 features (35 + 4 net from count bins replacing log_count)
-        # features[0-4] are count bins: count=3 → count_bin_3=1.0
+        assert len(features) == 42  # Session 130: 42 features (7 count bins + 35 other features)
+        # features[0-6] are count bins: count=3 → count_bin_3=1.0
         assert features[0] == 0.0  # count_bin_1
         assert features[1] == 0.0  # count_bin_2
         assert features[2] == 1.0  # count_bin_3 (count=3)
         assert features[3] == 0.0  # count_bin_4_6
-        assert features[4] == 0.0  # count_bin_7_plus
-        # features[5] is occurrence_ratio: 3/100 = 0.03
-        assert features[5] == 0.03
-        # features[6-8] are algorithm flags
-        assert features[6] == 1.0  # has_ner
-        assert features[7] == 1.0  # has_rake
-        assert features[8] == 0.0  # has_bm25
-        # features[10] is has_trailing_punctuation: "hypertension" has none
-        assert features[10] == 0.0
-        # features[11] is has_leading_digit: "hypertension" has none
-        assert features[11] == 0.0
-        # features[13] is word_count: "hypertension" is 1 word
-        assert features[13] == 1.0
-        # features[14] is is_all_caps: "hypertension" is not all caps
-        assert features[14] == 0.0
-        # features[24] is has_medical_suffix: "hypertension" ends with -ion (not medical suffix)
-        assert features[24] == 0.0
+        assert features[4] == 0.0  # count_bin_7_20
+        assert features[5] == 0.0  # count_bin_21_50
+        assert features[6] == 0.0  # count_bin_51_plus
+        # features[7] is occurrence_ratio: 3/100 = 0.03
+        assert features[7] == 0.03
+        # features[8-10] are algorithm flags
+        assert features[8] == 1.0  # has_ner
+        assert features[9] == 1.0  # has_rake
+        assert features[10] == 0.0  # has_bm25
+        # features[12] is has_trailing_punctuation: "hypertension" has none
+        assert features[12] == 0.0
+        # features[13] is has_leading_digit: "hypertension" has none
+        assert features[13] == 0.0
+        # features[15] is word_count: "hypertension" is 1 word
+        assert features[15] == 1.0
+        # features[16] is is_all_caps: "hypertension" is not all caps
+        assert features[16] == 0.0
+        # features[27] is has_medical_suffix: "hypertension" ends with -ion (not medical suffix)
+        assert features[27] == 0.0
 
     def test_feature_extraction_artifacts(self, meta_learner):
         """Test that artifact patterns are detected correctly.
 
-        Session 84: Feature indices updated for count bins:
-        10: has_trailing_punctuation, 11: has_leading_digit,
-        12: has_trailing_digit, 13: word_count, 14: is_all_caps
-        22: is_single_letter, 24: has_medical_suffix,
-        25: has_repeated_chars, 26: contains_hyphen
+        Session 130: Feature indices updated for expanded count bins (7 instead of 5)
+        and new word_log_rarity_score feature:
+        12: has_trailing_punctuation, 13: has_leading_digit,
+        14: has_trailing_digit, 15: word_count, 16: is_all_caps
+        25: is_single_letter, 27: has_medical_suffix,
+        28: has_repeated_chars, 29: contains_hyphen
         """
         # Test trailing punctuation
         term_data = {"Term": "Smith:", "type": "Person"}
         features = meta_learner._extract_features(term_data)
-        assert features[10] == 1.0  # has_trailing_punctuation
+        assert features[12] == 1.0  # has_trailing_punctuation
 
         # Test leading digit
         term_data = {"Term": "4 Ms. Di Leo", "type": "Person"}
         features = meta_learner._extract_features(term_data)
-        assert features[11] == 1.0  # has_leading_digit
-        assert features[13] == 4.0  # word_count: "4", "Ms.", "Di", "Leo"
+        assert features[13] == 1.0  # has_leading_digit
+        assert features[15] == 4.0  # word_count: "4", "Ms.", "Di", "Leo"
 
         # Test all caps
         term_data = {"Term": "PLAINTIFF", "type": "Unknown"}
         features = meta_learner._extract_features(term_data)
-        assert features[14] == 1.0  # is_all_caps
+        assert features[16] == 1.0  # is_all_caps
 
-        # Session 76: Test new features (indices shifted +4 for count bins)
+        # Session 76/130: Test new features (indices shifted for expanded count bins)
         # Test medical suffix
         term_data = {"Term": "radiculopathy"}
         features = meta_learner._extract_features(term_data)
-        assert features[24] == 1.0  # has_medical_suffix (-pathy)
+        assert features[27] == 1.0  # has_medical_suffix (-pathy)
 
         # Test single letter
         term_data = {"Term": "Q"}
         features = meta_learner._extract_features(term_data)
-        assert features[22] == 1.0  # is_single_letter
+        assert features[25] == 1.0  # is_single_letter
 
         # Test repeated chars
         term_data = {"Term": "aaaa"}
         features = meta_learner._extract_features(term_data)
-        assert features[25] == 1.0  # has_repeated_chars
+        assert features[28] == 1.0  # has_repeated_chars
 
         # Test contains hyphen
         term_data = {"Term": "anti-inflammatory"}
         features = meta_learner._extract_features(term_data)
-        assert features[26] == 1.0  # contains_hyphen
+        assert features[29] == 1.0  # contains_hyphen
 
     def test_training_insufficient_data_no_defaults(self, temp_feedback_dir, meta_learner):
         """Test that training fails with insufficient data when no defaults exist.
@@ -284,18 +295,23 @@ class TestVocabularyMetaLearner:
         result = meta_learner.train(feedback_mgr)
         assert result is False  # Should fail - not enough data without defaults
 
-    def test_model_save_load(self, temp_feedback_dir):
+    def test_model_save_load(self, temp_feedback_dir, feedback_manager):
         """Test model persistence."""
         model_path = temp_feedback_dir / "test_model.pkl"
 
-        # Create and "train" a mock scenario
-        learner1 = VocabularyMetaLearner(model_path=model_path)
-        assert not learner1.is_trained
+        # Patch to prevent auto-training from default feedback
+        with patch(
+            "src.core.vocabulary.meta_learner.get_feedback_manager",
+            return_value=feedback_manager,
+        ):
+            # Create and "train" a mock scenario
+            learner1 = VocabularyMetaLearner(model_path=model_path)
+            assert not learner1.is_trained
 
-        # After proper training (if we had enough data), model would save
-        # For now, verify load works with non-existent model
-        learner2 = VocabularyMetaLearner(model_path=model_path)
-        assert not learner2.is_trained
+            # After proper training (if we had enough data), model would save
+            # For now, verify load works with non-existent model
+            learner2 = VocabularyMetaLearner(model_path=model_path)
+            assert not learner2.is_trained
 
     def test_should_retrain(self, temp_feedback_dir):
         """Test retraining threshold check."""
@@ -382,16 +398,22 @@ class TestEnsembleMode:
         """Test that is_ensemble property is False when not trained."""
         assert not meta_learner.is_ensemble
 
-    def test_lr_only_mode(self, temp_feedback_dir):
+    def test_lr_only_mode(self, temp_feedback_dir, feedback_manager):
         """Test that model starts in LR-only mode even after training."""
         # We can't easily test actual training with 200+ samples
         # but we can verify the property behavior
         model_path = temp_feedback_dir / "test_model.pkl"
-        learner = VocabularyMetaLearner(model_path=model_path)
 
-        # Untrained: no ensemble
-        assert not learner.is_trained
-        assert not learner.is_ensemble
+        # Patch to prevent auto-training from default feedback
+        with patch(
+            "src.core.vocabulary.meta_learner.get_feedback_manager",
+            return_value=feedback_manager,
+        ):
+            learner = VocabularyMetaLearner(model_path=model_path)
+
+            # Untrained: no ensemble
+            assert not learner.is_trained
+            assert not learner.is_ensemble
 
     def test_backward_compat_alias(self):
         """Test that VocabularyMetaLearner alias works."""

@@ -38,7 +38,6 @@ import customtkinter as ctk
 from src.config import DEBUG_MODE
 from src.logging_config import debug_log
 from src.services.workers import (
-    BriefingWorker,
     ProcessingWorker,
     ProgressiveExtractionWorker,
     QAWorker,
@@ -107,7 +106,6 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         self._processing_worker: ProcessingWorker | None = None
         self._vocabulary_worker: VocabularyWorker | None = None
         self._qa_worker: QAWorker | None = None
-        self._briefing_worker: BriefingWorker | None = None
         self._progressive_worker: ProgressiveExtractionWorker | None = None  # Session 45
         self._ui_queue: Queue | None = None
         self._queue_poll_id: str | None = None
@@ -1334,10 +1332,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             self.set_status("Vocabulary extraction complete (no terms)")
 
         # Continue to next task
-        if self._pending_tasks.get("qa"):
-            # Use Case Briefing instead of legacy Q&A
-            self._start_briefing_task()
-        elif self._pending_tasks.get("summary"):
+        if self._pending_tasks.get("summary"):
             self._start_summary_task()
         else:
             self._finalize_tasks()
@@ -1555,88 +1550,6 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         """Finalize all tasks and update UI."""
         completed = len(self._completed_tasks)
         self._on_tasks_complete(True, f"Completed {completed} task(s)")
-
-    # =========================================================================
-    # Case Briefing Task (replaces Q&A for structured extraction)
-    # =========================================================================
-
-    def _start_briefing_task(self):
-        """Start case briefing generation task."""
-        self.set_status("Case Briefing: Starting document analysis...")
-
-        # Create queue for briefing worker
-        self._briefing_queue = Queue()
-
-        # Start briefing worker
-        self._briefing_worker = BriefingWorker(
-            documents=self.processing_results, ui_queue=self._briefing_queue
-        )
-        self._briefing_worker.start()
-
-        # Start polling briefing queue
-        self._poll_briefing_queue()
-
-    def _poll_briefing_queue(self):
-        """Poll the briefing worker queue for results."""
-        try:
-            while True:
-                msg_type, data = self._briefing_queue.get_nowait()
-                if msg_type == "briefing_progress":
-                    _phase, _current, _total, message = data
-                    self.set_status(f"Case Briefing: {message}")
-                elif msg_type == "briefing_complete":
-                    self._on_briefing_complete(data)
-                    return
-                elif msg_type == "error":
-                    self.set_status(f"Briefing error: {data}")
-                    self._on_briefing_complete(None)
-                    return
-        except Empty:
-            pass
-
-        # Continue polling if worker is alive
-        if self._briefing_worker and self._briefing_worker.is_alive():
-            self.after(100, self._poll_briefing_queue)  # 100ms for longer task
-        else:
-            # Worker finished - do final poll
-            try:
-                while True:
-                    msg_type, data = self._briefing_queue.get_nowait()
-                    if msg_type == "briefing_complete":
-                        self._on_briefing_complete(data)
-                        return
-            except Empty:
-                pass
-            # Worker finished without sending results
-            self._on_briefing_complete(None)
-
-    def _on_briefing_complete(self, briefing_data: dict | None):
-        """Handle briefing generation completion."""
-        self._completed_tasks.add("qa")  # Count as Q&A task for compatibility
-
-        if briefing_data and briefing_data.get("formatted"):
-            formatted = briefing_data["formatted"]
-            result = briefing_data.get("result")
-
-            # Store briefing result for export
-            self._briefing_result = result
-            self._formatted_briefing = formatted
-
-            # Display the briefing text in the output widget
-            self.output_display.update_outputs(
-                briefing_text=formatted.text, briefing_sections=formatted.sections
-            )
-
-            time_str = f"{result.total_time_seconds:.1f}s" if result else ""
-            self.set_status(f"Case Briefing complete ({time_str})")
-        else:
-            self.set_status("Briefing generation failed")
-
-        # Continue to next task
-        if self._pending_tasks.get("summary"):
-            self._start_summary_task()
-        else:
-            self._finalize_tasks()
 
     def _on_tasks_complete(self, success: bool, message: str):
         """Handle task completion."""

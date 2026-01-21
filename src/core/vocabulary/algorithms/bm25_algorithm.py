@@ -120,6 +120,13 @@ class BM25Algorithm(BaseExtractionAlgorithm):
         # Check if corpus is ready
         if not self.corpus_manager.is_corpus_ready():
             doc_count = self.corpus_manager.get_document_count()
+            # INFO level so user is notified when BM25 is disabled
+            from src.logging_config import info
+
+            info(
+                f"[BM25] Algorithm skipped: corpus needs 5+ documents "
+                f"(currently {doc_count}). Process more documents to enable BM25."
+            )
             debug_log(f"[BM25] Skipped: insufficient corpus ({doc_count}/5 documents)")
             return AlgorithmResult(
                 candidates=[],

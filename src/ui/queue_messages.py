@@ -66,10 +66,6 @@ class MessageType:
     EXTRACTION_STARTED = "extraction_started"  # Signals extraction has begun (dim buttons)
     EXTRACTION_COMPLETE = "extraction_complete"  # Signals all extraction done (enable buttons)
 
-    # Case Briefing
-    BRIEFING_PROGRESS = "briefing_progress"
-    BRIEFING_COMPLETE = "briefing_complete"
-
 
 class QueueMessage:
     """
@@ -401,39 +397,3 @@ class QueueMessage:
         Used to re-enable feedback buttons in the UI.
         """
         return (MessageType.EXTRACTION_COMPLETE, None)
-
-    # =========================================================================
-    # Case Briefing
-    # =========================================================================
-
-    @staticmethod
-    def briefing_progress(
-        phase: str, current: int, total: int, message: str
-    ) -> tuple[str, tuple[str, int, int, str]]:
-        """
-        Create briefing progress message.
-
-        Args:
-            phase: Current phase (e.g., 'extract', 'synthesize')
-            current: Current item number
-            total: Total items in phase
-            message: Progress message
-        """
-        return (MessageType.BRIEFING_PROGRESS, (phase, current, total, message))
-
-    @staticmethod
-    def briefing_complete(result: Any, formatted: str) -> tuple[str, dict]:
-        """
-        Create briefing complete message.
-
-        Args:
-            result: BriefingResult object
-            formatted: Formatted briefing output string
-        """
-        return (
-            MessageType.BRIEFING_COMPLETE,
-            {
-                "result": result,
-                "formatted": formatted,
-            },
-        )

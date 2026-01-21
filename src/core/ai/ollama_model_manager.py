@@ -10,7 +10,7 @@ This is the next-generation model manager optimized for commercial use:
 
 Structured Output Support (Ollama v0.5+):
 - generate_structured() method for JSON schema-constrained output
-- Used by Case Briefing Generator for reliable extraction
+- Used by vocabulary extraction for reliable term extraction
 - Falls back to regex JSON parsing if needed
 """
 
@@ -454,7 +454,7 @@ class OllamaModelManager:
         to constrain output to valid JSON. Falls back to regex JSON
         extraction if the response contains extra text.
 
-        This is the primary method for Case Briefing extraction.
+        This is the primary method for LLM-based extraction.
 
         Args:
             prompt: The prompt including JSON schema instructions

@@ -160,7 +160,9 @@ class TestPreprocessingPipeline:
         """Should create pipeline with multiple preprocessors."""
         pipeline = create_default_pipeline()
 
-        assert len(pipeline.preprocessors) == 5
+        # 6 preprocessors: TitlePage, IndexPage, HeaderFooter, LineNumber, Transcript, QA
+        assert len(pipeline.preprocessors) == 6
+        assert any(p.name == "Index Page Remover" for p in pipeline.preprocessors)
         assert any(p.name == "Line Number Remover" for p in pipeline.preprocessors)
         assert any(p.name == "Transcript Cleaner" for p in pipeline.preprocessors)
         assert any(p.name == "Q/A Converter" for p in pipeline.preprocessors)

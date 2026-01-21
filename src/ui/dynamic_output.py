@@ -14,7 +14,7 @@ Session 51 Updates (Tab Navigation):
 - All content preserved across tab switches (scroll position, state)
 
 Session 45 Updates:
-- Renamed "Case Briefing" to "Names & Vocabulary" as primary output
+- "Names & Vocabulary" as primary output
 - Added progress badge showing data source (NER only → NER + LLM)
 - Output pane has distinct background color
 
@@ -178,10 +178,8 @@ class DynamicOutputWidget(ctk.CTkFrame):
             "Meta-Summary": "",
             "Rare Word List (CSV)": [],
             "Q&A Results": [],
-            "Case Briefing": "",
         }
         self._document_summaries = {}  # {filename: summary_text}
-        self._briefing_sections = {}  # Section name -> content for navigation
 
         # Session 45: Data source tracking for progress badge
         self._extraction_source = "none"  # "none", "ner", "both"
@@ -761,10 +759,8 @@ class DynamicOutputWidget(ctk.CTkFrame):
             "Meta-Summary": "",
             "Rare Word List (CSV)": [],
             "Q&A Results": [],
-            "Case Briefing": "",
         }
         self._document_summaries = {}
-        self._briefing_sections = {}
         self._extraction_source = "none"  # Reset progress badge state
 
         # Session 80: Save column widths before cleanup, then clear sort state
@@ -787,8 +783,6 @@ class DynamicOutputWidget(ctk.CTkFrame):
         vocab_csv_data: list | None = None,
         document_summaries: dict | None = None,
         qa_results: list | None = None,
-        briefing_text: str = "",
-        briefing_sections: dict | None = None,
         # Session 45 new parameters
         names_vocab_data: list | None = None,
         summary_text: str = "",
@@ -802,8 +796,6 @@ class DynamicOutputWidget(ctk.CTkFrame):
             vocab_csv_data: A list of dicts representing vocabulary data (legacy).
             document_summaries: A dictionary of {filename: summary_text}.
             qa_results: A list of QAResult objects from Q&A processing.
-            briefing_text: The formatted Case Briefing Sheet text (legacy).
-            briefing_sections: Dict mapping section names to content for navigation.
             names_vocab_data: Session 45 - combined people + vocabulary data.
             summary_text: Session 45 - combined summary text.
             extraction_source: Session 45 - "ner" or "both" for progress badge.
@@ -830,10 +822,6 @@ class DynamicOutputWidget(ctk.CTkFrame):
         if qa_results is not None:
             self._outputs["Q&A Results"] = qa_results
             self._outputs["Ask Questions"] = qa_results
-        if briefing_text:
-            self._outputs["Case Briefing"] = briefing_text
-        if briefing_sections is not None:
-            self._briefing_sections = briefing_sections
 
         self._refresh_tabs()
 
@@ -863,9 +851,6 @@ class DynamicOutputWidget(ctk.CTkFrame):
         if summary:
             self.summary_text_display.delete("0.0", "end")
             self.summary_text_display.insert("0.0", summary)
-        elif self._outputs.get("Case Briefing"):
-            # Legacy Case Briefing support
-            self._display_briefing(self._outputs.get("Case Briefing", ""))
 
         # Individual document summaries (if any) - append to summary tab
         if self._document_summaries:
@@ -1108,35 +1093,6 @@ class DynamicOutputWidget(ctk.CTkFrame):
         self._qa_panel.display_results(results)
 
         debug_log(f"[Q&A DISPLAY] Showing {len(results)} Q&A results")
-
-    def _display_briefing(self, briefing_text: str):
-        """
-        Display Case Briefing Sheet in the summary textbox.
-
-        The briefing is formatted text with sections like:
-        - Case Type
-        - Parties Involved
-        - Names to Know
-        - What Happened (narrative)
-
-        Args:
-            briefing_text: Formatted briefing text from BriefingFormatter
-        """
-        if not briefing_text:
-            self.summary_text_display.delete("0.0", "end")
-            self.summary_text_display.insert(
-                "0.0",
-                "Case Briefing not yet generated.\n\n"
-                "Case Briefing is generated automatically after document extraction "
-                "if enabled in Settings > Q&A/Briefing > Auto-run.",
-            )
-            return
-
-        # Display in textbox
-        self.summary_text_display.delete("0.0", "end")
-        self.summary_text_display.insert("0.0", briefing_text)
-
-        debug_log(f"[BRIEFING DISPLAY] Showing Case Briefing ({len(briefing_text)} chars)")
 
     def _async_insert_rows(self, data: list, start_idx: int, end_idx: int):
         """

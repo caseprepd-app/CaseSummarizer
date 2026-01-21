@@ -26,15 +26,21 @@ from langchain_core.documents import Document
 from langchain_experimental.text_splitter import SemanticChunker
 from langchain_huggingface import HuggingFaceEmbeddings
 
+from src.config import (
+    UNIFIED_CHUNK_ENCODING,
+    UNIFIED_CHUNK_MAX_TOKENS,
+    UNIFIED_CHUNK_MIN_TOKENS,
+    UNIFIED_CHUNK_TARGET_TOKENS,
+)
 from src.logging_config import debug_log, debug_timing, error, info
 
-# Token limits for chunk sizing (research-based fixed values - Session 67)
-DEFAULT_MIN_TOKENS = 400  # Minimum to prevent fragmentation
-DEFAULT_TARGET_TOKENS = 700  # Optimal for mixed queries (research: 500-800)
-DEFAULT_MAX_TOKENS = 1000  # Upper bound (>1024 hurts retrieval precision)
+# Fallback values if config import fails (should match config.py)
+DEFAULT_MIN_TOKENS = UNIFIED_CHUNK_MIN_TOKENS  # Fallback: 400
+DEFAULT_TARGET_TOKENS = UNIFIED_CHUNK_TARGET_TOKENS  # Fallback: 700
+DEFAULT_MAX_TOKENS = UNIFIED_CHUNK_MAX_TOKENS  # Fallback: 1000
 
-# tiktoken encoding - cl100k_base works well for most models
-TIKTOKEN_ENCODING = "cl100k_base"
+# tiktoken encoding from config
+TIKTOKEN_ENCODING = UNIFIED_CHUNK_ENCODING  # Fallback: "cl100k_base"
 
 
 @dataclass

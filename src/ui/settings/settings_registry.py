@@ -1164,7 +1164,7 @@ def _register_all_settings():
 
     # ===================================================================
     # EXPERIMENTAL TAB (Session 43)
-    # Session 62b: LLM setting moved to Performance; only briefing remains here
+    # Session 62b: LLM setting moved to Performance
     # ===================================================================
 
     # Session 62b: GPU-based auto-detection for LLM extraction (moved to Performance)

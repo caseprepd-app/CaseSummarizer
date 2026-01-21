@@ -3,7 +3,15 @@ LLM-based Vocabulary Extractor (Session 45 Update)
 
 Uses Ollama to extract names and technical vocabulary from document chunks
 with a single prompt per chunk for efficiency. This replaces the previous
-4-prompt-per-chunk approach used in Case Briefing.
+4-prompt-per-chunk approach.
+
+TEXT FLOW DESIGN DECISION:
+Unlike NER/RAKE/BM25 which receive the full preprocessed text, LLM extraction
+intentionally uses UnifiedChunks (400-1000 tokens each). This is BY DESIGN:
+- Ollama has limited context windows
+- Chunking provides better extraction quality for LLMs
+- Results are reconciled with NER output for comprehensive coverage
+This is documented as intentional architecture, not a text flow inconsistency.
 
 Session 45 Update:
 - Added support for UnifiedChunk objects from unified_chunker
@@ -154,7 +162,7 @@ class LLMVocabExtractor:
     prompt that extracts both names and technical terms in a single pass.
 
     Key features:
-    - Single prompt per chunk (vs. 4 prompts in Case Briefing)
+    - Single prompt per chunk (efficient for vocabulary extraction)
     - Results stored in Python lists (no truncation)
     - Uses shared category config for consistency with NER
     - Progress callback support for UI updates

@@ -27,12 +27,14 @@
 └─────────────────────────────────┬───────────────────────────────────┘
                                   ▼
 ┌─────────────────────────────────────────────────────────────────────┐
-│  STAGE 3: PREPROCESSING                     src/core/preprocessing/ │
-│  - Remove title pages                                               │
-│  - Remove headers/footers                                           │
-│  - Remove line numbers                                              │
-│  - Clean transcript notation                                        │
-│  OUTPUT: content-only text                                          │
+│  STAGE 3: PREPROCESSING (Frontend Filtering) src/core/preprocessing/│
+│  - TitlePageRemover: Remove cover pages                             │
+│  - IndexPageRemover: Remove concordance/index pages                 │
+│  - HeaderFooterRemover: Remove repetitive headers/footers           │
+│  - LineNumberRemover: Remove margin line numbers                    │
+│  - TranscriptCleaner: Remove page numbers, inline citations         │
+│  - QAConverter: Convert Q./A. to readable format                    │
+│  OUTPUT: "CLEAN CONTENT TEXT" - all algorithms receive this         │
 └─────────────────────────────────┬───────────────────────────────────┘
                                   ▼
 ┌─────────────────────────────────────────────────────────────────────┐
@@ -50,12 +52,18 @@
 │  │ src/core/       │ │ src/core/qa/    │ │ src/core/       │        │
 │  │ vocabulary/     │ │ src/core/       │ │ summarization/  │        │
 │  │                 │ │ vector_store/   │ │                 │        │
-│  │ - NER           │ │ src/core/       │ │ - Map-reduce    │        │
-│  │ - RAKE          │ │ retrieval/      │ │ - Focus thread  │        │
-│  │ - BM25          │ │                 │ │                 │        │
-│  │ - LLM enhance   │ │ - Index build   │ │                 │        │
-│  │ - Filtering     │ │ - Retrieval     │ │                 │        │
-│  │ - ML scoring    │ │ - Answer gen    │ │                 │        │
+│  │ TEXT FLOW:      │ │ src/core/       │ │ - Map-reduce    │        │
+│  │ Full text →     │ │ retrieval/      │ │ - Focus thread  │        │
+│  │ NER,RAKE,BM25   │ │                 │ │                 │        │
+│  │                 │ │ - Index build   │ │                 │        │
+│  │ Chunks → LLM*   │ │ - Retrieval     │ │                 │        │
+│  │ *intentional    │ │ - Answer gen    │ │                 │        │
+│  │                 │ │                 │ │                 │        │
+│  │ Backend Filter: │ │                 │ │                 │        │
+│  │ - Name dedup    │ │                 │ │                 │        │
+│  │ - Artifact filt │ │                 │ │                 │        │
+│  │ - Rarity filter │ │                 │ │                 │        │
+│  │ - ML scoring    │ │                 │ │                 │        │
 │  └────────┬────────┘ └────────┬────────┘ └────────┬────────┘        │
 │           │                   │                   │                 │
 └───────────┼───────────────────┼───────────────────┼─────────────────┘
@@ -122,6 +130,63 @@ src/core/ai/               # Ollama interface
 src/core/prompting/        # Prompt templates
 src/utils/                 # Pure utility functions
 ```
+
+## Two-Phase Filtering Model
+
+### Phase 1: Frontend Filtering (Document-Level)
+
+**Purpose:** Remove structural noise BEFORE any algorithm sees the text.
+
+```
+Raw Text
+    ↓
+[Sanitization] - Character-level cleanup
+    - Mojibake fixing (ftfy)
+    - Unicode normalization
+    - Redaction handling
+    ↓
+[Preprocessing] - Structural noise removal
+    - Title page removal
+    - Index page removal (IndexPageRemover)
+    - Header/footer removal
+    - Line number removal
+    - Q/A notation conversion
+    ↓
+"CLEAN CONTENT TEXT" ← All algorithms receive THIS
+```
+
+### Phase 2: Backend Filtering (Term-Level)
+
+**Purpose:** Remove vocabulary artifacts AFTER extraction.
+
+```
+Extracted Terms
+    ↓
+[Vocabulary Filter Chain]
+    - Name deduplication (fuzzy matching)
+    - Artifact removal (substring containment)
+    - Rarity filtering (common word removal)
+    - Gibberish detection
+    ↓
+Final Vocabulary
+```
+
+### Text Flow Architecture
+
+All vocabulary algorithms (NER, RAKE, BM25) receive **identical** preprocessed text.
+This is enforced by design - a text hash is logged to verify consistency.
+
+```
+preprocessed_text
+    ├── Vocabulary Path: Full text → NER/RAKE/BM25 (identical input)
+    ├── LLM Extraction: UnifiedChunks → Ollama (by design - better for LLMs)
+    └── Q&A Path: UnifiedChunks → Vector search
+```
+
+The LLM extraction path intentionally uses chunks because:
+- Ollama has limited context windows
+- Chunking provides better extraction quality for LLMs
+- Results are reconciled with NER output for comprehensive coverage
 
 ## How to Check Compliance
 

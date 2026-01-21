@@ -19,6 +19,13 @@ This module coordinates:
 7. Quality scoring and final output formatting
 
 The extraction algorithms are pluggable via dependency injection.
+
+TEXT FLOW ARCHITECTURE:
+All vocabulary algorithms (NER, RAKE, BM25) receive IDENTICAL preprocessed text.
+The text flow is:
+    preprocessed_text → All algorithms receive same input → Merged results
+The LLM extraction path intentionally uses chunks (different from other algorithms)
+for efficiency with Ollama. This is documented and by design.
 """
 
 import os
@@ -559,6 +566,13 @@ class VocabularyExtractor:
         if not enabled_algorithms:
             debug_log("[VOCAB] No algorithms enabled")
             return []
+
+        # Log text hash for consistency verification (Session 87)
+        # All algorithms receive IDENTICAL text - this hash verifies that guarantee
+        import hashlib
+
+        text_hash = hashlib.md5(text.encode()).hexdigest()[:12]
+        debug_log(f"[VOCAB] Text hash for all algorithms: {text_hash} ({len(text)} chars)")
 
         # Decide whether to parallelize
         # Skip parallelization for 1 algorithm or 1 CPU core

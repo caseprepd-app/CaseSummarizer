@@ -118,14 +118,25 @@ ML_SOURCE_WEIGHTS = [
     (float("inf"), 0.6, 5.0),  # 200+ samples: user 5x, default 0.6x
 ]
 
-# Count Bin Configuration (Session 85)
+# Count Bin Configuration (Session 85, expanded Session 130)
 # Centralized definition of occurrence count bins for ML features and deduplication.
 # Rationale: count=1 could be OCR error, higher counts are progressively more reliable.
+# Session 130: Added more granularity above 7 occurrences because high-frequency
+# legitimate names (like "Comiskey" at 119 occurrences) were being scored the same
+# as names with only 7 occurrences.
 #
 # Used by:
 # - feedback_manager.py: Deduplication key (term, count_bin)
 # - meta_learner.py: One-hot encoded features for ML model
-COUNT_BIN_NAMES = ("bin_1", "bin_2", "bin_3", "bin_4_6", "bin_7_plus")
+COUNT_BIN_NAMES = (
+    "bin_1",  # Single occurrence - may be OCR error
+    "bin_2",  # Two occurrences
+    "bin_3",  # Three occurrences
+    "bin_4_6",  # 4-6 occurrences - moderate confidence
+    "bin_7_20",  # 7-20 occurrences - mentioned multiple times
+    "bin_21_50",  # 21-50 occurrences - appears throughout document
+    "bin_51_plus",  # 51+ occurrences - major figure in transcript
+)
 
 
 def get_count_bin(count: int) -> str:
@@ -136,7 +147,7 @@ def get_count_bin(count: int) -> str:
         count: Term occurrence count (in_case_freq)
 
     Returns:
-        Bin name: "bin_1", "bin_2", "bin_3", "bin_4_6", or "bin_7_plus"
+        Bin name: one of COUNT_BIN_NAMES
     """
     if count == 1:
         return "bin_1"
@@ -146,10 +157,14 @@ def get_count_bin(count: int) -> str:
         return "bin_3"
     if 4 <= count <= 6:
         return "bin_4_6"
-    return "bin_7_plus"
+    if 7 <= count <= 20:
+        return "bin_7_20"
+    if 21 <= count <= 50:
+        return "bin_21_50"
+    return "bin_51_plus"
 
 
-def get_count_bin_features(count: int) -> tuple[float, float, float, float, float]:
+def get_count_bin_features(count: int) -> tuple[float, float, float, float, float, float, float]:
     """
     Get one-hot encoded count bin features for ML model.
 
@@ -157,7 +172,7 @@ def get_count_bin_features(count: int) -> tuple[float, float, float, float, floa
         count: Term occurrence count (in_case_freq)
 
     Returns:
-        Tuple of 5 floats: (bin_1, bin_2, bin_3, bin_4_6, bin_7_plus)
+        Tuple of 7 floats: (bin_1, bin_2, bin_3, bin_4_6, bin_7_20, bin_21_50, bin_51_plus)
         One value will be 1.0, rest will be 0.0
     """
     bin_name = get_count_bin(count)
@@ -166,7 +181,9 @@ def get_count_bin_features(count: int) -> tuple[float, float, float, float, floa
         1.0 if bin_name == "bin_2" else 0.0,
         1.0 if bin_name == "bin_3" else 0.0,
         1.0 if bin_name == "bin_4_6" else 0.0,
-        1.0 if bin_name == "bin_7_plus" else 0.0,
+        1.0 if bin_name == "bin_7_20" else 0.0,
+        1.0 if bin_name == "bin_21_50" else 0.0,
+        1.0 if bin_name == "bin_51_plus" else 0.0,
     )
 
 
@@ -657,17 +674,6 @@ UNIFIED_CHUNK_MAX_TOKENS = 1000  # Upper bound (>1024 hurts retrieval precision)
 # tiktoken encoding for token counting
 # cl100k_base is compatible with most modern models (GPT-3.5+, Claude, Llama)
 UNIFIED_CHUNK_ENCODING = "cl100k_base"
-
-# ============================================================================
-# Case Briefing Chunking Configuration
-# ============================================================================
-# Used by briefing/chunker.py for section-aware document splitting
-# Chunk sizes are in characters (not tokens) for simplicity in legal docs
-# Target ~1500-2000 chars fits well in Ollama's context window
-
-BRIEFING_CHUNK_TARGET_CHARS = 1800  # Target chunk size in characters
-BRIEFING_CHUNK_MAX_CHARS = 2500  # Maximum chunk size (hard limit)
-BRIEFING_CHUNK_MIN_CHARS = 500  # Minimum chunk size (avoids tiny chunks)
 
 # ============================================================================
 # Hallucination Verification Configuration (Session 60)

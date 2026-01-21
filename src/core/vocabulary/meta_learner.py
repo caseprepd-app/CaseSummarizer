@@ -211,6 +211,43 @@ def _max_consonant_run(text: str) -> int:
     return max_run
 
 
+def _log_rarity_score(linear_score: float, total_words: int = 333000) -> float:
+    """
+    Convert linear rank percentile to log-scaled rarity score.
+
+    The frequency dictionary stores rank/total values (linear 0-1 scale where
+    0 = most common word). Logarithmic scaling compresses the common end,
+    making differences between rare words more meaningful.
+
+    Session 130: Added to distinguish "Comiskey" (rank 96755, rare) from
+    "Clerk" (rank 5435, common) - both previously got binary 1.0 for
+    "all_words_in_freq_dict" which lost rarity information.
+
+    Args:
+        linear_score: rank / total_words (0.0 = most common)
+        total_words: Size of frequency dataset (default 333000 for Google data)
+
+    Returns:
+        Log-scaled score (0.0 = most common, 1.0 = rarest)
+        Examples:
+            rank=1 (the) → 0.0
+            rank=100 → 0.36
+            rank=1000 → 0.54
+            rank=5435 (Clerk) → 0.68
+            rank=96755 (Comiskey) → 0.90
+    """
+    import math
+
+    if linear_score <= 0:
+        return 0.0
+
+    rank = int(linear_score * total_words)
+    if rank <= 0:
+        return 0.0
+
+    return math.log10(rank + 1) / math.log10(total_words + 1)
+
+
 def confidence_weighted_blend(prob_lr: float, prob_rf: float) -> float:
     """
     Blend two model predictions using confidence-weighted averaging.
@@ -251,13 +288,16 @@ def confidence_weighted_blend(prob_lr: float, prob_rf: float) -> float:
 # Session 68: Added corpus_familiarity_score and is_title_case
 # Session 78: Added 7 TermSources features for per-document confidence tracking
 FEATURE_NAMES = [
-    # Count bin features (Session 84) - one-hot encoded occurrence count bins
+    # Count bin features (Session 84, expanded Session 130) - one-hot encoded
     # Rationale: count=1 could be OCR error, higher counts progressively more reliable
+    # Session 130: Added granularity above 7 to distinguish frequent names (119 occ)
     "count_bin_1",  # Exactly 1 occurrence (possible OCR error)
     "count_bin_2",  # Exactly 2 occurrences
     "count_bin_3",  # Exactly 3 occurrences
     "count_bin_4_6",  # 4-6 occurrences
-    "count_bin_7_plus",  # 7 or more occurrences (high confidence)
+    "count_bin_7_20",  # 7-20 occurrences (mentioned multiple times)
+    "count_bin_21_50",  # 21-50 occurrences (appears throughout document)
+    "count_bin_51_plus",  # 51+ occurrences (major figure in transcript)
     "occurrence_ratio",  # Document-relative frequency (count / total_unique_terms)
     # Algorithm features
     "has_ner",
@@ -275,9 +315,10 @@ FEATURE_NAMES = [
     "source_doc_confidence",  # OCR/extraction confidence (0-100) - lower = more OCR errors
     # Corpus familiarity features (Session 68)
     "corpus_familiarity_score",  # 0.0-1.0, proportion of corpus docs containing term
-    # Session 76 features (9 total)
+    # Session 76 features (9 total) + Session 130 rarity score
     "freq_dict_word_ratio",
     "all_words_in_freq_dict",
+    "word_log_rarity_score",  # Session 130: Mean log-scaled rarity (0=common, 1=rare)
     "term_length",
     "vowel_ratio",
     "is_single_letter",
@@ -433,7 +474,7 @@ class VocabularyPreferenceLearner:
                       May include "sources" (TermSources) and "total_docs_in_session"
 
         Returns:
-            numpy array of 39 features
+            numpy array of 42 features (7 count bins + 35 other features)
         """
         # Get the term text
         term = str(term_data.get("Term", "") or term_data.get("term", "") or "")
@@ -443,11 +484,18 @@ class VocabularyPreferenceLearner:
         in_case_freq = float(term_data.get("in_case_freq", 1) or 1)
         count = int(in_case_freq)
 
-        # Count bins (Session 84/85) - one-hot encoded via centralized config
+        # Count bins (Session 84/85, expanded Session 130) - one-hot encoded via config
         # Rationale: count=1 could be OCR error, higher counts more reliable
-        count_bin_1, count_bin_2, count_bin_3, count_bin_4_6, count_bin_7_plus = (
-            get_count_bin_features(count)
-        )
+        # Session 130: Added granularity above 7 (bin_7_20, bin_21_50, bin_51_plus)
+        (
+            count_bin_1,
+            count_bin_2,
+            count_bin_3,
+            count_bin_4_6,
+            count_bin_7_20,
+            count_bin_21_50,
+            count_bin_51_plus,
+        ) = get_count_bin_features(count)
 
         # Document-relative frequency - normalizes for document size
         total_unique_terms = float(term_data.get("total_unique_terms", 0) or 0)
@@ -506,9 +554,18 @@ class VocabularyPreferenceLearner:
             words_in_dict = [1.0 if w in freq_dict else 0.0 for w in words_lower]
             freq_dict_word_ratio = sum(words_in_dict) / len(words_in_dict)
             all_words_in_freq_dict = 1.0 if all(w in freq_dict for w in words_lower) else 0.0
+
+            # Session 130: Log-scaled rarity score (mean across words)
+            # Distinguishes "Comiskey" (rank 96755, rare) from "Clerk" (rank 5435, common)
+            rarity_scores = []
+            for w in words_lower:
+                linear_score = freq_dict.get(w, 1.0)  # Unknown words = rare (1.0)
+                rarity_scores.append(_log_rarity_score(linear_score))
+            word_log_rarity_score = sum(rarity_scores) / len(rarity_scores)
         else:
             freq_dict_word_ratio = 0.0
             all_words_in_freq_dict = 0.0
+            word_log_rarity_score = 0.5  # Default for empty terms
 
         # Term length (character count)
         term_length = float(len(term))
@@ -623,12 +680,14 @@ class VocabularyPreferenceLearner:
 
         return np.array(
             [
-                # Count bin features (5) + occurrence_ratio (1)
+                # Count bin features (7 - expanded Session 130) + occurrence_ratio (1)
                 count_bin_1,
                 count_bin_2,
                 count_bin_3,
                 count_bin_4_6,
-                count_bin_7_plus,
+                count_bin_7_20,
+                count_bin_21_50,
+                count_bin_51_plus,
                 occurrence_ratio,
                 # Algorithm features (3)
                 has_ner,
@@ -646,9 +705,10 @@ class VocabularyPreferenceLearner:
                 # Quality features (2)
                 source_doc_confidence,
                 corpus_familiarity_score,
-                # Session 76 features (9)
+                # Session 76 features (9) + Session 130 rarity score (1)
                 freq_dict_word_ratio,
                 all_words_in_freq_dict,
+                word_log_rarity_score,  # Session 130: log-scaled word rarity
                 term_length,
                 vowel_ratio,
                 is_single_letter,

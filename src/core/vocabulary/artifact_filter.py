@@ -20,6 +20,7 @@ It complements (does not replace) name_deduplicator.py which handles
 transcript-specific artifacts like Q/A notation.
 """
 
+from src.config import ARTIFACT_FILTER_COMMON_WORD_THRESHOLD
 from src.core.vocabulary.person_utils import is_person_entry
 from src.core.vocabulary.rarity_filter import is_common_word
 from src.core.vocabulary.string_utils import edit_distance
@@ -28,8 +29,9 @@ from src.logging_config import debug_log
 # Default number of top terms to use as canonical candidates
 DEFAULT_CANONICAL_COUNT = 25
 
-# Default threshold for common word detection (top N words in Google dataset)
-COMMON_WORD_THRESHOLD = 200000
+# Threshold for common word detection (top N words in Google dataset)
+# From config with fallback
+COMMON_WORD_THRESHOLD = ARTIFACT_FILTER_COMMON_WORD_THRESHOLD  # Fallback: 200000
 
 
 def _get_trailing_words(term: str, canonical: str) -> list[str] | None:

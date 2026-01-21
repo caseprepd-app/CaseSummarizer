@@ -60,7 +60,7 @@ class TestBM25PlusRetriever:
         """Test BM25+ retriever initializes correctly."""
         retriever = BM25PlusRetriever()
         assert retriever.name == "BM25+"
-        assert retriever.weight == 1.0
+        assert retriever.weight == 0.2  # Secondary weight - exact term matching
         assert retriever.enabled is True
         assert retriever.is_indexed is False
 
