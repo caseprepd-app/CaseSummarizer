@@ -28,6 +28,7 @@ The LLM extraction path intentionally uses chunks (different from other algorith
 for efficiency with Ollama. This is documented and by design.
 """
 
+import math
 import os
 import time
 from pathlib import Path
@@ -928,8 +929,13 @@ class VocabularyExtractor:
 
         score = 50.0  # Base score
 
-        # Boost for multiple occurrences (max +20)
-        occurrence_boost = min(term_count * 5, 20)
+        # Boost for multiple occurrences (max +30)
+        # Session 131: Log-scaled to better reward high-frequency names (301 occ vs 4 occ)
+        # Old: min(term_count * 5, 20) capped at 4 occurrences
+        # New: log-scaled to distinguish 10, 100, 300+ occurrences
+        # Examples: 1→8, 4→17, 10→25, 100→30, 300→30
+
+        occurrence_boost = min(math.log10(term_count + 1) * 25, 30)
         score += occurrence_boost
 
         # Boost for rare words (max +20)

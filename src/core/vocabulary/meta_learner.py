@@ -298,6 +298,7 @@ FEATURE_NAMES = [
     "count_bin_7_20",  # 7-20 occurrences (mentioned multiple times)
     "count_bin_21_50",  # 21-50 occurrences (appears throughout document)
     "count_bin_51_plus",  # 51+ occurrences (major figure in transcript)
+    "log_count",  # Session 131: Log-scaled count preserving magnitude (log10(count+1))
     "occurrence_ratio",  # Document-relative frequency (count / total_unique_terms)
     # Algorithm features
     "has_ner",
@@ -474,7 +475,7 @@ class VocabularyPreferenceLearner:
                       May include "sources" (TermSources) and "total_docs_in_session"
 
         Returns:
-            numpy array of 42 features (7 count bins + 35 other features)
+            numpy array of 43 features (7 count bins + log_count + 35 other features)
         """
         # Get the term text
         term = str(term_data.get("Term", "") or term_data.get("term", "") or "")
@@ -496,6 +497,11 @@ class VocabularyPreferenceLearner:
             count_bin_21_50,
             count_bin_51_plus,
         ) = get_count_bin_features(count)
+
+        # Session 131: Log-scaled count to preserve magnitude within bins
+        # bin_51_plus covers 51-∞ with no distinction; log_count provides continuous signal
+        # Examples: 1→0, 10→1.0, 100→2.0, 301→2.48
+        log_count = np.log10(count + 1)
 
         # Document-relative frequency - normalizes for document size
         total_unique_terms = float(term_data.get("total_unique_terms", 0) or 0)
@@ -680,7 +686,7 @@ class VocabularyPreferenceLearner:
 
         return np.array(
             [
-                # Count bin features (7 - expanded Session 130) + occurrence_ratio (1)
+                # Count bin features (7 - expanded Session 130) + log_count (1) + occurrence_ratio (1)
                 count_bin_1,
                 count_bin_2,
                 count_bin_3,
@@ -688,6 +694,7 @@ class VocabularyPreferenceLearner:
                 count_bin_7_20,
                 count_bin_21_50,
                 count_bin_51_plus,
+                log_count,  # Session 131: Log-scaled count for magnitude within bins
                 occurrence_ratio,
                 # Algorithm features (3)
                 has_ner,
