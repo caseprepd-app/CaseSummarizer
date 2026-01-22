@@ -39,14 +39,30 @@ set DEBUG=true && python src/main.py
 
 ## For Claude Code Sessions
 
-The virtual environment is at `.venv`. Claude Code's bash tool runs in a Linux shell, so use PowerShell to run commands on Windows:
+The virtual environment is at `.venv`. Claude Code's bash tool runs in a Linux shell on Windows, so use PowerShell to run commands.
+
+### Important Notes
+
+1. **Always use the full path to python.exe** — This ensures the virtual environment is active:
+   - Correct: `.venv\Scripts\python.exe src/main.py`
+   - Wrong: `python src/main.py` (may use system Python)
+
+2. **Environment variables need special syntax** — The `$` character gets stripped by bash, so use `[Environment]::SetEnvironmentVariable()` instead of `$env:VAR`:
+   - Correct: `[Environment]::SetEnvironmentVariable('DEBUG','true')`
+   - Wrong: `$env:DEBUG='true'` (the `$` gets eaten by bash)
+
+3. **Only run one instance at a time** — The GUI app doesn't prevent multiple instances. If a command fails, don't retry until you've confirmed the previous attempt isn't still running.
+
+4. **Verify debug mode is active** — Look for `DEBUG_MODE=True` in the console output after launch.
+
+### Commands
 
 ```bash
 # Run the app (normal mode)
 powershell -Command "& '.venv\Scripts\python.exe' src/main.py"
 
 # Run the app with DEBUG=true
-powershell -Command "$env:DEBUG='true'; & '.venv\Scripts\python.exe' src/main.py"
+powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -Command "& {[Environment]::SetEnvironmentVariable('DEBUG','true'); & '.venv\Scripts\python.exe' src/main.py}"
 
 # Run any Python command
 powershell -Command "& '.venv\Scripts\python.exe' -c \"print('hello')\""
