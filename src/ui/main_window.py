@@ -888,12 +888,12 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         if enabled == total:
             # All questions enabled - simple display
             self.ask_default_questions_check.configure(
-                text=f"Ask {enabled} default {question_word}"
+                text=f"Ask {enabled:,} default {question_word}"
             )
         else:
             # Some questions disabled - show enabled/total
             self.ask_default_questions_check.configure(
-                text=f"Ask {enabled}/{total} default {question_word}"
+                text=f"Ask {enabled:,}/{total:,} default {question_word}"
             )
 
     def _on_default_questions_toggled(self):
@@ -1773,6 +1773,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         self._update_ollama_status()
         self._update_vocab_llm_checkbox_state()  # Session 63b: Refresh LLM checkbox
         self._update_qa_checkbox_state()  # Session 90: Refresh Q&A checkbox for model size
+        self.refresh_default_questions_label()  # Update question count after settings change
 
     # =========================================================================
     # Export All (Session 68)

@@ -543,8 +543,9 @@ VOCABULARY_MAX_TEXT_KB = 200  # 200KB max for NLP processing (200,000 characters
 
 # spaCy batch processing - higher values process faster with more memory
 # Testing shows: batch_size=4 (baseline), 8 (~17% faster), 16 (~25% faster but +100MB RAM)
-# Default: 8 for optimal balance on 8-16GB systems
-VOCABULARY_BATCH_SIZE = 8
+# Lower values yield the GIL more often, keeping GUI responsive during NER
+# Default: 2 for GUI responsiveness (batch_size doesn't affect NER accuracy)
+VOCABULARY_BATCH_SIZE = 2
 
 # Parallel Processing Configuration
 # Controls concurrent document extraction for multi-file workflows
