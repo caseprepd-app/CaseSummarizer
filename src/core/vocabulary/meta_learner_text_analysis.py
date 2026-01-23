@@ -20,6 +20,8 @@ from src.logging_config import debug_log
 # Module-level cache for names datasets
 _forenames_set: set[str] | None = None
 _surnames_set: set[str] | None = None
+_name_country_counts: dict[str, int] | None = None
+_total_countries: int = 0
 _names_lock = threading.Lock()
 
 
@@ -28,6 +30,7 @@ def _load_names_datasets() -> tuple[set[str], set[str]]:
     Load international forenames and surnames datasets.
 
     Thread-safe with double-check locking pattern.
+    Also builds country-count data for geographic spread features.
 
     Returns:
         Tuple of (forenames_set, surnames_set) - lowercase name sets
@@ -36,7 +39,7 @@ def _load_names_datasets() -> tuple[set[str], set[str]]:
     - international_forenames.csv (2,480 names)
     - international_surnames.csv (2,576 names)
     """
-    global _forenames_set, _surnames_set
+    global _forenames_set, _surnames_set, _name_country_counts, _total_countries
 
     # Fast path: already loaded
     if _forenames_set is not None and _surnames_set is not None:
@@ -49,18 +52,26 @@ def _load_names_datasets() -> tuple[set[str], set[str]]:
             return _forenames_set, _surnames_set
 
         data_dir = Path(__file__).parent.parent.parent.parent / "data" / "names"
+        all_countries: set[str] = set()
+        country_sets: dict[str, set[str]] = {}  # name -> set of countries
 
         # Load forenames
         _forenames_set = set()
         forenames_file = data_dir / "international_forenames.csv"
         if forenames_file.exists():
             try:
-                with open(forenames_file, encoding="utf-8") as f:
+                with open(forenames_file, encoding="utf-8-sig") as f:
                     reader = csv.DictReader(f)
                     for row in reader:
                         name = row.get("Romanized Name", "").strip().lower()
+                        country = row.get("Country", "").strip()
                         if name:
                             _forenames_set.add(name)
+                            if country:
+                                all_countries.add(country)
+                                if name not in country_sets:
+                                    country_sets[name] = set()
+                                country_sets[name].add(country)
                 debug_log(f"[META-LEARNER] Loaded {len(_forenames_set)} forenames")
             except Exception as e:
                 debug_log(f"[META-LEARNER] Error loading forenames: {e}")
@@ -70,17 +81,47 @@ def _load_names_datasets() -> tuple[set[str], set[str]]:
         surnames_file = data_dir / "international_surnames.csv"
         if surnames_file.exists():
             try:
-                with open(surnames_file, encoding="utf-8") as f:
+                with open(surnames_file, encoding="utf-8-sig") as f:
                     reader = csv.DictReader(f)
                     for row in reader:
                         name = row.get("Romanized Name", "").strip().lower()
+                        country = row.get("Country", "").strip()
                         if name:
                             _surnames_set.add(name)
+                            if country:
+                                all_countries.add(country)
+                                if name not in country_sets:
+                                    country_sets[name] = set()
+                                country_sets[name].add(country)
                 debug_log(f"[META-LEARNER] Loaded {len(_surnames_set)} surnames")
             except Exception as e:
                 debug_log(f"[META-LEARNER] Error loading surnames: {e}")
 
+        # Build country count cache
+        _total_countries = len(all_countries) if all_countries else 1
+        _name_country_counts = {name: len(countries) for name, countries in country_sets.items()}
+        debug_log(
+            f"[META-LEARNER] Built country data: {_total_countries} countries, "
+            f"{len(_name_country_counts)} names with country info"
+        )
+
         return _forenames_set, _surnames_set
+
+
+def _get_name_country_data() -> tuple[dict[str, int], int]:
+    """
+    Get cached name-to-country-count mapping and total country count.
+
+    Must be called after _load_names_datasets() (which builds the cache).
+
+    Returns:
+        Tuple of (name_country_counts dict, total_countries int)
+        - name_country_counts: lowercase name -> number of countries it appears in
+        - total_countries: total distinct countries across all datasets
+    """
+    # Ensure data is loaded
+    _load_names_datasets()
+    return _name_country_counts or {}, _total_countries or 1
 
 
 def _max_consonant_run(text: str) -> int:

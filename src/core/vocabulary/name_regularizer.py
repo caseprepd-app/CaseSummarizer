@@ -35,6 +35,7 @@ Example:
 """
 
 from src.core.vocabulary.canonical_scorer import create_canonical_scorer
+from src.core.vocabulary.meta_learner_text_analysis import _load_names_datasets
 from src.core.vocabulary.string_utils import edit_distance
 from src.core.vocabulary.term_sources import TermSources
 from src.logging_config import debug_log
@@ -66,8 +67,6 @@ def _load_known_words() -> set[str]:
     if _KNOWN_WORDS is not None:
         return _KNOWN_WORDS
 
-    from pathlib import Path
-
     from src.config import GOOGLE_WORD_FREQUENCY_FILE
 
     _KNOWN_WORDS = set()
@@ -87,42 +86,11 @@ def _load_known_words() -> set[str]:
         except Exception as e:
             debug_log(f"[NAME-REG] Failed to load Google word frequency file: {e}")
 
-    # Source 2: International names dataset
-    # https://github.com/sigpwned/popular-names-by-country-dataset
-    data_dir = Path(__file__).parent.parent.parent.parent / "data" / "names"
-    surnames_file = data_dir / "international_surnames.csv"
-    forenames_file = data_dir / "international_forenames.csv"
-
-    names_loaded = 0
-
-    # Load surnames (Romanized Name is column index 5)
-    if surnames_file.exists():
-        try:
-            with open(surnames_file, encoding="utf-8") as f:
-                next(f)  # Skip header
-                for line in f:
-                    parts = line.strip().split(",")
-                    if len(parts) > 5 and parts[5]:
-                        _KNOWN_WORDS.add(parts[5].lower())
-                        names_loaded += 1
-        except Exception as e:
-            debug_log(f"[NAME-REG] Failed to load surnames file: {e}")
-
-    # Load forenames (Romanized Name is column index 11)
-    if forenames_file.exists():
-        try:
-            with open(forenames_file, encoding="utf-8") as f:
-                next(f)  # Skip header
-                for line in f:
-                    parts = line.strip().split(",")
-                    if len(parts) > 11 and parts[11]:
-                        _KNOWN_WORDS.add(parts[11].lower())
-                        names_loaded += 1
-        except Exception as e:
-            debug_log(f"[NAME-REG] Failed to load forenames file: {e}")
-
-    if names_loaded > 0:
-        debug_log(f"[NAME-REG] Loaded {names_loaded} international names")
+    # Source 2: International names dataset (reuse meta_learner's cached loader)
+    forenames, surnames = _load_names_datasets()
+    _KNOWN_WORDS.update(forenames)
+    _KNOWN_WORDS.update(surnames)
+    debug_log(f"[NAME-REG] Added {len(forenames) + len(surnames)} international names")
 
     debug_log(f"[NAME-REG] Total known words for typo resolution: {len(_KNOWN_WORDS)}")
 

@@ -19,6 +19,7 @@ import numpy as np
 from src.config import NON_NER_PHRASE_COMMON_WORD_FLOOR, get_count_bin_features
 from src.core.vocabulary.adjusted_mean import compute_adjusted_mean
 from src.core.vocabulary.meta_learner_text_analysis import (
+    _get_name_country_data,
     _load_names_datasets,
     _log_rarity_score,
     _max_consonant_run,
@@ -155,6 +156,9 @@ FEATURE_NAMES = [
     "all_low_conf",  # 1 if ALL source docs have conf < 0.60 (red flag)
     # Session 83: Name validation and domain-specific features (5 total)
     "is_in_names_dataset",  # Any word in international forenames/surnames datasets
+    "names_word_ratio",  # Proportion of term's words found in names dataset (0-1)
+    "has_forename_and_surname",  # Term has both a forename and surname match (0/1)
+    "name_country_spread",  # Geographic diversity of matched names (0-1)
     "has_legal_suffix",  # -ant, -ent, -ee, -or (defendant, appellee, etc.)
     "has_title_prefix",  # Dr., Mr., Ms., Hon., Judge, etc.
     "has_professional_suffix",  # M.D., Esq., Ph.D., R.N., etc.
@@ -181,7 +185,7 @@ def extract_features(term_data: dict[str, Any]) -> np.ndarray:
                   May include "sources" (TermSources) and "total_docs_in_session"
 
     Returns:
-        numpy array of 43 features (7 count bins + log_count + 35 other features)
+        numpy array of 46 features (7 count bins + log_count + 38 other features)
 
     Raises:
         ValueError: If term_data is not a dict or missing required fields
@@ -338,11 +342,31 @@ def extract_features(term_data: dict[str, Any]) -> np.ndarray:
     forenames, surnames = _load_names_datasets()
     all_names = forenames | surnames
     is_in_names_dataset = 0.0
+    names_word_ratio = 0.0
+    has_forename_and_surname = 0.0
+    name_country_spread = 0.0
     if words_lower:
+        matched_count = 0
+        has_forename = False
+        has_surname = False
         for w in words_lower:
             if w in all_names:
                 is_in_names_dataset = 1.0
-                break
+                matched_count += 1
+            if w in forenames:
+                has_forename = True
+            if w in surnames:
+                has_surname = True
+        names_word_ratio = matched_count / len(words_lower)
+        has_forename_and_surname = 1.0 if (has_forename and has_surname) else 0.0
+
+        # Geographic spread: max country count among matched words
+        name_country_counts, total_countries = _get_name_country_data()
+        max_countries = 0
+        for w in words_lower:
+            if w in name_country_counts:
+                max_countries = max(max_countries, name_country_counts[w])
+        name_country_spread = max_countries / total_countries if total_countries > 0 else 0.0
 
     # Legal suffix detection (like medical suffix but for legal terms)
     has_legal_suffix = 1.0 if any(term_lower.endswith(suffix) for suffix in LEGAL_SUFFIXES) else 0.0
@@ -448,8 +472,11 @@ def extract_features(term_data: dict[str, Any]) -> np.ndarray:
             confidence_std_dev,
             high_conf_doc_ratio,
             all_low_conf,
-            # Session 83: Name validation and domain features (5)
+            # Session 83: Name validation and domain features (8)
             is_in_names_dataset,
+            names_word_ratio,
+            has_forename_and_surname,
+            name_country_spread,
             has_legal_suffix,
             has_title_prefix,
             has_professional_suffix,
