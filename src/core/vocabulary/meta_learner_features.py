@@ -16,7 +16,8 @@ from typing import Any
 
 import numpy as np
 
-from src.config import get_count_bin_features
+from src.config import NON_NER_PHRASE_COMMON_WORD_FLOOR, get_count_bin_features
+from src.core.vocabulary.adjusted_mean import compute_adjusted_mean
 from src.core.vocabulary.meta_learner_text_analysis import (
     _load_names_datasets,
     _log_rarity_score,
@@ -24,6 +25,7 @@ from src.core.vocabulary.meta_learner_text_analysis import (
 )
 from src.core.vocabulary.rarity_filter import _load_scaled_frequencies
 from src.core.vocabulary.term_sources import TermSources
+from src.user_preferences import get_user_preferences
 
 # Medical suffixes for domain-specific feature (Session 76)
 MEDICAL_SUFFIXES = (
@@ -275,13 +277,16 @@ def extract_features(term_data: dict[str, Any]) -> np.ndarray:
         freq_dict_word_ratio = sum(words_in_dict) / len(words_in_dict)
         all_words_in_freq_dict = 1.0 if all(w in freq_dict for w in words_lower) else 0.0
 
-        # Session 130: Log-scaled rarity score (mean across words)
+        # Session 130: Log-scaled rarity score (adjusted mean across words)
         # Distinguishes "Comiskey" (rank 96755, rare) from "Clerk" (rank 5435, common)
-        rarity_scores = []
-        for w in words_lower:
-            linear_score = freq_dict.get(w, 1.0)  # Unknown words = rare (1.0)
-            rarity_scores.append(_log_rarity_score(linear_score))
-        word_log_rarity_score = sum(rarity_scores) / len(rarity_scores)
+        # Uses adjusted mean: filters by linear scores, averages log scores
+        prefs = get_user_preferences()
+        floor = prefs.get("non_ner_phrase_common_word_floor", NON_NER_PHRASE_COMMON_WORD_FLOOR)
+        linear_scores = [freq_dict.get(w, 1.0) for w in words_lower]
+        log_scores = [_log_rarity_score(s) for s in linear_scores]
+        word_log_rarity_score = compute_adjusted_mean(
+            log_scores, floor, filter_scores=linear_scores
+        )
     else:
         freq_dict_word_ratio = 0.0
         all_words_in_freq_dict = 0.0

@@ -59,10 +59,16 @@ from functools import lru_cache
 
 from src.config import (
     GOOGLE_WORD_FREQUENCY_FILE,
+    NON_NER_PHRASE_COMMON_WORD_FLOOR,
+    NON_NER_PHRASE_MAX_PASSTHROUGH_THRESHOLD,
+    NON_NER_PHRASE_MEAN_PASSTHROUGH_THRESHOLD,
+    NON_NER_SINGLE_PASSTHROUGH_THRESHOLD,
+    NON_NER_UNKNOWN_WORD_RARITY,
     PHRASE_MAX_COMMONALITY_THRESHOLD,
     PHRASE_MEAN_COMMONALITY_THRESHOLD,
     SINGLE_WORD_COMMONALITY_THRESHOLD,
 )
+from src.core.vocabulary.adjusted_mean import compute_adjusted_mean
 from src.core.vocabulary.person_utils import is_person_entry
 from src.logging_config import debug_log
 from src.user_preferences import get_user_preferences
@@ -208,7 +214,7 @@ def is_common_word(word: str, top_n: int = 200000) -> bool:
 
 
 @lru_cache(maxsize=2048)
-def calculate_phrase_component_scores(phrase: str) -> tuple[float, float, int]:
+def calculate_phrase_component_scores(phrase: str, floor: float = 0.0) -> tuple[float, float, int]:
     """
     Calculate rarity metrics for a multi-word phrase based on its component words.
 
@@ -224,13 +230,16 @@ def calculate_phrase_component_scores(phrase: str) -> tuple[float, float, int]:
 
     Args:
         phrase: The phrase to analyze (e.g., "cervical spine" or "the same")
+        floor: Minimum score to include in the adjusted mean (e.g., 0.10).
+            Words below this are treated as common filler and excluded.
+            Default 0.0 means no filtering (backward compatible).
 
     Returns:
-        Tuple of (min_commonality, mean_commonality, word_count):
+        Tuple of (min_commonality, adjusted_mean_commonality, word_count):
         - min_commonality: LOWEST commonality score (the rarest word)
           If this is high, even the rarest word is common -> filter
           If this is low, at least one word is rare -> keep
-        - mean_commonality: Average commonality across all words
+        - adjusted_mean_commonality: Mean commonality excluding filler words
           (if this is high, the phrase is generally common words)
         - word_count: Number of words in the phrase
 
@@ -255,10 +264,107 @@ def calculate_phrase_component_scores(phrase: str) -> tuple[float, float, int]:
     # Get commonality score for each word
     scores = [scaled.get(w, 0.0) for w in words]
 
-    min_score = min(scores)  # The rarest word - this is what matters
-    mean_score = sum(scores) / len(scores)
+    min_score = min(scores)
+    mean_score = compute_adjusted_mean(scores, floor)
 
     return (min_score, mean_score, len(words))
+
+
+@lru_cache(maxsize=2048)
+def get_phrase_rarity_scores(phrase: str) -> tuple[float, float, int]:
+    """
+    Calculate rarity scores for a phrase, treating unknown words as rare.
+
+    Unlike calculate_phrase_component_scores which gives 0.0 to unknown words
+    (treating them as maximally common), this function assigns them a
+    configurable rarity score (default 0.85) since words absent from the
+    Google frequency dataset are likely proper nouns or specialized terms.
+
+    The mean is "adjusted": common filler words (below the floor threshold)
+    are excluded from the mean calculation to prevent words like "of", "the"
+    from dragging down the average rarity of phrases with genuinely rare words.
+
+    Args:
+        phrase: The phrase to analyze
+
+    Returns:
+        Tuple of (max_rarity, adjusted_mean_rarity, word_count):
+        - max_rarity: Highest rarity score (the rarest word)
+        - adjusted_mean_rarity: Mean rarity excluding common filler words
+        - word_count: Number of words in the phrase
+    """
+    scaled = _load_scaled_frequencies()
+    prefs = get_user_preferences()
+    unknown_score = prefs.get("non_ner_unknown_word_rarity", NON_NER_UNKNOWN_WORD_RARITY)
+
+    words = [w.strip() for w in phrase.lower().split() if w.strip()]
+    if not words:
+        return (0.0, 0.0, 0)
+
+    scores = [scaled.get(w, unknown_score) for w in words]
+    max_rarity = max(scores)
+
+    floor = prefs.get("non_ner_phrase_common_word_floor", NON_NER_PHRASE_COMMON_WORD_FLOOR)
+    adjusted_mean_rarity = compute_adjusted_mean(scores, floor)
+
+    return (max_rarity, adjusted_mean_rarity, len(words))
+
+
+def should_passthrough_non_ner_term(term: str, term_data: dict) -> bool:
+    """
+    Determine if a non-Person RAKE/BM25 term should pass through rarity filtering.
+
+    RAKE/BM25 find terms typed as "Technical" (not "Person"). The rarity filter
+    treats words not in the Google frequency dataset as score 0.0 (maximally common),
+    which incorrectly filters out proper nouns and rare names found by these algorithms.
+
+    This passthrough check runs BEFORE the rarity filter removes a term. If the term
+    was found by RAKE or BM25 and its rarity exceeds thresholds, it is kept.
+
+    Args:
+        term: The term text
+        term_data: Full term dictionary with algorithm flags
+
+    Returns:
+        True if the term should be KEPT (passed through rarity filtering)
+        False if normal rarity filtering should apply
+    """
+    # Only passthrough non-Person terms found by RAKE or BM25
+    if term_data.get("Is Person", "No") == "Yes":
+        return False
+    if term_data.get("RAKE") != "Yes" and term_data.get("BM25") != "Yes":
+        return False
+
+    prefs = get_user_preferences()
+    single_threshold = prefs.get(
+        "non_ner_single_passthrough_threshold", NON_NER_SINGLE_PASSTHROUGH_THRESHOLD
+    )
+    phrase_max_threshold = prefs.get(
+        "non_ner_phrase_max_passthrough_threshold", NON_NER_PHRASE_MAX_PASSTHROUGH_THRESHOLD
+    )
+    phrase_mean_threshold = prefs.get(
+        "non_ner_phrase_mean_passthrough_threshold", NON_NER_PHRASE_MEAN_PASSTHROUGH_THRESHOLD
+    )
+
+    max_rarity, adjusted_mean_rarity, word_count = get_phrase_rarity_scores(term)
+
+    if word_count == 0:
+        return False
+
+    if word_count == 1:
+        passed = max_rarity >= single_threshold
+    else:
+        passed = (
+            max_rarity >= phrase_max_threshold and adjusted_mean_rarity >= phrase_mean_threshold
+        )
+
+    if passed:
+        debug_log(
+            f"[RARITY] Passthrough non-NER term '{term}': "
+            f"max={max_rarity:.3f}, adj_mean={adjusted_mean_rarity:.3f}, words={word_count}"
+        )
+
+    return passed
 
 
 def should_filter_phrase(phrase: str, is_person: bool = False) -> bool:
@@ -306,7 +412,8 @@ def should_filter_phrase(phrase: str, is_person: bool = False) -> bool:
         "phrase_mean_rarity_threshold", PHRASE_MEAN_COMMONALITY_THRESHOLD
     )
 
-    min_common, mean_common, word_count = calculate_phrase_component_scores(phrase)
+    floor = prefs.get("non_ner_phrase_common_word_floor", NON_NER_PHRASE_COMMON_WORD_FLOOR)
+    min_common, mean_common, word_count = calculate_phrase_component_scores(phrase, floor)
 
     # Empty or invalid - don't filter (let other validation handle)
     if word_count == 0:
@@ -336,10 +443,10 @@ def should_filter_phrase(phrase: str, is_person: bool = False) -> bool:
         )
         return True
 
-    # Filter if the average word is too common
+    # Filter if the adjusted mean word rarity is too common
     if mean_common < phrase_mean_threshold:
         debug_log(
-            f"[RARITY] Filtering '{phrase}': mean_rank_pct={mean_common:.4f} "
+            f"[RARITY] Filtering '{phrase}': adj_mean_rank_pct={mean_common:.4f} "
             f"< {phrase_mean_threshold}"
         )
         return True
@@ -392,7 +499,9 @@ def filter_common_phrases(
         # Session 70: Use centralized person detection
         is_person = is_person_entry(term_data)
 
-        if should_filter_phrase(term, is_person):
+        if should_filter_phrase(term, is_person) and not should_passthrough_non_ner_term(
+            term, term_data
+        ):
             removed_count += 1
             continue
 

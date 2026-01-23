@@ -56,7 +56,10 @@ class CombinedPerTermFilter(BaseVocabularyFilter):
             calculate_corpus_familiarity,
             should_filter_corpus_familiar,
         )
-        from src.core.vocabulary.rarity_filter import should_filter_phrase
+        from src.core.vocabulary.rarity_filter import (
+            should_filter_phrase,
+            should_passthrough_non_ner_term,
+        )
 
         filtered = []
         removed_by_rarity = 0
@@ -71,8 +74,12 @@ class CombinedPerTermFilter(BaseVocabularyFilter):
             is_person = is_person_entry(term_data)
 
             # === CHECK 1: Rarity Filter ===
-            # Person names exempt
-            if not is_person and should_filter_phrase(term, is_person=False):
+            # Person names exempt; RAKE/BM25 terms pass through if sufficiently rare
+            if (
+                not is_person
+                and not should_passthrough_non_ner_term(term, term_data)
+                and should_filter_phrase(term, is_person=False)
+            ):
                 removed_by_rarity += 1
                 removed_terms.append(term)
                 continue

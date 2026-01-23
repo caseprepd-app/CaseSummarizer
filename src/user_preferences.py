@@ -420,6 +420,28 @@ class UserPreferencesManager:
         elif key == "phrase_mean_rarity_threshold":
             if not isinstance(value, (int, float)) or value < 0.1 or value > 0.9:
                 raise ValueError(f"phrase_mean_rarity_threshold must be 0.1-0.9, got {value}")
+        # Session 131: Non-NER Rarity Passthrough threshold validation
+        elif key == "non_ner_single_passthrough_threshold":
+            if not isinstance(value, (int, float)) or value < 0.50 or value > 0.95:
+                raise ValueError(
+                    f"non_ner_single_passthrough_threshold must be 0.50-0.95, got {value}"
+                )
+        elif key == "non_ner_phrase_max_passthrough_threshold":
+            if not isinstance(value, (int, float)) or value < 0.50 or value > 0.95:
+                raise ValueError(
+                    f"non_ner_phrase_max_passthrough_threshold must be 0.50-0.95, got {value}"
+                )
+        elif key == "non_ner_phrase_mean_passthrough_threshold":
+            if not isinstance(value, (int, float)) or value < 0.30 or value > 0.80:
+                raise ValueError(
+                    f"non_ner_phrase_mean_passthrough_threshold must be 0.30-0.80, got {value}"
+                )
+        elif key == "non_ner_unknown_word_rarity":
+            if not isinstance(value, (int, float)) or value < 0.50 or value > 1.00:
+                raise ValueError(f"non_ner_unknown_word_rarity must be 0.50-1.00, got {value}")
+        elif key == "non_ner_phrase_common_word_floor":
+            if not isinstance(value, (int, float)) or value < 0.05 or value > 0.30:
+                raise ValueError(f"non_ner_phrase_common_word_floor must be 0.05-0.30, got {value}")
         # Session 68: Corpus familiarity threshold validation
         elif key == "corpus_familiarity_threshold":
             if not isinstance(value, (int, float)) or value < 0.25 or value > 1.0:

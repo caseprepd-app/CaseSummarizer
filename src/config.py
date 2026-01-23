@@ -477,6 +477,23 @@ PHRASE_MEAN_COMMONALITY_THRESHOLD = 0.40  # Filter if average word in top 40%
 #   "radiculopathy" (rank ~250000, score 0.75) > 0.50 -> KEPT (bottom 25%)
 SINGLE_WORD_COMMONALITY_THRESHOLD = 0.50  # Filter top 50% of vocabulary
 
+# Non-NER Rarity Passthrough Thresholds (Session 131)
+# Passes RAKE/BM25-found terms through rarity filtering when they're sufficiently rare.
+# Words not in the Google frequency dataset get this score instead of 0.0:
+NON_NER_UNKNOWN_WORD_RARITY = 0.85  # Treat unknown words as rare (0.85 out of 1.0)
+# Single-word passthrough: keep if rarity >= threshold
+NON_NER_SINGLE_PASSTHROUGH_THRESHOLD = 0.80
+# Multi-word passthrough: keep if max_rarity >= threshold AND mean_rarity >= threshold
+NON_NER_PHRASE_MAX_PASSTHROUGH_THRESHOLD = 0.85
+NON_NER_PHRASE_MEAN_PASSTHROUGH_THRESHOLD = 0.65
+
+# Floor for adjusted mean rarity calculation (Session 131)
+# Words with rarity score below this are excluded from the mean calculation.
+# This prevents common filler words ("of", "the", "and") from dragging down
+# the mean rarity of phrases that contain genuinely rare words.
+# 0.10 = exclude words in the top 10% most common English words
+NON_NER_PHRASE_COMMON_WORD_FLOOR = 0.10
+
 # Artifact Filter: Common word threshold for detecting name+common-word artifacts
 # Used to identify patterns like "Luigi Napolitano Patient" where "Patient" is common
 # Words with rank below this threshold are considered "common" for artifact detection

@@ -710,6 +710,117 @@ def _register_all_settings():
         )
     )
 
+    # Session 131: Non-NER Rarity Passthrough Thresholds
+    # These settings control when RAKE/BM25-found terms pass through rarity filtering
+    SettingsRegistry.register(
+        SettingDefinition(
+            key="non_ner_single_passthrough_threshold",
+            label="RAKE/BM25 single-word passthrough",
+            category="Vocabulary",
+            setting_type=SettingType.SLIDER,
+            tooltip=(
+                "Allow single words found by RAKE/BM25 to pass through rarity "
+                "filtering if their rarity score meets this threshold. "
+                "Higher = stricter (fewer passthroughs).\n\n"
+                "Words not in the dictionary are treated as rare (score = "
+                "'Rarity score for unknown words' setting below)."
+            ),
+            default=0.80,
+            min_value=0.50,
+            max_value=0.95,
+            step=0.05,
+            getter=lambda: prefs.get("non_ner_single_passthrough_threshold", 0.80),
+            setter=lambda v: prefs.set("non_ner_single_passthrough_threshold", float(v)),
+        )
+    )
+
+    SettingsRegistry.register(
+        SettingDefinition(
+            key="non_ner_phrase_max_passthrough_threshold",
+            label="RAKE/BM25 phrase passthrough (rarest word)",
+            category="Vocabulary",
+            setting_type=SettingType.SLIDER,
+            tooltip=(
+                "Allow multi-word RAKE/BM25 phrases to pass through rarity "
+                "filtering if the rarest word's score meets this threshold. "
+                "Both this AND the average threshold below must be met.\n\n"
+                "Higher = stricter (fewer phrase passthroughs)."
+            ),
+            default=0.85,
+            min_value=0.50,
+            max_value=0.95,
+            step=0.05,
+            getter=lambda: prefs.get("non_ner_phrase_max_passthrough_threshold", 0.85),
+            setter=lambda v: prefs.set("non_ner_phrase_max_passthrough_threshold", float(v)),
+        )
+    )
+
+    SettingsRegistry.register(
+        SettingDefinition(
+            key="non_ner_phrase_mean_passthrough_threshold",
+            label="RAKE/BM25 phrase passthrough (adjusted mean)",
+            category="Vocabulary",
+            setting_type=SettingType.SLIDER,
+            tooltip=(
+                "Allow multi-word RAKE/BM25 phrases to pass through rarity "
+                "filtering if the adjusted mean word rarity meets this threshold. "
+                "Both this AND the rarest-word threshold above must be met.\n\n"
+                "The adjusted mean excludes common filler words (controlled by "
+                "the 'common word floor' setting below).\n\n"
+                "Higher = stricter (fewer phrase passthroughs)."
+            ),
+            default=0.65,
+            min_value=0.30,
+            max_value=0.80,
+            step=0.05,
+            getter=lambda: prefs.get("non_ner_phrase_mean_passthrough_threshold", 0.65),
+            setter=lambda v: prefs.set("non_ner_phrase_mean_passthrough_threshold", float(v)),
+        )
+    )
+
+    SettingsRegistry.register(
+        SettingDefinition(
+            key="non_ner_phrase_common_word_floor",
+            label="Adjusted mean: common word floor",
+            category="Vocabulary",
+            setting_type=SettingType.SLIDER,
+            tooltip=(
+                "Words with rarity score below this floor are excluded from "
+                "the adjusted mean rarity calculation. This prevents common "
+                "filler words (like 'of', 'the', 'and') from dragging down "
+                "the mean rarity of phrases that contain rare words.\n\n"
+                "Example: 0.10 excludes the top 10% most common English words."
+            ),
+            default=0.10,
+            min_value=0.05,
+            max_value=0.30,
+            step=0.05,
+            getter=lambda: prefs.get("non_ner_phrase_common_word_floor", 0.10),
+            setter=lambda v: prefs.set("non_ner_phrase_common_word_floor", float(v)),
+        )
+    )
+
+    SettingsRegistry.register(
+        SettingDefinition(
+            key="non_ner_unknown_word_rarity",
+            label="Rarity score for unknown words",
+            category="Vocabulary",
+            setting_type=SettingType.SLIDER,
+            tooltip=(
+                "Rarity score assigned to words not found in the Google frequency "
+                "dataset. Higher values treat unknown words as rarer, making them "
+                "more likely to be rescued.\n\n"
+                "Unknown words are often proper nouns or specialized terms."
+            ),
+            default=0.85,
+            min_value=0.50,
+            max_value=1.00,
+            step=0.05,
+            getter=lambda: prefs.get("non_ner_unknown_word_rarity", 0.85),
+            setter=lambda v: prefs.set("non_ner_unknown_word_rarity", float(v)),
+        )
+    )
+
     # Session 68: Corpus Familiarity Filtering
     SettingsRegistry.register(
         SettingDefinition(
