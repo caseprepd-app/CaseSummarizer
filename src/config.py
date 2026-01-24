@@ -8,6 +8,8 @@ from pathlib import Path
 
 import yaml
 
+from src.config_defaults import get_default as _d
+
 # Debug Mode Configuration
 DEBUG_MODE = os.environ.get("DEBUG", "false").lower() == "true"
 
@@ -55,8 +57,8 @@ DEFAULT_VOCAB_MODEL_PATH = Path(__file__).parent.parent / "config" / "default_vo
 
 # ML Training Thresholds (Session 84)
 # Don't train until we have enough samples to matter.
-ML_MIN_SAMPLES = 30  # Minimum samples before ML training starts
-ML_ENSEMBLE_MIN_SAMPLES = 40  # Minimum samples to enable ensemble (LR + RF)
+ML_MIN_SAMPLES = _d("ml_min_samples")  # Minimum samples before ML training starts
+ML_ENSEMBLE_MIN_SAMPLES = _d("ml_ensemble_min_samples")  # Minimum samples to enable ensemble
 ML_RETRAIN_THRESHOLD = 1  # Retrain on ANY new user feedback (was 10)
 
 # Graduated RF Weight in Ensemble (Session 84)
@@ -81,8 +83,8 @@ ML_RF_WEIGHT_THRESHOLDS = [
 #
 # Decay curve:
 #   Today: 1.00 → 1 year: 0.82 → 2 years: 0.67 → 3 years: 0.55 (floor)
-ML_DECAY_HALF_LIFE_DAYS = 1270  # ~3.5 years - tuned so weight hits floor at 3 years
-ML_DECAY_WEIGHT_FLOOR = 0.55  # Old feedback retains 55% weight minimum
+ML_DECAY_HALF_LIFE_DAYS = _d("ml_decay_half_life_days")  # ~3.5 years
+ML_DECAY_WEIGHT_FLOOR = _d("ml_decay_weight_floor")  # Old feedback retains 55% weight minimum
 
 # Graduated ML Weight (Session 84)
 # ML influence on final score increases with user's training corpus size.
@@ -189,10 +191,10 @@ def get_count_bin_features(count: int) -> tuple[float, float, float, float, floa
 # Rule-Based Quality Score: TermSources Adjustments (Session 79)
 # These adjustments are applied BEFORE ML blending, based on document source quality.
 # All values are additive to the base score (50 points).
-SCORE_MULTI_DOC_BOOST = 10  # Bonus for terms found in 2+ documents
-SCORE_HIGH_CONF_BOOST = 5  # Bonus if high_conf_doc_ratio > 0.8
-SCORE_ALL_LOW_CONF_PENALTY = -10  # Penalty if ALL sources have confidence < 0.60
-SCORE_SINGLE_SOURCE_PENALTY = -10  # Penalty for single low-conf source (conditional)
+SCORE_MULTI_DOC_BOOST = _d("score_multi_doc_boost")
+SCORE_HIGH_CONF_BOOST = _d("score_high_conf_boost")
+SCORE_ALL_LOW_CONF_PENALTY = _d("score_all_low_conf_penalty")
+SCORE_SINGLE_SOURCE_PENALTY = _d("score_single_source_penalty")
 SCORE_SINGLE_SOURCE_MIN_DOCS = 3  # Only apply single-source penalty when session has 3+ docs
 SCORE_SINGLE_SOURCE_CONF_THRESHOLD = 0.70  # Confidence threshold for single-source penalty
 
@@ -205,15 +207,15 @@ for ml_dir in [FEEDBACK_DIR, MODELS_ML_DIR]:
 CORPUS_DIR = APPDATA_DIR / "corpus"
 CORPUS_MIN_DOCUMENTS = 5  # Minimum docs before BM25 activates
 BM25_ENABLED = True  # User can disable in settings
-BM25_MIN_SCORE_THRESHOLD = 2.0  # Minimum BM25 score to include term
+BM25_MIN_SCORE_THRESHOLD = _d("bm25_min_score_threshold")
 BM25_WEIGHT = 0.8  # Legacy - kept for backward compatibility
 
 # BM25+ Algorithm Parameters (unified across vocabulary and retrieval)
 # Using BM25+ parameters which are strictly better than standard BM25
 # (delta parameter prevents zero scores for very long documents)
-BM25_K1 = 1.5  # Term frequency saturation (higher = more weight on repeated terms)
-BM25_B = 0.75  # Length normalization (0 = no normalization, 1 = full normalization)
-BM25_DELTA = 1.0  # BM25+ improvement factor (prevents zero scores)
+BM25_K1 = _d("bm25_k1")  # Term frequency saturation
+BM25_B = _d("bm25_b")  # Length normalization
+BM25_DELTA = _d("bm25_delta")  # BM25+ improvement factor
 
 # Corpus Familiarity Filtering Configuration (Session 68)
 # Filters terms that appear too frequently across the user's corpus.
@@ -228,16 +230,16 @@ CORPUS_FAMILIARITY_EXEMPT_PERSONS = True  # Exempt person names from filtering
 # Higher weight = more influence on final confidence score
 # These weights are used by ResultMerger to combine algorithm results
 VOCAB_ALGORITHM_WEIGHTS = {
-    "NER": 1.0,  # Primary - spaCy NER, most precise for names/entities
-    "RAKE": 0.7,  # Secondary - good for multi-word technical phrases
-    "BM25": 0.8,  # Corpus-based term importance (requires 5+ docs)
+    "NER": _d("vocab_weight_ner"),
+    "RAKE": _d("vocab_weight_rake"),
+    "BM25": _d("vocab_weight_bm25"),
 }
 
 # Similarity Thresholds (consolidated from scattered definitions)
 # Used for name deduplication, fuzzy matching, and text similarity
-NAME_SIMILARITY_THRESHOLD = 0.85  # Min similarity to consider names as same person
-TEXT_SIMILARITY_THRESHOLD = 0.80  # Min similarity to consider text as duplicate
-EDIT_DISTANCE_RATIO_THRESHOLD = 0.35  # Max edit distance ratio for typo detection
+NAME_SIMILARITY_THRESHOLD = _d("name_similarity_threshold")
+TEXT_SIMILARITY_THRESHOLD = _d("text_similarity_threshold")
+EDIT_DISTANCE_RATIO_THRESHOLD = _d("edit_distance_ratio_threshold")
 GIBBERISH_SIMILARITY_THRESHOLD = 0.80  # Min similarity to dictionary word (not gibberish)
 
 # Ensure corpus directory exists
@@ -251,25 +253,25 @@ MIN_DICTIONARY_CONFIDENCE = 60  # Percentage
 
 # PDF Extraction Configuration (Session 79)
 # Hybrid extraction uses both PyMuPDF and pdfplumber, reconciling with word-level voting
-PDF_EXTRACTION_MODE = "hybrid"  # "hybrid", "pymupdf_only", "pdfplumber_only"
-PDF_VOTING_ENABLED = True  # Enable word-level voting when both extractors succeed
+PDF_EXTRACTION_MODE = _d("pdf_extraction_mode")
+PDF_VOTING_ENABLED = _d("pdf_voting_enabled")
 
 # OCR Configuration
-OCR_DPI = 300
-OCR_CONFIDENCE_THRESHOLD = 70  # Files below this are pre-unchecked
+OCR_DPI = _d("ocr_dpi")
+OCR_CONFIDENCE_THRESHOLD = _d("ocr_confidence_threshold")
 
 # OCR Image Preprocessing Configuration
 # Preprocessing can improve OCR accuracy by 20-50% for scanned documents
 # Reference: https://tesseract-ocr.github.io/tessdoc/ImproveQuality.html
 OCR_PREPROCESSING_ENABLED = True  # Enable image preprocessing before OCR
-OCR_DENOISE_STRENGTH = 10  # Denoising strength (1-30, higher = more smoothing)
-OCR_ENABLE_CLAHE = True  # Enable CLAHE contrast enhancement
+OCR_DENOISE_STRENGTH = _d("ocr_denoise_strength")
+OCR_ENABLE_CLAHE = _d("ocr_enable_clahe")
 
 # AI Model Configuration
 OLLAMA_API_BASE = "http://localhost:11434"  # Default Ollama API endpoint
 OLLAMA_MODEL_NAME = "gemma3:1b"  # Default model for the application
 OLLAMA_MODEL_FALLBACK = "gemma3:1b"  # Fallback if the primary model fails
-OLLAMA_TIMEOUT_SECONDS = 600  # 10 minutes for long summaries
+OLLAMA_TIMEOUT_SECONDS = _d("ollama_timeout_seconds")
 QUEUE_TIMEOUT_SECONDS = 2.0  # Timeout for multiprocessing queue operations
 
 # Network/API Timeout Constants (for quick checks, not long operations)
@@ -381,10 +383,10 @@ MAX_SUMMARY_WORDS = 500
 # Summary Generation Parameters (defaults for PromptConfig)
 SUMMARY_WORD_COUNT_TOLERANCE = 20  # Absolute word tolerance (+/- from target)
 SUMMARY_SLIDER_INCREMENT = 50  # UI slider step size
-SUMMARY_TEMPERATURE = 0.3  # Temperature for summary generation (higher = more creative)
+SUMMARY_TEMPERATURE = _d("summary_temperature")
 
 # LLM Generation Parameters
-LLM_TOP_P = 0.9  # Nucleus sampling parameter
+LLM_TOP_P = _d("llm_top_p")
 LLM_TOKENS_PER_WORD = 1.5  # Estimate for token budget calculation
 LLM_TOKEN_BUFFER_MULTIPLIER = 1.3  # Safety buffer to prevent mid-sentence cutoffs
 
@@ -394,7 +396,7 @@ LLM_EXTRACTOR_MAX_TOKENS = 1000  # Maximum tokens for LLM response
 
 # Summary Length Enforcement Settings
 # When a generated summary exceeds target by more than TOLERANCE, it will be condensed
-SUMMARY_LENGTH_TOLERANCE = 0.20  # 20% overage allowed (200 words → accepts up to 240)
+SUMMARY_LENGTH_TOLERANCE = _d("summary_length_tolerance")
 SUMMARY_MAX_CONDENSE_ATTEMPTS = 3  # Maximum condensation attempts before returning best effort
 
 # Data Files
@@ -623,12 +625,10 @@ VECTOR_STORE_DIR.mkdir(parents=True, exist_ok=True)
 # Q&A Retrieval Settings
 # Set to None to retrieve ALL chunks (searches entire document corpus)
 # Set to a number to limit retrieval to top-K chunks
-QA_RETRIEVAL_K = 20  # Top 20 chunks by hybrid score (BM25 + FAISS)
-QA_MAX_TOKENS = (
-    750  # Maximum tokens for generated answer (increased to prevent mid-sentence cutoff)
-)
-QA_TEMPERATURE = 0.1  # Low temperature for factual, consistent answers
-QA_SIMILARITY_THRESHOLD = 0.5  # Minimum relevance score for chunks
+QA_RETRIEVAL_K = _d("qa_retrieval_k")
+QA_MAX_TOKENS = _d("qa_max_tokens")
+QA_TEMPERATURE = _d("qa_temperature")
+QA_SIMILARITY_THRESHOLD = _d("qa_similarity_threshold")
 
 # Q&A Context Window
 # Session 67: Now dynamically set to match LLM context window based on GPU VRAM.
@@ -654,12 +654,12 @@ RETRIEVAL_ALGORITHM_WEIGHTS = {
 }
 
 # Algorithm enable/disable flags
-RETRIEVAL_ENABLE_BM25 = True  # BM25+ lexical search (recommended: always on)
-RETRIEVAL_ENABLE_FAISS = True  # FAISS semantic search (can disable for speed)
+RETRIEVAL_ENABLE_BM25 = _d("retrieval_enable_bm25")
+RETRIEVAL_ENABLE_FAISS = _d("retrieval_enable_faiss")
 
 # Chunking settings for retrieval (smaller chunks = more precise retrieval)
-RETRIEVAL_CHUNK_SIZE = 500  # Characters per chunk
-RETRIEVAL_CHUNK_OVERLAP = 50  # Overlap between chunks
+RETRIEVAL_CHUNK_SIZE = _d("retrieval_chunk_size")
+RETRIEVAL_CHUNK_OVERLAP = _d("retrieval_chunk_overlap")
 
 # Minimum relevance score threshold for merged results
 # Lower than before since BM25+ scores are more reliable
@@ -704,9 +704,9 @@ QUERY_TRANSFORM_TIMEOUT = 30.0
 # See gpu_detector.get_optimal_chunk_sizes() for the research-based values.
 
 # Token limits for chunk sizing (research-based fixed values)
-UNIFIED_CHUNK_MIN_TOKENS = 400  # Minimum to prevent fragmentation
-UNIFIED_CHUNK_TARGET_TOKENS = 700  # Optimal for mixed queries (research: 500-800)
-UNIFIED_CHUNK_MAX_TOKENS = 1000  # Upper bound (>1024 hurts retrieval precision)
+UNIFIED_CHUNK_MIN_TOKENS = _d("unified_chunk_min_tokens")
+UNIFIED_CHUNK_TARGET_TOKENS = _d("unified_chunk_target_tokens")
+UNIFIED_CHUNK_MAX_TOKENS = _d("unified_chunk_max_tokens")
 
 # tiktoken encoding for token counting
 # cl100k_base is compatible with most modern models (GPT-3.5+, Claude, Llama)
@@ -720,7 +720,7 @@ UNIFIED_CHUNK_ENCODING = "cl100k_base"
 
 # Enable/disable hallucination verification for Q&A answers
 # When enabled, adds ~100-200ms per answer
-HALLUCINATION_VERIFICATION_ENABLED = True
+HALLUCINATION_VERIFICATION_ENABLED = _d("hallucination_verification_enabled")
 
 # Model to use for verification (smaller = faster, larger = more accurate)
 # Options: "KRLabsOrg/lettucedect-base-modernbert-en-v1" (~150MB, recommended)
@@ -739,7 +739,7 @@ HALLUCINATION_THRESHOLDS = {
 }
 
 # Overall answer rejection threshold - reject if reliability below this
-ANSWER_REJECTION_THRESHOLD = 0.50  # Reject if reliability < 50%
+ANSWER_REJECTION_THRESHOLD = _d("answer_rejection_threshold")
 
 # Message shown when answer confidence is too low
 HALLUCINATION_REJECTION_MESSAGE = (
@@ -773,10 +773,10 @@ HALLUCINATION_LOCAL_ONLY = HALLUCINATION_MODEL_LOCAL_PATH.exists()
 # Uses BAAI/bge-reranker-base to rerank candidate chunks after hybrid retrieval.
 # Cross-encoders process query+document pairs together for more accurate relevance.
 
-RERANKING_ENABLED = True  # Enable cross-encoder reranking for improved precision
+RERANKING_ENABLED = _d("reranking_enabled")
 RERANKER_MODEL_NAME = "BAAI/bge-reranker-base"  # ~400MB model, downloads on first use
 RERANKER_MODEL_LOCAL_PATH = BUNDLED_MODELS_DIR / "bge-reranker-base"
-RERANKER_TOP_K = 5  # Keep top 5 chunks after reranking (from initial 20)
+RERANKER_TOP_K = _d("reranker_top_k")
 
 
 # ============================================================================

@@ -2,7 +2,8 @@
 Default Questions Widget for Settings Dialog.
 
 Widget for managing default Q&A questions with checkboxes.
-Session 82: Extracted from settings_widgets.py for modularity.
+Changes are buffered locally and only persisted when the dialog's
+Save button is clicked.
 
 Layout:
     ┌─────────────────────────────────────────────────────────────┐
@@ -27,8 +28,9 @@ class DefaultQuestionsWidget(ctk.CTkFrame):
     """
     Widget for managing default Q&A questions with checkboxes.
 
-    Session 63c: Provides a scrollable list of questions where each can be
-    enabled/disabled via checkbox. Also supports add, edit, delete, and reorder.
+    All changes are buffered locally. The dialog calls get_value()
+    on Save to retrieve the buffer, which is then persisted via the
+    registered setter. Clicking Cancel discards the buffer.
     """
 
     def __init__(self, parent, **kwargs):
@@ -41,23 +43,25 @@ class DefaultQuestionsWidget(ctk.CTkFrame):
         """
         super().__init__(parent, fg_color="transparent", **kwargs)
 
-        # Get manager instance via QAService
         from src.services import QAService
 
         qa_service = QAService()
-        self.manager = qa_service.get_default_questions_manager()
+        self._manager = qa_service.get_default_questions_manager()
 
-        # Track checkbox variables
+        # Buffer: list of {"text": str, "enabled": bool} dicts
+        self._buffer = [
+            {"text": q.text, "enabled": q.enabled} for q in self._manager.get_all_questions()
+        ]
+
         self._checkboxes: list[tuple[ctk.CTkCheckBox, ctk.BooleanVar]] = []
-
         self._setup_ui()
 
     def _setup_ui(self):
         """Create the widget layout."""
         self.grid_columnconfigure(0, weight=1)
-        self.grid_rowconfigure(2, weight=1)  # Scrollable frame expands
+        self.grid_rowconfigure(2, weight=1)
 
-        # Header row with label and tooltip
+        # Header row
         header_frame = ctk.CTkFrame(self, fg_color="transparent")
         header_frame.grid(row=0, column=0, sticky="ew", pady=(0, 5))
 
@@ -78,7 +82,7 @@ class DefaultQuestionsWidget(ctk.CTkFrame):
         )
         tooltip.pack(side="left")
 
-        # Guidance text with examples
+        # Guidance text
         guidance_text = (
             "Tip: Ask one specific question at a time about facts stated in the documents.\n\n"
             'Good: "What injuries were sustained?", "What warnings were given?"\n'
@@ -101,8 +105,7 @@ class DefaultQuestionsWidget(ctk.CTkFrame):
         self.scroll_frame.grid(row=2, column=0, sticky="nsew", pady=(0, 10))
         self.scroll_frame.grid_columnconfigure(0, weight=1)
 
-        # Populate with existing questions
-        self._refresh_question_list()
+        self._rebuild_ui()
 
         # Add question button
         add_frame = ctk.CTkFrame(self, fg_color="transparent")
@@ -118,25 +121,21 @@ class DefaultQuestionsWidget(ctk.CTkFrame):
         )
         self.add_btn.pack(side="left")
 
-    def _refresh_question_list(self):
-        """Rebuild the question list from manager."""
-        # Clear existing widgets
+    def _rebuild_ui(self):
+        """Rebuild the question list from the local buffer."""
         for widget in self.scroll_frame.winfo_children():
             widget.destroy()
         self._checkboxes.clear()
 
-        # Add each question
-        questions = self.manager.get_all_questions()
-        for idx, q in enumerate(questions):
-            self._add_question_row(idx, q.text, q.enabled)
+        for idx, q in enumerate(self._buffer):
+            self._add_question_row(idx, q["text"], q["enabled"])
 
     def _add_question_row(self, index: int, text: str, enabled: bool):
-        """Add a single question row."""
+        """Add a single question row to the scroll frame."""
         row_frame = ctk.CTkFrame(self.scroll_frame, fg_color="transparent")
         row_frame.grid(row=index, column=0, sticky="ew", pady=2, padx=5)
         row_frame.grid_columnconfigure(1, weight=1)
 
-        # Checkbox with question text
         var = ctk.BooleanVar(value=enabled)
         checkbox = ctk.CTkCheckBox(
             row_frame,
@@ -149,14 +148,12 @@ class DefaultQuestionsWidget(ctk.CTkFrame):
         )
         checkbox.grid(row=0, column=0, sticky="w")
 
-        # Question text label (clickable to edit)
         text_label = ctk.CTkLabel(
             row_frame, text=text, anchor="w", font=FONTS["body"], cursor="hand2"
         )
         text_label.grid(row=0, column=1, sticky="ew", padx=(5, 10))
         text_label.bind("<Button-1>", lambda e, i=index: self._edit_question(i))
 
-        # Delete button
         delete_btn = ctk.CTkButton(
             row_frame,
             text="✕",
@@ -173,59 +170,56 @@ class DefaultQuestionsWidget(ctk.CTkFrame):
         self._checkboxes.append((checkbox, var))
 
     def _on_toggle(self, index: int):
-        """Handle checkbox toggle."""
-        if index < len(self._checkboxes):
+        """Handle checkbox toggle — updates buffer only."""
+        if index < len(self._buffer):
             _, var = self._checkboxes[index]
-            self.manager.set_enabled(index, var.get())
+            self._buffer[index]["enabled"] = var.get()
 
     def _add_question(self):
-        """Show dialog to add a new question."""
+        """Show dialog to add a new question to the buffer."""
         dialog = ctk.CTkInputDialog(text="Enter a new question:", title="Add Question")
         text = dialog.get_input()
 
         if text and text.strip():
-            self.manager.add_question(text.strip())
-            self._refresh_question_list()
+            self._buffer.append({"text": text.strip(), "enabled": True})
+            self._rebuild_ui()
 
     def _edit_question(self, index: int):
-        """Show dialog to edit a question."""
-        questions = self.manager.get_all_questions()
-        if index >= len(questions):
+        """Show dialog to edit a question in the buffer."""
+        if index >= len(self._buffer):
             return
 
-        current_text = questions[index].text
-        # Show current text in the prompt since CTkInputDialog doesn't support pre-fill
+        current_text = self._buffer[index]["text"]
         display_text = current_text[:60] + "..." if len(current_text) > 60 else current_text
         dialog = ctk.CTkInputDialog(
             text=f'Current: "{display_text}"\n\nEnter new text:', title="Edit Question"
         )
-
         text = dialog.get_input()
 
         if text and text.strip():
-            self.manager.update_question(index, text.strip())
-            self._refresh_question_list()
+            self._buffer[index]["text"] = text.strip()
+            self._rebuild_ui()
 
     def _delete_question(self, index: int):
-        """Delete a question after confirmation."""
+        """Delete a question from the buffer after confirmation."""
         from tkinter import messagebox
 
-        questions = self.manager.get_all_questions()
-        if index >= len(questions):
+        if index >= len(self._buffer):
             return
 
-        question_text = questions[index].text
-        # Truncate for display
+        question_text = self._buffer[index]["text"]
         display_text = question_text[:50] + "..." if len(question_text) > 50 else question_text
 
         if messagebox.askyesno("Delete Question", f'Delete this question?\n\n"{display_text}"'):
-            self.manager.remove_question(index)
-            self._refresh_question_list()
+            self._buffer.pop(index)
+            self._rebuild_ui()
 
-    def get_value(self):
-        """Return enabled state - not needed since changes are saved immediately."""
-        return None
+    def get_value(self) -> list[dict]:
+        """Return the buffered questions list for persistence on Save."""
+        return self._buffer
 
     def set_value(self, value):
-        """Set value - not needed since we load from manager."""
-        pass
+        """Set value — reload buffer from provided data."""
+        if value and isinstance(value, list):
+            self._buffer = value
+            self._rebuild_ui()

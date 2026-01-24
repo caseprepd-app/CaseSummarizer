@@ -158,21 +158,103 @@ class SettingsDialog(BaseModalDialog):
         """
         Add setting widgets to a tab.
 
+        For tabs with section-grouped settings (like Advanced), creates
+        collapsible sections. Otherwise renders flat list of widgets.
+
         Args:
             tab: The tab frame to populate.
             category: Category name to get settings for.
         """
         settings = SettingsRegistry.get_settings_for_category(category)
 
+        # Check if this tab uses collapsible sections
+        has_sections = any(s.section and s.section != "_header" for s in settings)
+
         # Create a scrollable frame for many settings
         scroll_frame = ctk.CTkScrollableFrame(tab, fg_color="transparent")
         scroll_frame.pack(fill="both", expand=True, padx=5, pady=5)
         scroll_frame.grid_columnconfigure(0, weight=1)
 
-        for idx, setting in enumerate(settings):
-            widget = self._create_widget(scroll_frame, setting)
-            widget.grid(row=idx, column=0, sticky="ew", pady=10, padx=5)
-            self.widgets[setting.key] = widget
+        if not has_sections:
+            # Standard flat layout
+            for idx, setting in enumerate(settings):
+                widget = self._create_widget(scroll_frame, setting)
+                widget.grid(row=idx, column=0, sticky="ew", pady=10, padx=5)
+                self.widgets[setting.key] = widget
+        else:
+            self._populate_sectioned_tab(scroll_frame, settings)
+
+    def _populate_sectioned_tab(self, scroll_frame, settings):
+        """
+        Populate a tab with collapsible sections.
+
+        Groups settings by their `section` field and renders each group
+        inside a CollapsibleSection widget. Header items (section="_header")
+        are rendered at the top without a section wrapper.
+
+        Args:
+            scroll_frame: Scrollable frame to add sections to.
+            settings: List of SettingDefinition objects.
+        """
+        from .advanced_registry import reset_section
+        from .advanced_sections import CollapsibleSection
+
+        row_idx = 0
+
+        # Render header items first (e.g., "Restore All Defaults" button)
+        for setting in settings:
+            if setting.section == "_header":
+                widget = self._create_widget(scroll_frame, setting)
+                widget.grid(row=row_idx, column=0, sticky="ew", pady=(5, 10), padx=5)
+                self.widgets[setting.key] = widget
+                row_idx += 1
+
+        # Group remaining settings by section (preserve order)
+        sections_ordered = []
+        section_settings = {}
+        for setting in settings:
+            if setting.section and setting.section != "_header":
+                if setting.section not in section_settings:
+                    sections_ordered.append(setting.section)
+                    section_settings[setting.section] = []
+                section_settings[setting.section].append(setting)
+
+        # Create collapsible sections
+        for section_name in sections_ordered:
+            section_items = section_settings[section_name]
+
+            def make_reset_fn(name):
+                def _reset():
+                    from tkinter import messagebox
+
+                    result = messagebox.askyesno(
+                        "Reset Section",
+                        f"Reset all '{name}' settings to their defaults?",
+                        icon="question",
+                    )
+                    if result:
+                        reset_section(name)
+                        # Reload widget values
+                        for s in section_settings.get(name, []):
+                            w = self.widgets.get(s.key)
+                            if w and s.getter:
+                                w.set_value(s.getter())
+
+                return _reset
+
+            section = CollapsibleSection(
+                scroll_frame,
+                title=section_name,
+                on_reset=make_reset_fn(section_name),
+            )
+            section.grid(row=row_idx, column=0, sticky="ew", pady=2, padx=2)
+            row_idx += 1
+
+            # Add setting widgets to the section content
+            for widget_idx, setting in enumerate(section_items):
+                widget = self._create_widget(section.content_frame, setting)
+                widget.grid(row=widget_idx, column=0, sticky="ew", pady=6, padx=5)
+                self.widgets[setting.key] = widget
 
     def _create_widget(self, parent, setting) -> ctk.CTkFrame:
         """
@@ -191,11 +273,15 @@ class SettingsDialog(BaseModalDialog):
         # Get initial value from getter or use default
         initial_value = setting.getter() if setting.getter else setting.default
 
+        # Resolve callable tooltip/options at dialog-open time (not import time)
+        tooltip = setting.tooltip() if callable(setting.tooltip) else setting.tooltip
+        options = setting.options() if callable(setting.options) else setting.options
+
         if setting.setting_type == SettingType.SLIDER:
             return SliderSetting(
                 parent,
                 label=setting.label,
-                tooltip=setting.tooltip,
+                tooltip=tooltip,
                 min_value=setting.min_value,
                 max_value=setting.max_value,
                 step=setting.step,
@@ -206,7 +292,7 @@ class SettingsDialog(BaseModalDialog):
             return CheckboxSetting(
                 parent,
                 label=setting.label,
-                tooltip=setting.tooltip,
+                tooltip=tooltip,
                 initial_value=initial_value,
             )
 
@@ -214,8 +300,8 @@ class SettingsDialog(BaseModalDialog):
             return DropdownSetting(
                 parent,
                 label=setting.label,
-                tooltip=setting.tooltip,
-                options=setting.options,
+                tooltip=tooltip,
+                options=options,
                 initial_value=initial_value,
             )
 
@@ -223,7 +309,7 @@ class SettingsDialog(BaseModalDialog):
             return SpinboxSetting(
                 parent,
                 label=setting.label,
-                tooltip=setting.tooltip,
+                tooltip=tooltip,
                 min_value=int(setting.min_value),
                 max_value=int(setting.max_value),
                 initial_value=initial_value,
@@ -233,7 +319,7 @@ class SettingsDialog(BaseModalDialog):
             return ButtonSetting(
                 parent,
                 label=setting.label,
-                tooltip=setting.tooltip,
+                tooltip=tooltip,
                 action=setting.action,
             )
 

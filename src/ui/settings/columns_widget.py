@@ -159,8 +159,8 @@ class ColumnVisibilityWidget(ctk.CTkFrame):
             var.set(value)
 
     def _on_checkbox_change(self):
-        """Handle checkbox state change - save immediately."""
-        self._save_values()
+        """Handle checkbox state change (persisted on dialog Save)."""
+        pass
 
     def _save_values(self):
         """Save current checkbox states to preferences."""
@@ -177,8 +177,6 @@ class ColumnVisibilityWidget(ctk.CTkFrame):
         for col_name, (_cb, var) in self._checkboxes.items():
             default = COLUMN_REGISTRY.get(col_name, {}).get("default", False)
             var.set(default)
-
-        self._save_values()
 
     def get_value(self) -> dict[str, bool]:
         """Return current checkbox states."""

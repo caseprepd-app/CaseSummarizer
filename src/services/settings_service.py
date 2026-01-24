@@ -78,17 +78,17 @@ class SettingsService:
     @property
     def summary_word_count(self) -> int:
         """Get target summary word count."""
-        return self.get("summary_word_count", 200)
+        return self.get("summary_words", 200)
 
     @summary_word_count.setter
     def summary_word_count(self, value: int) -> None:
         """Set target summary word count."""
-        self.set("summary_word_count", value)
+        self.set("summary_words", value)
 
     @property
     def ollama_model(self) -> str:
         """Get selected Ollama model."""
-        return self.get("ollama_model", "phi-3-mini")
+        return self.get("ollama_model", "gemma3:1b")
 
     @ollama_model.setter
     def ollama_model(self, value: str) -> None:
@@ -98,17 +98,17 @@ class SettingsService:
     @property
     def vocabulary_sort_method(self) -> str:
         """Get vocabulary sort method."""
-        return self.get("vocabulary_sort_method", "quality_score")
+        return self.get("vocab_sort_method", "quality_score")
 
     @vocabulary_sort_method.setter
     def vocabulary_sort_method(self, value: str) -> None:
         """Set vocabulary sort method."""
-        self.set("vocabulary_sort_method", value)
+        self.set("vocab_sort_method", value)
 
     @property
     def qa_answer_mode(self) -> str:
         """Get Q&A answer mode (extraction/ollama)."""
-        return self.get("qa_answer_mode", "ollama")
+        return self.get("qa_answer_mode", "extraction")
 
     @qa_answer_mode.setter
     def qa_answer_mode(self, value: str) -> None:

@@ -65,12 +65,15 @@ class SettingDefinition:
         label: Display name shown in the UI
         category: Tab name in settings dialog (groups related settings)
         setting_type: Widget type to render
-        tooltip: Explanation shown on hover (helps users understand the setting)
+        tooltip: Explanation shown on hover. Can be a string or callable
+            returning a string (for dynamic content evaluated at display time).
         default: Default value when no preference is saved
         min_value: Minimum value (for SLIDER, SPINBOX)
         max_value: Maximum value (for SLIDER, SPINBOX)
         step: Increment between values (for SLIDER)
-        options: List of (display_text, value) tuples (for DROPDOWN)
+        options: List of (display_text, value) tuples (for DROPDOWN).
+            Can also be a callable returning such a list (for dynamic options
+            evaluated when the dialog opens, not at registration time).
         getter: Function that returns the current value
         setter: Function that applies a new value
         action: Function to execute on click (for BUTTON)
@@ -81,16 +84,17 @@ class SettingDefinition:
     label: str
     category: str
     setting_type: SettingType
-    tooltip: str
+    tooltip: str | Callable[[], str]
     default: Any
     min_value: float = None
     max_value: float = None
     step: float = 1
-    options: list = field(default_factory=list)
+    options: list | Callable[[], list] = field(default_factory=list)
     getter: Callable[[], Any] = None
     setter: Callable[[Any], None] = None
     action: Callable[[], None] = None
-    widget_factory: Callable = None  # Session 63c: For CUSTOM type widgets
+    widget_factory: Callable = None
+    section: str | None = None  # Sub-group within a category (for collapsible sections)
 
 
 class SettingsRegistry:
@@ -198,13 +202,18 @@ def _register_all_settings():
     SettingsRegistry.register(
         SettingDefinition(
             key="parallel_workers_auto",
-            label="Auto-detect CPU cores",
+            label="Auto-detect worker count",
             category="Performance",
             setting_type=SettingType.CHECKBOX,
             tooltip=(
-                "When enabled, CasePrepd automatically detects the optimal "
-                "number of parallel workers based on your CPU. Disable this "
-                "to manually set the worker count below."
+                "When enabled, the number of parallel document processing workers "
+                "is set to your CPU core count (max 4).\n\n"
+                "Disable this to manually choose a worker count below. You might "
+                "want fewer workers if processing causes your system to slow down, "
+                "or more if you have RAM to spare and want faster throughput.\n\n"
+                "Note: This controls document-level parallelism (how many documents "
+                "are processed simultaneously). Algorithm-level parallelism within "
+                "each document is controlled by the slider above."
             ),
             default=True,
             getter=lambda: not prefs.get("user_picks_max_workers", False),
@@ -219,9 +228,12 @@ def _register_all_settings():
             category="Performance",
             setting_type=SettingType.SPINBOX,
             tooltip=(
-                "Number of parallel workers when auto-detect is disabled. "
-                "Higher values process documents faster but use more RAM. "
-                "Range: 1-8. Recommended: 2 for most systems, 4 for 16GB+ RAM."
+                "Number of documents to process simultaneously when auto-detect "
+                "is disabled. Each worker holds one document in memory.\n\n"
+                "• 1-2: Safe for 8GB RAM systems\n"
+                "• 3-4: Good for 16GB RAM systems\n"
+                "• 5-8: Only if you have 32GB+ RAM\n\n"
+                'This setting is ignored when "Auto-detect worker count" is enabled.'
             ),
             default=USER_DEFINED_MAX_WORKER_COUNT,
             min_value=1,
@@ -234,16 +246,21 @@ def _register_all_settings():
     SettingsRegistry.register(
         SettingDefinition(
             key="resource_usage_pct",
-            label="System resource usage",
+            label="Parallel processing limit",
             category="Performance",
             setting_type=SettingType.SLIDER,
             tooltip=(
-                "Percentage of system resources (CPU and RAM) to use for processing. "
-                "Higher values process faster but may slow your computer during processing.\n\n"
-                "• 25%: Minimal impact - computer stays responsive\n"
-                "• 50%: Moderate - some slowdown during processing\n"
-                "• 75%: Recommended - good balance of speed and responsiveness\n"
-                "• 100%: Maximum speed - computer may be slow during processing"
+                "How many parallel workers to allow during processing, expressed "
+                "as a percentage of your CPU cores.\n\n"
+                "Example: On an 8-core machine at 75%, up to 6 workers can run "
+                "simultaneously. RAM is also checked — each LLM worker needs "
+                "~2GB, so low-RAM systems will be capped regardless.\n\n"
+                "Affects:\n"
+                "• Vocabulary extraction: Up to 4 algorithms run in parallel\n"
+                "• LLM extraction: Up to 3 document chunks processed at once\n"
+                "• Q&A: Up to 4 questions answered simultaneously\n\n"
+                "Lower values keep your computer responsive during processing. "
+                "Higher values finish faster but may cause slowdowns."
             ),
             default=75,
             min_value=25,
@@ -263,9 +280,11 @@ def _register_all_settings():
             category="Performance",
             setting_type=SettingType.SLIDER,
             tooltip=(
-                "Target word count for AI-generated summaries. The actual "
-                "length may vary slightly. Longer summaries capture more "
-                "detail but take more time to generate."
+                "Default target word count for the summary length slider in the "
+                "main window. You can adjust the slider per-session before "
+                'clicking "Perform Tasks" — this just sets where it starts.\n\n'
+                "The actual summary length depends on the LLM and document "
+                "complexity. Treat this as a guideline, not a hard limit."
             ),
             default=DEFAULT_SUMMARY_WORDS,
             min_value=MIN_SUMMARY_WORDS,
@@ -280,16 +299,14 @@ def _register_all_settings():
     # VOCABULARY TAB
     # ===================================================================
 
-    # Session 68: Corpus status warning banner (dynamic refresh)
-    # Shows warning if corpus has < 5 documents, updates when tab is shown
     def _create_corpus_warning_widget(parent):
         """Factory for corpus status warning banner with dynamic refresh."""
-        import tkinter as tk
+        import customtkinter as ctk
 
         from src.services import VocabularyService
 
-        frame = tk.Frame(parent)
-        frame._warning_frame = None  # Store reference for updates
+        frame = ctk.CTkFrame(parent, fg_color="transparent")
+        frame._warning_frame = None
         frame._warning_label = None
 
         def update_warning():
@@ -298,7 +315,6 @@ def _register_all_settings():
             doc_count = corpus_manager.get_document_count()
 
             if doc_count < 5:
-                # Show or update warning banner
                 warning_text = (
                     f"Corpus not ready ({doc_count}/5 documents). "
                     "ML predictions are less accurate without a corpus of past transcripts. "
@@ -306,32 +322,26 @@ def _register_all_settings():
                 )
 
                 if frame._warning_frame is None:
-                    # Create warning frame
-                    frame._warning_frame = tk.Frame(frame, bg="#FFF3CD", padx=10, pady=8)
-                    frame._warning_frame.pack(fill="x", pady=(0, 10))
-                    frame._warning_label = tk.Label(
+                    frame._warning_frame = ctk.CTkFrame(frame, fg_color="#FFF3CD", corner_radius=6)
+                    frame._warning_frame.pack(fill="x", pady=(0, 10), padx=5)
+                    frame._warning_label = ctk.CTkLabel(
                         frame._warning_frame,
                         text=warning_text,
-                        bg="#FFF3CD",
-                        fg="#856404",
+                        text_color="#856404",
                         wraplength=400,
                         justify="left",
+                        anchor="w",
                     )
-                    frame._warning_label.pack(anchor="w")
+                    frame._warning_label.pack(anchor="w", padx=10, pady=8)
                 else:
-                    # Update existing label text
                     frame._warning_label.configure(text=warning_text)
                     if not frame._warning_frame.winfo_ismapped():
-                        frame._warning_frame.pack(fill="x", pady=(0, 10))
+                        frame._warning_frame.pack(fill="x", pady=(0, 10), padx=5)
             else:
-                # Corpus is ready - hide warning if it exists
                 if frame._warning_frame is not None and frame._warning_frame.winfo_ismapped():
                     frame._warning_frame.pack_forget()
 
-        # Initial update
         update_warning()
-
-        # Refresh when widget becomes visible (tab switch)
         frame.bind("<Map>", lambda e: update_warning())
 
         return frame
@@ -422,6 +432,11 @@ def _register_all_settings():
 
         return ColumnVisibilityWidget(parent)
 
+    def _save_column_visibility(visibility: dict) -> None:
+        """Persist column visibility dict to preferences."""
+        if visibility is not None:
+            prefs.set("vocab_column_visibility", visibility)
+
     SettingsRegistry.register(
         SettingDefinition(
             key="vocab_column_visibility",
@@ -430,6 +445,8 @@ def _register_all_settings():
             setting_type=SettingType.CUSTOM,
             tooltip="",  # Widget has its own tooltip
             default=None,
+            getter=lambda: prefs.get("vocab_column_visibility", {}),
+            setter=_save_column_visibility,
             widget_factory=_create_column_visibility_widget,
         )
     )
@@ -971,7 +988,7 @@ def _register_all_settings():
                 "Pick the largest Gemma model suitable for your hardware."
             ),
             default="gemma3:1b",
-            options=_get_ollama_model_options(),
+            options=_get_ollama_model_options,
             getter=lambda: prefs.get("ollama_model", "gemma3:1b"),
             setter=_set_ollama_model,
         )
@@ -1196,7 +1213,7 @@ def _register_all_settings():
                 "If Ollama becomes slow or unresponsive, try a smaller context size."
             ),
             default="auto",
-            options=_get_context_size_options(),
+            options=_get_context_size_options,
             getter=_get_context_size,
             setter=_set_context_size,
         )
@@ -1235,6 +1252,20 @@ def _register_all_settings():
 
         return DefaultQuestionsWidget(parent)
 
+    def _save_default_questions(questions_data: list[dict]) -> None:
+        """Persist buffered questions list to the manager."""
+        if questions_data is None:
+            return
+        from src.services import QAService
+
+        manager = QAService().get_default_questions_manager()
+        # Remove all existing questions (reverse order to avoid index shift)
+        for i in range(manager.get_total_count() - 1, -1, -1):
+            manager.remove_question(i)
+        # Re-add from buffer
+        for q in questions_data:
+            manager.add_question(q["text"], q.get("enabled", True))
+
     SettingsRegistry.register(
         SettingDefinition(
             key="qa_default_questions",
@@ -1244,9 +1275,10 @@ def _register_all_settings():
             tooltip=(
                 "Manage the questions that are automatically asked after document "
                 "processing. Enable/disable individual questions using checkboxes. "
-                "Add new questions or edit existing ones. Changes are saved automatically."
+                "Add new questions or edit existing ones."
             ),
             default=None,
+            setter=_save_default_questions,
             widget_factory=_create_default_questions_widget,
         )
     )
@@ -1294,18 +1326,25 @@ def _register_all_settings():
             label="LLM vocabulary extraction",
             category="Performance",
             setting_type=SettingType.DROPDOWN,
-            tooltip=(
-                "Whether to use LLM (Ollama) for enhanced vocabulary extraction.\n\n"
-                "• Auto: Use LLM if dedicated GPU detected, skip otherwise\n"
-                "• Yes: Always use LLM (slower without GPU)\n"
-                "• No: Never use LLM (fast NER-only extraction)\n\n"
+            tooltip=lambda: (
+                "Controls whether LLM (Ollama) is used for vocabulary extraction "
+                "in addition to NER (spaCy).\n\n"
+                "• Auto: Enables LLM if a dedicated GPU is detected. Without a "
+                "GPU, LLM extraction is very slow and often not worth the wait.\n"
+                "• Always enable: Always enable the LLM checkbox (you can still "
+                "uncheck it per-session in the main window).\n"
+                "• NER only: Hide the LLM option entirely. Only NER-based "
+                "extraction will run.\n\n"
+                "NER alone finds person names and organizations. Adding LLM "
+                "extraction also finds medical terms, legal terminology, and "
+                "domain-specific vocabulary.\n\n"
                 f"Current status: {_get_gpu_status_for_tooltip()}"
             ),
             default="auto",
             options=[
-                ("Auto (based on GPU)", "auto"),
-                ("Yes (always use LLM)", "yes"),
-                ("No (NER only)", "no"),
+                ("Auto (enable if GPU detected)", "auto"),
+                ("Always enable", "yes"),
+                ("NER only (no LLM)", "no"),
             ],
             getter=lambda: prefs.get_vocab_llm_mode(),
             setter=lambda v: prefs.set_vocab_llm_mode(v),
@@ -1315,21 +1354,29 @@ def _register_all_settings():
     SettingsRegistry.register(
         SettingDefinition(
             key="qa_model_override",
-            label="Q&A model size requirement",
+            label="Q&A minimum model size",
             category="Performance",
             setting_type=SettingType.DROPDOWN,
             tooltip=(
-                "Q&A requires a 9B+ parameter model for quality answers.\n\n"
-                "• Auto: Require 9B+ model (recommended)\n"
-                "• Yes: Allow any model size (may reduce answer quality)\n"
-                "• No: Disable Q&A entirely\n\n"
-                "Smaller models may produce more hallucinations and less accurate answers."
+                "Q&A answers are generated by your Ollama model. Smaller models "
+                "(under 9 billion parameters) tend to hallucinate facts and give "
+                "unreliable answers about legal documents.\n\n"
+                "• Require 9B+: Require a 9B+ parameter model. If your selected "
+                "model is smaller (e.g., gemma3:1b), Q&A will be disabled with "
+                "an explanation.\n"
+                "• Allow any model: Skip the size check. Use this if you want to "
+                "experiment with smaller models, understanding answers may be "
+                "unreliable.\n"
+                "• Disable Q&A: Turn off the Q&A feature entirely, regardless "
+                "of model size.\n\n"
+                "The parameter count is parsed from the model name (e.g., "
+                '"gemma3:12b" \u2192 12 billion parameters).'
             ),
             default="auto",
             options=[
-                ("Auto (require 9B+ model)", "auto"),
-                ("Yes (allow any model)", "yes"),
-                ("No (disable Q&A)", "no"),
+                ("Require 9B+ (recommended)", "auto"),
+                ("Allow any model size", "yes"),
+                ("Disable Q&A entirely", "no"),
             ],
             getter=lambda: prefs.get_qa_model_override_mode(),
             setter=lambda v: prefs.set_qa_model_override_mode(v),
@@ -1339,3 +1386,8 @@ def _register_all_settings():
 
 # Register all settings when this module is imported
 _register_all_settings()
+
+# Register Advanced tab settings (must be after base registration)
+from .advanced_registry import _register_advanced_settings
+
+_register_advanced_settings()
