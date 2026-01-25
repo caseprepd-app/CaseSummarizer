@@ -64,25 +64,152 @@ class _DebugFileLogger:
         cls._log_file.write("=" * 60 + "\n\n")
         cls._log_file.flush()
 
-    def write(self, message: str):
-        """Write message to the debug log file."""
-        if self._log_file:
+    def write(self, message: str, force: bool = False):
+        """
+        Write message to the debug log file based on logging level.
+
+        Args:
+            message: The message to log
+            force: If True, bypasses level check (for errors/warnings)
+        """
+        if self.__class__._log_file and _should_log_message(message, force):
             timestamp = datetime.now().strftime("%H:%M:%S.%f")[:-3]
             formatted = f"[{timestamp}] {message}"
-            self._log_file.write(formatted + "\n")
-            self._log_file.flush()
+            self.__class__._log_file.write(formatted + "\n")
+            self.__class__._log_file.flush()
 
     def close(self):
         """Close the debug log file gracefully."""
-        if self._log_file:
-            self._log_file.write(f"\n{'=' * 60}\n")
-            self._log_file.write(f"Ended: {datetime.now().isoformat()}\n")
-            self._log_file.close()
-            self._log_file = None
+        if self.__class__._log_file:
+            self.__class__._log_file.write(f"\n{'=' * 60}\n")
+            self.__class__._log_file.write(f"Ended: {datetime.now().isoformat()}\n")
+            self.__class__._log_file.close()
+            self.__class__._log_file = None
 
 
 # Global debug file logger instance
 _debug_file_logger = _DebugFileLogger()
+
+
+# =============================================================================
+# Log Level Configuration
+# =============================================================================
+
+# Brief mode keywords: Only log messages containing these patterns
+# Brief logs: session markers, processing milestones, errors, exports
+BRIEF_MODE_PATTERNS = (
+    "=== CasePrepd",  # Session markers
+    "Started:",
+    "Ended:",
+    "DEBUG_MODE:",
+    "Processing document",  # Document processing
+    "Completed:",
+    "Processing complete",
+    "Document processing",
+    "Extracted",  # Results milestones
+    "Summary:",
+    "terms found",
+    "vocabulary",
+    "[ERROR]",  # All errors/warnings
+    "[WARNING]",
+    "[CRITICAL]",
+    "Error:",
+    "Failed:",
+    "Exception:",
+    "Export",  # Export operations
+    "Saved",
+    "export",
+)
+
+
+def _get_logging_level() -> str:
+    """
+    Get current logging level from user preferences.
+
+    Uses lazy import to avoid circular imports.
+
+    Returns:
+        str: "off", "brief", or "comprehensive"
+    """
+    try:
+        from src.user_preferences import get_user_preferences
+
+        return get_user_preferences().get_logging_level()
+    except Exception:
+        return "brief"  # Safe default
+
+
+def _should_log_message(message: str, force: bool = False) -> bool:
+    """
+    Check if a message should be logged based on current level.
+
+    Args:
+        message: The log message to check
+        force: If True, bypasses level check (for errors/warnings)
+
+    Returns:
+        bool: True if message should be logged
+    """
+    if force:
+        return True
+
+    level = _get_logging_level()
+
+    if level == "off":
+        return False
+    if level == "comprehensive":
+        return True
+    # "brief" mode - check if message matches any brief pattern
+    return any(pattern in message for pattern in BRIEF_MODE_PATTERNS)
+
+
+def get_log_file_path() -> Path:
+    """
+    Get the path to the debug log file.
+
+    Returns:
+        Path: Path to debug_flow.txt
+    """
+    return Path(__file__).parent.parent / "debug_flow.txt"
+
+
+def get_log_file_size_mb() -> float:
+    """
+    Get the current debug log file size in megabytes.
+
+    Returns:
+        float: File size in MB, or 0.0 if file doesn't exist
+    """
+    log_path = get_log_file_path()
+    if log_path.exists():
+        return log_path.stat().st_size / (1024 * 1024)
+    return 0.0
+
+
+def clear_debug_log() -> bool:
+    """
+    Clear the debug log file and reinitialize with a fresh header.
+
+    Returns:
+        bool: True if successful, False on error
+    """
+    try:
+        # Close current file handle
+        _DebugFileLogger._instance.close()
+
+        # Truncate the log file
+        log_path = get_log_file_path()
+        with open(log_path, "w", encoding="utf-8") as f:
+            f.write("")  # Clear contents
+
+        # Reinitialize the logger (will write fresh header)
+        # Use class attribute directly since it's a singleton
+        _DebugFileLogger._log_file = None
+        _DebugFileLogger._initialize_log_file()
+
+        return True
+    except Exception:
+        return False
 
 
 # =============================================================================
@@ -285,7 +412,7 @@ def warning(message: str):
     Args:
         message: The warning message to log
     """
-    _debug_file_logger.write(f"[WARNING] {message}")
+    _debug_file_logger.write(f"[WARNING] {message}", force=True)
     _logger.warning(message)
 
 
@@ -299,7 +426,7 @@ def error(message: str, exc_info: bool = False):
         message: The error message to log
         exc_info: If True, include exception traceback (only in DEBUG_MODE)
     """
-    _debug_file_logger.write(f"[ERROR] {message}")
+    _debug_file_logger.write(f"[ERROR] {message}", force=True)
     _logger.error(message, exc_info=exc_info and DEBUG_MODE)
 
 
@@ -313,7 +440,7 @@ def critical(message: str, exc_info: bool = True):
         message: The critical error message
         exc_info: If True, include exception traceback
     """
-    _debug_file_logger.write(f"[CRITICAL] {message}")
+    _debug_file_logger.write(f"[CRITICAL] {message}", force=True)
     _logger.critical(message, exc_info=exc_info and DEBUG_MODE)
 
 
@@ -360,12 +487,15 @@ def close_debug_log():
 __all__ = [
     "DEBUG_MODE",
     "Timer",
+    "clear_debug_log",
     "close_debug_log",
     "critical",
     "debug",
     "debug_log",
     "debug_timing",
     "error",
+    "get_log_file_path",
+    "get_log_file_size_mb",
     "info",
     "warning",
 ]

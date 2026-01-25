@@ -1076,10 +1076,9 @@ def _register_all_settings():
             ),
             (
                 "GETTING STARTED",
-                "1. Download Ollama from ollama.ai\n"
-                "2. Open a terminal and run: ollama pull gemma3:27b\n"
-                "   (or gemma3:12b for CPU-only systems)\n"
-                "3. Restart CasePrepd and select your model in Settings",
+                "For step-by-step installation instructions, click the\n"
+                "'Ollama Setup Guide' button below or visit:\n"
+                "Help menu > Ollama Setup Guide",
             ),
         ]
 
@@ -1106,12 +1105,14 @@ def _register_all_settings():
         button_frame = ctk.CTkFrame(content, fg_color="transparent")
         button_frame.pack(fill="x", pady=(15, 0))
 
-        # Visit ollama.ai button
+        # Ollama Setup Guide button
         visit_btn = ctk.CTkButton(
             button_frame,
-            text="Visit ollama.ai",
-            command=lambda: webbrowser.open("https://ollama.ai"),
-            width=120,
+            text="Ollama Setup Guide",
+            command=lambda: webbrowser.open(
+                "https://sites.google.com/view/caseprepd/ollama-instructions"
+            ),
+            width=140,
         )
         visit_btn.pack(side="left")
 
@@ -1306,6 +1307,118 @@ def _register_all_settings():
     )
 
     # ===================================================================
+    # LOGGING TAB
+    # ===================================================================
+
+    from src.config import LOGS_DIR
+
+    SettingsRegistry.register(
+        SettingDefinition(
+            key="logging_level",
+            label="Log detail level",
+            category="Logging",
+            setting_type=SettingType.DROPDOWN,
+            tooltip=(
+                "Controls how much detail is written to the debug log file.\n\n"
+                "• Off: No logging (saves disk space)\n"
+                "• Brief: Key milestones only - document processing, results, "
+                "errors. Recommended for normal use.\n"
+                "• Comprehensive: Everything - timing details, algorithm internals, "
+                "chunk details. Use for debugging issues.\n\n"
+                "Errors and warnings are always logged regardless of this setting."
+            ),
+            default="brief",
+            options=[
+                ("Off (no logging)", "off"),
+                ("Brief (recommended)", "brief"),
+                ("Comprehensive (debugging)", "comprehensive"),
+            ],
+            getter=lambda: prefs.get_logging_level(),
+            setter=lambda v: prefs.set_logging_level(v),
+        )
+    )
+
+    def _open_log_folder():
+        """Open the logs folder in the system file explorer."""
+        if not LOGS_DIR.exists():
+            LOGS_DIR.mkdir(parents=True, exist_ok=True)
+        try:
+            # Windows
+            os.startfile(str(LOGS_DIR))
+        except AttributeError:
+            # macOS/Linux fallback
+            import subprocess
+            import sys
+
+            if sys.platform == "darwin":
+                subprocess.run(["open", str(LOGS_DIR)])
+            else:
+                subprocess.run(["xdg-open", str(LOGS_DIR)])
+
+    SettingsRegistry.register(
+        SettingDefinition(
+            key="open_log_folder",
+            label="Open Log Folder",
+            category="Logging",
+            setting_type=SettingType.BUTTON,
+            tooltip=(
+                "Open the folder containing log files in your system file explorer.\n\n"
+                "Log files:\n"
+                "• debug_flow.txt - Detailed debug log\n"
+                "• processing.log - Processing events\n\n"
+                f"Location: {LOGS_DIR}"
+            ),
+            default=None,
+            action=_open_log_folder,
+        )
+    )
+
+    def _clear_debug_log():
+        """Clear the debug log file with confirmation."""
+        from tkinter import messagebox
+
+        from src.logging_config import clear_debug_log, get_log_file_size_mb
+
+        size_mb = get_log_file_size_mb()
+        result = messagebox.askyesno(
+            "Clear Debug Log",
+            f"Clear the debug log file?\n\n"
+            f"Current size: {size_mb:.2f} MB\n\n"
+            "This will erase all logged debugging information. "
+            "A new session header will be written.",
+            icon="question",
+        )
+
+        if result:
+            if clear_debug_log():
+                messagebox.showinfo(
+                    "Log Cleared",
+                    "Debug log has been cleared and reinitialized.",
+                )
+            else:
+                messagebox.showerror(
+                    "Clear Failed",
+                    "Failed to clear the debug log. The file may be in use.",
+                )
+
+    SettingsRegistry.register(
+        SettingDefinition(
+            key="clear_debug_log",
+            label="Clear Debug Log",
+            category="Logging",
+            setting_type=SettingType.BUTTON,
+            tooltip=(
+                "Clear the debug_flow.txt file to free disk space.\n\n"
+                "The file will be emptied and a fresh session header will be "
+                "written. Use this if the log file has grown too large.\n\n"
+                "Note: This cannot be undone."
+            ),
+            default=None,
+            action=_clear_debug_log,
+        )
+    )
+
+    # ===================================================================
     # EXPERIMENTAL TAB (Session 43)
     # Session 62b: LLM setting moved to Performance
     # ===================================================================
@@ -1359,9 +1472,9 @@ def _register_all_settings():
             setting_type=SettingType.DROPDOWN,
             tooltip=(
                 "Q&A answers are generated by your Ollama model. Smaller models "
-                "(under 9 billion parameters) tend to hallucinate facts and give "
+                "(under 8 billion parameters) tend to hallucinate facts and give "
                 "unreliable answers about legal documents.\n\n"
-                "• Require 9B+: Require a 9B+ parameter model. If your selected "
+                "• Require 8B+: Require an 8B+ parameter model. If your selected "
                 "model is smaller (e.g., gemma3:1b), Q&A will be disabled with "
                 "an explanation.\n"
                 "• Allow any model: Skip the size check. Use this if you want to "
@@ -1374,7 +1487,7 @@ def _register_all_settings():
             ),
             default="auto",
             options=[
-                ("Require 9B+ (recommended)", "auto"),
+                ("Require 8B+ (recommended)", "auto"),
                 ("Allow any model size", "yes"),
                 ("Disable Q&A entirely", "no"),
             ],

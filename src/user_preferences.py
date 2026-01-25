@@ -295,7 +295,7 @@ class UserPreferencesManager:
         Get Q&A model size override mode.
 
         Returns:
-            str: "auto" (require 9B+ model), "yes" (allow any model), or "no" (disable Q&A)
+            str: "auto" (require 8B+ model), "yes" (allow any model), or "no" (disable Q&A)
         """
         value = self._preferences.get("qa_model_override", "auto")
         return value if value in ("auto", "yes", "no") else "auto"
@@ -305,7 +305,7 @@ class UserPreferencesManager:
         Set Q&A model size override mode.
 
         Args:
-            mode: "auto" (require 9B+), "yes" (allow any size), or "no" (disable Q&A)
+            mode: "auto" (require 8B+), "yes" (allow any size), or "no" (disable Q&A)
         """
         if mode not in ("auto", "yes", "no"):
             raise ValueError(f"Invalid mode: {mode}, must be 'auto', 'yes', or 'no'")
@@ -341,17 +341,47 @@ class UserPreferencesManager:
         match = re.search(r":(\d+\.?\d*)b", model_name.lower())
         if match:
             param_count = float(match.group(1))
-            if param_count >= 9:
+            if param_count >= 8:
                 return True, ""
             else:
                 return False, (
-                    f"Q&A requires a 9B+ parameter model for quality answers.\n"
+                    f"Q&A requires an 8B+ parameter model for quality answers.\n"
                     f"Current model ({model_name}) has {param_count}B parameters.\n\n"
                     "Select a larger model or enable override in Settings."
                 )
 
         # Couldn't parse parameter count - allow but warn
         return True, ""
+
+    # =========================================================================
+    # Logging Level Settings
+    # =========================================================================
+
+    def get_logging_level(self) -> str:
+        """
+        Get the logging detail level for debug_flow.txt.
+
+        Returns:
+            str: "off", "brief", or "comprehensive"
+        """
+        value = self._preferences.get("logging_level", "brief")
+        return value if value in ("off", "brief", "comprehensive") else "brief"
+
+    def set_logging_level(self, level: str) -> None:
+        """
+        Set the logging detail level for debug_flow.txt.
+
+        Args:
+            level: "off", "brief", or "comprehensive"
+
+        Raises:
+            ValueError: If level is not a valid option
+        """
+        valid_levels = ("off", "brief", "comprehensive")
+        if level not in valid_levels:
+            raise ValueError(f"Invalid logging level: {level}, must be one of {valid_levels}")
+        self._preferences["logging_level"] = level
+        self._save_preferences()
 
     # =========================================================================
     # Generic Get/Set Methods (for extensible settings system)
@@ -531,6 +561,11 @@ class UserPreferencesManager:
             for col, width in value.items():
                 if not isinstance(width, int) or width < 30 or width > 500:
                     raise ValueError(f"Column width must be int 30-500, got {width} for '{col}'")
+        # Logging level validation
+        elif key == "logging_level":
+            valid_levels = ("off", "brief", "comprehensive")
+            if value not in valid_levels:
+                raise ValueError(f"logging_level must be one of {valid_levels}, got {value}")
 
         self._preferences[key] = value
         self._save_preferences()
