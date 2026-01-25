@@ -164,6 +164,11 @@ class PreprocessingPipeline:
             f"enabled preprocessors on {len(text) // 1024}KB text"
         )
 
+        # Import here to avoid circular imports
+        from src.logging_config import info
+
+        info(f"[PREPROCESSING] Starting with {enabled_count} preprocessors")
+
         for preprocessor in self.preprocessors:
             if not preprocessor.enabled:
                 debug_log(f"[PREPROCESSING] Skipping disabled: {preprocessor.name}")
@@ -186,6 +191,10 @@ class PreprocessingPipeline:
                     f"{result.changes_made} changes in {elapsed_ms:.1f}ms"
                 )
 
+                # Log to processing.log if there were changes
+                if result.changes_made > 0:
+                    info(f"[PREPROCESSING] {preprocessor.name}: {result.changes_made} changes")
+
                 current_text = result.text
 
             except Exception as e:
@@ -201,6 +210,10 @@ class PreprocessingPipeline:
         debug_log(
             f"[PREPROCESSING] Pipeline complete: {self.total_changes} total changes "
             f"in {total_time:.1f}ms, output {len(current_text) // 1024}KB"
+        )
+        info(
+            f"[PREPROCESSING] Complete: {self.total_changes} changes, "
+            f"{len(current_text) // 1024}KB output"
         )
 
         return current_text

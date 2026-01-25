@@ -54,9 +54,10 @@ class _DebugFileLogger:
 
     @classmethod
     def _initialize_log_file(cls):
-        """Create and initialize the debug log file."""
+        """Create and initialize the debug log file (append mode)."""
         log_path = Path(__file__).parent.parent / "debug_flow.txt"
-        cls._log_file = open(log_path, "w", encoding="utf-8")  # noqa: SIM115
+        cls._log_file = open(log_path, "a", encoding="utf-8")  # noqa: SIM115
+        cls._log_file.write("\n" + "=" * 60 + "\n")
         cls._log_file.write("=== CasePrepd Debug Log ===\n")
         cls._log_file.write(f"Started: {datetime.now().isoformat()}\n")
         cls._log_file.write(f"DEBUG_MODE: {DEBUG_MODE}\n")
