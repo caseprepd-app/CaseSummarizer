@@ -12,8 +12,15 @@ the index page AND all subsequent pages are removed.
 import re
 
 from src.config import (
+    INDEX_CHAR_WINDOW_SIZE,
+    INDEX_DETECTION_WINDOW_SIZE,
+    INDEX_ESTIMATED_CHARS_PER_LINE,
+    INDEX_MAX_CHECK_LENGTH,
     INDEX_MIN_DENSITY_PERCENT,
     INDEX_MIN_INDEX_LINES,
+    INDEX_MIN_TEXT_LENGTH,
+    INDEX_PAGE_REF_DIVISOR,
+    INDEX_TAIL_CHECK_FRACTION,
 )
 from src.core.preprocessing.base import BasePreprocessor, PreprocessingResult
 from src.logging_config import debug_log

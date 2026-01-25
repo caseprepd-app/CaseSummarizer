@@ -574,7 +574,7 @@ class CorpusManager:
             Exception: If extraction or preprocessing fails
         """
         from src.core.extraction import RawTextExtractor
-        from src.core.preprocessing import PreprocessingPipeline
+        from src.core.preprocessing import create_default_pipeline
         from src.core.sanitization import CharacterSanitizer
 
         debug_log(f"[Corpus] Preprocessing: {file_path.name}")
@@ -595,7 +595,7 @@ class CorpusManager:
         clean_text = sanitizer.sanitize(raw_text)
 
         # Step 3: Preprocess (remove headers, footers, line numbers, title pages)
-        pipeline = PreprocessingPipeline()
+        pipeline = create_default_pipeline()
         final_text = pipeline.process(clean_text)
 
         # Step 4: Save as _preprocessed.txt
