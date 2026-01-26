@@ -493,7 +493,7 @@ class UserPreferencesManager:
                 raise ValueError(f"vocab_use_llm must be 'auto', 'yes', or 'no', got {value}")
         # Session 64: LLM context window size validation
         elif key == "llm_context_size":
-            valid_sizes = [4000, 8000, 16000, 32000, 48000, 64000]
+            valid_sizes = [2048, 4000, 8000, 16000, 32000, 48000, 64000]
             if value != "auto" and value not in valid_sizes:
                 raise ValueError(
                     f"llm_context_size must be 'auto' or one of {valid_sizes}, got {value}"

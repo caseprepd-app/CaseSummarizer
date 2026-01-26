@@ -243,7 +243,9 @@ class ExportService:
         Returns:
             HTML content as string
         """
-        return export_vocabulary_html(vocab_data, visible_columns)
+        from src.core.export.html_builder import build_vocabulary_html
+
+        return build_vocabulary_html(vocab_data, visible_columns)
 
     def export_qa_to_html(
         self, results: list, file_path: str, include_verification: bool = True

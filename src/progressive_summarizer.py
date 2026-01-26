@@ -321,7 +321,7 @@ class ProgressiveSummarizer:
         template_path = Path(__file__).parent.parent / "config" / "chunked_prompt_template.txt"
 
         try:
-            with open(template_path) as f:
+            with open(template_path, encoding="utf-8") as f:
                 template = f.read()
         except Exception as e:
             error(f"Failed to load chunked prompt template: {e}")

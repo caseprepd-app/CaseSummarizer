@@ -123,7 +123,7 @@ def get_verification_color(hallucination_prob: float) -> tuple[tuple[int, int, i
     Returns:
         Tuple of (RGB color, strikethrough flag, category name)
     """
-    if hallucination_prob < 0.25:
+    if hallucination_prob < 0.30:
         return VERIFICATION_COLORS["verified"], False, "verified"
     elif hallucination_prob < 0.50:
         return VERIFICATION_COLORS["uncertain"], False, "uncertain"

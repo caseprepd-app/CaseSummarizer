@@ -202,8 +202,6 @@ def _fuzzy_merge_groups(groups: dict[str, list], threshold: float) -> list[list[
 
     merged_indices = set()
     result_groups = []
-    {key: i for i, key in enumerate(keys)}
-
     for i, key1 in enumerate(keys):
         if i in merged_indices:
             continue

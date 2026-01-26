@@ -136,7 +136,16 @@ class HallucinationVerifier:
 
         # Lazy load detector on first use
         if self._detector is None:
-            self._load_detector()
+            try:
+                self._load_detector()
+            except Exception as e:
+                if DEBUG_MODE:
+                    debug_log(f"[HallucinationVerifier] Failed to load model: {e}")
+                return VerificationResult(
+                    spans=[VerifiedSpan(text=answer, hallucination_prob=0.5)],
+                    overall_reliability=0.5,
+                    answer_rejected=False,
+                )
 
         try:
             # Get span predictions from LettuceDetect

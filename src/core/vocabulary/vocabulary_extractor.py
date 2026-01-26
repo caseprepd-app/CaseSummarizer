@@ -511,7 +511,7 @@ class VocabularyExtractor:
         debug_log("[VOCAB] Phase 4: Adding definitions...")
         for term in reconciled:
             if term.type in ("Medical", "Technical") and not term.definition:
-                term.definition = self._get_definition(term.term, term.type)
+                term.definition = self._get_definition(term.term, term.type == "Person")
 
         # 5. Convert to CSV format
         csv_data = reconciler.to_csv_data(reconciled, include_definitions=True)
@@ -520,7 +520,7 @@ class VocabularyExtractor:
         for i, row in enumerate(csv_data):
             term = reconciled[i].term
             category = reconciled[i].type
-            role = self._get_role_relevance(term, category, text)
+            role = self._get_role_relevance(term, category == "Person", text)
             row["Role/Relevance"] = role
 
         # 7. Run vocabulary filter chain (Session 71)

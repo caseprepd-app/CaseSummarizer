@@ -27,9 +27,9 @@ from src.logging_config import debug_log
 # Pre-compiled regex patterns (Session 70 optimization)
 # Previously compiled on every call to _split_sentences and _extract_keywords
 _RE_SOURCE_CITATIONS = re.compile(r"\[[^\]]+\]:")
-_RE_ABBREVIATIONS_TITLES = re.compile(r"(Mr\.|Mrs\.|Ms\.|Dr\.|Prof\.|Jr\.|Sr\.)")
-_RE_ABBREVIATIONS_CORP = re.compile(r"(Inc\.|Corp\.|Ltd\.|Co\.)")
-_RE_NUMBERS_PERIOD = re.compile(r"(\d+\.)")
+_RE_ABBREVIATIONS_TITLES = re.compile(r"(Mr|Mrs|Ms|Dr|Prof|Jr|Sr)\.")
+_RE_ABBREVIATIONS_CORP = re.compile(r"(Inc|Corp|Ltd|Co)\.")
+_RE_NUMBERS_PERIOD = re.compile(r"(\d+)\.")
 _RE_SENTENCE_END = re.compile(r"[.!?]+\s+")
 _RE_WORD_EXTRACT = re.compile(r"\b[a-zA-Z]+\b")
 _RE_WHITESPACE = re.compile(r"\s+")

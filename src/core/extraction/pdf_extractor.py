@@ -168,24 +168,22 @@ class PDFExtractor:
             text = ""
             page_count = 0
 
-            doc = fitz.open(file_path)
-            page_count = len(doc)
-            debug(f"PyMuPDF: PDF has {page_count} pages")
+            with fitz.open(file_path) as doc:
+                page_count = len(doc)
+                debug(f"PyMuPDF: PDF has {page_count} pages")
 
-            if page_count == 0:
-                doc.close()
-                error("PyMuPDF: PDF has no pages")
-                return None, 0, "empty"
+                if page_count == 0:
+                    error("PyMuPDF: PDF has no pages")
+                    return None, 0, "empty"
 
-            for i, page in enumerate(doc, 1):
-                if DEBUG_MODE and i % 10 == 0:
-                    debug(f"PyMuPDF: Extracting page {i}/{page_count}")
+                for i, page in enumerate(doc, 1):
+                    if DEBUG_MODE and i % 10 == 0:
+                        debug(f"PyMuPDF: Extracting page {i}/{page_count}")
 
-                page_text = page.get_text()
-                if page_text:
-                    text += page_text + "\n"
+                    page_text = page.get_text()
+                    if page_text:
+                        text += page_text + "\n"
 
-            doc.close()
             return text, page_count, None
 
         except fitz.FileDataError as e:

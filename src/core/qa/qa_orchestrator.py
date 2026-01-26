@@ -244,7 +244,7 @@ class QAOrchestrator:
             if progress_callback:
                 progress_callback(i, total)
 
-            result = self._ask_single_question(question, is_followup=False)
+            result = self._ask_single_question(question, is_followup=False, is_default=True)
             self.results.append(result)
 
             if DEBUG_MODE:
@@ -360,13 +360,8 @@ class QAOrchestrator:
         Returns:
             Synthesized answer string
         """
-        # Try Ollama first for best quality
-        from src.core.qa.answer_generator import AnswerGenerator
-
-        ollama_generator = AnswerGenerator(mode="ollama")
-        answer = ollama_generator.generate(question, context)
-
-        # If Ollama failed or returned empty, the generator already falls back to extraction
+        # Use the configured answer generator
+        answer = self.answer_generator.generate(question, context)
         return answer
 
     def _verify_answer(self, answer: str, context: str, question: str):

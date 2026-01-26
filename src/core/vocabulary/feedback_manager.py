@@ -371,7 +371,7 @@ class FeedbackManager:
             all_low_conf = 1 if sources.all_low_conf else 0
         else:
             # Legacy fallback: no TermSources available
-            source_doc_confidence = term_data.get("source_doc_confidence", 100) / 100.0
+            source_doc_confidence = (term_data.get("source_doc_confidence") or 100) / 100.0
             num_source_documents = 1
             doc_diversity_ratio = 1.0 / max(total_docs_in_session, 1)
             mean_doc_confidence = source_doc_confidence

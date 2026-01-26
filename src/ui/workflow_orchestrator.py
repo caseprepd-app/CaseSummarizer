@@ -202,7 +202,7 @@ class WorkflowOrchestrator:
         from src.services import DocumentService
 
         doc_service = DocumentService()
-        combined = doc_service.combine_document_texts(extracted_documents, include_headers=False)
+        combined = doc_service.combine_document_texts(extracted_documents)
         doc_count = sum(
             1 for d in extracted_documents if d.get("preprocessed_text") or d.get("extracted_text")
         )

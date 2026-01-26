@@ -45,16 +45,11 @@ def export_combined(
 
     # Section 1: Vocabulary
     if vocab_data:
-        builder.add_heading("Names & Vocabulary", level=2)
-        builder.add_paragraph(f"{len(vocab_data)} terms extracted from documents.")
-        builder.add_paragraph("")
-
         export_vocabulary(vocab_data, builder, include_vocab_details)
         builder.add_paragraph("")  # Spacer after table
 
     # Section 2: Q&A
     if qa_results:
-        builder.add_heading("Questions & Answers", level=2)
         export_qa_results(qa_results, builder, include_qa_verification)
 
     # Footer note

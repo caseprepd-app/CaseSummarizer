@@ -111,7 +111,11 @@ class CrossEncoderReranker:
 
         # Lazy-load model on first use
         if self._model is None:
-            self._load_model()
+            try:
+                self._load_model()
+            except Exception as e:
+                debug_log(f"[Reranker] Failed to load cross-encoder model: {e}")
+                return list(chunks[:top_k])
 
         # Build query-document pairs for cross-encoder
         pairs = [[query, chunk.text] for chunk in chunks]
@@ -167,7 +171,7 @@ class CrossEncoderReranker:
                     f"rerank={norm_score:.3f} (raw={raw_score:.3f})"
                 )
 
-        if filtered_count > 0:
+        if filtered_count > 0 and DEBUG_MODE:
             debug_log(
                 f"[Reranker] Filtered {filtered_count} chunks below "
                 f"relevance threshold {self.MIN_RELEVANCE_SCORE}"

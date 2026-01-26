@@ -24,7 +24,7 @@ from src.config import (
 
 def _escape(text: str) -> str:
     """Escape HTML special characters."""
-    return html.escape(str(text)) if text else ""
+    return html.escape(str(text)) if text is not None and text != "" else ""
 
 
 # ============================================================================
@@ -338,6 +338,94 @@ VOCAB_HTML_TEMPLATE = """<!DOCTYPE html>
 </html>"""
 
 
+def build_vocabulary_html(
+    vocab_data: list[dict],
+    visible_columns: list[str] | None = None,
+) -> str:
+    """
+    Build vocabulary HTML content string.
+
+    Args:
+        vocab_data: List of vocabulary dicts
+        visible_columns: List of column names to show initially (from GUI).
+                        If None, uses default columns.
+
+    Returns:
+        HTML content as string
+    """
+    # Default visible columns if not specified
+    if visible_columns is None:
+        visible_columns = ["Term", "Score", "Is Person", "Found By"]
+
+    # Get all column display names in order
+    column_names = [col[0] for col in VOCAB_HTML_COLUMNS]
+
+    # Build summary
+    person_count = sum(1 for v in vocab_data if v.get("Is Person") == "Yes")
+    term_count = len(vocab_data) - person_count
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M")
+    summary = f"{len(vocab_data)} entries ({person_count} persons, {term_count} terms) — Generated {timestamp}"
+
+    # Build column toggle checkboxes
+    # Session 80b: Protected columns (like Term) have disabled checkbox
+    toggle_parts = []
+    for col_name, _ in VOCAB_HTML_COLUMNS:
+        col_id = col_name.replace(" ", "").replace("#", "").replace("/", "")
+        is_visible = col_name in visible_columns
+
+        if col_name in PROTECTED_COLUMNS:
+            # Protected column: always visible, checkbox disabled
+            toggle_parts.append(
+                f'<label><input type="checkbox" id="col-{col_id}" '
+                f"checked disabled> {col_name} (required)</label>"
+            )
+        else:
+            checked = " checked" if is_visible else ""
+            toggle_parts.append(
+                f'<label><input type="checkbox" id="col-{col_id}" '
+                f"onchange=\"toggleColumn('{col_name}')\"{checked}> {col_name}</label>"
+            )
+    column_toggles = "\n                ".join(toggle_parts)
+
+    # Build table headers
+    header_parts = []
+    for i, (col_name, _) in enumerate(VOCAB_HTML_COLUMNS):
+        hidden_class = "" if col_name in visible_columns else ' class="col-hidden"'
+        header_parts.append(
+            f'                <th onclick="sortTable({i})"{hidden_class}>'
+            f'{col_name} <span class="sort-arrow">▼</span></th>'
+        )
+    table_headers = "\n".join(header_parts)
+
+    # Build table rows with all columns
+    rows = []
+    for v in vocab_data:
+        is_person = v.get("Is Person", "") == "Yes"
+        row_class = ' class="person"' if is_person else ""
+
+        cells = []
+        for col_name, data_key in VOCAB_HTML_COLUMNS:
+            hidden_class = "" if col_name in visible_columns else ' class="col-hidden"'
+            value = v.get(data_key, "")
+            cells.append(f"<td{hidden_class}>{_escape(value)}</td>")
+
+        rows.append(f"            <tr{row_class}>{''.join(cells)}</tr>")
+
+    table_rows = "\n".join(rows)
+
+    # Generate HTML with JSON data for JavaScript
+    # Session 80b: Include sort warning columns for confirm dialog
+    return VOCAB_HTML_TEMPLATE.format(
+        summary=_escape(summary),
+        column_toggles=column_toggles,
+        table_headers=table_headers,
+        table_rows=table_rows,
+        numeric_columns_json=json.dumps(list(NUMERIC_COLUMNS)),
+        column_order_json=json.dumps(column_names),
+        sort_warning_columns_json=json.dumps(list(SORT_WARNING_COLUMNS)),
+    )
+
+
 def export_vocabulary_html(
     vocab_data: list[dict],
     file_path: str,
@@ -346,10 +434,6 @@ def export_vocabulary_html(
 ) -> bool:
     """
     Export vocabulary to interactive HTML file.
-
-    Session 80: Updated to support configurable columns. All columns are
-    included in the HTML but only visible_columns are shown initially.
-    Users can toggle column visibility in the browser.
 
     Args:
         vocab_data: List of vocabulary dicts
@@ -362,78 +446,7 @@ def export_vocabulary_html(
         True if successful, False otherwise
     """
     try:
-        # Default visible columns if not specified
-        if visible_columns is None:
-            visible_columns = ["Term", "Score", "Is Person", "Found By"]
-
-        # Get all column display names in order
-        column_names = [col[0] for col in VOCAB_HTML_COLUMNS]
-
-        # Build summary
-        person_count = sum(1 for v in vocab_data if v.get("Is Person") == "Yes")
-        term_count = len(vocab_data) - person_count
-        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M")
-        summary = f"{len(vocab_data)} entries ({person_count} persons, {term_count} terms) — Generated {timestamp}"
-
-        # Build column toggle checkboxes
-        # Session 80b: Protected columns (like Term) have disabled checkbox
-        toggle_parts = []
-        for col_name, _ in VOCAB_HTML_COLUMNS:
-            col_id = col_name.replace(" ", "").replace("#", "").replace("/", "")
-            is_visible = col_name in visible_columns
-
-            if col_name in PROTECTED_COLUMNS:
-                # Protected column: always visible, checkbox disabled
-                toggle_parts.append(
-                    f'<label><input type="checkbox" id="col-{col_id}" '
-                    f"checked disabled> {col_name} (required)</label>"
-                )
-            else:
-                checked = " checked" if is_visible else ""
-                toggle_parts.append(
-                    f'<label><input type="checkbox" id="col-{col_id}" '
-                    f"onchange=\"toggleColumn('{col_name}')\"{checked}> {col_name}</label>"
-                )
-        column_toggles = "\n                ".join(toggle_parts)
-
-        # Build table headers
-        header_parts = []
-        for i, (col_name, _) in enumerate(VOCAB_HTML_COLUMNS):
-            hidden_class = "" if col_name in visible_columns else ' class="col-hidden"'
-            header_parts.append(
-                f'                <th onclick="sortTable({i})"{hidden_class}>'
-                f'{col_name} <span class="sort-arrow">▼</span></th>'
-            )
-        table_headers = "\n".join(header_parts)
-
-        # Build table rows with all columns
-        rows = []
-        for v in vocab_data:
-            is_person = v.get("Is Person", "") == "Yes"
-            row_class = ' class="person"' if is_person else ""
-
-            cells = []
-            for col_name, data_key in VOCAB_HTML_COLUMNS:
-                hidden_class = "" if col_name in visible_columns else ' class="col-hidden"'
-                value = v.get(data_key, "")
-                cells.append(f"<td{hidden_class}>{_escape(value)}</td>")
-
-            rows.append(f"            <tr{row_class}>{''.join(cells)}</tr>")
-
-        table_rows = "\n".join(rows)
-
-        # Generate HTML with JSON data for JavaScript
-        # Session 80b: Include sort warning columns for confirm dialog
-        html_content = VOCAB_HTML_TEMPLATE.format(
-            summary=_escape(summary),
-            column_toggles=column_toggles,
-            table_headers=table_headers,
-            table_rows=table_rows,
-            numeric_columns_json=json.dumps(list(NUMERIC_COLUMNS)),
-            column_order_json=json.dumps(column_names),
-            sort_warning_columns_json=json.dumps(list(SORT_WARNING_COLUMNS)),
-        )
-
+        html_content = build_vocabulary_html(vocab_data, visible_columns)
         Path(file_path).write_text(html_content, encoding="utf-8")
         return True
     except Exception as e:

@@ -187,8 +187,8 @@ class TestOptimalContextSize:
             context = get_optimal_context_size()
             assert context == 8000
 
-    def test_4gb_vram_gets_4k_context(self):
-        """<6GB VRAM should get 4K context (safe default)."""
+    def test_4gb_vram_gets_2k_context(self):
+        """<6GB VRAM should get 2K context (CPU-safe)."""
         from src.core.utils.gpu_detector import get_optimal_context_size
 
         with patch("src.core.utils.gpu_detector.get_gpu_info") as mock_info:
@@ -198,10 +198,10 @@ class TestOptimalContextSize:
                 "vendor": "nvidia",
             }
             context = get_optimal_context_size()
-            assert context == 4000
+            assert context == 2048
 
-    def test_no_gpu_gets_4k_context(self):
-        """No GPU should get 4K context (safe default)."""
+    def test_no_gpu_gets_2k_context(self):
+        """No GPU should get 2K context (CPU-safe)."""
         from src.core.utils.gpu_detector import get_optimal_context_size
 
         with patch("src.core.utils.gpu_detector.get_gpu_info") as mock_info:
@@ -211,7 +211,7 @@ class TestOptimalContextSize:
                 "vendor": None,
             }
             context = get_optimal_context_size()
-            assert context == 4000
+            assert context == 2048
 
 
 class TestVramGb:
@@ -373,13 +373,13 @@ class TestVramContextTiers:
 
         last_tier = VRAM_CONTEXT_TIERS[-1]
         assert last_tier[0] == 0, "Last tier should have 0 VRAM as fallback"
-        assert last_tier[1] == 4000, "Fallback context should be 4000"
+        assert last_tier[1] == 2048, "Fallback context should be 2048 (CPU-safe)"
 
     def test_all_context_sizes_valid(self):
         """All context sizes should be reasonable values."""
         from src.core.utils.gpu_detector import VRAM_CONTEXT_TIERS
 
-        valid_sizes = [4000, 8000, 16000, 32000, 48000, 64000]
+        valid_sizes = [2048, 4000, 8000, 16000, 32000, 48000, 64000]
         for _min_vram, context_size in VRAM_CONTEXT_TIERS:
             assert context_size in valid_sizes, f"Context size {context_size} is not in valid sizes"
 

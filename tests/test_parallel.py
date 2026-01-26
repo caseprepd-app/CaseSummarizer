@@ -396,7 +396,7 @@ class TestIntegrationWithConfig:
 
         assert VOCABULARY_BATCH_SIZE is not None
         assert isinstance(VOCABULARY_BATCH_SIZE, int)
-        assert VOCABULARY_BATCH_SIZE >= 4  # Should be at least baseline
+        assert VOCABULARY_BATCH_SIZE >= 1  # Must be positive (2 = GUI-responsive default)
         assert VOCABULARY_BATCH_SIZE <= 32  # Reasonable upper limit
 
     def test_user_worker_config_exists(self):

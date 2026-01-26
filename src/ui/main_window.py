@@ -85,7 +85,9 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
 
         self.title(APP_NAME)
         self.geometry("1200x750")
-        self.iconbitmap("assets/icon.ico")  # Custom app icon
+        icon_path = Path(__file__).parent.parent.parent / "assets" / "icon.ico"
+        if icon_path.exists():
+            self.iconbitmap(str(icon_path))
         self.minsize(900, 600)
 
         # State
@@ -438,7 +440,10 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             while i < len(raw_data):
                 if raw_data[i] == "{":
                     # Find closing brace
-                    end = raw_data.index("}", i)
+                    try:
+                        end = raw_data.index("}", i)
+                    except ValueError:
+                        break
                     paths.append(raw_data[i + 1 : end])
                     i = end + 1
                 elif raw_data[i] == " ":
@@ -517,6 +522,12 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         self.selected_files.clear()
         self.processing_results.clear()
         self.file_table.clear()
+        # Reset Q&A state so old answers don't persist
+        self._qa_ready = False
+        self._qa_results.clear()
+        self._vector_store_path = None
+        if hasattr(self, "followup_btn"):
+            self.followup_btn.configure(state="disabled")
         self._update_generate_button_state()
         self._update_session_stats()  # Clear stats display
         self.set_status("Files cleared")
@@ -1425,7 +1436,9 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
 
                 # Build vector store from documents
                 debug_log("[MainWindow] Building vector store...")
-                builder = VectorStoreBuilder()
+                from src.services import QAService
+
+                builder = QAService().get_vector_store_builder()
                 result = builder.create_from_documents(
                     documents=self.processing_results, embeddings=self._embeddings
                 )

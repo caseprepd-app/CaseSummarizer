@@ -17,7 +17,7 @@ DEBUG_MODE = os.environ.get("DEBUG", "false").lower() == "true"
 # This file contains just the app name on a single line
 _APP_NAME_FILE = Path(__file__).parent.parent / "config" / "app_name.txt"
 if _APP_NAME_FILE.exists():
-    APP_NAME = _APP_NAME_FILE.read_text().strip()
+    APP_NAME = _APP_NAME_FILE.read_text(encoding="utf-8").strip()
 else:
     APP_NAME = "CasePrepd"  # Fallback default
 APPDATA_DIR = Path(os.environ.get("APPDATA", os.path.expanduser("~/.config"))) / APP_NAME
@@ -150,6 +150,8 @@ def get_count_bin(count: int) -> str:
     Returns:
         Bin name: one of COUNT_BIN_NAMES
     """
+    if count <= 0:
+        return "bin_1"
     if count == 1:
         return "bin_1"
     if count == 2:
@@ -295,7 +297,7 @@ def load_model_configs():
     """Loads model configurations from config/models.yaml."""
     global MODEL_CONFIGS
     try:
-        with open(MODEL_CONFIG_FILE) as f:
+        with open(MODEL_CONFIG_FILE, encoding="utf-8") as f:
             data = yaml.safe_load(f)
             MODEL_CONFIGS = data.get("models", {})
         if DEBUG_MODE and MODEL_CONFIGS:

@@ -18,6 +18,7 @@ class ModelLoadProgressDialog(ctk.CTkToplevel):
         super().__init__(parent)
         self.model_name = model_name
         self.start_time = time.time()
+        self._finished = False
 
         self.title("Loading Model")
         self.geometry("400x200")
@@ -49,12 +50,15 @@ class ModelLoadProgressDialog(ctk.CTkToplevel):
 
     def _update_timer(self):
         """Update the elapsed time display."""
+        if self._finished:
+            return
         elapsed = time.time() - self.start_time
         self.timer_label.configure(text=f"Elapsed time: {elapsed:.1f} seconds")
         self.after(100, self._update_timer)  # Schedule next update
 
     def finish_success(self):
         """Mark loading as complete and close dialog."""
+        self._finished = True
         self.progress_bar.stop()
         self.progress_bar.set(1)
         self.status_label.configure(text="Model loaded successfully!", text_color="green")

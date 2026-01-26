@@ -503,7 +503,7 @@ class QAWorker(BaseWorker):
             idx, question = args
 
             # Check cancellation
-            if self._cancel_event.is_set():
+            if self._stop_event.is_set():
                 return (idx, None)
 
             result = orchestrator._ask_single_question(

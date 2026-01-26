@@ -108,7 +108,13 @@ def _detect_gpu_wmi() -> dict | None:
         # Check each GPU for dedicated status
         for gpu in gpus:
             gpu_name = gpu.get("Name", "")
-            vram = gpu.get("AdapterRAM", 0)
+            vram = gpu.get("AdapterRAM", 0) or 0
+
+            # WMI AdapterRAM is a 32-bit uint, overflows for GPUs >4GB VRAM.
+            # Detect overflow: vram <= 0 or suspiciously wrapped values.
+            if vram <= 0 or vram > 2**32:
+                vram = 0
+                logger.debug(f"[GPU] WMI AdapterRAM overflow for {gpu_name}, VRAM unknown")
 
             is_dedicated, vendor = _is_dedicated_gpu(gpu_name)
 
@@ -174,21 +180,27 @@ def _detect_gpu_cli() -> dict | None:
         Dict with GPU info if found, None otherwise.
     """
     # Check NVIDIA
+    creationflags = subprocess.CREATE_NO_WINDOW if platform.system() == "Windows" else 0
     if shutil.which("nvidia-smi") is not None:
         try:
             result = subprocess.run(
-                ["nvidia-smi", "--query-gpu=name", "--format=csv,noheader"],
+                ["nvidia-smi", "--query-gpu=name,memory.total", "--format=csv,noheader,nounits"],
                 capture_output=True,
                 text=True,
                 timeout=5,
+                creationflags=creationflags,
             )
             if result.returncode == 0 and result.stdout.strip():
-                gpu_name = result.stdout.strip().split("\n")[0]
-                logger.info(f"[GPU] nvidia-smi detected: {gpu_name}")
+                line = result.stdout.strip().split("\n")[0]
+                parts = [p.strip() for p in line.split(",")]
+                gpu_name = parts[0]
+                vram_mib = int(parts[1]) if len(parts) > 1 and parts[1].isdigit() else 0
+                vram_bytes = vram_mib * 1024 * 1024
+                logger.info(f"[GPU] nvidia-smi detected: {gpu_name} ({vram_mib} MiB)")
                 return {
                     "gpu_name": gpu_name,
                     "vendor": "nvidia",
-                    "vram_bytes": 0,
+                    "vram_bytes": vram_bytes,
                 }
         except Exception as e:
             logger.debug(f"[GPU] nvidia-smi query failed: {e}")
@@ -271,6 +283,12 @@ def get_gpu_info() -> dict:
         result.update(gpu_info)
         result["has_gpu"] = True
         result["detection_method"] = "wmi"
+        # If WMI couldn't determine VRAM (32-bit overflow), try CLI for VRAM
+        if result["vram_bytes"] == 0:
+            cli_info = _detect_gpu_cli()
+            if cli_info and cli_info.get("vram_bytes", 0) > 0:
+                result["vram_bytes"] = cli_info["vram_bytes"]
+                result["detection_method"] = "wmi+cli"
         return result
 
     gpu_info = _detect_gpu_cli()

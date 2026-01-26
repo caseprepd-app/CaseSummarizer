@@ -270,7 +270,6 @@ def calculate_phrase_component_scores(phrase: str, floor: float = 0.0) -> tuple[
     return (min_score, mean_score, len(words))
 
 
-@lru_cache(maxsize=2048)
 def get_phrase_rarity_scores(phrase: str) -> tuple[float, float, int]:
     """
     Calculate rarity scores for a phrase, treating unknown words as rare.
