@@ -21,7 +21,6 @@ Usage:
 """
 
 import os
-from dataclasses import dataclass
 
 from src.config import (
     DEBUG_MODE,
@@ -30,15 +29,6 @@ from src.config import (
     RERANKER_MODEL_NAME,
 )
 from src.logging_config import debug_log
-
-
-@dataclass
-class RerankResult:
-    """Result of reranking operation."""
-
-    chunks: list  # List of MergedChunk objects, reranked
-    original_count: int  # How many chunks were input
-    reranked_count: int  # How many chunks were returned
 
 
 class CrossEncoderReranker:

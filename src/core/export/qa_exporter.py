@@ -60,8 +60,9 @@ def export_qa_results(
 
         builder.add_separator()
 
-    # Add verification legend if colors were used
-    if include_verification_colors:
+    # Add verification legend only if any result actually had verification data
+    has_verification = any(hasattr(r, "verification") and r.verification for r in results)
+    if include_verification_colors and has_verification:
         _add_verification_legend(builder)
 
     # Add footer

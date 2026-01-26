@@ -136,9 +136,7 @@ def train_models(
         Returns (None, None, None, False, 0, 0) if insufficient data
     """
     # Filter to only records with +1 or -1 feedback (ignore cleared ratings)
-    labeled_records = [
-        r for r in feedback_records if r.get("feedback") in ("+1", "-1", "1", "-1", 1, -1)
-    ]
+    labeled_records = [r for r in feedback_records if r.get("feedback") in ("+1", "-1", "1", 1, -1)]
 
     if len(labeled_records) < ML_MIN_SAMPLES:
         debug_log(
