@@ -210,27 +210,15 @@ class FAISSRetriever(BaseRetrievalAlgorithm):
         # LangChain's relevance_scores can be negative (relevance = 1 - distance, and distance can > 1)
         docs_and_scores = self._vector_store.similarity_search_with_relevance_scores(query, k=k)
 
-        # Normalize scores to 0-1 range using min-max scaling
-        # This handles cases where LangChain returns negative relevance scores
-        if docs_and_scores:
-            raw_scores = [score for _, score in docs_and_scores]
-            min_raw = min(raw_scores)
-            max_raw = max(raw_scores)
-            score_range = max_raw - min_raw if max_raw != min_raw else 1.0
-        else:
-            min_raw = max_raw = score_range = 0.0
-
         # Build result chunks
         retrieved_chunks = []
         for doc, score in docs_and_scores:
             metadata = doc.metadata
 
-            # Min-max normalize to 0-1 range
-            # If all scores are the same (score_range=0), use 0.5 as default
-            if score_range > 0:
-                normalized_score = (score - min_raw) / score_range
-            else:
-                normalized_score = 0.5  # Neutral score when all are equal
+            # Use raw cosine similarity directly (already 0-1 for normalized embeddings)
+            # This preserves absolute relevance rather than relative ranking
+            # Clamp to 0-1 in case of numerical edge cases
+            normalized_score = max(0.0, min(float(score), 1.0))
 
             retrieved_chunks.append(
                 RetrievedChunk(

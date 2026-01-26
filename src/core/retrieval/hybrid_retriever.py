@@ -31,10 +31,12 @@ from src.logging_config import debug_log
 if TYPE_CHECKING:
     from langchain_huggingface import HuggingFaceEmbeddings
 
-# Default algorithm weights - FAISS is primary for semantic understanding
+# Default algorithm weights (user can override in Settings > Q&A)
+# FAISS uses semantic matching - phrasing is forgiving
+# BM25+ uses exact text matching - precise terminology
 DEFAULT_ALGORITHM_WEIGHTS = {
-    "FAISS": 0.8,  # Primary - semantic similarity for comprehensive retrieval
-    "BM25+": 0.2,  # Secondary - exact term matching for precision boost
+    "FAISS": 1.0,  # Semantic search - conceptual matching
+    "BM25+": 0.8,  # Exact text matching - precise terminology
 }
 
 
@@ -175,6 +177,15 @@ class HybridRetriever:
                 except Exception as e:
                     debug_log(f"[HybridRetriever] {name} indexing failed: {e}")
                     algorithm.enabled = False
+
+        # Verify at least one algorithm is still enabled after indexing
+        enabled_algos = [n for n, a in self._algorithms.items() if a.enabled]
+        if not enabled_algos:
+            raise RuntimeError(
+                "All retrieval algorithms failed during indexing. "
+                "The Q&A system cannot search your documents. "
+                "Please try reprocessing your files."
+            )
 
         elapsed_ms = (time.perf_counter() - start_time) * 1000
 

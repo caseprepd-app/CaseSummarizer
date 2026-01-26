@@ -100,4 +100,11 @@ class WordDocumentBuilder(DocumentBuilder):
 
     def save(self, path: str) -> None:
         """Save the document to file."""
-        self.doc.save(path)
+        try:
+            self.doc.save(path)
+        except OSError as e:
+            raise OSError(
+                f"Could not save document to '{path}'. "
+                f"The file may be open in another application. "
+                f"Please close it and try again."
+            ) from e

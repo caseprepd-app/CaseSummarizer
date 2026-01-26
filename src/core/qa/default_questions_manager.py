@@ -8,6 +8,7 @@ Session 63c: Created to support checkbox-based question management in Settings U
 """
 
 import json
+import threading
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
@@ -254,11 +255,14 @@ class DefaultQuestionsManager:
 
 # Singleton instance
 _manager: DefaultQuestionsManager | None = None
+_manager_lock = threading.Lock()
 
 
 def get_default_questions_manager() -> DefaultQuestionsManager:
     """Get the singleton DefaultQuestionsManager instance."""
     global _manager
     if _manager is None:
-        _manager = DefaultQuestionsManager()
+        with _manager_lock:
+            if _manager is None:
+                _manager = DefaultQuestionsManager()
     return _manager

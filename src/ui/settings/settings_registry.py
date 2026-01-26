@@ -1221,6 +1221,58 @@ def _register_all_settings():
         )
     )
 
+    # ===================================================================
+    # Q&A RETRIEVAL WEIGHTS
+    # ===================================================================
+
+    SettingsRegistry.register(
+        SettingDefinition(
+            key="retrieval_weight_faiss",
+            label="Semantic search weight (FAISS)",
+            category="Q&A",
+            setting_type=SettingType.SLIDER,
+            tooltip=(
+                "Weight for semantic (FAISS) search when retrieving document context "
+                "for Q&A answers.\n\n"
+                "Semantic search understands meaning and concepts. Phrasing is "
+                "forgiving — asking 'Who are the parties?' can find passages about "
+                "'plaintiff and defendant' even without those exact words.\n\n"
+                "Higher values give semantic results more influence when both "
+                "algorithms find the same passage."
+            ),
+            default=1.0,
+            min_value=0.0,
+            max_value=2.0,
+            step=0.1,
+            getter=lambda: prefs.get("retrieval_weight_faiss", 1.0),
+            setter=lambda v: prefs.set("retrieval_weight_faiss", float(v)),
+        )
+    )
+
+    SettingsRegistry.register(
+        SettingDefinition(
+            key="retrieval_weight_bm25",
+            label="Exact match weight (BM25+)",
+            category="Q&A",
+            setting_type=SettingType.SLIDER,
+            tooltip=(
+                "Weight for exact-match (BM25+) search when retrieving document "
+                "context for Q&A answers.\n\n"
+                "BM25+ favors exact text matches — it finds passages containing "
+                "the precise words in your question. Best for specific legal terms, "
+                "names, and dates.\n\n"
+                "Higher values give exact-match results more influence when both "
+                "algorithms find the same passage."
+            ),
+            default=0.8,
+            min_value=0.0,
+            max_value=2.0,
+            step=0.1,
+            getter=lambda: prefs.get("retrieval_weight_bm25", 0.8),
+            setter=lambda v: prefs.set("retrieval_weight_bm25", float(v)),
+        )
+    )
+
     SettingsRegistry.register(
         SettingDefinition(
             key="qa_answer_mode",

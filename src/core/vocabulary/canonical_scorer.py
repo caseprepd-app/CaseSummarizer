@@ -187,7 +187,20 @@ class CanonicalScorer:
                 f"({[v.get(term_key) for v in known_variants]}), "
                 f"using weighted scores"
             )
-            return self._select_by_score(known_variants, term_key, sources_key)
+            result = self._select_by_score(known_variants, term_key, sources_key)
+
+            # Merge unknown variants' frequencies into the canonical
+            unknown_variants = [v for v in variants if v not in known_variants]
+            if unknown_variants:
+                extra_freq = sum(
+                    v.get("In-Case Freq", 0) or v.get("in_case_freq", 0) or 0
+                    for v in unknown_variants
+                )
+                result["In-Case Freq"] = result.get("In-Case Freq", 0) + extra_freq
+                if "in_case_freq" in result:
+                    result["in_case_freq"] = result.get("in_case_freq", 0) + extra_freq
+
+            return result
 
     def _select_by_score(
         self,

@@ -54,6 +54,27 @@ def _get_effective_qa_context_window() -> int:
         return QA_CONTEXT_WINDOW
 
 
+def _get_effective_algorithm_weights() -> dict[str, float]:
+    """
+    Get retrieval algorithm weights from user preferences.
+
+    Falls back to config defaults if preferences unavailable.
+
+    Returns:
+        Dict mapping algorithm name to weight
+    """
+    try:
+        from src.user_preferences import get_user_preferences
+
+        prefs = get_user_preferences()
+        return {
+            "FAISS": prefs.get("retrieval_weight_faiss", RETRIEVAL_ALGORITHM_WEIGHTS["FAISS"]),
+            "BM25+": prefs.get("retrieval_weight_bm25", RETRIEVAL_ALGORITHM_WEIGHTS["BM25+"]),
+        }
+    except Exception:
+        return RETRIEVAL_ALGORITHM_WEIGHTS
+
+
 if TYPE_CHECKING:
     from langchain_huggingface import HuggingFaceEmbeddings
 
@@ -265,9 +286,9 @@ class QARetriever:
         """
         from src.core.retrieval import HybridRetriever
 
-        # Create hybrid retriever with config settings
+        # Create hybrid retriever with user-configurable weights
         retriever = HybridRetriever(
-            algorithm_weights=RETRIEVAL_ALGORITHM_WEIGHTS,
+            algorithm_weights=_get_effective_algorithm_weights(),
             embeddings=self.embeddings,
             enable_bm25=RETRIEVAL_ENABLE_BM25,
             enable_faiss=RETRIEVAL_ENABLE_FAISS,

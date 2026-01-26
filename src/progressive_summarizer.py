@@ -272,9 +272,8 @@ class ProgressiveSummarizer:
         if chunk_num == 1:
             global_context = "[This is the beginning of the document.]"
         else:
-            previous_progressive = self.df.loc[
-                self.df["chunk_num"] == chunk_num - 1, "progressive_summary"
-            ].iloc[0]
+            prev_rows = self.df.loc[self.df["chunk_num"] == chunk_num - 1, "progressive_summary"]
+            previous_progressive = prev_rows.iloc[0] if not prev_rows.empty else ""
             if previous_progressive:
                 global_context = f"[Document overview: {previous_progressive}]"
             else:

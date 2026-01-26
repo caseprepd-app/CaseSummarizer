@@ -139,4 +139,11 @@ class PdfDocumentBuilder(DocumentBuilder):
 
     def save(self, path: str) -> None:
         """Save the document to file."""
-        self.pdf.output(path)
+        try:
+            self.pdf.output(path)
+        except OSError as e:
+            raise OSError(
+                f"Could not save PDF to '{path}'. "
+                f"The file may be open in another application. "
+                f"Please close it and try again."
+            ) from e

@@ -566,6 +566,10 @@ class UserPreferencesManager:
             valid_levels = ("off", "brief", "comprehensive")
             if value not in valid_levels:
                 raise ValueError(f"logging_level must be one of {valid_levels}, got {value}")
+        # Retrieval algorithm weight validation
+        elif key in ("retrieval_weight_faiss", "retrieval_weight_bm25"):
+            if not isinstance(value, (int, float)) or value < 0.0 or value > 2.0:
+                raise ValueError(f"{key} must be 0.0-2.0, got {value}")
 
         self._preferences[key] = value
         self._save_preferences()

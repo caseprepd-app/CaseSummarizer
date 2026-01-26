@@ -44,6 +44,7 @@ class SummaryPostProcessor:
         prompt_template_manager: PromptTemplateManager | None = None,
         tolerance: float | None = None,
         max_attempts: int | None = None,
+        model_id: str | None = None,
     ):
         """
         Initialize the post-processor.
@@ -57,12 +58,14 @@ class SummaryPostProcessor:
                       Defaults to config value.
             max_attempts: Maximum condensation attempts.
                          Defaults to config value.
+            model_id: Model identifier for loading correct prompt templates.
         """
         self.generate_text = generate_text_fn
         self.prompt_template_manager = prompt_template_manager or PromptTemplateManager(
             PROMPTS_DIR, USER_PROMPTS_DIR
         )
         self.prompt_config = get_prompt_config()
+        self.model_id = model_id
 
         # Use config values as defaults, allow override
         self.tolerance = tolerance if tolerance is not None else SUMMARY_LENGTH_TOLERANCE
@@ -139,7 +142,7 @@ class SummaryPostProcessor:
         Returns:
             str: Condensed summary
         """
-        model_id = "phi-3-mini"
+        model_id = self.model_id or "phi-3-mini"
         min_words, max_words_range = self.prompt_config.get_word_count_range(target_words)
 
         try:

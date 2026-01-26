@@ -90,10 +90,12 @@ class BM25PlusRetriever(BaseRetrievalAlgorithm):
         # Tokenize all chunks
         self._tokenized_corpus = [tokenize_simple(chunk.text) for chunk in chunks]
 
-        # Build BM25+ index
-        # BM25Plus uses library defaults (k1=1.5, b=0.75, delta=1)
-        # Our config constants match these: BM25_K1, BM25_B, BM25_DELTA
-        self._index = BM25Plus(self._tokenized_corpus)
+        # Build BM25+ index with validated config parameters
+        # Standard defaults: k1=1.2-2.0, b=0.0-1.0, delta=0.5-1.0
+        k1 = max(0.0, min(float(BM25_K1), 5.0))  # Clamp to sensible range
+        b = max(0.0, min(float(BM25_B), 1.0))  # Must be 0-1
+        delta = max(0.0, min(float(BM25_DELTA), 3.0))  # Clamp to sensible range
+        self._index = BM25Plus(self._tokenized_corpus, k1=k1, b=b, delta=delta)
 
         elapsed_ms = (time.perf_counter() - start_time) * 1000
 

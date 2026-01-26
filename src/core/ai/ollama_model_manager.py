@@ -89,6 +89,7 @@ class OllamaModelManager:
         self.post_processor = SummaryPostProcessor(
             generate_text_fn=self._generate_text_for_post_processor,
             prompt_template_manager=self.prompt_template_manager,
+            model_id=self.model_name,
         )
 
         # Test connection on initialization
@@ -595,11 +596,14 @@ class OllamaModelManager:
         except Exception as e:
             debug_log(f"[OLLAMA STRUCTURED] JSON block extraction failed: {e}")
 
-        # Strategy 4: If it's a JSON array
+        # Strategy 4: If it's a JSON array, wrap in dict
         try:
             match = re.search(r"\[[^\[\]]*(?:\[[^\[\]]*\][^\[\]]*)*\]", text, re.DOTALL)
             if match:
-                return json.loads(match.group())
+                parsed = json.loads(match.group())
+                if isinstance(parsed, list):
+                    return {"items": parsed}
+                return parsed
         except json.JSONDecodeError:
             pass
 

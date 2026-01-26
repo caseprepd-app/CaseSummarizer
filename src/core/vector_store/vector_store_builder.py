@@ -421,15 +421,21 @@ class VectorStoreBuilder:
         pkl_file = persist_dir / "index.pkl"
         hash_file = persist_dir / ".hash"
 
+        # Verify both files exist before computing hash
+        if not faiss_file.exists() or not pkl_file.exists():
+            raise FileNotFoundError(
+                f"Vector store files missing after save. "
+                f"FAISS: {faiss_file.exists()}, PKL: {pkl_file.exists()}"
+            )
+
         # Compute combined hash of both files
         hasher = hashlib.sha256()
 
         for file_path in [faiss_file, pkl_file]:
-            if file_path.exists():
-                with open(file_path, "rb") as f:
-                    # Read in chunks for memory efficiency
-                    for chunk in iter(lambda: f.read(65536), b""):
-                        hasher.update(chunk)
+            with open(file_path, "rb") as f:
+                # Read in chunks for memory efficiency
+                for chunk in iter(lambda: f.read(65536), b""):
+                    hasher.update(chunk)
 
         # Save hash to file
         hash_file.write_text(hasher.hexdigest())

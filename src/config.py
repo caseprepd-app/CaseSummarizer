@@ -646,13 +646,13 @@ QA_CONVERSATION_CONTEXT_PAIRS = 3  # Include last N Q&A pairs in follow-up quest
 # ============================================================================
 # Multi-algorithm retrieval for Q&A - mirrors vocabulary extraction architecture
 
-# Algorithm weights for result merging
+# Algorithm weights for result merging (defaults - user can override in Settings)
 # Higher weight = more influence on final relevance score
-# FAISS is primary (semantic/embedding matching - finds conceptually related content)
-# BM25+ is secondary (lexical/keyword matching - helps with exact terminology)
+# FAISS uses semantic/embedding matching - finds conceptually related content
+# BM25+ uses lexical/keyword matching - favors exact text matches
 RETRIEVAL_ALGORITHM_WEIGHTS = {
-    "BM25+": 0.2,  # Secondary - exact term matching
-    "FAISS": 0.8,  # Primary - semantic search for conceptual relevance
+    "FAISS": 1.0,  # Semantic search - phrasing is forgiving
+    "BM25+": 0.8,  # Exact text matching - precise terminology
 }
 
 # Algorithm enable/disable flags

@@ -757,38 +757,6 @@ class VocabularyExtractor:
 
         return vocabulary
 
-    def _validate_category(self, term: str, suggested_type: str) -> str | None:
-        """
-        Validate and potentially correct the suggested category.
-
-        Args:
-            term: The term text
-            suggested_type: Type suggested by merger
-
-        Returns:
-            Validated category string, or None if term should be skipped
-        """
-        lower_term = term.lower()
-
-        # Medical terms take precedence
-        if lower_term in self.medical_terms:
-            return "Medical"
-
-        # Trust the merged type for most cases
-        if suggested_type in ["Person", "Place", "Medical", "Technical"]:
-            return suggested_type
-
-        # Unknown needs validation
-        if suggested_type == "Unknown":
-            # Try to validate with heuristics
-            if self._looks_like_person_name(term):
-                return "Person"
-            if self._looks_like_organization(term):
-                return "Place"
-            return "Unknown"
-
-        return suggested_type or "Technical"
-
     def _get_role_relevance(self, term: str, is_person: bool, full_text: str) -> str:
         """Get role/relevance description for a term."""
         if is_person:
@@ -1201,7 +1169,9 @@ class VocabularyExtractor:
         self.user_exclude_list.add(lower_term)
 
         try:
-            os.makedirs(os.path.dirname(self.user_exclude_path), exist_ok=True)
+            dirname = os.path.dirname(self.user_exclude_path)
+            if dirname:
+                os.makedirs(dirname, exist_ok=True)
             with open(self.user_exclude_path, "a", encoding="utf-8") as f:
                 f.write(f"{lower_term}\n")
             debug_log(f"[VOCAB] Added '{term}' to user exclusion list")

@@ -8,7 +8,7 @@ Q&A-related from this package:
         # Orchestration
         QAOrchestrator, QAResult, AnswerGenerator, AnswerMode,
         # Vector Store
-        VectorStoreBuilder, QARetriever, QuestionFlowManager,
+        VectorStoreBuilder, QARetriever,
         # Retrieval Algorithms
         HybridRetriever, ChunkMerger,
     )
@@ -19,7 +19,7 @@ Architecture:
     ├─────────────────────────────────────────────────────────────┤
     │  QAOrchestrator → AnswerGenerator → QARetriever            │
     │                                          ↓                  │
-    │  src.core.vector_store: VectorStoreBuilder, QuestionFlow   │
+    │  src.core.vector_store: VectorStoreBuilder                 │
     │                                          ↓                  │
     │  src.core.retrieval: HybridRetriever (BM25+ + FAISS)       │
     └─────────────────────────────────────────────────────────────┘
@@ -27,7 +27,6 @@ Architecture:
 Components by layer:
 - Orchestration: QAOrchestrator, AnswerGenerator, AnswerMode, QAResult
 - Storage: VectorStoreBuilder (creates indexes), QARetriever (queries indexes)
-- Questions: QuestionFlowManager (branching question trees)
 - Retrieval: HybridRetriever, ChunkMerger (BM25+ and FAISS algorithms)
 """
 
@@ -53,10 +52,7 @@ from src.core.retrieval import (
 
 # Vector store and retrieval (re-exported for unified API)
 from src.core.vector_store import (
-    FlowState,
     QARetriever,
-    QuestionAnswer,
-    QuestionFlowManager,
     VectorStoreBuilder,
 )
 
@@ -70,7 +66,6 @@ __all__ = [
     # Default questions management (Session 63c)
     "DefaultQuestionsManager",
     "DocumentChunk",
-    "FlowState",
     # Retrieval
     "HybridRetriever",
     "MergedChunk",
@@ -78,8 +73,6 @@ __all__ = [
     "QAOrchestrator",
     "QAResult",
     "QARetriever",
-    "QuestionAnswer",
-    "QuestionFlowManager",
     "RetrievedChunk",
     # Vector store
     "VectorStoreBuilder",
