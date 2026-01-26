@@ -112,7 +112,7 @@ class QAPanel(ctk.CTkFrame):
         display_frame.grid_columnconfigure(0, weight=1)
         display_frame.grid_rowconfigure(0, weight=1)
 
-        # Create scrollable textbox
+        # Create scrollable textbox (read-only display)
         self.text_display = ctk.CTkTextbox(
             display_frame,
             wrap="word",
@@ -121,6 +121,7 @@ class QAPanel(ctk.CTkFrame):
             text_color=COLORS["text_primary"],
             scrollbar_button_color=COLORS["bg_input"],
             scrollbar_button_hover_color=COLORS["bg_hover"],
+            state="disabled",  # Read-only - users shouldn't type here
         )
         self.text_display.grid(row=0, column=0, sticky="nsew", padx=2, pady=2)
 

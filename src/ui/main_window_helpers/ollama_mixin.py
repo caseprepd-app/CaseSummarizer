@@ -63,10 +63,9 @@ class OllamaMixin:
         """Set up hover tooltip for disconnected Ollama status."""
         tooltip_text = (
             "Ollama is not running.\n\n"
-            "To fix:\n"
-            "• Ensure Ollama is installed (ollama.ai)\n"
-            "• Run 'ollama serve' in a terminal\n"
-            "• Check if port 11434 is available"
+            "For setup instructions, visit:\n"
+            "Help > Ollama Setup Guide\n\n"
+            "Vocabulary extraction works without Ollama."
         )
 
         def show_tooltip(event):
@@ -212,7 +211,8 @@ class OllamaMixin:
                 "Ollama Not Found",
                 "Ollama service is not running.\n\n"
                 "CasePrepd requires Ollama for Q&A and summaries.\n\n"
-                "To install: Visit https://ollama.ai\n"
-                "To start: Run 'ollama serve' in a terminal\n\n"
+                "For setup instructions:\n"
+                "• Help menu > Ollama Setup Guide, or\n"
+                "• Visit: sites.google.com/view/caseprepd/ollama-instructions\n\n"
                 "Vocabulary extraction will still work without Ollama.",
             )

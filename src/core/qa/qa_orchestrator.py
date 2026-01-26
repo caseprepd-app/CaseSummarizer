@@ -293,6 +293,18 @@ class QAOrchestrator:
         # Retrieve relevant context (this becomes the citation)
         retrieval_result = self.retriever.retrieve_context(question)
 
+        # Log retrieval summary (always, not just DEBUG_MODE)
+        if retrieval_result.context:
+            debug_log(
+                f"[QAOrchestrator] Retrieved {retrieval_result.chunks_retrieved} chunks "
+                f"({len(retrieval_result.context)} chars) in {retrieval_result.retrieval_time_ms:.0f}ms"
+            )
+        else:
+            debug_log(
+                f"[QAOrchestrator] No context retrieved for: '{question[:50]}...' "
+                f"(chunks_retrieved={retrieval_result.chunks_retrieved}, time={retrieval_result.retrieval_time_ms:.0f}ms)"
+            )
+
         verification = None
 
         if retrieval_result.context:

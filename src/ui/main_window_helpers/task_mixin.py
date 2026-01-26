@@ -505,7 +505,10 @@ class TaskMixin:
         if qa_results:
             self.output_display.update_outputs(qa_results=qa_results)
             self.set_status(f"Questions and answers: {len(qa_results)} questions answered")
+            # Enable follow-up question controls
             self.followup_btn.configure(state="normal")
+            self.followup_entry.configure(state="normal")
+            self.followup_entry.configure(placeholder_text="Type your question here...")
         else:
             self.set_status("Questions and answers complete (no results)")
 

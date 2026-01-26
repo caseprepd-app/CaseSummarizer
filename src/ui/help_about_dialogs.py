@@ -151,7 +151,7 @@ Court reporters who need to:
 SYSTEM REQUIREMENTS
 
 - Windows PC with 16GB+ RAM
-- Ollama installed and running (localhost:11434)
+- Ollama installed and running (see Help > Ollama Setup Guide)
 - ~4GB disk space for AI models
 - No internet required after initial setup"""
 
@@ -334,16 +334,15 @@ PERFORMANCE
 
 OLLAMA TIPS
 - Make sure Ollama is running before starting {APP_NAME}
-- Smaller models (1B-4B) are faster but less accurate
-- Larger models (7B+) give better results but need more RAM/GPU
-- Check Settings > AI Model for model recommendations
+- Models with 8B+ parameters recommended for Q&A
+- Check Settings > AI Model for model selection
+- For setup help: Help menu > Ollama Setup Guide
 
 TROUBLESHOOTING
 
 "Ollama not connected"
 - Make sure Ollama is running (check system tray)
-- Ollama should be at http://localhost:11434
-- Try restarting Ollama
+- For detailed help: Help menu > Ollama Setup Guide
 
 Poor vocabulary results?
 - Check document quality (OCR confidence)

@@ -33,7 +33,17 @@
       "WebFetch(domain:pypi.org)",
       "WebFetch(domain:github.com)",
       "WebFetch(domain:raw.githubusercontent.com)",
-      "WebFetch(domain:arxiv.org)"
+      "WebFetch(domain:arxiv.org)",
+      "Bash(.venvScriptspython.exe -c \"from src.ui.settings import SettingsRegistry; [print\\(f''{s.key}: {s.label}''\\) for s in SettingsRegistry.get_settings_for_category\\(''Performance''\\)]\")",
+      "Bash(.venvScriptspython.exe find_violations.py --quick)",
+      "Bash(.venvScriptspython.exe -c \"from src.config_defaults import DEFAULTS; from src.config import ML_MIN_SAMPLES; assert ML_MIN_SAMPLES == DEFAULTS[''ml_min_samples''][''value''], f''{ML_MIN_SAMPLES} != {DEFAULTS[\"\"ml_min_samples\"\"][\"\"value\"\"]}''; print\\(f''Defaults round-trip OK: ML_MIN_SAMPLES = {ML_MIN_SAMPLES}''\\)\")",
+      "Bash(.venvScriptsactivate)",
+      "WebFetch(domain:sites.google.com)",
+      "Bash(.venvScriptspython find_violations.py --quick)",
+      "Bash(curl:*)",
+      "WebFetch(domain:markaicode.com)",
+      "Bash(taskkill:*)",
+      "Bash(.venvScriptspython.exe -c \"from src.core.utils.gpu_detector import get_optimal_context_size; print\\(f''Optimal context: {get_optimal_context_size\\(\\)}''\\)\")"
     ],
     "deny": [],
     "ask": []

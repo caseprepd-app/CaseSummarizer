@@ -248,7 +248,11 @@ class OllamaModelManager:
         top_p: float | None = None,
     ) -> str:
         """
-        Generate text using Ollama REST API.
+        Generate text using official Ollama Python library with streaming.
+
+        Uses the official ollama library instead of raw requests for better
+        reliability and streaming support. Streaming prevents apparent hangs
+        on long generations.
 
         Args:
             prompt: The input prompt
@@ -262,6 +266,8 @@ class OllamaModelManager:
         Raises:
             RuntimeError: If Ollama is not available
         """
+        import ollama
+
         if not self.is_model_loaded():
             raise RuntimeError(
                 f"Ollama not available at {self.api_base}. "
@@ -274,7 +280,7 @@ class OllamaModelManager:
             top_p = self.prompt_config.top_p
 
         debug(f"Generating text (max_tokens={max_tokens}, temp={temperature}, top_p={top_p})")
-        debug_log("\n[OLLAMA GENERATE] Starting text generation")
+        debug_log("\n[OLLAMA GENERATE] Starting text generation (streaming)")
         debug_log(f"[OLLAMA GENERATE] Model: {self.model_name}")
         debug_log(f"[OLLAMA GENERATE] Max tokens: {max_tokens}")
         debug_log(f"[OLLAMA GENERATE] Prompt length: {len(prompt)} chars")
@@ -298,19 +304,6 @@ class OllamaModelManager:
 
             debug_log(f"[OLLAMA GENERATE] Using context window: {context_window} tokens")
 
-            # Build request payload with explicit context window
-            payload = {
-                "model": self.model_name,
-                "prompt": wrapped_prompt,
-                "temperature": temperature,
-                "top_p": top_p,
-                "stream": False,  # Non-streaming to avoid UTF-8 issues
-                "num_predict": max_tokens,
-                "options": {
-                    "num_ctx": context_window,  # Session 64: Dynamic based on VRAM
-                },
-            }
-
             debug_log("[OLLAMA GENERATE] ===== ORIGINAL PROMPT START =====")
             debug_log(prompt)
             debug_log("[OLLAMA GENERATE] ===== ORIGINAL PROMPT END =====")
@@ -318,41 +311,40 @@ class OllamaModelManager:
             debug_log(wrapped_prompt)
             debug_log("[OLLAMA GENERATE] ===== WRAPPED PROMPT END =====")
 
-            # Make request to Ollama
+            # Use official ollama library with streaming for reliability
             start_time = time.time()
-            response = requests.post(
-                f"{self.api_base}/api/generate", json=payload, timeout=self.timeout
+            generated_chunks = []
+
+            # Stream the response - this prevents hanging on long generations
+            stream = ollama.generate(
+                model=self.model_name,
+                prompt=wrapped_prompt,
+                options={
+                    "temperature": temperature,
+                    "top_p": top_p,
+                    "num_predict": max_tokens,
+                    "num_ctx": context_window,
+                },
+                stream=True,
             )
 
-            if response.status_code != 200:
-                raise RuntimeError(
-                    f"Ollama returned status {response.status_code}: {response.text}"
-                )
+            # Collect streamed chunks
+            for chunk in stream:
+                if "response" in chunk:
+                    generated_chunks.append(chunk["response"])
 
-            # Parse response
-            result = response.json()
-            generated_text = result.get("response", "")
-            tokens_used = result.get("eval_count", 0)
+            generated_text = "".join(generated_chunks)
             elapsed = time.time() - start_time
 
-            debug_log(
-                f"[OLLAMA GENERATE] Generation complete: {tokens_used} tokens in {elapsed:.2f}s"
-            )
+            debug_log(f"[OLLAMA GENERATE] Generation complete in {elapsed:.2f}s")
             debug_log(f"[OLLAMA GENERATE] Output length: {len(generated_text)} chars")
             debug_log(f"[OLLAMA GENERATE] Output preview (first 100 chars): {generated_text[:100]}")
 
             return generated_text.strip()
 
-        except requests.exceptions.Timeout as e:
-            raise RuntimeError(
-                f"Generation timeout after {self.timeout} seconds. "
-                "Try reducing summary length or increasing OLLAMA_TIMEOUT_SECONDS in config."
-            ) from e
-        except requests.exceptions.ConnectionError as e:
-            raise RuntimeError(
-                f"Cannot connect to Ollama at {self.api_base}. "
-                "Is Ollama running? Start with: ollama serve"
-            ) from e
+        except ollama.ResponseError as e:
+            debug_log(f"[OLLAMA GENERATE] Response error: {e!s}")
+            raise RuntimeError(f"Ollama error: {e!s}") from e
         except Exception as e:
             debug(f"Text generation failed: {e!s}")
             debug_log(f"[OLLAMA GENERATE] Error: {e!s}")
@@ -450,9 +442,8 @@ class OllamaModelManager:
         """
         Generate structured JSON output using Ollama's format mode.
 
-        Uses temperature=0 for deterministic extraction and format="json"
-        to constrain output to valid JSON. Falls back to regex JSON
-        extraction if the response contains extra text.
+        Uses the official ollama library with format="json" for reliable
+        JSON output. Falls back to regex JSON extraction if needed.
 
         This is the primary method for LLM-based extraction.
 
@@ -467,6 +458,8 @@ class OllamaModelManager:
         Raises:
             RuntimeError: If Ollama is not available
         """
+        import ollama
+
         if not self.is_model_loaded():
             raise RuntimeError(
                 f"Ollama not available at {self.api_base}. "
@@ -479,44 +472,33 @@ class OllamaModelManager:
         debug_log(f"[OLLAMA STRUCTURED] Prompt length: {len(prompt)} chars")
 
         try:
-            # Build request payload with JSON format mode
             # Session 64: Use dynamic context size based on GPU/VRAM
             context_window = _get_context_window()
             debug_log(f"[OLLAMA STRUCTURED] Using context window: {context_window} tokens")
-
-            payload = {
-                "model": self.model_name,
-                "prompt": prompt,
-                "temperature": temperature,
-                "stream": False,
-                "num_predict": max_tokens,
-                "format": "json",  # Ollama v0.5+ structured output mode
-                "options": {
-                    "num_ctx": context_window,
-                },
-            }
 
             debug_log("[OLLAMA STRUCTURED] ===== PROMPT START =====")
             debug_log(prompt[:500] + "..." if len(prompt) > 500 else prompt)
             debug_log("[OLLAMA STRUCTURED] ===== PROMPT END =====")
 
-            # Make request to Ollama
+            # Use official ollama library with JSON format
             start_time = time.time()
-            response = requests.post(
-                f"{self.api_base}/api/generate", json=payload, timeout=self.timeout
+
+            response = ollama.generate(
+                model=self.model_name,
+                prompt=prompt,
+                format="json",  # Ollama structured output mode
+                options={
+                    "temperature": temperature,
+                    "num_predict": max_tokens,
+                    "num_ctx": context_window,
+                },
+                stream=False,  # JSON format works better without streaming
             )
 
-            if response.status_code != 200:
-                debug_log(f"[OLLAMA STRUCTURED] Error: Status {response.status_code}")
-                return None
-
-            # Parse response
-            result = response.json()
-            generated_text = result.get("response", "").strip()
-            tokens_used = result.get("eval_count", 0)
+            generated_text = response.get("response", "").strip()
             elapsed = time.time() - start_time
 
-            debug_log(f"[OLLAMA STRUCTURED] Complete: {tokens_used} tokens in {elapsed:.2f}s")
+            debug_log(f"[OLLAMA STRUCTURED] Complete in {elapsed:.2f}s")
             debug_log(f"[OLLAMA STRUCTURED] Response length: {len(generated_text)} chars")
             debug_log(f"[OLLAMA STRUCTURED] Response preview: {generated_text[:200]}...")
 
@@ -530,11 +512,8 @@ class OllamaModelManager:
 
             return parsed
 
-        except requests.exceptions.Timeout:
-            debug_log(f"[OLLAMA STRUCTURED] Timeout after {self.timeout}s")
-            return None
-        except requests.exceptions.ConnectionError:
-            debug_log(f"[OLLAMA STRUCTURED] Connection error to {self.api_base}")
+        except ollama.ResponseError as e:
+            debug_log(f"[OLLAMA STRUCTURED] Ollama error: {e!s}")
             return None
         except Exception as e:
             debug_log(f"[OLLAMA STRUCTURED] Error: {e!s}")

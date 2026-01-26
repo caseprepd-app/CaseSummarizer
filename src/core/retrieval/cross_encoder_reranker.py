@@ -84,9 +84,18 @@ class CrossEncoderReranker:
         if DEBUG_MODE:
             debug_log("[Reranker] Cross-encoder model loaded successfully")
 
+    # Minimum sigmoid score to consider a chunk genuinely relevant.
+    # sigmoid(0)=0.5, so 0.3 means the cross-encoder must give a positive
+    # signal. Without this, irrelevant chunks pass through when the document
+    # simply doesn't contain the answer.
+    MIN_RELEVANCE_SCORE = 0.3
+
     def rerank(self, query: str, chunks: list, top_k: int = 5) -> list:
         """
         Rerank chunks by cross-encoder relevance score.
+
+        Filters out chunks below MIN_RELEVANCE_SCORE to prevent irrelevant
+        context from reaching the LLM when the answer isn't in the documents.
 
         Args:
             query: The user's question
@@ -94,7 +103,8 @@ class CrossEncoderReranker:
             top_k: Number of top chunks to return after reranking
 
         Returns:
-            List of top_k MergedChunk objects, sorted by reranker score
+            List of top_k MergedChunk objects, sorted by reranker score.
+            May return fewer than top_k if chunks are below relevance threshold.
         """
         if not chunks:
             return []
@@ -109,38 +119,62 @@ class CrossEncoderReranker:
         if DEBUG_MODE:
             debug_log(f"[Reranker] Reranking {len(chunks)} chunks for query: {query[:50]}...")
 
-        # Get cross-encoder scores
-        scores = self._model.predict(pairs)
+        # Get cross-encoder scores (raw logits)
+        raw_scores = self._model.predict(pairs)
+
+        # Normalize scores to 0-1 using sigmoid
+        # Cross-encoder logits can be any value; sigmoid maps to (0, 1)
+        import numpy as np
+
+        normalized_scores = 1 / (1 + np.exp(-np.array(raw_scores)))
 
         # Pair scores with chunks and sort by score descending
-        scored_chunks = list(zip(scores, chunks))
+        scored_chunks = list(zip(normalized_scores, raw_scores, chunks))
         scored_chunks.sort(key=lambda x: x[0], reverse=True)
 
-        # Take top_k and update chunk metadata
+        # Take top_k, filtering out chunks below minimum relevance
         reranked = []
-        for i, (score, chunk) in enumerate(scored_chunks[:top_k]):
+        filtered_count = 0
+        for i, (norm_score, raw_score, chunk) in enumerate(scored_chunks[:top_k]):
+            # Filter out genuinely irrelevant chunks
+            if float(norm_score) < self.MIN_RELEVANCE_SCORE:
+                filtered_count += 1
+                if DEBUG_MODE:
+                    debug_log(
+                        f"[Reranker] FILTERED #{i + 1}: {chunk.filename} chunk {chunk.chunk_num} - "
+                        f"rerank={norm_score:.3f} < threshold {self.MIN_RELEVANCE_SCORE}"
+                    )
+                continue
+
             # Store original hybrid score for debugging/analysis
             if "original_hybrid_score" not in chunk.metadata:
                 chunk.metadata["original_hybrid_score"] = chunk.combined_score
 
-            # Store reranker score
-            chunk.metadata["reranker_score"] = float(score)
-            chunk.metadata["rerank_position"] = i + 1
+            # Store both raw and normalized reranker scores
+            chunk.metadata["reranker_score_raw"] = float(raw_score)
+            chunk.metadata["reranker_score"] = float(norm_score)
+            chunk.metadata["rerank_position"] = len(reranked) + 1
 
-            # Replace combined_score with reranker score
-            chunk.combined_score = float(score)
+            # Replace combined_score with normalized reranker score
+            chunk.combined_score = float(norm_score)
 
             reranked.append(chunk)
 
             if DEBUG_MODE:
                 debug_log(
-                    f"[Reranker] #{i + 1}: {chunk.filename} chunk {chunk.chunk_num} - "
+                    f"[Reranker] #{len(reranked)}: {chunk.filename} chunk {chunk.chunk_num} - "
                     f"hybrid={chunk.metadata['original_hybrid_score']:.3f} -> "
-                    f"rerank={score:.3f}"
+                    f"rerank={norm_score:.3f} (raw={raw_score:.3f})"
                 )
 
+        if filtered_count > 0:
+            debug_log(
+                f"[Reranker] Filtered {filtered_count} chunks below "
+                f"relevance threshold {self.MIN_RELEVANCE_SCORE}"
+            )
+
         if DEBUG_MODE:
-            debug_log(f"[Reranker] Returned top {len(reranked)} of {len(chunks)} chunks")
+            debug_log(f"[Reranker] Returned {len(reranked)} of {len(chunks)} chunks")
 
         return reranked
 

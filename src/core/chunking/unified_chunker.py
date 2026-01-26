@@ -27,6 +27,7 @@ from langchain_experimental.text_splitter import SemanticChunker
 from langchain_huggingface import HuggingFaceEmbeddings
 
 from src.config import (
+    SEMANTIC_CHUNKER_EMBEDDING_MODEL,
     UNIFIED_CHUNK_ENCODING,
     UNIFIED_CHUNK_MAX_TOKENS,
     UNIFIED_CHUNK_MIN_TOKENS,

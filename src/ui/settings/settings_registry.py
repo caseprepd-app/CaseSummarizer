@@ -1179,7 +1179,8 @@ def _register_all_settings():
 
         return [
             (auto_label, "auto"),
-            ("4K (low VRAM / CPU only)", "4000"),
+            ("2K (CPU only - fastest)", "2048"),
+            ("4K (low VRAM / CPU)", "4000"),
             ("8K (6-8GB VRAM)", "8000"),
             ("16K (8-12GB VRAM)", "16000"),
             ("32K (12-16GB VRAM)", "32000"),

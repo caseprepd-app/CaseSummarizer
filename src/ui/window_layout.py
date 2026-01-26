@@ -292,7 +292,7 @@ class WindowLayoutMixin:
             self.followup_frame,
             placeholder_text="Q&A not ready - run tasks first",
             height=35,
-            state="disabled",  # Enabled after Q&A vector store is built
+            # state="disabled",  # TEST: Starting enabled to diagnose typing issue
         )
         self.followup_entry.grid(row=1, column=0, sticky="ew", padx=(0, 5))
         self.followup_entry.bind("<Return>", lambda e: self._ask_followup())

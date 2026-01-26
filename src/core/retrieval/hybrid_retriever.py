@@ -309,6 +309,9 @@ class HybridRetriever:
 
         if not algorithm_results:
             # No algorithms returned results - return empty
+            debug_log(
+                f"[HybridRetriever] WARNING: No algorithms returned results for query: '{query[:50]}...'"
+            )
             return MergedRetrievalResult(
                 chunks=[],
                 total_algorithms=0,
@@ -317,8 +320,29 @@ class HybridRetriever:
                 metadata={"error": "No algorithms returned results"},
             )
 
+        # Log algorithm scores for diagnostics (always, not just DEBUG_MODE)
+        debug_log(f"[HybridRetriever] Algorithm results for: '{query[:50]}...'")
+        for result in algorithm_results:
+            algo_name = result.metadata.get("algorithm", "unknown")
+            if result.chunks:
+                top_score = max(c.relevance_score for c in result.chunks)
+                debug_log(
+                    f"  {algo_name}: {len(result.chunks)} chunks, "
+                    f"top relevance_score={top_score:.6f}"
+                )
+            else:
+                debug_log(f"  {algo_name}: 0 chunks")
+
         # Merge results
         merged = self.merger.merge(algorithm_results, k=k)
+
+        # Diagnostic: log merged result
+        debug_log(f"[HybridRetriever] After merge: {len(merged.chunks)} chunks")
+        if merged.chunks:
+            debug_log(
+                f"  Top merged chunk: score={merged.chunks[0].combined_score:.6f}, "
+                f"sources={merged.chunks[0].sources}"
+            )
 
         elapsed_ms = (time.perf_counter() - start_time) * 1000
         merged.processing_time_ms = elapsed_ms

@@ -244,7 +244,7 @@ class UserPreferencesManager:
         Args:
             value: "auto" or int (4000, 8000, 16000, 32000, 48000, 64000)
         """
-        valid_sizes = [4000, 8000, 16000, 32000, 48000, 64000]
+        valid_sizes = [2048, 4000, 8000, 16000, 32000, 48000, 64000]
         if value != "auto" and value not in valid_sizes:
             raise ValueError(f"Context size must be 'auto' or one of {valid_sizes}, got {value}")
         self._preferences["llm_context_size"] = value

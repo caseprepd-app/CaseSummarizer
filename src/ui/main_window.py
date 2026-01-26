@@ -1036,7 +1036,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         """
         Update Q&A checkbox state based on model size requirements.
 
-        Q&A requires a 9B+ parameter model for quality answers.
+        Q&A requires an 8B+ parameter model for quality answers.
         Users can override this in Settings.
 
         Called at startup and when model changes.
@@ -1521,8 +1521,10 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         if qa_results:
             self.output_display.update_outputs(qa_results=qa_results)
             self.set_status(f"Questions and answers: {len(qa_results)} questions answered")
-            # Enable follow-up button
+            # Enable follow-up question controls
             self.followup_btn.configure(state="normal")
+            self.followup_entry.configure(state="normal")
+            self.followup_entry.configure(placeholder_text="Type your question here...")
         else:
             self.set_status("Questions and answers complete (no results)")
 

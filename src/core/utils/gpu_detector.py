@@ -316,7 +316,7 @@ VRAM_CONTEXT_TIERS = [
     (12, 32000),  # 12-16GB → 32K context
     (8, 16000),  # 8-12GB → 16K context
     (6, 8000),  # 6-8GB → 8K context
-    (0, 4000),  # < 6GB or no GPU → 4K context (safe default)
+    (0, 2048),  # < 6GB or no GPU → 2K context (CPU-safe; 4K causes 149s+ per query)
 ]
 
 
@@ -346,7 +346,7 @@ def get_optimal_context_size() -> int:
             return context_size
 
     # Fallback (shouldn't reach here due to 0 tier)
-    return 4000
+    return 2048
 
 
 def get_vram_gb() -> float:

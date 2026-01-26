@@ -412,6 +412,11 @@ class QARetriever:
         for query in queries_to_search:
             merged_result = self._hybrid_retriever.retrieve(query, k=k)
 
+            # Diagnostic: log what we received
+            debug_log(
+                f"[QARetriever] Received {len(merged_result.chunks)} merged chunks from hybrid retriever"
+            )
+
             for chunk in merged_result.chunks:
                 chunk_key = f"{chunk.filename}_{chunk.chunk_num}"
 
@@ -451,11 +456,23 @@ class QARetriever:
         estimated_tokens = 0
         # Session 67: QA context now scales with LLM context based on GPU VRAM
         qa_context_window = _get_effective_qa_context_window()
-        max_context_tokens = int(qa_context_window * 0.8)  # Reserve 20% for prompt + answer
+        # Reserve tokens for: system prompt (~200 tokens), question (~30 tokens),
+        # formatting (~70 tokens), and LLM output (qa_max_tokens from config).
+        # Previous formula (80% for context) overflowed on small context windows,
+        # causing Ollama to truncate the system instructions from the prompt.
+        from src.config_defaults import get_default
+
+        qa_max_output_tokens = get_default("qa_max_tokens")
+        prompt_overhead_tokens = 300  # system instructions + question + formatting
+        max_context_tokens = max(
+            200,  # minimum to avoid empty context
+            qa_context_window - qa_max_output_tokens - prompt_overhead_tokens,
+        )
         if DEBUG_MODE:
             debug_log(
-                f"[QARetriever] Using context window: {qa_context_window:,} "
-                f"(max context tokens: {max_context_tokens:,})"
+                f"[QARetriever] Context window: {qa_context_window:,}, "
+                f"output reserve: {qa_max_output_tokens}, overhead: {prompt_overhead_tokens}, "
+                f"max context tokens: {max_context_tokens:,}"
             )
         chunks_included = 0
         chunks_skipped_score = 0
@@ -505,7 +522,21 @@ class QARetriever:
         # Combine context parts with separator
         context = "\n\n---\n\n".join(context_parts) if context_parts else ""
 
-        if DEBUG_MODE and (chunks_skipped_score > 0 or chunks_skipped_limit > 0):
+        # Always log retrieval summary when no results (helps diagnose issues)
+        if chunks_included == 0:
+            debug_log(
+                f"[QARetriever] WARNING: No chunks passed filters! "
+                f"sorted_chunks={len(sorted_chunks)}, skipped_score={chunks_skipped_score}, "
+                f"skipped_limit={chunks_skipped_limit}, min_score={min_score}"
+            )
+            # Log actual scores to diagnose why chunks are failing
+            if sorted_chunks:
+                debug_log("[QARetriever] Top chunk scores (combined_score | sources):")
+                for i, chunk in enumerate(sorted_chunks[:5]):
+                    debug_log(
+                        f"  [{i + 1}] {chunk.combined_score:.6f} | {chunk.sources} | {chunk.filename}"
+                    )
+        elif DEBUG_MODE and (chunks_skipped_score > 0 or chunks_skipped_limit > 0):
             debug_log(
                 f"[QARetriever] Chunks: {chunks_included} included, "
                 f"{chunks_skipped_score} below min_score, {chunks_skipped_limit} exceeded context limit"
