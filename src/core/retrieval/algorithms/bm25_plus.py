@@ -189,7 +189,7 @@ class BM25PlusRetriever(BaseRetrievalAlgorithm):
             metadata={
                 "algorithm": self.name,
                 "index_size": len(self._chunks),
-                "max_raw_score": max_score,
+                "max_raw_score": float(max(raw_scores)) if len(raw_scores) > 0 else 0.0,
                 "query_token_count": len(query_tokens),
             },
         )
