@@ -541,14 +541,14 @@ DESCRIPTIONS = {
         ),
     },
     "qa_citation_max_chars": {
-        "label": "Citation max display characters",
+        "label": "Citation excerpt length",
         "tooltip": (
-            "Maximum characters for the citation field shown below Q&A answers.\n"
-            "Longer citations are abridged at chunk boundaries, keeping the\n"
-            "highest-relevance excerpts and noting how many were omitted.\n\n"
-            "Default: 3000 characters\n\n"
-            "Increase: Show more source text (longer citations).\n"
-            "Decrease: Shorter citations (faster to read, less context)."
+            "Target character length for the focused citation excerpt.\n"
+            "Uses embedding similarity to find the best window in the\n"
+            "top retrieval chunk that matches the question.\n\n"
+            "Default: 1250 characters (~250 words)\n\n"
+            "Increase: Longer excerpt with more surrounding context.\n"
+            "Decrease: Shorter, more focused excerpt."
         ),
     },
     # =======================================================================

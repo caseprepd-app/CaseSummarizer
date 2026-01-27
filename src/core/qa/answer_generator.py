@@ -94,6 +94,8 @@ class AnswerGenerator:
         if not context or not context.strip():
             return "No relevant information found in the documents."
 
+        debug_log(f"[AnswerGenerator] generate() called with mode={self.mode.value}")
+
         if self.mode == AnswerMode.EXTRACTION:
             return self._extract_answer(question, context)
         else:
@@ -168,8 +170,7 @@ class AnswerGenerator:
         """
         # Check if Ollama is connected
         if not self.ollama_manager.is_connected:
-            if DEBUG_MODE:
-                debug_log("[AnswerGenerator] Ollama not connected, falling back to extraction")
+            debug_log("[AnswerGenerator] Ollama not connected, falling back to extraction")
             return self._extract_answer(question, context)
 
         # Build prompt
@@ -182,17 +183,16 @@ class AnswerGenerator:
             )
 
             if response and response.strip():
+                debug_log("[AnswerGenerator] Ollama returned answer successfully")
                 return response.strip()
             else:
-                if DEBUG_MODE:
-                    debug_log(
-                        "[AnswerGenerator] Empty response from Ollama, falling back to extraction"
-                    )
+                debug_log(
+                    "[AnswerGenerator] Empty response from Ollama, falling back to extraction"
+                )
                 return self._extract_answer(question, context)
 
         except Exception as e:
-            if DEBUG_MODE:
-                debug_log(f"[AnswerGenerator] Ollama error: {e}, falling back to extraction")
+            debug_log(f"[AnswerGenerator] Ollama error: {e}, falling back to extraction")
             return self._extract_answer(question, context)
 
     def _build_qa_prompt(self, question: str, context: str) -> str:

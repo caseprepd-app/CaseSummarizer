@@ -43,7 +43,21 @@
       "Bash(curl:*)",
       "WebFetch(domain:markaicode.com)",
       "Bash(taskkill:*)",
-      "Bash(.venvScriptspython.exe -c \"from src.core.utils.gpu_detector import get_optimal_context_size; print\\(f''Optimal context: {get_optimal_context_size\\(\\)}''\\)\")"
+      "Bash(.venvScriptspython.exe -c \"from src.core.utils.gpu_detector import get_optimal_context_size; print\\(f''Optimal context: {get_optimal_context_size\\(\\)}''\\)\")",
+      "Bash(select-string:*)",
+      "Bash(select-object -first 50)",
+      "Bash(.venvScriptsactivate.bat)",
+      "Bash(.venvScriptspython -m pytest tests/ -x -q --tb=short --ignore=tests/test_gui_workflow.py)",
+      "Bash(C:UsersnoahcDropbox\"\"Not Work\"\"\"Data Science\"CaseSummarizer.venvScriptspython.exe -m pytest \"C:\\\\Users\\\\noahc\\\\Dropbox\\\\Not Work\\\\Data Science\\\\CaseSummarizer\\\\tests\" -x -q --tb=short --ignore=\"C:\\\\Users\\\\noahc\\\\Dropbox\\\\Not Work\\\\Data Science\\\\CaseSummarizer\\\\tests\\\\test_gui_workflow.py\")",
+      "Bash(..venvScriptspython.exe -m pytest tests/ -x -q --tb=short --ignore=tests/test_gui_workflow.py)",
+      "WebFetch(domain:dev.to)",
+      "WebFetch(domain:machinelearningplus.com)",
+      "WebFetch(domain:medium.com)",
+      "WebFetch(domain:link.springer.com)",
+      "WebFetch(domain:www.sourcely.net)",
+      "WebFetch(domain:zilliz.com)",
+      "WebFetch(domain:research.google)",
+      "Bash(\"C:\\\\Users\\\\noahc\\\\Dropbox\\\\Not Work\\\\Data Science\\\\CaseSummarizer\\\\.venv\\\\Scripts\\\\python.exe\":*)"
     ],
     "deny": [],
     "ask": []

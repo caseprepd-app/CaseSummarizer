@@ -449,12 +449,15 @@ class TaskMixin:
         self.set_status("Questions and answers: Building vector store...")
 
         # Create Q&A queue and worker
+        from src.user_preferences import get_user_preferences
+
+        prefs = get_user_preferences()
         self._qa_queue = Queue()
         self._qa_worker = QAWorker(
             vector_store_path=self._vector_store_path,
             embeddings=self._embeddings,
             ui_queue=self._qa_queue,
-            answer_mode="extraction",
+            answer_mode=prefs.get("qa_answer_mode", "ollama"),
         )
         self._qa_worker.start()
 
@@ -635,12 +638,14 @@ class TaskMixin:
         def run_followup():
             try:
                 from src.services import QAService
+                from src.user_preferences import get_user_preferences
 
                 qa_service = QAService()
+                prefs = get_user_preferences()
                 orchestrator = qa_service.create_orchestrator(
                     vector_store_path=self._vector_store_path,
                     embeddings=self._embeddings,
-                    answer_mode="extraction",
+                    answer_mode=prefs.get("qa_answer_mode", "ollama"),
                 )
                 result = orchestrator.ask_followup(question)
                 self._followup_queue.put(("success", result))
@@ -705,12 +710,14 @@ class TaskMixin:
 
         try:
             from src.services import QAService
+            from src.user_preferences import get_user_preferences
 
             qa_service = QAService()
+            prefs = get_user_preferences()
             orchestrator = qa_service.create_orchestrator(
                 vector_store_path=self._vector_store_path,
                 embeddings=self._embeddings,
-                answer_mode="extraction",
+                answer_mode=prefs.get("qa_answer_mode", "ollama"),
             )
 
             result = orchestrator.ask_followup(question)

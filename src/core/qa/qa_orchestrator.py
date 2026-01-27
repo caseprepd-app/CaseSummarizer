@@ -316,18 +316,20 @@ class QAOrchestrator:
         has_quality_context = retrieval_result.context and best_score >= RETRIEVAL_CONFIDENCE_GATE
 
         if has_quality_context:
-            # Citation: raw retrieved text, abridged at chunk boundaries
-            from src.config import QA_CITATION_MAX_CHARS
-            from src.core.qa.citation_abridger import abridge_citation
-
-            citation = abridge_citation(
-                retrieval_result.context.strip(),
-                max_chars=QA_CITATION_MAX_CHARS,
-            )
-
-            # Quick Answer: AI-synthesized from Ollama
+            # Quick Answer: AI-synthesized from Ollama (generated first, no dependency on citation)
             # Always try Ollama mode for quick_answer, regardless of configured answer_mode
             quick_answer = self._generate_quick_answer(question, retrieval_result.context)
+
+            # Citation: focused ~250-char excerpt via embedding similarity
+            from src.config import QA_CITATION_MAX_CHARS
+            from src.core.qa.citation_excerpt import extract_citation_excerpt
+
+            citation = extract_citation_excerpt(
+                context=retrieval_result.context.strip(),
+                question=question,
+                embeddings=self.embeddings,
+                max_chars=QA_CITATION_MAX_CHARS,
+            )
 
             # Run hallucination verification if enabled (Session 60)
             if HALLUCINATION_VERIFICATION_ENABLED and quick_answer:

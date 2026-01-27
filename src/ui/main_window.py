@@ -1665,11 +1665,13 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         def run_followup():
             try:
                 from src.services import QAService
+                from src.user_preferences import get_user_preferences
 
+                prefs = get_user_preferences()
                 orchestrator = QAService().create_orchestrator(
                     vector_store_path=self._vector_store_path,
                     embeddings=self._embeddings,
-                    answer_mode="extraction",
+                    answer_mode=prefs.get("qa_answer_mode", "ollama"),
                 )
                 result = orchestrator.ask_followup(question)
                 self._followup_queue.put(("success", result))
@@ -1745,11 +1747,13 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         try:
             # Import and use QAOrchestrator for follow-up (via service layer)
             from src.services import QAService
+            from src.user_preferences import get_user_preferences
 
+            prefs = get_user_preferences()
             orchestrator = QAService().create_orchestrator(
                 vector_store_path=self._vector_store_path,
                 embeddings=self._embeddings,
-                answer_mode="extraction",
+                answer_mode=prefs.get("qa_answer_mode", "ollama"),
             )
 
             # Ask the follow-up question
