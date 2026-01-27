@@ -298,16 +298,55 @@ class HybridRetriever:
         if DEBUG_MODE:
             debug_log(f"[HybridRetriever] Query: '{query[:50]}...'")
 
-        # Collect results from all enabled algorithms
-        algorithm_results: list[AlgorithmRetrievalResult] = []
+        # FAISS-first: run semantic search first as a sanity check.
+        # If no chunk has meaningful semantic similarity, the question is
+        # unanswerable — skip BM25+ entirely to save computation.
+        from src.config import FAISS_RELEVANCE_FLOOR
 
+        algorithm_results: list[AlgorithmRetrievalResult] = []
+        faiss_algo = self._algorithms.get("FAISS")
+
+        if faiss_algo and faiss_algo.enabled and faiss_algo.is_indexed:
+            try:
+                faiss_result = faiss_algo.retrieve(query, k=k)
+                algorithm_results.append(faiss_result)
+
+                faiss_best = (
+                    max(c.relevance_score for c in faiss_result.chunks)
+                    if faiss_result.chunks
+                    else 0.0
+                )
+                debug_log(
+                    f"[HybridRetriever] FAISS: {len(faiss_result.chunks)} chunks, "
+                    f"top relevance_score={faiss_best:.6f}"
+                )
+
+                if faiss_best < FAISS_RELEVANCE_FLOOR:
+                    debug_log(
+                        f"[HybridRetriever] FAISS sanity check FAILED: "
+                        f"best={faiss_best:.4f} < floor={FAISS_RELEVANCE_FLOOR} "
+                        f"— no semantic match, skipping BM25+"
+                    )
+                    elapsed_ms = (time.perf_counter() - start_time) * 1000
+                    return MergedRetrievalResult(
+                        chunks=[],
+                        total_algorithms=1,
+                        processing_time_ms=elapsed_ms,
+                        query=query,
+                        metadata={"faiss_sanity_check": "failed", "faiss_best": faiss_best},
+                    )
+
+            except Exception as e:
+                debug_log(f"[HybridRetriever] FAISS retrieval failed: {e}")
+
+        # FAISS passed (or wasn't enabled) — run remaining algorithms
         for name, algorithm in self._algorithms.items():
+            if name == "FAISS":
+                continue  # Already ran above
             if not algorithm.enabled or not algorithm.is_indexed:
                 continue
 
             try:
-                # Session 70: Request exactly k chunks - merger handles deduplication
-                # Previously used k*2 which retrieved unnecessary data
                 result = algorithm.retrieve(query, k=k)
                 algorithm_results.append(result)
 
@@ -318,7 +357,6 @@ class HybridRetriever:
                 debug_log(f"[HybridRetriever] {name} retrieval failed: {e}")
 
         if not algorithm_results:
-            # No algorithms returned results - return empty
             debug_log(
                 f"[HybridRetriever] WARNING: No algorithms returned results for query: '{query[:50]}...'"
             )
@@ -330,10 +368,11 @@ class HybridRetriever:
                 metadata={"error": "No algorithms returned results"},
             )
 
-        # Log algorithm scores for diagnostics (always, not just DEBUG_MODE)
-        debug_log(f"[HybridRetriever] Algorithm results for: '{query[:50]}...'")
+        # Log non-FAISS algorithm scores (FAISS already logged above)
         for result in algorithm_results:
             algo_name = result.metadata.get("algorithm", "unknown")
+            if algo_name == "FAISS":
+                continue
             if result.chunks:
                 top_score = max(c.relevance_score for c in result.chunks)
                 debug_log(
@@ -342,33 +381,6 @@ class HybridRetriever:
                 )
             else:
                 debug_log(f"  {algo_name}: 0 chunks")
-
-        # FAISS-first sanity check: if FAISS found no semantic match,
-        # the question is likely unanswerable for this document
-        from src.config import FAISS_RELEVANCE_FLOOR
-
-        faiss_result = next(
-            (r for r in algorithm_results if r.metadata.get("algorithm") == "FAISS"),
-            None,
-        )
-        if faiss_result is not None:
-            faiss_best = (
-                max(c.relevance_score for c in faiss_result.chunks) if faiss_result.chunks else 0.0
-            )
-            if faiss_best < FAISS_RELEVANCE_FLOOR:
-                debug_log(
-                    f"[HybridRetriever] FAISS sanity check FAILED: "
-                    f"best={faiss_best:.4f} < floor={FAISS_RELEVANCE_FLOOR} "
-                    f"— no semantic match, returning empty"
-                )
-                elapsed_ms = (time.perf_counter() - start_time) * 1000
-                return MergedRetrievalResult(
-                    chunks=[],
-                    total_algorithms=len(algorithm_results),
-                    processing_time_ms=elapsed_ms,
-                    query=query,
-                    metadata={"faiss_sanity_check": "failed", "faiss_best": faiss_best},
-                )
 
         # Merge results
         merged = self.merger.merge(algorithm_results, k=k)
