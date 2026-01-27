@@ -61,6 +61,7 @@ class DefaultQuestionsManager:
         """
         self.config_path = config_path or DEFAULT_QUESTIONS_PATH
         self._questions: list[DefaultQuestion] = []
+        self._lock = threading.Lock()
         self._load()
 
     def _load(self):
@@ -165,9 +166,10 @@ class DefaultQuestionsManager:
             index: Question index (0-based)
             enabled: True to enable, False to disable
         """
-        if 0 <= index < len(self._questions):
-            self._questions[index].enabled = enabled
-            self._save()
+        with self._lock:
+            if 0 <= index < len(self._questions):
+                self._questions[index].enabled = enabled
+                self._save()
 
     def add_question(self, text: str, enabled: bool = True) -> int:
         """
@@ -184,9 +186,10 @@ class DefaultQuestionsManager:
         if not text:
             return -1
 
-        self._questions.append(DefaultQuestion(text=text, enabled=enabled))
-        self._save()
-        return len(self._questions) - 1
+        with self._lock:
+            self._questions.append(DefaultQuestion(text=text, enabled=enabled))
+            self._save()
+            return len(self._questions) - 1
 
     def remove_question(self, index: int) -> bool:
         """
@@ -198,11 +201,12 @@ class DefaultQuestionsManager:
         Returns:
             True if removed, False if index invalid
         """
-        if 0 <= index < len(self._questions):
-            del self._questions[index]
-            self._save()
-            return True
-        return False
+        with self._lock:
+            if 0 <= index < len(self._questions):
+                del self._questions[index]
+                self._save()
+                return True
+            return False
 
     def update_question(self, index: int, text: str) -> bool:
         """
@@ -219,11 +223,12 @@ class DefaultQuestionsManager:
         if not text:
             return False
 
-        if 0 <= index < len(self._questions):
-            self._questions[index].text = text
-            self._save()
-            return True
-        return False
+        with self._lock:
+            if 0 <= index < len(self._questions):
+                self._questions[index].text = text
+                self._save()
+                return True
+            return False
 
     def move_question(self, from_index: int, to_index: int) -> bool:
         """
@@ -236,17 +241,18 @@ class DefaultQuestionsManager:
         Returns:
             True if moved, False if indices invalid
         """
-        if not (0 <= from_index < len(self._questions)):
-            return False
-        if not (0 <= to_index < len(self._questions)):
-            return False
-        if from_index == to_index:
-            return True
+        with self._lock:
+            if not (0 <= from_index < len(self._questions)):
+                return False
+            if not (0 <= to_index < len(self._questions)):
+                return False
+            if from_index == to_index:
+                return True
 
-        question = self._questions.pop(from_index)
-        self._questions.insert(to_index, question)
-        self._save()
-        return True
+            question = self._questions.pop(from_index)
+            self._questions.insert(to_index, question)
+            self._save()
+            return True
 
     def reload(self):
         """Reload questions from file."""

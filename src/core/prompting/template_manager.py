@@ -331,11 +331,15 @@ class PromptTemplateManager:
             if var not in template:
                 errors.append(f"Missing required variable: {var}")
 
-        # Check template structure
-        if template.find("<|system|>") > template.find("<|user|>"):
+        # Check template structure (only when both tokens are present)
+        system_pos = template.find("<|system|>")
+        user_pos = template.find("<|user|>")
+        assistant_pos = template.find("<|assistant|>")
+
+        if system_pos >= 0 and user_pos >= 0 and system_pos > user_pos:
             errors.append("<|system|> must come before <|user|>")
 
-        if template.find("<|user|>") > template.find("<|assistant|>"):
+        if user_pos >= 0 and assistant_pos >= 0 and user_pos > assistant_pos:
             errors.append("<|user|> must come before <|assistant|>")
 
         # Raise error if validation failed

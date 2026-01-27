@@ -250,9 +250,14 @@ def has_dedicated_gpu() -> bool:
     return False
 
 
+_gpu_info_cache: dict | None = None
+
+
 def get_gpu_info() -> dict:
     """
     Get detailed GPU information for display/logging.
+
+    Result is cached after first call (GPU doesn't change at runtime).
 
     Returns:
         Dict with GPU detection details:
@@ -262,6 +267,10 @@ def get_gpu_info() -> dict:
         - vram_bytes: VRAM in bytes (0 if unknown)
         - detection_method: How the GPU was detected
     """
+    global _gpu_info_cache
+    if _gpu_info_cache is not None:
+        return _gpu_info_cache.copy()
+
     result = {
         "has_gpu": False,
         "gpu_name": None,
@@ -276,10 +285,7 @@ def get_gpu_info() -> dict:
         result.update(gpu_info)
         result["has_gpu"] = True
         result["detection_method"] = "pytorch"
-        return result
-
-    gpu_info = _detect_gpu_wmi()
-    if gpu_info:
+    elif gpu_info := _detect_gpu_wmi():
         result.update(gpu_info)
         result["has_gpu"] = True
         result["detection_method"] = "wmi"
@@ -289,16 +295,13 @@ def get_gpu_info() -> dict:
             if cli_info and cli_info.get("vram_bytes", 0) > 0:
                 result["vram_bytes"] = cli_info["vram_bytes"]
                 result["detection_method"] = "wmi+cli"
-        return result
-
-    gpu_info = _detect_gpu_cli()
-    if gpu_info:
+    elif gpu_info := _detect_gpu_cli():
         result.update(gpu_info)
         result["has_gpu"] = True
         result["detection_method"] = "cli"
-        return result
 
-    return result
+    _gpu_info_cache = result
+    return _gpu_info_cache.copy()
 
 
 def get_gpu_status_text() -> str:

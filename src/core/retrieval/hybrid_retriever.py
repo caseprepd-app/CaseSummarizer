@@ -79,6 +79,13 @@ class HybridRetriever:
             enable_faiss: Whether to use FAISS semantic algorithm
         """
         self.algorithm_weights = algorithm_weights or DEFAULT_ALGORITHM_WEIGHTS.copy()
+
+        # Validate weights: must be finite non-negative numbers
+        for name, weight in self.algorithm_weights.items():
+            if not isinstance(weight, (int, float)) or weight < 0 or weight != weight:
+                debug_log(f"[HybridRetriever] Invalid weight for {name}: {weight}, using 1.0")
+                self.algorithm_weights[name] = 1.0
+
         self._embeddings = embeddings
         self._enable_bm25 = enable_bm25
         self._enable_faiss = enable_faiss

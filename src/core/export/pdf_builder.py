@@ -4,9 +4,31 @@ PDF Document Builder
 Implements DocumentBuilder using fpdf2 for PDF export.
 """
 
+import unicodedata
+
 from fpdf import FPDF
 
 from src.core.export.base import DocumentBuilder, TextSpan
+
+
+def _sanitize_for_latin1(text: str) -> str:
+    """
+    Sanitize text for Helvetica (Latin-1) rendering.
+
+    Normalizes Unicode to closest ASCII equivalent where possible
+    (e.g., accented characters), replaces remaining non-Latin-1
+    characters with '?' to avoid fpdf2 encoding errors.
+
+    Args:
+        text: Input text possibly containing non-Latin-1 characters
+
+    Returns:
+        Text safe for Helvetica/Latin-1 rendering
+    """
+    # Normalize to NFKD (decomposes accented chars into base + combining)
+    normalized = unicodedata.normalize("NFKD", text)
+    # Encode to latin-1, replacing unencodable chars with '?'
+    return normalized.encode("latin-1", errors="replace").decode("latin-1")
 
 
 class PdfDocumentBuilder(DocumentBuilder):
@@ -42,7 +64,7 @@ class PdfDocumentBuilder(DocumentBuilder):
 
         self.pdf.set_font("Helvetica", "B", size)
         self.pdf.ln(4 if level > 1 else 0)
-        self.pdf.multi_cell(0, size * 0.6, text)
+        self.pdf.multi_cell(0, size * 0.6, _sanitize_for_latin1(text))
         self.pdf.ln(2)
         self.pdf.set_font("Helvetica", size=11)
 
@@ -55,7 +77,7 @@ class PdfDocumentBuilder(DocumentBuilder):
             style += "I"
 
         self.pdf.set_font("Helvetica", style, 11)
-        self.pdf.multi_cell(0, self._line_height, text)
+        self.pdf.multi_cell(0, self._line_height, _sanitize_for_latin1(text))
         self.pdf.ln(2)
         self.pdf.set_font("Helvetica", size=11)
 
@@ -78,7 +100,7 @@ class PdfDocumentBuilder(DocumentBuilder):
                 style += "S"  # fpdf2 supports strikethrough
 
             self.pdf.set_font("Helvetica", style, 11)
-            self.pdf.write(self._line_height, span.text)
+            self.pdf.write(self._line_height, _sanitize_for_latin1(span.text))
 
         # Reset to defaults
         self.pdf.set_text_color(0, 0, 0)
@@ -100,7 +122,7 @@ class PdfDocumentBuilder(DocumentBuilder):
         self.pdf.set_fill_color(240, 240, 240)
 
         for header in headers:
-            self.pdf.cell(col_width, 8, header[:20], border=1, fill=True)
+            self.pdf.cell(col_width, 8, _sanitize_for_latin1(header[:20]), border=1, fill=True)
         self.pdf.ln()
 
         # Data rows
@@ -113,7 +135,9 @@ class PdfDocumentBuilder(DocumentBuilder):
                 self.pdf.set_font("Helvetica", "B", 10)
                 self.pdf.set_fill_color(240, 240, 240)
                 for header in headers:
-                    self.pdf.cell(col_width, 8, header[:20], border=1, fill=True)
+                    self.pdf.cell(
+                        col_width, 8, _sanitize_for_latin1(header[:20]), border=1, fill=True
+                    )
                 self.pdf.ln()
                 self.pdf.set_font("Helvetica", size=10)
 
@@ -123,7 +147,7 @@ class PdfDocumentBuilder(DocumentBuilder):
                     display_text = (
                         str(cell_text)[:25] if len(str(cell_text)) > 25 else str(cell_text)
                     )
-                    self.pdf.cell(col_width, 7, display_text, border=1)
+                    self.pdf.cell(col_width, 7, _sanitize_for_latin1(display_text), border=1)
             self.pdf.ln()
 
         self.pdf.ln(4)
