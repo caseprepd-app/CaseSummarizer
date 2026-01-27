@@ -1385,9 +1385,28 @@ def _register_all_settings():
                 ("Off (no logging)", "off"),
                 ("Brief (recommended)", "brief"),
                 ("Comprehensive (debugging)", "comprehensive"),
+                ("Custom (pick categories)", "custom"),
             ],
             getter=lambda: prefs.get_logging_level(),
             setter=lambda v: prefs.set_logging_level(v),
+        )
+    )
+
+    def _open_logging_dialog():
+        """Open the custom log categories dialog."""
+        from src.ui.logging_dialog import LoggingDialog
+
+        LoggingDialog(parent=None)
+
+    SettingsRegistry.register(
+        SettingDefinition(
+            key="customize_logging",
+            label="Customize Categories...",
+            category="Logging",
+            setting_type=SettingType.BUTTON,
+            tooltip=("Choose which log categories are included when using Custom logging mode."),
+            default=None,
+            action=_open_logging_dialog,
         )
     )
 

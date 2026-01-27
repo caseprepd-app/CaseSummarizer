@@ -365,7 +365,7 @@ class UserPreferencesManager:
             str: "off", "brief", or "comprehensive"
         """
         value = self._preferences.get("logging_level", "brief")
-        return value if value in ("off", "brief", "comprehensive") else "brief"
+        return value if value in ("off", "brief", "comprehensive", "custom") else "brief"
 
     def set_logging_level(self, level: str) -> None:
         """
@@ -377,10 +377,33 @@ class UserPreferencesManager:
         Raises:
             ValueError: If level is not a valid option
         """
-        valid_levels = ("off", "brief", "comprehensive")
+        valid_levels = ("off", "brief", "comprehensive", "custom")
         if level not in valid_levels:
             raise ValueError(f"Invalid logging level: {level}, must be one of {valid_levels}")
         self._preferences["logging_level"] = level
+        self._save_preferences()
+
+    def get_custom_log_categories(self) -> dict[str, bool]:
+        """
+        Get custom log category states.
+
+        Returns:
+            dict[str, bool]: Category name -> enabled state. Defaults all to True.
+        """
+        from src.logging_config import LOG_CATEGORIES
+
+        defaults = dict.fromkeys(LOG_CATEGORIES, True)
+        saved = self._preferences.get("custom_log_categories", {})
+        return {**defaults, **saved}
+
+    def set_custom_log_categories(self, categories: dict[str, bool]) -> None:
+        """
+        Save custom log category states.
+
+        Args:
+            categories: Dict mapping category name -> enabled state
+        """
+        self._preferences["custom_log_categories"] = categories
         self._save_preferences()
 
     # =========================================================================
@@ -563,7 +586,7 @@ class UserPreferencesManager:
                     raise ValueError(f"Column width must be int 30-500, got {width} for '{col}'")
         # Logging level validation
         elif key == "logging_level":
-            valid_levels = ("off", "brief", "comprehensive")
+            valid_levels = ("off", "brief", "comprehensive", "custom")
             if value not in valid_levels:
                 raise ValueError(f"logging_level must be one of {valid_levels}, got {value}")
         # Retrieval algorithm weight validation

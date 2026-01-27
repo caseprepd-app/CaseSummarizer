@@ -95,6 +95,146 @@ _debug_file_logger = _DebugFileLogger()
 # Log Level Configuration
 # =============================================================================
 
+# =============================================================================
+# Custom Log Categories — maps category names to prefix tuples
+# =============================================================================
+
+LOG_CATEGORIES: dict[str, tuple[str, ...]] = {
+    "Session & Startup": (
+        "=== CasePrepd",
+        "Started:",
+        "Ended:",
+        "[Config]",
+        "[Resources]",
+    ),
+    "Document Processing": (
+        "[ORCHESTRATOR]",
+        "[QUEUE HANDLER]",
+        "[PREPROCESSING]",
+        "[UnifiedChunker]",
+        "[Index Page Remover]",
+        "[TranscriptCleaner]",
+        "[PROCESSING WORKER]",
+        "[TEXT UTILS]",
+    ),
+    "Vocabulary Extraction": (
+        "[VOCAB",
+        "[NER",
+        "[RAKE",
+        "[VocabularyService]",
+        "[PROGRESSIVE WORKER]",
+    ),
+    "ML & Learning": (
+        "[META-LEARNER]",
+        "[PREF-LEARNER]",
+        "[ML]",
+        "[CANONICAL]",
+        "[FEEDBACK]",
+    ),
+    "LLM / Ollama": (
+        "[OLLAMA",
+        "[PROMPT CONFIG]",
+        "[PROMPT ADAPTER]",
+        "[FOCUS]",
+        "[LLMVocabExtractor]",
+        "[AIService]",
+    ),
+    "Q&A & Retrieval": (
+        "[QARetriever]",
+        "[QAService]",
+        "[FAISS]",
+        "[BM25",
+        "[HybridRetriever]",
+        "[Reranker]",
+        "[HallucinationVerifier]",
+        "[QueryTransformer]",
+        "[AnswerGenerator]",
+        "[DefaultQuestions]",
+        "[QA WORKER]",
+        "[VectorStore]",
+    ),
+    "Summarization": (
+        "[DOC SUMMARIZER]",
+        "[CONDENSE]",
+        "[LENGTH ENFORCE]",
+        "[MULTI-DOC WORKER]",
+    ),
+    "Export": (
+        "[VocabExport]",
+        "[COMBINED EXPORT]",
+        "Export",
+        "export",
+        "Saved",
+    ),
+    "Timing & Performance": (
+        "[TIMER]",
+        "[SystemMonitor]",
+        "Starting ",
+        " took ",
+    ),
+    "UI Events": (
+        "[MainWindow]",
+        "[QAPanel]",
+        "[Settings]",
+        "[QAQuestionEditor]",
+    ),
+    "Corpus": (
+        "[Corpus",
+        "[CorpusRegistry]",
+        "[CorpusFamiliarity]",
+    ),
+    "Name Processing": (
+        "[NAME-REG]",
+        "[DEDUP]",
+        "[ARTIFACT-FILTER]",
+        "[REGEX-FILTER]",
+        "[FILTER-CHAIN]",
+        "[RARITY]",
+    ),
+}
+
+# =============================================================================
+# Custom Log Filter Cache
+# =============================================================================
+
+_custom_enabled_prefixes: tuple[str, ...] | None = None
+
+
+def _rebuild_custom_prefixes() -> tuple[str, ...]:
+    """
+    Build tuple of enabled prefixes from user preferences.
+
+    Returns:
+        tuple[str, ...]: All prefixes from enabled categories
+    """
+    try:
+        from src.user_preferences import get_user_preferences
+
+        prefs = get_user_preferences()
+        states = prefs.get_custom_log_categories()
+        prefixes = []
+        for cat_name, enabled in states.items():
+            if enabled and cat_name in LOG_CATEGORIES:
+                prefixes.extend(LOG_CATEGORIES[cat_name])
+        return tuple(prefixes)
+    except Exception:
+        # Fallback: enable everything
+        all_prefixes = []
+        for prefixes in LOG_CATEGORIES.values():
+            all_prefixes.extend(prefixes)
+        return tuple(all_prefixes)
+
+
+def refresh_custom_log_filter() -> None:
+    """
+    Invalidate prefix cache. Call after changing custom categories.
+
+    Forces _should_log_message() to rebuild the prefix list on next call.
+    """
+    global _custom_enabled_prefixes
+    _custom_enabled_prefixes = None
+
+
 # Brief mode keywords: Only log messages containing these patterns
 # Brief logs: session markers, processing milestones, errors, exports
 BRIEF_MODE_PATTERNS = (
@@ -159,6 +299,11 @@ def _should_log_message(message: str, force: bool = False) -> bool:
         return False
     if level == "comprehensive":
         return True
+    if level == "custom":
+        global _custom_enabled_prefixes
+        if _custom_enabled_prefixes is None:
+            _custom_enabled_prefixes = _rebuild_custom_prefixes()
+        return any(p in message for p in _custom_enabled_prefixes)
     # "brief" mode - check if message matches any brief pattern
     return any(pattern in message for pattern in BRIEF_MODE_PATTERNS)
 
@@ -486,6 +631,7 @@ def close_debug_log():
 # These allow existing code to continue working without changes
 __all__ = [
     "DEBUG_MODE",
+    "LOG_CATEGORIES",
     "Timer",
     "clear_debug_log",
     "close_debug_log",
@@ -497,5 +643,6 @@ __all__ = [
     "get_log_file_path",
     "get_log_file_size_mb",
     "info",
+    "refresh_custom_log_filter",
     "warning",
 ]

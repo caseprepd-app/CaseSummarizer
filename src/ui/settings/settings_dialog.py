@@ -423,3 +423,27 @@ class SettingsDialog(BaseModalDialog):
             auto_detect_widget.checkbox.configure(
                 command=lambda: on_auto_detect_change(auto_detect_widget.get_value())
             )
+
+        # Link logging level dropdown to customize button visibility
+        logging_widget = self.widgets.get("logging_level")
+        customize_widget = self.widgets.get("customize_logging")
+
+        if logging_widget and customize_widget:
+            # Hide button initially if not in custom mode
+            if logging_widget.get_value() != "custom":
+                customize_widget.grid_remove()
+
+            original_log_change = logging_widget.on_change
+
+            def on_level_change(value):
+                if value == "custom":
+                    customize_widget.grid()
+                else:
+                    customize_widget.grid_remove()
+                if original_log_change:
+                    original_log_change(value)
+
+            logging_widget.on_change = on_level_change
+            logging_widget.dropdown.configure(
+                command=lambda v: on_level_change(logging_widget.value_map.get(v))
+            )
