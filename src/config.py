@@ -664,12 +664,19 @@ RETRIEVAL_CHUNK_SIZE = _d("retrieval_chunk_size")
 RETRIEVAL_CHUNK_OVERLAP = _d("retrieval_chunk_overlap")
 
 # Minimum relevance score threshold for merged results
-# Lower than before since BM25+ scores are more reliable
-RETRIEVAL_MIN_SCORE = 0.01  # Lowered from 0.1 to include more potentially relevant chunks
+RETRIEVAL_MIN_SCORE = _d("retrieval_min_score")
+
+# Minimum best-chunk score to attempt answering a question
+# Below this, the question is treated as unanswerable for this document
+RETRIEVAL_CONFIDENCE_GATE = _d("retrieval_confidence_gate")
 
 # Multi-algorithm bonus: extra score when multiple algorithms find the same chunk
 # This reflects higher confidence when both BM25+ and FAISS agree
-RETRIEVAL_MULTI_ALGO_BONUS = 0.1
+RETRIEVAL_MULTI_ALGO_BONUS = _d("retrieval_multi_algo_bonus")
+
+# FAISS semantic relevance floor: if the best FAISS chunk scores below this,
+# there's no semantic match and the question is likely unanswerable
+FAISS_RELEVANCE_FLOOR = _d("faiss_relevance_floor")
 
 # ============================================================================
 # Query Transformation Configuration (Session 44 - LlamaIndex Integration)

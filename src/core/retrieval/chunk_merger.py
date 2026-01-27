@@ -103,11 +103,13 @@ class ChunkMerger:
                               Higher weight = more influence on final score.
                               If None, all algorithms weighted equally at 1.0.
         """
+        from src.config import RETRIEVAL_MULTI_ALGO_BONUS
+
         self.algorithm_weights = algorithm_weights or {}
 
         # Bonus score for each additional algorithm that finds the chunk
         # This reflects higher confidence when multiple methods agree
-        self.multi_algo_bonus = 0.1
+        self.multi_algo_bonus = RETRIEVAL_MULTI_ALGO_BONUS
 
     def merge(
         self, results: list[AlgorithmRetrievalResult], k: int | None = None
@@ -239,7 +241,7 @@ class ChunkMerger:
 
         if total_weight > 0:
             return weighted_score / total_weight
-        return 0.5  # Default if no weights
+        return 0.0  # No weights = no confidence
 
     def update_weights(self, new_weights: dict[str, float]) -> None:
         """

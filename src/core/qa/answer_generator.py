@@ -136,11 +136,8 @@ class AnswerGenerator:
         scored_sentences.sort(reverse=True)
 
         if not scored_sentences:
-            # No keyword matches - return first substantial sentence
-            for sentence in sentences:
-                if len(sentence) > 50:
-                    return self._clean_sentence(sentence)
-            return "No specific answer found. Please review the source documents."
+            # No keyword matches = context doesn't address the question
+            return "No specific answer found in the documents for this question."
 
         # Return top 1-3 sentences
         max_sentences = 3

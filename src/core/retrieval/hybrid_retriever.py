@@ -23,21 +23,13 @@ with weighted result merging.
 import time
 from typing import TYPE_CHECKING, Any
 
-from src.config import DEBUG_MODE
+from src.config import DEBUG_MODE, RETRIEVAL_ALGORITHM_WEIGHTS
 from src.core.retrieval.base import AlgorithmRetrievalResult, DocumentChunk
 from src.core.retrieval.chunk_merger import ChunkMerger, MergedRetrievalResult
 from src.logging_config import debug_log
 
 if TYPE_CHECKING:
     from langchain_huggingface import HuggingFaceEmbeddings
-
-# Default algorithm weights (user can override in Settings > Q&A)
-# FAISS uses semantic matching - phrasing is forgiving
-# BM25+ uses exact text matching - precise terminology
-DEFAULT_ALGORITHM_WEIGHTS = {
-    "FAISS": 1.0,  # Semantic search - conceptual matching
-    "BM25+": 0.8,  # Exact text matching - precise terminology
-}
 
 
 class HybridRetriever:
@@ -78,7 +70,7 @@ class HybridRetriever:
             enable_bm25: Whether to use BM25+ algorithm
             enable_faiss: Whether to use FAISS semantic algorithm
         """
-        self.algorithm_weights = algorithm_weights or DEFAULT_ALGORITHM_WEIGHTS.copy()
+        self.algorithm_weights = algorithm_weights or RETRIEVAL_ALGORITHM_WEIGHTS.copy()
 
         # Validate weights: must be finite non-negative numbers
         for name, weight in self.algorithm_weights.items():
@@ -350,6 +342,33 @@ class HybridRetriever:
                 )
             else:
                 debug_log(f"  {algo_name}: 0 chunks")
+
+        # FAISS-first sanity check: if FAISS found no semantic match,
+        # the question is likely unanswerable for this document
+        from src.config import FAISS_RELEVANCE_FLOOR
+
+        faiss_result = next(
+            (r for r in algorithm_results if r.metadata.get("algorithm") == "FAISS"),
+            None,
+        )
+        if faiss_result is not None:
+            faiss_best = (
+                max(c.relevance_score for c in faiss_result.chunks) if faiss_result.chunks else 0.0
+            )
+            if faiss_best < FAISS_RELEVANCE_FLOOR:
+                debug_log(
+                    f"[HybridRetriever] FAISS sanity check FAILED: "
+                    f"best={faiss_best:.4f} < floor={FAISS_RELEVANCE_FLOOR} "
+                    f"— no semantic match, returning empty"
+                )
+                elapsed_ms = (time.perf_counter() - start_time) * 1000
+                return MergedRetrievalResult(
+                    chunks=[],
+                    total_algorithms=len(algorithm_results),
+                    processing_time_ms=elapsed_ms,
+                    query=query,
+                    metadata={"faiss_sanity_check": "failed", "faiss_best": faiss_best},
+                )
 
         # Merge results
         merged = self.merger.merge(algorithm_results, k=k)

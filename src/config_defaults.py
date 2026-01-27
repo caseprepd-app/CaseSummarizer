@@ -348,6 +348,38 @@ DEFAULTS = {
         "type": "int",
         "category": "Q&A Retrieval",
     },
+    "retrieval_min_score": {
+        "value": 0.10,
+        "min": 0.0,
+        "max": 0.5,
+        "step": 0.01,
+        "type": "float",
+        "category": "Q&A Retrieval",
+    },
+    "retrieval_confidence_gate": {
+        "value": 0.15,
+        "min": 0.05,
+        "max": 0.5,
+        "step": 0.01,
+        "type": "float",
+        "category": "Q&A Retrieval",
+    },
+    "retrieval_multi_algo_bonus": {
+        "value": 0.1,
+        "min": 0.0,
+        "max": 0.3,
+        "step": 0.01,
+        "type": "float",
+        "category": "Q&A Retrieval",
+    },
+    "faiss_relevance_floor": {
+        "value": 0.10,
+        "min": 0.0,
+        "max": 0.5,
+        "step": 0.01,
+        "type": "float",
+        "category": "Q&A Retrieval",
+    },
     # =======================================================================
     # Answer Quality
     # =======================================================================

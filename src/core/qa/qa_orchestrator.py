@@ -21,7 +21,11 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from src.config import DEBUG_MODE, HALLUCINATION_VERIFICATION_ENABLED
+from src.config import (
+    DEBUG_MODE,
+    HALLUCINATION_VERIFICATION_ENABLED,
+    RETRIEVAL_CONFIDENCE_GATE,
+)
 from src.core.config import load_yaml_with_fallback
 from src.core.vector_store.qa_retriever import QARetriever, RetrievalResult
 from src.logging_config import debug_log
@@ -307,7 +311,11 @@ class QAOrchestrator:
 
         verification = None
 
-        if retrieval_result.context:
+        # Check if retrieval quality is sufficient to attempt answering
+        best_score = max((s.relevance_score for s in retrieval_result.sources), default=0.0)
+        has_quality_context = retrieval_result.context and best_score >= RETRIEVAL_CONFIDENCE_GATE
+
+        if has_quality_context:
             # Citation: raw retrieved text (truncated only for very long contexts)
             citation = retrieval_result.context.strip()
             if len(citation) > 3000:
@@ -329,6 +337,12 @@ class QAOrchestrator:
             source_summary = self.retriever.get_relevant_sources_summary(retrieval_result)
             confidence = self._calculate_confidence(retrieval_result)
         else:
+            # Low retrieval scores = question likely unanswerable from these documents
+            if retrieval_result.context and best_score < RETRIEVAL_CONFIDENCE_GATE:
+                debug_log(
+                    f"[QAOrchestrator] Retrieval quality gate: best_score={best_score:.3f} "
+                    f"< gate={RETRIEVAL_CONFIDENCE_GATE} — treating as unanswerable"
+                )
             citation = "No relevant excerpts found in documents."
             quick_answer = "No relevant information found in the documents."
             source_summary = ""

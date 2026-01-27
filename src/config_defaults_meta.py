@@ -491,6 +491,55 @@ DESCRIPTIONS = {
             "From the initial 20 retrieved, only the top-K reranked are used."
         ),
     },
+    "retrieval_min_score": {
+        "label": "Chunk minimum relevance score",
+        "tooltip": (
+            "Minimum merged relevance score (0-1) for a chunk to be included\n"
+            "in Q&A context. Chunks scoring below this are filtered out.\n\n"
+            "Default: 0.10\n\n"
+            "Increase: Stricter filtering, only highly relevant chunks.\n"
+            "Decrease: Include more marginally relevant chunks.\n\n"
+            "After BM25+ and FAISS scores are merged, this is the floor\n"
+            "for including a chunk."
+        ),
+    },
+    "retrieval_confidence_gate": {
+        "label": "Retrieval confidence gate",
+        "tooltip": (
+            "Minimum best-chunk score needed to attempt answering a question.\n"
+            "If no chunk scores above this, the question is treated as\n"
+            "unanswerable for the current documents.\n\n"
+            "Default: 0.15\n\n"
+            "Increase: More conservative — refuses more questions.\n"
+            "Decrease: Attempts answers even with weak evidence.\n\n"
+            "This prevents the system from generating bogus answers when\n"
+            "the document doesn't contain relevant information."
+        ),
+    },
+    "retrieval_multi_algo_bonus": {
+        "label": "Multi-algorithm agreement bonus",
+        "tooltip": (
+            "Extra score added when both BM25+ and FAISS find the same chunk.\n"
+            "Agreement between algorithms signals higher confidence.\n\n"
+            "Default: 0.1\n\n"
+            "Increase: More reward for cross-algorithm agreement.\n"
+            "Decrease: Less influence from algorithm agreement.\n\n"
+            "Applied per additional algorithm beyond the first."
+        ),
+    },
+    "faiss_relevance_floor": {
+        "label": "FAISS semantic relevance floor",
+        "tooltip": (
+            "Minimum FAISS (semantic) score required from the best chunk.\n"
+            "If no chunk reaches this score, the query has no semantic match\n"
+            "and retrieval returns empty (question likely unanswerable).\n\n"
+            "Default: 0.10\n\n"
+            "Increase: Stricter semantic check — more questions refused.\n"
+            "Decrease: More lenient — attempts answers with weaker matches.\n\n"
+            "FAISS uses cosine similarity (0=unrelated, 1=identical meaning).\n"
+            "Acts as a sanity check before BM25+ results are merged in."
+        ),
+    },
     # =======================================================================
     # Answer Quality
     # =======================================================================

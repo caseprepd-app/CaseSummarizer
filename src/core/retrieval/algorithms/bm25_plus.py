@@ -136,11 +136,12 @@ class BM25PlusRetriever(BaseRetrievalAlgorithm):
         # PERF-004: Use module-level numpy import
         top_k_indices = np.argsort(raw_scores)[::-1][:k]
 
-        # Normalize scores to 0-1 range
-        # BM25 scores are unbounded positive values
-        max_score = max(raw_scores) if max(raw_scores) > 0 else 1.0
-
         # Build result chunks
+        # Fixed sigmoid constant for BM25 score normalization
+        # K=2.0: a raw BM25 score of ~2 maps to 0.5 (decent match)
+        # Low scores stay low instead of inflating to ~0.5
+        BM25_NORM_K = 2.0
+
         retrieved_chunks = []
         for idx in top_k_indices:
             raw_score = raw_scores[idx]
@@ -151,9 +152,9 @@ class BM25PlusRetriever(BaseRetrievalAlgorithm):
 
             chunk = self._chunks[idx]
 
-            # Normalize score to 0-1 range
-            # Using sigmoid-like normalization to handle score distribution
-            normalized_score = raw_score / (raw_score + max_score) if max_score > 0 else 0
+            # Normalize score to 0-1 range using fixed sigmoid
+            # Unlike raw/(raw+max), this doesn't inflate when all scores are similar
+            normalized_score = raw_score / (raw_score + BM25_NORM_K)
 
             retrieved_chunks.append(
                 RetrievedChunk(
