@@ -540,6 +540,17 @@ DESCRIPTIONS = {
             "Acts as a sanity check before BM25+ results are merged in."
         ),
     },
+    "qa_citation_max_chars": {
+        "label": "Citation max display characters",
+        "tooltip": (
+            "Maximum characters for the citation field shown below Q&A answers.\n"
+            "Longer citations are abridged at chunk boundaries, keeping the\n"
+            "highest-relevance excerpts and noting how many were omitted.\n\n"
+            "Default: 3000 characters\n\n"
+            "Increase: Show more source text (longer citations).\n"
+            "Decrease: Shorter citations (faster to read, less context)."
+        ),
+    },
     # =======================================================================
     # Answer Quality
     # =======================================================================

@@ -360,7 +360,7 @@ class QAWorker(BaseWorker):
         vector_store_path: Path,
         embeddings,
         ui_queue: Queue,
-        answer_mode: str = "extraction",
+        answer_mode: str = "ollama",
         questions: list[str] | None = None,
         use_default_questions: bool = False,
     ):

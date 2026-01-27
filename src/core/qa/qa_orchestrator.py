@@ -316,10 +316,14 @@ class QAOrchestrator:
         has_quality_context = retrieval_result.context and best_score >= RETRIEVAL_CONFIDENCE_GATE
 
         if has_quality_context:
-            # Citation: raw retrieved text (truncated only for very long contexts)
-            citation = retrieval_result.context.strip()
-            if len(citation) > 3000:
-                citation = citation[:3000] + "..."
+            # Citation: raw retrieved text, abridged at chunk boundaries
+            from src.config import QA_CITATION_MAX_CHARS
+            from src.core.qa.citation_abridger import abridge_citation
+
+            citation = abridge_citation(
+                retrieval_result.context.strip(),
+                max_chars=QA_CITATION_MAX_CHARS,
+            )
 
             # Quick Answer: AI-synthesized from Ollama
             # Always try Ollama mode for quick_answer, regardless of configured answer_mode

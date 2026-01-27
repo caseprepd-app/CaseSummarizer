@@ -520,7 +520,7 @@ class QueueMessageHandler:
             vector_store_path=vector_store_path,
             embeddings=embeddings,
             ui_queue=self.main_window._ui_queue,
-            answer_mode=prefs.get("qa_answer_mode", "extraction"),
+            answer_mode=prefs.get("qa_answer_mode", "ollama"),
             questions=None,
             use_default_questions=True,
         )

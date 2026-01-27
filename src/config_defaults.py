@@ -380,6 +380,14 @@ DEFAULTS = {
         "type": "float",
         "category": "Q&A Retrieval",
     },
+    "qa_citation_max_chars": {
+        "value": 3000,
+        "min": 500,
+        "max": 10000,
+        "step": 500,
+        "type": "int",
+        "category": "Q&A Retrieval",
+    },
     # =======================================================================
     # Answer Quality
     # =======================================================================

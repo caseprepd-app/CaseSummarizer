@@ -1281,19 +1281,19 @@ def _register_all_settings():
             setting_type=SettingType.DROPDOWN,
             tooltip=(
                 "How to generate answers from retrieved document context.\n\n"
-                "• Extraction: Finds the most relevant sentences directly from "
-                "your document. Fast and deterministic - same question always "
-                "gives the same answer. Best for quick lookups.\n\n"
-                "• Ollama: Uses AI to synthesize a natural-language answer from "
-                "relevant passages. Slower but produces more readable, comprehensive "
-                "responses. Requires Ollama to be running."
+                "• Extraction: Pulls matching sentences directly from the document "
+                "text. Fast and deterministic, but can produce garbled results on "
+                "dialogue-format documents like trial transcripts.\n\n"
+                "• Ollama AI (Recommended): Uses the local LLM to synthesize a "
+                "natural, coherent answer from relevant passages. Slower but "
+                "produces more readable responses. Requires Ollama to be running."
             ),
-            default="extraction",
+            default="ollama",
             options=[
+                ("Ollama AI (recommended, synthesized)", "ollama"),
                 ("Extraction (fast, from document)", "extraction"),
-                ("Ollama AI (slower, synthesized)", "ollama"),
             ],
-            getter=lambda: prefs.get("qa_answer_mode", "extraction"),
+            getter=lambda: prefs.get("qa_answer_mode", "ollama"),
             setter=lambda v: prefs.set("qa_answer_mode", v),
         )
     )

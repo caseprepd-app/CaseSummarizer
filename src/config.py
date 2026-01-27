@@ -678,6 +678,9 @@ RETRIEVAL_MULTI_ALGO_BONUS = _d("retrieval_multi_algo_bonus")
 # there's no semantic match and the question is likely unanswerable
 FAISS_RELEVANCE_FLOOR = _d("faiss_relevance_floor")
 
+# Maximum characters for citation display — abridged at chunk boundaries
+QA_CITATION_MAX_CHARS = _d("qa_citation_max_chars")
+
 # ============================================================================
 # Query Transformation Configuration (Session 44 - LlamaIndex Integration)
 # ============================================================================

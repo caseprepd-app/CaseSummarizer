@@ -693,7 +693,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
                     vector_store_path=data["vector_store_path"],
                     embeddings=data["embeddings"],
                     ui_queue=self._ui_queue,
-                    answer_mode=prefs.get("qa_answer_mode", "extraction"),
+                    answer_mode=prefs.get("qa_answer_mode", "ollama"),
                     questions=None,
                     use_default_questions=True,
                 )

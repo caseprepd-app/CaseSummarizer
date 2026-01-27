@@ -457,7 +457,7 @@ class WorkflowOrchestrator:
 
         # Get user's preferred answer mode from settings
         prefs = get_user_preferences()
-        answer_mode = prefs.get("qa_answer_mode", "extraction")
+        answer_mode = prefs.get("qa_answer_mode", "ollama")
 
         # Initialize embeddings (same model as vector store creation)
         # IMPORTANT: Explicitly set device='cpu' to avoid "meta tensor" errors
@@ -501,7 +501,7 @@ class WorkflowOrchestrator:
 
                 # Get answer mode from settings
                 prefs = get_user_preferences()
-                answer_mode = prefs.get("qa_answer_mode", "extraction")
+                answer_mode = prefs.get("qa_answer_mode", "ollama")
 
                 # Initialize embeddings
                 # IMPORTANT: Explicitly set device='cpu' to avoid "meta tensor" errors
