@@ -362,11 +362,14 @@ class PromptTemplateManager:
         Returns:
             Formatted prompt ready for model input
         """
-        return template.format(
+        # Use manual replacement for case_text to avoid crashing on { or }
+        # in legal documents (citations, exhibit references, JSON snippets).
+        # Other variables are safe (integers from our code).
+        result = template.replace("{case_text}", case_text)
+        return result.format(
             min_words=min_words,
             max_words=max_words,
             max_words_range=max_words_range,
-            case_text=case_text,
         )
 
     def get_default_preset_id(self, model_name: str) -> str | None:

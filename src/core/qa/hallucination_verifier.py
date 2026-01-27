@@ -142,7 +142,9 @@ class HallucinationVerifier:
                 if DEBUG_MODE:
                     debug_log(f"[HallucinationVerifier] Failed to load model: {e}")
                 return VerificationResult(
-                    spans=[VerifiedSpan(text=answer, hallucination_prob=0.5)],
+                    spans=[
+                        VerifiedSpan(text=answer, start=0, end=len(answer), hallucination_prob=0.5)
+                    ],
                     overall_reliability=0.5,
                     answer_rejected=False,
                 )

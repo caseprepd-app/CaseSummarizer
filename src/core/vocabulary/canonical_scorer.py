@@ -228,7 +228,7 @@ class CanonicalScorer:
             if sources is None:
                 sources = TermSources.create_legacy(
                     v.get("In-Case Freq", 1),
-                    v.get("source_doc_confidence", 1.0) / 100.0,  # Normalize if needed
+                    v.get("source_doc_confidence", 100) / 100.0,  # 0-100 scale → 0-1
                 )
 
             score = self.calculate_score(term, sources)

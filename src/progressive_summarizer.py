@@ -283,9 +283,8 @@ class ProgressiveSummarizer:
         if chunk_num == 1:
             local_context = "[No preceding content.]"
         else:
-            previous_summary = self.df.loc[
-                self.df["chunk_num"] == chunk_num - 1, "chunk_summary"
-            ].iloc[0]
+            prev_summary_rows = self.df.loc[self.df["chunk_num"] == chunk_num - 1, "chunk_summary"]
+            previous_summary = prev_summary_rows.iloc[0] if not prev_summary_rows.empty else ""
             if previous_summary:
                 # Truncate to max sentences if needed
                 sentences = previous_summary.split(". ")
