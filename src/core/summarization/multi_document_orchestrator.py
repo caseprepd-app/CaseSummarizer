@@ -64,7 +64,7 @@ if TYPE_CHECKING:
     from queue import Queue
 
     from src.core.ai.ollama_model_manager import OllamaModelManager
-    from src.core.prompting import PromptAdapter
+    from src.core.prompting import StagePromptBuilder
 
 
 class MultiDocumentOrchestrator:
@@ -89,7 +89,7 @@ class MultiDocumentOrchestrator:
         document_summarizer: Summarizer for individual documents.
         model_manager: OllamaModelManager for meta-summary generation.
         strategy: ExecutorStrategy for parallel processing.
-        prompt_adapter: Optional PromptAdapter for focus-aware meta-summary.
+        prompt_adapter: Optional StagePromptBuilder for focus-aware meta-summary.
         preset_id: Template preset ID for focus extraction.
     """
 
@@ -98,7 +98,7 @@ class MultiDocumentOrchestrator:
         document_summarizer: DocumentSummarizer,
         model_manager: OllamaModelManager,
         strategy: ExecutorStrategy | None = None,
-        prompt_adapter: PromptAdapter | None = None,
+        prompt_adapter: StagePromptBuilder | None = None,
         preset_id: str = "factual-summary",
     ):
         """
@@ -109,7 +109,7 @@ class MultiDocumentOrchestrator:
             model_manager: OllamaModelManager for AI text generation.
             strategy: ExecutorStrategy for parallel execution.
                      Defaults to ThreadPoolStrategy with PARALLEL_MAX_WORKERS.
-            prompt_adapter: Optional PromptAdapter for generating focus-aware
+            prompt_adapter: Optional StagePromptBuilder for generating focus-aware
                           meta-summary prompts. If None, uses default prompts.
             preset_id: Template preset ID for focus extraction. Used with
                       prompt_adapter to thread user's focus through prompts.

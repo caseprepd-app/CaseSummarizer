@@ -39,7 +39,7 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from src.progressive_summarizer import ProgressiveSummarizer
+from src.core.summarization.progressive_summarizer import ProgressiveSummarizer
 
 logger = logging.getLogger(__name__)
 
@@ -47,7 +47,7 @@ from .result_types import DocumentSummaryResult
 
 if TYPE_CHECKING:
     from src.core.ai.ollama_model_manager import OllamaModelManager
-    from src.core.prompting import PromptAdapter
+    from src.core.prompting import StagePromptBuilder
 
 
 class DocumentSummarizer(ABC):
@@ -105,7 +105,7 @@ class ProgressiveDocumentSummarizer(DocumentSummarizer):
     Attributes:
         model_manager: OllamaModelManager for text generation.
         config_path: Path to chunking configuration (optional).
-        prompt_adapter: Optional PromptAdapter for focus-aware prompts.
+        prompt_adapter: Optional StagePromptBuilder for focus-aware prompts.
         preset_id: Template preset ID for focus extraction.
     """
 
@@ -113,7 +113,7 @@ class ProgressiveDocumentSummarizer(DocumentSummarizer):
         self,
         model_manager: OllamaModelManager,
         config_path: Path | None = None,
-        prompt_adapter: PromptAdapter | None = None,
+        prompt_adapter: StagePromptBuilder | None = None,
         preset_id: str = "factual-summary",
     ):
         """
@@ -122,7 +122,7 @@ class ProgressiveDocumentSummarizer(DocumentSummarizer):
         Args:
             model_manager: OllamaModelManager instance for text generation.
             config_path: Path to chunking_config.yaml. Uses default if None.
-            prompt_adapter: Optional PromptAdapter for generating focus-aware
+            prompt_adapter: Optional StagePromptBuilder for generating focus-aware
                           prompts. If None, uses default hardcoded prompts.
             preset_id: Template preset ID for focus extraction. Used with
                       prompt_adapter to thread user's focus through prompts.

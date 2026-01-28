@@ -4,8 +4,6 @@ CasePrepd Services Layer
 Provides a clean interface between the UI and core business logic.
 Services are thin wrappers that coordinate between components.
 
-Session 83: Added AIService for Ollama/GPU operations.
-
 Usage:
     from src.services import DocumentService, VocabularyService, QAService, AIService
 

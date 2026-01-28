@@ -63,7 +63,6 @@ __all__ = [
     "BaseRetrievalAlgorithm",
     "ChunkMerger",
     "DefaultQuestion",
-    # Default questions management (Session 63c)
     "DefaultQuestionsManager",
     "DocumentChunk",
     # Retrieval

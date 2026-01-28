@@ -1,7 +1,7 @@
 """
-Multi-Document Prompt Adapters
+Stage-Specific Prompt Builders
 
-Generates stage-specific prompts that incorporate user's focus areas:
+Builds stage-specific prompts that incorporate user's focus areas:
 1. Chunk prompts: Generic + focus emphasis
 2. Document prompts: Generic + focus emphasis
 3. Meta-summary: Structured with user's focus instructions
@@ -12,12 +12,10 @@ Design Principles:
 3. All methods accept preset_id + model_name for flexibility
 4. Graceful fallback if template loading fails
 
-Moved from src/prompt_adapters.py to src/prompting/adapters.py in Session 33.
-
 Usage:
-    from src.core.prompting import MultiDocPromptAdapter
+    from src.core.prompting import MultiDocStagePromptBuilder
 
-    adapter = MultiDocPromptAdapter(template_manager, model_manager)
+    adapter = MultiDocStagePromptBuilder(template_manager, model_manager)
 
     # Generate chunk prompt with focus emphasis
     prompt = adapter.create_chunk_prompt(
@@ -43,14 +41,14 @@ if TYPE_CHECKING:
     from src.core.prompting.template_manager import PromptTemplateManager
 
 
-class PromptAdapter(ABC):
+class StagePromptBuilder(ABC):
     """
     Abstract interface for generating stage-specific prompts.
 
     This ABC allows customizing prompt generation without changing callers:
-    - MultiDocPromptAdapter (current): Thread-through focus emphasis
-    - VerbatimPromptAdapter (future): Use original template as-is
-    - DebugPromptAdapter (future): Add debug markers to prompts
+    - MultiDocStagePromptBuilder (current): Thread-through focus emphasis
+    - VerbatimStagePromptBuilder (future): Use original template as-is
+    - DebugStagePromptBuilder (future): Add debug markers to prompts
 
     All implementations must provide methods for:
     - Chunk summarization prompts
@@ -91,7 +89,7 @@ class PromptAdapter(ABC):
         pass
 
 
-class MultiDocPromptAdapter(PromptAdapter):
+class MultiDocStagePromptBuilder(StagePromptBuilder):
     """
     Adapts user prompts for multi-document pipeline stages.
 

@@ -8,12 +8,12 @@ locations), medical terms, acronyms, and technical terminology.
 Main Components:
 - VocabularyExtractor: Core orchestrator for multi-algorithm extraction
 - FeedbackManager: Stores user feedback (thumbs up/down) for ML learning
-- VocabularyMetaLearner: Learns user preferences from feedback
+- VocabularyPreferenceLearner: Learns user preferences from feedback
 
-Multi-Algorithm Architecture (Session 25):
+Multi-Algorithm Architecture:
 - Base extraction algorithms in src/vocabulary/algorithms/
-- Results merged by ResultMerger with weighted confidence
-- User feedback trains logistic regression meta-learner
+- Results merged by AlgorithmScoreMerger with weighted confidence
+- User feedback trains logistic regression preference learner
 
 Usage:
     from src.core.vocabulary import VocabularyExtractor
@@ -34,20 +34,19 @@ Usage:
 from .corpus_manager import CorpusFile, CorpusManager, get_corpus_manager
 from .corpus_registry import CorpusInfo, CorpusRegistry, get_corpus_registry
 from .feedback_manager import FeedbackManager, get_feedback_manager
-from .meta_learner import VocabularyMetaLearner, get_meta_learner
 from .name_deduplicator import deduplicate_names
 from .name_regularizer import filter_name_fragments, filter_typo_variants, regularize_names
+from .preference_learner import VocabularyPreferenceLearner, get_meta_learner
 from .vocabulary_extractor import VocabularyExtractor
 
 __all__ = [
     "CorpusFile",
     "CorpusInfo",
-    # Corpus Management (Session 29)
     "CorpusManager",
     "CorpusRegistry",
     "FeedbackManager",
     "VocabularyExtractor",
-    "VocabularyMetaLearner",
+    "VocabularyPreferenceLearner",
     # Name Deduplication
     "deduplicate_names",
     "filter_name_fragments",
@@ -56,6 +55,5 @@ __all__ = [
     "get_corpus_registry",
     "get_feedback_manager",
     "get_meta_learner",
-    # Name Regularization (Session 63)
     "regularize_names",
 ]

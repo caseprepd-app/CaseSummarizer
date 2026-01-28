@@ -8,7 +8,7 @@ Removes terms that contain higher-frequency canonical terms as substrings.
 from src.core.vocabulary.filters.base import BaseVocabularyFilter, FilterResult
 
 
-class ArtifactFilter(BaseVocabularyFilter):
+class ExtractionArtifactFilter(BaseVocabularyFilter):
     """
     Removes substring artifacts from vocabulary.
 

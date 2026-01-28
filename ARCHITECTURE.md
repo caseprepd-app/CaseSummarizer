@@ -265,7 +265,7 @@ FILES IN → Extract → Sanitize → Preprocess → Chunk → [3 parallel paths
 | `vocabulary/algorithms/` | NER, RAKE, BM25 implementations |
 | `vocabulary/reconciler.py` | Merge NER + LLM results |
 | `vocabulary/filters/` | FilterChain pipeline |
-| `vocabulary/meta_learner.py` | ML preference learning from user feedback |
+| `vocabulary/preference_learner.py` | ML preference learning from user feedback |
 
 ---
 

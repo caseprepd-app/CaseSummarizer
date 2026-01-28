@@ -18,7 +18,7 @@ import numpy as np
 
 from src.config import NON_NER_PHRASE_COMMON_WORD_FLOOR, get_count_bin_features
 from src.core.vocabulary.adjusted_mean import compute_adjusted_mean
-from src.core.vocabulary.meta_learner_text_analysis import (
+from src.core.vocabulary.preference_learner_text_analysis import (
     _get_name_country_data,
     _load_names_datasets,
     _log_rarity_score,

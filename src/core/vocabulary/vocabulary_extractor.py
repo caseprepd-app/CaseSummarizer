@@ -11,7 +11,7 @@ FILTERING STRATEGY:
 
 This module coordinates:
 1. Running multiple extraction algorithms (NER, RAKE, BM25)
-2. Merging and deduplicating results via ResultMerger
+2. Merging and deduplicating results via AlgorithmScoreMerger
 3. Post-processing: frequency filtering, ML boost, role detection
 4. Name deduplication (fuzzy matching for OCR variants)
 5. Artifact filtering (substring containment)
@@ -47,9 +47,9 @@ from src.config import (
 )
 from src.core.utils.tokenizer import STOPWORDS
 from src.core.vocabulary.algorithms.base import BaseExtractionAlgorithm
-from src.core.vocabulary.meta_learner import get_meta_learner
-from src.core.vocabulary.reconciler import VocabularyReconciler
-from src.core.vocabulary.result_merger import MergedTerm, ResultMerger
+from src.core.vocabulary.preference_learner import get_meta_learner
+from src.core.vocabulary.reconciler import VocabularyDeduplicator
+from src.core.vocabulary.result_merger import AlgorithmScoreMerger, MergedTerm
 from src.core.vocabulary.role_profiles import RoleDetectionProfile, StenographerProfile
 from src.core.vocabulary.term_sources import TermSources
 from src.user_preferences import get_user_preferences
@@ -98,7 +98,7 @@ class VocabularyExtractor:
     Attributes:
         algorithms: List of extraction algorithms to use
         role_profile: Role detection profile for profession-specific relevance
-        merger: ResultMerger for combining algorithm outputs
+        merger: AlgorithmScoreMerger for combining algorithm outputs
 
     Example:
         >>> extractor = VocabularyExtractor()
@@ -192,7 +192,7 @@ class VocabularyExtractor:
             self.algorithms = algorithms
 
         # Initialize merger with algorithm weights
-        self.merger = ResultMerger(
+        self.merger = AlgorithmScoreMerger(
             algorithm_weights={alg.name: alg.weight for alg in self.algorithms}
         )
 
@@ -504,7 +504,7 @@ class VocabularyExtractor:
 
         # 3. Reconcile results
         logger.debug("Phase 3: Reconciling NER and LLM results...")
-        reconciler = VocabularyReconciler()
+        reconciler = VocabularyDeduplicator()
         reconciled = reconciler.reconcile(ner_candidates, llm_terms)
         logger.debug("Reconciled to %s unique terms", len(reconciled))
 

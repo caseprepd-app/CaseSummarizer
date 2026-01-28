@@ -131,7 +131,7 @@ ML_SOURCE_WEIGHTS = [
 #
 # Used by:
 # - feedback_manager.py: Deduplication key (term, count_bin)
-# - meta_learner.py: One-hot encoded features for ML model
+# - preference_learner.py: One-hot encoded features for ML model
 COUNT_BIN_NAMES = (
     "bin_1",  # Single occurrence - may be OCR error
     "bin_2",  # Two occurrences
@@ -233,7 +233,7 @@ CORPUS_FAMILIARITY_EXEMPT_PERSONS = True  # Exempt person names from filtering
 # Vocabulary Extraction Algorithm Weights (Session 47)
 # Centralized weights for multi-algorithm vocabulary extraction
 # Higher weight = more influence on final confidence score
-# These weights are used by ResultMerger to combine algorithm results
+# These weights are used by AlgorithmScoreMerger to combine algorithm results
 VOCAB_ALGORITHM_WEIGHTS = {
     "NER": _d("vocab_weight_ner"),
     "RAKE": _d("vocab_weight_rake"),

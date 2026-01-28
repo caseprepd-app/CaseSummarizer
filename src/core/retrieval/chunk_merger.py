@@ -12,7 +12,7 @@ Merge Strategy:
 4. Rank by combined score
 5. Track which algorithms found each chunk (for ML features)
 
-This mirrors the vocabulary extraction ResultMerger pattern for consistency.
+This mirrors the vocabulary extraction AlgorithmScoreMerger pattern for consistency.
 """
 
 from dataclasses import dataclass, field

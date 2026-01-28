@@ -1,9 +1,9 @@
 """
-Tests for Prompt Focus Extraction and Adapter Modules
+Tests for Prompt Focus Extraction and Stage Prompt Builder Modules
 
 Tests the thread-through prompt template architecture:
 - FocusExtractor ABC and AIFocusExtractor implementation
-- PromptAdapter ABC and MultiDocPromptAdapter implementation
+- StagePromptBuilder ABC and MultiDocStagePromptBuilder implementation
 - Caching behavior for focus extraction
 - Prompt generation with focus emphasis
 
@@ -17,8 +17,8 @@ import pytest
 from src.core.prompting import (
     AIFocusExtractor,
     FocusExtractor,
-    MultiDocPromptAdapter,
-    PromptAdapter,
+    MultiDocStagePromptBuilder,
+    StagePromptBuilder,
 )
 
 
@@ -166,18 +166,18 @@ INSTRUCTIONS:
         assert "3. Third instruction" in result["instructions"]
 
 
-class TestPromptAdapterABC:
-    """Test the PromptAdapter abstract base class."""
+class TestStagePromptBuilderABC:
+    """Test the StagePromptBuilder abstract base class."""
 
     def test_prompt_adapter_is_abstract(self):
-        """PromptAdapter cannot be instantiated directly."""
+        """StagePromptBuilder cannot be instantiated directly."""
         with pytest.raises(TypeError):
-            PromptAdapter()
+            StagePromptBuilder()
 
     def test_must_implement_all_methods(self):
         """Custom adapters must implement all abstract methods."""
 
-        class IncompleteAdapter(PromptAdapter):
+        class IncompleteAdapter(StagePromptBuilder):
             def create_chunk_prompt(self, *args, **kwargs):
                 return "chunk"
 
@@ -187,8 +187,8 @@ class TestPromptAdapterABC:
             IncompleteAdapter()
 
 
-class TestMultiDocPromptAdapter:
-    """Test MultiDocPromptAdapter implementation."""
+class TestMultiDocStagePromptBuilder:
+    """Test MultiDocStagePromptBuilder implementation."""
 
     @pytest.fixture
     def mock_template_manager(self):
@@ -219,7 +219,7 @@ INSTRUCTIONS:
     def adapter(self, mock_template_manager, mock_model_manager):
         """Create adapter with mocks."""
         AIFocusExtractor.clear_cache()
-        return MultiDocPromptAdapter(
+        return MultiDocStagePromptBuilder(
             template_manager=mock_template_manager, model_manager=mock_model_manager
         )
 
@@ -299,7 +299,7 @@ INSTRUCTIONS:
             def extract_focus(self, template: str, preset_id: str) -> dict:
                 return {"emphasis": "custom emphasis", "instructions": "1. Custom instruction"}
 
-        adapter = MultiDocPromptAdapter(
+        adapter = MultiDocStagePromptBuilder(
             template_manager=mock_template_manager,
             model_manager=mock_model_manager,
             focus_extractor=CustomExtractor(),
@@ -351,11 +351,11 @@ class TestIntegrationImports:
         assert AIFocusExtractor is not None
 
     def test_prompt_adapter_imports(self):
-        """PromptAdapter components import correctly."""
-        from src.core.prompting import MultiDocPromptAdapter, PromptAdapter
+        """StagePromptBuilder components import correctly."""
+        from src.core.prompting import MultiDocStagePromptBuilder, StagePromptBuilder
 
-        assert PromptAdapter is not None
-        assert MultiDocPromptAdapter is not None
+        assert StagePromptBuilder is not None
+        assert MultiDocStagePromptBuilder is not None
 
     def test_summarizer_accepts_adapter_params(self):
         """ProgressiveDocumentSummarizer accepts adapter parameters."""

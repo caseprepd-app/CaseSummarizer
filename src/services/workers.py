@@ -735,7 +735,6 @@ class MultiDocSummaryWorker(CleanupWorker):
 
         # Import here to avoid circular imports
         from src.core.ai import OllamaModelManager
-        from src.core.prompting import MultiDocPromptAdapter
         from src.core.summarization import (
             MultiDocumentOrchestrator,
             ProgressiveDocumentSummarizer,
@@ -753,10 +752,12 @@ class MultiDocSummaryWorker(CleanupWorker):
         preset_id = self.ai_params.get("preset_id", "factual-summary")
         logger.debug("Using preset_id: %s", preset_id)
 
-        # Create prompt adapter for thread-through focus areas
-        # This adapter extracts focus from the user's template and threads
+        # Create prompt builder for thread-through focus areas
+        # This builder extracts focus from the user's template and threads
         # it through all stages of the summarization pipeline
-        prompt_adapter = MultiDocPromptAdapter(
+        from src.core.prompting import MultiDocStagePromptBuilder
+
+        prompt_adapter = MultiDocStagePromptBuilder(
             template_manager=model_manager.prompt_template_manager, model_manager=model_manager
         )
 
@@ -946,7 +947,6 @@ class ProgressiveExtractionWorker(BaseWorker):
 
             from src.core.chunking import create_unified_chunker
             from src.core.extraction import LLMVocabExtractor
-            from src.core.vocabulary.reconciler import VocabularyReconciler
 
             # Get NER candidates for reconciliation
             ner_candidates = []
@@ -977,9 +977,11 @@ class ProgressiveExtractionWorker(BaseWorker):
 
             self.check_cancelled()
 
-            # Reconcile NER + LLM results
-            logger.debug("Reconciling NER + LLM results...")
-            reconciler = VocabularyReconciler()
+            # Deduplicate NER + LLM results
+            from src.core.vocabulary.reconciler import VocabularyDeduplicator
+
+            logger.debug("Deduplicating NER + LLM results...")
+            reconciler = VocabularyDeduplicator()
 
             # Reconcile people
             ner_people = [c for c in ner_candidates if getattr(c, "suggested_type", "") == "Person"]

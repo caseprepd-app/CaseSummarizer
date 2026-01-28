@@ -1,8 +1,6 @@
 """
 Vocabulary Table Components.
 
-Session 82: Split from dynamic_output.py for modularity.
-
 This package contains the components for the vocabulary table display:
 - column_config: Column registry and display constants
 - treeview_manager: Treeview display, sorting, filtering (mixin)

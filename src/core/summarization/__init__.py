@@ -35,7 +35,7 @@ Map-Reduce Flow:
 
 # Result types
 # Core summarization (re-exported from src root for unified API)
-from src.progressive_summarizer import ProgressiveSummarizer
+from src.core.summarization.progressive_summarizer import ProgressiveSummarizer
 
 # Document summarizers
 from .document_summarizer import (

@@ -17,7 +17,7 @@ Usage:
     export_qa_results(qa_results, builder)
     builder.save("qa_results.pdf")
 
-    # Export combined (Session 73)
+    # Export combined
     builder = WordDocumentBuilder()
     export_combined(vocab_data, qa_results, builder)
     builder.save("combined_report.docx")

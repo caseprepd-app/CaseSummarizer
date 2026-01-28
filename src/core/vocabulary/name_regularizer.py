@@ -37,7 +37,7 @@ Example:
 import logging
 
 from src.core.vocabulary.canonical_scorer import create_canonical_scorer
-from src.core.vocabulary.meta_learner_text_analysis import _load_names_datasets
+from src.core.vocabulary.preference_learner_text_analysis import _load_names_datasets
 from src.core.vocabulary.string_utils import edit_distance
 from src.core.vocabulary.term_sources import TermSources
 

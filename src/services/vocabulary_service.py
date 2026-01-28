@@ -261,6 +261,6 @@ class VocabularyService:
         Returns:
             MetaLearner singleton for ML model operations.
         """
-        from src.core.vocabulary.meta_learner import get_meta_learner
+        from src.core.vocabulary.preference_learner import get_meta_learner
 
         return get_meta_learner()

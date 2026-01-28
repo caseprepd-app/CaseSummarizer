@@ -30,7 +30,7 @@ from src.config import (
     ML_SOURCE_WEIGHTS,
     VOCAB_MODEL_PATH,
 )
-from src.core.vocabulary.meta_learner_features import FEATURE_NAMES, extract_features
+from src.core.vocabulary.preference_learner_features import FEATURE_NAMES, extract_features
 
 logger = logging.getLogger(__name__)
 

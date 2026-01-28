@@ -2,7 +2,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from src.progressive_summarizer import ProgressiveSummarizer
+from src.core.summarization.progressive_summarizer import ProgressiveSummarizer
 
 
 # Mock config for testing (if needed, otherwise ProgressiveSummarizer uses its own)
@@ -34,7 +34,9 @@ def mock_config_path(tmp_path):
 @pytest.fixture
 def progressive_summarizer_instance(mock_config_path):
     # Patch create_unified_chunker during the test to prevent it from loading real dependencies
-    with patch("src.progressive_summarizer.create_unified_chunker") as MockCreateUnifiedChunker:
+    with patch(
+        "src.core.summarization.progressive_summarizer.create_unified_chunker"
+    ) as MockCreateUnifiedChunker:
         # Configure the mock UnifiedChunker
         mock_chunker = MagicMock()
         mock_chunker.chunk_text.return_value = []  # Return empty chunks if called

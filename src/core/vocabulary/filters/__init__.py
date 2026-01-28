@@ -17,9 +17,9 @@ Usage:
         print(f"  {name}: {stats['removed_count']} removed")
 """
 
-from src.core.vocabulary.filters.artifact import ArtifactFilter
+from src.core.vocabulary.filters.artifact import ExtractionArtifactFilter
 from src.core.vocabulary.filters.base import BaseVocabularyFilter, FilterResult
-from src.core.vocabulary.filters.combined_per_term import CombinedPerTermFilter
+from src.core.vocabulary.filters.combined_per_term import UnifiedPerTermFilter
 from src.core.vocabulary.filters.corpus_familiarity import CorpusFamiliarityFilter
 from src.core.vocabulary.filters.filter_chain import FilterChainStats, VocabularyFilterChain
 from src.core.vocabulary.filters.gibberish import GibberishFilter
@@ -36,7 +36,7 @@ def create_default_filter_chain() -> VocabularyFilterChain:
     Order (by priority):
     1. NameDeduplicationFilter (10) - Merge similar person names
     2. RegexExclusionFilter (15) - Remove user-defined pattern matches
-    3. ArtifactFilter (20) - Remove substring artifacts
+    3. ExtractionArtifactFilter (20) - Remove substring artifacts
     4. NameRegularizerFilter (30) - Remove fragments and typos
     5. RarityFilter (40) - Remove common-word terms
     6. CorpusFamiliarityFilter (50) - Remove corpus-familiar terms
@@ -49,7 +49,7 @@ def create_default_filter_chain() -> VocabularyFilterChain:
         [
             NameDeduplicationFilter(),
             RegexExclusionFilter(),
-            ArtifactFilter(),
+            ExtractionArtifactFilter(),
             NameRegularizerFilter(),
             RarityFilter(),
             CorpusFamiliarityFilter(),
@@ -62,15 +62,15 @@ def create_optimized_filter_chain() -> VocabularyFilterChain:
     """
     Create a filter chain with combined per-term filters for better performance.
 
-    Uses CombinedPerTermFilter to run Rarity, Corpus Familiarity, and Gibberish
+    Uses UnifiedPerTermFilter to run Rarity, Corpus Familiarity, and Gibberish
     checks in a single pass instead of three separate passes.
 
     Order (by priority):
     1. NameDeduplicationFilter (10) - Merge similar person names
     2. RegexExclusionFilter (15) - Remove user-defined pattern matches
-    3. ArtifactFilter (20) - Remove substring artifacts
+    3. ExtractionArtifactFilter (20) - Remove substring artifacts
     4. NameRegularizerFilter (30) - Remove fragments and typos
-    5. CombinedPerTermFilter (40) - Rarity + Corpus + Gibberish in one pass
+    5. UnifiedPerTermFilter (40) - Rarity + Corpus + Gibberish in one pass
 
     Returns:
         Configured VocabularyFilterChain instance (optimized)
@@ -79,9 +79,9 @@ def create_optimized_filter_chain() -> VocabularyFilterChain:
         [
             NameDeduplicationFilter(),
             RegexExclusionFilter(),
-            ArtifactFilter(),
+            ExtractionArtifactFilter(),
             NameRegularizerFilter(),
-            CombinedPerTermFilter(),
+            UnifiedPerTermFilter(),
         ]
     )
 
@@ -90,13 +90,13 @@ def create_partial_results_filter_chain() -> VocabularyFilterChain:
     """
     Create a filter chain for partial results (BM25+RAKE).
 
-    Session 85: For progressive extraction, BM25 and RAKE run first.
-    Session 86: Added RarityFilter back - common phrases like "once per year"
+    For progressive extraction, BM25 and RAKE run first.
+    RarityFilter included because common phrases like "once per year"
     were appearing in partial results without it.
 
     Order (by priority):
     1. RegexExclusionFilter (15) - Remove user-defined pattern matches
-    2. ArtifactFilter (20) - Remove substring artifacts
+    2. ExtractionArtifactFilter (20) - Remove substring artifacts
     3. RarityFilter (40) - Remove common-word terms
     4. GibberishFilter (60) - Remove nonsense strings
 
@@ -106,7 +106,7 @@ def create_partial_results_filter_chain() -> VocabularyFilterChain:
     return VocabularyFilterChain(
         [
             RegexExclusionFilter(),
-            ArtifactFilter(),
+            ExtractionArtifactFilter(),
             RarityFilter(),
             GibberishFilter(),
         ]
@@ -114,10 +114,10 @@ def create_partial_results_filter_chain() -> VocabularyFilterChain:
 
 
 __all__ = [
-    "ArtifactFilter",
+    "ExtractionArtifactFilter",
     # Base classes
     "BaseVocabularyFilter",
-    "CombinedPerTermFilter",
+    "UnifiedPerTermFilter",
     "CorpusFamiliarityFilter",
     "FilterChainStats",
     "FilterResult",

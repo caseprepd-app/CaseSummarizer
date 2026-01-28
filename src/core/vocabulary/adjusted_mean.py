@@ -9,7 +9,7 @@ genuinely rare or specialized terms.
 Used by:
 - rarity_filter.py: get_phrase_rarity_scores (RAKE/BM25 passthrough)
 - rarity_filter.py: calculate_phrase_component_scores (NER phrase filtering)
-- meta_learner_features.py: word_log_rarity_score (ML feature)
+- preference_learner_features.py: word_log_rarity_score (ML feature)
 """
 
 

@@ -1,5 +1,5 @@
 """
-Unified Chunking Module (Session 45)
+Unified Chunking Module
 
 Provides semantic chunking with token enforcement for:
 - LLM extraction (names + vocabulary)

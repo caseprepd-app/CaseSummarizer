@@ -307,7 +307,7 @@ class CorpusManager:
 
         # Auto-reset the ML model if it's trained
         try:
-            from src.core.vocabulary.meta_learner import get_meta_learner
+            from src.core.vocabulary.preference_learner import get_meta_learner
 
             learner = get_meta_learner()
             if learner.is_trained:

@@ -31,7 +31,7 @@ class CandidateTerm:
     A term candidate extracted by an algorithm.
 
     This represents a single term found by one algorithm. Multiple algorithms
-    may find the same term, which will be merged later by ResultMerger.
+    may find the same term, which will be merged later by AlgorithmScoreMerger.
 
     Attributes:
         term: The extracted text (e.g., "John Smith", "cardiomyopathy")

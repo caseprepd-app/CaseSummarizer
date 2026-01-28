@@ -6,7 +6,7 @@ document extraction pipeline. Used to assess extraction quality and decide
 whether OCR fallback is needed.
 
 Example usage:
-    >>> utils = DictionaryUtils()
+    >>> utils = TermExtractionHelpers()
     >>> confidence = utils.calculate_confidence("The plaintiff filed a motion.")
     >>> print(f"Text quality: {confidence:.1f}%")
     Text quality: 85.0%
@@ -26,7 +26,7 @@ from nltk.corpus import words
 logger = logging.getLogger(__name__)
 
 
-class DictionaryUtils:
+class TermExtractionHelpers:
     """
     Dictionary-based utilities for text validation and quality assessment.
 
@@ -45,7 +45,7 @@ class DictionaryUtils:
 
     def __init__(self):
         """
-        Initialize DictionaryUtils by loading the NLTK words corpus.
+        Initialize TermExtractionHelpers by loading the NLTK words corpus.
 
         Downloads the corpus if not already available.
         """
@@ -125,7 +125,7 @@ class DictionaryUtils:
             Confidence percentage (0-100). Higher = more valid English words.
 
         Example:
-            >>> utils = DictionaryUtils()
+            >>> utils = TermExtractionHelpers()
             >>> utils.calculate_confidence("The quick brown fox")
             100.0
             >>> utils.calculate_confidence("xkcd asdf qwerty")
@@ -174,7 +174,7 @@ class DictionaryUtils:
             True if word is in dictionary, False otherwise
 
         Example:
-            >>> utils = DictionaryUtils()
+            >>> utils = TermExtractionHelpers()
             >>> utils.is_valid_word("plaintiff")
             True
             >>> utils.is_valid_word("Plaintiff")  # case-insensitive
@@ -200,7 +200,7 @@ class DictionaryUtils:
             List of tokens (words with attached punctuation)
 
         Example:
-            >>> utils = DictionaryUtils()
+            >>> utils = TermExtractionHelpers()
             >>> utils.tokenize_for_voting("Hello, world!")
             ['Hello,', 'world!']
         """

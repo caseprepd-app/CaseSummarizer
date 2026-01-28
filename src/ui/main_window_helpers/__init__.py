@@ -1,8 +1,6 @@
 """
 Main Window Helper Components.
 
-Session 82: Split from main_window.py for modularity.
-
 This package contains helper classes that provide functionality for MainWindow:
 - ollama_mixin: Ollama status display and model management
 - file_mixin: File selection, drag-drop, preprocessing

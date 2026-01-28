@@ -42,7 +42,7 @@ LOG_CATEGORIES: dict[str, tuple[str, ...]] = {
         "src.services.vocabulary_service",
     ),
     "ML & Learning": (
-        "src.core.vocabulary.meta_learner",
+        "src.core.vocabulary.preference_learner",
         "src.core.vocabulary.feedback_manager",
         "src.core.vocabulary.canonical_scorer",
     ),
@@ -58,10 +58,7 @@ LOG_CATEGORIES: dict[str, tuple[str, ...]] = {
         "src.core.vector_store",
         "src.services.qa_service",
     ),
-    "Summarization": (
-        "src.core.summarization",
-        "src.progressive_summarizer",
-    ),
+    "Summarization": ("src.core.summarization",),
     "Export": (
         "src.services.export_service",
         "src.core.export",

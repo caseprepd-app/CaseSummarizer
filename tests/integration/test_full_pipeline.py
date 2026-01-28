@@ -15,7 +15,7 @@ class TestFeatureExtraction:
 
     def test_feature_count_matches_names(self):
         """Verify FEATURE_NAMES matches extracted feature count."""
-        from src.core.vocabulary.meta_learner_features import FEATURE_NAMES, extract_features
+        from src.core.vocabulary.preference_learner_features import FEATURE_NAMES, extract_features
 
         # Create a mock term with all required fields
         mock_term = {
@@ -41,21 +41,21 @@ class TestFeatureExtraction:
 
     def test_extract_features_requires_term(self):
         """Verify extract_features raises ValueError for missing term."""
-        from src.core.vocabulary.meta_learner_features import extract_features
+        from src.core.vocabulary.preference_learner_features import extract_features
 
         with pytest.raises(ValueError, match="must contain 'Term' or 'term' key"):
             extract_features({"in_case_freq": 5})
 
     def test_extract_features_requires_dict(self):
         """Verify extract_features raises ValueError for non-dict input."""
-        from src.core.vocabulary.meta_learner_features import extract_features
+        from src.core.vocabulary.preference_learner_features import extract_features
 
         with pytest.raises(ValueError, match="must be dict"):
             extract_features("not a dict")
 
     def test_feature_values_in_valid_range(self):
         """Verify extracted features are in expected ranges."""
-        from src.core.vocabulary.meta_learner_features import FEATURE_NAMES, extract_features
+        from src.core.vocabulary.preference_learner_features import FEATURE_NAMES, extract_features
 
         mock_term = {
             "Term": "cervical radiculopathy",
@@ -108,7 +108,7 @@ class TestMLModelTraining:
 
     def test_train_with_mock_feedback(self):
         """Verify ML model can train on mock feedback data."""
-        from src.core.vocabulary.meta_learner_training import train_models
+        from src.core.vocabulary.preference_learner_training import train_models
 
         # Create mock feedback records (need at least 30 for training)
         mock_records = []
@@ -137,8 +137,8 @@ class TestMLModelTraining:
 
     def test_prediction_returns_valid_probability(self):
         """Verify predictions are valid probabilities between 0 and 1."""
-        from src.core.vocabulary.meta_learner_features import extract_features
-        from src.core.vocabulary.meta_learner_training import train_models
+        from src.core.vocabulary.preference_learner_features import extract_features
+        from src.core.vocabulary.preference_learner_training import train_models
 
         # Train a model first
         mock_records = []
@@ -178,7 +178,7 @@ class TestTextAnalysis:
 
     def test_max_consonant_run(self):
         """Verify consonant run detection works correctly."""
-        from src.core.vocabulary.meta_learner_text_analysis import _max_consonant_run
+        from src.core.vocabulary.preference_learner_text_analysis import _max_consonant_run
 
         assert _max_consonant_run("strengths") == 5  # "ngths" has 5 consonants
         assert _max_consonant_run("hello") == 2  # "ll"
@@ -187,7 +187,7 @@ class TestTextAnalysis:
 
     def test_log_rarity_score_ordering(self):
         """Verify log rarity scores preserve rank ordering."""
-        from src.core.vocabulary.meta_learner_text_analysis import _log_rarity_score
+        from src.core.vocabulary.preference_learner_text_analysis import _log_rarity_score
 
         # More common words (lower linear score) should have lower log score
         score_common = _log_rarity_score(0.001)  # rank ~333 (very common)

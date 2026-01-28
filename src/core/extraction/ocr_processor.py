@@ -15,8 +15,8 @@ documents by:
     - Deskewing (fixing slight rotation)
 
 Example usage:
-    >>> from src.core.extraction.dictionary_utils import DictionaryUtils
-    >>> processor = OCRProcessor(DictionaryUtils())
+    >>> from src.core.extraction.dictionary_utils import TermExtractionHelpers
+    >>> processor = OCRProcessor(TermExtractionHelpers())
     >>> result = processor.process_pdf(Path("scanned.pdf"), page_count=10)
     >>> print(f"OCR confidence: {result['confidence']}%")
 """
@@ -37,7 +37,7 @@ from src.logging_config import Timer
 
 logger = logging.getLogger(__name__)
 
-from .dictionary_utils import DictionaryUtils
+from .dictionary_utils import TermExtractionHelpers
 from .image_preprocessor import ImagePreprocessor
 
 
@@ -49,16 +49,16 @@ class OCRProcessor:
     to improve accuracy on poor-quality scans.
 
     Attributes:
-        dictionary: DictionaryUtils for confidence calculation
+        dictionary: TermExtractionHelpers for confidence calculation
         preprocessor: Optional ImagePreprocessor for image enhancement
     """
 
-    def __init__(self, dictionary: DictionaryUtils):
+    def __init__(self, dictionary: TermExtractionHelpers):
         """
         Initialize the OCR processor.
 
         Args:
-            dictionary: DictionaryUtils instance for confidence calculation
+            dictionary: TermExtractionHelpers instance for confidence calculation
         """
         self.dictionary = dictionary
         self.preprocessor = None
@@ -95,7 +95,7 @@ class OCRProcessor:
                 - error_message: Error description if failed
 
         Example:
-            >>> processor = OCRProcessor(DictionaryUtils())
+            >>> processor = OCRProcessor(TermExtractionHelpers())
             >>> result = processor.process_pdf(Path("scan.pdf"))
             >>> print(result['method'])  # 'ocr_enhanced' if preprocessing enabled
         """
@@ -178,7 +178,7 @@ class OCRProcessor:
 
         Example:
             >>> from PIL import Image
-            >>> processor = OCRProcessor(DictionaryUtils())
+            >>> processor = OCRProcessor(TermExtractionHelpers())
             >>> img = Image.open("document.png")
             >>> result = processor.process_image(img)
         """

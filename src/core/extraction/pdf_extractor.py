@@ -11,8 +11,8 @@ voting to maximize accuracy:
 If text quality is below threshold (60%), falls back to OCR.
 
 Example usage:
-    >>> from src.core.extraction.dictionary_utils import DictionaryUtils
-    >>> dictionary = DictionaryUtils()
+    >>> from src.core.extraction.dictionary_utils import TermExtractionHelpers
+    >>> dictionary = TermExtractionHelpers()
     >>> extractor = PDFExtractor(dictionary)
     >>> result = extractor.extract(Path("document.pdf"))
     >>> print(f"Method: {result['method']}, Confidence: {result['confidence']}%")
@@ -31,7 +31,7 @@ from src.logging_config import Timer
 
 logger = logging.getLogger(__name__)
 
-from .dictionary_utils import DictionaryUtils
+from .dictionary_utils import TermExtractionHelpers
 
 
 class PDFExtractor:
@@ -43,15 +43,15 @@ class PDFExtractor:
     words over OCR errors.
 
     Attributes:
-        dictionary: DictionaryUtils instance for word validation
+        dictionary: TermExtractionHelpers instance for word validation
     """
 
-    def __init__(self, dictionary: DictionaryUtils):
+    def __init__(self, dictionary: TermExtractionHelpers):
         """
         Initialize the PDF extractor.
 
         Args:
-            dictionary: DictionaryUtils instance for word validation during voting
+            dictionary: TermExtractionHelpers instance for word validation during voting
         """
         self.dictionary = dictionary
 
@@ -78,7 +78,7 @@ class PDFExtractor:
                 - error: Error type if extraction failed
 
         Example:
-            >>> extractor = PDFExtractor(DictionaryUtils())
+            >>> extractor = PDFExtractor(TermExtractionHelpers())
             >>> result = extractor.extract(Path("scan.pdf"))
             >>> if result['needs_ocr']:
             ...     print("Falling back to OCR")
@@ -280,7 +280,7 @@ class PDFExtractor:
             Reconciled text with best words from each extractor
 
         Example:
-            >>> extractor = PDFExtractor(DictionaryUtils())
+            >>> extractor = PDFExtractor(TermExtractionHelpers())
             >>> # PyMuPDF got "tbe", pdfplumber got "the"
             >>> extractor.reconcile_extractions("tbe quick fox", "the quick fox")
             'the quick fox'

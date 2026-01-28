@@ -35,7 +35,7 @@ class VocabularyFilterChain:
     Example:
         chain = VocabularyFilterChain([
             NameDeduplicationFilter(),
-            ArtifactFilter(),
+            ExtractionArtifactFilter(),
             RarityFilter(),
         ])
         result = chain.run(vocabulary)

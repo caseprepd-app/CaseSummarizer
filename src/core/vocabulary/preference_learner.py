@@ -45,8 +45,8 @@ from src.config import (
     VOCAB_MODEL_PATH,
 )
 from src.core.vocabulary.feedback_manager import FeedbackManager, get_feedback_manager
-from src.core.vocabulary.meta_learner_features import FEATURE_NAMES, extract_features
-from src.core.vocabulary.meta_learner_training import (
+from src.core.vocabulary.preference_learner_features import FEATURE_NAMES, extract_features
+from src.core.vocabulary.preference_learner_training import (
     confidence_weighted_blend,
     load_model,
     reset_to_default,
@@ -389,9 +389,6 @@ class VocabularyPreferenceLearner:
         return success
 
 
-# Backward compatibility alias
-VocabularyMetaLearner = VocabularyPreferenceLearner
-
 # Global singleton instance with thread-safe initialization
 _preference_learner: VocabularyPreferenceLearner | None = None
 _learner_lock = threading.Lock()
@@ -420,10 +417,8 @@ def get_meta_learner() -> VocabularyPreferenceLearner:
     return _preference_learner
 
 
-# Re-export for backward compatibility
 __all__ = [
     "FEATURE_NAMES",
-    "VocabularyMetaLearner",
     "VocabularyPreferenceLearner",
     "confidence_weighted_blend",
     "extract_features",

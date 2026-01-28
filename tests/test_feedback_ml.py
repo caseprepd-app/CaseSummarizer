@@ -1,9 +1,9 @@
 """
-Tests for the feedback and meta-learner system (Session 25).
+Tests for the feedback and preference learner system.
 
 Tests cover:
 - FeedbackManager: Recording, retrieving, and persisting feedback
-- VocabularyMetaLearner: Training on feedback data
+- VocabularyPreferenceLearner: Training on feedback data
 - Integration: Feedback loop with quality score boosting
 """
 
@@ -19,11 +19,11 @@ project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
 from src.core.vocabulary.feedback_manager import FeedbackManager  # noqa: E402
-from src.core.vocabulary.meta_learner import (  # noqa: E402
-    VocabularyMetaLearner,
+from src.core.vocabulary.preference_learner import (  # noqa: E402
+    VocabularyPreferenceLearner,
     confidence_weighted_blend,
 )
-from src.core.vocabulary.meta_learner_features import extract_features  # noqa: E402
+from src.core.vocabulary.preference_learner_features import extract_features  # noqa: E402
 
 
 @pytest.fixture
@@ -45,7 +45,7 @@ def feedback_manager(temp_feedback_dir):
 
 @pytest.fixture
 def meta_learner(temp_feedback_dir, feedback_manager):
-    """Create VocabularyMetaLearner with temp model path and no auto-training.
+    """Create VocabularyPreferenceLearner with temp model path and no auto-training.
 
     Uses the clean feedback_manager fixture (no default feedback) to prevent
     auto-training during initialization.
@@ -53,10 +53,10 @@ def meta_learner(temp_feedback_dir, feedback_manager):
     model_path = temp_feedback_dir / "test_model.pkl"
     # Patch get_feedback_manager to return our clean fixture during init
     with patch(
-        "src.core.vocabulary.meta_learner.get_feedback_manager",
+        "src.core.vocabulary.preference_learner.get_feedback_manager",
         return_value=feedback_manager,
     ):
-        return VocabularyMetaLearner(model_path=model_path)
+        return VocabularyPreferenceLearner(model_path=model_path)
 
 
 class TestFeedbackManager:
@@ -150,8 +150,8 @@ class TestFeedbackManager:
         assert feedback_manager._current_doc_id == doc_id
 
 
-class TestVocabularyMetaLearner:
-    """Tests for VocabularyMetaLearner."""
+class TestVocabularyPreferenceLearner:
+    """Tests for VocabularyPreferenceLearner."""
 
     def test_untrained_prediction(self, meta_learner):
         """Test that untrained model returns neutral prediction."""
@@ -302,23 +302,23 @@ class TestVocabularyMetaLearner:
 
         # Patch to prevent auto-training from default feedback
         with patch(
-            "src.core.vocabulary.meta_learner.get_feedback_manager",
+            "src.core.vocabulary.preference_learner.get_feedback_manager",
             return_value=feedback_manager,
         ):
             # Create and "train" a mock scenario
-            learner1 = VocabularyMetaLearner(model_path=model_path)
+            learner1 = VocabularyPreferenceLearner(model_path=model_path)
             assert not learner1.is_trained
 
             # After proper training (if we had enough data), model would save
             # For now, verify load works with non-existent model
-            learner2 = VocabularyMetaLearner(model_path=model_path)
+            learner2 = VocabularyPreferenceLearner(model_path=model_path)
             assert not learner2.is_trained
 
     def test_should_retrain(self, temp_feedback_dir):
         """Test retraining threshold check."""
         feedback_mgr = FeedbackManager(feedback_dir=temp_feedback_dir)
         model_path = temp_feedback_dir / "test_model.pkl"
-        learner = VocabularyMetaLearner(model_path=model_path)
+        learner = VocabularyPreferenceLearner(model_path=model_path)
 
         # Initially should not need retraining
         assert not learner.should_retrain(feedback_mgr)
@@ -407,27 +407,17 @@ class TestEnsembleMode:
 
         # Patch to prevent auto-training from default feedback
         with patch(
-            "src.core.vocabulary.meta_learner.get_feedback_manager",
+            "src.core.vocabulary.preference_learner.get_feedback_manager",
             return_value=feedback_manager,
         ):
-            learner = VocabularyMetaLearner(model_path=model_path)
+            learner = VocabularyPreferenceLearner(model_path=model_path)
 
             # Untrained: no ensemble
             assert not learner.is_trained
             assert not learner.is_ensemble
 
-    def test_backward_compat_alias(self):
-        """Test that VocabularyMetaLearner alias works."""
-        from src.core.vocabulary.meta_learner import (
-            VocabularyMetaLearner,
-            VocabularyPreferenceLearner,
-        )
 
-        # Both should refer to the same class
-        assert VocabularyMetaLearner is VocabularyPreferenceLearner
-
-
-@pytest.mark.skip(reason="Pending default training data generation - Session 76")
+@pytest.mark.skip(reason="Pending default training data generation")
 class TestDefaultFeedback:
     """Tests for default feedback CSV (universal negatives).
 

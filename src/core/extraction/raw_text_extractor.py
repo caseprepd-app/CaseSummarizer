@@ -42,7 +42,7 @@ logger = logging.getLogger(__name__)
 
 # Internal modules (the actual implementation)
 from .case_number_extractor import CaseNumberExtractor
-from .dictionary_utils import DictionaryUtils
+from .dictionary_utils import TermExtractionHelpers
 from .file_readers import FileReaders
 from .ocr_processor import OCRProcessor
 from .pdf_extractor import PDFExtractor
@@ -60,7 +60,7 @@ class RawTextExtractor:
     delegating work to focused, testable modules.
 
     Attributes:
-        dictionary: DictionaryUtils for word validation and confidence
+        dictionary: TermExtractionHelpers for word validation and confidence
         normalizer: TextNormalizer for text cleanup pipeline
         pdf_extractor: PDFExtractor for hybrid PDF extraction
         ocr_processor: OCRProcessor for scanned documents
@@ -87,7 +87,7 @@ class RawTextExtractor:
 
         with Timer("RawTextExtractor initialization"):
             # Initialize component modules
-            self.dictionary = DictionaryUtils()
+            self.dictionary = TermExtractionHelpers()
             self.normalizer = TextNormalizer(self.dictionary.legal_keywords)
             self.pdf_extractor = PDFExtractor(self.dictionary)
             self.ocr_processor = OCRProcessor(self.dictionary)

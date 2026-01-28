@@ -1,13 +1,13 @@
 """
-Combined Per-Term Filter
+Unified Per-Term Filter
 
-Optimized single-pass filter that combines Rarity, Corpus Familiarity,
+Optimized single-pass filter that unifies Rarity, Corpus Familiarity,
 and Gibberish checks into one iteration through the vocabulary.
 
 This replaces three separate filters that each iterated the full list.
 Performance improvement: 3 passes → 1 pass.
 
-Session 79: Added Person validity check to catch garbage terms that spaCy
+Also includes Person validity check to catch garbage terms that spaCy
 NER incorrectly marks as Person (e.g., "ModMess Quanny Desortpdon").
 """
 
@@ -20,7 +20,7 @@ from src.core.vocabulary.person_utils import is_person_entry
 logger = logging.getLogger(__name__)
 
 
-class CombinedPerTermFilter(BaseVocabularyFilter):
+class UnifiedPerTermFilter(BaseVocabularyFilter):
     """
     Combines per-term filters into a single pass.
 

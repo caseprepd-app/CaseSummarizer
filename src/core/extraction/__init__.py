@@ -1,12 +1,12 @@
 """
-Extraction Package (Session 45 Update)
+Extraction Package
 
 This package handles document processing and vocabulary extraction:
 - Step 1: Extract raw text from files (PDF/TXT/RTF)
 - Step 2: Apply basic normalization (de-hyphenation, page removal, etc.)
 - LLM Extraction: Combined people + vocabulary extraction using Ollama
 
-Session 45 Updates:
+Features:
 - LLMPerson dataclass for people/organizations with roles
 - Combined prompt extracts both people and vocabulary in one pass
 - Support for UnifiedChunk objects from unified chunker

@@ -15,7 +15,7 @@ Adding new settings:
     Add a SettingsRegistry.register() call in settings_registry.py.
     The UI will automatically include it - no other changes needed.
 
-Layout Standard (Session 62b):
+Layout Standard:
     All settings use a consistent 2/3 - 1/3 layout where:
     - Labels + tooltip icons occupy the left portion (LABEL_AREA_WIDTH)
     - Controls occupy the right portion (CONTROL_WIDTH)
@@ -53,7 +53,7 @@ from .settings_widgets import (
 __all__ = [
     "CONTROL_PADDING_X",
     "CONTROL_WIDTH",
-    # Layout constants (Session 62b)
+    # Layout constants
     "LABEL_AREA_WIDTH",
     "VALUE_LABEL_WIDTH",
     "CheckboxSetting",

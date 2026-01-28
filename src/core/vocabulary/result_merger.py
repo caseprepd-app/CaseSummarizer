@@ -45,7 +45,7 @@ class MergedTerm:
     metadata: dict[str, Any] = field(default_factory=dict)
 
 
-class ResultMerger:
+class AlgorithmScoreMerger:
     """
     Merges and deduplicates results from multiple extraction algorithms.
 
@@ -58,7 +58,7 @@ class ResultMerger:
     3. Default to "Technical"
 
     Example:
-        merger = ResultMerger(algorithm_weights={"NER": 1.0, "RAKE": 0.7})
+        merger = AlgorithmScoreMerger(algorithm_weights={"NER": 1.0, "RAKE": 0.7})
         merged = merger.merge([ner_result, rake_result])
     """
 
