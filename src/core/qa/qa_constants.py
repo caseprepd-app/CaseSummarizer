@@ -9,24 +9,26 @@ REJECTION_TEXT = "Confidence in answer too low after verification step, declinin
 
 # Compact prompt for small context windows (saves ~70 tokens vs full)
 COMPACT_QA_PROMPT = (
-    "Answer using ONLY the excerpts below. "
-    "If the answer is not in the excerpts, say: "
-    '"The documents do not contain this information."\n\n'
+    "Answer using the excerpts below. Different wording is OK "
+    "(e.g., 'failed to appear' = 'didn't show up'). "
+    "Only say 'not found' if the topic is entirely absent.\n\n"
     "{context}\n\n"
     "Question: {question}\n"
     "Answer:"
 )
 
 FULL_QA_PROMPT = (
-    "You are a legal document analyst. Answer the question using ONLY "
-    "the information explicitly stated in the document excerpts below.\n\n"
-    "STRICT RULES:\n"
-    "1. Use ONLY information directly stated in the excerpts\n"
-    "2. If the excerpts do not contain the answer, respond: "
-    '"The documents do not contain this information."\n'
-    "3. If uncertain, say so rather than guessing\n"
-    "4. Quote relevant phrases when possible\n"
-    "5. Keep your answer concise (1-3 sentences)\n\n"
+    "You are a legal document analyst. Answer the question using the "
+    "document excerpts below.\n\n"
+    "GUIDELINES:\n"
+    "1. Base your answer on information in the excerpts\n"
+    "2. The answer may use different wording than the question "
+    "(e.g., 'failed to appear' = 'didn't show up', 'penalty' = 'fine')\n"
+    "3. If the excerpts address the topic, provide an answer\n"
+    "4. Only say 'The documents do not contain this information' if the "
+    "topic is entirely absent from the excerpts\n"
+    "5. Quote relevant phrases when helpful\n"
+    "6. Keep your answer concise (1-3 sentences)\n\n"
     "DOCUMENT EXCERPTS:\n{context}\n\n"
     "QUESTION: {question}\n\n"
     "ANSWER:"
