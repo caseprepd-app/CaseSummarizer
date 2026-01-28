@@ -113,8 +113,7 @@ class TaskMixin:
             # Show warning dialog
             result = messagebox.askyesno(
                 "Summary Warning",
-                "Summary generation typically takes 30+ minutes and results depend "
-                "heavily on your hardware.\n\n"
+                "Summary generation can take several hours without a dedicated GPU.\n\n"
                 "For quick case familiarization, Q&A is recommended instead.\n\n"
                 "Continue with summary?",
                 icon="warning",
@@ -529,11 +528,11 @@ class TaskMixin:
 
     def _start_summary_task(self):
         """Start summary generation task."""
-        self.set_status("Summary: This feature takes 30+ minutes...")
+        self.set_status("Summary: This feature can take several hours...")
 
         self._completed_tasks.add("summary")
         self.output_display.update_outputs(
-            meta_summary="Summary generation is a long-running task (30+ minutes). "
+            meta_summary="Summary generation can take several hours without a dedicated GPU. "
             "For quick case familiarization, use Q&A instead."
         )
         self._finalize_tasks()

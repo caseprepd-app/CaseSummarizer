@@ -193,7 +193,7 @@ STEP 3: CHOOSE YOUR TASKS
 Select which tasks to run using the checkboxes:
 - Extract Vocabulary (recommended, fast)
 - Ask Questions (recommended, builds searchable index)
-- Generate Summary (optional, takes 30+ minutes)
+- Generate Summary (optional, can take hours without GPU)
 
 STEP 4: PROCESS
 Click the "Perform Tasks" button. Processing time depends on:
@@ -329,7 +329,7 @@ QUESTION ANSWERING
 PERFORMANCE
 - Close other programs during processing for faster results
 - Larger documents take longer - be patient
-- Summary generation is the slowest task (30+ minutes)
+- Summary generation is the slowest task (hours without GPU)
 - If you have a GPU, {APP_NAME} will use it automatically
 
 OLLAMA TIPS
@@ -351,7 +351,7 @@ Poor vocabulary results?
 
 Processing seems stuck?
 - Large documents take time - check the progress indicator
-- Summary generation can take 30+ minutes
+- Summary generation can take several hours without a GPU
 - System resources are shown in the bottom status bar"""
 
         content.insert("1.0", text)

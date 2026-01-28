@@ -842,8 +842,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             # Show warning dialog
             result = messagebox.askyesno(
                 "Summary Warning",
-                "Summary generation typically takes 30+ minutes and results depend "
-                "heavily on your hardware.\n\n"
+                "Summary generation can take several hours without a dedicated GPU.\n\n"
                 "For quick case familiarization, Q&A is recommended instead.\n\n"
                 "Continue with summary?",
                 icon="warning",
@@ -1093,8 +1092,8 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         from src.ui.tooltip_helper import create_tooltip
 
         tooltip_text = (
-            "Summary generation takes 30+ minutes and results\n"
-            "depend heavily on your hardware.\n\n"
+            "Summary generation can take several hours without\n"
+            "a dedicated GPU.\n\n"
             "For quick case familiarization, Q&A is recommended."
         )
         self._summary_tooltip_hide = create_tooltip(self.summary_check, tooltip_text)
@@ -1543,13 +1542,13 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
 
     def _start_summary_task(self):
         """Start summary generation task."""
-        self.set_status("Summary: This feature takes 30+ minutes...")
+        self.set_status("Summary: This feature can take several hours...")
 
         # Summary is complex - show placeholder for now
         self._completed_tasks.add("summary")
 
         self.output_display.update_outputs(
-            meta_summary="Summary generation is a long-running task (30+ minutes). "
+            meta_summary="Summary generation can take several hours without a dedicated GPU. "
             "For quick case familiarization, use Q&A instead."
         )
 
