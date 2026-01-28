@@ -92,7 +92,9 @@ class AnswerGenerator:
             Generated answer string
         """
         if not context or not context.strip():
-            return "No relevant information found in the documents."
+            from src.core.qa.qa_constants import UNANSWERED_TEXT
+
+            return UNANSWERED_TEXT
 
         debug_log(f"[AnswerGenerator] generate() called with mode={self.mode.value}")
 
@@ -125,7 +127,9 @@ class AnswerGenerator:
         sentences = self._split_sentences(context)
 
         if not sentences:
-            return "No relevant information found in the documents."
+            from src.core.qa.qa_constants import UNANSWERED_TEXT
+
+            return UNANSWERED_TEXT
 
         # Score each sentence by keyword matches
         scored_sentences = []
@@ -156,10 +160,11 @@ class AnswerGenerator:
 
     def _ollama_answer(self, question: str, context: str) -> str:
         """
-        Generate answer using Ollama LLM.
+        Generate answer using Ollama LLM with token budget enforcement.
 
-        Creates a prompt with the question and context, then uses
-        Ollama to synthesize a natural language answer.
+        Computes exact token budget for the context window, applies
+        progressive sub-chunking if context exceeds the budget, then
+        generates a response via Ollama.
 
         Args:
             question: The user's question
@@ -168,16 +173,46 @@ class AnswerGenerator:
         Returns:
             AI-generated answer
         """
-        # Check if Ollama is connected
         if not self.ollama_manager.is_connected:
             debug_log("[AnswerGenerator] Ollama not connected, falling back to extraction")
             return self._extract_answer(question, context)
 
-        # Build prompt
-        prompt = self._build_qa_prompt(question, context)
+        from src.core.qa.token_budget import (
+            compute_context_budget,
+            count_tokens,
+            select_best_subchunk,
+        )
+
+        context_window = self._get_context_window()
+        prompt_template = self._select_prompt_template(context_window)
+
+        # Measure fixed parts of prompt (template without placeholders)
+        template_tokens = count_tokens(
+            prompt_template.replace("{context}", "").replace("{question}", "")
+        )
+        question_tokens = count_tokens(question)
+        budget = compute_context_budget(
+            context_window, template_tokens, question_tokens, QA_MAX_TOKENS
+        )
+
+        # If context exceeds budget, use progressive sub-chunking
+        context_tokens = count_tokens(context)
+        if context_tokens > budget:
+            debug_log(
+                f"[AnswerGenerator] Context ({context_tokens} tokens) exceeds "
+                f"budget ({budget} tokens), running sub-chunking"
+            )
+            embeddings = self._get_embeddings()
+            if embeddings:
+                context = select_best_subchunk(context, question, budget, embeddings)
+            else:
+                from src.core.qa.token_budget import _ensure_fits
+
+                context = _ensure_fits(context, budget)
+
+        prompt = prompt_template.format(context=context, question=question)
 
         try:
-            # Generate response
             response = self.ollama_manager.generate_text(
                 prompt=prompt, max_tokens=QA_MAX_TOKENS, temperature=QA_TEMPERATURE
             )
@@ -195,32 +230,56 @@ class AnswerGenerator:
             debug_log(f"[AnswerGenerator] Ollama error: {e}, falling back to extraction")
             return self._extract_answer(question, context)
 
-    def _build_qa_prompt(self, question: str, context: str) -> str:
+    def _get_context_window(self) -> int:
         """
-        Build a prompt for Ollama Q&A.
-
-        Args:
-            question: The user's question
-            context: Retrieved document context
+        Get effective context window from user preferences.
 
         Returns:
-            Formatted prompt string
+            Context window size in tokens
         """
-        return f"""You are a legal document analyst. Answer the question using ONLY the information explicitly stated in the document excerpts below.
+        try:
+            from src.user_preferences import get_user_preferences
 
-STRICT RULES:
-1. Use ONLY information directly stated in the excerpts - do not infer, extrapolate, or add outside knowledge
-2. If the excerpts do not contain the answer, respond: "The documents do not contain this information."
-3. If you are uncertain, say so rather than guessing
-4. Quote relevant phrases from the excerpts when possible
-5. Keep your answer concise (1-3 sentences)
+            return get_user_preferences().get_effective_context_size()
+        except Exception:
+            from src.config import QA_CONTEXT_WINDOW
 
-DOCUMENT EXCERPTS:
-{context}
+            return QA_CONTEXT_WINDOW
 
-QUESTION: {question}
+    def _select_prompt_template(self, context_window: int) -> str:
+        """
+        Pick compact vs full prompt based on context window size.
 
-ANSWER:"""
+        Args:
+            context_window: Available context window in tokens
+
+        Returns:
+            Prompt template string with {context} and {question} placeholders
+        """
+        from src.core.qa.qa_constants import (
+            COMPACT_PROMPT_THRESHOLD,
+            COMPACT_QA_PROMPT,
+            FULL_QA_PROMPT,
+        )
+
+        if context_window <= COMPACT_PROMPT_THRESHOLD:
+            return COMPACT_QA_PROMPT
+        return FULL_QA_PROMPT
+
+    def _get_embeddings(self):
+        """
+        Get embeddings model for sub-chunk similarity scoring.
+
+        Returns:
+            HuggingFaceEmbeddings instance or None if unavailable
+        """
+        try:
+            from src.core.retrieval.algorithms.faiss_semantic import get_embeddings_model
+
+            return get_embeddings_model()
+        except Exception:
+            debug_log("[AnswerGenerator] Could not load embeddings for sub-chunking")
+            return None
 
     def _extract_keywords(self, text: str) -> set[str]:
         """

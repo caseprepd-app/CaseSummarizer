@@ -482,9 +482,20 @@ class QARetriever:
         # Previous formula (80% for context) overflowed on small context windows,
         # causing Ollama to truncate the system instructions from the prompt.
         from src.config_defaults import get_default
+        from src.core.qa.qa_constants import (
+            COMPACT_PROMPT_THRESHOLD,
+            COMPACT_QA_PROMPT,
+            FULL_QA_PROMPT,
+        )
+        from src.core.qa.token_budget import count_tokens as _count_tokens
 
         qa_max_output_tokens = get_default("qa_max_tokens")
-        prompt_overhead_tokens = 300  # system instructions + question + formatting
+        template = (
+            COMPACT_QA_PROMPT if qa_context_window <= COMPACT_PROMPT_THRESHOLD else FULL_QA_PROMPT
+        )
+        prompt_overhead_tokens = (
+            _count_tokens(template.replace("{context}", "").replace("{question}", "")) + 30
+        )  # ~30 tokens for a typical question
         max_context_tokens = max(
             200,  # minimum to avoid empty context
             qa_context_window - qa_max_output_tokens - prompt_overhead_tokens,
@@ -513,8 +524,7 @@ class QARetriever:
 
             chunk_text = f"{source_cite}\n{chunk.text}"
             word_count = len(chunk.text.split())
-            # Token approximation: ~1.3 tokens per English word (varies by model/content)
-            chunk_tokens = int(word_count * 1.3)
+            chunk_tokens = _count_tokens(chunk_text)
 
             # Check if adding this chunk would exceed context window
             if estimated_tokens + chunk_tokens > max_context_tokens:

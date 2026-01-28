@@ -56,6 +56,34 @@ def _get_embedding_model_path() -> str:
 # Embedding model - uses bundled local model if available, otherwise downloads
 DEFAULT_EMBEDDING_MODEL = _get_embedding_model_path()
 
+# Module-level cached embeddings instance (shared across callers)
+_shared_embeddings: "HuggingFaceEmbeddings | None" = None
+
+
+def get_embeddings_model() -> "HuggingFaceEmbeddings":
+    """
+    Get a shared HuggingFaceEmbeddings model instance.
+
+    Lazy-loads the embeddings model on first call and caches it.
+    Used by sub-chunking in answer_generator to avoid reloading.
+
+    Returns:
+        HuggingFaceEmbeddings instance
+    """
+    global _shared_embeddings
+    if _shared_embeddings is None:
+        from langchain_huggingface import HuggingFaceEmbeddings
+
+        if DEBUG_MODE:
+            debug_log(f"[FAISS] Loading shared embeddings model: {DEFAULT_EMBEDDING_MODEL}")
+
+        _shared_embeddings = HuggingFaceEmbeddings(
+            model_name=DEFAULT_EMBEDDING_MODEL,
+            model_kwargs={"device": "cpu"},
+            encode_kwargs={"normalize_embeddings": True},
+        )
+    return _shared_embeddings
+
 
 @register_algorithm
 class FAISSRetriever(BaseRetrievalAlgorithm):

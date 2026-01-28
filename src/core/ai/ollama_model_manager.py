@@ -292,9 +292,11 @@ class OllamaModelManager:
             wrapped_prompt = wrap_prompt_for_model(self.model_name, prompt)
             debug_log(f"[OLLAMA GENERATE] Wrapped prompt length: {len(wrapped_prompt)} chars")
 
-            # Check if prompt may exceed context window (1 token ≈ 4 chars)
+            # Check if prompt may exceed context window
             # Session 64: Use dynamic context size based on GPU/VRAM
-            estimated_tokens = len(wrapped_prompt) // 4
+            from src.core.qa.token_budget import count_tokens
+
+            estimated_tokens = count_tokens(wrapped_prompt)
             context_window = _get_context_window()
             if estimated_tokens > context_window - 300:  # Leave room for output
                 warning(
