@@ -16,12 +16,13 @@ Workers are orchestration, not UI display.
 """
 
 import gc
+import logging
 import multiprocessing
 import threading
 from pathlib import Path
 from queue import Empty, Queue
 
-from src.config import DEBUG_MODE, PARALLEL_MAX_WORKERS
+from src.config import PARALLEL_MAX_WORKERS
 from src.core.extraction import RawTextExtractor
 from src.core.parallel import (
     ExecutorStrategy,
@@ -30,10 +31,11 @@ from src.core.parallel import (
     ThreadPoolStrategy,
 )
 from src.core.vocabulary import VocabularyExtractor
-from src.logging_config import debug_log
 from src.ui.base_worker import BaseWorker, CleanupWorker
 from src.ui.ollama_worker import ollama_generation_worker_process
 from src.ui.queue_messages import QueueMessage
+
+logger = logging.getLogger(__name__)
 
 
 class ProcessingWorker(BaseWorker):
@@ -126,9 +128,10 @@ class ProcessingWorker(BaseWorker):
             self.ui_queue.put(QueueMessage.processing_finished([]))
             return
 
-        debug_log(
-            f"[PROCESSING WORKER] Starting parallel extraction of {total_files} documents "
-            f"(max_workers={self.strategy.max_workers})"
+        logger.debug(
+            "Starting parallel extraction of %s documents (max_workers=%s)",
+            total_files,
+            self.strategy.max_workers,
         )
 
         # Set up progress aggregation
@@ -185,9 +188,7 @@ class ProcessingWorker(BaseWorker):
                 self.processed_results.append(task_result.result)
             else:
                 # Log errors but continue with other documents
-                debug_log(
-                    f"[PROCESSING WORKER] Document failed: {task_result.task_id} - {task_result.error}"
-                )
+                logger.debug("Document failed: %s - %s", task_result.task_id, task_result.error)
 
         # Apply preprocessing to all results (removes line numbers, headers, etc.)
         # Store as "preprocessed_text" so downstream consumers don't need to preprocess again
@@ -199,9 +200,7 @@ class ProcessingWorker(BaseWorker):
                 extracted = result.get("extracted_text", "")
                 if extracted:
                     result["preprocessed_text"] = preprocessor.process(extracted)
-            debug_log(
-                f"[PROCESSING WORKER] Preprocessing applied to {len(self.processed_results)} documents"
-            )
+            logger.debug("Preprocessing applied to %s documents", len(self.processed_results))
 
         # Send completion message if not cancelled
         if not self.is_stopped:
@@ -209,11 +208,9 @@ class ProcessingWorker(BaseWorker):
             self.send_progress(
                 100, f"Processed {len(self.processed_results)}/{total_files} documents"
             )
-            debug_log(
-                f"[PROCESSING WORKER] Completed: {len(self.processed_results)}/{total_files} documents"
-            )
+            logger.debug("Completed: %s/%s documents", len(self.processed_results), total_files)
         else:
-            debug_log("[PROCESSING WORKER] Processing cancelled by user.")
+            logger.debug("Processing cancelled by user.")
             self.ui_queue.put(QueueMessage.error("Document processing cancelled."))
 
     def _cleanup(self):
@@ -275,7 +272,7 @@ class VocabularyWorker(BaseWorker):
             )
         except FileNotFoundError as e:
             # Graceful fallback: create extractor with empty exclude lists
-            debug_log(f"[VOCAB WORKER] Config file missing: {e}. Using empty exclude lists.")
+            logger.debug("Config file missing: %s. Using empty exclude lists.", e)
             extractor = VocabularyExtractor(
                 exclude_list_path=None,  # Will use empty list
                 medical_terms_path=None,  # Will use empty list
@@ -327,7 +324,7 @@ class VocabularyWorker(BaseWorker):
 
         # Send results to GUI
         self.ui_queue.put(QueueMessage.vocab_csv_generated(vocab_data))
-        debug_log(f"[VOCAB WORKER] Vocabulary extraction completed: {term_count} terms.")
+        logger.info("Vocabulary extraction completed: %s terms.", term_count)
 
 
 class QAWorker(BaseWorker):
@@ -387,7 +384,7 @@ class QAWorker(BaseWorker):
         """Execute Q&A in background thread."""
         from src.core.qa import QAOrchestrator
 
-        debug_log(f"[QA WORKER] Starting Q&A with mode: {self.answer_mode}")
+        logger.debug("Starting Q&A with mode: %s", self.answer_mode)
 
         # Initialize orchestrator
         orchestrator = QAOrchestrator(
@@ -401,29 +398,27 @@ class QAWorker(BaseWorker):
             # User provided specific custom questions
             questions = self.custom_questions
             is_default = False
-            if DEBUG_MODE:
-                debug_log(f"[QA WORKER] Using {len(questions)} custom questions")
+            logger.debug("Using %s custom questions", len(questions))
         else:
             # Use enabled questions from DefaultQuestionsManager (respects user toggles)
             questions = orchestrator.load_default_questions_from_txt()
             is_default = True
-            if DEBUG_MODE:
-                debug_log(f"[QA WORKER] Using {len(questions)} enabled default questions")
+            logger.debug("Using %s enabled default questions", len(questions))
 
         total = len(questions)
         if total == 0:
-            debug_log("[QA WORKER] No questions to process")
+            logger.debug("No questions to process")
             self.ui_queue.put(QueueMessage.qa_complete([]))
             return
 
-        debug_log(f"[QA WORKER] Processing {total} questions")
+        logger.debug("Processing %s questions", total)
 
         # Process questions (parallel when beneficial - Session 69)
         self.results = self._process_questions_parallel(orchestrator, questions, is_default, total)
 
         # Send completion signal with all results
         self.ui_queue.put(QueueMessage.qa_complete(self.results))
-        debug_log(f"[QA WORKER] All {total} questions processed successfully")
+        logger.info("All %s questions processed successfully", total)
 
     def _process_questions_parallel(
         self, orchestrator, questions: list[str], is_default: bool, total: int
@@ -465,7 +460,7 @@ class QAWorker(BaseWorker):
 
         if not use_parallel:
             # Sequential fallback
-            debug_log(f"[QA WORKER] Processing {len(questions)} question(s) sequentially")
+            logger.debug("Processing %s question(s) sequentially", len(questions))
             results = []
             for i, question in enumerate(questions):
                 self.check_cancelled()
@@ -479,7 +474,7 @@ class QAWorker(BaseWorker):
                 )
                 results.append(result)
                 self.ui_queue.put(QueueMessage.qa_result(result))
-                debug_log(f"[QA WORKER] Q{i + 1}/{total} complete: {len(result.answer)} chars")
+                logger.debug("Q%s/%s complete: %s chars", i + 1, total, len(result.answer))
 
             return results
 
@@ -488,9 +483,7 @@ class QAWorker(BaseWorker):
         workers = min(
             len(questions), get_optimal_workers(task_ram_gb=2.0, max_workers=4, min_workers=2)
         )
-        debug_log(
-            f"[QA WORKER] Processing {len(questions)} questions in parallel ({workers} workers)"
-        )
+        logger.debug("Processing %s questions in parallel (%s workers)", len(questions), workers)
 
         # Track completion for progress reporting
         completed_count = [0]  # Using list for mutable in closure
@@ -541,7 +534,7 @@ class QAWorker(BaseWorker):
                 )
                 self.ui_queue.put(QueueMessage.qa_progress(count - 1, total, truncated_q))
 
-                debug_log(f"[QA WORKER] Q{idx + 1}/{total} complete: {len(qa_result.answer)} chars")
+                logger.debug("Q%s/%s complete: %s chars", idx + 1, total, len(qa_result.answer))
 
             runner = ParallelTaskRunner(strategy=strategy, on_task_complete=on_complete)
             task_results = runner.run(ask_question, items)
@@ -549,9 +542,7 @@ class QAWorker(BaseWorker):
             # Handle any failures
             for task_result in task_results:
                 if not task_result.success:
-                    debug_log(
-                        f"[QA WORKER] Question {task_result.task_id} failed: {task_result.error}"
-                    )
+                    logger.debug("Question %s failed: %s", task_result.task_id, task_result.error)
 
             # Return results in original order (Session 70: thread-safe read)
             with results_lock:
@@ -561,9 +552,7 @@ class QAWorker(BaseWorker):
             # LOG-009: Log if any questions failed/were cancelled
             failed_count = len(ordered_results) - len(final_results)
             if failed_count > 0:
-                debug_log(
-                    f"[QA WORKER] {failed_count}/{len(questions)} questions returned no result"
-                )
+                logger.debug("%s/%s questions returned no result", failed_count, len(questions))
 
             return final_results
 
@@ -596,19 +585,19 @@ class OllamaAIWorkerManager:
             except Empty:
                 break
         if cleared_count > 0:
-            debug_log(f"[OLLAMA MANAGER] Cleared {cleared_count} items from queue")
+            logger.debug("Cleared %s items from queue", cleared_count)
 
     def start_worker(self):
         """Starts the Ollama AI worker process."""
         if self.is_running and self.process and self.process.is_alive():
-            debug_log("[OLLAMA MANAGER] Worker already running.")
+            logger.debug("Worker already running.")
             return
 
         # Ensure queues are empty from previous runs
         self._clear_queue(self.input_queue)
         self._clear_queue(self.output_queue)
 
-        debug_log("[OLLAMA MANAGER] Starting Ollama AI worker process.")
+        logger.debug("Starting Ollama AI worker process.")
         self.process = multiprocessing.Process(
             target=ollama_generation_worker_process,
             args=(self.input_queue, self.output_queue),
@@ -616,7 +605,7 @@ class OllamaAIWorkerManager:
         )
         self.process.start()
         self.is_running = True
-        debug_log(f"[OLLAMA MANAGER] Worker process started with PID: {self.process.pid}")
+        logger.debug("Worker process started with PID: %s", self.process.pid)
 
     def stop_worker(self, blocking=False):
         """
@@ -627,7 +616,7 @@ class OllamaAIWorkerManager:
                      terminate immediately without blocking the main thread.
         """
         if self.is_running and self.process and self.process.is_alive():
-            debug_log("[OLLAMA MANAGER] Sending TERMINATE signal to worker.")
+            logger.debug("Sending TERMINATE signal to worker.")
             try:
                 self.input_queue.put_nowait("TERMINATE")  # Non-blocking put
 
@@ -639,16 +628,16 @@ class OllamaAIWorkerManager:
                     self.process.join(timeout=0.1)
 
             except Exception as e:
-                debug_log(f"[OLLAMA MANAGER] Error sending terminate signal: {e}")
+                logger.debug("Error sending terminate signal: %s", e)
 
             # Force terminate if still alive
             if self.process and self.process.is_alive():
-                debug_log("[OLLAMA MANAGER] Worker did not terminate gracefully, forcing shutdown.")
+                logger.debug("Worker did not terminate gracefully, forcing shutdown.")
                 try:
                     self.process.terminate()
                     self.process.join(timeout=0.5)  # Brief wait for terminate
                 except Exception as e:
-                    debug_log(f"[OLLAMA MANAGER] Error during force terminate: {e}")
+                    logger.debug("Error during force terminate: %s", e)
 
             # Clean up queues to prevent memory leaks
             self._clear_queue(self.input_queue)
@@ -660,9 +649,9 @@ class OllamaAIWorkerManager:
             # Force garbage collection
             gc.collect()
 
-            debug_log("[OLLAMA MANAGER] Ollama AI worker process stopped, memory cleaned.")
+            logger.debug("Ollama AI worker process stopped, memory cleaned.")
         elif self.is_running:
-            debug_log("[OLLAMA MANAGER] Worker process already stopped or not alive.")
+            logger.debug("Worker process already stopped or not alive.")
             self.process = None
             self.is_running = False
 
@@ -671,7 +660,7 @@ class OllamaAIWorkerManager:
         if not (self.is_running and self.process and self.process.is_alive()):
             self.start_worker()  # Ensure worker is running before sending task
 
-        debug_log(f"[OLLAMA MANAGER] Sending task '{task_type}' to worker.")
+        logger.debug("Sending task '%s' to worker.", task_type)
         self.input_queue.put((task_type, payload))
 
     def check_for_messages(self):
@@ -742,7 +731,7 @@ class MultiDocSummaryWorker(CleanupWorker):
     def execute(self):
         """Execute multi-document summarization in background thread."""
         doc_count = len(self.documents)
-        debug_log(f"[MULTI-DOC WORKER] Starting summarization of {doc_count} documents")
+        logger.debug("Starting summarization of %s documents", doc_count)
 
         # Import here to avoid circular imports
         from src.core.ai import OllamaModelManager
@@ -762,7 +751,7 @@ class MultiDocSummaryWorker(CleanupWorker):
 
         # Extract preset_id from ai_params (set by main_window from user selection)
         preset_id = self.ai_params.get("preset_id", "factual-summary")
-        debug_log(f"[MULTI-DOC WORKER] Using preset_id: {preset_id}")
+        logger.debug("Using preset_id: %s", preset_id)
 
         # Create prompt adapter for thread-through focus areas
         # This adapter extracts focus from the user's template and threads
@@ -803,12 +792,14 @@ class MultiDocSummaryWorker(CleanupWorker):
         # Send result to UI
         if not self.is_stopped:
             self.ui_queue.put(QueueMessage.multi_doc_result(result))
-            debug_log(
-                f"[MULTI-DOC WORKER] Completed: {result.documents_processed} documents, "
-                f"{result.documents_failed} failed, {result.total_processing_time_seconds:.1f}s"
+            logger.info(
+                "Completed: %s documents, %s failed, %.1fs",
+                result.documents_processed,
+                result.documents_failed,
+                result.total_processing_time_seconds,
             )
         else:
-            debug_log("[MULTI-DOC WORKER] Processing cancelled by user.")
+            logger.debug("Processing cancelled by user.")
             self.ui_queue.put(QueueMessage.error("Multi-document summarization cancelled."))
 
     def _cleanup(self):
@@ -883,14 +874,14 @@ class ProgressiveExtractionWorker(BaseWorker):
 
     def execute(self):
         """Execute three-phase progressive extraction."""
-        debug_log("[PROGRESSIVE WORKER] Starting progressive extraction")
+        logger.debug("Starting progressive extraction")
 
         # Session 85: Signal extraction started (dims feedback buttons)
         self.ui_queue.put(QueueMessage.extraction_started())
 
         # ===== PHASE 1: Local Algorithms (Progressive - Session 85) =====
         # Runs BM25 + RAKE first (fast), then NER with chunk progress
-        debug_log("[PROGRESSIVE WORKER] Phase 1: Local algorithm extraction starting...")
+        logger.debug("Phase 1: Local algorithm extraction starting...")
 
         # Check which algorithms will run for accurate status message
         from src.config import CORPUS_MIN_DOCUMENTS
@@ -913,7 +904,7 @@ class ProgressiveExtractionWorker(BaseWorker):
         # Session 85: Progressive extraction with callbacks for fast UX
         def on_partial_complete(partial_vocab):
             """Called when BM25 + RAKE complete (before NER)."""
-            debug_log(f"[PROGRESSIVE WORKER] Partial results: {len(partial_vocab)} terms")
+            logger.debug("Partial results: %s terms", len(partial_vocab))
             self.ui_queue.put(QueueMessage.partial_vocab_complete(partial_vocab))
 
         def on_ner_progress(chunk_candidates, chunk_num, total_chunks):
@@ -934,9 +925,7 @@ class ProgressiveExtractionWorker(BaseWorker):
             ner_progress_callback=on_ner_progress,
         )
 
-        debug_log(
-            f"[PROGRESSIVE WORKER] Phase 1 complete: {len(ner_results)} terms from local algorithms"
-        )
+        logger.info("Phase 1 complete: %s terms from local algorithms", len(ner_results))
         self.ui_queue.put(QueueMessage.ner_complete(ner_results))
 
         # Session 85: Signal extraction complete (re-enables feedback buttons)
@@ -952,7 +941,7 @@ class ProgressiveExtractionWorker(BaseWorker):
         # ===== PHASE 3: LLM Enhancement (Slow - minutes) =====
         # Session 62b: Only run LLM phase if enabled (GPU auto-detect or user override)
         if self.use_llm:
-            debug_log("[PROGRESSIVE WORKER] Phase 3: LLM extraction starting...")
+            logger.debug("Phase 3: LLM extraction starting...")
             self.send_progress(30, "Phase 3: Starting LLM enhancement...")
 
             from src.core.chunking import create_unified_chunker
@@ -970,7 +959,7 @@ class ProgressiveExtractionWorker(BaseWorker):
             # Create unified chunks
             chunker = create_unified_chunker()
             chunks = chunker.chunk_text(self.combined_text)
-            debug_log(f"[PROGRESSIVE WORKER] Created {len(chunks)} unified chunks")
+            logger.debug("Created %s unified chunks", len(chunks))
 
             # Extract with LLM progressively
             llm_extractor = LLMVocabExtractor()
@@ -989,7 +978,7 @@ class ProgressiveExtractionWorker(BaseWorker):
             self.check_cancelled()
 
             # Reconcile NER + LLM results
-            debug_log("[PROGRESSIVE WORKER] Reconciling NER + LLM results...")
+            logger.debug("Reconciling NER + LLM results...")
             reconciler = VocabularyReconciler()
 
             # Reconcile people
@@ -1002,14 +991,12 @@ class ProgressiveExtractionWorker(BaseWorker):
             # Convert to unified CSV format
             final_data = reconciler.combined_to_csv_data(reconciled_people, reconciled_terms)
 
-            debug_log(f"[PROGRESSIVE WORKER] Phase 3 complete: {len(final_data)} reconciled terms")
+            logger.info("Phase 3 complete: %s reconciled terms", len(final_data))
             self.ui_queue.put(QueueMessage.llm_complete(final_data))
             self.send_progress(100, f"Complete: {len(final_data)} names & terms found")
         else:
             # Session 62b: Skip LLM phase - NER results are already sent in Phase 1
-            debug_log(
-                "[PROGRESSIVE WORKER] Phase 3: Skipped (LLM disabled by user preference or no GPU)"
-            )
+            logger.debug("Phase 3: Skipped (LLM disabled by user preference or no GPU)")
             self.send_progress(90, "Phase 3: Skipped (LLM disabled)")
             # Signal LLM complete with empty list - UI will show NER-only results
             self.ui_queue.put(QueueMessage.llm_complete([]))
@@ -1023,7 +1010,7 @@ class ProgressiveExtractionWorker(BaseWorker):
     def _build_vector_store(self):
         """Build vector store for Q&A (Phase 2) - runs in parallel thread."""
         try:
-            debug_log("[PROGRESSIVE WORKER] Phase 2: Building vector store...")
+            logger.debug("Phase 2: Building vector store...")
             self.ui_queue.put(QueueMessage.progress(20, "Phase 2: Building Q&A index..."))
 
             from src.core.chunking import create_unified_chunker
@@ -1031,7 +1018,7 @@ class ProgressiveExtractionWorker(BaseWorker):
 
             # Lazy-load embeddings if not provided
             if self.embeddings is None:
-                debug_log("[PROGRESSIVE WORKER] Loading embeddings model...")
+                logger.debug("Loading embeddings model...")
                 from langchain_huggingface import HuggingFaceEmbeddings
 
                 self.embeddings = HuggingFaceEmbeddings(
@@ -1058,7 +1045,7 @@ class ProgressiveExtractionWorker(BaseWorker):
                 embeddings=self.embeddings,
             )
 
-            debug_log(f"[PROGRESSIVE WORKER] Phase 2 complete: {result.chunk_count} chunks indexed")
+            logger.info("Phase 2 complete: %s chunks indexed", result.chunk_count)
             self.ui_queue.put(
                 QueueMessage.qa_ready(
                     vector_store_path=result.persist_dir,
@@ -1068,7 +1055,7 @@ class ProgressiveExtractionWorker(BaseWorker):
             )
 
             # Trigger default questions if enabled
-            debug_log("[PROGRESSIVE WORKER] Triggering default Q&A check")
+            logger.debug("Triggering default Q&A check")
             self.ui_queue.put(
                 QueueMessage.trigger_default_qa(
                     vector_store_path=result.persist_dir,
@@ -1077,5 +1064,5 @@ class ProgressiveExtractionWorker(BaseWorker):
             )
 
         except Exception as e:
-            debug_log(f"[PROGRESSIVE WORKER] Q&A indexing failed: {e}")
+            logger.error("Q&A indexing failed: %s", e)
             self.ui_queue.put(QueueMessage.qa_error(str(e)))

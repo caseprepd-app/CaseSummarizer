@@ -13,11 +13,11 @@ Usage:
     answer = service.ask_question("Who is the plaintiff?")
 """
 
+import logging
 from collections.abc import Callable
 from pathlib import Path
 
-from src.config import DEBUG_MODE
-from src.logging_config import debug_log
+logger = logging.getLogger(__name__)
 
 
 class QAService:
@@ -107,8 +107,7 @@ class QAService:
 
             self._is_ready = True
 
-            if DEBUG_MODE:
-                debug_log(f"[QAService] Index built with {len(chunks)} chunks")
+            logger.debug("Index built with %s chunks", len(chunks))
 
             if progress_callback:
                 progress_callback("Q&A ready")
@@ -116,7 +115,7 @@ class QAService:
             return True
 
         except Exception as e:
-            debug_log(f"[QAService] build_index failed: {e}")
+            logger.error("build_index failed: %s", e)
             self._is_ready = False
             return False
 
@@ -133,7 +132,7 @@ class QAService:
             List of QAResult objects
         """
         if not self._is_ready or self._orchestrator is None:
-            debug_log("[QAService] Cannot run questions - index not ready")
+            logger.warning("Cannot run questions - index not ready")
             return []
 
         return self._orchestrator.run_default_questions(progress_callback)
@@ -149,7 +148,7 @@ class QAService:
             QAResult object or None if not ready
         """
         if not self._is_ready or self._orchestrator is None:
-            debug_log("[QAService] Cannot ask question - index not ready")
+            logger.warning("Cannot ask question - index not ready")
             return None
 
         return self._orchestrator.ask_followup(question)
@@ -219,8 +218,7 @@ class QAService:
             self._orchestrator.clear_results()
         self._is_ready = False
 
-        if DEBUG_MODE:
-            debug_log("[QAService] Cleared")
+        logger.debug("Cleared")
 
     def get_default_questions_manager(self):
         """

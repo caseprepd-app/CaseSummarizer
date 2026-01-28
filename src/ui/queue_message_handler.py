@@ -28,11 +28,13 @@ Performance Optimizations (Session 14):
 """
 
 import gc
+import logging
 from tkinter import messagebox
 
-from src.logging_config import debug_log
 from src.ui.processing_timer import format_duration
 from src.ui.queue_messages import MessageType
+
+logger = logging.getLogger(__name__)
 
 
 class QueueMessageHandler:
@@ -142,7 +144,7 @@ class QueueMessageHandler:
                 self.main_window.status_label.configure(text="Processing complete.")
         elif self.main_window.pending_ai_generation:
             # Fallback if orchestrator not set (backward compatibility)
-            debug_log("[QUEUE HANDLER] WARNING: Orchestrator not set, using fallback.")
+            logger.warning("Orchestrator not set, using fallback")
             self.main_window._start_ai_generation(
                 extracted_documents, self.main_window.pending_ai_generation
             )
@@ -158,7 +160,7 @@ class QueueMessageHandler:
         Args:
             data: Dictionary with 'summary' key containing the generated text
         """
-        debug_log("[QUEUE HANDLER] Summary result received.")
+        logger.debug("Summary result received")
         self.main_window.summary_results.update_outputs(meta_summary=data.get("summary", ""))
         self.main_window.progress_bar.set(1.0)
         self.main_window.status_label.configure(text="Summary generation complete!")
@@ -179,9 +181,10 @@ class QueueMessageHandler:
         """
         # Import here to avoid circular imports
 
-        debug_log(
-            f"[QUEUE HANDLER] Multi-doc result received: "
-            f"{data.documents_processed} processed, {data.documents_failed} failed"
+        logger.debug(
+            "Multi-doc result received: %s processed, %s failed",
+            data.documents_processed,
+            data.documents_failed,
         )
 
         # Extract individual summaries as dict[filename, summary_text]
@@ -232,7 +235,7 @@ class QueueMessageHandler:
 
     def _reset_ui_after_processing(self):
         """Reset UI buttons and progress bar to post-processing state."""
-        debug_log("[QUEUE HANDLER] Resetting UI after processing complete...")
+        logger.debug("Resetting UI after processing complete")
 
         # Stop timer and log metrics to CSV
         if hasattr(self.main_window, "processing_timer"):
@@ -261,7 +264,7 @@ class QueueMessageHandler:
             fg_color="#6c757d",
             hover_color="#5a6268",  # Grey when disabled
         )
-        debug_log("[QUEUE HANDLER] Cancel button disabled (greyed out)")
+        logger.debug("Cancel button disabled")
 
         self.main_window.progress_bar.grid_remove()
 
@@ -272,11 +275,11 @@ class QueueMessageHandler:
 
         # Force garbage collection after heavy processing
         gc.collect()
-        debug_log("[QUEUE HANDLER] Worker references cleared, garbage collected.")
+        logger.debug("Worker references cleared, garbage collected")
 
         # Force immediate UI update to ensure button disappears
         self.main_window.update_idletasks()
-        debug_log("[QUEUE HANDLER] UI reset complete.")
+        logger.debug("UI reset complete")
 
     # =========================================================================
     # Vector Store Q&A Handlers (Session 24)
@@ -291,9 +294,10 @@ class QueueMessageHandler:
         Args:
             data: Dictionary with 'path', 'case_id', 'chunk_count', 'creation_time_ms'
         """
-        debug_log(
-            f"[QUEUE HANDLER] Vector store ready: {data.get('case_id')} "
-            f"({data.get('chunk_count')} chunks)"
+        logger.debug(
+            "Vector store ready: %s (%s chunks)",
+            data.get("case_id"),
+            data.get("chunk_count"),
         )
 
         # Update orchestrator state
@@ -311,7 +315,7 @@ class QueueMessageHandler:
         self.main_window.vector_store_path = data.get("path")
         self.main_window.vector_store_case_id = data.get("case_id")
 
-        debug_log("[QUEUE HANDLER] Vector store handler complete - Q&A available")
+        logger.debug("Vector store handler complete - Q&A available")
 
     def handle_vector_store_error(self, data: dict):
         """
@@ -323,7 +327,7 @@ class QueueMessageHandler:
             data: Dictionary with 'error' message
         """
         error_msg = data.get("error", "Unknown error")
-        debug_log(f"[QUEUE HANDLER] Vector store error: {error_msg}")
+        logger.debug("Vector store error: %s", error_msg)
 
         # Update status to indicate Q&A is not available
         self.main_window.status_label.configure(text="Q&A unavailable (indexing failed)")
@@ -344,7 +348,7 @@ class QueueMessageHandler:
             data: Tuple of (current, total, question_text)
         """
         current, total, question = data
-        debug_log(f"[QUEUE HANDLER] Q&A progress: {current}/{total} - {question[:50]}...")
+        logger.debug("Q&A progress: %s/%s - %s...", current, total, question[:50])
         self.main_window.status_label.configure(
             text=f"Q&A: Processing question {current}/{total}..."
         )
@@ -356,7 +360,7 @@ class QueueMessageHandler:
         Args:
             result: QAResult object with question, answer, metadata
         """
-        debug_log(f"[QUEUE HANDLER] Q&A result: {result.question[:40]}...")
+        logger.debug("Q&A result: %s...", result.question[:40])
         # Results are accumulated by QAWorker, just update status
         self.main_window.status_label.configure(
             text=f"Q&A: Got answer for '{result.question[:30]}...'"
@@ -370,7 +374,7 @@ class QueueMessageHandler:
             results: List of QAResult objects
         """
         result_count = len(results) if results else 0
-        debug_log(f"[QUEUE HANDLER] Q&A complete: {result_count} results")
+        logger.debug("Q&A complete: %s results", result_count)
 
         # Update status
         self.main_window.status_label.configure(
@@ -390,7 +394,7 @@ class QueueMessageHandler:
             self.main_window.followup_entry.configure(state="normal")
             self.main_window.followup_entry.configure(placeholder_text="Type your question here...")
 
-        debug_log("[QUEUE HANDLER] Q&A results delivered to UI")
+        logger.debug("Q&A results delivered to UI")
 
     def handle_qa_followup_result(self, result):
         """
@@ -417,7 +421,7 @@ class QueueMessageHandler:
         self.main_window.status_label.configure(
             text=f"Follow-up answered: {result.question[:30]}..."
         )
-        debug_log(f"[QUEUE HANDLER] Follow-up Q&A result delivered: {result.question[:30]}...")
+        logger.debug("Follow-up Q&A result delivered: %s...", result.question[:30])
 
     def handle_qa_error(self, data: dict):
         """
@@ -428,7 +432,7 @@ class QueueMessageHandler:
         """
         error_msg = data.get("error", "Unknown Q&A error")
         self.main_window.status_label.configure(text=f"Q&A Error: {error_msg}")
-        debug_log(f"[QUEUE HANDLER] Q&A error: {error_msg}")
+        logger.debug("Q&A error: %s", error_msg)
 
     # =========================================================================
     # Progressive Extraction Handlers (Session 48)
@@ -446,7 +450,7 @@ class QueueMessageHandler:
             data: List of vocabulary term dictionaries from local algorithms
         """
         term_count = len(data) if data else 0
-        debug_log(f"[QUEUE HANDLER] Phase 1 complete: {term_count} terms - displaying immediately")
+        logger.debug("Phase 1 complete: %s terms - displaying immediately", term_count)
 
         # Update vocab display with local algorithm results
         self.main_window.output_display.update_outputs(vocab_csv_data=data)
@@ -467,7 +471,7 @@ class QueueMessageHandler:
             data: Dictionary with 'vector_store_path', 'embeddings', 'chunk_count'
         """
         chunk_count = data.get("chunk_count", 0)
-        debug_log(f"[QUEUE HANDLER] Q&A ready: {chunk_count} chunks indexed")
+        logger.debug("Q&A ready: %s chunks indexed", chunk_count)
 
         # Store vector store info on main window
         self.main_window._vector_store_path = data.get("vector_store_path")
@@ -476,7 +480,7 @@ class QueueMessageHandler:
 
         # Refresh tabs to show Q&A option now that it's ready (Session 51)
         self.main_window.output_display._refresh_tabs()
-        debug_log("[QUEUE HANDLER] Refreshed tabs - Q&A tab should now be accessible")
+        logger.debug("Refreshed tabs - Q&A tab should now be accessible")
 
         # Mark Q&A as complete if it was requested
         if self.main_window._pending_tasks.get("qa"):
@@ -503,7 +507,7 @@ class QueueMessageHandler:
         # Check if checkbox is enabled
         if not self.main_window.ask_default_questions_check.get():
             # LOG-013: debug_log always exists; just call it directly
-            debug_log("[QUEUE HANDLER] Default questions disabled, skipping")
+            logger.debug("Default questions disabled, skipping")
             return
 
         # Spawn QAWorker with default questions
@@ -513,7 +517,7 @@ class QueueMessageHandler:
         vector_store_path = data["vector_store_path"]
         embeddings = data["embeddings"]
 
-        debug_log("[QUEUE HANDLER] Spawning QAWorker for default questions")
+        logger.debug("Spawning QAWorker for default questions")
         prefs = get_user_preferences()
 
         qa_worker = QAWorker(
@@ -526,7 +530,7 @@ class QueueMessageHandler:
         )
 
         qa_worker.start()
-        debug_log("[QUEUE HANDLER] Default questions worker started")
+        logger.debug("Default questions worker started")
 
     def handle_llm_progress(self, data: tuple):
         """
@@ -536,7 +540,7 @@ class QueueMessageHandler:
             data: Tuple of (current_chunk, total_chunks)
         """
         current, total = data
-        debug_log(f"[QUEUE HANDLER] LLM progress: {current}/{total}")
+        logger.debug("LLM progress: %s/%s", current, total)
         # Status is already updated by 'progress' message, just log here
 
     def handle_llm_complete(self, data):
@@ -550,7 +554,7 @@ class QueueMessageHandler:
             data: List of reconciled vocabulary term dictionaries
         """
         term_count = len(data) if data else 0
-        debug_log(f"[QUEUE HANDLER] LLM complete: {term_count} reconciled terms")
+        logger.debug("LLM complete: %s reconciled terms", term_count)
 
         # Update vocab display with enhanced results
         self.main_window.output_display.update_outputs(vocab_csv_data=data)
@@ -612,8 +616,8 @@ class QueueMessageHandler:
                 handler(data)
                 return True
             except Exception as e:
-                debug_log(f"[QUEUE HANDLER] Error handling {message_type}: {e}")
+                logger.debug("Error handling %s: %s", message_type, e)
                 return False
 
-        debug_log(f"[QUEUE HANDLER] Unknown message type: {message_type}")
+        logger.debug("Unknown message type: %s", message_type)
         return False

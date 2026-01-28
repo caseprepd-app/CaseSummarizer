@@ -34,11 +34,14 @@ Example:
     - "Jenidns" removed (typo of "Jenkins" - only "Jenkins" is in dictionary)
 """
 
+import logging
+
 from src.core.vocabulary.canonical_scorer import create_canonical_scorer
 from src.core.vocabulary.meta_learner_text_analysis import _load_names_datasets
 from src.core.vocabulary.string_utils import edit_distance
 from src.core.vocabulary.term_sources import TermSources
-from src.logging_config import debug_log
+
+logger = logging.getLogger(__name__)
 
 # Lazy-loaded known words set for typo resolution
 _KNOWN_WORDS: set[str] | None = None
@@ -82,17 +85,17 @@ def _load_known_words() -> set[str]:
                     parts = line.strip().split("\t")
                     if parts:
                         _KNOWN_WORDS.add(parts[0].lower())
-            debug_log(f"[NAME-REG] Loaded {len(_KNOWN_WORDS)} words from Google frequency list")
+            logger.debug("Loaded %d words from Google frequency list", len(_KNOWN_WORDS))
         except Exception as e:
-            debug_log(f"[NAME-REG] Failed to load Google word frequency file: {e}")
+            logger.debug("Failed to load Google word frequency file: %s", e)
 
     # Source 2: International names dataset (reuse meta_learner's cached loader)
     forenames, surnames = _load_names_datasets()
     _KNOWN_WORDS.update(forenames)
     _KNOWN_WORDS.update(surnames)
-    debug_log(f"[NAME-REG] Added {len(forenames) + len(surnames)} international names")
+    logger.debug(f"[NAME-REG] Added {len(forenames) + len(surnames)} international names")
 
-    debug_log(f"[NAME-REG] Total known words for typo resolution: {len(_KNOWN_WORDS)}")
+    logger.debug(f"[NAME-REG] Total known words for typo resolution: {len(_KNOWN_WORDS)}")
 
     return _KNOWN_WORDS
 
@@ -196,7 +199,9 @@ def filter_name_fragments(
     if not canonical_multiword:
         return vocabulary
 
-    debug_log(f"[NAME-REG] Fragment filter: {len(canonical_multiword)} multi-word canonical terms")
+    logger.debug(
+        f"[NAME-REG] Fragment filter: {len(canonical_multiword)} multi-word canonical terms"
+    )
 
     # Filter ONLY bottom terms (top terms are always preserved)
     filtered_bottom = []
@@ -208,7 +213,7 @@ def filter_name_fragments(
 
         for canonical in canonical_multiword:
             if _is_fragment_of(term, canonical):
-                debug_log(f"[NAME-REG] Removing fragment '{term}' (subset of '{canonical}')")
+                logger.debug(f"[NAME-REG] Removing fragment '{term}' (subset of '{canonical}')")
                 is_fragment = True
                 removed_count += 1
                 break
@@ -216,7 +221,7 @@ def filter_name_fragments(
         if not is_fragment:
             filtered_bottom.append(term_dict)
 
-    debug_log(f"[NAME-REG] Fragment filter removed {removed_count} terms")
+    logger.debug(f"[NAME-REG] Fragment filter removed {removed_count} terms")
 
     return top_terms + filtered_bottom
 
@@ -273,7 +278,7 @@ def filter_typo_variants(
     if not canonical_terms:
         return vocabulary
 
-    debug_log(
+    logger.debug(
         f"[NAME-REG] Typo filter: {len(canonical_terms)} canonical terms (len >= {min_term_length})"
     )
 
@@ -305,7 +310,7 @@ def filter_typo_variants(
             distance = edit_distance(term_lower, canonical)
 
             if distance <= max_edit_distance:
-                debug_log(
+                logger.debug(
                     f"[NAME-REG] Removing typo '{term}' (distance={distance} from '{canonical}')"
                 )
                 is_typo = True
@@ -315,7 +320,7 @@ def filter_typo_variants(
         if not is_typo:
             filtered_bottom.append(term_dict)
 
-    debug_log(f"[NAME-REG] Typo filter removed {removed_count} terms")
+    logger.debug(f"[NAME-REG] Typo filter removed {removed_count} terms")
 
     return top_terms + filtered_bottom
 
@@ -462,7 +467,7 @@ def _single_pass_regularize(
             if term.lower() != canonical_term:
                 terms_to_remove.add(term.lower())
                 typo_removed += 1
-                debug_log(
+                logger.debug(
                     f"[NAME-REG] Removing typo '{term}' in favor of canonical '{canonical['Term']}'"
                 )
 
@@ -516,7 +521,7 @@ def regularize_names(
     if not vocabulary or len(vocabulary) < 4:
         return vocabulary
 
-    debug_log(
+    logger.debug(
         f"[NAME-REG] Starting regularization on {len(vocabulary)} terms ({num_passes} passes)"
     )
 
@@ -533,18 +538,18 @@ def regularize_names(
         total_typos += typos
 
         removed_this_pass = prev_count - len(result)
-        debug_log(
+        logger.debug(
             f"[NAME-REG] Pass {pass_num}: removed {fragments} fragments, {typos} typos ({removed_this_pass} total)"
         )
 
         # Early exit if no changes this pass
         if removed_this_pass == 0:
-            debug_log(f"[NAME-REG] No changes in pass {pass_num}, stopping early")
+            logger.debug(f"[NAME-REG] No changes in pass {pass_num}, stopping early")
             break
 
-    debug_log(
+    logger.debug(
         f"[NAME-REG] Regularization complete: removed {total_fragments} fragments, {total_typos} typos total"
     )
-    debug_log(f"[NAME-REG] Final: {len(result)} terms remaining")
+    logger.debug(f"[NAME-REG] Final: {len(result)} terms remaining")
 
     return result

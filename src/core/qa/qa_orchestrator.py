@@ -17,19 +17,20 @@ Integration:
 - Exportable to TXT with checkbox-based selection
 """
 
+import logging
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 from src.config import (
-    DEBUG_MODE,
     HALLUCINATION_VERIFICATION_ENABLED,
     RETRIEVAL_CONFIDENCE_GATE,
 )
 from src.core.config import load_yaml_with_fallback
 from src.core.qa.qa_constants import UNANSWERED_TEXT
 from src.core.vector_store.qa_retriever import QARetriever, RetrievalResult
-from src.logging_config import debug_log
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from src.core.qa.hallucination_verifier import VerificationResult
@@ -179,9 +180,8 @@ class QAOrchestrator:
         self._questions: list[QuestionDef] = []
         self._load_questions()
 
-        if DEBUG_MODE:
-            debug_log(f"[QAOrchestrator] Initialized with {len(self._questions)} questions")
-            debug_log(f"[QAOrchestrator] Answer mode: {answer_mode}")
+        logger.debug("Initialized with %d questions", len(self._questions))
+        logger.debug("Answer mode: %s", answer_mode)
 
     def _load_questions(self) -> None:
         """Load question definitions from YAML config."""
@@ -190,7 +190,7 @@ class QAOrchestrator:
         )
 
         if not config or "questions" not in config:
-            debug_log("[QAOrchestrator] No questions found in YAML config")
+            logger.debug("No questions found in YAML config")
             return
 
         for q in config["questions"]:
@@ -203,8 +203,7 @@ class QAOrchestrator:
                 )
             )
 
-        if DEBUG_MODE:
-            debug_log(f"[QAOrchestrator] Loaded {len(self._questions)} questions")
+        logger.debug("Loaded %d questions", len(self._questions))
 
     def load_default_questions_from_txt(self) -> list[str]:
         """
@@ -222,16 +221,13 @@ class QAOrchestrator:
             manager = get_default_questions_manager()
             questions = manager.get_enabled_questions()
 
-            if DEBUG_MODE:
-                total = manager.get_total_count()
-                debug_log(
-                    f"[QAOrchestrator] Loaded {len(questions)}/{total} enabled default questions"
-                )
+            total = manager.get_total_count()
+            logger.debug("Loaded %d/%d enabled default questions", len(questions), total)
 
             return questions
 
         except Exception as e:
-            debug_log(f"[QAOrchestrator] Error loading from manager, falling back to txt: {e}")
+            logger.error("Error loading from manager, falling back to txt: %s", e)
 
             # Fallback to legacy txt file
             if not DEFAULT_QUESTIONS_TXT_PATH.exists():
@@ -246,7 +242,7 @@ class QAOrchestrator:
                             questions.append(line)
                 return questions
             except Exception as e:
-                debug_log(f"[QAOrchestrator] Failed to load questions from txt file: {e}")
+                logger.error("Failed to load questions from txt file: %s", e)
                 return []
 
     def get_default_questions(self) -> list[str]:
@@ -279,10 +275,9 @@ class QAOrchestrator:
             result = self._ask_single_question(question, is_followup=False, is_default=True)
             self.results.append(result)
 
-            if DEBUG_MODE:
-                debug_log(
-                    f"[QAOrchestrator] Q{i + 1}/{total}: {question[:40]}... -> {len(result.answer)} chars"
-                )
+            logger.debug(
+                "Q%d/%d: %s... -> %d chars", i + 1, total, question[:40], len(result.answer)
+            )
 
         if progress_callback:
             progress_callback(total, total)
@@ -325,16 +320,20 @@ class QAOrchestrator:
         # Retrieve relevant context (this becomes the citation)
         retrieval_result = self.retriever.retrieve_context(question)
 
-        # Log retrieval summary (always, not just DEBUG_MODE)
+        # Log retrieval summary
         if retrieval_result.context:
-            debug_log(
-                f"[QAOrchestrator] Retrieved {retrieval_result.chunks_retrieved} chunks "
-                f"({len(retrieval_result.context)} chars) in {retrieval_result.retrieval_time_ms:.0f}ms"
+            logger.debug(
+                "Retrieved %d chunks (%d chars) in %.0fms",
+                retrieval_result.chunks_retrieved,
+                len(retrieval_result.context),
+                retrieval_result.retrieval_time_ms,
             )
         else:
-            debug_log(
-                f"[QAOrchestrator] No context retrieved for: '{question[:50]}...' "
-                f"(chunks_retrieved={retrieval_result.chunks_retrieved}, time={retrieval_result.retrieval_time_ms:.0f}ms)"
+            logger.debug(
+                "No context retrieved for: '%s...' (chunks_retrieved=%d, time=%.0fms)",
+                question[:50],
+                retrieval_result.chunks_retrieved,
+                retrieval_result.retrieval_time_ms,
             )
 
         verification = None
@@ -373,9 +372,10 @@ class QAOrchestrator:
         else:
             # Low retrieval scores = question likely unanswerable from these documents
             if retrieval_result.context and best_score < RETRIEVAL_CONFIDENCE_GATE:
-                debug_log(
-                    f"[QAOrchestrator] Retrieval quality gate: best_score={best_score:.3f} "
-                    f"< gate={RETRIEVAL_CONFIDENCE_GATE} — treating as unanswerable"
+                logger.debug(
+                    "Retrieval quality gate: best_score=%.3f < gate=%s -- treating as unanswerable",
+                    best_score,
+                    RETRIEVAL_CONFIDENCE_GATE,
                 )
             citation = "No relevant excerpts found in documents."
             quick_answer = UNANSWERED_TEXT

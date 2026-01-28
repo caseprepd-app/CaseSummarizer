@@ -10,11 +10,14 @@ When context exceeds the budget:
 Best sub-chunk chosen by FAISS cosine similarity to the question.
 """
 
+import logging
+
 import numpy as np
 import tiktoken
 
 from src.config import UNIFIED_CHUNK_ENCODING
-from src.logging_config import debug_log
+
+logger = logging.getLogger(__name__)
 
 _encoder = None
 
@@ -105,10 +108,11 @@ def select_best_subchunk(context, question, max_tokens, embeddings):
     best_agg_idx = int(np.argmax(aggressive_scores))
     best_agg_score = aggressive_scores[best_agg_idx]
 
-    debug_log(
-        f"[TokenBudget] Aggressive pass: full={full_score:.3f}, "
-        f"best sub-chunk={best_agg_score:.3f} "
-        f"({best_agg_score / max(full_score, 1e-10) * 100:.0f}% of full)"
+    logger.debug(
+        "Aggressive pass: full=%.3f, best sub-chunk=%.3f (%.0f%% of full)",
+        full_score,
+        best_agg_score,
+        best_agg_score / max(full_score, 1e-10) * 100,
     )
 
     # Check if aggressive sub-chunk is close enough to full chunk
@@ -117,14 +121,15 @@ def select_best_subchunk(context, question, max_tokens, embeddings):
         return _ensure_fits(result, max_tokens)
 
     # Fallback: conservative pass
-    debug_log("[TokenBudget] Aggressive too lossy, trying conservative (80% windows)")
+    logger.debug("Aggressive too lossy, trying conservative (80%% windows)")
     conservative_chunks = _build_windows(context, CONSERVATIVE_RATIO, CONSERVATIVE_WINDOWS)
     con_scores = _score_against_question(conservative_chunks, question, embeddings)
 
     best_con_idx = int(np.argmax(con_scores))
-    debug_log(
-        f"[TokenBudget] Conservative pass: best={con_scores[best_con_idx]:.3f} "
-        f"({con_scores[best_con_idx] / max(full_score, 1e-10) * 100:.0f}% of full)"
+    logger.debug(
+        "Conservative pass: best=%.3f (%.0f%% of full)",
+        con_scores[best_con_idx],
+        con_scores[best_con_idx] / max(full_score, 1e-10) * 100,
     )
 
     result = conservative_chunks[best_con_idx]

@@ -18,6 +18,7 @@ CSV columns logged:
 """
 
 import csv
+import logging
 import time
 from datetime import datetime
 from pathlib import Path
@@ -25,8 +26,9 @@ from pathlib import Path
 import customtkinter as ctk
 
 from src.config import PROCESSING_METRICS_CSV
-from src.logging_config import debug_log
 from src.ui.theme import FONTS
+
+logger = logging.getLogger(__name__)
 
 
 def format_duration(seconds: float) -> str:
@@ -113,7 +115,7 @@ class ProcessingTimer(ctk.CTkLabel):
         self.is_running = True
         self._job_metadata = job_metadata or {}
 
-        debug_log("[TIMER] Started processing timer")
+        logger.debug("Started processing timer")
         self._update_display()
 
     def stop(self) -> float:
@@ -134,7 +136,7 @@ class ProcessingTimer(ctk.CTkLabel):
             self._after_id = None
 
         elapsed = time.time() - self.start_time if self.start_time else 0.0
-        debug_log(f"[TIMER] Stopped after {elapsed:.1f}s")
+        logger.debug("Stopped after %.1fs", elapsed)
 
         return elapsed
 
@@ -245,10 +247,13 @@ class ProcessingTimer(ctk.CTkLabel):
                     writer.writeheader()
                 writer.writerow(row)
 
-            debug_log(
-                f"[TIMER] Logged metrics to {csv_path}: "
-                f"{doc_count} docs, {total_pages} pages, {duration_seconds:.1f}s"
+            logger.debug(
+                "Logged metrics to %s: %s docs, %s pages, %.1fs",
+                csv_path,
+                doc_count,
+                total_pages,
+                duration_seconds,
             )
 
         except Exception as e:
-            debug_log(f"[TIMER] Error logging metrics: {e}")
+            logger.debug("Error logging metrics: %s", e)

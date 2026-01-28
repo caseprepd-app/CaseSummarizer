@@ -12,6 +12,7 @@ Educational content explains what a corpus is and why it matters.
 Privacy: All data is stored locally in %APPDATA%/CasePrepd/corpora/
 """
 
+import logging
 import os
 import subprocess
 import webbrowser
@@ -20,9 +21,9 @@ from tkinter import filedialog, messagebox, ttk
 
 import customtkinter as ctk
 
-from src.config import DEBUG_MODE
-from src.logging_config import debug_log
 from src.services import VocabularyService
+
+logger = logging.getLogger(__name__)
 from src.ui.base_dialog import BaseModalDialog
 from src.ui.theme import COLORS, FONTS
 
@@ -76,8 +77,7 @@ class CorpusDialog(BaseModalDialog):
         # Handle window close
         self.protocol("WM_DELETE_WINDOW", self._on_close)
 
-        if DEBUG_MODE:
-            debug_log("[CorpusDialog] Opened")
+        logger.debug("CorpusDialog opened")
 
     def _create_ui(self):
         """Build the dialog UI."""
@@ -398,7 +398,7 @@ class CorpusDialog(BaseModalDialog):
             self._corpus_path = self.registry.get_corpus_path(self._selected_corpus)
             files = self._vocab_service.get_corpus_files_with_status(self._corpus_path)
         except Exception as e:
-            debug_log(f"[CorpusDialog] Error loading documents: {e}")
+            logger.debug("Error loading documents: %s", e)
             return
 
         # Populate list
@@ -468,8 +468,7 @@ class CorpusDialog(BaseModalDialog):
 
     def _on_close(self):
         """Handle dialog close."""
-        if DEBUG_MODE:
-            debug_log("[CorpusDialog] Closed")
+        logger.debug("CorpusDialog closed")
         self.destroy()
 
     # =========================================================================
@@ -644,7 +643,7 @@ class CorpusDialog(BaseModalDialog):
                     try:
                         self._vocab_service.preprocess_corpus_file(self._corpus_path, dst)
                     except Exception as e:
-                        debug_log(f"[CorpusDialog] Preprocess error: {e}")
+                        logger.debug("Preprocess error: %s", e)
 
             self.corpus_changed = True
             self._refresh_corpus_list()

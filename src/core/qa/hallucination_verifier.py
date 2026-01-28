@@ -27,11 +27,11 @@ Model Loading:
     3. If not found, downloads from HuggingFace (development mode)
 """
 
+import logging
 import os
 from dataclasses import dataclass
 
 from src.config import (
-    DEBUG_MODE,
     HALLUCINATION_MODEL_LOCAL_PATH,
     HF_CACHE_DIR,
 )
@@ -39,7 +39,8 @@ from src.core.qa.verification_config import (
     ANSWER_REJECTION_THRESHOLD,
     VERIFIER_MODEL_PATH,
 )
-from src.logging_config import debug_log
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -100,15 +101,13 @@ class HallucinationVerifier:
             # Use bundled model (production/installer mode)
             model_path = str(HALLUCINATION_MODEL_LOCAL_PATH)
             local_only = True
-            if DEBUG_MODE:
-                debug_log(f"[HallucinationVerifier] Using bundled model: {model_path}")
+            logger.debug("Using bundled model: %s", model_path)
         else:
             # Download from HuggingFace (development mode)
             model_path = self._model_path
             local_only = False
-            if DEBUG_MODE:
-                debug_log(f"[HallucinationVerifier] Downloading model: {model_path}")
-                debug_log(f"[HallucinationVerifier] Cache dir: {HF_CACHE_DIR}")
+            logger.debug("Downloading model: %s", model_path)
+            logger.debug("Cache dir: %s", HF_CACHE_DIR)
 
         from lettucedetect.models.inference import HallucinationDetector
 
@@ -116,8 +115,7 @@ class HallucinationVerifier:
             method="transformer", model_path=model_path, local_files_only=local_only
         )
 
-        if DEBUG_MODE:
-            debug_log("[HallucinationVerifier] Model loaded successfully")
+        logger.debug("Model loaded successfully")
 
     def verify(self, answer: str, context: str, question: str) -> VerificationResult:
         """
@@ -139,8 +137,7 @@ class HallucinationVerifier:
             try:
                 self._load_detector()
             except Exception as e:
-                if DEBUG_MODE:
-                    debug_log(f"[HallucinationVerifier] Failed to load model: {e}")
+                logger.debug("Failed to load model: %s", e)
                 return VerificationResult(
                     spans=[
                         VerifiedSpan(text=answer, start=0, end=len(answer), hallucination_prob=0.5)
@@ -159,8 +156,7 @@ class HallucinationVerifier:
                 output_format="spans",
             )
 
-            if DEBUG_MODE:
-                debug_log(f"[HallucinationVerifier] Raw predictions: {predictions}")
+            logger.debug("Raw predictions: %s", predictions)
 
             # Convert to VerifiedSpan objects and fill gaps
             spans = self._build_complete_spans(answer, predictions)
@@ -169,11 +165,11 @@ class HallucinationVerifier:
             overall_reliability = self._calculate_reliability(spans, answer)
             answer_rejected = overall_reliability < ANSWER_REJECTION_THRESHOLD
 
-            if DEBUG_MODE:
-                debug_log(
-                    f"[HallucinationVerifier] Reliability: {overall_reliability:.2%}, "
-                    f"Rejected: {answer_rejected}"
-                )
+            logger.debug(
+                "Reliability: %.2f%%, Rejected: %s",
+                overall_reliability * 100,
+                answer_rejected,
+            )
 
             return VerificationResult(
                 spans=spans,
@@ -182,8 +178,7 @@ class HallucinationVerifier:
             )
 
         except Exception as e:
-            if DEBUG_MODE:
-                debug_log(f"[HallucinationVerifier] Error during verification: {e}")
+            logger.debug("Error during verification: %s", e)
 
             # On error, return the full answer as unverified (uncertain)
             return VerificationResult(

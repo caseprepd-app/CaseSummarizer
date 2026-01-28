@@ -16,6 +16,7 @@ Example:
     Output: ["Di Leo", "Diana Di Leo"]
 """
 
+import logging
 import re
 from difflib import SequenceMatcher
 
@@ -24,7 +25,8 @@ from src.core.vocabulary.canonical_scorer import create_canonical_scorer
 from src.core.vocabulary.name_regularizer import _load_known_words
 from src.core.vocabulary.person_utils import is_person_entry
 from src.core.vocabulary.term_sources import TermSources
-from src.logging_config import debug_log
+
+logger = logging.getLogger(__name__)
 
 # Patterns to strip from person names (transcript artifacts)
 TRANSCRIPT_ARTIFACT_PATTERNS = [
@@ -76,7 +78,7 @@ def deduplicate_names(
     if not person_terms:
         return terms
 
-    debug_log(f"[DEDUP] Processing {len(person_terms)} Person terms for deduplication")
+    logger.debug("Processing %d Person terms for deduplication", len(person_terms))
 
     # Phase 1: Clean transcript artifacts and build canonical mapping
     cleaned_terms = []
@@ -105,8 +107,8 @@ def deduplicate_names(
 
     merged_count = len(person_terms) - len(deduplicated)
     if merged_count > 0:
-        debug_log(
-            f"[DEDUP] Merged {merged_count} Person variants into {len(deduplicated)} canonical names"
+        logger.debug(
+            "Merged %d Person variants into %d canonical names", merged_count, len(deduplicated)
         )
 
     return other_terms + deduplicated
@@ -225,8 +227,8 @@ def _fuzzy_merge_groups(groups: dict[str, list], threshold: float) -> list[list[
             if similarity >= threshold:
                 current_group.extend(groups[key2])
                 merged_indices.add(j)
-                debug_log(
-                    f"[DEDUP] Fuzzy merged '{key2}' into '{key1}' (similarity: {similarity:.2f})"
+                logger.debug(
+                    "Fuzzy merged '%s' into '%s' (similarity: %.2f)", key2, key1, similarity
                 )
 
         result_groups.append(current_group)
@@ -412,10 +414,12 @@ def _select_canonical_with_scorer(group: list[dict], freq_key: str) -> dict:
             e["original"].get("Term", "") for e in group if e["normalized"] != canonical["Term"]
         ]
         if merged_terms:
-            debug_log(
-                f"[DEDUP] Merged {len(merged_terms)} variants into "
-                f"'{canonical['Term']}': {merged_terms[:5]}"
-                f"{'...' if len(merged_terms) > 5 else ''}"
+            logger.debug(
+                "Merged %d variants into '%s': %s%s",
+                len(merged_terms),
+                canonical["Term"],
+                merged_terms[:5],
+                "..." if len(merged_terms) > 5 else "",
             )
 
     return canonical
@@ -484,10 +488,12 @@ def _select_canonical_legacy(group: list[dict], freq_key: str) -> dict:
     # Log what we merged
     if len(group) > 1:
         variants = [e["original"].get("Term", "") for e in sorted_group[1:]]
-        debug_log(
-            f"[DEDUP] Merged {len(variants)} variants into "
-            f"'{canonical['Term']}': {variants[:5]}"
-            f"{'...' if len(variants) > 5 else ''}"
+        logger.debug(
+            "Merged %d variants into '%s': %s%s",
+            len(variants),
+            canonical["Term"],
+            variants[:5],
+            "..." if len(variants) > 5 else "",
         )
 
     return canonical
@@ -547,17 +553,13 @@ def find_potential_duplicates(terms: list[dict]) -> dict[str, str]:
             if a["words"] < b["words"]:
                 # a is subset of b (a is shorter)
                 potential_duplicates[a["term"]] = b["term"]
-                debug_log(
-                    f"[DEDUP] Potential duplicate: '{a['term']}' may be same as '{b['term']}'"
-                )
+                logger.debug("Potential duplicate: '%s' may be same as '%s'", a["term"], b["term"])
             elif b["words"] < a["words"]:
                 # b is subset of a (b is shorter)
                 potential_duplicates[b["term"]] = a["term"]
-                debug_log(
-                    f"[DEDUP] Potential duplicate: '{b['term']}' may be same as '{a['term']}'"
-                )
+                logger.debug("Potential duplicate: '%s' may be same as '%s'", b["term"], a["term"])
 
     if potential_duplicates:
-        debug_log(f"[DEDUP] Found {len(potential_duplicates)} potential duplicate name(s)")
+        logger.debug("Found %d potential duplicate name(s)", len(potential_duplicates))
 
     return potential_duplicates

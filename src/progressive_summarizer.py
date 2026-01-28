@@ -9,6 +9,7 @@ It processes document chunks sequentially, maintaining:
 4. Batch boundaries for progressive summary updates
 """
 
+import logging
 import time
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -18,7 +19,8 @@ import pandas as pd
 
 from src.core.chunking import UnifiedChunk, create_unified_chunker
 from src.core.config import load_yaml
-from src.logging_config import debug_log, debug_timing, error, info
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -105,16 +107,16 @@ class ProgressiveSummarizer:
 
         if fast_mode.get("section_aware_batching", True):
             # Section-aware batching (preferred)
-            debug_log("Using section-aware batching for progressive updates")
+            logger.debug("Using section-aware batching for progressive updates")
             return self._calculate_section_aware_boundaries()
         elif fast_mode.get("adaptive_batching", True):
             # Adaptive batching (fallback)
-            debug_log("Using adaptive batching for progressive updates")
+            logger.debug("Using adaptive batching for progressive updates")
             return self._calculate_adaptive_boundaries(total_chunks)
         else:
             # Fixed batching
             base_freq = fast_mode.get("base_batch_frequency", 5)
-            debug_log(f"Using fixed batching (every {base_freq} chunks)")
+            logger.debug("Using fixed batching (every %s chunks)", base_freq)
             return [*list(range(base_freq, total_chunks + 1, base_freq)), total_chunks]
 
     def _calculate_section_aware_boundaries(self) -> list[int]:
@@ -154,7 +156,7 @@ class ProgressiveSummarizer:
             boundaries.append(len(self.df))
 
         boundaries = sorted(set(boundaries))
-        debug_log(f"Section-aware boundaries: {boundaries}")
+        logger.debug("Section-aware boundaries: %s", boundaries)
         return boundaries
 
     def _calculate_adaptive_boundaries(self, total_chunks: int) -> list[int]:
@@ -202,7 +204,7 @@ class ProgressiveSummarizer:
             boundaries.append(total_chunks)
 
         boundaries = sorted(set(boundaries))
-        debug_log(f"Adaptive boundaries: {boundaries}")
+        logger.debug("Adaptive boundaries: %s", boundaries)
         return boundaries
 
     def chunk_document(self, text: str) -> list[UnifiedChunk]:
@@ -216,11 +218,11 @@ class ProgressiveSummarizer:
             List of UnifiedChunk objects (400-1000 tokens each, research-based)
         """
         start_time = time.time()
-        debug_log("Starting document chunking...")
+        logger.debug("Starting document chunking...")
         chunks = self.unified_chunker.chunk_text(text, use_cache=False)
         elapsed = time.time() - start_time
-        debug_timing(f"Document chunking ({len(chunks)} chunks)", elapsed)
-        info(f"Document chunked into {len(chunks)} chunks")
+        logger.debug("%s took %.2fs", f"Document chunking ({len(chunks)} chunks)", elapsed)
+        logger.info("Document chunked into %s chunks", len(chunks))
         return chunks
 
     def prepare_chunks_dataframe(self, chunks: list[UnifiedChunk]) -> pd.DataFrame:
@@ -250,7 +252,7 @@ class ProgressiveSummarizer:
             )
 
         self.df = pd.DataFrame(data)
-        info(f"Prepared DataFrame with {len(self.df)} chunks")
+        logger.info("Prepared DataFrame with %s chunks", len(self.df))
         return self.df
 
     def get_context_for_chunk(self, chunk_num: int) -> tuple[str, str]:
@@ -322,7 +324,7 @@ class ProgressiveSummarizer:
             with open(template_path, encoding="utf-8") as f:
                 template = f.read()
         except Exception as e:
-            error(f"Failed to load chunked prompt template: {e}")
+            logger.error("Failed to load chunked prompt template: %s", e)
             # Fallback to inline template
             template = """You are a legal document analyst. Below is a chunk from a longer document.
 
@@ -376,7 +378,7 @@ Summary:"""
         df_display["progressive_summary"] = df_display["progressive_summary"].str[:75] + "..."
 
         df_display.to_csv(filename, index=False)
-        info(f"Saved debug DataFrame to {filename}")
+        logger.info("Saved debug DataFrame to %s", filename)
 
         # Clean up old files (keep only recent ones)
         config = self.config.get("processing", {})
@@ -392,9 +394,9 @@ Summary:"""
             for old_file in csv_files[:-keep_count]:
                 try:
                     old_file.unlink()
-                    debug_log(f"Cleaned up old debug file: {old_file}")
+                    logger.debug("Cleaned up old debug file: %s", old_file)
                 except Exception as e:
-                    error(f"Failed to remove old debug file {old_file}: {e}")
+                    logger.error("Failed to remove old debug file %s: %s", old_file, e)
 
     def get_progress_string(self, chunk_num: int, total_chunks: int) -> str:
         """

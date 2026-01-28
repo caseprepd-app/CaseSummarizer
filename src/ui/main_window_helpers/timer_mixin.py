@@ -9,9 +9,10 @@ Contains:
 - Aggregate confidence calculation
 """
 
+import logging
 import time
 
-from src.logging_config import debug_log
+logger = logging.getLogger(__name__)
 
 
 class TimerMixin:
@@ -99,5 +100,5 @@ class TimerMixin:
             return 100.0  # Default to 100% if no confidence data
 
         min_conf = min(confidences)
-        debug_log(f"[MainWindow] Document confidences: {confidences} -> min={min_conf:.1f}%")
+        logger.debug("Document confidences: %s -> min=%.1f%%", confidences, min_conf)
         return min_conf

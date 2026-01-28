@@ -11,10 +11,10 @@ Contains:
 - Async row insertion with pagination
 """
 
+import logging
 import tkinter as tk
 from tkinter import ttk
 
-from src.logging_config import debug_log
 from src.ui.vocab_table.column_config import (
     BATCH_INSERT_DELAY_MS,
     BATCH_INSERT_SIZE,
@@ -23,6 +23,8 @@ from src.ui.vocab_table.column_config import (
     DISPLAY_TO_DATA_COLUMN,
     truncate_text,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class TreeviewManagerMixin:
@@ -65,7 +67,7 @@ class TreeviewManagerMixin:
         # Ensure "Term" is always visible (cannot be hidden)
         self._visible_columns.add("Term")
 
-        debug_log(f"[TreeviewManager] Loaded visibility: {len(self._visible_columns)} columns")
+        logger.debug("Loaded visibility: %s columns", len(self._visible_columns))
 
     def _save_column_visibility(self):
         """Save current column visibility to user preferences."""
@@ -132,7 +134,7 @@ class TreeviewManagerMixin:
         self._save_column_visibility()
         self._rebuild_treeview_columns()
 
-        debug_log(f"[TreeviewManager] Column '{col_name}' visibility: {visible}")
+        logger.debug("Column '%s' visibility: %s", col_name, visible)
 
     def _rebuild_treeview_columns(self):
         """Rebuild treeview with current visible columns."""
@@ -245,7 +247,7 @@ class TreeviewManagerMixin:
         self._redisplay_sorted_data()
 
         direction = "desc" if self._sort_reverse else "asc"
-        debug_log(f"[TreeviewManager] Sorted by '{col_name}' {direction}")
+        logger.debug("Sorted by '%s' %s", col_name, direction)
 
     def _sort_vocab_data(self):
         """Sort _vocab_csv_data in place by current sort column."""
@@ -391,7 +393,7 @@ class TreeviewManagerMixin:
             )
         else:
             self._async_insert_id = None
-            debug_log(f"[TreeviewManager] Inserted {len(data)} rows")
+            logger.debug("Inserted %s rows", len(data))
 
     # =========================================================================
     # Treeview Setup

@@ -105,6 +105,9 @@ class FileReviewTable(ctk.CTkFrame):
         return ("⚠ Low Quality", "yellow")
 
     def _get_method_display(self, method):
+        """Format extraction method name for display."""
+        if not method:
+            return "Unknown"
         return method.replace("_", " ").title()
 
     def _format_file_size(self, size_bytes):

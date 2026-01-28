@@ -11,11 +11,12 @@ Functions:
 """
 
 import csv
+import logging
 import math
 import threading
 from pathlib import Path
 
-from src.logging_config import debug_log
+logger = logging.getLogger(__name__)
 
 # Module-level cache for names datasets
 _forenames_set: set[str] | None = None
@@ -72,9 +73,9 @@ def _load_names_datasets() -> tuple[set[str], set[str]]:
                                 if name not in country_sets:
                                     country_sets[name] = set()
                                 country_sets[name].add(country)
-                debug_log(f"[META-LEARNER] Loaded {len(_forenames_set)} forenames")
+                logger.debug("Loaded %d forenames", len(_forenames_set))
             except Exception as e:
-                debug_log(f"[META-LEARNER] Error loading forenames: {e}")
+                logger.debug("Error loading forenames: %s", e)
 
         # Load surnames
         _surnames_set = set()
@@ -93,16 +94,17 @@ def _load_names_datasets() -> tuple[set[str], set[str]]:
                                 if name not in country_sets:
                                     country_sets[name] = set()
                                 country_sets[name].add(country)
-                debug_log(f"[META-LEARNER] Loaded {len(_surnames_set)} surnames")
+                logger.debug("Loaded %d surnames", len(_surnames_set))
             except Exception as e:
-                debug_log(f"[META-LEARNER] Error loading surnames: {e}")
+                logger.debug("Error loading surnames: %s", e)
 
         # Build country count cache
         _total_countries = len(all_countries) if all_countries else 1
         _name_country_counts = {name: len(countries) for name, countries in country_sets.items()}
-        debug_log(
-            f"[META-LEARNER] Built country data: {_total_countries} countries, "
-            f"{len(_name_country_counts)} names with country info"
+        logger.debug(
+            "Built country data: %d countries, %d names with country info",
+            _total_countries,
+            len(_name_country_counts),
         )
 
         return _forenames_set, _surnames_set

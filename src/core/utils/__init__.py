@@ -1,32 +1,12 @@
 """
 Utility Modules for CasePrepd
 
-This package provides shared utility functions used across the application:
-- Logging utilities (debug, info, warning, error, critical, Timer)
-- Other utility functions as added
-
-Note: Logging functionality is now centralized in src/logging_config.py.
-      These re-exports maintain backward compatibility.
+This package provides shared utility functions used across the application.
+The Timer class is re-exported from logging_config for convenience.
 """
 
-from .logger import (
-    DEBUG_MODE,
-    Timer,
-    critical,
-    debug,
-    debug_log,
-    error,
-    info,
-    warning,
-)
+from src.logging_config import Timer
 
 __all__ = [
-    "DEBUG_MODE",
     "Timer",
-    "critical",
-    "debug",
-    "debug_log",
-    "error",
-    "info",
-    "warning",
 ]

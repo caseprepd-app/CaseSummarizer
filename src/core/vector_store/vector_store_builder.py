@@ -21,13 +21,15 @@ Integration:
 """
 
 import hashlib
+import logging
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from src.config import DEBUG_MODE, VECTOR_STORE_DIR
-from src.logging_config import debug_log
+from src.config import VECTOR_STORE_DIR
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from langchain_huggingface import HuggingFaceEmbeddings
@@ -101,9 +103,8 @@ class VectorStoreBuilder:
         # Ensure directory exists
         persist_dir.mkdir(parents=True, exist_ok=True)
 
-        if DEBUG_MODE:
-            debug_log(f"[VectorStore] Building index for case: {case_id}")
-            debug_log(f"[VectorStore] Persist directory: {persist_dir}")
+        logger.debug("Building index for case: %s", case_id)
+        logger.debug("Persist directory: %s", persist_dir)
 
         # Convert chunks to LangChain Documents with metadata
         lc_documents = self._convert_to_langchain_documents(documents)
@@ -111,8 +112,7 @@ class VectorStoreBuilder:
         if not lc_documents:
             raise ValueError("No valid chunks found in documents")
 
-        if DEBUG_MODE:
-            debug_log(f"[VectorStore] Converting {len(lc_documents)} chunks to embeddings...")
+        logger.debug("Converting %d chunks to embeddings...", len(lc_documents))
 
         # Create FAISS vector store from documents
         # This embeds all chunks and builds the index
@@ -126,10 +126,9 @@ class VectorStoreBuilder:
 
         elapsed_ms = (time.perf_counter() - start_time) * 1000
 
-        if DEBUG_MODE:
-            debug_log(f"[VectorStore] Created index with {len(lc_documents)} chunks")
-            debug_log(f"[VectorStore] Saved to: {persist_dir}")
-            debug_log(f"[VectorStore] Build time: {elapsed_ms:.1f}ms")
+        logger.debug("Created index with %d chunks", len(lc_documents))
+        logger.debug("Saved to: %s", persist_dir)
+        logger.debug("Build time: %.1fms", elapsed_ms)
 
         return VectorStoreResult(
             persist_dir=persist_dir,
@@ -190,9 +189,8 @@ class VectorStoreBuilder:
         # Ensure directory exists
         persist_dir.mkdir(parents=True, exist_ok=True)
 
-        if DEBUG_MODE:
-            debug_log(f"[VectorStore] Building index from {len(chunks)} unified chunks")
-            debug_log(f"[VectorStore] Case ID: {case_id}")
+        logger.debug("Building index from %d unified chunks", len(chunks))
+        logger.debug("Case ID: %s", case_id)
 
         # Convert UnifiedChunk objects to LangChain Documents
         lc_documents = []
@@ -224,13 +222,8 @@ class VectorStoreBuilder:
         if not lc_documents:
             raise ValueError("No valid chunks found after conversion")
 
-        if DEBUG_MODE:
-            avg_tokens = sum(d.metadata.get("token_count", 0) for d in lc_documents) / len(
-                lc_documents
-            )
-            debug_log(
-                f"[VectorStore] Converting {len(lc_documents)} chunks (avg {avg_tokens:.0f} tokens)"
-            )
+        avg_tokens = sum(d.metadata.get("token_count", 0) for d in lc_documents) / len(lc_documents)
+        logger.debug("Converting %d chunks (avg %.0f tokens)", len(lc_documents), avg_tokens)
 
         # Create FAISS vector store from documents
         vector_store = FAISS.from_documents(documents=lc_documents, embedding=embeddings)
@@ -243,10 +236,9 @@ class VectorStoreBuilder:
 
         elapsed_ms = (time.perf_counter() - start_time) * 1000
 
-        if DEBUG_MODE:
-            debug_log(f"[VectorStore] Created index with {len(lc_documents)} unified chunks")
-            debug_log(f"[VectorStore] Saved to: {persist_dir}")
-            debug_log(f"[VectorStore] Build time: {elapsed_ms:.1f}ms")
+        logger.debug("Created index with %d unified chunks", len(lc_documents))
+        logger.debug("Saved to: %s", persist_dir)
+        logger.debug("Build time: %.1fms", elapsed_ms)
 
         return VectorStoreResult(
             persist_dir=persist_dir,
@@ -350,8 +342,7 @@ class VectorStoreBuilder:
                         )
                     )
 
-                if DEBUG_MODE:
-                    debug_log(f"[VectorStore] Split '{filename}' into {len(split_texts)} chunks")
+                logger.debug("Split '%s' into %d chunks", filename, len(split_texts))
 
         return lc_documents
 
@@ -399,12 +390,11 @@ class VectorStoreBuilder:
             pipeline = create_default_pipeline()
             cleaned = pipeline.process(text)
 
-            if DEBUG_MODE:
-                debug_log(f"[VectorStore] Preprocessing applied: {pipeline.total_changes} changes")
+            logger.debug("Preprocessing applied: %d changes", pipeline.total_changes)
 
             return cleaned
         except Exception as e:
-            debug_log(f"[VectorStore] Preprocessing error (using raw text): {e}")
+            logger.error("Preprocessing error (using raw text): %s", e)
             return text
 
     def _save_integrity_hash(self, persist_dir: Path) -> None:
@@ -440,8 +430,7 @@ class VectorStoreBuilder:
         # Save hash to file
         hash_file.write_text(hasher.hexdigest())
 
-        if DEBUG_MODE:
-            debug_log(f"[VectorStore] Saved integrity hash: {hasher.hexdigest()[:16]}...")
+        logger.debug("Saved integrity hash: %s...", hasher.hexdigest()[:16])
 
     @staticmethod
     def get_existing_stores() -> list[Path]:
@@ -474,9 +463,9 @@ class VectorStoreBuilder:
         try:
             if persist_dir.exists():
                 shutil.rmtree(persist_dir)
-                debug_log(f"[VectorStore] Deleted: {persist_dir}")
+                logger.debug("Deleted: %s", persist_dir)
                 return True
             return False
         except Exception as e:
-            debug_log(f"[VectorStore] Error deleting {persist_dir}: {e}")
+            logger.error("Error deleting %s: %s", persist_dir, e)
             return False

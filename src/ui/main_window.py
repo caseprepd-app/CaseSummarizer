@@ -26,6 +26,7 @@ Architecture:
     - src/ui/main_window_helpers/timer_mixin.py - Timer helpers
 """
 
+import logging
 import re
 import threading
 import time
@@ -35,8 +36,6 @@ from tkinter import filedialog, messagebox
 
 import customtkinter as ctk
 
-from src.config import DEBUG_MODE
-from src.logging_config import debug_log
 from src.services.workers import (
     ProcessingWorker,
     ProgressiveExtractionWorker,
@@ -46,6 +45,8 @@ from src.services.workers import (
 from src.ui.styles import initialize_all_styles
 from src.ui.tooltip_manager import tooltip_manager
 from src.ui.window_layout import WindowLayoutMixin
+
+logger = logging.getLogger(__name__)
 
 # Try to import tkinterdnd2 for drag-and-drop support (Session 73)
 try:
@@ -152,9 +153,8 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         self._update_ollama_status()
         self._update_model_display()
 
-        if DEBUG_MODE:
-            dnd_status = "enabled" if HAS_DND else "disabled (tkinterdnd2 not installed)"
-            debug_log(f"[MainWindow] Initialized with two-panel layout, drag-drop {dnd_status}")
+        dnd_status = "enabled" if HAS_DND else "disabled (tkinterdnd2 not installed)"
+        logger.debug("Initialized with two-panel layout, drag-drop %s", dnd_status)
 
     # =========================================================================
     # Ollama Status & Model Display
@@ -182,9 +182,8 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             # Add tooltip with troubleshooting info
             self._setup_ollama_tooltip()
 
-        if DEBUG_MODE:
-            status = "connected" if self.model_manager.is_connected else "disconnected"
-            debug_log(f"[MainWindow] Ollama status: {status}")
+        status = "connected" if self.model_manager.is_connected else "disconnected"
+        logger.debug("Ollama status: %s", status)
 
     def _setup_ollama_tooltip(self):
         """Set up hover tooltip for disconnected Ollama status."""
@@ -260,8 +259,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         display_text = self._format_model_display(model_name)
         self.model_name_label.configure(text=display_text)
 
-        if DEBUG_MODE:
-            debug_log(f"[MainWindow] Model display updated: {display_text}")
+        logger.debug("Model display updated: %s", display_text)
 
     def _format_model_display(self, model_name: str) -> str:
         """
@@ -302,21 +300,16 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             dialog = SettingsDialog(parent=self, initial_tab="Questions")
             dialog.wait_window()
         except Exception as e:
-            # LOG-006: Use debug_log instead of traceback.print_exc()
-            debug_log(f"Failed to open settings dialog: {e}")
+            logger.debug("Failed to open settings dialog: %s", e)
 
         # Session 62: Check if model changed and reload if needed
         new_model = prefs.get("ollama_model", self.model_manager.model_name)
         if new_model and new_model != old_model:
             try:
                 self.model_manager.load_model(new_model)
-                from src.logging_config import info as log_info
-
-                log_info(f"Model changed: {old_model} → {new_model}")
+                logger.info("Model changed: %s -> %s", old_model, new_model)
             except Exception as e:
-                from src.logging_config import warning as log_warning
-
-                log_warning(f"Failed to load model {new_model}: {e}")
+                logger.warning("Failed to load model %s: %s", new_model, e)
 
         # Refresh UI after settings change
         self._refresh_corpus_dropdown()
@@ -361,7 +354,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
                 self.corpus_info_label.configure(text="")
 
         except Exception as e:
-            debug_log(f"[MainWindow] Error refreshing corpus dropdown: {e}")
+            logger.debug("Error refreshing corpus dropdown: %s", e)
             self.corpus_dropdown.configure(values=["Error"])
             self.corpus_dropdown.set("Error")
             self.corpus_doc_count_label.configure(text="")
@@ -383,8 +376,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             dialog = SettingsDialog(parent=self, initial_tab="Corpus")
             dialog.wait_window()
         except Exception as e:
-            # LOG-006: Use debug_log instead of traceback.print_exc()
-            debug_log(f"Failed to open settings dialog: {e}")
+            logger.debug("Failed to open settings dialog: %s", e)
 
         # Refresh after dialog closes
         self._refresh_corpus_dropdown()
@@ -401,8 +393,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         Requires tkinterdnd2 library to be installed.
         """
         if not HAS_DND:
-            if DEBUG_MODE:
-                debug_log("[MainWindow] Drag-drop disabled: tkinterdnd2 not installed")
+            logger.debug("Drag-drop disabled: tkinterdnd2 not installed")
             return
 
         try:
@@ -414,12 +405,10 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             self.left_panel.drop_target_register(DND_FILES)
             self.left_panel.dnd_bind("<<Drop>>", self._on_file_drop)
 
-            if DEBUG_MODE:
-                debug_log("[MainWindow] Drag-drop enabled on file table area")
+            logger.debug("Drag-drop enabled on file table area")
 
         except Exception as e:
-            if DEBUG_MODE:
-                debug_log(f"[MainWindow] Failed to initialize drag-drop: {e}")
+            logger.debug("Failed to initialize drag-drop: %s", e)
 
     def _on_file_drop(self, event):
         """
@@ -471,8 +460,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             self.set_status("No supported files dropped (PDF, TXT, RTF, DOCX, PNG, JPG)")
             return
 
-        if DEBUG_MODE:
-            debug_log(f"[MainWindow] Files dropped: {len(valid_files)} valid files")
+        logger.debug("Files dropped: %s valid files", len(valid_files))
 
         # Hide Export All button when new files are dropped
         if self._export_all_visible:
@@ -617,18 +605,18 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         # Progressive Extraction handlers (Session 48, Session 85)
         elif msg_type == "extraction_started":
             # Session 85: Dim feedback buttons while extraction is in progress
-            debug_log("[MainWindow] Extraction started - dimming feedback buttons")
+            logger.debug("Extraction started - dimming feedback buttons")
             self.output_display.set_extraction_in_progress(True)
 
         elif msg_type == "extraction_complete":
             # Session 85: Re-enable feedback buttons after extraction completes
-            debug_log("[MainWindow] Extraction complete - enabling feedback buttons")
+            logger.debug("Extraction complete - enabling feedback buttons")
             self.output_display.set_extraction_in_progress(False)
 
         elif msg_type == "partial_vocab_complete":
             # Session 85: Show BM25 + RAKE results before NER completes
             term_count = len(data) if data else 0
-            debug_log(f"[MainWindow] Partial results: {term_count} terms from BM25+RAKE")
+            logger.debug("Partial results: %s terms from BM25+RAKE", term_count)
             self.output_display.update_outputs(vocab_csv_data=data)
             self.output_display.set_extraction_source("partial")
             self.set_status(f"Found {term_count} terms (BM25+RAKE). Running NER...")
@@ -644,14 +632,14 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
 
         elif msg_type == "ner_complete":
             term_count = len(data) if data else 0
-            debug_log(f"[MainWindow] NER complete: {term_count} terms - displaying immediately")
+            logger.debug("NER complete: %s terms - displaying immediately", term_count)
             self.output_display.update_outputs(vocab_csv_data=data)
             self.output_display.set_extraction_source("ner")
             self.set_status(f"NER complete: {term_count} terms found. LLM enhancement starting...")
 
         elif msg_type == "qa_ready":
             chunk_count = data.get("chunk_count", 0)
-            debug_log(f"[MainWindow] Q&A ready: {chunk_count} chunks indexed")
+            logger.debug("Q&A ready: %s chunks indexed", chunk_count)
             self._vector_store_path = data.get("vector_store_path")
             self._embeddings = data.get("embeddings")
             self._qa_ready = True
@@ -666,20 +654,20 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             error_msg = (
                 data.get("error", "Unknown Q&A error") if isinstance(data, dict) else str(data)
             )
-            debug_log(f"[MainWindow] Q&A indexing error: {error_msg}")
+            logger.debug("Q&A indexing error: %s", error_msg)
             self.set_status(f"Questions and answers unavailable: {error_msg[:50]}...")
             # Q&A won't be available but vocab extraction can continue
 
         elif msg_type == "trigger_default_qa":
             # Check if default questions checkbox is enabled
             if not self.ask_default_questions_check.get():
-                debug_log("[MainWindow] Default questions disabled, skipping")
+                logger.debug("Default questions disabled, skipping")
             else:
                 # Spawn QAWorker with default questions
                 from src.services.workers import QAWorker
                 from src.user_preferences import get_user_preferences
 
-                debug_log("[MainWindow] Spawning QAWorker for default questions")
+                logger.debug("Spawning QAWorker for default questions")
                 prefs = get_user_preferences()
 
                 # Session 86: Store as instance variable so _poll_queue() keeps polling
@@ -692,17 +680,17 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
                     use_default_questions=True,
                 )
                 self._default_qa_worker.start()
-                debug_log("[MainWindow] Default questions worker started")
+                logger.debug("Default questions worker started")
 
         # Q&A result handlers (Session 63c: handle messages from default questions worker)
         elif msg_type == "qa_progress":
             current, total, _question = data
-            debug_log(f"[MainWindow] Q&A progress: {current + 1}/{total}")
+            logger.debug("Q&A progress: %s/%s", current + 1, total)
             self.set_status(f"Answering default questions: {current + 1}/{total}...")
 
         elif msg_type == "qa_result":
             # Individual Q&A result - add to results and update display
-            debug_log("[MainWindow] Q&A result received")
+            logger.debug("Q&A result received")
             with self._qa_results_lock:  # LOG-007: Thread-safe access
                 self._qa_results.append(data)
                 self.output_display.update_outputs(qa_results=self._qa_results)
@@ -710,7 +698,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         elif msg_type == "qa_complete":
             # All Q&A questions answered
             qa_results = data if data else []
-            debug_log(f"[MainWindow] Q&A complete: {len(qa_results)} answers")
+            logger.debug("Q&A complete: %s answers", len(qa_results))
             with self._qa_results_lock:  # LOG-007: Thread-safe access
                 self._qa_results = qa_results
             if qa_results:
@@ -720,11 +708,11 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
 
         elif msg_type == "llm_progress":
             current, total = data
-            debug_log(f"[MainWindow] LLM progress: {current}/{total}")
+            logger.debug("LLM progress: %s/%s", current, total)
 
         elif msg_type == "llm_complete":
             term_count = len(data) if data else 0
-            debug_log(f"[MainWindow] LLM complete: {term_count} reconciled terms")
+            logger.debug("LLM complete: %s reconciled terms", term_count)
 
             # Session 78: Only update vocab and show "Enhanced" if LLM actually returned results
             # When LLM is skipped/disabled, data is empty [] - keep NER-only results
@@ -744,7 +732,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
 
         else:
             # Log unhandled messages for debugging
-            debug_log(f"[MainWindow] Unhandled message type: {msg_type}")
+            logger.debug("Unhandled message type: %s", msg_type)
 
     def _on_preprocessing_complete(self, results: list[dict]):
         """Handle preprocessing completion."""
@@ -761,9 +749,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         # which wasn't present in the individual 'file_processed' messages
         if results:
             self.processing_results = results
-            debug_log(
-                f"[MainWindow] Updated processing_results with {len(results)} preprocessed documents"
-            )
+            logger.debug("Updated processing_results with %s preprocessed documents", len(results))
 
         # Re-enable controls
         self.add_files_btn.configure(state="normal")
@@ -882,7 +868,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             return (manager.get_enabled_count(), manager.get_total_count())
 
         except Exception as e:
-            debug_log(f"[MainWindow] Error loading default question count: {e}")
+            logger.debug("Error loading default question count: %s", e)
             return (0, 0)
 
     def _update_default_questions_label(self):
@@ -906,18 +892,16 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         # Just update button state - no other action needed here
         self._update_generate_button_state()
 
-        if DEBUG_MODE:
-            state = "enabled" if self.ask_default_questions_check.get() else "disabled"
-            debug_log(f"[MainWindow] Default questions {state}")
+        state = "enabled" if self.ask_default_questions_check.get() else "disabled"
+        logger.debug("Default questions %s", state)
 
     def _on_qa_check_changed(self):
         """Handle Q&A checkbox state change."""
         self._update_generate_button_state()
         self._update_default_questions_checkbox_state()
 
-        if DEBUG_MODE:
-            state = "enabled" if self.qa_check.get() else "disabled"
-            debug_log(f"[MainWindow] Q&A {state}")
+        state = "enabled" if self.qa_check.get() else "disabled"
+        logger.debug("Q&A %s", state)
 
     def _update_default_questions_checkbox_state(self):
         """
@@ -1008,10 +992,9 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
                 "Check this box for more thorough vocabulary extraction."
             )
 
-        if DEBUG_MODE:
-            debug_log(
-                f"[MainWindow] LLM checkbox: mode={vocab_mode}, has_gpu={has_gpu}, enabled={llm_enabled}"
-            )
+        logger.debug(
+            "LLM checkbox: mode=%s, has_gpu=%s, enabled=%s", vocab_mode, has_gpu, llm_enabled
+        )
 
     def _set_vocab_llm_tooltip(self, text: str):
         """
@@ -1066,8 +1049,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             # Also disable the sub-checkbox
             self._update_default_questions_checkbox_state()
 
-        if DEBUG_MODE:
-            debug_log(f"[MainWindow] Q&A checkbox: model={model_name}, allowed={allowed}")
+        logger.debug("Q&A checkbox: model=%s, allowed=%s", model_name, allowed)
 
     def _set_qa_tooltip(self, text: str):
         """
@@ -1105,18 +1087,16 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         self._update_generate_button_state()
         self._update_vocab_llm_checkbox_state()
 
-        if DEBUG_MODE:
-            state = "enabled" if self.vocab_check.get() else "disabled"
-            debug_log(f"[MainWindow] Vocabulary extraction {state}")
+        state = "enabled" if self.vocab_check.get() else "disabled"
+        logger.debug("Vocabulary extraction %s", state)
 
     def _on_vocab_llm_check_changed(self):
         """Handle LLM Enhancement checkbox state change (user manually toggles)."""
         # Update task preview to reflect LLM change (Session 69)
         self._update_task_preview()
 
-        if DEBUG_MODE:
-            state = "enabled" if self.vocab_llm_check.get() else "disabled"
-            debug_log(f"[MainWindow] LLM enhancement {state}")
+        state = "enabled" if self.vocab_llm_check.get() else "disabled"
+        logger.debug("LLM enhancement %s", state)
 
     def refresh_default_questions_label(self):
         """Refresh the default questions checkbox label. Called after editing questions."""
@@ -1183,8 +1163,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
 
         self.stats_label.configure(text=stats_text)
 
-        if DEBUG_MODE:
-            debug_log(f"[MainWindow] Session stats: {stats_text.replace(chr(10), ' | ')}")
+        logger.debug("Session stats: %s", stats_text.replace(chr(10), " | "))
 
     def _perform_tasks(self):
         """Execute the selected tasks using progressive three-phase architecture (Session 45)."""
@@ -1239,13 +1218,15 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         self.set_status("Extracting vocabulary...")
 
         # Debug: Log what's in processing_results
-        debug_log(
-            f"[MainWindow] Vocabulary: {len(self.processing_results)} documents in processing_results"
-        )
+        logger.debug("Vocabulary: %s documents in processing_results", len(self.processing_results))
         for i, doc in enumerate(self.processing_results):
             text_len = len(doc.get("extracted_text", "") or "")
-            debug_log(
-                f"[MainWindow] Doc {i}: {doc.get('filename', 'unknown')} - {text_len} chars, status={doc.get('status')}"
+            logger.debug(
+                "Doc %s: %s - %s chars, status=%s",
+                i,
+                doc.get("filename", "unknown"),
+                text_len,
+                doc.get("status"),
             )
 
         # Combine text from all processed documents
@@ -1253,11 +1234,11 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
 
         combined_text = DocumentService().combine_document_texts(self.processing_results)
 
-        debug_log(f"[MainWindow] Combined text length: {len(combined_text)} chars")
+        logger.debug("Combined text length: %s chars", len(combined_text))
 
         if not combined_text.strip():
             self.set_status("No text to analyze for vocabulary")
-            debug_log("[MainWindow] WARNING: No text after combining documents!")
+            logger.debug("WARNING: No text after combining documents!")
             self._on_vocab_complete([])
             return
 
@@ -1269,12 +1250,12 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
 
         prefs = get_user_preferences()
         use_llm = prefs.is_vocab_llm_enabled()
-        debug_log(f"[MainWindow] Vocabulary extraction with LLM: {use_llm}")
+        logger.debug("Vocabulary extraction with LLM: %s", use_llm)
 
         # Calculate aggregate document confidence (Session 54)
         # Use minimum confidence - terms from the worst document are most suspect
         doc_confidence = self._calculate_aggregate_confidence(self.processing_results)
-        debug_log(f"[MainWindow] Aggregate document confidence: {doc_confidence:.1f}%")
+        logger.debug("Aggregate document confidence: %.1f%%", doc_confidence)
 
         # Start vocabulary worker
         self._vocabulary_worker = VocabularyWorker(
@@ -1367,25 +1348,27 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
 
         combined_text = DocumentService().combine_document_texts(self.processing_results)
 
-        debug_log(
-            f"[MainWindow] Progressive extraction: {len(combined_text)} chars from {len(self.processing_results)} docs"
+        logger.debug(
+            "Progressive extraction: %s chars from %s docs",
+            len(combined_text),
+            len(self.processing_results),
         )
 
         if not combined_text.strip():
             self.set_status("No text to analyze")
-            debug_log("[MainWindow] WARNING: No text after combining documents!")
+            logger.debug("WARNING: No text after combining documents!")
             self._on_tasks_complete(False, "No text to analyze")
             return
 
         # Calculate aggregate document confidence (Session 54)
         doc_confidence = self._calculate_aggregate_confidence(self.processing_results)
-        debug_log(f"[MainWindow] Aggregate document confidence: {doc_confidence:.1f}%")
+        logger.debug("Aggregate document confidence: %.1f%%", doc_confidence)
 
         # Session 63b: Use checkbox state (which already reflects settings + GPU detection)
         # The checkbox is pre-configured by _update_vocab_llm_checkbox_state() at startup
         # and when settings change. We read the checkbox to respect user's in-session choice.
         use_llm = self.vocab_llm_check.get() and self.vocab_llm_check.cget("state") == "normal"
-        debug_log(f"[MainWindow] LLM extraction from checkbox: {use_llm}")
+        logger.debug("LLM extraction from checkbox: %s", use_llm)
 
         # Start progressive extraction worker (uses shared ui_queue)
         self._progressive_worker = ProgressiveExtractionWorker(
@@ -1420,16 +1403,16 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             try:
                 # Lazy-load embeddings model (slow first time, reused after)
                 if self._embeddings is None:
-                    debug_log("[MainWindow] Loading HuggingFaceEmbeddings model...")
+                    logger.debug("Loading HuggingFaceEmbeddings model...")
                     from langchain_huggingface import HuggingFaceEmbeddings
 
                     self._embeddings = HuggingFaceEmbeddings(
                         model_name="all-MiniLM-L6-v2", model_kwargs={"device": "cpu"}
                     )
-                    debug_log("[MainWindow] Embeddings model loaded")
+                    logger.debug("Embeddings model loaded")
 
                 # Build vector store from documents
-                debug_log("[MainWindow] Building vector store...")
+                logger.debug("Building vector store...")
                 from src.services import QAService
 
                 builder = QAService().get_vector_store_builder()
@@ -1437,15 +1420,15 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
                     documents=self.processing_results, embeddings=self._embeddings
                 )
                 self._vector_store_path = result.persist_dir
-                debug_log(
-                    f"[MainWindow] Vector store created: {result.chunk_count} chunks at {result.persist_dir}"
+                logger.debug(
+                    "Vector store created: %s chunks at %s", result.chunk_count, result.persist_dir
                 )
 
                 # Signal main thread that initialization is complete
                 self.after(0, lambda: self._qa_init_complete(True, None))
 
             except Exception as e:
-                debug_log(f"[MainWindow] Q&A initialization error: {e}")
+                logger.debug("Q&A initialization error: %s", e)
                 error_msg = str(e)
                 self.after(0, lambda err=error_msg: self._qa_init_complete(False, err))
 
@@ -1637,7 +1620,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             and self._followup_thread is not None
             and self._followup_thread.is_alive()
         ):
-            debug_log("[MainWindow] Follow-up already in progress, ignoring")
+            logger.debug("Follow-up already in progress, ignoring")
             return
 
         # Clear entry and disable controls while processing
@@ -1668,7 +1651,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
                 self._followup_queue.put(("success", result))
             except Exception as e:
                 self._followup_queue.put(("error", str(e)))
-                debug_log(f"[MainWindow] Follow-up thread error: {e}")
+                logger.debug("Follow-up thread error: %s", e)
 
         self._followup_thread = threading.Thread(target=run_followup, daemon=True)
         self._followup_thread.start()
@@ -1701,13 +1684,13 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
                 # Note: QAResult uses 'quick_answer', not 'answer'
                 answer_len = len(data.quick_answer) if data.quick_answer else 0
                 self.set_status(f"Follow-up answered: {answer_len} chars")
-                debug_log("[MainWindow] Follow-up result displayed successfully")
+                logger.debug("Follow-up result displayed successfully")
             elif msg_type == "error":
                 self.set_status("Follow-up failed")
                 messagebox.showerror("Error", f"Failed to process follow-up: {data}")
         except Exception as e:
             # Catch any errors during result processing
-            debug_log(f"[MainWindow] Error processing follow-up result: {e}")
+            logger.debug("Error processing follow-up result: %s", e)
             self.set_status("Follow-up error - check logs")
             messagebox.showerror("Error", f"Error displaying result: {e!s}")
 
@@ -1729,7 +1712,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
 
         # Check prerequisites
         if not self._vector_store_path or not self._embeddings:
-            debug_log("[MainWindow] Follow-up unavailable: no vector store or embeddings")
+            logger.debug("Follow-up unavailable: no vector store or embeddings")
             return None
 
         # NOTE: This method runs in a background thread (from QAPanel._submit_followup)
@@ -1755,11 +1738,11 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             with self._qa_results_lock:
                 self._qa_results.append(result)
 
-            debug_log(f"[MainWindow] Follow-up answered: {len(result.answer)} chars")
+            logger.debug("Follow-up answered: %s chars", len(result.answer))
             return result
 
         except Exception as e:
-            debug_log(f"[MainWindow] Follow-up error: {e}")
+            logger.debug("Follow-up error: %s", e)
             return None
 
     # =========================================================================
@@ -1774,8 +1757,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             dialog = SettingsDialog(parent=self)
             dialog.wait_window()
         except Exception as e:
-            # LOG-006: Use debug_log instead of traceback.print_exc()
-            debug_log(f"Failed to open settings dialog: {e}")
+            logger.debug("Failed to open settings dialog: %s", e)
 
         # Refresh UI after settings change
         self._refresh_corpus_dropdown()
@@ -1873,7 +1855,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             if summary_text:
                 parts.append("summary")
             self.set_status(f"Exported {' + '.join(parts)} to {filename}", duration_ms=5000)
-            debug_log(f"[MainWindow] Export All HTML: {filepath}")
+            logger.debug("Export All HTML: %s", filepath)
         else:
             messagebox.showerror("Export Failed", "Failed to create HTML report.")
 
@@ -1954,7 +1936,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             return 100.0  # Default to 100% if no confidence data
 
         min_conf = min(confidences)
-        debug_log(f"[MainWindow] Document confidences: {confidences} -> min={min_conf:.1f}%")
+        logger.debug("Document confidences: %s -> min=%.1f%%", confidences, min_conf)
         return min_conf
 
     # =========================================================================
@@ -1977,8 +1959,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
 
         self.status_label.configure(text=message)
 
-        if DEBUG_MODE:
-            debug_log(f"[MainWindow] Status: {message}")
+        logger.debug("Status: %s", message)
 
         # Schedule auto-clear if duration specified
         if duration_ms:
@@ -1997,9 +1978,9 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         """Check if Ollama service is running on startup."""
         try:
             self.model_manager.health_check()
-            debug_log("[MainWindow] Ollama service is accessible")
+            logger.debug("Ollama service is accessible")
         except Exception as e:
-            debug_log(f"[MainWindow] Ollama service not accessible: {e}")
+            logger.debug("Ollama service not accessible: %s", e)
 
             # Show warning
             from src.config import APP_NAME

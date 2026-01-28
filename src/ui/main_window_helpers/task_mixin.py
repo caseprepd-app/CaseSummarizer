@@ -12,12 +12,13 @@ Contains:
 - Follow-up question handling
 """
 
+import logging
 import threading
 import time
 from queue import Empty, Queue
 from tkinter import messagebox
 
-from src.logging_config import debug_log
+logger = logging.getLogger(__name__)
 
 
 class TaskMixin:
@@ -151,14 +152,14 @@ class TaskMixin:
         # Progressive Extraction handlers (Session 48)
         elif msg_type == "ner_complete":
             term_count = len(data) if data else 0
-            debug_log(f"[MainWindow] NER complete: {term_count} terms")
+            logger.debug("NER complete: %s terms", term_count)
             self.output_display.update_outputs(vocab_csv_data=data)
             self.output_display.set_extraction_source("ner")
             self.set_status(f"NER complete: {term_count} terms found. LLM enhancement starting...")
 
         elif msg_type == "qa_ready":
             chunk_count = data.get("chunk_count", 0)
-            debug_log(f"[MainWindow] Q&A ready: {chunk_count} chunks indexed")
+            logger.debug("Q&A ready: %s chunks indexed", chunk_count)
             self._vector_store_path = data.get("vector_store_path")
             self._embeddings = data.get("embeddings")
             self._qa_ready = True
@@ -177,7 +178,7 @@ class TaskMixin:
             error_msg = (
                 data.get("error", "Unknown Q&A error") if isinstance(data, dict) else str(data)
             )
-            debug_log(f"[MainWindow] Q&A indexing error: {error_msg}")
+            logger.debug("Q&A indexing error: %s", error_msg)
             self.set_status(f"Questions and answers unavailable: {error_msg[:50]}...")
 
         elif msg_type == "trigger_default_qa":
@@ -185,18 +186,18 @@ class TaskMixin:
 
         elif msg_type == "qa_progress":
             current, total, _question = data
-            debug_log(f"[MainWindow] Q&A progress: {current + 1}/{total}")
+            logger.debug("Q&A progress: %s/%s", current + 1, total)
             self.set_status(f"Answering default questions: {current + 1}/{total}...")
 
         elif msg_type == "qa_result":
-            debug_log("[MainWindow] Q&A result received")
+            logger.debug("Q&A result received")
             with self._qa_results_lock:
                 self._qa_results.append(data)
                 self.output_display.update_outputs(qa_results=self._qa_results)
 
         elif msg_type == "qa_complete":
             qa_results = data if data else []
-            debug_log(f"[MainWindow] Q&A complete: {len(qa_results)} answers")
+            logger.debug("Q&A complete: %s answers", len(qa_results))
             with self._qa_results_lock:
                 self._qa_results = qa_results
             if qa_results:
@@ -219,11 +220,11 @@ class TaskMixin:
 
         elif msg_type == "llm_progress":
             current, total = data
-            debug_log(f"[MainWindow] LLM progress: {current}/{total}")
+            logger.debug("LLM progress: %s/%s", current, total)
 
         elif msg_type == "llm_complete":
             term_count = len(data) if data else 0
-            debug_log(f"[MainWindow] LLM complete: {term_count} reconciled terms")
+            logger.debug("LLM complete: %s reconciled terms", term_count)
 
             if data:
                 self.output_display.update_outputs(vocab_csv_data=data)
@@ -237,7 +238,7 @@ class TaskMixin:
             # Session 84: Don't finalize until Q&A is ready (if Q&A enabled)
             # The vector store builds in parallel and triggers default questions when done
             if self._pending_tasks.get("qa") and not self._qa_ready:
-                debug_log("[MainWindow] Waiting for Q&A index before finalizing...")
+                logger.debug("Waiting for Q&A index before finalizing...")
                 self.set_status("Building Q&A index...")
             elif self._pending_tasks.get("summary"):
                 self._start_summary_task()
@@ -245,12 +246,12 @@ class TaskMixin:
                 self._finalize_tasks()
 
         else:
-            debug_log(f"[MainWindow] Unhandled message type: {msg_type}")
+            logger.debug("Unhandled message type: %s", msg_type)
 
     def _handle_trigger_default_qa(self, data):
         """Handle trigger_default_qa message - spawn QAWorker for default questions."""
         if not self.ask_default_questions_check.get():
-            debug_log("[MainWindow] Default questions disabled, skipping")
+            logger.debug("Default questions disabled, skipping")
             # Session 84: Still need to finalize tasks when default questions are disabled
             if "vocab" in self._completed_tasks:
                 if self._pending_tasks.get("summary"):
@@ -262,7 +263,7 @@ class TaskMixin:
         from src.services.workers import QAWorker
         from src.user_preferences import get_user_preferences
 
-        debug_log("[MainWindow] Spawning QAWorker for default questions")
+        logger.debug("Spawning QAWorker for default questions")
         prefs = get_user_preferences()
 
         qa_worker = QAWorker(
@@ -274,7 +275,7 @@ class TaskMixin:
             use_default_questions=True,
         )
         qa_worker.start()
-        debug_log("[MainWindow] Default questions worker started")
+        logger.debug("Default questions worker started")
 
     # =========================================================================
     # Task Execution
@@ -347,24 +348,25 @@ class TaskMixin:
         doc_service = DocumentService()
         combined_text = doc_service.combine_document_texts(self.processing_results)
 
-        debug_log(
-            f"[MainWindow] Progressive extraction: {len(combined_text)} chars "
-            f"from {len(self.processing_results)} docs"
+        logger.debug(
+            "Progressive extraction: %s chars from %s docs",
+            len(combined_text),
+            len(self.processing_results),
         )
 
         if not combined_text.strip():
             self.set_status("No text to analyze")
-            debug_log("[MainWindow] WARNING: No text after combining documents!")
+            logger.debug("WARNING: No text after combining documents!")
             self._on_tasks_complete(False, "No text to analyze")
             return
 
         # Calculate aggregate document confidence (Session 54)
         doc_confidence = self._calculate_aggregate_confidence(self.processing_results)
-        debug_log(f"[MainWindow] Aggregate document confidence: {doc_confidence:.1f}%")
+        logger.debug("Aggregate document confidence: %.1f%%", doc_confidence)
 
         # Use checkbox state (which reflects settings + GPU detection)
         use_llm = self.vocab_llm_check.get() and self.vocab_llm_check.cget("state") == "normal"
-        debug_log(f"[MainWindow] LLM extraction from checkbox: {use_llm}")
+        logger.debug("LLM extraction from checkbox: %s", use_llm)
 
         # Start progressive extraction worker
         self._progressive_worker = ProgressiveExtractionWorker(
@@ -402,31 +404,32 @@ class TaskMixin:
             try:
                 # Lazy-load embeddings model
                 if self._embeddings is None:
-                    debug_log("[MainWindow] Loading HuggingFaceEmbeddings model...")
+                    logger.debug("Loading HuggingFaceEmbeddings model...")
                     from langchain_huggingface import HuggingFaceEmbeddings
 
                     self._embeddings = HuggingFaceEmbeddings(
                         model_name="all-MiniLM-L6-v2", model_kwargs={"device": "cpu"}
                     )
-                    debug_log("[MainWindow] Embeddings model loaded")
+                    logger.debug("Embeddings model loaded")
 
                 # Build vector store via QAService
-                debug_log("[MainWindow] Building vector store...")
+                logger.debug("Building vector store...")
                 qa_service = QAService()
                 builder = qa_service.get_vector_store_builder()
                 result = builder.create_from_documents(
                     documents=self.processing_results, embeddings=self._embeddings
                 )
                 self._vector_store_path = result.persist_dir
-                debug_log(
-                    f"[MainWindow] Vector store created: {result.chunk_count} chunks "
-                    f"at {result.persist_dir}"
+                logger.debug(
+                    "Vector store created: %s chunks at %s",
+                    result.chunk_count,
+                    result.persist_dir,
                 )
 
                 self.after(0, lambda: self._qa_init_complete(True, None))
 
             except Exception as e:
-                debug_log(f"[MainWindow] Q&A initialization error: {e}")
+                logger.debug("Q&A initialization error: %s", e)
                 error_msg = str(e)
                 self.after(0, lambda err=error_msg: self._qa_init_complete(False, err))
 
@@ -559,13 +562,10 @@ class TaskMixin:
                 state="normal", placeholder_text="Ask a follow-up question..."
             )
 
-        # Show Export buttons after successful processing
+        # Show Export All button after successful processing
         if success and not self._export_all_visible:
             self.export_all_btn.pack(side="right", padx=10, pady=3)
             self._export_all_visible = True
-        if success and not self._combined_report_visible:
-            self.combined_report_btn.pack(side="right", padx=5, pady=3)
-            self._combined_report_visible = True
 
         # Update session stats
         if success:
@@ -623,7 +623,7 @@ class TaskMixin:
             and self._followup_thread is not None
             and self._followup_thread.is_alive()
         ):
-            debug_log("[MainWindow] Follow-up already in progress, ignoring")
+            logger.debug("Follow-up already in progress, ignoring")
             return
 
         # Clear entry and disable controls
@@ -651,7 +651,7 @@ class TaskMixin:
                 self._followup_queue.put(("success", result))
             except Exception as e:
                 self._followup_queue.put(("error", str(e)))
-                debug_log(f"[MainWindow] Follow-up thread error: {e}")
+                logger.debug("Follow-up thread error: %s", e)
 
         self._followup_thread = threading.Thread(target=run_followup, daemon=True)
         self._followup_thread.start()
@@ -679,12 +679,12 @@ class TaskMixin:
                     self.output_display.update_outputs(qa_results=self._qa_results)
                 answer_len = len(data.quick_answer) if data.quick_answer else 0
                 self.set_status(f"Follow-up answered: {answer_len} chars")
-                debug_log("[MainWindow] Follow-up result displayed successfully")
+                logger.debug("Follow-up result displayed successfully")
             elif msg_type == "error":
                 self.set_status("Follow-up failed")
                 messagebox.showerror("Error", f"Failed to process follow-up: {data}")
         except Exception as e:
-            debug_log(f"[MainWindow] Error processing follow-up result: {e}")
+            logger.debug("Error processing follow-up result: %s", e)
             self.set_status("Follow-up error - check logs")
             messagebox.showerror("Error", f"Error displaying result: {e!s}")
 
@@ -705,7 +705,7 @@ class TaskMixin:
             return None
 
         if not self._vector_store_path or not self._embeddings:
-            debug_log("[MainWindow] Follow-up unavailable: no vector store or embeddings")
+            logger.debug("Follow-up unavailable: no vector store or embeddings")
             return None
 
         try:
@@ -725,9 +725,9 @@ class TaskMixin:
             with self._qa_results_lock:
                 self._qa_results.append(result)
 
-            debug_log(f"[MainWindow] Follow-up answered: {len(result.answer)} chars")
+            logger.debug("Follow-up answered: %s chars", len(result.answer))
             return result
 
         except Exception as e:
-            debug_log(f"[MainWindow] Follow-up error: {e}")
+            logger.debug("Follow-up error: %s", e)
             return None

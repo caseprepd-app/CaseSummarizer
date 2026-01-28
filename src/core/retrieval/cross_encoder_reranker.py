@@ -20,15 +20,16 @@ Usage:
     )
 """
 
+import logging
 import os
 
 from src.config import (
-    DEBUG_MODE,
     HF_CACHE_DIR,
     RERANKER_MODEL_LOCAL_PATH,
     RERANKER_MODEL_NAME,
 )
-from src.logging_config import debug_log
+
+logger = logging.getLogger(__name__)
 
 
 class CrossEncoderReranker:
@@ -61,18 +62,15 @@ class CrossEncoderReranker:
         # Check for bundled model first
         if RERANKER_MODEL_LOCAL_PATH.exists():
             model_path = str(RERANKER_MODEL_LOCAL_PATH)
-            if DEBUG_MODE:
-                debug_log(f"[Reranker] Using bundled model: {model_path}")
+            logger.debug("Using bundled model: %s", model_path)
         else:
             model_path = RERANKER_MODEL_NAME
-            if DEBUG_MODE:
-                debug_log(f"[Reranker] Downloading model: {model_path}")
-                debug_log(f"[Reranker] Cache directory: {HF_CACHE_DIR}")
+            logger.debug("Downloading model: %s", model_path)
+            logger.debug("Cache directory: %s", HF_CACHE_DIR)
 
         self._model = CrossEncoder(model_path, max_length=512)
 
-        if DEBUG_MODE:
-            debug_log("[Reranker] Cross-encoder model loaded successfully")
+        logger.debug("Cross-encoder model loaded successfully")
 
     # Minimum sigmoid score to consider a chunk genuinely relevant.
     # sigmoid(0)=0.5, so 0.3 means the cross-encoder must give a positive
@@ -104,14 +102,13 @@ class CrossEncoderReranker:
             try:
                 self._load_model()
             except Exception as e:
-                debug_log(f"[Reranker] Failed to load cross-encoder model: {e}")
+                logger.error("Failed to load cross-encoder model: %s", e)
                 return list(chunks[:top_k])
 
         # Build query-document pairs for cross-encoder
         pairs = [[query, chunk.text] for chunk in chunks]
 
-        if DEBUG_MODE:
-            debug_log(f"[Reranker] Reranking {len(chunks)} chunks for query: {query[:50]}...")
+        logger.debug("Reranking %d chunks for query: %s...", len(chunks), query[:50])
 
         # Get cross-encoder scores (raw logits)
         raw_scores = self._model.predict(pairs)
@@ -133,11 +130,14 @@ class CrossEncoderReranker:
             # Filter out genuinely irrelevant chunks
             if float(norm_score) < self.MIN_RELEVANCE_SCORE:
                 filtered_count += 1
-                if DEBUG_MODE:
-                    debug_log(
-                        f"[Reranker] FILTERED #{i + 1}: {chunk.filename} chunk {chunk.chunk_num} - "
-                        f"rerank={norm_score:.3f} < threshold {self.MIN_RELEVANCE_SCORE}"
-                    )
+                logger.debug(
+                    "FILTERED #%d: %s chunk %d - rerank=%.3f < threshold %s",
+                    i + 1,
+                    chunk.filename,
+                    chunk.chunk_num,
+                    norm_score,
+                    self.MIN_RELEVANCE_SCORE,
+                )
                 continue
 
             # Store original hybrid score for debugging/analysis
@@ -154,21 +154,24 @@ class CrossEncoderReranker:
 
             reranked.append(chunk)
 
-            if DEBUG_MODE:
-                debug_log(
-                    f"[Reranker] #{len(reranked)}: {chunk.filename} chunk {chunk.chunk_num} - "
-                    f"hybrid={chunk.metadata['original_hybrid_score']:.3f} -> "
-                    f"rerank={norm_score:.3f} (raw={raw_score:.3f})"
-                )
-
-        if filtered_count > 0 and DEBUG_MODE:
-            debug_log(
-                f"[Reranker] Filtered {filtered_count} chunks below "
-                f"relevance threshold {self.MIN_RELEVANCE_SCORE}"
+            logger.debug(
+                "#%d: %s chunk %d - hybrid=%.3f -> rerank=%.3f (raw=%.3f)",
+                len(reranked),
+                chunk.filename,
+                chunk.chunk_num,
+                chunk.metadata["original_hybrid_score"],
+                norm_score,
+                raw_score,
             )
 
-        if DEBUG_MODE:
-            debug_log(f"[Reranker] Returned {len(reranked)} of {len(chunks)} chunks")
+        if filtered_count > 0:
+            logger.debug(
+                "Filtered %d chunks below relevance threshold %s",
+                filtered_count,
+                self.MIN_RELEVANCE_SCORE,
+            )
+
+        logger.debug("Returned %d of %d chunks", len(reranked), len(chunks))
 
         return reranked
 
@@ -184,6 +187,5 @@ class CrossEncoderReranker:
                 self._load_model()
             return self._model is not None
         except Exception as e:
-            if DEBUG_MODE:
-                debug_log(f"[Reranker] Model not available: {e}")
+            logger.debug("Model not available: %s", e)
             return False

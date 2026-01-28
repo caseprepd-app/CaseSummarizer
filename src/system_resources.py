@@ -21,6 +21,7 @@ Usage:
     workers = get_optimal_workers(task_ram_gb=0.5)
 """
 
+import logging
 import os
 from typing import NamedTuple
 
@@ -31,8 +32,9 @@ try:
 except ImportError:
     PSUTIL_AVAILABLE = False
 
-from src.logging_config import debug_log
 from src.user_preferences import get_user_preferences
+
+logger = logging.getLogger(__name__)
 
 
 class ResourceInfo(NamedTuple):
@@ -63,7 +65,7 @@ def get_system_resources() -> ResourceInfo:
         total_ram_gb = mem.total / (1024**3)
     else:
         # Fallback: assume 16GB total, 8GB available (conservative defaults)
-        debug_log("[Resources] psutil not available, using conservative defaults")
+        logger.debug("psutil not available, using conservative defaults")
         available_ram_gb = 8.0
         total_ram_gb = 16.0
 
@@ -118,11 +120,16 @@ def get_optimal_workers(
     # Ensure at least min_workers
     final_workers = max(min_workers, optimal)
 
-    debug_log(
-        f"[Resources] Calculated workers: {final_workers} "
-        f"(CPU: {resources.cpu_count} cores x {resources.resource_usage_pct}% = {cpu_limited}, "
-        f"RAM: {resources.available_ram_gb:.1f}GB avail / {task_ram_gb}GB per worker = {ram_limited}, "
-        f"cap: {max_workers})"
+    logger.debug(
+        "Calculated workers: %s (CPU: %s cores x %s%% = %s, RAM: %.1fGB avail / %sGB per worker = %s, cap: %s)",
+        final_workers,
+        resources.cpu_count,
+        resources.resource_usage_pct,
+        cpu_limited,
+        resources.available_ram_gb,
+        task_ram_gb,
+        ram_limited,
+        max_workers,
     )
 
     return final_workers

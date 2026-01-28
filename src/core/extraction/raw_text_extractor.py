@@ -25,6 +25,7 @@ This module can be run standalone via command line:
 """
 
 import contextlib
+import logging
 from pathlib import Path
 
 from src.config import (
@@ -35,7 +36,9 @@ from src.config import (
 
 # Character sanitization (external module)
 from src.core.sanitization import CharacterSanitizer
-from src.logging_config import Timer, debug, error, info, warning
+from src.logging_config import Timer
+
+logger = logging.getLogger(__name__)
 
 # Internal modules (the actual implementation)
 from .case_number_extractor import CaseNumberExtractor
@@ -92,7 +95,7 @@ class RawTextExtractor:
             self.case_extractor = CaseNumberExtractor()
             self.character_sanitizer = CharacterSanitizer()
 
-        debug(f"RawTextExtractor initialized for jurisdiction: {jurisdiction}")
+        logger.debug("RawTextExtractor initialized for jurisdiction: %s", jurisdiction)
 
     def process_document(self, file_path: str, progress_callback=None) -> dict:
         """
@@ -131,7 +134,7 @@ class RawTextExtractor:
         file_path = Path(file_path)
         filename = file_path.name
 
-        info(f"Processing document: {filename}")
+        logger.info("Processing document: %s", filename)
 
         def report_progress(message: str, percent: int):
             if progress_callback:
@@ -161,7 +164,7 @@ class RawTextExtractor:
                 if validation["error"]:
                     result["status"] = "error"
                     result["error_message"] = validation["error"]
-                    error(validation["error"])
+                    logger.error("%s", validation["error"])
                     return result
 
                 result["file_size"] = validation["file_size"]
@@ -173,7 +176,7 @@ class RawTextExtractor:
                 if extraction["status"] == "error":
                     result["status"] = "error"
                     result["error_message"] = extraction["error_message"]
-                    error(extraction["error_message"])
+                    logger.error("%s", extraction["error_message"])
                     return result
 
                 result["method"] = extraction["method"]
@@ -186,7 +189,7 @@ class RawTextExtractor:
                 if result["extracted_text"]:
                     result["case_numbers"] = self.case_extractor.extract(result["extracted_text"])
                     if result["case_numbers"]:
-                        debug(f"Found case numbers: {result['case_numbers']}")
+                        logger.debug("Found case numbers: %s", result["case_numbers"])
 
                 # Step 4: Normalize text
                 report_progress("Normalizing text", 70)
@@ -202,7 +205,7 @@ class RawTextExtractor:
                             "Unable to extract readable text. "
                             "File may be corrupted or contain only images."
                         )
-                        error(result["error_message"])
+                        logger.error("%s", result["error_message"])
                         return result
 
                 # Step 5: Sanitize characters
@@ -215,7 +218,7 @@ class RawTextExtractor:
                         result["extracted_text"] = sanitized
 
                         if any(stats.values()):
-                            debug(f"Sanitization stats: {stats}")
+                            logger.debug("Sanitization stats: %s", stats)
 
                 # Step 6: Set final status based on confidence
                 if (
@@ -229,7 +232,7 @@ class RawTextExtractor:
         except Exception as e:
             result["status"] = "error"
             result["error_message"] = f"Unexpected error: {e!s}"
-            error(f"Error processing {filename}: {e!s}", exc_info=True)
+            logger.error("Error processing %s: %s", filename, e, exc_info=True)
             report_progress("Error", 0)
 
         return result
@@ -250,7 +253,7 @@ class RawTextExtractor:
             }
 
         if size_mb > LARGE_FILE_WARNING_MB:
-            warning(f"Large file detected ({size_mb:.1f}MB). Processing may take longer.")
+            logger.warning("Large file detected (%.1fMB). Processing may take longer.", size_mb)
 
         return {"error": None, "file_size": file_size}
 
@@ -282,7 +285,7 @@ class RawTextExtractor:
         """Process PDF with hybrid extraction, falling back to OCR if needed."""
         from src.config import MIN_DICTIONARY_CONFIDENCE
 
-        debug(f"Processing PDF: {file_path.name}")
+        logger.debug("Processing PDF: %s", file_path.name)
 
         # Step 1: Try PyMuPDF extraction (primary)
         # Uses facade methods so tests can mock them
@@ -307,17 +310,17 @@ class RawTextExtractor:
             with Timer("Word-level voting reconciliation"):
                 text = self._reconcile_extractions(primary_text, secondary_text)
             method = "hybrid_voting"
-            debug("Using hybrid extraction with word-level voting")
+            logger.debug("Using hybrid extraction with word-level voting")
 
         elif primary_text:
             text = primary_text
             method = "pymupdf_only"
-            debug(f"Using PyMuPDF only (pdfplumber failed: {secondary_error})")
+            logger.debug("Using PyMuPDF only (pdfplumber failed: %s)", secondary_error)
 
         elif secondary_text:
             text = secondary_text
             method = "pdfplumber_only"
-            debug(f"Using pdfplumber only (PyMuPDF failed: {primary_error})")
+            logger.debug("Using pdfplumber only (PyMuPDF failed: %s)", primary_error)
 
         else:
             # Both failed
@@ -342,13 +345,13 @@ class RawTextExtractor:
         # Step 4: Check text quality
         with Timer("Dictionary confidence check"):
             confidence = self._calculate_dictionary_confidence(text)
-        debug(f"Dictionary confidence: {confidence:.1f}% (method: {method})")
+        logger.debug("Dictionary confidence: %.1f%% (method: %s)", confidence, method)
 
         # Decision: Use digital text or fall back to OCR
         needs_ocr = confidence <= MIN_DICTIONARY_CONFIDENCE or len(text) <= 1000
 
         if needs_ocr:
-            debug("Digital text quality insufficient. Performing OCR...")
+            logger.debug("Digital text quality insufficient. Performing OCR...")
             with Timer("OCR Processing"):
                 ocr_result = self.ocr_processor.process_pdf(file_path, page_count)
 
@@ -466,7 +469,7 @@ Examples:
     output_dir.mkdir(parents=True, exist_ok=True)
 
     # Initialize extractor
-    info(f"Initializing extractor (jurisdiction: {args.jurisdiction})")
+    logger.info("Initializing extractor (jurisdiction: %s)", args.jurisdiction)
     extractor = RawTextExtractor(jurisdiction=args.jurisdiction)
 
     # Process files
@@ -483,7 +486,7 @@ Examples:
             with open(output_path, "w", encoding="utf-8") as f:
                 f.write(result["extracted_text"])
 
-            info(f"Saved: {output_path}")
+            logger.info("Saved: %s", output_path)
 
     # Print summary
     print("\n" + "=" * 60)

@@ -19,11 +19,13 @@ Usage:
 """
 
 import json
+import logging
 import re
 from pathlib import Path
 
 from src.core.preprocessing.base import BasePreprocessor, PreprocessingResult
-from src.logging_config import debug_log
+
+logger = logging.getLogger(__name__)
 
 
 def _load_transcript_patterns() -> dict:
@@ -35,13 +37,13 @@ def _load_transcript_patterns() -> dict:
     """
     config_path = Path(__file__).parent.parent.parent.parent / "config" / "transcript_patterns.json"
     if not config_path.exists():
-        debug_log(f"[TranscriptCleaner] Config not found: {config_path}, using defaults")
+        logger.debug("Config not found: %s, using defaults", config_path)
         return {}
     try:
         with open(config_path, encoding="utf-8") as f:
             return json.load(f)
     except (json.JSONDecodeError, OSError) as e:
-        debug_log(f"[TranscriptCleaner] Error loading config: {e}, using defaults")
+        logger.debug("Error loading config: %s, using defaults", e)
         return {}
 
 
@@ -103,10 +105,11 @@ class TranscriptCleaner(BasePreprocessor):
         metadata["chars_removed"] = changes
 
         if changes > 0:
-            debug_log(
-                f"[TranscriptCleaner] Removed {changes} chars: "
-                f"page_nums={page_nums_removed}, "
-                f"inline_citations={inline_citations_removed}"
+            logger.debug(
+                "Removed %s chars: page_nums=%s, inline_citations=%s",
+                changes,
+                page_nums_removed,
+                inline_citations_removed,
             )
 
         return PreprocessingResult(
@@ -239,15 +242,17 @@ class TranscriptCleaner(BasePreprocessor):
                 replacement = pattern_config.get("replacement", r"\1")
                 cleaned_text, count = pattern.subn(replacement, cleaned_text)
                 if count > 0:
-                    debug_log(
-                        f"[TranscriptCleaner] Pattern '{pattern_config.get('name', 'unnamed')}' "
-                        f"stripped {count} match(es)"
+                    logger.debug(
+                        "Pattern '%s' stripped %s match(es)",
+                        pattern_config.get("name", "unnamed"),
+                        count,
                     )
                     total_count += count
             except re.error as e:
-                debug_log(
-                    f"[TranscriptCleaner] Invalid regex in pattern "
-                    f"'{pattern_config.get('name', 'unnamed')}': {e}"
+                logger.debug(
+                    "Invalid regex in pattern '%s': %s",
+                    pattern_config.get("name", "unnamed"),
+                    e,
                 )
 
         return cleaned_text, total_count

@@ -133,10 +133,10 @@ class TestOllamaPayload:
 class TestTruncationWarning:
     """Test that truncation warnings are issued appropriately."""
 
-    @patch("src.core.ai.ollama_model_manager.warning")
+    @patch("src.core.ai.ollama_model_manager.logger")
     @patch("src.core.ai.ollama_model_manager.requests.post")
     @patch("src.core.ai.ollama_model_manager.requests.get")
-    def test_warning_on_large_prompt(self, mock_get, mock_post, mock_warning):
+    def test_warning_on_large_prompt(self, mock_get, mock_post, mock_logger):
         """Verify warning is issued when prompt approaches context limit."""
         # Setup mocks
         mock_get_response = MagicMock()
@@ -162,17 +162,17 @@ class TestTruncationWarning:
 
         manager.generate_text(large_prompt, max_tokens=100)
 
-        # Verify warning was called
-        assert mock_warning.called, "Warning should be issued for large prompt"
-        warning_msg = mock_warning.call_args[0][0]
+        # Verify logger.warning was called
+        assert mock_logger.warning.called, "Warning should be issued for large prompt"
+        warning_msg = mock_logger.warning.call_args[0][0]
         assert "truncated" in warning_msg.lower() or "exceed" in warning_msg.lower(), (
             f"Warning should mention truncation risk: {warning_msg}"
         )
 
-    @patch("src.core.ai.ollama_model_manager.warning")
+    @patch("src.core.ai.ollama_model_manager.logger")
     @patch("src.core.ai.ollama_model_manager.requests.post")
     @patch("src.core.ai.ollama_model_manager.requests.get")
-    def test_no_warning_on_small_prompt(self, mock_get, mock_post, mock_warning):
+    def test_no_warning_on_small_prompt(self, mock_get, mock_post, mock_logger):
         """Verify no warning for prompts well under context limit."""
         # Setup mocks
         mock_get_response = MagicMock()
@@ -195,5 +195,5 @@ class TestTruncationWarning:
 
         manager.generate_text(small_prompt, max_tokens=100)
 
-        # Verify warning was NOT called
-        assert not mock_warning.called, "No warning should be issued for small prompts"
+        # Verify logger.warning was NOT called
+        assert not mock_logger.warning.called, "No warning should be issued for small prompts"

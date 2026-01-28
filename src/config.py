@@ -3,6 +3,7 @@ CasePrepd Configuration Module
 Centralized configuration for the application.
 """
 
+import logging
 import os
 from pathlib import Path
 
@@ -10,7 +11,9 @@ import yaml
 
 from src.config_defaults import get_default as _d
 
-# Debug Mode Configuration
+logger = logging.getLogger(__name__)
+
+# Debug Mode Configuration — kept temporarily for backward compat (Phase 4 removes)
 DEBUG_MODE = os.environ.get("DEBUG", "false").lower() == "true"
 
 # Application Name (loaded from config/app_name.txt for easy rebranding)
@@ -300,24 +303,20 @@ def load_model_configs():
         with open(MODEL_CONFIG_FILE, encoding="utf-8") as f:
             data = yaml.safe_load(f)
             MODEL_CONFIGS = data.get("models", {})
-        if DEBUG_MODE and MODEL_CONFIGS:
-            from src.logging_config import debug_log
-
-            debug_log(
-                f"[Config] Loaded {len(MODEL_CONFIGS)} model configurations from {MODEL_CONFIG_FILE}"
+        if MODEL_CONFIGS:
+            logger.debug(
+                "Loaded %d model configurations from %s",
+                len(MODEL_CONFIGS),
+                MODEL_CONFIG_FILE,
             )
     except FileNotFoundError:
-        if DEBUG_MODE:
-            from src.logging_config import debug_log
-
-            debug_log(
-                f"[Config] WARNING: Model config file not found at {MODEL_CONFIG_FILE}. Using fallback values."
-            )
+        logger.warning(
+            "Model config file not found at %s. Using fallback values.",
+            MODEL_CONFIG_FILE,
+        )
         MODEL_CONFIGS = {}
     except Exception as e:
-        from src.logging_config import debug_log
-
-        debug_log(f"[Config] ERROR: Failed to load or parse model config file: {e}")
+        logger.error("Failed to load or parse model config file: %s", e)
         MODEL_CONFIGS = {}
 
 
@@ -342,31 +341,24 @@ def get_model_config(model_name: str) -> dict:
     base_name = model_name.split(":")[0]
     for name, config in MODEL_CONFIGS.items():
         if name.startswith(base_name):
-            if DEBUG_MODE:
-                from src.logging_config import debug_log
-
-                debug_log(
-                    f"[Config] Found partial match for '{model_name}': using config for '{name}'."
-                )
+            logger.debug(
+                "Found partial match for '%s': using config for '%s'.",
+                model_name,
+                name,
+            )
             return config
 
     # 3. Fallback to the default model name if no match found
     if OLLAMA_MODEL_NAME in MODEL_CONFIGS:
-        if DEBUG_MODE:
-            from src.logging_config import debug_log
-
-            debug_log(
-                f"[Config] WARNING: Model '{model_name}' not found. Falling back to default model '{OLLAMA_MODEL_NAME}'."
-            )
+        logger.warning(
+            "Model '%s' not found. Falling back to default model '%s'.",
+            model_name,
+            OLLAMA_MODEL_NAME,
+        )
         return MODEL_CONFIGS[OLLAMA_MODEL_NAME]
 
     # 4. Absolute fallback if config is empty or default is missing
-    if DEBUG_MODE:
-        from src.logging_config import debug_log
-
-        debug_log(
-            "[Config] WARNING: No model configurations found. Using hard-coded fallback values."
-        )
+    logger.warning("No model configurations found. Using hard-coded fallback values.")
     return {
         "context_window": 4096,
         "max_input_tokens": 2048,

@@ -17,7 +17,11 @@ Usage:
     dialog = SettingsDialog(parent=root, on_save_callback=my_callback)
 """
 
+import logging
+
 import customtkinter as ctk
+
+logger = logging.getLogger(__name__)
 
 from src.ui.base_dialog import BaseModalDialog
 from src.ui.theme import COLORS, FONTS
@@ -343,9 +347,7 @@ class SettingsDialog(BaseModalDialog):
                     widget.set_value(value)
                 except Exception as e:
                     # Use default if getter fails (e.g., missing preference)
-                    from src.logging_config import debug_log
-
-                    debug_log(f"[Settings] Getter failed for {setting.key}: {e}")
+                    logger.debug("Getter failed for %s: %s", setting.key, e)
                     widget.set_value(setting.default)
 
     def _save(self):
@@ -356,8 +358,6 @@ class SettingsDialog(BaseModalDialog):
         and does NOT close the dialog, allowing user to correct the value.
         """
         from tkinter import messagebox
-
-        from src.logging_config import debug_log
 
         errors = []
 
@@ -370,10 +370,10 @@ class SettingsDialog(BaseModalDialog):
                 except ValueError as ve:
                     # Validation error - collect for user display
                     errors.append(f"• {setting.label}: {ve}")
-                    debug_log(f"[Settings] Validation error for {setting.key}: {ve}")
+                    logger.debug("Validation error for %s: %s", setting.key, ve)
                 except Exception as e:
                     # Other errors - log but continue
-                    debug_log(f"[Settings] Error saving {setting.key}: {e}")
+                    logger.debug("Error saving %s: %s", setting.key, e)
 
         # If there were validation errors, show them and stay open
         if errors:
@@ -386,7 +386,7 @@ class SettingsDialog(BaseModalDialog):
             try:
                 self.on_save_callback()
             except Exception as e:
-                debug_log(f"[Settings] Error in save callback: {e}")
+                logger.debug("Error in save callback: %s", e)
 
         self.destroy()
 

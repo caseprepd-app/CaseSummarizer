@@ -16,6 +16,7 @@ The full branching question tree in qa_questions.yaml is preserved
 but not exposed in this UI.
 """
 
+import logging
 import shutil
 from pathlib import Path
 from tkinter import messagebox, ttk
@@ -23,10 +24,10 @@ from tkinter import messagebox, ttk
 import customtkinter as ctk
 import yaml
 
-from src.config import DEBUG_MODE
 from src.core.config import load_yaml_with_fallback
-from src.logging_config import debug_log
 from src.ui.base_dialog import BaseModalDialog
+
+logger = logging.getLogger(__name__)
 from src.ui.theme import BUTTON_STYLES, COLORS, FONTS
 
 # Default questions YAML path
@@ -82,8 +83,7 @@ class QAQuestionEditor(BaseModalDialog):
         # Handle window close
         self.protocol("WM_DELETE_WINDOW", self._on_close)
 
-        if DEBUG_MODE:
-            debug_log(f"[QAQuestionEditor] Opened with {len(self._questions)} questions")
+        logger.debug("QAQuestionEditor opened with %s questions", len(self._questions))
 
     def _create_ui(self):
         """Build the editor UI."""
@@ -362,10 +362,10 @@ class QAQuestionEditor(BaseModalDialog):
                 self._load_questions()
                 self._has_changes = True
                 self.status_label.configure(text="Reset to defaults (unsaved)")
-                debug_log("[QAQuestionEditor] Reset from backup")
+                logger.debug("Reset from backup")
                 return
             except Exception as e:
-                debug_log(f"[QAQuestionEditor] Backup restore failed: {e}")
+                logger.debug("Backup restore failed: %s", e)
 
         # If no backup, restore from original
         import copy
@@ -415,11 +415,11 @@ class QAQuestionEditor(BaseModalDialog):
             with open(self.yaml_path, "w", encoding="utf-8") as f:
                 yaml.dump(config, f, default_flow_style=False, allow_unicode=True, sort_keys=False)
 
-            debug_log(f"[QAQuestionEditor] Saved {len(self._questions)} questions")
+            logger.debug("Saved %s questions", len(self._questions))
             return True
 
         except Exception as e:
-            debug_log(f"[QAQuestionEditor] Save error: {e}")
+            logger.debug("Save error: %s", e)
             messagebox.showerror("Save Error", f"Failed to save questions: {e}")
             return False
 

@@ -21,19 +21,21 @@ Example usage:
     >>> print(f"OCR confidence: {result['confidence']}%")
 """
 
+import logging
 from pathlib import Path
 
 import pytesseract
 from pdf2image import convert_from_path
 
 from src.config import (
-    DEBUG_MODE,
     OCR_DENOISE_STRENGTH,
     OCR_DPI,
     OCR_ENABLE_CLAHE,
     OCR_PREPROCESSING_ENABLED,
 )
-from src.logging_config import Timer, debug
+from src.logging_config import Timer
+
+logger = logging.getLogger(__name__)
 
 from .dictionary_utils import DictionaryUtils
 from .image_preprocessor import ImagePreprocessor
@@ -66,9 +68,10 @@ class OCRProcessor:
                 denoise_strength=OCR_DENOISE_STRENGTH,
                 enable_clahe=OCR_ENABLE_CLAHE,
             )
-            debug(
-                f"OCR preprocessing enabled "
-                f"(denoise={OCR_DENOISE_STRENGTH}, clahe={OCR_ENABLE_CLAHE})"
+            logger.debug(
+                "OCR preprocessing enabled (denoise=%d, clahe=%s)",
+                OCR_DENOISE_STRENGTH,
+                OCR_ENABLE_CLAHE,
             )
 
     def process_pdf(self, file_path: Path, page_count: int | None = None) -> dict:
@@ -96,7 +99,7 @@ class OCRProcessor:
             >>> result = processor.process_pdf(Path("scan.pdf"))
             >>> print(result['method'])  # 'ocr_enhanced' if preprocessing enabled
         """
-        debug(f"Starting OCR on {file_path.name}")
+        logger.debug("Starting OCR on %s", file_path.name)
 
         try:
             # Convert PDF to images
@@ -110,33 +113,34 @@ class OCRProcessor:
             # OCR each page
             ocr_text = ""
             for i, image in enumerate(images, 1):
-                if DEBUG_MODE:
-                    debug(f"OCR processing page {i}/{len(images)}")
+                logger.debug("OCR processing page %d/%d", i, len(images))
 
                 # Apply preprocessing if enabled
                 if self.preprocessor is not None:
-                    with Timer(f"Preprocessing page {i}", auto_log=DEBUG_MODE):
+                    with Timer(f"Preprocessing page {i}", auto_log=True):
                         image, stats = self.preprocessor.preprocess(image)
                         total_preprocessing_time += stats.total_time_ms
                         if stats.skew_corrected:
                             total_skew_corrections += 1
-                            debug(f"  Page {i}: corrected {stats.skew_angle:.1f} deg skew")
+                            logger.debug("Page %d: corrected %.1f deg skew", i, stats.skew_angle)
 
                 # Run Tesseract
-                with Timer(f"OCR page {i}", auto_log=DEBUG_MODE):
+                with Timer(f"OCR page {i}", auto_log=True):
                     page_text = pytesseract.image_to_string(image)
                     ocr_text += page_text + "\n"
 
             # Log preprocessing summary
             if self.preprocessor is not None:
-                debug(
-                    f"Preprocessing summary: {total_preprocessing_time:.1f}ms total, "
-                    f"{total_skew_corrections}/{len(images)} pages deskewed"
+                logger.debug(
+                    "Preprocessing summary: %.1fms total, %d/%d pages deskewed",
+                    total_preprocessing_time,
+                    total_skew_corrections,
+                    len(images),
                 )
 
             # Calculate confidence
             confidence = self.dictionary.calculate_confidence(ocr_text)
-            debug(f"OCR confidence: {confidence:.1f}%")
+            logger.debug("OCR confidence: %.1f%%", confidence)
 
             return {
                 "text": ocr_text,
@@ -182,7 +186,7 @@ class OCRProcessor:
             # Apply preprocessing if enabled
             if self.preprocessor is not None:
                 processed_img, stats = self.preprocessor.preprocess(image)
-                debug(f"Image preprocessing applied: {stats}")
+                logger.debug("Image preprocessing applied: %s", stats)
             else:
                 # At minimum convert to grayscale
                 processed_img = image.convert("L")
@@ -201,7 +205,7 @@ class OCRProcessor:
 
             # Calculate confidence
             confidence = self.dictionary.calculate_confidence(text)
-            debug(f"Image OCR confidence: {confidence:.1f}%")
+            logger.debug("Image OCR confidence: %.1f%%", confidence)
 
             return {
                 "text": text,

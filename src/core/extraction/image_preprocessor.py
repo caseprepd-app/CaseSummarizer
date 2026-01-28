@@ -17,6 +17,7 @@ References:
 - OpenCV documentation: https://docs.opencv.org/4.x/d7/d4d/tutorial_py_thresholding.html
 """
 
+import logging
 import time
 from dataclasses import dataclass, field
 
@@ -24,7 +25,7 @@ import cv2
 import numpy as np
 from PIL import Image
 
-from src.logging_config import debug, warning
+logger = logging.getLogger(__name__)
 
 # Lazy import deskew to avoid import errors if not installed
 _deskew_module = None
@@ -39,7 +40,7 @@ def _get_deskew():
 
             _deskew_module = determine_skew
         except ImportError:
-            warning("deskew library not installed. Skew correction disabled.")
+            logger.warning("deskew library not installed. Skew correction disabled.")
             _deskew_module = False
     return _deskew_module
 
@@ -155,7 +156,7 @@ class ImagePreprocessor:
         stats = PreprocessingStats()
         stats.original_size = image.size
 
-        debug(f"Starting image preprocessing: {image.size[0]}x{image.size[1]}")
+        logger.debug("Starting image preprocessing: %dx%d", image.size[0], image.size[1])
 
         # Stage 0a: Orientation correction
         image = self._stage_orientation(image, stats)
@@ -189,8 +190,11 @@ class ImagePreprocessor:
         stats.processed_size = result.size
         stats.total_time_ms = (time.time() - start_time) * 1000
 
-        debug(
-            f"Image preprocessing complete: {stats.processed_size[0]}x{stats.processed_size[1]} in {stats.total_time_ms:.1f}ms"
+        logger.debug(
+            "Image preprocessing complete: %dx%d in %.1fms",
+            stats.processed_size[0],
+            stats.processed_size[1],
+            stats.total_time_ms,
         )
 
         return result, stats
@@ -201,7 +205,7 @@ class ImagePreprocessor:
         if self.enable_orientation_correction:
             image = self._detect_and_correct_orientation(image, stats)
         else:
-            debug("  [0a] Orientation correction: skipped (disabled)")
+            logger.debug("Orientation correction: skipped (disabled)")
         stats.stage_times["orientation"] = (time.time() - stage_start) * 1000
         return image
 
@@ -213,7 +217,7 @@ class ImagePreprocessor:
         if self.enable_document_detection:
             image = self._detect_and_crop_document(image, stats)
         else:
-            debug("  [0b] Document detection: skipped (disabled)")
+            logger.debug("Document detection: skipped (disabled)")
         stats.stage_times["document_crop"] = (time.time() - stage_start) * 1000
         return image
 
@@ -222,10 +226,10 @@ class ImagePreprocessor:
         stage_start = time.time()
         if len(cv_image.shape) == 3:
             gray = cv2.cvtColor(cv_image, cv2.COLOR_RGB2GRAY)
-            debug("  [1] Grayscale conversion: applied")
+            logger.debug("Grayscale conversion: applied")
         else:
             gray = cv_image
-            debug("  [1] Grayscale conversion: already grayscale")
+            logger.debug("Grayscale conversion: already grayscale")
         stats.stage_times["grayscale"] = (time.time() - stage_start) * 1000
         return gray
 
@@ -235,10 +239,10 @@ class ImagePreprocessor:
         try:
             denoised = cv2.fastNlMeansDenoising(gray, None, self.denoise_strength, 7, 21)
             stats.denoised = True
-            debug(f"  [2] Denoising: applied (strength={self.denoise_strength})")
+            logger.debug("Denoising: applied (strength=%d)", self.denoise_strength)
         except Exception as e:
             denoised = gray
-            warning(f"  [2] Denoising failed: {e}")
+            logger.warning("Denoising failed: %s", e)
         stats.stage_times["denoise"] = (time.time() - stage_start) * 1000
         return denoised
 
@@ -252,13 +256,15 @@ class ImagePreprocessor:
                 )
                 enhanced = clahe.apply(denoised)
                 stats.contrast_enhanced = True
-                debug(f"  [3] CLAHE contrast enhancement: applied (clip={self.clahe_clip_limit})")
+                logger.debug(
+                    "CLAHE contrast enhancement: applied (clip=%.1f)", self.clahe_clip_limit
+                )
             except Exception as e:
                 enhanced = denoised
-                warning(f"  [3] CLAHE enhancement failed: {e}")
+                logger.warning("CLAHE enhancement failed: %s", e)
         else:
             enhanced = denoised
-            debug("  [3] CLAHE contrast enhancement: skipped (disabled)")
+            logger.debug("CLAHE contrast enhancement: skipped (disabled)")
         stats.stage_times["clahe"] = (time.time() - stage_start) * 1000
         return enhanced
 
@@ -275,18 +281,20 @@ class ImagePreprocessor:
                 self.adaptive_constant,
             )
             stats.binarized = True
-            debug(
-                f"  [4] Adaptive thresholding: applied (block={self.adaptive_block_size}, C={self.adaptive_constant})"
+            logger.debug(
+                "Adaptive thresholding: applied (block=%d, C=%d)",
+                self.adaptive_block_size,
+                self.adaptive_constant,
             )
         except Exception:
             # Fallback to Otsu's method
             try:
                 _, binary = cv2.threshold(enhanced, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
                 stats.binarized = True
-                debug("  [4] Adaptive thresholding failed, Otsu fallback: applied")
+                logger.debug("Adaptive thresholding failed, Otsu fallback: applied")
             except Exception as e2:
                 binary = enhanced
-                warning(f"  [4] All binarization failed: {e2}")
+                logger.warning("All binarization failed: %s", e2)
         stats.stage_times["binarize"] = (time.time() - stage_start) * 1000
         return binary
 
@@ -297,9 +305,9 @@ class ImagePreprocessor:
         stats.skew_angle = skew_angle
         stats.skew_corrected = abs(skew_angle) > 0.5
         if stats.skew_corrected:
-            debug(f"  [5] Deskewing: corrected {skew_angle:.2f}° rotation")
+            logger.debug("Deskewing: corrected %.2f deg rotation", skew_angle)
         else:
-            debug(f"  [5] Deskewing: no significant skew detected ({skew_angle:.2f}°)")
+            logger.debug("Deskewing: no significant skew detected (%.2f deg)", skew_angle)
         stats.stage_times["deskew"] = (time.time() - stage_start) * 1000
         return deskewed
 
@@ -317,10 +325,10 @@ class ImagePreprocessor:
                 value=255,
             )
             stats.border_added = True
-            debug(f"  [6] Border padding: added {self.border_size}px white border")
+            logger.debug("Border padding: added %dpx white border", self.border_size)
         else:
             padded = deskewed
-            debug("  [6] Border padding: skipped (disabled)")
+            logger.debug("Border padding: skipped (disabled)")
         stats.stage_times["border"] = (time.time() - stage_start) * 1000
         return padded
 
@@ -350,8 +358,10 @@ class ImagePreprocessor:
 
             # Limit correction to reasonable angles
             if abs(angle) > self.max_skew_angle:
-                warning(
-                    f"Detected skew angle {angle:.2f}° exceeds max {self.max_skew_angle}°, skipping correction"
+                logger.warning(
+                    "Detected skew angle %.2f deg exceeds max %.2f deg, skipping correction",
+                    angle,
+                    self.max_skew_angle,
                 )
                 return image, angle
 
@@ -386,7 +396,7 @@ class ImagePreprocessor:
             return rotated, angle
 
         except Exception as e:
-            warning(f"Deskew failed: {e}")
+            logger.warning("Deskew failed: %s", e)
             return image, 0.0
 
     def _detect_and_correct_orientation(
@@ -405,7 +415,7 @@ class ImagePreprocessor:
         try:
             import pytesseract
         except ImportError:
-            warning("pytesseract not available for orientation detection")
+            logger.warning("pytesseract not available for orientation detection")
             return image
 
         try:
@@ -424,22 +434,27 @@ class ImagePreprocessor:
                 # PIL rotates counter-clockwise, so we negate
                 corrected = image.rotate(-orientation, expand=True, fillcolor="white")
                 stats.orientation_corrected = True
-                debug(
-                    f"  [0a] Orientation correction: rotated {orientation}° (confidence={confidence:.1f})"
+                logger.debug(
+                    "Orientation correction: rotated %d deg (confidence=%.1f)",
+                    orientation,
+                    confidence,
                 )
                 return corrected
             else:
                 if orientation != 0:
-                    debug(
-                        f"  [0a] Orientation detection: {orientation}° detected but confidence too low ({confidence:.1f} < {self.orientation_confidence_threshold})"
+                    logger.debug(
+                        "Orientation detection: %d deg detected but confidence too low (%.1f < %.1f)",
+                        orientation,
+                        confidence,
+                        self.orientation_confidence_threshold,
                     )
                 else:
-                    debug("  [0a] Orientation detection: no rotation needed")
+                    logger.debug("Orientation detection: no rotation needed")
                 return image
 
         except Exception as e:
             # OSD can fail on images with little/no text
-            debug(f"  [0a] Orientation detection skipped: {e}")
+            logger.debug("Orientation detection skipped: %s", e)
             return image
 
     def _detect_and_crop_document(
@@ -479,7 +494,7 @@ class ImagePreprocessor:
         contours, _ = cv2.findContours(dilated, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
         if not contours:
-            debug("  [0b] Document detection: no contours found")
+            logger.debug("Document detection: no contours found")
             return image
 
         # Sort contours by area (largest first)
@@ -502,7 +517,7 @@ class ImagePreprocessor:
                 break
 
         if document_contour is None:
-            debug("  [0b] Document detection: no 4-sided document found")
+            logger.debug("Document detection: no 4-sided document found")
             return image
 
         # Found a document - extract the 4 corners
@@ -539,8 +554,12 @@ class ImagePreprocessor:
         warped = cv2.warpPerspective(cv_image, matrix, (target_width, target_height))
 
         stats.document_cropped = True
-        debug(
-            f"  [0b] Document detection: cropped {original_w}x{original_h} → {target_width}x{target_height}"
+        logger.debug(
+            "Document detection: cropped %dx%d to %dx%d",
+            original_w,
+            original_h,
+            target_width,
+            target_height,
         )
 
         return self._cv2_to_pil(warped)

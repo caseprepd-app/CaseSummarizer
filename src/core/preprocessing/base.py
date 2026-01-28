@@ -10,12 +10,13 @@ Design Principles:
 - Testable: Each preprocessor can be unit tested in isolation
 """
 
+import logging
 import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import Any
 
-from src.logging_config import debug_log
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -159,19 +160,17 @@ class PreprocessingPipeline:
         pipeline_start = time.time()
 
         enabled_count = sum(1 for p in self.preprocessors if p.enabled)
-        debug_log(
-            f"[PREPROCESSING] Starting pipeline with {enabled_count} "
-            f"enabled preprocessors on {len(text) // 1024}KB text"
+        logger.debug(
+            "Starting pipeline with %d enabled preprocessors on %dKB text",
+            enabled_count,
+            len(text) // 1024,
         )
 
-        # Import here to avoid circular imports
-        from src.logging_config import info
-
-        info(f"[PREPROCESSING] Starting with {enabled_count} preprocessors")
+        logger.info("Starting with %d preprocessors", enabled_count)
 
         for preprocessor in self.preprocessors:
             if not preprocessor.enabled:
-                debug_log(f"[PREPROCESSING] Skipping disabled: {preprocessor.name}")
+                logger.debug("Skipping disabled: %s", preprocessor.name)
                 continue
 
             start_time = time.time()
@@ -186,19 +185,18 @@ class PreprocessingPipeline:
                     "metadata": result.metadata,
                 }
 
-                debug_log(
-                    f"[PREPROCESSING] {preprocessor.name}: "
-                    f"{result.changes_made} changes in {elapsed_ms:.1f}ms"
+                logger.debug(
+                    "%s: %d changes in %.1fms", preprocessor.name, result.changes_made, elapsed_ms
                 )
 
                 # Log to processing.log if there were changes
                 if result.changes_made > 0:
-                    info(f"[PREPROCESSING] {preprocessor.name}: {result.changes_made} changes")
+                    logger.info("%s: %d changes", preprocessor.name, result.changes_made)
 
                 current_text = result.text
 
             except Exception as e:
-                debug_log(f"[PREPROCESSING] Error in {preprocessor.name}: {e}")
+                logger.error("Error in %s: %s", preprocessor.name, e)
                 # Continue with unchanged text on error
                 self._last_run_stats[preprocessor.name] = {
                     "error": str(e),
@@ -207,13 +205,14 @@ class PreprocessingPipeline:
                 }
 
         total_time = (time.time() - pipeline_start) * 1000
-        debug_log(
-            f"[PREPROCESSING] Pipeline complete: {self.total_changes} total changes "
-            f"in {total_time:.1f}ms, output {len(current_text) // 1024}KB"
+        logger.debug(
+            "Pipeline complete: %d total changes in %.1fms, output %dKB",
+            self.total_changes,
+            total_time,
+            len(current_text) // 1024,
         )
-        info(
-            f"[PREPROCESSING] Complete: {self.total_changes} changes, "
-            f"{len(current_text) // 1024}KB output"
+        logger.info(
+            "Complete: %d changes, %dKB output", self.total_changes, len(current_text) // 1024
         )
 
         return current_text

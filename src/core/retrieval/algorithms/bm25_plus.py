@@ -21,13 +21,14 @@ Reference:
     and knowledge management.
 """
 
+import logging
 import time
 from typing import Any
 
 import numpy as np  # PERF-004: Move to module level
 from rank_bm25 import BM25Plus
 
-from src.config import BM25_B, BM25_DELTA, BM25_K1, DEBUG_MODE
+from src.config import BM25_B, BM25_DELTA, BM25_K1
 from src.core.retrieval.algorithms import register_algorithm
 from src.core.retrieval.base import (
     AlgorithmRetrievalResult,
@@ -36,7 +37,8 @@ from src.core.retrieval.base import (
     RetrievedChunk,
 )
 from src.core.utils.tokenizer import tokenize_simple
-from src.logging_config import debug_log
+
+logger = logging.getLogger(__name__)
 
 
 @register_algorithm
@@ -99,10 +101,9 @@ class BM25PlusRetriever(BaseRetrievalAlgorithm):
 
         elapsed_ms = (time.perf_counter() - start_time) * 1000
 
-        if DEBUG_MODE:
-            debug_log(f"[BM25+] Indexed {len(chunks)} chunks in {elapsed_ms:.1f}ms")
-            avg_tokens = sum(len(t) for t in self._tokenized_corpus) / len(chunks)
-            debug_log(f"[BM25+] Average tokens per chunk: {avg_tokens:.1f}")
+        logger.debug("Indexed %d chunks in %.1fms", len(chunks), elapsed_ms)
+        avg_tokens = sum(len(t) for t in self._tokenized_corpus) / len(chunks)
+        logger.debug("Average tokens per chunk: %.1f", avg_tokens)
 
     def retrieve(self, query: str, k: int = 5) -> AlgorithmRetrievalResult:
         """
@@ -126,8 +127,7 @@ class BM25PlusRetriever(BaseRetrievalAlgorithm):
         # Tokenize query
         query_tokens = tokenize_simple(query)
 
-        if DEBUG_MODE:
-            debug_log(f"[BM25+] Query: '{query[:50]}...' -> {len(query_tokens)} tokens")
+        logger.debug("Query: '%s...' -> %d tokens", query[:50], len(query_tokens))
 
         # Get BM25+ scores for all documents
         raw_scores = self._index.get_scores(query_tokens)
@@ -175,12 +175,15 @@ class BM25PlusRetriever(BaseRetrievalAlgorithm):
 
         elapsed_ms = (time.perf_counter() - start_time) * 1000
 
-        if DEBUG_MODE:
-            debug_log(f"[BM25+] Retrieved {len(retrieved_chunks)} chunks in {elapsed_ms:.1f}ms")
-            for i, chunk in enumerate(retrieved_chunks[:3]):
-                debug_log(
-                    f"  [{i + 1}] score={chunk.raw_score:.2f} -> {chunk.relevance_score:.3f} | {chunk.filename}"
-                )
+        logger.debug("Retrieved %d chunks in %.1fms", len(retrieved_chunks), elapsed_ms)
+        for i, chunk in enumerate(retrieved_chunks[:3]):
+            logger.debug(
+                "  [%d] score=%.2f -> %.3f | %s",
+                i + 1,
+                chunk.raw_score,
+                chunk.relevance_score,
+                chunk.filename,
+            )
 
         return AlgorithmRetrievalResult(
             chunks=retrieved_chunks,

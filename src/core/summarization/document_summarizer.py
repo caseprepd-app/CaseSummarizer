@@ -32,14 +32,16 @@ Usage:
 
 from __future__ import annotations
 
+import logging
 import time
 from abc import ABC, abstractmethod
 from collections.abc import Callable
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from src.logging_config import debug_log, error, info
 from src.progressive_summarizer import ProgressiveSummarizer
+
+logger = logging.getLogger(__name__)
 
 from .result_types import DocumentSummaryResult
 
@@ -188,7 +190,7 @@ class ProgressiveDocumentSummarizer(DocumentSummarizer):
                     error_message="Document could not be chunked",
                 )
 
-            debug_log(f"[DOC SUMMARIZER] {filename}: {chunk_count} chunks")
+            logger.debug("%s: %d chunks", filename, chunk_count)
 
             # Step 2: Prepare DataFrame for tracking
             progressive.prepare_chunks_dataframe(chunks)
@@ -258,7 +260,7 @@ class ProgressiveDocumentSummarizer(DocumentSummarizer):
             processing_time = time.time() - start_time
             word_count = len(final_summary.split())
 
-            info(f"[DOC SUMMARIZER] {filename}: {word_count} words in {processing_time:.1f}s")
+            logger.info("%s: %d words in %.1fs", filename, word_count, processing_time)
 
             return DocumentSummaryResult(
                 filename=filename,
@@ -270,7 +272,7 @@ class ProgressiveDocumentSummarizer(DocumentSummarizer):
             )
 
         except Exception as e:
-            error(f"[DOC SUMMARIZER] Failed to summarize {filename}: {e}")
+            logger.error("Failed to summarize %s: %s", filename, e)
             return DocumentSummaryResult(
                 filename=filename,
                 summary="",

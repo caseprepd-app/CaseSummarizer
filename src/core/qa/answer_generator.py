@@ -14,15 +14,16 @@ The Ollama mode produces more natural, comprehensive answers but requires
 Ollama to be running.
 """
 
+import logging
 import re
 from enum import Enum
 
 from src.config import (
-    DEBUG_MODE,
     QA_MAX_TOKENS,
     QA_TEMPERATURE,
 )
-from src.logging_config import debug_log
+
+logger = logging.getLogger(__name__)
 
 # Pre-compiled regex patterns (Session 70 optimization)
 # Previously compiled on every call to _split_sentences and _extract_keywords
@@ -68,8 +69,7 @@ class AnswerGenerator:
         self.mode = AnswerMode(mode) if isinstance(mode, str) else mode
         self._ollama_manager = None
 
-        if DEBUG_MODE:
-            debug_log(f"[AnswerGenerator] Initialized with mode: {self.mode.value}")
+        logger.debug("Initialized with mode: %s", self.mode.value)
 
     @property
     def ollama_manager(self):
@@ -96,7 +96,7 @@ class AnswerGenerator:
 
             return UNANSWERED_TEXT
 
-        debug_log(f"[AnswerGenerator] generate() called with mode={self.mode.value}")
+        logger.debug("generate() called with mode=%s", self.mode.value)
 
         if self.mode == AnswerMode.EXTRACTION:
             return self._extract_answer(question, context)
@@ -120,8 +120,7 @@ class AnswerGenerator:
         # Extract question keywords (remove stopwords and short words)
         keywords = self._extract_keywords(question)
 
-        if DEBUG_MODE:
-            debug_log(f"[AnswerGenerator] Extraction keywords: {keywords}")
+        logger.debug("Extraction keywords: %s", keywords)
 
         # Split context into sentences
         sentences = self._split_sentences(context)
@@ -174,7 +173,7 @@ class AnswerGenerator:
             AI-generated answer
         """
         if not self.ollama_manager.is_connected:
-            debug_log("[AnswerGenerator] Ollama not connected, falling back to extraction")
+            logger.debug("Ollama not connected, falling back to extraction")
             return self._extract_answer(question, context)
 
         from src.core.qa.token_budget import (
@@ -198,9 +197,10 @@ class AnswerGenerator:
         # If context exceeds budget, use progressive sub-chunking
         context_tokens = count_tokens(context)
         if context_tokens > budget:
-            debug_log(
-                f"[AnswerGenerator] Context ({context_tokens} tokens) exceeds "
-                f"budget ({budget} tokens), running sub-chunking"
+            logger.debug(
+                "Context (%d tokens) exceeds budget (%d tokens), running sub-chunking",
+                context_tokens,
+                budget,
             )
             embeddings = self._get_embeddings()
             if embeddings:
@@ -218,16 +218,14 @@ class AnswerGenerator:
             )
 
             if response and response.strip():
-                debug_log("[AnswerGenerator] Ollama returned answer successfully")
+                logger.debug("Ollama returned answer successfully")
                 return response.strip()
             else:
-                debug_log(
-                    "[AnswerGenerator] Empty response from Ollama, falling back to extraction"
-                )
+                logger.debug("Empty response from Ollama, falling back to extraction")
                 return self._extract_answer(question, context)
 
         except Exception as e:
-            debug_log(f"[AnswerGenerator] Ollama error: {e}, falling back to extraction")
+            logger.debug("Ollama error: %s, falling back to extraction", e)
             return self._extract_answer(question, context)
 
     def _get_context_window(self) -> int:
@@ -278,7 +276,7 @@ class AnswerGenerator:
 
             return get_embeddings_model()
         except Exception:
-            debug_log("[AnswerGenerator] Could not load embeddings for sub-chunking")
+            logger.debug("Could not load embeddings for sub-chunking")
             return None
 
     def _extract_keywords(self, text: str) -> set[str]:
@@ -490,5 +488,4 @@ class AnswerGenerator:
             mode: "extraction" or "ollama"
         """
         self.mode = AnswerMode(mode)
-        if DEBUG_MODE:
-            debug_log(f"[AnswerGenerator] Mode changed to: {self.mode.value}")
+        logger.debug("Mode changed to: %s", self.mode.value)

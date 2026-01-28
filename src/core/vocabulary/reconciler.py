@@ -33,11 +33,13 @@ Usage:
         print(f"{term.term} - {term.found_by}")
 """
 
+import logging
 from dataclasses import dataclass
 from difflib import SequenceMatcher
 
 from src.categories import normalize_category
-from src.logging_config import debug_log
+
+logger = logging.getLogger(__name__)
 
 # Type alias for found_by values
 # Session 61: Changed from Literal to str to support comma-separated algorithms
@@ -167,9 +169,10 @@ class VocabularyReconciler:
             Sorted list of ReconciledPerson objects.
             Sorted by: Found By ("Both" first), then Name alphabetically.
         """
-        debug_log(
-            f"[Reconciler] Starting people reconciliation: {len(ner_people)} NER, "
-            f"{len(llm_people)} LLM"
+        logger.debug(
+            "Starting people reconciliation: %s NER, %s LLM",
+            len(ner_people),
+            len(llm_people),
         )
 
         # Build lookup dictionaries
@@ -236,9 +239,12 @@ class VocabularyReconciler:
         ner_only = sum(1 for r in sorted_results if r.found_by == "NER")
         llm_only = sum(1 for r in sorted_results if r.found_by == "LLM")
 
-        debug_log(
-            f"[Reconciler] People complete: {len(sorted_results)} unique people "
-            f"(Multiple: {multi_count}, NER only: {ner_only}, LLM only: {llm_only})"
+        logger.debug(
+            "People complete: %s unique people (Multiple: %s, NER only: %s, LLM only: %s)",
+            len(sorted_results),
+            multi_count,
+            ner_only,
+            llm_only,
         )
 
         return sorted_results
@@ -307,9 +313,10 @@ class VocabularyReconciler:
             Sorted list of ReconciledTerm objects.
             Sorted by: Found By ("Both" first), then Term alphabetically.
         """
-        debug_log(
-            f"[Reconciler] Starting reconciliation: {len(ner_terms)} NER terms, "
-            f"{len(llm_terms)} LLM terms"
+        logger.debug(
+            "Starting reconciliation: %s NER terms, %s LLM terms",
+            len(ner_terms),
+            len(llm_terms),
         )
 
         # Build lookup dictionaries
@@ -373,9 +380,12 @@ class VocabularyReconciler:
         ner_only = sum(1 for r in sorted_results if r.found_by == "NER")
         llm_only = sum(1 for r in sorted_results if r.found_by == "LLM")
 
-        debug_log(
-            f"[Reconciler] Complete: {len(sorted_results)} unique terms "
-            f"(Multiple: {multi_count}, NER only: {ner_only}, LLM only: {llm_only})"
+        logger.debug(
+            "Complete: %s unique terms (Multiple: %s, NER only: %s, LLM only: %s)",
+            len(sorted_results),
+            multi_count,
+            ner_only,
+            llm_only,
         )
 
         return sorted_results

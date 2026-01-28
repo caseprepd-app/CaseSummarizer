@@ -9,6 +9,7 @@ The JSON file allows user customization that overrides these defaults.
 """
 
 import json
+import logging
 from pathlib import Path
 from typing import Any, ClassVar
 
@@ -23,6 +24,8 @@ from src.config import (
     SUMMARY_TEMPERATURE,
     SUMMARY_WORD_COUNT_TOLERANCE,
 )
+
+logger = logging.getLogger(__name__)
 
 # Path to the prompt parameters file
 PROMPT_PARAMS_FILE = (
@@ -95,25 +98,17 @@ class PromptConfig:
                     # Filter out comment keys (starting with _)
                     return self._filter_comments(params)
             else:
-                from src.logging_config import debug_log
-
-                debug_log(
-                    f"[PROMPT CONFIG] Prompt parameters file not found at {PROMPT_PARAMS_FILE}"
-                )
-                debug_log("[PROMPT CONFIG] Using default values from config.py.")
+                logger.debug("Prompt parameters file not found at %s", PROMPT_PARAMS_FILE)
+                logger.debug("Using default values from config.py.")
                 return defaults
 
         except json.JSONDecodeError as e:
-            from src.logging_config import debug_log
-
-            debug_log(f"[PROMPT CONFIG] Error parsing prompt parameters file: {e}")
-            debug_log("[PROMPT CONFIG] Using default values from config.py.")
+            logger.debug("Error parsing prompt parameters file: %s", e)
+            logger.debug("Using default values from config.py.")
             return defaults
         except Exception as e:
-            from src.logging_config import debug_log
-
-            debug_log(f"[PROMPT CONFIG] Error loading prompt parameters: {e}")
-            debug_log("[PROMPT CONFIG] Using default values from config.py.")
+            logger.debug("Error loading prompt parameters: %s", e)
+            logger.debug("Using default values from config.py.")
             return defaults
 
     def _filter_comments(self, data: Any) -> Any:

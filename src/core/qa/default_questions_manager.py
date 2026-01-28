@@ -8,12 +8,12 @@ Session 63c: Created to support checkbox-based question management in Settings U
 """
 
 import json
+import logging
 import threading
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
-from src.config import DEBUG_MODE
-from src.logging_config import debug_log
+logger = logging.getLogger(__name__)
 
 # Default questions file location
 DEFAULT_QUESTIONS_PATH = (
@@ -81,11 +81,10 @@ class DefaultQuestionsManager:
 
             self._questions = [DefaultQuestion.from_dict(q) for q in data.get("questions", [])]
 
-            if DEBUG_MODE:
-                debug_log(f"[DefaultQuestions] Loaded {len(self._questions)} questions from JSON")
+            logger.debug("Loaded %d questions from JSON", len(self._questions))
 
         except Exception as e:
-            debug_log(f"[DefaultQuestions] Error loading JSON: {e}")
+            logger.error("Error loading JSON: %s", e)
             self._create_default_questions()
 
     def _migrate_from_legacy(self):
@@ -101,11 +100,10 @@ class DefaultQuestionsManager:
             self._questions = questions
             self._save()  # Save in new format
 
-            if DEBUG_MODE:
-                debug_log(f"[DefaultQuestions] Migrated {len(questions)} questions from legacy txt")
+            logger.debug("Migrated %d questions from legacy txt", len(questions))
 
         except Exception as e:
-            debug_log(f"[DefaultQuestions] Error migrating from legacy: {e}")
+            logger.error("Error migrating from legacy: %s", e)
             self._create_default_questions()
 
     def _create_default_questions(self):
@@ -119,8 +117,7 @@ class DefaultQuestionsManager:
         ]
         self._save()
 
-        if DEBUG_MODE:
-            debug_log("[DefaultQuestions] Created default questions")
+        logger.debug("Created default questions")
 
     def _save(self):
         """Save questions to JSON file."""
@@ -132,11 +129,10 @@ class DefaultQuestionsManager:
             with open(self.config_path, "w", encoding="utf-8") as f:
                 json.dump(data, f, indent=2, ensure_ascii=False)
 
-            if DEBUG_MODE:
-                debug_log(f"[DefaultQuestions] Saved {len(self._questions)} questions")
+            logger.debug("Saved %d questions", len(self._questions))
 
         except Exception as e:
-            debug_log(f"[DefaultQuestions] Error saving: {e}")
+            logger.error("Error saving: %s", e)
 
     # =========================================================================
     # Public API

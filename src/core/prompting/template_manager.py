@@ -9,9 +9,10 @@ Supports dual-directory system:
 Moved from src/prompt_template_manager.py to src/prompting/template_manager.py in Session 33.
 """
 
+import logging
 from pathlib import Path
 
-from src.logging_config import debug_log
+logger = logging.getLogger(__name__)
 
 # Skeleton template filename (underscore prefix = excluded from dropdown)
 SKELETON_FILENAME = "_template.txt"
@@ -419,7 +420,7 @@ class PromptTemplateManager:
                 with open(generic_file, "w", encoding="utf-8") as f:
                     f.write(GENERIC_FALLBACK_TEMPLATE)
 
-                debug_log(f"Created generic fallback prompt for {model_name}")
+                logger.debug("Created generic fallback prompt for %s", model_name)
 
     def get_best_default_preset(self, model_name: str, user_preference: str | None = None) -> str:
         """

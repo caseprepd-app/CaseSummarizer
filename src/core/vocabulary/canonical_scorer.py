@@ -23,9 +23,12 @@ replace this with a learned model once sufficient feedback is collected.
 Session 78: Initial implementation for canonical spelling improvement.
 """
 
+import logging
+
 from src.core.utils.ocr_patterns import has_ocr_artifacts
 from src.core.vocabulary.term_sources import TermSources
-from src.logging_config import debug_log
+
+logger = logging.getLogger(__name__)
 
 
 class CanonicalScorer:
@@ -108,7 +111,7 @@ class CanonicalScorer:
         """
         if sources is None:
             # Fallback for terms without source tracking
-            debug_log(f"[CANONICAL] No sources for '{term}', using default score")
+            logger.debug("No sources for '%s', using default score", term)
             return 0.0
 
         base_score = sources.weighted_score
@@ -117,9 +120,11 @@ class CanonicalScorer:
         if has_ocr_artifacts(term):
             penalty = self.ocr_penalty
             base_score *= 1.0 - penalty
-            debug_log(
-                f"[CANONICAL] OCR penalty applied to '{term}': "
-                f"-{penalty * 100:.0f}% → score={base_score:.2f}"
+            logger.debug(
+                "OCR penalty applied to '%s': -%.0f%% -> score=%.2f",
+                term,
+                penalty * 100,
+                base_score,
             )
 
         return base_score
@@ -163,29 +168,30 @@ class CanonicalScorer:
             else:
                 unknown_variants.append(v)
 
-        debug_log(
-            f"[CANONICAL] {len(variants)} variants: "
-            f"{len(known_variants)} known, {len(unknown_variants)} unknown"
+        logger.debug(
+            "%d variants: %d known, %d unknown",
+            len(variants),
+            len(known_variants),
+            len(unknown_variants),
         )
 
         # Branch based on how many are known
         if len(known_variants) == 1:
             # Exactly one known → it wins decisively
             canonical = known_variants[0]
-            debug_log(f"[CANONICAL] '{canonical.get(term_key)}' wins (only known variant)")
+            logger.debug("'%s' wins (only known variant)", canonical.get(term_key))
             return self._merge_into_canonical(canonical, variants, term_key, sources_key)
 
         elif len(known_variants) == 0:
             # None known → exotic name scenario, use weighted scoring
-            debug_log("[CANONICAL] No known variants, using weighted scores")
+            logger.debug("No known variants, using weighted scores")
             return self._select_by_score(variants, term_key, sources_key)
 
         else:
             # Multiple known → use weighted score as tiebreaker
-            debug_log(
-                f"[CANONICAL] Multiple known variants "
-                f"({[v.get(term_key) for v in known_variants]}), "
-                f"using weighted scores"
+            logger.debug(
+                "Multiple known variants (%s), using weighted scores",
+                [v.get(term_key) for v in known_variants],
             )
             result = self._select_by_score(known_variants, term_key, sources_key)
 
@@ -234,14 +240,14 @@ class CanonicalScorer:
             score = self.calculate_score(term, sources)
             scored.append((v, score))
 
-            debug_log(f"[CANONICAL] '{term}' score={score:.2f}")
+            logger.debug("'%s' score=%.2f", term, score)
 
         # Sort by score descending
         scored.sort(key=lambda x: x[1], reverse=True)
 
         # Winner is the highest score
         canonical, best_score = scored[0]
-        debug_log(f"[CANONICAL] '{canonical.get(term_key)}' wins with score={best_score:.2f}")
+        logger.debug("'%s' wins with score=%.2f", canonical.get(term_key), best_score)
 
         # Return with merged sources from all variants
         return self._merge_into_canonical(
@@ -298,10 +304,12 @@ class CanonicalScorer:
                 v.get(term_key) for v in all_variants if v.get(term_key) != canonical.get(term_key)
             ]
             if others:
-                debug_log(
-                    f"[CANONICAL] Merged {len(others)} variants into "
-                    f"'{canonical.get(term_key)}': {others[:5]}"
-                    f"{'...' if len(others) > 5 else ''}"
+                logger.debug(
+                    "Merged %d variants into '%s': %s%s",
+                    len(others),
+                    canonical.get(term_key),
+                    others[:5],
+                    "..." if len(others) > 5 else "",
                 )
 
         return result

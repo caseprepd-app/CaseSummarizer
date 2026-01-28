@@ -6,7 +6,9 @@ Common text processing functions used across the application.
 Includes preprocessing integration for AI summary preparation.
 """
 
-from src.logging_config import debug_log
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def combine_document_texts(
@@ -70,15 +72,13 @@ def combine_document_texts(
 
             pipeline = create_default_pipeline()
             combined_text = pipeline.process(combined_text)
-            debug_log(
-                f"[TEXT UTILS] Preprocessing applied (fallback): {pipeline.total_changes} changes"
-            )
+            logger.debug("Preprocessing applied (fallback): %d changes", pipeline.total_changes)
         except ImportError as e:
-            debug_log(f"[TEXT UTILS] Preprocessing not available: {e}")
+            logger.debug("Preprocessing not available: %s", e)
         except Exception as e:
-            debug_log(f"[TEXT UTILS] Preprocessing error (using raw text): {e}")
+            logger.error("Preprocessing error (using raw text): %s", e)
     elif has_preprocessed:
-        debug_log("[TEXT UTILS] Using pre-cleaned text (no additional preprocessing needed)")
+        logger.debug("Using pre-cleaned text (no additional preprocessing needed)")
 
     return combined_text
 

@@ -16,6 +16,7 @@ Features:
 
 import csv
 import io
+import logging
 import os  # LOG-014: Move to module level
 import queue
 import threading
@@ -24,9 +25,9 @@ from tkinter import filedialog, messagebox
 
 import customtkinter as ctk
 
-from src.config import DEBUG_MODE
-from src.logging_config import debug_log
 from src.services import QAService
+
+logger = logging.getLogger(__name__)
 
 # Get QAResult class from service layer (pipeline architecture)
 QAResult = QAService().get_qa_result_class()
@@ -89,8 +90,7 @@ class QAPanel(ctk.CTkFrame):
         self._create_button_bar()
         # Session 80: Removed _create_followup_pane() - follow-up input is in main window
 
-        if DEBUG_MODE:
-            debug_log("[QAPanel] Initialized with plain text layout")
+        logger.debug("QAPanel initialized with plain text layout")
 
     def _create_header(self):
         """Create header with title and info."""
@@ -282,8 +282,7 @@ class QAPanel(ctk.CTkFrame):
         included = sum(1 for r in results if r.include_in_export)
         self.info_label.configure(text=f"{included}/{len(results)} selected for export")
 
-        if DEBUG_MODE:
-            debug_log(f"[QAPanel] Displaying {len(results)} results in plain text format")
+        logger.debug("Displaying %s results in plain text format", len(results))
 
     def _insert_reliability_header(self, verification):
         """
@@ -380,7 +379,7 @@ class QAPanel(ctk.CTkFrame):
 
         # Prevent duplicate submissions
         if self._followup_thread is not None and self._followup_thread.is_alive():
-            debug_log("[QAPanel] Follow-up already in progress, ignoring")
+            logger.debug("Follow-up already in progress, ignoring")
             return
 
         # Clear entry
@@ -390,8 +389,7 @@ class QAPanel(ctk.CTkFrame):
         self.followup_ask_btn.configure(state="disabled", text="Asking...")
         self.followup_entry.configure(state="disabled")
 
-        if DEBUG_MODE:
-            debug_log(f"[QAPanel] Starting async follow-up: {question[:30]}...")
+        logger.debug("Starting async follow-up: %s...", question[:30])
 
         # Run callback in background thread
         def run_followup():
@@ -400,7 +398,7 @@ class QAPanel(ctk.CTkFrame):
                 self._followup_queue.put(("success", result))
             except Exception as e:
                 self._followup_queue.put(("error", str(e)))
-                debug_log(f"[QAPanel] Follow-up thread error: {e}")
+                logger.debug("Follow-up thread error: %s", e)
 
         self._followup_thread = threading.Thread(target=run_followup, daemon=True)
         self._followup_thread.start()
@@ -424,9 +422,7 @@ class QAPanel(ctk.CTkFrame):
                 # Add to results
                 self._results.append(data)
                 self.display_results(self._results)
-
-                if DEBUG_MODE:
-                    debug_log("[QAPanel] Follow-up completed successfully")
+                logger.debug("Follow-up completed successfully")
 
             elif msg_type == "error":
                 messagebox.showerror("Error", f"Failed to ask question: {data}")
@@ -502,11 +498,11 @@ class QAPanel(ctk.CTkFrame):
                     f"Exported {len(exportable)} Q&A {pair_word} to {filename}", duration_ms=5000
                 )
 
-            debug_log(f"[QAPanel] Exported {len(exportable)} Q&A pairs to CSV: {filepath}")
+            logger.debug("Exported %s Q&A pairs to CSV: %s", len(exportable), filepath)
 
         except Exception as e:
             messagebox.showerror("Export Error", f"Failed to save file: {e}")
-            debug_log(f"[QAPanel] Export error: {e}")
+            logger.debug("Export error: %s", e)
 
     def _export_to_txt(self):
         """Export selected Q&A results to TXT file."""
@@ -560,11 +556,11 @@ class QAPanel(ctk.CTkFrame):
                     f"Exported {len(exportable)} Q&A {pair_word} to {filename}", duration_ms=5000
                 )
 
-            debug_log(f"[QAPanel] Exported {len(exportable)} Q&A pairs to TXT: {filepath}")
+            logger.debug("Exported %s Q&A pairs to TXT: %s", len(exportable), filepath)
 
         except Exception as e:
             messagebox.showerror("Export Error", f"Failed to save file: {e}")
-            debug_log(f"[QAPanel] Export error: {e}")
+            logger.debug("Export error: %s", e)
 
     def _export_to_word(self):
         """Export selected Q&A results to Word document (Session 71, updated Session 73)."""
@@ -619,13 +615,13 @@ class QAPanel(ctk.CTkFrame):
                         duration_ms=5000,
                     )
 
-                debug_log(f"[QAPanel] Exported {len(exportable)} Q&A pairs to Word: {filepath}")
+                logger.debug("Exported %s Q&A pairs to Word: %s", len(exportable), filepath)
             else:
                 messagebox.showerror("Export Error", "Failed to create Word document.")
 
         except Exception as e:
             messagebox.showerror("Export Error", f"Failed to save file: {e}")
-            debug_log(f"[QAPanel] Export error: {e}")
+            logger.debug("Export error: %s", e)
 
     def _export_to_pdf(self):
         """Export selected Q&A results to PDF document (Session 71, updated Session 73)."""
@@ -680,13 +676,13 @@ class QAPanel(ctk.CTkFrame):
                         duration_ms=5000,
                     )
 
-                debug_log(f"[QAPanel] Exported {len(exportable)} Q&A pairs to PDF: {filepath}")
+                logger.debug("Exported %s Q&A pairs to PDF: %s", len(exportable), filepath)
             else:
                 messagebox.showerror("Export Error", "Failed to create PDF document.")
 
         except Exception as e:
             messagebox.showerror("Export Error", f"Failed to save file: {e}")
-            debug_log(f"[QAPanel] Export error: {e}")
+            logger.debug("Export error: %s", e)
 
     def _export_to_html(self):
         """Export selected Q&A results to interactive HTML file (Session 72, updated Session 73)."""
@@ -741,13 +737,13 @@ class QAPanel(ctk.CTkFrame):
                         duration_ms=5000,
                     )
 
-                debug_log(f"[QAPanel] Exported {len(exportable)} Q&A pairs to HTML: {filepath}")
+                logger.debug("Exported %s Q&A pairs to HTML: %s", len(exportable), filepath)
             else:
                 messagebox.showerror("Export Error", "Failed to create HTML file.")
 
         except Exception as e:
             messagebox.showerror("Export Error", f"Failed to save file: {e}")
-            debug_log(f"[QAPanel] Export error: {e}")
+            logger.debug("Export error: %s", e)
 
     def _on_export_format_selected(self, choice: str):
         """
@@ -867,11 +863,11 @@ class QAPanel(ctk.CTkFrame):
                     f"Copied {len(exportable)} Q&A {pair_word} to clipboard", duration_ms=5000
                 )
 
-            debug_log(f"[QAPanel] Copied {len(exportable)} Q&A pairs to clipboard")
+            logger.debug("Copied %s Q&A pairs to clipboard", len(exportable))
 
         except Exception as e:
             messagebox.showerror("Copy Failed", f"Could not copy to clipboard:\n{e}")
-            debug_log(f"[QAPanel] Clipboard copy failed: {e}")
+            logger.debug("Clipboard copy failed: %s", e)
 
     def get_export_content(self) -> str:
         """

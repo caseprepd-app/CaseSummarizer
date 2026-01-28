@@ -30,11 +30,13 @@ Usage:
     )
 """
 
+import logging
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
 from src.core.prompting.focus_extractor import AIFocusExtractor, FocusExtractor
-from src.logging_config import debug_log, error
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from src.core.ai.ollama_model_manager import OllamaModelManager
@@ -153,11 +155,11 @@ class MultiDocPromptAdapter(PromptAdapter):
             focus = self.focus_extractor.extract_focus(template, preset_id)
             self._focus_cache[cache_key] = focus
 
-            debug_log(f"[PROMPT ADAPTER] Cached focus for '{cache_key}'")
+            logger.debug("Cached focus for '%s'", cache_key)
             return focus
 
         except Exception as e:
-            error(f"[PROMPT ADAPTER] Failed to get focus for '{preset_id}': {e}")
+            logger.error("Failed to get focus for '%s': %s", preset_id, e)
             # Return generic fallback
             return {
                 "emphasis": "key facts, parties, timeline, outcomes",
@@ -302,4 +304,4 @@ Synthesize information across documents rather than summarizing each document se
     def clear_cache(self):
         """Clear the internal focus cache."""
         self._focus_cache.clear()
-        debug_log("[PROMPT ADAPTER] Focus cache cleared")
+        logger.debug("Focus cache cleared")

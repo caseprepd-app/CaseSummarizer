@@ -40,6 +40,7 @@ Session 78: Added TermSources-based per-document features:
 
 import csv
 import hashlib
+import logging
 import threading
 from datetime import datetime
 from pathlib import Path
@@ -54,7 +55,8 @@ from src.config import (
     get_count_bin,
 )
 from src.core.vocabulary.term_sources import TermSources
-from src.logging_config import debug_log
+
+logger = logging.getLogger(__name__)
 
 # Required fields for valid feedback records
 REQUIRED_FEEDBACK_FIELDS = {"term", "feedback", "timestamp"}
@@ -194,7 +196,7 @@ class FeedbackManager:
         target_type = "default" if DEBUG_MODE else "user"
 
         if not target_file.exists():
-            debug_log(f"[FEEDBACK] No existing {target_type} feedback file, starting fresh")
+            logger.debug("No existing %s feedback file, starting fresh", target_type)
             return
 
         try:
@@ -209,11 +211,14 @@ class FeedbackManager:
                     except ValueError:
                         continue
 
-            debug_log(
-                f"[FEEDBACK] Loaded {len(self._cache)} {target_type} feedback entries (DEBUG_MODE={DEBUG_MODE})"
+            logger.debug(
+                "Loaded %d %s feedback entries (DEBUG_MODE=%s)",
+                len(self._cache),
+                target_type,
+                DEBUG_MODE,
             )
         except Exception as e:
-            debug_log(f"[FEEDBACK] Error loading {target_type} feedback: {e}")
+            logger.debug("Error loading %s feedback: %s", target_type, e)
 
     def set_document_id(self, doc_id: str):
         """
@@ -299,14 +304,14 @@ class FeedbackManager:
 
             target_type = "default" if DEBUG_MODE else "user"
             if deleted:
-                debug_log(f"[FEEDBACK] Deleted '{lower_term}' from {target_type} feedback")
+                logger.debug("Deleted '%s' from %s feedback", lower_term, target_type)
             else:
-                debug_log(f"[FEEDBACK] No matching entry to delete for '{lower_term}'")
+                logger.debug("No matching entry to delete for '%s'", lower_term)
 
             return True
 
         except Exception as e:
-            debug_log(f"[FEEDBACK] Error deleting feedback: {e}")
+            logger.debug("Error deleting feedback: %s", e)
             return False
 
     def record_feedback(
@@ -452,13 +457,17 @@ class FeedbackManager:
             self._pending_count += 1
             target_type = "default" if DEBUG_MODE else "user"
             action = "replaced" if replaced else "added"
-            debug_log(
-                f"[FEEDBACK] {action.capitalize()} {'+' if feedback > 0 else '-'} for '{term}' ({target_type})"
+            logger.debug(
+                "%s %s for '%s' (%s)",
+                action.capitalize(),
+                "+" if feedback > 0 else "-",
+                term,
+                target_type,
             )
             return True
 
         except Exception as e:
-            debug_log(f"[FEEDBACK] Error recording feedback: {e}")
+            logger.debug("Error recording feedback: %s", e)
             return False
 
     def get_rating(self, term: str) -> int:
@@ -540,11 +549,11 @@ class FeedbackManager:
                 writer.writeheader()
                 writer.writerows(kept_records)
 
-            debug_log(f"[FEEDBACK] Cleared all ratings for '{term}'")
+            logger.debug("Cleared all ratings for '%s'", term)
             return True
 
         except Exception as e:
-            debug_log(f"[FEEDBACK] Error clearing rating: {e}")
+            logger.debug("Error clearing rating: %s", e)
             return True  # Cache was cleared, file error is secondary
 
     def _load_feedback_from_file(self, filepath: Path) -> list[dict]:
@@ -565,7 +574,7 @@ class FeedbackManager:
                 reader = csv.DictReader(f)
                 return list(reader)
         except Exception as e:
-            debug_log(f"[FEEDBACK] Error loading feedback from {filepath}: {e}")
+            logger.debug("Error loading feedback from %s: %s", filepath, e)
             return []
 
     def get_all_user_feedback(self) -> list[dict]:
@@ -663,15 +672,15 @@ class FeedbackManager:
             # Delete the user feedback CSV file (not the default file)
             if self.user_feedback_file.exists():
                 self.user_feedback_file.unlink()
-                debug_log(f"[FEEDBACK] Deleted user feedback file: {self.user_feedback_file}")
+                logger.debug("Deleted user feedback file: %s", self.user_feedback_file)
             else:
-                debug_log("[FEEDBACK] No user feedback file to delete")
+                logger.debug("No user feedback file to delete")
 
-            debug_log("[FEEDBACK] User feedback cleared successfully")
+            logger.debug("User feedback cleared successfully")
             return True
 
         except Exception as e:
-            debug_log(f"[FEEDBACK] Error clearing feedback: {e}")
+            logger.debug("Error clearing feedback: %s", e)
             return False
 
     def export_training_data(self) -> list[dict]:
@@ -739,11 +748,23 @@ class FeedbackManager:
         user_count = sum(1 for r in result if r.get("source") == "user")
         total_raw = len(default_feedback) + len(user_feedback)
         deduped = total_raw - len(result) - skipped_invalid
-        debug_log(
-            f"[FEEDBACK] Exported training data: {len(result)} records "
-            f"({default_count} default, {user_count} user, {deduped} duplicates removed"
-            + (f", {skipped_invalid} invalid)" if skipped_invalid else ")")
-        )
+        if skipped_invalid:
+            logger.debug(
+                "Exported training data: %d records (%d default, %d user, %d duplicates removed, %d invalid)",
+                len(result),
+                default_count,
+                user_count,
+                deduped,
+                skipped_invalid,
+            )
+        else:
+            logger.debug(
+                "Exported training data: %d records (%d default, %d user, %d duplicates removed)",
+                len(result),
+                default_count,
+                user_count,
+                deduped,
+            )
 
         return result
 

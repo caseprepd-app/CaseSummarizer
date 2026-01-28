@@ -13,11 +13,13 @@ Contains all export methods for vocabulary data:
 
 import csv
 import io
+import logging
 from datetime import datetime
 from tkinter import filedialog, messagebox
 
-from src.logging_config import debug_log
 from src.ui.vocab_table.column_config import ALL_EXPORT_COLUMNS, DISPLAY_TO_DATA_COLUMN
+
+logger = logging.getLogger(__name__)
 
 
 class VocabExportMixin:
@@ -100,7 +102,7 @@ class VocabExportMixin:
         if filepath:
             with open(filepath, "w", encoding="utf-8", newline="") as f:
                 f.write(csv_content)
-            debug_log(f"[VocabExport] Exported {len(sorted_data)} terms to {filepath}")
+            logger.info("Exported %s terms to %s", len(sorted_data), filepath)
 
     def _export_vocab_txt(self):
         """
@@ -139,7 +141,7 @@ class VocabExportMixin:
         if filepath:
             with open(filepath, "w", encoding="utf-8") as f:
                 f.write(txt_content)
-            debug_log(f"[VocabExport] Exported {len(sorted_data)} terms to {filepath}")
+            logger.info("Exported %s terms to %s", len(sorted_data), filepath)
 
     def _export_vocab_word(self):
         """
@@ -201,7 +203,7 @@ class VocabExportMixin:
 
         if filepath:
             doc.save(filepath)
-            debug_log(f"[VocabExport] Exported {len(sorted_data)} terms to {filepath}")
+            logger.info("Exported %s terms to %s", len(sorted_data), filepath)
 
     def _export_vocab_pdf(self):
         """
@@ -269,7 +271,7 @@ class VocabExportMixin:
 
         if filepath:
             pdf.output(filepath)
-            debug_log(f"[VocabExport] Exported {len(sorted_data)} terms to {filepath}")
+            logger.info("Exported %s terms to %s", len(sorted_data), filepath)
 
     def _export_vocab_html(self):
         """
@@ -302,7 +304,7 @@ class VocabExportMixin:
             html_content = export_service.get_vocabulary_html_content(sorted_data, visible_columns)
             with open(filepath, "w", encoding="utf-8") as f:
                 f.write(html_content)
-            debug_log(f"[VocabExport] Exported {len(sorted_data)} terms to {filepath}")
+            logger.info("Exported %s terms to %s", len(sorted_data), filepath)
 
     def _get_visible_columns(self) -> list[str]:
         """

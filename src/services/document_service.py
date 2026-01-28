@@ -12,14 +12,15 @@ Usage:
     combined = service.combine_texts(results)
 """
 
+import logging
 from collections.abc import Callable
 from pathlib import Path
 
-from src.config import DEBUG_MODE
 from src.core.extraction import RawTextExtractor
 from src.core.preprocessing import create_default_pipeline
 from src.core.sanitization import CharacterSanitizer
-from src.logging_config import debug_log
+
+logger = logging.getLogger(__name__)
 
 
 class DocumentService:
@@ -59,8 +60,7 @@ class DocumentService:
             result = self.process_single_document(file_path)
             results.append(result)
 
-            if DEBUG_MODE:
-                debug_log(f"[DocumentService] Processed {i + 1}/{total}: {Path(file_path).name}")
+            logger.debug("Processed %s/%s: %s", i + 1, total, Path(file_path).name)
 
         if progress_callback:
             progress_callback(total, total)

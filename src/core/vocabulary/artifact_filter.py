@@ -20,6 +20,8 @@ It complements (does not replace) name_deduplicator.py which handles
 transcript-specific artifacts like Q/A notation.
 """
 
+import logging
+
 from src.config import (
     ARTIFACT_FILTER_COMMON_WORD_THRESHOLD,
     ARTIFACT_FILTER_FUZZY_MAX_EDIT_DISTANCE,
@@ -27,7 +29,8 @@ from src.config import (
 from src.core.vocabulary.person_utils import is_person_entry
 from src.core.vocabulary.rarity_filter import is_common_word
 from src.core.vocabulary.string_utils import edit_distance
-from src.logging_config import debug_log
+
+logger = logging.getLogger(__name__)
 
 # Default number of top terms to use as canonical candidates
 DEFAULT_CANONICAL_COUNT = 25
@@ -204,16 +207,14 @@ def _remove_component_names(
         # Only filter single-word Person entities
         if is_person_entry(term_dict) and " " not in term:
             if term_lower in multi_word_person_components:
-                debug_log(
-                    f"[ARTIFACT-FILTER] Removing '{term}' (component of multi-word Person name)"
-                )
+                logger.debug("Removing '%s' (component of multi-word Person name)", term)
                 removed_count += 1
                 continue
 
         filtered.append(term_dict)
 
     if removed_count > 0:
-        debug_log(f"[ARTIFACT-FILTER] Removed {removed_count} component names")
+        logger.debug("Removed %d component names", removed_count)
 
     return filtered
 
@@ -278,9 +279,10 @@ def filter_substring_artifacts(
     if not canonical_terms and not all_person_terms:
         return vocabulary
 
-    debug_log(
-        f"[ARTIFACT-FILTER] Using {len(canonical_terms)} canonical terms, "
-        f"{len(all_person_terms)} person terms for common-word detection"
+    logger.debug(
+        "Using %d canonical terms, %d person terms for common-word detection",
+        len(canonical_terms),
+        len(all_person_terms),
     )
 
     # Filter out terms that contain canonical terms as substrings
@@ -304,7 +306,7 @@ def filter_substring_artifacts(
 
             # Check if canonical is a substring of this term
             if canonical in term_lower:
-                debug_log(f"[ARTIFACT-FILTER] Removing '{term}' (contains canonical '{canonical}')")
+                logger.debug("Removing '%s' (contains canonical '%s')", term, canonical)
                 is_artifact = True
                 removed_count += 1
                 break
@@ -322,19 +324,15 @@ def filter_substring_artifacts(
 
                 # Check exact common-word variant
                 if _is_common_word_variant(term, canonical):
-                    debug_log(
-                        f"[ARTIFACT-FILTER] Removing '{term}' "
-                        f"(common-word variant of '{canonical}')"
-                    )
+                    logger.debug("Removing '%s' (common-word variant of '%s')", term, canonical)
                     is_artifact = True
                     removed_common_word += 1
                     break
 
                 # Check fuzzy common-word variant (for typos)
                 if _is_fuzzy_common_word_variant(term, canonical):
-                    debug_log(
-                        f"[ARTIFACT-FILTER] Removing '{term}' "
-                        f"(fuzzy common-word variant of '{canonical}')"
+                    logger.debug(
+                        "Removing '%s' (fuzzy common-word variant of '%s')", term, canonical
                     )
                     is_artifact = True
                     removed_common_word += 1
@@ -343,10 +341,11 @@ def filter_substring_artifacts(
         if not is_artifact:
             filtered.append(term_dict)
 
-    debug_log(
-        f"[ARTIFACT-FILTER] Removed {removed_count} substring artifacts, "
-        f"{removed_common_word} common-word variants, "
-        f"{len(filtered)} terms remaining"
+    logger.debug(
+        "Removed %d substring artifacts, %d common-word variants, %d terms remaining",
+        removed_count,
+        removed_common_word,
+        len(filtered),
     )
 
     # Session 84: Remove single-word Person names that are components of full names

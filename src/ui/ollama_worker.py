@@ -1,10 +1,12 @@
+import logging
 import multiprocessing
 import time
 import traceback
 
 from src.config import QUEUE_TIMEOUT_SECONDS
-from src.logging_config import debug_log
 from src.services import AIService
+
+logger = logging.getLogger(__name__)
 
 
 def ollama_generation_worker_process(
@@ -20,7 +22,7 @@ def ollama_generation_worker_process(
         ai_service = AIService()
         model_manager = ai_service.get_ollama_manager()
         model_initialized = True
-        debug_log("[OLLAMA WORKER] OllamaModelManager instantiated via AIService.")
+        logger.info("OllamaModelManager instantiated via AIService")
 
         while True:
             # Check for termination signal or new tasks
@@ -29,7 +31,7 @@ def ollama_generation_worker_process(
                     timeout=QUEUE_TIMEOUT_SECONDS
                 )  # Timeout to allow checking for termination
                 if task == "TERMINATE":
-                    debug_log("[OLLAMA WORKER] Termination signal received. Exiting.")
+                    logger.info("Termination signal received, exiting")
                     break
 
                 # Unpack task
@@ -41,8 +43,10 @@ def ollama_generation_worker_process(
                     max_words = payload["max_words"]
                     preset_id = payload["preset_id"]
 
-                    debug_log(
-                        f"[OLLAMA WORKER] Received GENERATE_SUMMARY task. Preset: {preset_id}, Max words: {max_words}"
+                    logger.debug(
+                        "Received GENERATE_SUMMARY task. Preset: %s, Max words: %s",
+                        preset_id,
+                        max_words,
                     )
 
                     start_time = time.time()
@@ -62,8 +66,8 @@ def ollama_generation_worker_process(
                     # Use try/except to avoid TOCTOU race with empty() + get_nowait()
                     try:
                         if input_queue.get_nowait() == "TERMINATE":
-                            debug_log(
-                                "[OLLAMA WORKER] Termination signal received before generate_summary. Aborting task."
+                            logger.debug(
+                                "Termination signal received before generate_summary, aborting task"
                             )
                             output_queue.put(("cancelled", "AI generation task cancelled."))
                             continue  # Skip the generation and await next task/termination
@@ -78,8 +82,8 @@ def ollama_generation_worker_process(
                     # Use try/except to avoid TOCTOU race with empty() + get_nowait()
                     try:
                         if input_queue.get_nowait() == "TERMINATE":
-                            debug_log(
-                                "[OLLAMA WORKER] Termination signal received after generate_summary. Discarding result."
+                            logger.debug(
+                                "Termination signal received after generate_summary, discarding result"
                             )
                             output_queue.put(
                                 ("cancelled", "AI generation task cancelled after completion.")
@@ -89,7 +93,7 @@ def ollama_generation_worker_process(
                         pass  # No termination signal, send the result
 
                     elapsed_time = time.time() - start_time
-                    debug_log(f"[OLLAMA WORKER] Summary generated in {elapsed_time:.2f} seconds.")
+                    logger.info("Summary generated in %.2f seconds", elapsed_time)
                     output_queue.put(
                         (
                             "summary_result",
@@ -103,7 +107,7 @@ def ollama_generation_worker_process(
 
                 elif task_type == "LOAD_MODEL":
                     model_name = payload["model_name"]
-                    debug_log(f"[OLLAMA WORKER] Received LOAD_MODEL task for {model_name}.")
+                    logger.debug("Received LOAD_MODEL task for %s", model_name)
 
                     # Ensure the model manager's model is set for the worker process
                     # This will also trigger the model to be pulled if not available
@@ -117,8 +121,8 @@ def ollama_generation_worker_process(
                             if (
                                 input_queue.get(timeout=QUEUE_TIMEOUT_SECONDS) == "TERMINATE"
                             ):  # Check termination while loading
-                                debug_log(
-                                    "[OLLAMA WORKER] Termination signal received during model loading. Aborting."
+                                logger.debug(
+                                    "Termination signal received during model loading, aborting"
                                 )
                                 output_queue.put(("cancelled", "Model loading cancelled."))
                                 return  # Exit process if terminated during critical load
@@ -160,17 +164,17 @@ def ollama_generation_worker_process(
                 pass
             except Exception as e:
                 error_msg = f"Ollama worker process error: {e!s}\n{traceback.format_exc()}"
-                debug_log(f"[OLLAMA WORKER] {error_msg}")
+                logger.debug("Worker process error: %s", error_msg)
                 output_queue.put(("error", error_msg))
 
     except Exception as e:
         error_msg = (
             f"Critical error in Ollama worker process setup: {e!s}\n{traceback.format_exc()}"
         )
-        debug_log(f"[OLLAMA WORKER] {error_msg}")
+        logger.debug("Critical setup error: %s", error_msg)
         output_queue.put(("error", error_msg))
     finally:
         # Ensure model_manager is cleaned up if necessary, though Ollama handles this
         if model_manager and model_initialized:
             model_manager.unload_model()
-        debug_log("[OLLAMA WORKER] Worker process finished.")
+        logger.info("Worker process finished")

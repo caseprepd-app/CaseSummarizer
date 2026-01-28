@@ -9,6 +9,7 @@ These pages always appear at the end of transcripts, so once detected,
 the index page AND all subsequent pages are removed.
 """
 
+import logging
 import re
 
 from src.config import (
@@ -23,7 +24,8 @@ from src.config import (
     INDEX_TAIL_CHECK_FRACTION,
 )
 from src.core.preprocessing.base import BasePreprocessor, PreprocessingResult
-from src.logging_config import debug_log
+
+logger = logging.getLogger(__name__)
 
 
 class IndexPageRemover(BasePreprocessor):
@@ -142,10 +144,12 @@ class IndexPageRemover(BasePreprocessor):
         non_empty_last = [line for line in last_window if line.strip()]
         if non_empty_last:
             idx_count = sum(1 for line in non_empty_last if self._is_index_line(line))
-            debug_log(
-                f"[Index Page Remover] Last {window_size} lines: "
-                f"{idx_count}/{len(non_empty_last)} index-like "
-                f"({idx_count / len(non_empty_last) * 100:.0f}%)"
+            logger.debug(
+                "Last %s lines: %s/%s index-like (%.0f%%)",
+                window_size,
+                idx_count,
+                len(non_empty_last),
+                idx_count / len(non_empty_last) * 100,
             )
 
         for start in range(total_lines - window_size, -1, -window_size // 2):
@@ -167,7 +171,7 @@ class IndexPageRemover(BasePreprocessor):
                     break
 
         if index_start_line is None:
-            debug_log("[Index Page Remover] No index section found in tail (line-based)")
+            logger.debug("No index section found in tail (line-based)")
             return PreprocessingResult(
                 text="\n".join(lines),
                 changes_made=0,
@@ -177,9 +181,10 @@ class IndexPageRemover(BasePreprocessor):
         kept_lines = lines[:index_start_line]
         removed_lines = total_lines - index_start_line
 
-        debug_log(
-            f"[Index Page Remover] Found index at line {index_start_line}, "
-            f"removing {removed_lines} lines"
+        logger.debug(
+            "Found index at line %s, removing %s lines",
+            index_start_line,
+            removed_lines,
         )
 
         return PreprocessingResult(
@@ -222,15 +227,17 @@ class IndexPageRemover(BasePreprocessor):
             (word_counts + page_refs / INDEX_PAGE_REF_DIVISOR) / max(estimated_lines, 1) * 100
         )
 
-        debug_log(
-            f"[Index Page Remover] Tail analysis ({check_len} chars): "
-            f"{word_counts} word counts, {page_refs} page refs, "
-            f"density={pattern_density:.0f}%"
+        logger.debug(
+            "Tail analysis (%s chars): %s word counts, %s page refs, density=%.0f%%",
+            check_len,
+            word_counts,
+            page_refs,
+            pattern_density,
         )
 
         # If tail has high pattern density, scan backwards to find start
         if pattern_density < self.MIN_DENSITY_PERCENT:
-            debug_log("[Index Page Remover] No index section found in tail (char-based)")
+            logger.debug("No index section found in tail (char-based)")
             return PreprocessingResult(
                 text=text,
                 changes_made=0,
@@ -266,9 +273,11 @@ class IndexPageRemover(BasePreprocessor):
         kept_text = text[:index_start_pos].rstrip()
         removed_chars = text_len - len(kept_text)
 
-        debug_log(
-            f"[Index Page Remover] Found index at char {index_start_pos}, "
-            f"removing {removed_chars} chars ({removed_chars * 100 // text_len}%)"
+        logger.debug(
+            "Found index at char %s, removing %s chars (%s%%)",
+            index_start_pos,
+            removed_chars,
+            removed_chars * 100 // text_len,
         )
 
         return PreprocessingResult(
@@ -295,9 +304,7 @@ class IndexPageRemover(BasePreprocessor):
             return PreprocessingResult(text=text, changes_made=0)
 
         pages = self._split_into_pages(text)
-        debug_log(
-            f"[Index Page Remover] Split into {len(pages)} pages (form_feeds={chr(12) in text})"
-        )
+        logger.debug("Split into %s pages (form_feeds=%s)", len(pages), chr(12) in text)
 
         if len(pages) <= 1:
             # Single page - check if tail has index content

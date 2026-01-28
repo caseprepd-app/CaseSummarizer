@@ -5,6 +5,7 @@ Real-time CPU and RAM monitoring with color-coded status indicators.
 """
 
 import contextlib
+import logging
 import platform
 import threading
 
@@ -23,7 +24,8 @@ from src.config import (
     SYSTEM_MONITOR_THRESHOLD_GREEN,
     SYSTEM_MONITOR_THRESHOLD_YELLOW,
 )
-from src.logging_config import debug_log
+
+logger = logging.getLogger(__name__)
 from src.ui.theme import COLORS, FONTS
 from src.ui.tooltip_manager import tooltip_manager
 
@@ -65,7 +67,7 @@ class SystemMonitor(ctk.CTkFrame):
         try:
             self.cpu_model = platform.processor() or "Unknown CPU"
         except Exception as e:
-            debug_log(f"[SystemMonitor] Failed to get CPU model: {e}")
+            logger.debug("Failed to get CPU model: %s", e)
             self.cpu_model = "Unknown CPU"
 
         if PSUTIL_AVAILABLE:
@@ -139,9 +141,7 @@ class SystemMonitor(ctk.CTkFrame):
                 time.sleep(self.update_interval_ms / 1000.0)
             except Exception as e:
                 # Log but don't spam - background thread errors are expected during shutdown
-                debug_log(
-                    f"[SystemMonitor] Monitoring loop error (may be normal during shutdown): {e}"
-                )
+                logger.debug("Monitoring loop error (may be normal during shutdown): %s", e)
                 pass
 
     def _collect_metrics(self):
@@ -167,7 +167,7 @@ class SystemMonitor(ctk.CTkFrame):
             self._metrics_updated = True
 
         except Exception as e:
-            debug_log(f"[SystemMonitor] Failed to collect metrics: {e}")
+            logger.debug("Failed to collect metrics: %s", e)
 
     def _schedule_main_thread_update(self):
         """Schedule the next display update check (main thread only)."""
@@ -215,7 +215,7 @@ class SystemMonitor(ctk.CTkFrame):
             self.ram_frame.configure(fg_color=ram_bg)
 
         except Exception as e:
-            debug_log(f"[SystemMonitor] Error updating display: {e}")
+            logger.debug("Error updating display: %s", e)
 
     def _get_colors(self, percent: float) -> tuple:
         """
@@ -287,7 +287,7 @@ class SystemMonitor(ctk.CTkFrame):
                 else:
                     freq_text = "Frequency: Unknown (psutil not available)"
             except Exception as e:
-                debug_log(f"[SystemMonitor] Failed to get CPU frequency: {e}")
+                logger.debug("Failed to get CPU frequency: %s", e)
                 freq_text = "Frequency: Unknown"
 
             # Build tooltip text with RAM percentage and GB breakdown
@@ -334,7 +334,7 @@ class SystemMonitor(ctk.CTkFrame):
                 vroot_x = self.winfo_vrootx()
                 vroot_y = self.winfo_vrooty()
             except Exception as e:
-                debug_log(f"[SystemMonitor] Failed to get screen dimensions: {e}")
+                logger.debug("Failed to get screen dimensions: %s", e)
                 screen_width, screen_height = 1920, 1080
                 vroot_x, vroot_y = 0, 0
 
@@ -369,7 +369,7 @@ class SystemMonitor(ctk.CTkFrame):
             tooltip_manager.register(self.tooltip_window, owner=self)
 
         except Exception as e:
-            debug_log(f"[SystemMonitor] Tooltip error: {e}")
+            logger.debug("Tooltip error: %s", e)
 
     def _hide_tooltip(self):
         """Hide the tooltip."""

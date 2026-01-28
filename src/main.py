@@ -80,8 +80,13 @@ def main():
     """
     Main entry point for CasePrepd desktop application.
     """
-    # Setup file logging
+    # Setup stdout/stderr crash log (separate from structured logging)
     setup_file_logging()
+
+    # Configure structured logging (RotatingFileHandler → caseprepd.log)
+    from src.logging_config import setup_logging
+
+    setup_logging()
 
     # Enable multiprocessing support for Windows frozen executables
     multiprocessing.freeze_support()

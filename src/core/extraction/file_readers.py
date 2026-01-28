@@ -18,11 +18,12 @@ Example usage:
     >>> print(result['method'])  # 'direct_read'
 """
 
+import logging
 from pathlib import Path
 
 from PIL import Image
 
-from src.logging_config import debug
+logger = logging.getLogger(__name__)
 
 from .dictionary_utils import DictionaryUtils
 
@@ -70,14 +71,14 @@ class FileReaders:
             >>> result = readers.read_text_file(Path("notes.txt"))
             >>> print(f"Read {len(result['text'])} characters")
         """
-        debug(f"Reading text file: {file_path.name}")
+        logger.debug("Reading text file: %s", file_path.name)
 
         try:
             with open(file_path, encoding="utf-8", errors="ignore") as f:
                 text = f.read()
 
             confidence = self.dictionary.calculate_confidence(text)
-            debug(f"Text file dictionary confidence: {confidence:.1f}%")
+            logger.debug("Text file dictionary confidence: %.1f%%", confidence)
 
             return {
                 "text": text,
@@ -117,7 +118,7 @@ class FileReaders:
             >>> readers = FileReaders(DictionaryUtils())
             >>> result = readers.read_rtf_file(Path("document.rtf"))
         """
-        debug(f"Reading RTF file: {file_path.name}")
+        logger.debug("Reading RTF file: %s", file_path.name)
 
         try:
             from striprtf.striprtf import rtf_to_text
@@ -126,10 +127,10 @@ class FileReaders:
                 rtf_content = f.read()
 
             text = rtf_to_text(rtf_content)
-            debug(f"Extracted {len(text)} characters from RTF")
+            logger.debug("Extracted %d characters from RTF", len(text))
 
             confidence = self.dictionary.calculate_confidence(text)
-            debug(f"RTF dictionary confidence: {confidence:.1f}%")
+            logger.debug("RTF dictionary confidence: %.1f%%", confidence)
 
             return {
                 "text": text,
@@ -171,7 +172,7 @@ class FileReaders:
             >>> result = readers.read_docx_file(Path("report.docx"))
             >>> print(f"Pages: ~{result['page_count']}")
         """
-        debug(f"Reading Word document: {file_path.name}")
+        logger.debug("Reading Word document: %s", file_path.name)
 
         try:
             from docx import Document
@@ -200,7 +201,7 @@ class FileReaders:
                 }
 
             confidence = self.dictionary.calculate_confidence(text)
-            debug(f"DOCX dictionary confidence: {confidence:.1f}%")
+            logger.debug("DOCX dictionary confidence: %.1f%%", confidence)
 
             return {
                 "text": text,
@@ -243,7 +244,7 @@ class FileReaders:
             >>> readers = FileReaders(DictionaryUtils(), OCRProcessor(DictionaryUtils()))
             >>> result = readers.read_image_file(Path("scan.png"))
         """
-        debug(f"Reading image file: {file_path.name}")
+        logger.debug("Reading image file: %s", file_path.name)
 
         if self.ocr_processor is None:
             return {

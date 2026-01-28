@@ -54,6 +54,7 @@ Rank-based scoring is more intuitive:
 - A court reporter filtering top 50% keeps only specialized terms
 """
 
+import logging
 import threading
 from functools import lru_cache
 
@@ -70,8 +71,9 @@ from src.config import (
 )
 from src.core.vocabulary.adjusted_mean import compute_adjusted_mean
 from src.core.vocabulary.person_utils import is_person_entry
-from src.logging_config import debug_log
 from src.user_preferences import get_user_preferences
+
+logger = logging.getLogger(__name__)
 
 # Module-level cache for scaled frequencies (loaded once) with thread-safe initialization
 _scaled_frequencies: dict[str, float] | None = None
@@ -113,7 +115,7 @@ def _load_scaled_frequencies() -> dict[str, float]:
             return _scaled_frequencies
 
         if not GOOGLE_WORD_FREQUENCY_FILE.exists():
-            debug_log(f"[RARITY] Frequency file not found: {GOOGLE_WORD_FREQUENCY_FILE}")
+            logger.debug("Frequency file not found: %s", GOOGLE_WORD_FREQUENCY_FILE)
             _scaled_frequencies = {}
             return _scaled_frequencies
 
@@ -133,7 +135,7 @@ def _load_scaled_frequencies() -> dict[str, float]:
                             continue
 
             if not raw_frequencies:
-                debug_log("[RARITY] No valid entries found in frequency file")
+                logger.debug("No valid entries found in frequency file")
                 _scaled_frequencies = {}
                 return _scaled_frequencies
 
@@ -149,13 +151,14 @@ def _load_scaled_frequencies() -> dict[str, float]:
                 word: rank / total_words for rank, (word, count) in enumerate(sorted_words)
             }
 
-            debug_log(
-                f"[RARITY] Loaded {len(_scaled_frequencies)} words (rank-based), "
-                f"max freq: {_max_frequency:,}"
+            logger.debug(
+                "Loaded %s words (rank-based), max freq: %s",
+                len(_scaled_frequencies),
+                f"{_max_frequency:,}",
             )
 
         except Exception as e:
-            debug_log(f"[RARITY] Error loading frequencies: {e}")
+            logger.debug("Error loading frequencies: %s", e)
             _scaled_frequencies = {}
 
         return _scaled_frequencies
@@ -358,9 +361,12 @@ def should_passthrough_non_ner_term(term: str, term_data: dict) -> bool:
         )
 
     if passed:
-        debug_log(
-            f"[RARITY] Passthrough non-NER term '{term}': "
-            f"max={max_rarity:.3f}, adj_mean={adjusted_mean_rarity:.3f}, words={word_count}"
+        logger.debug(
+            "Passthrough non-NER term '%s': max=%.3f, adj_mean=%.3f, words=%s",
+            term,
+            max_rarity,
+            adjusted_mean_rarity,
+            word_count,
         )
 
     return passed
@@ -424,9 +430,12 @@ def should_filter_phrase(phrase: str, is_person: bool = False) -> bool:
     # Filter if word is in the top X% (score < threshold)
     if word_count == 1:
         if min_common < single_threshold:
-            debug_log(
-                f"[RARITY] Filtering single word '{phrase}': "
-                f"rank_pct={min_common:.4f} < {single_threshold} (top {min_common * 100:.1f}%)"
+            logger.debug(
+                "Filtering single word '%s': rank_pct=%.4f < %s (top %.1f%%)",
+                phrase,
+                min_common,
+                single_threshold,
+                min_common * 100,
             )
             return True
         return False
@@ -436,17 +445,22 @@ def should_filter_phrase(phrase: str, is_person: bool = False) -> bool:
     # min_common = score of the RAREST word in the phrase
     # If this is < threshold, ALL words are in the top X% -> filter
     if min_common < phrase_threshold:
-        debug_log(
-            f"[RARITY] Filtering '{phrase}': min_rank_pct={min_common:.4f} "
-            f"< {phrase_threshold} (all words in top {min_common * 100:.1f}%)"
+        logger.debug(
+            "Filtering '%s': min_rank_pct=%.4f < %s (all words in top %.1f%%)",
+            phrase,
+            min_common,
+            phrase_threshold,
+            min_common * 100,
         )
         return True
 
     # Filter if the adjusted mean word rarity is too common
     if mean_common < phrase_mean_threshold:
-        debug_log(
-            f"[RARITY] Filtering '{phrase}': adj_mean_rank_pct={mean_common:.4f} "
-            f"< {phrase_mean_threshold}"
+        logger.debug(
+            "Filtering '%s': adj_mean_rank_pct=%.4f < %s",
+            phrase,
+            mean_common,
+            phrase_mean_threshold,
         )
         return True
 
@@ -507,9 +521,10 @@ def filter_common_phrases(
         filtered.append(term_data)
 
     if removed_count > 0:
-        debug_log(
-            f"[RARITY] Filtered {removed_count}/{original_count} phrases "
-            f"with common component words"
+        logger.debug(
+            "Filtered %s/%s phrases with common component words",
+            removed_count,
+            original_count,
         )
 
     return filtered

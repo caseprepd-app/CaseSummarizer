@@ -22,10 +22,11 @@ This algorithm has higher weight (0.8) compared to BM25+ (0.2) since
 semantic search is primary for comprehensive retrieval of relevant content.
 """
 
+import logging
 import time
 from typing import TYPE_CHECKING, Any
 
-from src.config import DEBUG_MODE, EMBEDDING_MODEL_LOCAL_PATH, EMBEDDING_MODEL_NAME
+from src.config import EMBEDDING_MODEL_LOCAL_PATH, EMBEDDING_MODEL_NAME
 from src.core.retrieval.algorithms import register_algorithm
 from src.core.retrieval.base import (
     AlgorithmRetrievalResult,
@@ -33,7 +34,8 @@ from src.core.retrieval.base import (
     DocumentChunk,
     RetrievedChunk,
 )
-from src.logging_config import debug_log
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from langchain_community.vectorstores import FAISS
@@ -74,8 +76,7 @@ def get_embeddings_model() -> "HuggingFaceEmbeddings":
     if _shared_embeddings is None:
         from langchain_huggingface import HuggingFaceEmbeddings
 
-        if DEBUG_MODE:
-            debug_log(f"[FAISS] Loading shared embeddings model: {DEFAULT_EMBEDDING_MODEL}")
+        logger.debug("Loading shared embeddings model: %s", DEFAULT_EMBEDDING_MODEL)
 
         _shared_embeddings = HuggingFaceEmbeddings(
             model_name=DEFAULT_EMBEDDING_MODEL,
@@ -145,8 +146,7 @@ class FAISSRetriever(BaseRetrievalAlgorithm):
         if self._embeddings is None:
             from langchain_huggingface import HuggingFaceEmbeddings
 
-            if DEBUG_MODE:
-                debug_log(f"[FAISS] Loading embeddings model: {DEFAULT_EMBEDDING_MODEL}")
+            logger.debug("Loading embeddings model: %s", DEFAULT_EMBEDDING_MODEL)
 
             self._embeddings = HuggingFaceEmbeddings(
                 model_name=DEFAULT_EMBEDDING_MODEL,
@@ -200,16 +200,14 @@ class FAISSRetriever(BaseRetrievalAlgorithm):
             for chunk in chunks
         ]
 
-        if DEBUG_MODE:
-            debug_log(f"[FAISS] Creating embeddings for {len(lc_documents)} chunks...")
+        logger.debug("Creating embeddings for %d chunks...", len(lc_documents))
 
         # Build FAISS index
         self._vector_store = FAISS.from_documents(documents=lc_documents, embedding=embeddings)
 
         elapsed_ms = (time.perf_counter() - start_time) * 1000
 
-        if DEBUG_MODE:
-            debug_log(f"[FAISS] Indexed {len(chunks)} chunks in {elapsed_ms:.1f}ms")
+        logger.debug("Indexed %d chunks in %.1fms", len(chunks), elapsed_ms)
 
     def retrieve(self, query: str, k: int = 5) -> AlgorithmRetrievalResult:
         """
@@ -230,8 +228,7 @@ class FAISSRetriever(BaseRetrievalAlgorithm):
         if not self.is_indexed:
             raise RuntimeError("Index not built. Call index_documents() first.")
 
-        if DEBUG_MODE:
-            debug_log(f"[FAISS] Query: '{query[:50]}...'")
+        logger.debug("Query: '%s...'", query[:50])
 
         # Perform similarity search with scores
         # Returns list of (Document, score) tuples
@@ -267,12 +264,15 @@ class FAISSRetriever(BaseRetrievalAlgorithm):
 
         elapsed_ms = (time.perf_counter() - start_time) * 1000
 
-        if DEBUG_MODE:
-            debug_log(f"[FAISS] Retrieved {len(retrieved_chunks)} chunks in {elapsed_ms:.1f}ms")
-            for i, chunk in enumerate(retrieved_chunks[:3]):
-                debug_log(
-                    f"  [{i + 1}] score={chunk.raw_score:.3f} -> {chunk.relevance_score:.3f} | {chunk.filename}"
-                )
+        logger.debug("Retrieved %d chunks in %.1fms", len(retrieved_chunks), elapsed_ms)
+        for i, chunk in enumerate(retrieved_chunks[:3]):
+            logger.debug(
+                "  [%d] score=%.3f -> %.3f | %s",
+                i + 1,
+                chunk.raw_score,
+                chunk.relevance_score,
+                chunk.filename,
+            )
 
         return AlgorithmRetrievalResult(
             chunks=retrieved_chunks,

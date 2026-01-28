@@ -4,10 +4,13 @@ Vocabulary Exporter
 Exports vocabulary data to Word/PDF/TXT using DocumentBuilder interface.
 """
 
+import logging
 from datetime import datetime
 from pathlib import Path
 
 from src.core.export.base import DocumentBuilder
+
+logger = logging.getLogger(__name__)
 
 
 def export_vocabulary(
@@ -98,7 +101,5 @@ def export_vocabulary_txt(vocab_data: list[dict], file_path: str) -> bool:
         Path(file_path).write_text(content, encoding="utf-8")
         return True
     except Exception as e:
-        from src.logging_config import error
-
-        error(f"[Vocab Export] Failed to export vocabulary TXT to '{file_path}': {e}")
+        logger.error("Failed to export vocabulary TXT to '%s': %s", file_path, e)
         return False

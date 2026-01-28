@@ -24,11 +24,12 @@ Usage:
     # }
 """
 
+import logging
 from abc import ABC, abstractmethod
 from hashlib import md5
 from typing import TYPE_CHECKING, ClassVar
 
-from src.logging_config import debug_log, error
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from src.core.ai.ollama_model_manager import OllamaModelManager
@@ -118,11 +119,11 @@ class AIFocusExtractor(FocusExtractor):
         template_hash = md5(template.encode()).hexdigest()[:8]
 
         if template_hash in self._cache:
-            debug_log(f"[FOCUS] Using cached focus for '{preset_id}' (hash: {template_hash})")
+            logger.debug("Using cached focus for '%s' (hash: %s)", preset_id, template_hash)
             return self._cache[template_hash]
 
         # Extract focus via AI
-        debug_log(f"[FOCUS] Extracting focus from '{preset_id}' via AI...")
+        logger.debug("Extracting focus from '%s' via AI...", preset_id)
         focus = self._extract_via_ai(template, preset_id)
         self._cache[template_hash] = focus
 
@@ -130,7 +131,7 @@ class AIFocusExtractor(FocusExtractor):
         emphasis_preview = (
             focus["emphasis"][:60] + "..." if len(focus["emphasis"]) > 60 else focus["emphasis"]
         )
-        debug_log(f"[FOCUS] Extracted emphasis: {emphasis_preview}")
+        logger.debug("Extracted emphasis: %s", emphasis_preview)
 
         return focus
 
@@ -182,8 +183,8 @@ INSTRUCTIONS:
             response = self.model_manager.generate_text(prompt, max_tokens=400)
             return self._parse_ai_response(response)
         except Exception as e:
-            error(f"[FOCUS] AI extraction failed for '{preset_id}': {e}")
-            debug_log("[FOCUS] Using generic fallback due to error")
+            logger.error("AI extraction failed for '%s': %s", preset_id, e)
+            logger.debug("Using generic fallback due to error")
             return self._generic_fallback()
 
     def _parse_ai_response(self, response: str) -> dict:
@@ -233,7 +234,7 @@ INSTRUCTIONS:
                 instructions = "\n".join(instructions_lines)
 
         except Exception as e:
-            debug_log(f"[FOCUS] Error parsing AI response: {e}, using defaults")
+            logger.debug("Error parsing AI response: %s, using defaults", e)
 
         return {"emphasis": emphasis, "instructions": instructions}
 
@@ -262,4 +263,4 @@ INSTRUCTIONS:
         Useful for testing or when templates are known to have changed.
         """
         cls._cache.clear()
-        debug_log("[FOCUS] Cache cleared")
+        logger.debug("Cache cleared")

@@ -28,6 +28,7 @@ The LLM extraction path intentionally uses chunks (different from other algorith
 for efficiency with Ollama. This is documented and by design.
 """
 
+import logging
 import math
 import os
 import time
@@ -51,8 +52,9 @@ from src.core.vocabulary.reconciler import VocabularyReconciler
 from src.core.vocabulary.result_merger import MergedTerm, ResultMerger
 from src.core.vocabulary.role_profiles import RoleDetectionProfile, StenographerProfile
 from src.core.vocabulary.term_sources import TermSources
-from src.logging_config import debug_log
 from src.user_preferences import get_user_preferences
+
+logger = logging.getLogger(__name__)
 
 # Organization indicator words for category detection
 ORGANIZATION_INDICATORS = {
@@ -131,7 +133,7 @@ class VocabularyExtractor:
 
         # Session 80: Log user exclusions for debugging
         if self.user_exclude_list:
-            debug_log(f"[VOCAB] User exclusion list has {len(self.user_exclude_list)} terms")
+            logger.debug("User exclusion list has %s terms", len(self.user_exclude_list))
 
         # Load common medical/legal words blacklist
         common_blacklist_path = (
@@ -180,11 +182,12 @@ class VocabularyExtractor:
                     corpus_manager = get_corpus_manager()
                     bm25 = BM25Algorithm(corpus_manager=corpus_manager)
                     self.algorithms.append(bm25)
-                    debug_log(
-                        f"[VOCAB] BM25 algorithm enabled (corpus: {corpus_manager.get_document_count()} docs)"
+                    logger.debug(
+                        "BM25 algorithm enabled (corpus: %s docs)",
+                        corpus_manager.get_document_count(),
                     )
                 except Exception as e:
-                    debug_log(f"[VOCAB] Failed to initialize BM25: {e}")
+                    logger.debug("Failed to initialize BM25: %s", e)
         else:
             self.algorithms = algorithms
 
@@ -243,41 +246,44 @@ class VocabularyExtractor:
             - Sources: Comma-separated algorithm names
         """
         original_kb = len(text) // 1024
-        debug_log(f"[VOCAB] Starting multi-algorithm extraction on {original_kb}KB document")
+        logger.debug("Starting multi-algorithm extraction on %sKB document", original_kb)
 
         # Limit text size
         max_chars = VOCABULARY_MAX_TEXT_KB * 1024
         if len(text) > max_chars:
             text = text[:max_chars]
-            debug_log(f"[VOCAB] Truncated to {VOCABULARY_MAX_TEXT_KB}KB for processing")
+            logger.debug("Truncated to %sKB for processing", VOCABULARY_MAX_TEXT_KB)
 
         # 1. Run all enabled algorithms (parallel when possible - Session 69)
         all_results = self._run_algorithms_parallel(text)
 
         # 2. Merge results from all algorithms
-        debug_log(f"[VOCAB] Merging results from {len(all_results)} algorithms...")
+        logger.debug("Merging results from %s algorithms...", len(all_results))
         merged_terms = self.merger.merge(all_results)
-        debug_log(f"[VOCAB] After merge: {len(merged_terms)} unique terms")
+        logger.debug("After merge: %s unique terms", len(merged_terms))
 
         # 3. Post-process: categorize, detect roles, add definitions
-        debug_log(
-            f"[VOCAB] Post-processing (doc_count={doc_count}, doc_confidence={doc_confidence:.1f}%)..."
+        logger.debug(
+            "Post-processing (doc_count=%s, doc_confidence=%.1f%%)...",
+            doc_count,
+            doc_confidence,
         )
         vocabulary = self._post_process(merged_terms, text, doc_count, doc_confidence)
-        debug_log(f"[VOCAB] After post-process: {len(vocabulary)} terms")
+        logger.debug("After post-process: %s terms", len(vocabulary))
 
         # 4. Run vocabulary filter chain (Session 71)
         # Consolidates: name dedup, artifact filter, name regularizer,
         # rarity filter, corpus familiarity, and gibberish filter
-        debug_log("[VOCAB] Running filter chain...")
+        logger.debug("Running filter chain...")
         from src.core.vocabulary.filters import create_optimized_filter_chain
 
         filter_chain = create_optimized_filter_chain()
         filter_result = filter_chain.run(vocabulary)
         vocabulary = filter_result.vocabulary
-        debug_log(
-            f"[VOCAB] Filter chain complete: {filter_result.removed_count} removed, "
-            f"{len(vocabulary)} remaining"
+        logger.debug(
+            "Filter chain complete: %s removed, %s remaining",
+            filter_result.removed_count,
+            len(vocabulary),
         )
 
         # 8. Sort vocabulary based on configured method
@@ -316,13 +322,13 @@ class VocabularyExtractor:
         from src.system_resources import get_optimal_workers
 
         original_kb = len(text) // 1024
-        debug_log(f"[VOCAB] Starting progressive extraction on {original_kb}KB document")
+        logger.debug("Starting progressive extraction on %sKB document", original_kb)
 
         # Limit text size
         max_chars = VOCABULARY_MAX_TEXT_KB * 1024
         if len(text) > max_chars:
             text = text[:max_chars]
-            debug_log(f"[VOCAB] Truncated to {VOCABULARY_MAX_TEXT_KB}KB for processing")
+            logger.debug("Truncated to %sKB for processing", VOCABULARY_MAX_TEXT_KB)
 
         # Separate algorithms into fast (BM25, RAKE) and slow (NER)
         fast_algorithms = []
@@ -339,14 +345,14 @@ class VocabularyExtractor:
 
         # Phase 1: Run fast algorithms (BM25, RAKE) in parallel
         if fast_algorithms:
-            debug_log(f"[VOCAB] Phase 1: Running {len(fast_algorithms)} fast algorithms...")
+            logger.debug("Phase 1: Running %s fast algorithms...", len(fast_algorithms))
             workers = min(len(fast_algorithms), get_optimal_workers(task_ram_gb=0.5, max_workers=4))
 
             if len(fast_algorithms) == 1:
                 # Sequential for single algorithm
                 result = fast_algorithms[0].extract(text)
                 all_results.append(result)
-                debug_log(f"[VOCAB] {fast_algorithms[0].name}: {len(result.candidates)} candidates")
+                logger.debug("%s: %s candidates", fast_algorithms[0].name, len(result.candidates))
             else:
                 # Parallel execution
                 strategy = ThreadPoolStrategy(max_workers=workers)
@@ -364,13 +370,13 @@ class VocabularyExtractor:
                         if task_result.success:
                             alg_name, result = task_result.result
                             all_results.append(result)
-                            debug_log(f"[VOCAB] {alg_name}: {len(result.candidates)} candidates")
+                            logger.debug("%s: %s candidates", alg_name, len(result.candidates))
                 finally:
                     strategy.shutdown(wait=True)
 
             # Send partial results if callback provided
             if partial_callback is not None and all_results:
-                debug_log("[VOCAB] Sending partial results (BM25+RAKE)...")
+                logger.debug("Sending partial results (BM25+RAKE)...")
                 partial_merged = self.merger.merge(all_results)
                 partial_vocab = self._post_process(partial_merged, text, doc_count, doc_confidence)
                 # Apply lightweight filter chain (Session 85: skip rarity filter for partial results)
@@ -380,18 +386,19 @@ class VocabularyExtractor:
                 filter_chain = create_partial_results_filter_chain()
                 filter_result = filter_chain.run(partial_vocab)
                 partial_vocab = self._sort_vocabulary(filter_result.vocabulary)
-                debug_log(
-                    f"[VOCAB] Partial filter chain: {filter_result.removed_count} removed, "
-                    f"{len(partial_vocab)} remaining"
+                logger.debug(
+                    "Partial filter chain: %s removed, %s remaining",
+                    filter_result.removed_count,
+                    len(partial_vocab),
                 )
                 try:
                     partial_callback(partial_vocab)
                 except Exception as e:
-                    debug_log(f"[VOCAB] Partial callback error: {e}")
+                    logger.debug("Partial callback error: %s", e)
 
         # Phase 2: Run NER with progress callback
         if ner_algorithm is not None:
-            debug_log("[VOCAB] Phase 2: Running NER with progress updates...")
+            logger.debug("Phase 2: Running NER with progress updates...")
 
             # Wrapper to post-process NER chunk results before sending
             def ner_chunk_callback(chunk_candidates, chunk_num, total_chunks):
@@ -404,12 +411,12 @@ class VocabularyExtractor:
 
             result = ner_algorithm.extract(text, progress_callback=ner_chunk_callback)
             all_results.append(result)
-            debug_log(f"[VOCAB] NER complete: {len(result.candidates)} candidates")
+            logger.debug("NER complete: %s candidates", len(result.candidates))
 
         # Final merge and post-process
-        debug_log(f"[VOCAB] Merging results from {len(all_results)} algorithms...")
+        logger.debug("Merging results from %s algorithms...", len(all_results))
         merged_terms = self.merger.merge(all_results)
-        debug_log(f"[VOCAB] After merge: {len(merged_terms)} unique terms")
+        logger.debug("After merge: %s unique terms", len(merged_terms))
 
         vocabulary = self._post_process(merged_terms, text, doc_count, doc_confidence)
 
@@ -419,9 +426,10 @@ class VocabularyExtractor:
         filter_chain = create_optimized_filter_chain()
         filter_result = filter_chain.run(vocabulary)
         vocabulary = filter_result.vocabulary
-        debug_log(
-            f"[VOCAB] Filter chain complete: {filter_result.removed_count} removed, "
-            f"{len(vocabulary)} remaining"
+        logger.debug(
+            "Filter chain complete: %s removed, %s remaining",
+            filter_result.removed_count,
+            len(vocabulary),
         )
 
         vocabulary = self._sort_vocabulary(vocabulary)
@@ -457,11 +465,11 @@ class VocabularyExtractor:
             - Quality Score: 0-100 composite score
             - Definition: WordNet definition (optional)
         """
-        debug_log(f"[VOCAB] Starting extract_with_llm (include_llm={include_llm})")
+        logger.debug("Starting extract_with_llm (include_llm=%s)", include_llm)
         start_time = time.time()
 
         # 1. Run NER extraction via existing algorithms
-        debug_log("[VOCAB] Phase 1: Running NER extraction...")
+        logger.debug("Phase 1: Running NER extraction...")
         ner_candidates = []
         for algorithm in self.algorithms:
             if not algorithm.enabled:
@@ -469,13 +477,13 @@ class VocabularyExtractor:
             if algorithm.name == "NER":
                 result = algorithm.extract(text)
                 ner_candidates = result.candidates
-                debug_log(f"[VOCAB] NER found {len(ner_candidates)} candidates")
+                logger.debug("NER found %s candidates", len(ner_candidates))
                 break
 
         # 2. Run LLM extraction if enabled
         llm_terms = []
         if include_llm:
-            debug_log("[VOCAB] Phase 2: Running LLM extraction...")
+            logger.debug("Phase 2: Running LLM extraction...")
             try:
                 from src.core.extraction.llm_extractor import LLMVocabExtractor
 
@@ -485,30 +493,33 @@ class VocabularyExtractor:
                     progress_callback=progress_callback,
                 )
                 llm_terms = llm_result.terms
-                debug_log(
-                    f"[VOCAB] LLM found {len(llm_terms)} terms "
-                    f"in {llm_result.processing_time_ms:.1f}ms"
+                logger.debug(
+                    "LLM found %s terms in %.1fms",
+                    len(llm_terms),
+                    llm_result.processing_time_ms,
                 )
             except Exception as e:
-                debug_log(f"[VOCAB] LLM extraction failed: {e}")
+                logger.debug("LLM extraction failed: %s", e)
                 # Continue with NER-only results
 
         # 3. Reconcile results
-        debug_log("[VOCAB] Phase 3: Reconciling NER and LLM results...")
+        logger.debug("Phase 3: Reconciling NER and LLM results...")
         reconciler = VocabularyReconciler()
         reconciled = reconciler.reconcile(ner_candidates, llm_terms)
-        debug_log(f"[VOCAB] Reconciled to {len(reconciled)} unique terms")
+        logger.debug("Reconciled to %s unique terms", len(reconciled))
 
         # 3.5 Filter out common words and apply frequency thresholds (Session 45)
-        debug_log("[VOCAB] Phase 3.5: Filtering common words...")
+        logger.debug("Phase 3.5: Filtering common words...")
         filtered_reconciled = self._filter_reconciled_terms(reconciled, doc_count)
-        debug_log(
-            f"[VOCAB] After filtering: {len(filtered_reconciled)} terms (removed {len(reconciled) - len(filtered_reconciled)})"
+        logger.debug(
+            "After filtering: %s terms (removed %s)",
+            len(filtered_reconciled),
+            len(reconciled) - len(filtered_reconciled),
         )
         reconciled = filtered_reconciled
 
         # 4. Add definitions for Medical/Technical terms
-        debug_log("[VOCAB] Phase 4: Adding definitions...")
+        logger.debug("Phase 4: Adding definitions...")
         for term in reconciled:
             if term.type in ("Medical", "Technical") and not term.definition:
                 term.definition = self._get_definition(term.term, term.type == "Person")
@@ -526,19 +537,20 @@ class VocabularyExtractor:
         # 7. Run vocabulary filter chain (Session 71)
         # Consolidates: name dedup, artifact filter, name regularizer,
         # rarity filter, corpus familiarity, and gibberish filter
-        debug_log("[VOCAB] Phase 7: Running filter chain...")
+        logger.debug("Phase 7: Running filter chain...")
         from src.core.vocabulary.filters import create_optimized_filter_chain
 
         filter_chain = create_optimized_filter_chain()
         filter_result = filter_chain.run(csv_data)
         csv_data = filter_result.vocabulary
-        debug_log(
-            f"[VOCAB] Filter chain complete: {filter_result.removed_count} removed, "
-            f"{len(csv_data)} remaining"
+        logger.debug(
+            "Filter chain complete: %s removed, %s remaining",
+            filter_result.removed_count,
+            len(csv_data),
         )
 
         total_time = (time.time() - start_time) * 1000
-        debug_log(f"[VOCAB] extract_with_llm complete in {total_time:.1f}ms, {len(csv_data)} terms")
+        logger.debug("extract_with_llm complete in %.1fms, %s terms", total_time, len(csv_data))
 
         return csv_data
 
@@ -565,7 +577,7 @@ class VocabularyExtractor:
         enabled_algorithms = [alg for alg in self.algorithms if alg.enabled]
 
         if not enabled_algorithms:
-            debug_log("[VOCAB] No algorithms enabled")
+            logger.debug("No algorithms enabled")
             return []
 
         # Log text hash for consistency verification (Session 87)
@@ -573,7 +585,7 @@ class VocabularyExtractor:
         import hashlib
 
         text_hash = hashlib.md5(text.encode()).hexdigest()[:12]
-        debug_log(f"[VOCAB] Text hash for all algorithms: {text_hash} ({len(text)} chars)")
+        logger.debug("Text hash for all algorithms: %s (%s chars)", text_hash, len(text))
 
         # Decide whether to parallelize
         # Skip parallelization for 1 algorithm or 1 CPU core
@@ -582,23 +594,27 @@ class VocabularyExtractor:
 
         if not use_parallel:
             # Sequential fallback
-            debug_log(f"[VOCAB] Running {len(enabled_algorithms)} algorithm(s) sequentially")
+            logger.debug("Running %s algorithm(s) sequentially", len(enabled_algorithms))
             all_results = []
             for algorithm in enabled_algorithms:
-                debug_log(f"[VOCAB] Running {algorithm.name} algorithm...")
+                logger.debug("Running %s algorithm...", algorithm.name)
                 result = algorithm.extract(text)
                 all_results.append(result)
-                debug_log(
-                    f"[VOCAB] {algorithm.name}: {len(result.candidates)} candidates "
-                    f"in {result.processing_time_ms:.1f}ms"
+                logger.debug(
+                    "%s: %s candidates in %.1fms",
+                    algorithm.name,
+                    len(result.candidates),
+                    result.processing_time_ms,
                 )
             return all_results
 
         # Parallel execution
         # Each algorithm uses ~0.5GB RAM (spaCy model is shared)
         workers = min(len(enabled_algorithms), get_optimal_workers(task_ram_gb=0.5, max_workers=4))
-        debug_log(
-            f"[VOCAB] Running {len(enabled_algorithms)} algorithms in parallel ({workers} workers)"
+        logger.debug(
+            "Running %s algorithms in parallel (%s workers)",
+            len(enabled_algorithms),
+            workers,
         )
 
         start_time = time.time()
@@ -622,17 +638,21 @@ class VocabularyExtractor:
                 if task_result.success:
                     alg_name, result = task_result.result
                     all_results.append(result)
-                    debug_log(
-                        f"[VOCAB] {alg_name}: {len(result.candidates)} candidates "
-                        f"in {result.processing_time_ms:.1f}ms"
+                    logger.debug(
+                        "%s: %s candidates in %.1fms",
+                        alg_name,
+                        len(result.candidates),
+                        result.processing_time_ms,
                     )
                 else:
-                    debug_log(
-                        f"[VOCAB] Algorithm {task_result.task_id} failed: {task_result.error}"
+                    logger.debug(
+                        "Algorithm %s failed: %s",
+                        task_result.task_id,
+                        task_result.error,
                     )
 
             total_time = (time.time() - start_time) * 1000
-            debug_log(f"[VOCAB] Parallel extraction complete in {total_time:.1f}ms")
+            logger.debug("Parallel extraction complete in %.1fms", total_time)
 
             return all_results
 
@@ -803,12 +823,12 @@ class VocabularyExtractor:
 
             # Skip if in exclude lists (common legal words)
             if lower_term in self.exclude_list:
-                debug_log(f"[VOCAB FILTER] Skipping excluded term: {term}")
+                logger.debug("Skipping excluded term: %s", term)
                 continue
 
             # Skip if in user exclude list
             if lower_term in self.user_exclude_list:
-                debug_log(f"[VOCAB FILTER] Skipping user-excluded term: {term}")
+                logger.debug("Skipping user-excluded term: %s", term)
                 continue
 
             # Skip common words based on frequency rank (except Person names)
@@ -816,7 +836,7 @@ class VocabularyExtractor:
                 rank = self.frequency_rank_map.get(lower_term)
                 if rank is not None and rank < self.rarity_threshold:
                     # Word is too common - in top N most common words
-                    debug_log(f"[VOCAB FILTER] Skipping common word: {term} (rank={rank})")
+                    logger.debug("Skipping common word: %s (rank=%s)", term, rank)
                     continue
 
             # Session 62: Apply rarity filter to catch common words not in frequency dataset
@@ -825,13 +845,15 @@ class VocabularyExtractor:
 
             is_person = category == "Person"
             if should_filter_phrase(term, is_person):
-                debug_log(f"[VOCAB FILTER] Skipping common term via rarity filter: {term}")
+                logger.debug("Skipping common term via rarity filter: %s", term)
                 continue
 
             # Frequency filtering (PERSON exempt) - skip if too frequent
             if category != "Person" and term_obj.frequency > frequency_threshold:
-                debug_log(
-                    f"[VOCAB FILTER] Skipping high-frequency term: {term} (freq={term_obj.frequency})"
+                logger.debug(
+                    "Skipping high-frequency term: %s (freq=%s)",
+                    term,
+                    term_obj.frequency,
                 )
                 continue
 
@@ -841,8 +863,10 @@ class VocabularyExtractor:
                 "vocab_min_occurrences", VOCABULARY_MIN_OCCURRENCES
             )
             if category != "Person" and term_obj.frequency < min_occurrences:
-                debug_log(
-                    f"[VOCAB FILTER] Skipping low-frequency term: {term} (freq={term_obj.frequency})"
+                logger.debug(
+                    "Skipping low-frequency term: %s (freq=%s)",
+                    term,
+                    term_obj.frequency,
                 )
                 continue
 
@@ -853,7 +877,7 @@ class VocabularyExtractor:
             # Skip single-word terms that are stopwords (uses shared STOPWORDS)
             # Note: Multi-word phrase filtering is done centrally by rarity_filter.py
             if len(term.split()) == 1 and lower_term in STOPWORDS and category != "Person":
-                debug_log(f"[VOCAB FILTER] Skipping stopword: {term}")
+                logger.debug("Skipping stopword: %s", term)
                 continue
 
             filtered.append(term_obj)
@@ -993,15 +1017,20 @@ class VocabularyExtractor:
             score_diff = final_score - base_score
             if abs(score_diff) > 5:
                 term = term_data.get("Term", "?")
-                debug_log(
-                    f"[ML] '{term}': prob={preference_prob:.2f}, weight={ml_weight:.0%}, "
-                    f"base={base_score:.1f} -> final={final_score:.1f} ({score_diff:+.1f})"
+                logger.debug(
+                    "'%s': prob=%.2f, weight=%.0f%%, base=%.1f -> final=%.1f (%+.1f)",
+                    term,
+                    preference_prob,
+                    ml_weight * 100,
+                    base_score,
+                    final_score,
+                    score_diff,
                 )
 
             return final_score
 
         except Exception as e:
-            debug_log(f"[ML] Error applying boost: {e}")
+            logger.debug("Error applying boost: %s", e)
             return base_score
 
     def _get_definition(self, term: str, is_person: bool) -> str:
@@ -1035,13 +1064,13 @@ class VocabularyExtractor:
             Sorted vocabulary list
         """
         if self.sort_method == "quality_score":
-            debug_log("[VOCAB] Sorting by Quality Score (highest first)")
+            logger.debug("Sorting by Quality Score (highest first)")
             return self._sort_by_quality_score(vocabulary)
         elif self.sort_method == "rarity" and self.frequency_dataset:
-            debug_log("[VOCAB] Sorting by rarity (rarest first)")
+            logger.debug("Sorting by rarity (rarest first)")
             return self._sort_by_rarity(vocabulary)
         else:
-            debug_log("[VOCAB] No sorting applied")
+            logger.debug("No sorting applied")
             return vocabulary
 
     def _sort_by_quality_score(self, vocabulary: list[dict]) -> list[dict]:
@@ -1106,12 +1135,12 @@ class VocabularyExtractor:
         file_path = Path(file_path) if isinstance(file_path, str) else file_path
 
         if not file_path.exists():
-            debug_log(f"[VOCAB] Word list not found: {file_path}")
+            logger.debug("Word list not found: %s", file_path)
             return set()
 
         with open(file_path, encoding="utf-8") as f:
             word_list = {line.strip().lower() for line in f if line.strip()}
-            debug_log(f"[VOCAB] Loaded {len(word_list)} words from {file_path}")
+            logger.debug("Loaded %s words from %s", len(word_list), file_path)
             return word_list
 
     def _load_frequency_dataset(self) -> tuple[dict[str, int], dict[str, int]]:
@@ -1120,7 +1149,7 @@ class VocabularyExtractor:
         rank_map = {}
 
         if not GOOGLE_WORD_FREQUENCY_FILE.exists():
-            debug_log(f"[VOCAB] Frequency dataset not found: {GOOGLE_WORD_FREQUENCY_FILE}")
+            logger.debug("Frequency dataset not found: %s", GOOGLE_WORD_FREQUENCY_FILE)
             return frequency_dict, rank_map
 
         try:
@@ -1135,15 +1164,15 @@ class VocabularyExtractor:
                         except ValueError:
                             continue
 
-            debug_log(f"[VOCAB] Loaded {len(frequency_dict)} words from frequency dataset")
+            logger.debug("Loaded %s words from frequency dataset", len(frequency_dict))
 
             # Build rank map
             sorted_words = sorted(frequency_dict.items(), key=lambda x: x[1], reverse=True)
             rank_map = {word: rank for rank, (word, _) in enumerate(sorted_words)}
-            debug_log(f"[VOCAB] Built rank map for {len(rank_map)} words")
+            logger.debug("Built rank map for %s words", len(rank_map))
 
         except Exception as e:
-            debug_log(f"[VOCAB] Error loading frequency dataset: {e}")
+            logger.debug("Error loading frequency dataset: %s", e)
 
         return frequency_dict, rank_map
 
@@ -1152,14 +1181,14 @@ class VocabularyExtractor:
         try:
             wordnet.synsets("test")
         except LookupError:
-            debug_log("[VOCAB] Downloading NLTK wordnet...")
+            logger.debug("Downloading NLTK wordnet...")
             nltk.download("wordnet", quiet=True)
             nltk.download("omw-1.4", quiet=True)
 
     def add_user_exclusion(self, term: str) -> bool:
         """Add a term to the user's exclusion list."""
         if not self.user_exclude_path:
-            debug_log("[VOCAB] Cannot add exclusion: no user exclude path configured")
+            logger.debug("Cannot add exclusion: no user exclude path configured")
             return False
 
         lower_term = term.lower().strip()
@@ -1174,10 +1203,10 @@ class VocabularyExtractor:
                 os.makedirs(dirname, exist_ok=True)
             with open(self.user_exclude_path, "a", encoding="utf-8") as f:
                 f.write(f"{lower_term}\n")
-            debug_log(f"[VOCAB] Added '{term}' to user exclusion list")
+            logger.debug("Added '%s' to user exclusion list", term)
             return True
         except Exception as e:
-            debug_log(f"[VOCAB] Failed to save user exclusion: {e}")
+            logger.debug("Failed to save user exclusion: %s", e)
             return False
 
     def reload_user_exclusions(self):
@@ -1208,22 +1237,24 @@ class VocabularyExtractor:
             # Check user preference
             prefs = get_user_preferences()
             if not prefs.get("bm25_enabled", True):
-                debug_log("[VOCAB] BM25 disabled by user preference")
+                logger.debug("BM25 disabled by user preference")
                 return False
 
             # Check corpus readiness
             corpus_manager = get_corpus_manager()
             if not corpus_manager.is_corpus_ready(min_docs=CORPUS_MIN_DOCUMENTS):
                 doc_count = corpus_manager.get_document_count()
-                debug_log(
-                    f"[VOCAB] BM25 skipped: corpus has {doc_count}/{CORPUS_MIN_DOCUMENTS} documents"
+                logger.debug(
+                    "BM25 skipped: corpus has %s/%s documents",
+                    doc_count,
+                    CORPUS_MIN_DOCUMENTS,
                 )
                 return False
 
             return True
 
         except Exception as e:
-            debug_log(f"[VOCAB] BM25 check failed: {e}")
+            logger.debug("BM25 check failed: %s", e)
             return False
 
     # ========================================================================
@@ -1249,7 +1280,7 @@ class VocabularyExtractor:
             Dict mapping term (lowercase) → count for this document only.
             Example: {"john smith": 5, "radiculopathy": 3}
         """
-        debug_log(f"[VOCAB] Extracting from document {doc_id[:12]}... (conf={doc_confidence:.1f}%)")
+        logger.debug("Extracting from document %s... (conf=%.1f%%)", doc_id[:12], doc_confidence)
 
         # Limit text size
         max_chars = VOCABULARY_MAX_TEXT_KB * 1024
@@ -1268,7 +1299,7 @@ class VocabularyExtractor:
             lower_term = merged.term.lower()
             term_counts[lower_term] = merged.frequency
 
-        debug_log(f"[VOCAB] Document {doc_id[:12]}: {len(term_counts)} unique terms")
+        logger.debug("Document %s: %s unique terms", doc_id[:12], len(term_counts))
         return term_counts
 
     def merge_document_results(
@@ -1293,7 +1324,7 @@ class VocabularyExtractor:
             return []
 
         total_docs = len(doc_results)
-        debug_log(f"[VOCAB] Merging results from {total_docs} documents...")
+        logger.debug("Merging results from %s documents...", total_docs)
 
         # Build TermSources for each unique term
         # term_data[lower_term] = {
@@ -1320,7 +1351,7 @@ class VocabularyExtractor:
                 term_data[term_lower]["counts_per_doc"].append(count)
                 term_data[term_lower]["total_count"] += count
 
-        debug_log(f"[VOCAB] Found {len(term_data)} unique terms across all documents")
+        logger.debug("Found %s unique terms across all documents", len(term_data))
 
         # Convert to TermSources and build vocabulary
         vocabulary = []
@@ -1387,13 +1418,13 @@ class VocabularyExtractor:
             vocabulary.append(term_dict)
 
         # Run filter chain
-        debug_log("[VOCAB] Running filter chain on merged results...")
+        logger.debug("Running filter chain on merged results...")
         from src.core.vocabulary.filters import create_optimized_filter_chain
 
         filter_chain = create_optimized_filter_chain()
         filter_result = filter_chain.run(vocabulary)
         vocabulary = filter_result.vocabulary
-        debug_log(f"[VOCAB] Filter chain complete: {filter_result.removed_count} removed")
+        logger.debug("Filter chain complete: %s removed", filter_result.removed_count)
 
         # Sort and return
         vocabulary = self._sort_vocabulary(vocabulary)
@@ -1425,7 +1456,7 @@ class VocabularyExtractor:
             return []
 
         total_docs = len(documents)
-        debug_log(f"[VOCAB] Starting per-document extraction for {total_docs} documents")
+        logger.debug("Starting per-document extraction for %s documents", total_docs)
 
         # Session 86: Create preprocessing pipeline to clean transcript artifacts
         # (headers, Q./A. notation, line numbers, etc.) before NER extraction
@@ -1461,5 +1492,5 @@ class VocabularyExtractor:
         combined_text = "\n\n".join(combined_text_parts)
         vocabulary = self.merge_document_results(doc_results, combined_text)
 
-        debug_log(f"[VOCAB] Per-document extraction complete: {len(vocabulary)} terms")
+        logger.debug("Per-document extraction complete: %s terms", len(vocabulary))
         return vocabulary

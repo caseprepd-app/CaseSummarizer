@@ -17,11 +17,13 @@ Example usage:
     'The plaintiff filed a motion.'
 """
 
+import logging
 import re
 import time
 
 from src.config import MIN_LINE_LENGTH
-from src.logging_config import debug
+
+logger = logging.getLogger(__name__)
 
 
 class TextNormalizer:
@@ -89,7 +91,7 @@ class TextNormalizer:
             >>> normalizer.normalize("The plain-\\ntiff\\nPage 1\\n\\n\\nfiled.")
             'The plaintiff\\nfiled.'
         """
-        debug("Applying text normalization rules")
+        logger.debug("Applying text normalization rules")
 
         # Stage 1: De-hyphenation
         text = self._stage_dehyphenation(text)
@@ -118,21 +120,23 @@ class TextNormalizer:
         Returns:
             Text with hyphenated words rejoined
         """
-        debug("  Stage 1: De-hyphenation")
+        logger.debug("Stage 1: De-hyphenation")
         start = time.time()
         original_len = len(text)
 
         try:
             text = re.sub(r"(\w+)-\s*\n\s*(\w+)", r"\1\2", text)
             duration = time.time() - start
-            debug(f"    OK ({duration:.3f}s) - Rejoin hyphenated words")
-            debug(
-                f"       Input: {original_len} | Output: {len(text)} | "
-                f"Delta: {len(text) - original_len:+d}"
+            logger.debug("OK (%.3fs) - Rejoin hyphenated words", duration)
+            logger.debug(
+                "Input: %d | Output: %d | Delta: %+d",
+                original_len,
+                len(text),
+                len(text) - original_len,
             )
         except Exception as e:
             duration = time.time() - start
-            debug(f"    FAILED ({duration:.3f}s) - {type(e).__name__}: {e!s}")
+            logger.debug("FAILED (%.3fs) - %s: %s", duration, type(e).__name__, e)
             raise
 
         return text
@@ -154,7 +158,7 @@ class TextNormalizer:
         Returns:
             Text with page numbers removed
         """
-        debug("  Stage 2: Page number removal")
+        logger.debug("Stage 2: Page number removal")
         start = time.time()
         original_len = len(text)
 
@@ -168,18 +172,20 @@ class TextNormalizer:
                     lines_filtered.append(line)
                 else:
                     removed_count += 1
-                    debug(f"    Removed page number: {line}")
+                    logger.debug("Removed page number: %s", line)
 
             text = "\n".join(lines_filtered)
             duration = time.time() - start
-            debug(f"    OK ({duration:.3f}s) - Removed {removed_count} page markers")
-            debug(
-                f"       Input: {original_len} | Output: {len(text)} | "
-                f"Delta: {len(text) - original_len:+d}"
+            logger.debug("OK (%.3fs) - Removed %d page markers", duration, removed_count)
+            logger.debug(
+                "Input: %d | Output: %d | Delta: %+d",
+                original_len,
+                len(text),
+                len(text) - original_len,
             )
         except Exception as e:
             duration = time.time() - start
-            debug(f"    FAILED ({duration:.3f}s) - {type(e).__name__}: {e!s}")
+            logger.debug("FAILED (%.3fs) - %s: %s", duration, type(e).__name__, e)
             raise
 
         return text
@@ -204,7 +210,7 @@ class TextNormalizer:
         Returns:
             Text with garbage lines removed
         """
-        debug("  Stage 3: Line filtering")
+        logger.debug("Stage 3: Line filtering")
         start = time.time()
         original_len = len(text)
 
@@ -219,14 +225,16 @@ class TextNormalizer:
             removed_count = len(input_lines) - len(normalized_lines)
             text = "\n".join(normalized_lines)
             duration = time.time() - start
-            debug(f"    OK ({duration:.3f}s) - Filtered {removed_count} lines")
-            debug(
-                f"       Input: {original_len} | Output: {len(text)} | "
-                f"Delta: {len(text) - original_len:+d}"
+            logger.debug("OK (%.3fs) - Filtered %d lines", duration, removed_count)
+            logger.debug(
+                "Input: %d | Output: %d | Delta: %+d",
+                original_len,
+                len(text),
+                len(text) - original_len,
             )
         except Exception as e:
             duration = time.time() - start
-            debug(f"    FAILED ({duration:.3f}s) - {type(e).__name__}: {e!s}")
+            logger.debug("FAILED (%.3fs) - %s: %s", duration, type(e).__name__, e)
             raise
 
         return text
@@ -244,7 +252,7 @@ class TextNormalizer:
         Returns:
             Text with normalized whitespace
         """
-        debug("  Stage 4: Whitespace normalization")
+        logger.debug("Stage 4: Whitespace normalization")
         start = time.time()
         original_len = len(text)
 
@@ -253,14 +261,16 @@ class TextNormalizer:
             text = re.sub(r"\n\s*\n\s*\n+", "\n\n", text)
             text = text.strip()
             duration = time.time() - start
-            debug(f"    OK ({duration:.3f}s) - Normalize whitespace")
-            debug(
-                f"       Input: {original_len} | Output: {len(text)} | "
-                f"Delta: {len(text) - original_len:+d}"
+            logger.debug("OK (%.3fs) - Normalize whitespace", duration)
+            logger.debug(
+                "Input: %d | Output: %d | Delta: %+d",
+                original_len,
+                len(text),
+                len(text) - original_len,
             )
         except Exception as e:
             duration = time.time() - start
-            debug(f"    FAILED ({duration:.3f}s) - {type(e).__name__}: {e!s}")
+            logger.debug("FAILED (%.3fs) - %s: %s", duration, type(e).__name__, e)
             raise
 
         return text

@@ -23,10 +23,14 @@ Layout:
     └─────────────────────────────────────────────────────────────┘
 """
 
+import logging
+
 import customtkinter as ctk
 
 from src.ui.settings.settings_widgets import TooltipIcon
 from src.ui.theme import COLORS, FONTS
+
+logger = logging.getLogger(__name__)
 
 
 class CorpusSettingsWidget(ctk.CTkFrame):
@@ -204,9 +208,7 @@ class CorpusSettingsWidget(ctk.CTkFrame):
                 )
 
         except Exception as e:
-            from src.logging_config import debug_log
-
-            debug_log(f"[CorpusSettingsWidget] Error refreshing status: {e}")
+            logger.debug("Error refreshing corpus status: %s", e)
             self.active_corpus_label.configure(text="• Active corpus: (error)")
             self.doc_count_label.configure(text="• Documents: (error)")
             self.bm25_status_label.configure(text="• BM25 Algorithm: (error)")

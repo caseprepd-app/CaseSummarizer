@@ -7,11 +7,12 @@ Contains:
 - Export All functionality (tabbed HTML export)
 """
 
+import logging
 from datetime import datetime
 from pathlib import Path
 from tkinter import filedialog, messagebox
 
-from src.logging_config import debug_log
+logger = logging.getLogger(__name__)
 
 
 class ExportMixin:
@@ -106,6 +107,6 @@ class ExportMixin:
             if summary_text:
                 parts.append("summary")
             self.set_status(f"Exported {' + '.join(parts)} to {filename}", duration_ms=5000)
-            debug_log(f"[MainWindow] Export All HTML: {filepath}")
+            logger.info("Export All HTML: %s", filepath)
         else:
             messagebox.showerror("Export Failed", "Failed to create HTML report.")

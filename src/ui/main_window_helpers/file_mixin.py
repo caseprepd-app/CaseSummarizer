@@ -10,12 +10,12 @@ Contains:
 - Queue handling for file processing
 """
 
+import logging
 from pathlib import Path
 from queue import Empty, Queue
 from tkinter import filedialog
 
-from src.config import DEBUG_MODE
-from src.logging_config import debug_log
+logger = logging.getLogger(__name__)
 
 # Try to import tkinterdnd2 for drag-and-drop support (Session 73)
 try:
@@ -48,8 +48,7 @@ class FileMixin:
         Requires tkinterdnd2 library to be installed.
         """
         if not HAS_DND:
-            if DEBUG_MODE:
-                debug_log("[MainWindow] Drag-drop disabled: tkinterdnd2 not installed")
+            logger.debug("Drag-drop disabled: tkinterdnd2 not installed")
             return
 
         try:
@@ -61,12 +60,10 @@ class FileMixin:
             self.left_panel.drop_target_register(DND_FILES)
             self.left_panel.dnd_bind("<<Drop>>", self._on_file_drop)
 
-            if DEBUG_MODE:
-                debug_log("[MainWindow] Drag-drop enabled on file table area")
+            logger.debug("Drag-drop enabled on file table area")
 
         except Exception as e:
-            if DEBUG_MODE:
-                debug_log(f"[MainWindow] Failed to initialize drag-drop: {e}")
+            logger.debug("Failed to initialize drag-drop: %s", e)
 
     def _on_file_drop(self, event):
         """
@@ -115,16 +112,12 @@ class FileMixin:
             self.set_status("No supported files dropped (PDF, TXT, RTF, DOCX, PNG, JPG)")
             return
 
-        if DEBUG_MODE:
-            debug_log(f"[MainWindow] Files dropped: {len(valid_files)} valid files")
+        logger.debug("Files dropped: %s valid files", len(valid_files))
 
-        # Hide Export All / Combined Report buttons when new files are dropped
+        # Hide Export All button when new files are dropped
         if self._export_all_visible:
             self.export_all_btn.pack_forget()
             self._export_all_visible = False
-        if self._combined_report_visible:
-            self.combined_report_btn.pack_forget()
-            self._combined_report_visible = False
 
         # Process the dropped files
         self.selected_files = valid_files
@@ -149,13 +142,10 @@ class FileMixin:
         if not files:
             return
 
-        # Hide Export All / Combined Report buttons when new files are selected
+        # Hide Export All button when new files are selected
         if self._export_all_visible:
             self.export_all_btn.pack_forget()
             self._export_all_visible = False
-        if self._combined_report_visible:
-            self.combined_report_btn.pack_forget()
-            self._combined_report_visible = False
 
         self.selected_files = list(files)
         self.set_status(f"Processing {len(files)} file(s)...")

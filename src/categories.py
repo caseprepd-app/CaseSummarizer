@@ -13,10 +13,11 @@ Usage:
 """
 
 import json
+import logging
 from functools import lru_cache
 from pathlib import Path
 
-from src.logging_config import debug_log
+logger = logging.getLogger(__name__)
 
 # Path to categories configuration file
 CATEGORIES_FILE = Path(__file__).parent.parent / "config" / "categories.json"
@@ -40,7 +41,7 @@ def load_categories() -> dict:
         CategoriesError: If config file cannot be loaded or is invalid.
     """
     if not CATEGORIES_FILE.exists():
-        debug_log(f"[CATEGORIES] Config file not found: {CATEGORIES_FILE}")
+        logger.debug("Config file not found: %s", CATEGORIES_FILE)
         # Return default configuration
         return _get_default_config()
 
@@ -54,14 +55,14 @@ def load_categories() -> dict:
         if "ner_mapping" not in config:
             raise CategoriesError("Missing 'ner_mapping' key in config")
 
-        debug_log(f"[CATEGORIES] Loaded {len(config['categories'])} categories from config")
+        logger.debug("Loaded %s categories from config", len(config["categories"]))
         return config
 
     except json.JSONDecodeError as e:
-        debug_log(f"[CATEGORIES] Invalid JSON in config file: {e}")
+        logger.debug("Invalid JSON in config file: %s", e)
         raise CategoriesError(f"Invalid JSON in categories config: {e}") from e
     except Exception as e:
-        debug_log(f"[CATEGORIES] Error loading config: {e}")
+        logger.debug("Error loading config: %s", e)
         raise CategoriesError(f"Error loading categories config: {e}") from e
 
 

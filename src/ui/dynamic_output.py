@@ -30,6 +30,7 @@ Performance Optimizations (Session 14-16, 51):
 import csv
 import gc
 import io
+import logging
 import os
 import re
 from tkinter import Menu, filedialog, messagebox, ttk
@@ -37,8 +38,9 @@ from tkinter import Menu, filedialog, messagebox, ttk
 import customtkinter as ctk
 
 from src.config import SORT_WARNING_COLUMNS, USER_VOCAB_EXCLUDE_PATH
-from src.logging_config import debug_log
 from src.ui.qa_panel import QAPanel
+
+logger = logging.getLogger(__name__)
 from src.ui.theme import BUTTON_STYLES, COLORS, FONTS, FRAME_STYLES, VOCAB_TABLE_TAGS
 
 # Session 82: Import column configuration from centralized module
@@ -240,7 +242,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
         """Called 100ms after resize events stop - resumes batch insertion."""
         self._batch_insertion_paused = False
         self._resize_after_id = None
-        debug_log("[DYNAMIC OUTPUT] Resize complete - batch insertion resumed")
+        logger.debug("Resize complete - batch insertion resumed")
 
     def _on_tab_changed(self):
         """
@@ -376,6 +378,27 @@ class DynamicOutputWidget(ctk.CTkFrame):
     def _get_visible_columns(self) -> list[str]:
         """Get list of currently visible column names in display order."""
         return [col for col in COLUMN_ORDER if self._column_visibility.get(col, False)]
+
+    def _get_filtered_vocab_data(self) -> list[dict]:
+        """
+        Return score-filtered vocab data, with fallback to manual filtering.
+
+        Uses _unsorted_vocab_data (already filtered by score floor during display).
+        Falls back to filtering raw output data if display hasn't populated yet.
+
+        Returns:
+            List of vocabulary dicts passing the score floor filter
+        """
+        if self._unsorted_vocab_data:
+            return list(self._unsorted_vocab_data)
+        # Fallback if display hasn't populated _unsorted_vocab_data yet
+        raw = self._outputs.get("Names & Vocabulary") or self._outputs.get(
+            "Rare Word List (CSV)", []
+        )
+        if not raw:
+            return []
+        score_floor = get_user_preferences().get("vocab_score_floor", 55)
+        return [d for d in raw if isinstance(d, dict) and d.get("Quality Score", 0) >= score_floor]
 
     # -------------------------------------------------------------------------
     # Session 80: Column Width Persistence
@@ -775,7 +798,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
 
         # Force garbage collection
         gc.collect()
-        debug_log("[VOCAB DISPLAY] Cleanup completed, memory freed.")
+        logger.debug("Cleanup completed, memory freed.")
 
     def update_outputs(
         self,
@@ -880,7 +903,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
             data: List of dicts with keys: Term, Quality Score, Is Person, Found By
         """
         if not data:
-            debug_log("[VOCAB DISPLAY] No vocabulary data to display")
+            logger.debug("No vocabulary data to display")
             return
 
         # Session 80: Filter out items with negative feedback (previously skipped)
@@ -896,10 +919,10 @@ class DynamicOutputWidget(ctk.CTkFrame):
         ]
         filtered_count = original_count - len(data)
         if filtered_count > 0:
-            debug_log(f"[VOCAB DISPLAY] Filtered {filtered_count} previously skipped items")
+            logger.debug("Filtered %s previously skipped items", filtered_count)
 
         if not data:
-            debug_log("[VOCAB DISPLAY] All items were filtered (previously skipped)")
+            logger.debug("All items were filtered (previously skipped)")
             return
 
         # Filter by quality score floor
@@ -916,12 +939,10 @@ class DynamicOutputWidget(ctk.CTkFrame):
         ]
         score_filtered = pre_score_count - len(data)
         if score_filtered > 0:
-            debug_log(
-                f"[VOCAB DISPLAY] Filtered {score_filtered} items below score floor {score_floor}"
-            )
+            logger.debug("Filtered %s items below score floor %s", score_filtered, score_floor)
 
         if not data:
-            debug_log("[VOCAB DISPLAY] All items filtered by score floor")
+            logger.debug("All items filtered by score floor")
             return
 
         # Session 80: Store unsorted data for sort operations and reset sort state
@@ -1051,7 +1072,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
         # Cancel any pending async insertion before starting new one
         # This fixes race condition when ner_complete arrives before partial_vocab_complete finishes
         if self._is_loading:
-            debug_log("[VOCAB DISPLAY] Cancelling pending async insertion for new data")
+            logger.debug("Cancelling pending async insertion for new data")
             self._insertion_cancelled = True
             self._is_loading = False
 
@@ -1062,9 +1083,11 @@ class DynamicOutputWidget(ctk.CTkFrame):
         # Calculate how many items to load initially
         initial_load = min(ROWS_PER_PAGE, self._vocab_total_items)
 
-        debug_log(
-            f"[VOCAB DISPLAY] Showing {initial_load} of {self._vocab_total_items} terms "
-            f"(pagination: {ROWS_PER_PAGE} per page)"
+        logger.debug(
+            "Showing %s of %s terms (pagination: %s per page)",
+            initial_load,
+            self._vocab_total_items,
+            ROWS_PER_PAGE,
         )
 
         # Start async batch insertion for initial load
@@ -1078,7 +1101,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
             results: List of QAResult objects
         """
         if not results:
-            debug_log("[Q&A DISPLAY] No Q&A results to display")
+            logger.debug("No Q&A results to display")
             return
 
         # Set up follow-up callback if not already done
@@ -1087,12 +1110,12 @@ class DynamicOutputWidget(ctk.CTkFrame):
             main_window = self.winfo_toplevel()
             if hasattr(main_window, "_ask_followup_for_qa_panel"):
                 self._qa_panel.set_followup_callback(main_window._ask_followup_for_qa_panel)
-                debug_log("[Q&A DISPLAY] Follow-up callback connected to MainWindow")
+                logger.debug("Follow-up callback connected to MainWindow")
 
         # Display results
         self._qa_panel.display_results(results)
 
-        debug_log(f"[Q&A DISPLAY] Showing {len(results)} Q&A results")
+        logger.debug("Showing %s Q&A results", len(results))
 
     def _async_insert_rows(self, data: list, start_idx: int, end_idx: int):
         """
@@ -1118,7 +1141,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
 
             # Check if this operation was cancelled (new data arrived)
             if self._insertion_cancelled:
-                debug_log("[VOCAB DISPLAY] Async insertion cancelled - stopping")
+                logger.debug("Async insertion cancelled - stopping")
                 self._is_loading = False
                 return
 
@@ -1243,7 +1266,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
         total_items = len(data)
         displayed_items = self._vocab_display_offset
 
-        debug_log(f"[PAGINATION] Updating UI: {displayed_items}/{total_items} displayed")
+        logger.debug("Updating UI: %s/%s displayed", displayed_items, total_items)
 
         # Create or update "Load More" button
         if displayed_items < total_items:
@@ -1260,7 +1283,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
                 command=lambda d=data: self._load_more_rows(d),
             )
             self._load_more_btn.grid(row=2, column=0, columnspan=2, sticky="ew", padx=10, pady=5)
-            debug_log(f"[PAGINATION] Load More button shown ({remaining} remaining)")
+            logger.debug("Load More button shown (%s remaining)", remaining)
 
             # Update info label
             if not hasattr(self, "vocab_info_label"):
@@ -1279,7 +1302,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
 
         else:
             # All items displayed
-            debug_log(f"[PAGINATION] All {total_items} items displayed, hiding Load More")
+            logger.debug("All %s items displayed, hiding Load More", total_items)
             if self._load_more_btn is not None:
                 self._load_more_btn.grid_remove()
 
@@ -1305,7 +1328,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
         start_idx = self._vocab_display_offset
         end_idx = min(start_idx + ROWS_PER_PAGE, len(data))
 
-        debug_log(f"[VOCAB DISPLAY] Loading more: rows {start_idx} to {end_idx}")
+        logger.debug("Loading more: rows %s to %s", start_idx, end_idx)
 
         # Start async insertion
         self._async_insert_rows(data, start_idx, end_idx)
@@ -1392,9 +1415,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
             with open(USER_VOCAB_EXCLUDE_PATH, "a", encoding="utf-8") as f:
                 f.write(f"{lower_term}\n")
 
-            debug_log(
-                f"[VOCAB UI] Added '{term}' to user exclusion list at {USER_VOCAB_EXCLUDE_PATH}"
-            )
+            logger.debug("Added '%s' to user exclusion list at %s", term, USER_VOCAB_EXCLUDE_PATH)
 
             # Remove from current display
             selected = self.csv_treeview.selection()
@@ -1415,7 +1436,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
             )
 
         except Exception as e:
-            debug_log(f"[VOCAB UI] Failed to save exclusion: {e}")
+            logger.debug("Failed to save exclusion: %s", e)
             messagebox.showerror(
                 "Error", f"Failed to save exclusion: {e}\n\nPlease check file permissions."
             )
@@ -1442,9 +1463,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
             return
 
         lower_term = term.lower().strip()
-        debug_log(
-            f"[FEEDBACK] Adding '{lower_term}' to exclusion list at {USER_VOCAB_EXCLUDE_PATH}"
-        )
+        logger.debug("Adding '%s' to exclusion list at %s", lower_term, USER_VOCAB_EXCLUDE_PATH)
 
         try:
             # Session 80: Use Path methods instead of os.path for consistency
@@ -1455,10 +1474,10 @@ class DynamicOutputWidget(ctk.CTkFrame):
             if USER_VOCAB_EXCLUDE_PATH.exists():
                 with open(USER_VOCAB_EXCLUDE_PATH, encoding="utf-8") as f:
                     existing_terms = {line.strip().lower() for line in f if line.strip()}
-                debug_log(f"[FEEDBACK] Existing exclusions: {len(existing_terms)} terms")
+                logger.debug("Existing exclusions: %s terms", len(existing_terms))
 
             if lower_term in existing_terms:
-                debug_log(f"[FEEDBACK] Term '{term}' already in exclusion list, skipping")
+                logger.debug("Term '%s' already in exclusion list, skipping", term)
                 return
 
             # Append to file
@@ -1469,17 +1488,16 @@ class DynamicOutputWidget(ctk.CTkFrame):
             if USER_VOCAB_EXCLUDE_PATH.exists():
                 with open(USER_VOCAB_EXCLUDE_PATH, encoding="utf-8") as f:
                     new_count = sum(1 for line in f if line.strip())
-                debug_log(
-                    f"[FEEDBACK] Successfully added '{term}' to exclusion list "
-                    f"(now {new_count} total exclusions)"
+                logger.debug(
+                    "Successfully added '%s' to exclusion list (now %s total exclusions)",
+                    term,
+                    new_count,
                 )
             else:
-                debug_log(
-                    f"[FEEDBACK] WARNING: File not found after write: {USER_VOCAB_EXCLUDE_PATH}"
-                )
+                logger.debug("WARNING: File not found after write: %s", USER_VOCAB_EXCLUDE_PATH)
 
         except Exception as e:
-            debug_log(f"[FEEDBACK] ERROR: Failed to add '{term}' to exclusion list: {e}")
+            logger.debug("ERROR: Failed to add '%s' to exclusion list: %s", term, e)
 
     def _build_vocab_csv(self, vocab_data: list) -> str:
         """
@@ -1540,9 +1558,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
         current_tab = self.tabview.get()
 
         if current_tab == "Names & Vocab":
-            data = self._outputs.get("Names & Vocabulary") or self._outputs.get(
-                "Rare Word List (CSV)", []
-            )
+            data = self._get_filtered_vocab_data()
             return self._build_vocab_csv(data)
         elif current_tab == "Ask Questions":
             # Get export content from QAPanel if available
@@ -1657,10 +1673,8 @@ class DynamicOutputWidget(ctk.CTkFrame):
         from datetime import datetime
         from pathlib import Path
 
-        # Check if we have vocabulary data
-        vocab_data = self._outputs.get("Names & Vocabulary") or self._outputs.get(
-            "Rare Word List (CSV)", []
-        )
+        # Check if we have vocabulary data (score-filtered)
+        vocab_data = self._get_filtered_vocab_data()
         if not vocab_data:
             messagebox.showwarning(
                 "No Data", "No vocabulary data to export.\n\nProcess documents first."
@@ -1691,7 +1705,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
             # Session 73: Remember export folder
             prefs.set("last_export_path", str(Path(filepath).parent))
 
-            debug_log(f"[VOCAB EXPORT] Saved {len(vocab_data)} terms to {filepath}")
+            logger.debug("Saved %s terms to %s", len(vocab_data), filepath)
 
             # Status bar confirmation (Session 69, updated 73)
             main_window = self.winfo_toplevel()
@@ -1701,7 +1715,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
             )
 
         except Exception as e:
-            debug_log(f"[VOCAB EXPORT] Failed: {e}")
+            logger.debug("Vocab export failed: %s", e)
             messagebox.showerror("Export Failed", f"Could not save file:\n{e}")
 
     def _export_vocab_to_word(self):
@@ -1713,10 +1727,8 @@ class DynamicOutputWidget(ctk.CTkFrame):
 
         from src.services import DocumentService, get_export_service
 
-        # Session 80: Use fallback to legacy key like other export functions
-        vocab_data = self._outputs.get("Names & Vocabulary") or self._outputs.get(
-            "Rare Word List (CSV)", []
-        )
+        # Score-filtered vocabulary data
+        vocab_data = self._get_filtered_vocab_data()
         if not vocab_data:
             messagebox.showinfo("No Data", "No vocabulary data to export.")
             return
@@ -1762,10 +1774,8 @@ class DynamicOutputWidget(ctk.CTkFrame):
 
         from src.services import DocumentService, get_export_service
 
-        # Session 80: Use fallback to legacy key like other export functions
-        vocab_data = self._outputs.get("Names & Vocabulary") or self._outputs.get(
-            "Rare Word List (CSV)", []
-        )
+        # Score-filtered vocabulary data
+        vocab_data = self._get_filtered_vocab_data()
         if not vocab_data:
             messagebox.showinfo("No Data", "No vocabulary data to export.")
             return
@@ -1811,10 +1821,8 @@ class DynamicOutputWidget(ctk.CTkFrame):
 
         from src.services import DocumentService, get_export_service
 
-        # Session 80: Use fallback to legacy key like other export functions
-        vocab_data = self._outputs.get("Names & Vocabulary") or self._outputs.get(
-            "Rare Word List (CSV)", []
-        )
+        # Score-filtered vocabulary data
+        vocab_data = self._get_filtered_vocab_data()
         if not vocab_data:
             messagebox.showinfo("No Data", "No vocabulary data to export.")
             return
@@ -1859,10 +1867,8 @@ class DynamicOutputWidget(ctk.CTkFrame):
 
         from src.services import DocumentService, get_export_service
 
-        # Session 80: Use fallback to legacy key like other export functions
-        vocab_data = self._outputs.get("Names & Vocabulary") or self._outputs.get(
-            "Rare Word List (CSV)", []
-        )
+        # Score-filtered vocabulary data
+        vocab_data = self._get_filtered_vocab_data()
         if not vocab_data:
             messagebox.showinfo("No Data", "No vocabulary data to export.")
             return
@@ -2036,10 +2042,8 @@ class DynamicOutputWidget(ctk.CTkFrame):
         if success:
             # Update the visual display
             self._update_feedback_display(item_id, new_rating)
-            debug_log(
-                f"[FEEDBACK UI] {'Cleared' if new_rating == 0 else 'Set'} "
-                f"feedback for '{term}': {new_rating}"
-            )
+            action = "Cleared" if new_rating == 0 else "Set"
+            logger.debug("%s feedback for '%s': %s", action, term, new_rating)
 
             # Session 78: Add skipped terms to user exclusion list
             # This filters them out of future extractions

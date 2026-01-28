@@ -9,16 +9,18 @@ Contains:
 - Context menu for term actions
 """
 
+import logging
 import tkinter as tk
 from tkinter import messagebox, ttk
 
-from src.logging_config import debug_log
 from src.ui.vocab_table.column_config import (
     THUMB_DOWN_EMPTY,
     THUMB_DOWN_FILLED,
     THUMB_UP_EMPTY,
     THUMB_UP_FILLED,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class FeedbackHandlerMixin:
@@ -97,7 +99,7 @@ class FeedbackHandlerMixin:
         # Update display
         self._update_feedback_display(item_id, new_state)
 
-        debug_log(f"[Feedback] Term '{term}': {current_state} -> {new_state}")
+        logger.debug("Term '%s': %s -> %s", term, current_state, new_state)
 
     def _update_feedback_display(self, item_id: str, state: str | None):
         """
@@ -209,7 +211,7 @@ class FeedbackHandlerMixin:
         """Copy term to clipboard."""
         self.clipboard_clear()
         self.clipboard_append(term)
-        debug_log(f"[Feedback] Copied to clipboard: {term}")
+        logger.debug("Copied to clipboard: %s", term)
 
     def _set_feedback(self, item_id: str, state: str | None):
         """
@@ -266,7 +268,7 @@ class FeedbackHandlerMixin:
             if term_lower not in existing:
                 with open(USER_VOCAB_EXCLUDE_PATH, "a", encoding="utf-8") as f:
                     f.write(f"{term_lower}\n")
-                debug_log(f"[Feedback] Added to exclusion list: {term}")
+                logger.debug("Added to exclusion list: %s", term)
 
             # Remove from display
             if item_id:
@@ -279,7 +281,7 @@ class FeedbackHandlerMixin:
                 ]
 
         except Exception as e:
-            debug_log(f"[Feedback] Error adding to exclusion list: {e}")
+            logger.error("Error adding to exclusion list: %s", e)
             messagebox.showerror("Error", f"Failed to add term to exclusion list: {e}")
 
     def _get_feedback_summary(self) -> dict:

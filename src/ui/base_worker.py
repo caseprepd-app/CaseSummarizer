@@ -29,12 +29,14 @@ Usage:
 """
 
 import gc
+import logging
 import threading
 import traceback
 from queue import Queue
 
-from src.logging_config import debug_log
 from src.ui.queue_messages import QueueMessage
+
+logger = logging.getLogger(__name__)
 
 
 class BaseWorker(threading.Thread):
@@ -72,7 +74,7 @@ class BaseWorker(threading.Thread):
         Subclasses can override this to add custom stop logic,
         but should call super().stop() first.
         """
-        debug_log(f"[{self._worker_name}] Stop signal received.")
+        logger.debug("Stop signal received for %s", self._worker_name)
         self._stop_event.set()
 
     @property
@@ -115,7 +117,7 @@ class BaseWorker(threading.Thread):
             error: The exception that occurred
         """
         error_msg = f"{operation} failed: {error!s}"
-        debug_log(f"[{self._worker_name}] {error_msg}\n{traceback.format_exc()}")
+        logger.debug("%s: %s\n%s", self._worker_name, error_msg, traceback.format_exc())
         self.ui_queue.put(QueueMessage.error(error_msg))
 
     def run(self) -> None:
@@ -128,7 +130,7 @@ class BaseWorker(threading.Thread):
         try:
             self.execute()
         except InterruptedError:
-            debug_log(f"[{self._worker_name}] Cancelled by user.")
+            logger.debug("%s cancelled by user", self._worker_name)
         except Exception as e:
             self.send_error(self._operation_name, e)
         finally:

@@ -11,10 +11,13 @@ Session 79: Added Person validity check to catch garbage terms that spaCy
 NER incorrectly marks as Person (e.g., "ModMess Quanny Desortpdon").
 """
 
+import logging
+
 from src.core.vocabulary.filters.base import BaseVocabularyFilter, FilterResult
 from src.core.vocabulary.name_deduplicator import _word_validity_score
 from src.core.vocabulary.person_utils import is_person_entry
-from src.logging_config import debug_log
+
+logger = logging.getLogger(__name__)
 
 
 class CombinedPerTermFilter(BaseVocabularyFilter):
@@ -101,7 +104,7 @@ class CombinedPerTermFilter(BaseVocabularyFilter):
             if not is_person and is_gibberish(term):
                 removed_by_gibberish += 1
                 removed_terms.append(term)
-                debug_log(f"[COMBINED] Filtered gibberish: '{term}'")
+                logger.debug("Filtered gibberish: '%s'", term)
                 continue
 
             # === CHECK 4: Person Validity Filter (Session 79) ===
@@ -114,7 +117,7 @@ class CombinedPerTermFilter(BaseVocabularyFilter):
                 if validity == 0.0:
                     removed_by_gibberish += 1  # Count as gibberish
                     removed_terms.append(term)
-                    debug_log(f"[COMBINED] Filtered Person garbage (0% validity): '{term}'")
+                    logger.debug("Filtered Person garbage (0%% validity): '%s'", term)
                     continue
 
             # Term passed all checks

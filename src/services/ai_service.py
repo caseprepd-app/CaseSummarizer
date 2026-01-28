@@ -15,8 +15,9 @@ Usage:
     gpu_text = service.get_gpu_status_text()
 """
 
-from src.config import DEBUG_MODE
-from src.logging_config import debug_log
+import logging
+
+logger = logging.getLogger(__name__)
 
 # Module-level singleton instance
 _ai_service_instance = None
@@ -140,9 +141,8 @@ class AIService:
         manager = self.get_ollama_manager()
         is_connected = manager.check_connection()
 
-        if DEBUG_MODE:
-            status = "connected" if is_connected else "not reachable"
-            debug_log(f"[AIService] Ollama {status}")
+        status = "connected" if is_connected else "not reachable"
+        logger.debug("Ollama %s", status)
 
         return is_connected
 
@@ -179,10 +179,9 @@ class AIService:
         manager = self.get_ollama_manager()
         success = manager.set_current_model(model_name)
 
-        if DEBUG_MODE:
-            if success:
-                debug_log(f"[AIService] Model set to: {model_name}")
-            else:
-                debug_log(f"[AIService] Failed to set model: {model_name}")
+        if success:
+            logger.debug("Model set to: %s", model_name)
+        else:
+            logger.debug("Failed to set model: %s", model_name)
 
         return success

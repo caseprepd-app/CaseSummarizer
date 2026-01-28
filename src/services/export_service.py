@@ -7,6 +7,7 @@ Session 73: Added auto-open exported files feature (configurable).
 Session 75: Refactored with _run_export() helper to reduce duplication (REF-002).
 """
 
+import logging
 import os
 import sys
 from collections.abc import Callable
@@ -21,7 +22,8 @@ from src.core.export import (
     export_vocabulary_html,
     export_vocabulary_txt,
 )
-from src.logging_config import debug_log, error, info
+
+logger = logging.getLogger(__name__)
 
 
 def _auto_open_file(file_path: str) -> None:
@@ -50,9 +52,9 @@ def _auto_open_file(file_path: str) -> None:
             import subprocess
 
             subprocess.run(["xdg-open", file_path], check=False)
-        debug_log(f"[EXPORT] Auto-opened: {file_path}")
+        logger.debug("Auto-opened: %s", file_path)
     except Exception as e:
-        debug_log(f"[EXPORT] Auto-open failed: {e}")
+        logger.debug("Auto-open failed: %s", e)
 
 
 def _run_export(
@@ -73,16 +75,16 @@ def _run_export(
         True if successful, False otherwise
     """
     try:
-        debug_log(f"[EXPORT] Exporting {description}: {file_path}")
+        logger.debug("Exporting %s: %s", description, file_path)
         result = export_fn()
         # Handle functions that return bool vs those that return None
         success = result if result is not None else True
         if success:
-            info(f"Exported to {file_path}")
+            logger.info("Exported to %s", file_path)
             _auto_open_file(file_path)
         return success
     except Exception as e:
-        error(f"Failed to export {error_prefix}: {e}")
+        logger.error("Failed to export %s: %s", error_prefix, e)
         return False
 
 
@@ -266,6 +268,52 @@ class ExportService:
             file_path,
             "Q&A to HTML",
             lambda: export_qa_html(results, file_path, include_verification),
+        )
+
+    def export_combined_html(
+        self,
+        vocab_data: list[dict],
+        qa_results: list,
+        summary_text: str,
+        file_path: str,
+        visible_columns: list[str] | None = None,
+        include_verification: bool = True,
+    ) -> bool:
+        """
+        Export vocabulary, Q&A, and summary to a single tabbed HTML file.
+
+        Args:
+            vocab_data: List of vocabulary dicts (score-filtered)
+            qa_results: List of QAResult objects (answered only)
+            summary_text: Summary text string
+            file_path: Output file path (.html)
+            visible_columns: Columns to show initially in vocab table
+            include_verification: Include verification badges in Q&A
+
+        Returns:
+            True if successful, False otherwise
+        """
+        from src.core.export.combined_html_builder import build_combined_html
+
+        def do_export():
+            html_content = build_combined_html(
+                vocab_data,
+                qa_results,
+                summary_text,
+                visible_columns,
+                include_verification,
+            )
+            from pathlib import Path
+
+            Path(file_path).write_text(html_content, encoding="utf-8")
+
+        term_count = len(vocab_data)
+        qa_count = len(qa_results)
+        return _run_export(
+            f"combined HTML ({term_count} terms, {qa_count} Q&A)",
+            file_path,
+            "combined HTML",
+            do_export,
         )
 
     def export_combined_to_word(

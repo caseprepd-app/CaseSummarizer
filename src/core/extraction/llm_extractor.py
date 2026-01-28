@@ -42,6 +42,7 @@ Usage:
 """
 
 import json
+import logging
 import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
@@ -51,7 +52,8 @@ from typing import ClassVar
 from src.categories import get_llm_prompt_categories, normalize_category
 from src.config import LLM_EXTRACTOR_MAX_TOKENS
 from src.core.ai.ollama_model_manager import OllamaModelManager
-from src.logging_config import debug_log
+
+logger = logging.getLogger(__name__)
 
 # Default prompt file path (Session 45: combined extraction)
 PROMPT_FILE = (
@@ -199,16 +201,16 @@ class LLMVocabExtractor:
         self.prompt_file = prompt_file or PROMPT_FILE
         self._prompt_template = self._load_prompt_template()
 
-        debug_log(f"[LLMVocabExtractor] Initialized with max_tokens={max_tokens}")
+        logger.debug("Initialized with max_tokens=%d", max_tokens)
 
     def _load_prompt_template(self) -> str:
         """Load the prompt template from file."""
         if self.prompt_file.exists():
             template = self.prompt_file.read_text(encoding="utf-8")
-            debug_log(f"[LLMVocabExtractor] Loaded prompt from {self.prompt_file}")
+            logger.debug("Loaded prompt from %s", self.prompt_file)
             return template
 
-        debug_log("[LLMVocabExtractor] Prompt file not found, using default")
+        logger.debug("Prompt file not found, using default")
         return self._get_default_prompt()
 
     def _get_default_prompt(self) -> str:
@@ -264,9 +266,10 @@ DOCUMENT CHUNK:
         chunker = create_unified_chunker()
         chunks = chunker.chunk_text(text)
 
-        debug_log(
-            f"[LLMVocabExtractor] Using UnifiedChunker: {len(chunks)} chunks "
-            f"(token-based, target={chunker.target_tokens})"
+        logger.debug(
+            "Using UnifiedChunker: %d chunks (token-based, target=%d)",
+            len(chunks),
+            chunker.target_tokens,
         )
 
         # Delegate to the unified chunk extraction method
@@ -294,13 +297,13 @@ DOCUMENT CHUNK:
             )
 
             if response is None:
-                debug_log(f"[LLMVocabExtractor] No response for chunk {chunk_id}")
+                logger.debug("No response for chunk %d", chunk_id)
                 return [], []
 
             return self._parse_response(response, chunk_id)
 
         except Exception as e:
-            debug_log(f"[LLMVocabExtractor] Error extracting chunk {chunk_id}: {e}")
+            logger.debug("Error extracting chunk %d: %s", chunk_id, e)
             return [], []
 
     def _parse_response(
@@ -326,11 +329,11 @@ DOCUMENT CHUNK:
             try:
                 response = json.loads(response)
             except json.JSONDecodeError:
-                debug_log(f"[LLMVocabExtractor] Failed to parse JSON from chunk {chunk_id}")
+                logger.debug("Failed to parse JSON from chunk %d", chunk_id)
                 return [], []
 
         if not isinstance(response, dict):
-            debug_log(f"[LLMVocabExtractor] Unexpected response type: {type(response)}")
+            logger.debug("Unexpected response type: %s", type(response))
             return [], []
 
         # Extract people from response
@@ -410,7 +413,7 @@ DOCUMENT CHUNK:
         start_time = time.time()
         chunk_count = len(chunks)
 
-        debug_log(f"[LLMVocabExtractor] Processing {chunk_count} pre-chunked segments")
+        logger.debug("Processing %d pre-chunked segments", chunk_count)
 
         # Convert to (chunk_text, chunk_id) tuples for parallel processing
         chunk_items = [(chunk, i) for i, chunk in enumerate(chunks)]
@@ -450,7 +453,7 @@ DOCUMENT CHUNK:
         start_time = time.time()
         chunk_count = len(chunks)
 
-        debug_log(f"[LLMVocabExtractor] Processing {chunk_count} unified chunks")
+        logger.debug("Processing %d unified chunks", chunk_count)
 
         # Convert UnifiedChunk objects to (chunk_text, chunk_id) tuples
         chunk_items = []
@@ -464,9 +467,12 @@ DOCUMENT CHUNK:
 
         processing_time = (time.time() - start_time) * 1000
 
-        debug_log(
-            f"[LLMVocabExtractor] Complete: {len(all_people)} people, {len(all_terms)} terms "
-            f"from {chunk_count} unified chunks in {processing_time:.1f}ms"
+        logger.debug(
+            "Complete: %d people, %d terms from %d unified chunks in %.1fms",
+            len(all_people),
+            len(all_terms),
+            chunk_count,
+            processing_time,
         )
 
         return LLMExtractionResult(
@@ -515,7 +521,7 @@ DOCUMENT CHUNK:
 
         if not use_parallel:
             # Sequential fallback
-            debug_log(f"[LLMVocabExtractor] Processing {chunk_count} chunk(s) sequentially")
+            logger.debug("Processing %d chunk(s) sequentially", chunk_count)
             all_people = []
             all_terms = []
             for i, (chunk_text, chunk_id) in enumerate(chunk_items):
@@ -526,9 +532,12 @@ DOCUMENT CHUNK:
                 all_people.extend(chunk_people)
                 all_terms.extend(chunk_terms)
 
-                debug_log(
-                    f"[LLMVocabExtractor] Chunk {i + 1}/{chunk_count}: "
-                    f"extracted {len(chunk_people)} people, {len(chunk_terms)} terms"
+                logger.debug(
+                    "Chunk %d/%d: extracted %d people, %d terms",
+                    i + 1,
+                    chunk_count,
+                    len(chunk_people),
+                    len(chunk_terms),
                 )
 
             return all_people, all_terms
@@ -538,8 +547,10 @@ DOCUMENT CHUNK:
         workers = min(
             chunk_count, get_optimal_workers(task_ram_gb=2.0, max_workers=3, min_workers=2)
         )
-        debug_log(
-            f"[LLMVocabExtractor] Processing {chunk_count} chunks in parallel ({workers} workers)"
+        logger.debug(
+            "Processing %d chunks in parallel (%d workers)",
+            chunk_count,
+            workers,
         )
 
         # Thread-safe result accumulation
@@ -577,9 +588,12 @@ DOCUMENT CHUNK:
                 if progress_callback:
                     progress_callback(count, chunk_count)
 
-                debug_log(
-                    f"[LLMVocabExtractor] Chunk {count}/{chunk_count}: "
-                    f"extracted {len(chunk_people)} people, {len(chunk_terms)} terms"
+                logger.debug(
+                    "Chunk %d/%d: extracted %d people, %d terms",
+                    count,
+                    chunk_count,
+                    len(chunk_people),
+                    len(chunk_terms),
                 )
 
             runner = ParallelTaskRunner(strategy=strategy, on_task_complete=on_complete)
@@ -588,8 +602,10 @@ DOCUMENT CHUNK:
             # Log any failures
             for task_result in task_results:
                 if not task_result.success:
-                    debug_log(
-                        f"[LLMVocabExtractor] Chunk {task_result.task_id} failed: {task_result.error}"
+                    logger.debug(
+                        "Chunk %s failed: %s",
+                        task_result.task_id,
+                        task_result.error,
                     )
 
             return all_people, all_terms

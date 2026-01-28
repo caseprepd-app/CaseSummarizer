@@ -20,13 +20,15 @@ This mirrors the VocabularyExtractor pattern of using multiple algorithms
 with weighted result merging.
 """
 
+import logging
 import time
 from typing import TYPE_CHECKING, Any
 
-from src.config import DEBUG_MODE, RETRIEVAL_ALGORITHM_WEIGHTS
+from src.config import RETRIEVAL_ALGORITHM_WEIGHTS
 from src.core.retrieval.base import AlgorithmRetrievalResult, DocumentChunk
 from src.core.retrieval.chunk_merger import ChunkMerger, MergedRetrievalResult
-from src.logging_config import debug_log
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from langchain_huggingface import HuggingFaceEmbeddings
@@ -75,7 +77,7 @@ class HybridRetriever:
         # Validate weights: must be finite non-negative numbers
         for name, weight in self.algorithm_weights.items():
             if not isinstance(weight, (int, float)) or weight < 0 or weight != weight:
-                debug_log(f"[HybridRetriever] Invalid weight for {name}: {weight}, using 1.0")
+                logger.warning("Invalid weight for %s: %s, using 1.0", name, weight)
                 self.algorithm_weights[name] = 1.0
 
         self._embeddings = embeddings
@@ -92,9 +94,8 @@ class HybridRetriever:
         # Document storage for re-indexing
         self._chunks: list[DocumentChunk] = []
 
-        if DEBUG_MODE:
-            enabled = [name for name, algo in self._algorithms.items() if algo.enabled]
-            debug_log(f"[HybridRetriever] Initialized with algorithms: {enabled}")
+        enabled = [name for name, algo in self._algorithms.items() if algo.enabled]
+        logger.debug("Initialized with algorithms: %s", enabled)
 
     def _init_algorithms(self) -> None:
         """Initialize retrieval algorithm instances."""
@@ -161,20 +162,18 @@ class HybridRetriever:
         if not self._chunks:
             raise ValueError("No valid chunks found in documents")
 
-        if DEBUG_MODE:
-            debug_log(
-                f"[HybridRetriever] Indexing {len(self._chunks)} chunks into {len(self._algorithms)} algorithms"
-            )
+        logger.debug(
+            "Indexing %d chunks into %d algorithms", len(self._chunks), len(self._algorithms)
+        )
 
         # Index into each algorithm
         for name, algorithm in self._algorithms.items():
             if algorithm.enabled:
                 try:
                     algorithm.index_documents(self._chunks)
-                    if DEBUG_MODE:
-                        debug_log(f"[HybridRetriever] {name} indexing complete")
+                    logger.debug("%s indexing complete", name)
                 except Exception as e:
-                    debug_log(f"[HybridRetriever] {name} indexing failed: {e}")
+                    logger.error("%s indexing failed: %s", name, e)
                     algorithm.enabled = False
 
         # Verify at least one algorithm is still enabled after indexing
@@ -188,8 +187,7 @@ class HybridRetriever:
 
         elapsed_ms = (time.perf_counter() - start_time) * 1000
 
-        if DEBUG_MODE:
-            debug_log(f"[HybridRetriever] Total indexing time: {elapsed_ms:.1f}ms")
+        logger.debug("Total indexing time: %.1fms", elapsed_ms)
 
         return len(self._chunks)
 
@@ -295,8 +293,7 @@ class HybridRetriever:
         if not self.is_indexed:
             raise RuntimeError("Documents not indexed. Call index_documents() first.")
 
-        if DEBUG_MODE:
-            debug_log(f"[HybridRetriever] Query: '{query[:50]}...'")
+        logger.debug("Query: '%s...'", query[:50])
 
         # FAISS-first: run semantic search first as a sanity check.
         # If no chunk has meaningful semantic similarity, the question is
@@ -316,16 +313,17 @@ class HybridRetriever:
                     if faiss_result.chunks
                     else 0.0
                 )
-                debug_log(
-                    f"[HybridRetriever] FAISS: {len(faiss_result.chunks)} chunks, "
-                    f"top relevance_score={faiss_best:.6f}"
+                logger.debug(
+                    "FAISS: %d chunks, top relevance_score=%.6f",
+                    len(faiss_result.chunks),
+                    faiss_best,
                 )
 
                 if faiss_best < FAISS_RELEVANCE_FLOOR:
-                    debug_log(
-                        f"[HybridRetriever] FAISS sanity check FAILED: "
-                        f"best={faiss_best:.4f} < floor={FAISS_RELEVANCE_FLOOR} "
-                        f"— no semantic match, skipping BM25+"
+                    logger.debug(
+                        "FAISS sanity check FAILED: best=%.4f < floor=%s -- no semantic match, skipping BM25+",
+                        faiss_best,
+                        FAISS_RELEVANCE_FLOOR,
                     )
                     elapsed_ms = (time.perf_counter() - start_time) * 1000
                     return MergedRetrievalResult(
@@ -337,7 +335,7 @@ class HybridRetriever:
                     )
 
             except Exception as e:
-                debug_log(f"[HybridRetriever] FAISS retrieval failed: {e}")
+                logger.error("FAISS retrieval failed: %s", e)
 
         # FAISS passed (or wasn't enabled) — run remaining algorithms
         for name, algorithm in self._algorithms.items():
@@ -350,16 +348,13 @@ class HybridRetriever:
                 result = algorithm.retrieve(query, k=k)
                 algorithm_results.append(result)
 
-                if DEBUG_MODE:
-                    debug_log(f"[HybridRetriever] {name}: {len(result)} chunks retrieved")
+                logger.debug("%s: %d chunks retrieved", name, len(result))
 
             except Exception as e:
-                debug_log(f"[HybridRetriever] {name} retrieval failed: {e}")
+                logger.error("%s retrieval failed: %s", name, e)
 
         if not algorithm_results:
-            debug_log(
-                f"[HybridRetriever] WARNING: No algorithms returned results for query: '{query[:50]}...'"
-            )
+            logger.warning("No algorithms returned results for query: '%s...'", query[:50])
             return MergedRetrievalResult(
                 chunks=[],
                 total_algorithms=0,
@@ -375,31 +370,35 @@ class HybridRetriever:
                 continue
             if result.chunks:
                 top_score = max(c.relevance_score for c in result.chunks)
-                debug_log(
-                    f"  {algo_name}: {len(result.chunks)} chunks, "
-                    f"top relevance_score={top_score:.6f}"
+                logger.debug(
+                    "  %s: %d chunks, top relevance_score=%.6f",
+                    algo_name,
+                    len(result.chunks),
+                    top_score,
                 )
             else:
-                debug_log(f"  {algo_name}: 0 chunks")
+                logger.debug("  %s: 0 chunks", algo_name)
 
         # Merge results
         merged = self.merger.merge(algorithm_results, k=k)
 
         # Diagnostic: log merged result
-        debug_log(f"[HybridRetriever] After merge: {len(merged.chunks)} chunks")
+        logger.debug("After merge: %d chunks", len(merged.chunks))
         if merged.chunks:
-            debug_log(
-                f"  Top merged chunk: score={merged.chunks[0].combined_score:.6f}, "
-                f"sources={merged.chunks[0].sources}"
+            logger.debug(
+                "  Top merged chunk: score=%.6f, sources=%s",
+                merged.chunks[0].combined_score,
+                merged.chunks[0].sources,
             )
 
         elapsed_ms = (time.perf_counter() - start_time) * 1000
         merged.processing_time_ms = elapsed_ms
 
-        if DEBUG_MODE:
-            debug_log(f"[HybridRetriever] Merged {len(merged)} chunks in {elapsed_ms:.1f}ms")
-            for i, chunk in enumerate(merged.chunks[:3]):
-                debug_log(f"  [{i + 1}] score={chunk.combined_score:.3f} | sources={chunk.sources}")
+        logger.debug("Merged %d chunks in %.1fms", len(merged), elapsed_ms)
+        for i, chunk in enumerate(merged.chunks[:3]):
+            logger.debug(
+                "  [%d] score=%.3f | sources=%s", i + 1, chunk.combined_score, chunk.sources
+            )
 
         return merged
 
@@ -442,8 +441,7 @@ class HybridRetriever:
             if name in self._algorithms:
                 self._algorithms[name].weight = weight
 
-        if DEBUG_MODE:
-            debug_log(f"[HybridRetriever] Updated weights: {self.algorithm_weights}")
+        logger.debug("Updated weights: %s", self.algorithm_weights)
 
     def get_chunk_count(self) -> int:
         """

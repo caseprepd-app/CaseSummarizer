@@ -15,6 +15,7 @@ Privacy: All data is stored locally in %APPDATA%/CasePrepd/corpora/
 
 import contextlib
 import json
+import logging
 import shutil
 from dataclasses import dataclass
 from datetime import datetime
@@ -22,8 +23,9 @@ from pathlib import Path
 from typing import Any
 
 from src.config import APPDATA_DIR, CACHE_DIR
-from src.logging_config import debug_log
 from src.user_preferences import get_user_preferences
+
+logger = logging.getLogger(__name__)
 
 # Base directory for all corpora
 CORPORA_DIR = APPDATA_DIR / "corpora"
@@ -84,11 +86,9 @@ class CorpusRegistry:
         try:
             with open(self.registry_file, encoding="utf-8") as f:
                 self._registry = json.load(f)
-            debug_log(
-                f"[CorpusRegistry] Loaded registry with {len(self._registry.get('corpora', {}))} corpora"
-            )
+            logger.debug("Loaded registry with %d corpora", len(self._registry.get("corpora", {})))
         except (json.JSONDecodeError, Exception) as e:
-            debug_log(f"[CorpusRegistry] Error loading registry: {e}")
+            logger.debug("Error loading registry: %s", e)
             self._registry = {
                 "version": 1,
                 "corpora": {},
@@ -100,13 +100,13 @@ class CorpusRegistry:
         try:
             with open(self.registry_file, "w", encoding="utf-8") as f:
                 json.dump(self._registry, f, indent=2, default=str)
-            debug_log("[CorpusRegistry] Saved registry")
+            logger.debug("Saved registry")
         except Exception as e:
-            debug_log(f"[CorpusRegistry] Error saving registry: {e}")
+            logger.debug("Error saving registry: %s", e)
 
     def _create_default_corpus(self) -> None:
         """Create the default 'General' corpus if none exist."""
-        debug_log("[CorpusRegistry] Creating default 'General' corpus")
+        logger.debug("Creating default 'General' corpus")
         self.create_corpus("General")
         self.set_active_corpus("General")
 
@@ -144,7 +144,7 @@ class CorpusRegistry:
         }
 
         self._save_registry()
-        debug_log(f"[CorpusRegistry] Created corpus '{name}' at {corpus_path}")
+        logger.debug("Created corpus '%s' at %s", name, corpus_path)
 
         return corpus_path
 
@@ -189,9 +189,9 @@ class CorpusRegistry:
         if delete_files and corpus_path.exists():
             try:
                 shutil.rmtree(corpus_path)
-                debug_log(f"[CorpusRegistry] Deleted corpus directory: {corpus_path}")
+                logger.debug("Deleted corpus directory: %s", corpus_path)
             except Exception as e:
-                debug_log(f"[CorpusRegistry] Error deleting directory: {e}")
+                logger.debug("Error deleting directory: %s", e)
 
         # Delete associated cache file
         cache_file = CACHE_DIR / f"{safe_name}_idf_index.json"
@@ -200,7 +200,7 @@ class CorpusRegistry:
                 cache_file.unlink()
 
         self._save_registry()
-        debug_log(f"[CorpusRegistry] Deleted corpus '{name}'")
+        logger.debug("Deleted corpus '%s'", name)
 
         return True
 
@@ -247,10 +247,10 @@ class CorpusRegistry:
                         shutil.copy2(file_path, dest_path)
                         copied_count += 1
                     except Exception as e:
-                        debug_log(f"[CorpusRegistry] Error copying {file_path.name}: {e}")
+                        logger.debug("Error copying %s: %s", file_path.name, e)
 
-        debug_log(
-            f"[CorpusRegistry] Combined {len(source_names)} corpora into '{new_name}' ({copied_count} files)"
+        logger.debug(
+            "Combined %d corpora into '%s' (%d files)", len(source_names), new_name, copied_count
         )
 
         return new_path
@@ -351,7 +351,7 @@ class CorpusRegistry:
 
         reset_corpus_manager()
 
-        debug_log(f"[CorpusRegistry] Set active corpus to '{name}'")
+        logger.debug("Set active corpus to '%s'", name)
 
     def get_active_corpus_path(self) -> Path:
         """

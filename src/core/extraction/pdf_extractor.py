@@ -19,14 +19,17 @@ Example usage:
     Method: hybrid_voting, Confidence: 85%
 """
 
+import logging
 from difflib import SequenceMatcher
 from pathlib import Path
 
 import fitz  # PyMuPDF
 import pdfplumber
 
-from src.config import DEBUG_MODE, MIN_DICTIONARY_CONFIDENCE
-from src.logging_config import Timer, debug, error
+from src.config import MIN_DICTIONARY_CONFIDENCE
+from src.logging_config import Timer
+
+logger = logging.getLogger(__name__)
 
 from .dictionary_utils import DictionaryUtils
 
@@ -80,7 +83,7 @@ class PDFExtractor:
             >>> if result['needs_ocr']:
             ...     print("Falling back to OCR")
         """
-        debug(f"Processing PDF: {file_path.name}")
+        logger.debug("Processing PDF: %s", file_path.name)
 
         # Step 1: Try PyMuPDF extraction (primary)
         with Timer("PyMuPDF text extraction"):
@@ -104,19 +107,19 @@ class PDFExtractor:
             with Timer("Word-level voting reconciliation"):
                 text = self.reconcile_extractions(primary_text, secondary_text)
             method = "hybrid_voting"
-            debug("Using hybrid extraction with word-level voting")
+            logger.debug("Using hybrid extraction with word-level voting")
 
         elif primary_text:
             # Only PyMuPDF succeeded
             text = primary_text
             method = "pymupdf_only"
-            debug(f"Using PyMuPDF only (pdfplumber failed: {secondary_error})")
+            logger.debug("Using PyMuPDF only (pdfplumber failed: %s)", secondary_error)
 
         elif secondary_text:
             # Only pdfplumber succeeded
             text = secondary_text
             method = "pdfplumber_only"
-            debug(f"Using pdfplumber only (PyMuPDF failed: {primary_error})")
+            logger.debug("Using pdfplumber only (PyMuPDF failed: %s)", primary_error)
 
         else:
             # Both failed
@@ -133,13 +136,13 @@ class PDFExtractor:
         # Step 4: Check text quality
         with Timer("Dictionary confidence check"):
             confidence = self.dictionary.calculate_confidence(text)
-        debug(f"Dictionary confidence: {confidence:.1f}% (method: {method})")
+        logger.debug("Dictionary confidence: %.1f%% (method: %s)", confidence, method)
 
         # Determine if OCR fallback is needed
         needs_ocr = confidence <= MIN_DICTIONARY_CONFIDENCE or len(text) <= 1000
 
         if not needs_ocr:
-            debug(f"Using {method} extraction")
+            logger.debug("Using %s extraction", method)
 
         return {
             "text": text,
@@ -170,15 +173,15 @@ class PDFExtractor:
 
             with fitz.open(file_path) as doc:
                 page_count = len(doc)
-                debug(f"PyMuPDF: PDF has {page_count} pages")
+                logger.debug("PyMuPDF: PDF has %d pages", page_count)
 
                 if page_count == 0:
-                    error("PyMuPDF: PDF has no pages")
+                    logger.error("PyMuPDF: PDF has no pages")
                     return None, 0, "empty"
 
                 for i, page in enumerate(doc, 1):
-                    if DEBUG_MODE and i % 10 == 0:
-                        debug(f"PyMuPDF: Extracting page {i}/{page_count}")
+                    if i % 10 == 0:
+                        logger.debug("PyMuPDF: Extracting page %d/%d", i, page_count)
 
                     page_text = page.get_text()
                     if page_text:
@@ -189,19 +192,19 @@ class PDFExtractor:
         except fitz.FileDataError as e:
             error_msg = str(e).lower()
             if "password" in error_msg or "encrypted" in error_msg:
-                error("PyMuPDF: PDF is password-protected or encrypted")
+                logger.error("PyMuPDF: PDF is password-protected or encrypted")
                 return None, 0, "password"
             else:
-                error("PyMuPDF: PDF file appears to be corrupted")
+                logger.error("PyMuPDF: PDF file appears to be corrupted")
                 return None, 0, "corrupted"
 
         except Exception as e:
             error_msg = str(e).lower()
             if "permission" in error_msg:
-                error("PyMuPDF: Permission denied when accessing PDF")
+                logger.error("PyMuPDF: Permission denied when accessing PDF")
                 return None, 0, "permission"
             else:
-                error(f"PyMuPDF: Failed to extract PDF text: {e!s}", exc_info=True)
+                logger.error("PyMuPDF: Failed to extract PDF text: %s", e, exc_info=True)
                 return None, 0, "unknown"
 
     def _extract_pdfplumber(self, file_path: Path) -> tuple[str | None, int, str | None]:
@@ -224,15 +227,15 @@ class PDFExtractor:
 
             with pdfplumber.open(file_path) as pdf:
                 page_count = len(pdf.pages)
-                debug(f"pdfplumber: PDF has {page_count} pages")
+                logger.debug("pdfplumber: PDF has %d pages", page_count)
 
                 if page_count == 0:
-                    error("pdfplumber: PDF has no pages")
+                    logger.error("pdfplumber: PDF has no pages")
                     return None, 0, "empty"
 
                 for i, page in enumerate(pdf.pages, 1):
-                    if DEBUG_MODE and i % 10 == 0:
-                        debug(f"pdfplumber: Extracting page {i}/{page_count}")
+                    if i % 10 == 0:
+                        logger.debug("pdfplumber: Extracting page %d/%d", i, page_count)
 
                     page_text = page.extract_text()
                     if page_text:
@@ -244,16 +247,16 @@ class PDFExtractor:
             error_msg = str(e).lower()
 
             if "password" in error_msg or "encrypted" in error_msg:
-                error("pdfplumber: PDF is password-protected or encrypted")
+                logger.error("pdfplumber: PDF is password-protected or encrypted")
                 return None, 0, "password"
             elif "damaged" in error_msg or "corrupt" in error_msg or "invalid" in error_msg:
-                error("pdfplumber: PDF file appears to be corrupted or damaged")
+                logger.error("pdfplumber: PDF file appears to be corrupted or damaged")
                 return None, 0, "corrupted"
             elif "permission" in error_msg:
-                error("pdfplumber: Permission denied when accessing PDF")
+                logger.error("pdfplumber: Permission denied when accessing PDF")
                 return None, 0, "permission"
             else:
-                error(f"pdfplumber: Failed to extract PDF text: {e!s}", exc_info=True)
+                logger.error("pdfplumber: Failed to extract PDF text: %s", e, exc_info=True)
                 return None, 0, "unknown"
 
     def reconcile_extractions(self, primary_text: str, secondary_text: str) -> str:
@@ -326,7 +329,7 @@ class PDFExtractor:
                         elif s_valid and not p_valid:
                             result_tokens.append(s_word)
                             corrections_made += 1
-                            debug(f"[VOTING] '{p_word}' -> '{s_word}' (dictionary correction)")
+                            logger.debug("'%s' -> '%s' (dictionary correction)", p_word, s_word)
                         else:
                             # Both valid or both invalid - use primary
                             result_tokens.append(p_word)
@@ -342,6 +345,6 @@ class PDFExtractor:
                         result_tokens.append(token)
 
         if corrections_made > 0:
-            debug(f"[VOTING] Made {corrections_made} dictionary corrections")
+            logger.debug("Made %d dictionary corrections", corrections_made)
 
         return " ".join(result_tokens)

@@ -27,6 +27,7 @@ identified as vocabulary). This feedback should persist strongly. Career changes
 that affect preferences (new courthouse, new case types) are infrequent (~years).
 """
 
+import logging
 import threading
 from pathlib import Path
 from typing import Any
@@ -52,7 +53,8 @@ from src.core.vocabulary.meta_learner_training import (
     save_model,
     train_models,
 )
-from src.logging_config import debug_log
+
+logger = logging.getLogger(__name__)
 
 
 class VocabularyPreferenceLearner:
@@ -104,9 +106,7 @@ class VocabularyPreferenceLearner:
         # This ensures ML kicks in as soon as we have enough feedback, without needing
         # a manual retrain trigger
         if not self._is_trained:
-            debug_log(
-                "[META-LEARNER] No trained model - checking for sufficient data to auto-train"
-            )
+            logger.debug("No trained model - checking for sufficient data to auto-train")
             self.train()  # train() internally checks for min samples
 
     @property
@@ -351,9 +351,11 @@ class VocabularyPreferenceLearner:
 
             ml_weight = self.get_ml_weight()
             mode = "ensemble" if ensemble_enabled else "LR-only"
-            debug_log(
-                f"[PREF-LEARNER] Model loaded ({mode}), "
-                f"{user_count} user samples, ML weight: {ml_weight:.0%}"
+            logger.debug(
+                "Model loaded (%s), %d user samples, ML weight: %.0f%%",
+                mode,
+                user_count,
+                ml_weight * 100,
             )
 
         return success

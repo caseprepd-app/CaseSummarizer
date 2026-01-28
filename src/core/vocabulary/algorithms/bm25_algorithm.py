@@ -31,6 +31,7 @@ Example:
         result = bm25.extract(document_text)
 """
 
+import logging
 import time
 from collections import Counter
 from typing import Any
@@ -43,7 +44,8 @@ from src.core.vocabulary.algorithms.base import (
     BaseExtractionAlgorithm,
     CandidateTerm,
 )
-from src.logging_config import debug_log
+
+logger = logging.getLogger(__name__)
 
 
 @register_algorithm("BM25")
@@ -120,14 +122,12 @@ class BM25Algorithm(BaseExtractionAlgorithm):
         # Check if corpus is ready
         if not self.corpus_manager.is_corpus_ready():
             doc_count = self.corpus_manager.get_document_count()
-            # INFO level so user is notified when BM25 is disabled
-            from src.logging_config import info
-
-            info(
-                f"[BM25] Algorithm skipped: corpus needs 5+ documents "
-                f"(currently {doc_count}). Process more documents to enable BM25."
+            logger.info(
+                "Algorithm skipped: corpus needs 5+ documents (currently %d). "
+                "Process more documents to enable BM25.",
+                doc_count,
             )
-            debug_log(f"[BM25] Skipped: insufficient corpus ({doc_count}/5 documents)")
+            logger.debug("Skipped: insufficient corpus (%d/5 documents)", doc_count)
             return AlgorithmResult(
                 candidates=[],
                 processing_time_ms=0.0,
@@ -146,9 +146,7 @@ class BM25Algorithm(BaseExtractionAlgorithm):
         doc_length = len(tokens)
         term_freqs = Counter(tokens)
 
-        debug_log(
-            f"[BM25] Processing document: {doc_length} tokens, {len(term_freqs)} unique terms"
-        )
+        logger.debug("Processing document: %d tokens, %d unique terms", doc_length, len(term_freqs))
 
         # Get average document length from corpus
         avg_doc_length = self.corpus_manager.get_average_doc_length()
@@ -198,9 +196,11 @@ class BM25Algorithm(BaseExtractionAlgorithm):
 
         corpus_stats = self.corpus_manager.get_corpus_stats()
 
-        debug_log(
-            f"[BM25] Found {len(candidates)} candidates "
-            f"(threshold: {self.min_score_threshold}) in {processing_time_ms:.1f}ms"
+        logger.debug(
+            "Found %d candidates (threshold: %s) in %.1fms",
+            len(candidates),
+            self.min_score_threshold,
+            processing_time_ms,
         )
 
         return AlgorithmResult(

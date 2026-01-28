@@ -21,12 +21,12 @@ Example:
     # ]
 """
 
+import logging
 import re  # PERF-005: Move to module level
 import time
 from dataclasses import dataclass, field
 
-from src.config import DEBUG_MODE
-from src.logging_config import debug_log
+logger = logging.getLogger(__name__)
 
 # Default config values
 DEFAULT_VARIANT_COUNT = 3
@@ -114,10 +114,7 @@ Alternative queries:"""
         self._llm: object | None = None
         self._available: bool | None = None
 
-        if DEBUG_MODE:
-            debug_log(
-                f"[QueryTransformer] Initialized (enabled={enabled}, variants={variant_count})"
-            )
+        logger.debug("Initialized (enabled=%s, variants=%d)", enabled, variant_count)
 
     def _init_llm(self) -> bool:
         """
@@ -141,18 +138,15 @@ Alternative queries:"""
                 temperature=0.3,  # Some creativity for query variants
             )
 
-            if DEBUG_MODE:
-                debug_log(
-                    f"[QueryTransformer] LlamaIndex Ollama initialized with model: {OLLAMA_MODEL_NAME}"
-                )
+            logger.debug("LlamaIndex Ollama initialized with model: %s", OLLAMA_MODEL_NAME)
 
             return True
 
         except ImportError as e:
-            debug_log(f"[QueryTransformer] LlamaIndex not available: {e}")
+            logger.debug("LlamaIndex not available: %s", e)
             return False
         except Exception as e:
-            debug_log(f"[QueryTransformer] Failed to initialize LLM: {e}")
+            logger.error("Failed to initialize LLM: %s", e)
             return False
 
     def is_available(self) -> bool:
@@ -203,8 +197,7 @@ Alternative queries:"""
             # Build prompt
             prompt = self.PROMPT_TEMPLATE.format(query=query, variant_count=self.variant_count)
 
-            if DEBUG_MODE:
-                debug_log(f"[QueryTransformer] Transforming: '{query[:50]}...'")
+            logger.debug("Transforming: '%s...'", query[:50])
 
             # Call LLM
             response = self._llm.complete(prompt)
@@ -216,14 +209,13 @@ Alternative queries:"""
             result.expanded_queries = variants[: self.variant_count]
             result.success = True
 
-            if DEBUG_MODE:
-                debug_log(f"[QueryTransformer] Generated {len(result.expanded_queries)} variants")
-                for i, v in enumerate(result.expanded_queries):
-                    debug_log(f"  [{i + 1}] {v}")
+            logger.debug("Generated %d variants", len(result.expanded_queries))
+            for i, v in enumerate(result.expanded_queries):
+                logger.debug("  [%d] %s", i + 1, v)
 
         except Exception as e:
             result.error_message = str(e)
-            debug_log(f"[QueryTransformer] Transform failed: {e}")
+            logger.error("Transform failed: %s", e)
 
         result.processing_time_ms = (time.perf_counter() - start_time) * 1000
         return result

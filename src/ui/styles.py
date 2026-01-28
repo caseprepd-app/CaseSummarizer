@@ -8,9 +8,10 @@ This prevents the ~30 second GUI freeze that occurs when style
 configuration happens lazily on first view switch.
 """
 
+import logging
 from tkinter import ttk
 
-from src.logging_config import debug_log
+logger = logging.getLogger(__name__)
 
 _styles_initialized = False
 
@@ -26,7 +27,7 @@ def initialize_all_styles() -> None:
     if _styles_initialized:
         return
 
-    debug_log("[Styles] Initializing all Treeview styles...")
+    logger.debug("Initializing all Treeview styles")
 
     style = ttk.Style()
     # This is the expensive call - do it exactly once at startup
@@ -38,7 +39,7 @@ def initialize_all_styles() -> None:
     _configure_question_list_style(style)
 
     _styles_initialized = True
-    debug_log("[Styles] All Treeview styles initialized")
+    logger.debug("All Treeview styles initialized")
 
 
 def _configure_vocab_treeview_style(style: ttk.Style) -> None:

@@ -9,6 +9,7 @@ Handles:
 - Model reset functionality
 """
 
+import logging
 import pickle
 import shutil
 from datetime import datetime
@@ -30,7 +31,8 @@ from src.config import (
     VOCAB_MODEL_PATH,
 )
 from src.core.vocabulary.meta_learner_features import FEATURE_NAMES, extract_features
-from src.logging_config import debug_log
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     pass
@@ -102,7 +104,7 @@ def calculate_sample_weight(
 
     except (ValueError, TypeError):
         # Malformed timestamp - use moderate weight
-        debug_log(f"[META-LEARNER] Invalid timestamp '{timestamp_str}', using default weight")
+        logger.debug("Invalid timestamp '%s', using default weight", timestamp_str)
         time_weight = 0.75
 
     # Calculate source weight based on user sample count
@@ -139,9 +141,7 @@ def train_models(
     labeled_records = [r for r in feedback_records if r.get("feedback") in ("+1", "-1", "1", 1, -1)]
 
     if len(labeled_records) < ML_MIN_SAMPLES:
-        debug_log(
-            f"[META-LEARNER] Insufficient training data: {len(labeled_records)} < {ML_MIN_SAMPLES}"
-        )
+        logger.debug("Insufficient training data: %d < %d", len(labeled_records), ML_MIN_SAMPLES)
         return None, None, None, False, 0, 0
 
     # Count user samples for source weighting (Session 55)
@@ -149,9 +149,11 @@ def train_models(
     default_sample_count = len(labeled_records) - user_sample_count
     total_sample_count = len(labeled_records)
 
-    debug_log(
-        f"[META-LEARNER] Training on {total_sample_count} feedback samples "
-        f"({user_sample_count} user, {default_sample_count} default)"
+    logger.debug(
+        "Training on %d feedback samples (%d user, %d default)",
+        total_sample_count,
+        user_sample_count,
+        default_sample_count,
     )
 
     # Extract features, labels, and combined weights (time-decay + source)
@@ -179,18 +181,20 @@ def train_models(
     sample_weights = np.array(sample_weights)
 
     # Log weight distribution
-    debug_log(
-        f"[META-LEARNER] Sample weights - min: {sample_weights.min():.2f}, "
-        f"max: {sample_weights.max():.2f}, mean: {sample_weights.mean():.2f}"
+    logger.debug(
+        "Sample weights - min: %.2f, max: %.2f, mean: %.2f",
+        sample_weights.min(),
+        sample_weights.max(),
+        sample_weights.mean(),
     )
 
     # Check for class balance
     pos_count = np.sum(y)
     neg_count = len(y) - pos_count
-    debug_log(f"[META-LEARNER] Class distribution: {pos_count} positive, {neg_count} negative")
+    logger.debug("Class distribution: %d positive, %d negative", pos_count, neg_count)
 
     if pos_count < 3 or neg_count < 3:
-        debug_log("[META-LEARNER] Insufficient class diversity for training")
+        logger.debug("Insufficient class diversity for training")
         return None, None, None, False, 0, 0
 
     # Scale features for better convergence (shared by both models)
@@ -198,7 +202,7 @@ def train_models(
     X_scaled = scaler.fit_transform(X)
 
     # Always train Logistic Regression (works well with small data)
-    debug_log("[PREF-LEARNER] Training Logistic Regression...")
+    logger.debug("Training Logistic Regression...")
     lr_model = LogisticRegression(
         class_weight="balanced", max_iter=1000, random_state=42, solver="lbfgs"
     )
@@ -209,18 +213,16 @@ def train_models(
         coefs = lr_model.coef_[0]
         importance = list(zip(FEATURE_NAMES, coefs, strict=False))
         importance.sort(key=lambda x: abs(x[1]), reverse=True)
-        debug_log("[PREF-LEARNER] LR feature importance (top 5):")
+        logger.debug("LR feature importance (top 5):")
         for name, coef in importance[:5]:
-            debug_log(f"  {name}: {coef:.3f}")
+            logger.debug("  %s: %.3f", name, coef)
 
     # Train Random Forest if enough data for ensemble
     rf_model = None
     ensemble_enabled = False
 
     if total_sample_count >= ML_ENSEMBLE_MIN_SAMPLES:
-        debug_log(
-            f"[PREF-LEARNER] Training Random Forest (ensemble mode, {total_sample_count} samples)..."
-        )
+        logger.debug("Training Random Forest (ensemble mode, %d samples)...", total_sample_count)
         rf_model = RandomForestClassifier(
             n_estimators=23,  # Few trees for speed; 200 samples doesn't need more
             max_depth=10,  # Prevent overfitting
@@ -235,12 +237,12 @@ def train_models(
         # Log RF feature importances
         rf_importance = list(zip(FEATURE_NAMES, rf_model.feature_importances_, strict=False))
         rf_importance.sort(key=lambda x: x[1], reverse=True)
-        debug_log("[PREF-LEARNER] RF feature importance (top 5):")
+        logger.debug("RF feature importance (top 5):")
         for name, imp in rf_importance[:5]:
-            debug_log(f"  {name}: {imp:.3f}")
+            logger.debug("  %s: %.3f", name, imp)
     else:
-        debug_log(
-            f"[PREF-LEARNER] RF not trained (need {ML_ENSEMBLE_MIN_SAMPLES} samples, have {total_sample_count})"
+        logger.debug(
+            "RF not trained (need %d samples, have %d)", ML_ENSEMBLE_MIN_SAMPLES, total_sample_count
         )
 
     return lr_model, rf_model, scaler, ensemble_enabled, user_sample_count, total_sample_count
@@ -290,11 +292,11 @@ def save_model(
             pickle.dump(model_data, f)
 
         mode = "ensemble" if ensemble_enabled else "LR-only"
-        debug_log(f"[PREF-LEARNER] Model saved ({mode}) to {model_path}")
+        logger.debug("Model saved (%s) to %s", mode, model_path)
         return True
 
     except Exception as e:
-        debug_log(f"[PREF-LEARNER] Failed to save model: {e}")
+        logger.debug("Failed to save model: %s", e)
         return False
 
 
@@ -319,7 +321,7 @@ def load_model(
         Tuple of (lr_model, rf_model, scaler, ensemble_enabled, user_sample_count, total_sample_count, success)
     """
     if not model_path.exists():
-        debug_log("[PREF-LEARNER] No existing model found")
+        logger.debug("No existing model found")
         return None, None, None, False, 0, 0, False
 
     try:
@@ -347,18 +349,21 @@ def load_model(
 
         # Check for feature count mismatch (model trained with different features)
         if len(saved_feature_names) != len(FEATURE_NAMES):
-            debug_log(
-                f"[PREF-LEARNER] Feature count mismatch: saved model has "
-                f"{len(saved_feature_names)} features, current expects {len(FEATURE_NAMES)}. "
-                f"Model invalidated - will retrain with new features."
+            logger.debug(
+                "Feature count mismatch: saved model has %d features, current expects %d. "
+                "Model invalidated - will retrain with new features.",
+                len(saved_feature_names),
+                len(FEATURE_NAMES),
             )
             return None, None, None, False, 0, 0, False
 
         if lr_model is not None and scaler is not None:
             mode = "ensemble" if ensemble_enabled else "LR-only"
-            debug_log(
-                f"[PREF-LEARNER] Model loaded ({mode}) from {model_path} "
-                f"({user_sample_count} user samples)"
+            logger.debug(
+                "Model loaded (%s) from %s (%d user samples)",
+                mode,
+                model_path,
+                user_sample_count,
             )
             return (
                 lr_model,
@@ -370,11 +375,11 @@ def load_model(
                 True,
             )
 
-        debug_log("[PREF-LEARNER] Invalid model data in file")
+        logger.debug("Invalid model data in file")
         return None, None, None, False, 0, 0, False
 
     except Exception as e:
-        debug_log(f"[META-LEARNER] Failed to load model: {e}")
+        logger.debug("Failed to load model: %s", e)
         return None, None, None, False, 0, 0, False
 
 
@@ -397,17 +402,17 @@ def reset_to_default(model_path: Path = VOCAB_MODEL_PATH) -> bool:
             # Copy default model to user's model path
             model_path.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(DEFAULT_VOCAB_MODEL_PATH, model_path)
-            debug_log(f"[PREF-LEARNER] Reset to default model from {DEFAULT_VOCAB_MODEL_PATH}")
+            logger.debug("Reset to default model from %s", DEFAULT_VOCAB_MODEL_PATH)
             return True
 
         # No default model - just delete user's model to start fresh
         if model_path.exists():
             model_path.unlink()
-            debug_log("[PREF-LEARNER] Deleted user model (no default available)")
+            logger.debug("Deleted user model (no default available)")
         else:
-            debug_log("[PREF-LEARNER] No model to reset (already clean)")
+            logger.debug("No model to reset (already clean)")
         return True
 
     except Exception as e:
-        debug_log(f"[PREF-LEARNER] Failed to reset model: {e}")
+        logger.debug("Failed to reset model: %s", e)
         return False

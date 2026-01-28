@@ -11,6 +11,7 @@ Session 80b: Import shared column_config for consistency with GUI; add sort
 
 import html
 import json
+import logging
 from datetime import datetime
 from pathlib import Path
 
@@ -20,6 +21,8 @@ from src.config import (
     PROTECTED_COLUMNS,
     SORT_WARNING_COLUMNS,
 )
+
+logger = logging.getLogger(__name__)
 
 
 def _escape(text: str) -> str:
@@ -450,9 +453,7 @@ def export_vocabulary_html(
         Path(file_path).write_text(html_content, encoding="utf-8")
         return True
     except Exception as e:
-        from src.logging_config import error
-
-        error(f"[HTML Export] Failed to export vocabulary HTML to '{file_path}': {e}")
+        logger.error("Failed to export vocabulary HTML to '%s': %s", file_path, e)
         return False
 
 
@@ -801,7 +802,5 @@ def export_qa_html(
         Path(file_path).write_text(html_content, encoding="utf-8")
         return True
     except Exception as e:
-        from src.logging_config import error
-
-        error(f"[HTML Export] Failed to export Q&A HTML to '{file_path}': {e}")
+        logger.error("Failed to export Q&A HTML to '%s': %s", file_path, e)
         return False

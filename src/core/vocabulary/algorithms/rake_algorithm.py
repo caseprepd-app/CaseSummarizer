@@ -29,6 +29,7 @@ Reference:
 Rose, S., et al. (2010). "Automatic Keyword Extraction from Individual Documents"
 """
 
+import logging
 import re
 import time
 from typing import Any
@@ -43,7 +44,8 @@ from src.core.vocabulary.algorithms.base import (
     BaseExtractionAlgorithm,
     CandidateTerm,
 )
-from src.logging_config import debug_log
+
+logger = logging.getLogger(__name__)
 
 
 @register_algorithm("RAKE")
@@ -188,11 +190,15 @@ class RAKEAlgorithm(BaseExtractionAlgorithm):
 
         processing_time_ms = (time.time() - start_time) * 1000
 
-        debug_log(
-            f"[RAKE] Extracted {len(candidates)} phrases from "
-            f"{len(ranked_phrases)} raw (filtered: {filtered_by_score} low-score, "
-            f"{filtered_by_frequency} low-freq, {filtered_by_invalid} invalid) "
-            f"in {processing_time_ms:.1f}ms"
+        logger.debug(
+            "Extracted %d phrases from %d raw (filtered: %d low-score, "
+            "%d low-freq, %d invalid) in %.1fms",
+            len(candidates),
+            len(ranked_phrases),
+            filtered_by_score,
+            filtered_by_frequency,
+            filtered_by_invalid,
+            processing_time_ms,
         )
 
         return AlgorithmResult(

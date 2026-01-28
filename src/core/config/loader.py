@@ -5,10 +5,13 @@ Replaces 7+ duplicate _load_config() implementations across the codebase.
 Provides consistent YAML/JSON loading with proper error handling and logging.
 """
 
+import logging
 from pathlib import Path
 from typing import Any, TypeVar
 
 import yaml
+
+logger = logging.getLogger(__name__)
 
 T = TypeVar("T")
 
@@ -45,42 +48,31 @@ def load_yaml(
     """
     config_path = Path(config_path)
 
-    # Import here to avoid circular imports during module initialization
-    try:
-        from src.logging_config import debug_log, error
-    except ImportError:
-        # Fallback if logging not available yet
-        def debug_log(msg):
-            return None
-
-        def error(msg):
-            return None
-
     try:
         with open(config_path, encoding="utf-8") as f:
             config = yaml.safe_load(f)
-        debug_log(f"{log_prefix} Loaded config from {config_path}")
+        logger.debug("%s Loaded config from %s", log_prefix, config_path)
         return config if config is not None else {}
 
     except FileNotFoundError:
         if raise_on_error:
-            error(f"{log_prefix} Config file not found: {config_path}")
+            logger.error("%s Config file not found: %s", log_prefix, config_path)
             raise
-        debug_log(f"{log_prefix} Config not found, using default: {config_path}")
+        logger.debug("%s Config not found, using default: %s", log_prefix, config_path)
         return default if default is not None else {}
 
     except yaml.YAMLError as e:
         if raise_on_error:
-            error(f"{log_prefix} YAML parse error in {config_path}: {e}")
+            logger.error("%s YAML parse error in %s: %s", log_prefix, config_path, e)
             raise
-        debug_log(f"{log_prefix} YAML parse error, using default: {e}")
+        logger.debug("%s YAML parse error, using default: %s", log_prefix, e)
         return default if default is not None else {}
 
     except Exception as e:
         if raise_on_error:
-            error(f"{log_prefix} Failed to load config from {config_path}: {e}")
+            logger.error("%s Failed to load config from %s: %s", log_prefix, config_path, e)
             raise
-        debug_log(f"{log_prefix} Load error, using default: {e}")
+        logger.debug("%s Load error, using default: %s", log_prefix, e)
         return default if default is not None else {}
 
 
@@ -118,25 +110,15 @@ def save_yaml(config_path: str | Path, data: Any, log_prefix: str = "[Config]") 
     config_path = Path(config_path)
 
     try:
-        from src.logging_config import debug_log, error
-    except ImportError:
-
-        def debug_log(msg):
-            return None
-
-        def error(msg):
-            return None
-
-    try:
         # Ensure parent directory exists
         config_path.parent.mkdir(parents=True, exist_ok=True)
 
         with open(config_path, "w", encoding="utf-8") as f:
             yaml.dump(data, f, default_flow_style=False, allow_unicode=True, sort_keys=False)
 
-        debug_log(f"{log_prefix} Saved config to {config_path}")
+        logger.debug("%s Saved config to %s", log_prefix, config_path)
         return True
 
     except Exception as e:
-        error(f"{log_prefix} Failed to save config to {config_path}: {e}")
+        logger.error("%s Failed to save config to %s: %s", log_prefix, config_path, e)
         return False

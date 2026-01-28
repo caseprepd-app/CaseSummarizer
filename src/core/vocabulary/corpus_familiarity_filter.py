@@ -23,8 +23,11 @@ A court reporter who has processed 100 transcripts doesn't need to learn
 appearing in only 2 of 100 transcripts is worth highlighting.
 """
 
+import logging
+
 from src.core.vocabulary.person_utils import is_person_entry
-from src.logging_config import debug_log
+
+logger = logging.getLogger(__name__)
 
 
 def calculate_corpus_familiarity(term: str) -> float:
@@ -56,7 +59,7 @@ def calculate_corpus_familiarity(term: str) -> float:
         return doc_freq / total_docs
 
     except Exception as e:
-        debug_log(f"[CorpusFamiliarity] Error calculating familiarity for '{term}': {e}")
+        logger.debug("Error calculating familiarity for '%s': %s", term, e)
         return 0.0
 
 
@@ -109,24 +112,23 @@ def should_filter_corpus_familiar(term: str, is_person: bool = False) -> bool:
         # Check percentage threshold
         familiarity = doc_freq / total_docs
         if familiarity >= threshold:
-            debug_log(
-                f"[CorpusFamiliarity] Filtering '{term}' - "
-                f"familiarity {familiarity:.1%} >= threshold {threshold:.0%}"
+            logger.debug(
+                "Filtering '%s' - familiarity %.1f%% >= threshold %.0f%%",
+                term,
+                familiarity * 100,
+                threshold * 100,
             )
             return True
 
         # Check count threshold (alternative mode)
         if min_docs > 0 and doc_freq >= min_docs:
-            debug_log(
-                f"[CorpusFamiliarity] Filtering '{term}' - "
-                f"doc_freq {doc_freq} >= min_docs {min_docs}"
-            )
+            logger.debug("Filtering '%s' - doc_freq %d >= min_docs %d", term, doc_freq, min_docs)
             return True
 
         return False  # Keep the term
 
     except Exception as e:
-        debug_log(f"[CorpusFamiliarity] Error checking filter for '{term}': {e}")
+        logger.debug("Error checking filter for '%s': %s", term, e)
         return False  # On error, don't filter
 
 
@@ -178,13 +180,13 @@ def filter_corpus_familiar_terms(
 
         # If no corpus data, just add 0.0 scores and return
         if total_docs == 0:
-            debug_log("[CorpusFamiliarity] No corpus data available, skipping filter")
+            logger.debug("No corpus data available, skipping filter")
             for term_data in vocabulary:
                 term_data["corpus_familiarity_score"] = 0.0
             return vocabulary
 
     except Exception as e:
-        debug_log(f"[CorpusFamiliarity] Error accessing corpus: {e}")
+        logger.debug("Error accessing corpus: %s", e)
         for term_data in vocabulary:
             term_data["corpus_familiarity_score"] = 0.0
         return vocabulary
@@ -209,9 +211,6 @@ def filter_corpus_familiar_terms(
         result.append(term_data)
 
     if filtered_count > 0:
-        debug_log(
-            f"[CorpusFamiliarity] Filtered {filtered_count} corpus-familiar terms, "
-            f"kept {len(result)}"
-        )
+        logger.debug("Filtered %d corpus-familiar terms, kept %d", filtered_count, len(result))
 
     return result

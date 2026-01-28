@@ -8,6 +8,7 @@ Handles post-processing of AI-generated summaries, including:
 This module is AI-backend-agnostic - it works with any text generation function.
 """
 
+import logging
 from collections.abc import Callable
 
 from src.config import (
@@ -17,7 +18,8 @@ from src.config import (
     USER_PROMPTS_DIR,
 )
 from src.core.prompting import PromptTemplateManager, get_prompt_config
-from src.logging_config import debug_log
+
+logger = logging.getLogger(__name__)
 
 
 class SummaryPostProcessor:
@@ -97,33 +99,40 @@ class SummaryPostProcessor:
         actual_words = len(summary.split())
         attempt = 0
 
-        debug_log(
-            f"[LENGTH ENFORCE] Target: {target_words} words, "
-            f"Max acceptable: {max_acceptable_words} words, "
-            f"Actual: {actual_words} words"
+        logger.debug(
+            "Target: %s words, Max acceptable: %s words, Actual: %s words",
+            target_words,
+            max_acceptable_words,
+            actual_words,
         )
 
         while actual_words > max_acceptable_words and attempt < attempts:
             attempt += 1
-            debug_log(
-                f"[LENGTH ENFORCE] Attempt {attempt}/{attempts}: "
-                f"Summary is {actual_words} words (>{max_acceptable_words}). Condensing..."
+            logger.debug(
+                "Attempt %s/%s: Summary is %s words (>%s). Condensing...",
+                attempt,
+                attempts,
+                actual_words,
+                max_acceptable_words,
             )
 
             summary = self._condense_summary(summary, target_words)
             actual_words = len(summary.split())
 
-            debug_log(f"[LENGTH ENFORCE] After condensation: {actual_words} words")
+            logger.debug("After condensation: %s words", actual_words)
 
         if actual_words > max_acceptable_words:
-            debug_log(
-                f"[LENGTH ENFORCE] WARNING: After {attempts} attempts, "
-                f"summary is still {actual_words} words. Returning best effort."
+            logger.warning(
+                "After %s attempts, summary is still %s words. Returning best effort.",
+                attempts,
+                actual_words,
             )
         else:
-            debug_log(
-                f"[LENGTH ENFORCE] Success: {actual_words} words "
-                f"(within {self.tolerance * 100:.0f}% tolerance of {target_words})"
+            logger.debug(
+                "Success: %s words (within %.0f%% tolerance of %s)",
+                actual_words,
+                self.tolerance * 100,
+                target_words,
             )
 
         return summary
@@ -157,7 +166,7 @@ class SummaryPostProcessor:
             )
         except FileNotFoundError:
             # Fallback: use a simple inline condensation prompt
-            debug_log("[CONDENSE] Condensation template not found, using fallback prompt")
+            logger.debug("Condensation template not found, using fallback prompt")
             prompt = f"""Condense the following legal case summary to approximately {target_words} words.
 Preserve all key facts (parties, claims, damages, dates, status).
 Remove redundant information and use more concise phrasing.

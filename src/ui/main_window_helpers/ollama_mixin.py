@@ -10,13 +10,14 @@ Contains:
 - Settings dialog integration
 """
 
+import logging
 import re
 
 import customtkinter as ctk
 
-from src.config import DEBUG_MODE
-from src.logging_config import debug_log
 from src.ui.tooltip_manager import tooltip_manager
+
+logger = logging.getLogger(__name__)
 
 # PERF-001: Pre-compile regex at module level
 _MODEL_PARAM_PATTERN = re.compile(r":(\d+\.?\d*)b")
@@ -55,9 +56,8 @@ class OllamaMixin:
             # Add tooltip with troubleshooting info
             self._setup_ollama_tooltip()
 
-        if DEBUG_MODE:
-            status = "connected" if self.model_manager.is_connected else "disconnected"
-            debug_log(f"[MainWindow] Ollama status: {status}")
+        status = "connected" if self.model_manager.is_connected else "disconnected"
+        logger.debug("Ollama status: %s", status)
 
     def _setup_ollama_tooltip(self):
         """Set up hover tooltip for disconnected Ollama status."""
@@ -132,8 +132,7 @@ class OllamaMixin:
         display_text = self._format_model_display(model_name)
         self.model_name_label.configure(text=display_text)
 
-        if DEBUG_MODE:
-            debug_log(f"[MainWindow] Model display updated: {display_text}")
+        logger.debug("Model display updated: %s", display_text)
 
     def _format_model_display(self, model_name: str) -> str:
         """
@@ -174,21 +173,17 @@ class OllamaMixin:
             dialog = SettingsDialog(parent=self, initial_tab="Questions")
             dialog.wait_window()
         except Exception as e:
-            # LOG-006: Use debug_log instead of traceback.print_exc()
-            debug_log(f"Failed to open settings dialog: {e}")
+            # LOG-006: Use logger instead of traceback.print_exc()
+            logger.debug("Failed to open settings dialog: %s", e)
 
         # Session 62: Check if model changed and reload if needed
         new_model = prefs.get("ollama_model", self.model_manager.model_name)
         if new_model and new_model != old_model:
             try:
                 self.model_manager.load_model(new_model)
-                from src.logging_config import info as log_info
-
-                log_info(f"Model changed: {old_model} → {new_model}")
+                logger.info("Model changed: %s -> %s", old_model, new_model)
             except Exception as e:
-                from src.logging_config import warning as log_warning
-
-                log_warning(f"Failed to load model {new_model}: {e}")
+                logger.warning("Failed to load model %s: %s", new_model, e)
 
         # Refresh UI after settings change
         self._refresh_corpus_dropdown()
@@ -202,9 +197,9 @@ class OllamaMixin:
 
         try:
             self.model_manager.health_check()
-            debug_log("[MainWindow] Ollama service is accessible")
+            logger.debug("Ollama service is accessible")
         except Exception as e:
-            debug_log(f"[MainWindow] Ollama service not accessible: {e}")
+            logger.debug("Ollama service not accessible: %s", e)
 
             # Show warning
             messagebox.showwarning(

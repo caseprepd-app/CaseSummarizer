@@ -16,12 +16,12 @@ Integration:
 """
 
 import hashlib
+import logging
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 from src.config import (
-    DEBUG_MODE,
     QA_CONTEXT_WINDOW,
     QA_RETRIEVAL_K,
     QUERY_TRANSFORM_ENABLED,
@@ -32,7 +32,8 @@ from src.config import (
     RETRIEVAL_ENABLE_FAISS,
     RETRIEVAL_MIN_SCORE,
 )
-from src.logging_config import debug_log
+
+logger = logging.getLogger(__name__)
 
 
 def _get_effective_qa_context_window() -> int:
@@ -153,8 +154,7 @@ class QARetriever:
             allow_dangerous_deserialization=True,
         )
 
-        if DEBUG_MODE:
-            debug_log(f"[QARetriever] Loaded FAISS index from: {self.vector_store_path}")
+        logger.debug("Loaded FAISS index from: %s", self.vector_store_path)
 
         # Extract documents from FAISS docstore for hybrid retrieval
         self._documents = self._extract_documents_from_faiss()
@@ -172,14 +172,11 @@ class QARetriever:
         self._query_cache: dict[str, list[str]] = {}
         self._query_cache_maxsize = 50
 
-        if DEBUG_MODE:
-            debug_log(
-                f"[QARetriever] Hybrid retriever initialized with {len(self._documents)} chunks"
-            )
-            if self._query_transformer:
-                debug_log("[QARetriever] Query transformer enabled")
-            if self._reranker:
-                debug_log("[QARetriever] Cross-encoder reranking enabled")
+        logger.debug("Hybrid retriever initialized with %d chunks", len(self._documents))
+        if self._query_transformer:
+            logger.debug("Query transformer enabled")
+        if self._reranker:
+            logger.debug("Cross-encoder reranking enabled")
 
     def _verify_integrity_hash(self, persist_dir: Path) -> None:
         """
@@ -201,10 +198,7 @@ class QARetriever:
 
         # Skip verification for older stores without hash file
         if not hash_file.exists():
-            if DEBUG_MODE:
-                debug_log(
-                    "[QARetriever] No .hash file found - skipping integrity check (legacy store)"
-                )
+            logger.debug("No .hash file found - skipping integrity check (legacy store)")
             return
 
         # Compute current hash of files
@@ -228,8 +222,7 @@ class QARetriever:
                 "Please rebuild the vector store from source documents."
             )
 
-        if DEBUG_MODE:
-            debug_log(f"[QARetriever] Integrity check passed: {computed_hash[:16]}...")
+        logger.debug("Integrity check passed: %s...", computed_hash[:16])
 
     def _extract_documents_from_faiss(self) -> list[dict]:
         """
@@ -324,19 +317,14 @@ class QARetriever:
             if transformer.is_available():
                 return transformer
             else:
-                if DEBUG_MODE:
-                    debug_log(
-                        "[QARetriever] Query transformer not available (LlamaIndex/Ollama issue)"
-                    )
+                logger.debug("Query transformer not available (LlamaIndex/Ollama issue)")
                 return None
 
         except ImportError as e:
-            if DEBUG_MODE:
-                debug_log(f"[QARetriever] Query transformer import failed: {e}")
+            logger.debug("Query transformer import failed: %s", e)
             return None
         except Exception as e:
-            if DEBUG_MODE:
-                debug_log(f"[QARetriever] Query transformer init failed: {e}")
+            logger.debug("Query transformer init failed: %s", e)
             return None
 
     def _init_reranker(self):
@@ -357,12 +345,10 @@ class QARetriever:
             return CrossEncoderReranker()
 
         except ImportError as e:
-            if DEBUG_MODE:
-                debug_log(f"[QARetriever] Reranker import failed: {e}")
+            logger.debug("Reranker import failed: %s", e)
             return None
         except Exception as e:
-            if DEBUG_MODE:
-                debug_log(f"[QARetriever] Reranker init failed: {e}")
+            logger.debug("Reranker init failed: %s", e)
             return None
 
     def retrieve_context(
@@ -394,13 +380,11 @@ class QARetriever:
         # If k is still None (config says use all), use total chunk count
         if k is None:
             k = self.get_chunk_count()
-            if DEBUG_MODE:
-                debug_log(f"[QARetriever] Using all {k} chunks for retrieval")
+            logger.debug("Using all %d chunks for retrieval", k)
 
         min_score = min_score if min_score is not None else RETRIEVAL_MIN_SCORE
 
-        if DEBUG_MODE:
-            debug_log(f"[QARetriever] Query: '{question[:50]}...' (k={k}, min_score={min_score})")
+        logger.debug("Query: '%s...' (k=%d, min_score=%s)", question[:50], k, min_score)
 
         # Transform query into variants if transformer is available
         # PERF-007: Check cache first to avoid redundant LLM calls
@@ -408,10 +392,7 @@ class QARetriever:
         if self._query_transformer:
             if question in self._query_cache:
                 queries_to_search = self._query_cache[question]
-                if DEBUG_MODE:
-                    debug_log(
-                        f"[QARetriever] Query expansion cache hit: {len(queries_to_search)} variants"
-                    )
+                logger.debug("Query expansion cache hit: %d variants", len(queries_to_search))
             else:
                 transform_result = self._query_transformer.transform(question)
                 if transform_result.success and transform_result.expanded_queries:
@@ -422,10 +403,7 @@ class QARetriever:
                         oldest_key = next(iter(self._query_cache))
                         del self._query_cache[oldest_key]
                     self._query_cache[question] = queries_to_search
-                    if DEBUG_MODE:
-                        debug_log(
-                            f"[QARetriever] Query expanded to {len(queries_to_search)} variants"
-                        )
+                    logger.debug("Query expanded to %d variants", len(queries_to_search))
 
         # Retrieve for all query variants and merge results
         all_chunks = {}  # chunk_id -> best chunk result (avoid duplicates)
@@ -434,8 +412,8 @@ class QARetriever:
             merged_result = self._hybrid_retriever.retrieve(query, k=k)
 
             # Diagnostic: log what we received
-            debug_log(
-                f"[QARetriever] Received {len(merged_result.chunks)} merged chunks from hybrid retriever"
+            logger.debug(
+                "Received %d merged chunks from hybrid retriever", len(merged_result.chunks)
             )
 
             for chunk in merged_result.chunks:
@@ -453,9 +431,9 @@ class QARetriever:
             :k
         ]
 
-        if DEBUG_MODE and len(queries_to_search) > 1:
-            debug_log(
-                f"[QARetriever] Merged {len(all_chunks)} unique chunks from {len(queries_to_search)} queries"
+        if len(queries_to_search) > 1:
+            logger.debug(
+                "Merged %d unique chunks from %d queries", len(all_chunks), len(queries_to_search)
             )
 
         # Rerank with cross-encoder if enabled (improves precision)
@@ -467,8 +445,7 @@ class QARetriever:
                 chunks=sorted_chunks,
                 top_k=RERANKER_TOP_K,
             )
-            if DEBUG_MODE:
-                debug_log(f"[QARetriever] Reranked to top {len(sorted_chunks)} chunks")
+            logger.debug("Reranked to top %d chunks", len(sorted_chunks))
 
         # Filter by minimum score and build results
         # Track token count to stay within context window (approx 1 word = 1.3 tokens)
@@ -500,12 +477,13 @@ class QARetriever:
             200,  # minimum to avoid empty context
             qa_context_window - qa_max_output_tokens - prompt_overhead_tokens,
         )
-        if DEBUG_MODE:
-            debug_log(
-                f"[QARetriever] Context window: {qa_context_window:,}, "
-                f"output reserve: {qa_max_output_tokens}, overhead: {prompt_overhead_tokens}, "
-                f"max context tokens: {max_context_tokens:,}"
-            )
+        logger.debug(
+            "Context window: %s, output reserve: %s, overhead: %s, max context tokens: %s",
+            qa_context_window,
+            qa_max_output_tokens,
+            prompt_overhead_tokens,
+            max_context_tokens,
+        )
         chunks_included = 0
         chunks_skipped_score = 0
         chunks_skipped_limit = 0
@@ -529,10 +507,8 @@ class QARetriever:
             # Check if adding this chunk would exceed context window
             if estimated_tokens + chunk_tokens > max_context_tokens:
                 chunks_skipped_limit += 1
-                if DEBUG_MODE and chunks_skipped_limit == 1:
-                    debug_log(
-                        f"[QARetriever] Context window limit reached ({estimated_tokens} tokens)"
-                    )
+                if chunks_skipped_limit == 1:
+                    logger.debug("Context window limit reached (%d tokens)", estimated_tokens)
                 continue
 
             context_parts.append(chunk_text)
@@ -555,33 +531,44 @@ class QARetriever:
 
         # Always log retrieval summary when no results (helps diagnose issues)
         if chunks_included == 0:
-            debug_log(
-                f"[QARetriever] WARNING: No chunks passed filters! "
-                f"sorted_chunks={len(sorted_chunks)}, skipped_score={chunks_skipped_score}, "
-                f"skipped_limit={chunks_skipped_limit}, min_score={min_score}"
+            logger.warning(
+                "No chunks passed filters! sorted_chunks=%d, skipped_score=%d, skipped_limit=%d, min_score=%s",
+                len(sorted_chunks),
+                chunks_skipped_score,
+                chunks_skipped_limit,
+                min_score,
             )
             # Log actual scores to diagnose why chunks are failing
             if sorted_chunks:
-                debug_log("[QARetriever] Top chunk scores (combined_score | sources):")
+                logger.debug("Top chunk scores (combined_score | sources):")
                 for i, chunk in enumerate(sorted_chunks[:5]):
-                    debug_log(
-                        f"  [{i + 1}] {chunk.combined_score:.6f} | {chunk.sources} | {chunk.filename}"
+                    logger.debug(
+                        "  [%d] %.6f | %s | %s",
+                        i + 1,
+                        chunk.combined_score,
+                        chunk.sources,
+                        chunk.filename,
                     )
-        elif DEBUG_MODE and (chunks_skipped_score > 0 or chunks_skipped_limit > 0):
-            debug_log(
-                f"[QARetriever] Chunks: {chunks_included} included, "
-                f"{chunks_skipped_score} below min_score, {chunks_skipped_limit} exceeded context limit"
+        elif chunks_skipped_score > 0 or chunks_skipped_limit > 0:
+            logger.debug(
+                "Chunks: %d included, %d below min_score, %d exceeded context limit",
+                chunks_included,
+                chunks_skipped_score,
+                chunks_skipped_limit,
             )
 
         elapsed_ms = (time.perf_counter() - start_time) * 1000
 
-        if DEBUG_MODE:
-            debug_log(f"[QARetriever] Retrieved {len(sources)} chunks in {elapsed_ms:.1f}ms")
-            for src in sources:
-                algo_info = f" via {src.sources}" if src.sources else ""
-                debug_log(
-                    f"  - {src.filename} (chunk {src.chunk_num}, score {src.relevance_score:.3f}{algo_info})"
-                )
+        logger.debug("Retrieved %d chunks in %.1fms", len(sources), elapsed_ms)
+        for src in sources:
+            algo_info = " via %s" % src.sources if src.sources else ""
+            logger.debug(
+                "  - %s (chunk %d, score %.3f%s)",
+                src.filename,
+                src.chunk_num,
+                src.relevance_score,
+                algo_info,
+            )
 
         return RetrievalResult(
             context=context,

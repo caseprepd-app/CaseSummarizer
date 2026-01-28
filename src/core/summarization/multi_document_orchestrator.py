@@ -41,6 +41,7 @@ Usage:
 
 from __future__ import annotations
 
+import logging
 import threading
 import time
 from collections.abc import Callable
@@ -53,7 +54,8 @@ from src.core.parallel import (
     ProgressAggregator,
     ThreadPoolStrategy,
 )
-from src.logging_config import debug_log, error, info
+
+logger = logging.getLogger(__name__)
 
 from .document_summarizer import DocumentSummarizer
 from .result_types import DocumentSummaryResult, MultiDocumentSummaryResult
@@ -164,7 +166,7 @@ class MultiDocumentOrchestrator:
             )
 
         doc_count = len(valid_documents)
-        info(f"[MULTI-DOC] Starting summarization of {doc_count} documents")
+        logger.info("Starting summarization of %d documents", doc_count)
 
         if progress_callback:
             progress_callback(5, f"Preparing to summarize {doc_count} documents...")
@@ -207,7 +209,7 @@ class MultiDocumentOrchestrator:
         if progress_callback:
             progress_callback(100, f"Completed: {documents_processed}/{doc_count} documents")
 
-        info(f"[MULTI-DOC] Completed: {documents_processed} docs in {total_time:.1f}s")
+        logger.info("Completed: %d docs in %.1fs", documents_processed, total_time)
 
         return MultiDocumentSummaryResult(
             individual_summaries=individual_results,
@@ -290,9 +292,11 @@ class MultiDocumentOrchestrator:
         def on_task_complete(task_id: str, result: DocumentSummaryResult):
             """Callback when a document finishes."""
             results[result.filename] = result
-            debug_log(
-                f"[MULTI-DOC] Completed: {result.filename} "
-                f"({result.word_count} words, {result.chunk_count} chunks)"
+            logger.debug(
+                "Completed: %s (%d words, %d chunks)",
+                result.filename,
+                result.word_count,
+                result.chunk_count,
             )
 
         # Create task runner with strategy
@@ -426,7 +430,7 @@ Meta-Summary:"""
             meta_summary = self.model_manager.generate_text(prompt=prompt, max_tokens=max_tokens)
             return meta_summary.strip()
         except Exception as e:
-            error(f"[MULTI-DOC] Meta-summary generation failed: {e}")
+            logger.error("Meta-summary generation failed: %s", e)
             return f"Meta-summary generation failed: {e}"
 
     def _generate_chunked_meta_summary(
@@ -452,8 +456,8 @@ Meta-Summary:"""
         context_budget = (OLLAMA_CONTEXT_WINDOW - 500) * 4  # Convert tokens to chars
         summaries_per_batch = max(2, context_budget // (avg_summary_length + 100))
 
-        debug_log(
-            f"[MULTI-DOC] Chunking {len(summaries)} summaries into batches of {summaries_per_batch}"
+        logger.debug(
+            "Chunking %d summaries into batches of %d", len(summaries), summaries_per_batch
         )
 
         # Process batches
@@ -493,6 +497,6 @@ Final Meta-Summary:"""
             )
             return final_summary.strip()
         except Exception as e:
-            error(f"[MULTI-DOC] Final meta-summary failed: {e}")
+            logger.error("Final meta-summary failed: %s", e)
             # Return concatenated intermediates as fallback
             return "\n\n".join(intermediate_summaries)

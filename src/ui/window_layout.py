@@ -364,19 +364,6 @@ class WindowLayoutMixin:
         # Hidden initially - shown after processing completes
         self._export_all_visible = False
 
-        # Combined Report button (Session 73: single document with vocab + Q&A)
-        self.combined_report_btn = ctk.CTkButton(
-            self.status_frame,
-            text="Combined Report",
-            command=self._export_combined_report,
-            width=110,
-            height=24,
-            font=FONTS["small"],
-            **BUTTON_STYLES["secondary"],
-        )
-        # Hidden initially - shown after processing completes
-        self._combined_report_visible = False
-
         # Corpus info (middle)
         self.corpus_info_label = ctk.CTkLabel(
             self.status_frame, text="", font=FONTS["small"], text_color=COLORS["text_secondary"]

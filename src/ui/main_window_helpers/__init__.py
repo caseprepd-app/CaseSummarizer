@@ -7,7 +7,7 @@ This package contains helper classes that provide functionality for MainWindow:
 - ollama_mixin: Ollama status display and model management
 - file_mixin: File selection, drag-drop, preprocessing
 - task_mixin: Task execution and progressive extraction
-- export_mixin: Export All and Combined Report
+- export_mixin: Export All (tabbed HTML)
 - timer_mixin: Processing timer and activity indicator
 """
 

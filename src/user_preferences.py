@@ -4,8 +4,11 @@ Manages user-specific preferences like default prompts per model.
 """
 
 import json
+import logging
 from pathlib import Path
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 
 class UserPreferencesManager:
@@ -68,9 +71,7 @@ class UserPreferencesManager:
 
         except Exception as e:
             # Log error but don't crash
-            from src.logging_config import debug_log
-
-            debug_log(f"[PREFS] Could not save user preferences: {e}")
+            logger.warning("Could not save user preferences: %s", e)
 
     def get_default_prompt(self, model_name: str) -> str | None:
         """
@@ -359,7 +360,7 @@ class UserPreferencesManager:
 
     def get_logging_level(self) -> str:
         """
-        Get the logging detail level for debug_flow.txt.
+        Get the logging detail level for caseprepd.log.
 
         Returns:
             str: "off", "brief", or "comprehensive"
@@ -369,7 +370,7 @@ class UserPreferencesManager:
 
     def set_logging_level(self, level: str) -> None:
         """
-        Set the logging detail level for debug_flow.txt.
+        Set the logging detail level for caseprepd.log.
 
         Args:
             level: "off", "brief", or "comprehensive"

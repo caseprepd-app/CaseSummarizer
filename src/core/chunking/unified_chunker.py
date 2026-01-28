@@ -15,6 +15,7 @@ not bigger chunks. Research sources:
 """
 
 import hashlib
+import logging
 import re
 import time
 from dataclasses import dataclass, field
@@ -33,7 +34,8 @@ from src.config import (
     UNIFIED_CHUNK_MIN_TOKENS,
     UNIFIED_CHUNK_TARGET_TOKENS,
 )
-from src.logging_config import debug_log, debug_timing, error, info
+
+logger = logging.getLogger(__name__)
 
 # Fallback values if config import fails (should match config.py)
 DEFAULT_MIN_TOKENS = UNIFIED_CHUNK_MIN_TOKENS  # Fallback: 400
@@ -110,9 +112,9 @@ class UnifiedChunker:
         # Initialize tiktoken encoder
         try:
             self.encoder = tiktoken.get_encoding(tiktoken_encoding)
-            debug_log(f"Initialized tiktoken with encoding: {tiktoken_encoding}")
+            logger.debug("Initialized tiktoken with encoding: %s", tiktoken_encoding)
         except Exception as e:
-            error(f"Failed to initialize tiktoken: {e}")
+            logger.error("Failed to initialize tiktoken: %s", e)
             raise
 
         # Initialize semantic chunker components
@@ -126,7 +128,7 @@ class UnifiedChunker:
 
     def _init_semantic_chunker(self):
         """Initialize LangChain semantic chunking components."""
-        debug_log("Initializing semantic chunker components...")
+        logger.debug("Initializing semantic chunker components...")
         init_start = time.time()
 
         try:
@@ -137,9 +139,11 @@ class UnifiedChunker:
             self.semantic_chunker = SemanticChunker(
                 self.embeddings, breakpoint_threshold_type="gradient"
             )
-            debug_timing("Semantic chunker initialization", time.time() - init_start)
+            logger.debug(
+                "%s took %.2fs", "Semantic chunker initialization", time.time() - init_start
+            )
         except Exception as e:
-            error(f"Failed to initialize semantic chunker: {e}")
+            logger.error("Failed to initialize semantic chunker: %s", e)
             self.embeddings = None
             self.semantic_chunker = None
 
@@ -198,16 +202,18 @@ class UnifiedChunker:
 
         # Check cache first
         if use_cache and cache_key in self._chunk_cache:
-            debug_log(f"Returning cached chunks for {source_file}")
+            logger.debug("Returning cached chunks for %s", source_file)
             return self._chunk_cache[cache_key]
 
         # Validate input
         if not text or not text.strip():
-            error("Empty text provided to unified chunker")
+            logger.error("Empty text provided to unified chunker")
             return []
 
         total_tokens = self.count_tokens(text)
-        info(f"Starting unified chunking: {total_tokens} tokens, {len(text.split())} words")
+        logger.info(
+            "Starting unified chunking: %s tokens, %s words", total_tokens, len(text.split())
+        )
 
         # Step 1: Semantic chunking
         if self.semantic_chunker:
@@ -216,11 +222,11 @@ class UnifiedChunker:
             # Fallback to paragraph-based chunking
             raw_chunks = self._paragraph_chunk(text)
 
-        debug_log(f"Initial semantic chunking produced {len(raw_chunks)} chunks")
+        logger.debug("Initial semantic chunking produced %s chunks", len(raw_chunks))
 
         # Step 2: Token enforcement (split oversized, merge undersized)
         enforced_chunks = self._enforce_token_limits(raw_chunks)
-        debug_log(f"After token enforcement: {len(enforced_chunks)} chunks")
+        logger.debug("After token enforcement: %s chunks", len(enforced_chunks))
 
         # Step 3: Convert to UnifiedChunk objects
         final_chunks = []
@@ -251,9 +257,11 @@ class UnifiedChunker:
         token_counts = [c.token_count for c in final_chunks]
         avg_tokens = sum(token_counts) / len(token_counts) if token_counts else 0
 
-        info(
-            f"Unified chunking complete: {len(final_chunks)} chunks, "
-            f"avg {avg_tokens:.0f} tokens/chunk, {total_time:.2f}s"
+        logger.info(
+            "Unified chunking complete: %s chunks, avg %.0f tokens/chunk, %.2fs",
+            len(final_chunks),
+            avg_tokens,
+            total_time,
         )
 
         return final_chunks
@@ -271,7 +279,7 @@ class UnifiedChunker:
             semantic_docs = self.semantic_chunker.split_documents([doc])
             return [d.page_content for d in semantic_docs]
         except Exception as e:
-            error(f"Semantic chunking failed: {e}, falling back to paragraph chunking")
+            logger.error("Semantic chunking failed: %s, falling back to paragraph chunking", e)
             return self._paragraph_chunk(text)
 
     def _paragraph_chunk(self, text: str) -> list[str]:
@@ -425,7 +433,7 @@ class UnifiedChunker:
             List of UnifiedChunk objects
         """
         if not self.semantic_chunker:
-            error("Semantic chunker not initialized. Cannot chunk PDF.")
+            logger.error("Semantic chunker not initialized. Cannot chunk PDF.")
             return []
 
         source = source_file or file_path.name
@@ -436,20 +444,20 @@ class UnifiedChunker:
 
             # Combine all pages into single text
             full_text = "\n\n".join(doc.page_content for doc in documents)
-            debug_log(f"Loaded {len(documents)} pages from PDF: {source}")
+            logger.debug("Loaded %s pages from PDF: %s", len(documents), source)
 
             # Use standard text chunking
             return self.chunk_text(full_text, source_file=source)
 
         except Exception as e:
-            error(f"Failed to chunk PDF {file_path}: {e}")
+            logger.error("Failed to chunk PDF %s: %s", file_path, e)
             return []
 
     def clear_cache(self):
         """Clear the chunk cache and token count cache."""
         self._chunk_cache.clear()
         self._token_count_cache.clear()
-        debug_log("Cleared unified chunker cache")
+        logger.debug("Cleared unified chunker cache")
 
     def get_cache_stats(self) -> dict:
         """Get cache statistics."""
@@ -490,14 +498,16 @@ def create_unified_chunker(
             target_tokens = sizes["target_tokens"]
             max_tokens = sizes["max_tokens"]
 
-            debug_log(
-                f"[UnifiedChunker] Auto-scaled: min={min_tokens}, "
-                f"target={target_tokens}, max={max_tokens} "
-                f"(context={sizes['context_window']:,})"
+            logger.debug(
+                "Auto-scaled: min=%s, target=%s, max=%s (context=%s)",
+                min_tokens,
+                target_tokens,
+                max_tokens,
+                sizes["context_window"],
             )
         except Exception as e:
             # Fallback to defaults if preferences unavailable
-            debug_log(f"[UnifiedChunker] Auto-scale failed ({e}), using defaults")
+            logger.debug("Auto-scale failed (%s), using defaults", e)
             min_tokens = DEFAULT_MIN_TOKENS
             target_tokens = DEFAULT_TARGET_TOKENS
             max_tokens = DEFAULT_MAX_TOKENS

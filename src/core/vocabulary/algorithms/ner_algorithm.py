@@ -19,6 +19,7 @@ Multi-word PHRASE filtering is done CENTRALLY by rarity_filter.py after all
 algorithms contribute their candidates. This ensures consistent filtering.
 """
 
+import logging
 import re
 import socket
 import subprocess
@@ -53,7 +54,8 @@ from src.core.vocabulary.algorithms.base import (
     BaseExtractionAlgorithm,
     CandidateTerm,
 )
-from src.logging_config import debug_log
+
+logger = logging.getLogger(__name__)
 
 # Constants for spaCy model
 SPACY_MODEL_NAME = "en_core_web_lg"
@@ -178,7 +180,7 @@ class NERAlgorithm(BaseExtractionAlgorithm):
                         progress_callback(chunk_candidates, chunk_num, total_chunks)
                         last_reported_pct = current_pct
                     except Exception as e:
-                        debug_log(f"[NER] Progress callback error: {e}")
+                        logger.debug("Progress callback error: %s", e)
 
             # Yield GIL to allow GUI updates (prevents freezing)
             time.sleep(0)
@@ -401,10 +403,10 @@ class NERAlgorithm(BaseExtractionAlgorithm):
         """Load or download the spaCy model."""
         try:
             nlp = spacy.load(SPACY_MODEL_NAME)
-            debug_log(f"[NER] Loaded spaCy model: {SPACY_MODEL_NAME}")
+            logger.debug("Loaded spaCy model: %s", SPACY_MODEL_NAME)
             return nlp
         except OSError:
-            debug_log(f"[NER] Model {SPACY_MODEL_NAME} not found, downloading...")
+            logger.debug("Model %s not found, downloading...", SPACY_MODEL_NAME)
             return self._download_and_load_model()
 
     def _download_and_load_model(self):
@@ -426,7 +428,7 @@ class NERAlgorithm(BaseExtractionAlgorithm):
                     text=True,
                     timeout=SPACY_DOWNLOAD_TIMEOUT_SEC,
                 )
-                debug_log(f"[NER] Download output: {result.stdout[:500]}")
+                logger.debug("Download output: %s", result.stdout[:500])
                 downloaded_model[0] = spacy.load(SPACY_MODEL_NAME)
             except Exception as e:
                 download_error[0] = str(e)

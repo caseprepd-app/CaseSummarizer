@@ -23,7 +23,10 @@ Example - Adding a new setting:
     ))
 """
 
+import logging
 from collections.abc import Callable
+
+logger = logging.getLogger(__name__)
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, ClassVar
@@ -970,9 +973,7 @@ def _register_all_settings():
             manager.load_model(model_name)
         except Exception as e:
             # LOG-017: Log exception instead of silent pass
-            from src.logging_config import debug_log
-
-            debug_log(f"[SETTINGS] Model load deferred: {e}")
+            logger.debug("Model load deferred: %s", e)
 
     SettingsRegistry.register(
         SettingDefinition(
@@ -1436,8 +1437,7 @@ def _register_all_settings():
             tooltip=(
                 "Open the folder containing log files in your system file explorer.\n\n"
                 "Log files:\n"
-                "• debug_flow.txt - Detailed debug log\n"
-                "• processing.log - Processing events\n\n"
+                "• caseprepd.log - Application log\n\n"
                 f"Location: {LOGS_DIR}"
             ),
             default=None,
@@ -1449,7 +1449,7 @@ def _register_all_settings():
         """Clear the debug log file with confirmation."""
         from tkinter import messagebox
 
-        from src.logging_config import clear_debug_log, get_log_file_size_mb
+        from src.logging_config import clear_log_file, get_log_file_size_mb
 
         size_mb = get_log_file_size_mb()
         result = messagebox.askyesno(
@@ -1462,7 +1462,7 @@ def _register_all_settings():
         )
 
         if result:
-            if clear_debug_log():
+            if clear_log_file():
                 messagebox.showinfo(
                     "Log Cleared",
                     "Debug log has been cleared and reinitialized.",
@@ -1475,14 +1475,14 @@ def _register_all_settings():
 
     SettingsRegistry.register(
         SettingDefinition(
-            key="clear_debug_log",
-            label="Clear Debug Log",
+            key="clear_log_file",
+            label="Clear Log File",
             category="Logging",
             setting_type=SettingType.BUTTON,
             tooltip=(
-                "Clear the debug_flow.txt file to free disk space.\n\n"
-                "The file will be emptied and a fresh session header will be "
-                "written. Use this if the log file has grown too large.\n\n"
+                "Clear the caseprepd.log file to free disk space.\n\n"
+                "The file will be emptied. Use this if the log file "
+                "has grown too large.\n\n"
                 "Note: This cannot be undone."
             ),
             default=None,

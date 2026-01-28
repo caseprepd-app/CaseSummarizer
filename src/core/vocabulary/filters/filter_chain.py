@@ -4,12 +4,14 @@ Vocabulary Filter Chain
 Orchestrates multiple vocabulary filters in priority order with statistics tracking.
 """
 
+import logging
 import time
 from dataclasses import dataclass, field
 from typing import Any
 
 from src.core.vocabulary.filters.base import BaseVocabularyFilter, FilterResult
-from src.logging_config import debug_log
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -98,9 +100,10 @@ class VocabularyFilterChain:
         current_vocab = vocabulary
         chain_start = time.time()
 
-        debug_log(
-            f"[FILTER-CHAIN] Starting with {len(current_vocab)} terms, "
-            f"{len(sorted_filters)} enabled filters"
+        logger.debug(
+            "Starting with %s terms, %s enabled filters",
+            len(current_vocab),
+            len(sorted_filters),
         )
 
         for filter_ in sorted_filters:
@@ -123,16 +126,18 @@ class VocabularyFilterChain:
                 }
 
                 if result.removed_count > 0:
-                    debug_log(
-                        f"[FILTER-CHAIN] {filter_.name}: "
-                        f"{result.removed_count} removed in {elapsed_ms:.1f}ms"
+                    logger.debug(
+                        "%s: %s removed in %.1fms",
+                        filter_.name,
+                        result.removed_count,
+                        elapsed_ms,
                     )
 
                 current_vocab = result.vocabulary
 
             except Exception as e:
                 elapsed_ms = (time.time() - filter_start) * 1000
-                debug_log(f"[FILTER-CHAIN] Error in {filter_.name}: {e}")
+                logger.debug("Error in %s: %s", filter_.name, e)
                 stats.per_filter_stats[filter_.name] = {
                     "input_count": input_count,
                     "output_count": input_count,
@@ -148,9 +153,11 @@ class VocabularyFilterChain:
 
         self._last_stats = stats
 
-        debug_log(
-            f"[FILTER-CHAIN] Complete: {stats.total_removed} removed "
-            f"in {stats.total_time_ms:.1f}ms, {stats.total_output} remaining"
+        logger.debug(
+            "Complete: %s removed in %.1fms, %s remaining",
+            stats.total_removed,
+            stats.total_time_ms,
+            stats.total_output,
         )
 
         return FilterResult(

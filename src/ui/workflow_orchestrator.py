@@ -20,14 +20,16 @@ The orchestrator decides WHAT to do next; the QueueMessageHandler decides
 HOW to update the UI in response.
 """
 
+import logging
 import threading
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 from src.config import LEGAL_EXCLUDE_LIST_PATH, MEDICAL_TERMS_LIST_PATH, USER_VOCAB_EXCLUDE_PATH
-from src.logging_config import debug_log
 from src.ui.queue_messages import QueueMessage
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -130,7 +132,7 @@ class WorkflowOrchestrator:
                 'combined_text': str (if vocab extraction started)
             }
         """
-        debug_log(f"[ORCHESTRATOR] Extraction complete. {len(extracted_documents)} documents.")
+        logger.info("Extraction complete. %s documents.", len(extracted_documents))
 
         # Update state
         self.state.extracted_documents = extracted_documents
@@ -154,12 +156,12 @@ class WorkflowOrchestrator:
         if extracted_documents:
             self._create_vector_store_async(extracted_documents)
             actions_taken["vector_store_started"] = True
-            debug_log("[ORCHESTRATOR] Started vector store creation (background).")
+            logger.debug("Started vector store creation (background).")
 
         # If no AI generation requested and no vocab requested, workflow is done
         # Note: Vector store creation continues in background even if workflow is "complete"
         if not ai_params and not self.state.output_options.get("vocab_csv", False):
-            debug_log("[ORCHESTRATOR] No outputs requested. Workflow complete.")
+            logger.debug("No outputs requested. Workflow complete.")
             self.state.is_complete = True
             actions_taken["workflow_complete"] = True
             return actions_taken
@@ -171,7 +173,7 @@ class WorkflowOrchestrator:
             actions_taken["combined_text"] = combined_text
             actions_taken["vocab_extraction_started"] = True
             self._start_vocab_extraction(combined_text, doc_count, doc_confidence)
-            debug_log("[ORCHESTRATOR] Started vocabulary extraction (AI will start after).")
+            logger.debug("Started vocabulary extraction (AI will start after).")
             # Do NOT start AI here - wait for vocab to complete
             return actions_taken
 
@@ -179,7 +181,7 @@ class WorkflowOrchestrator:
         if ai_params:
             self._start_ai_generation(extracted_documents, ai_params)
             actions_taken["ai_generation_started"] = True
-            debug_log("[ORCHESTRATOR] Started AI summary generation (no vocab requested).")
+            logger.debug("Started AI summary generation (no vocab requested).")
 
         return actions_taken
 
@@ -213,9 +215,11 @@ class WorkflowOrchestrator:
         ]
         doc_confidence = min(confidences) if confidences else 100.0
 
-        debug_log(
-            f"[ORCHESTRATOR] Combined {doc_count} documents "
-            f"({len(combined)} characters total, confidence={doc_confidence:.1f}%)."
+        logger.debug(
+            "Combined %s documents (%s characters total, confidence=%.1f%%).",
+            doc_count,
+            len(combined),
+            doc_confidence,
         )
         return combined, doc_count, doc_confidence
 
@@ -243,8 +247,10 @@ class WorkflowOrchestrator:
             doc_confidence=doc_confidence,  # Session 54: OCR quality for ML
         )
         self.vocab_worker.start()
-        debug_log(
-            f"[ORCHESTRATOR] VocabularyWorker thread started (doc_count={doc_count}, confidence={doc_confidence:.1f}%)."
+        logger.debug(
+            "VocabularyWorker thread started (doc_count=%s, confidence=%.1f%%).",
+            doc_count,
+            doc_confidence,
         )
 
     def _start_ai_generation(self, extracted_documents: list[dict], ai_params: dict):
@@ -263,15 +269,15 @@ class WorkflowOrchestrator:
         valid_docs = [d for d in extracted_documents if d.get("extracted_text")]
         doc_count = len(valid_docs)
 
-        debug_log(f"[ORCHESTRATOR] Starting AI generation for {doc_count} document(s)")
+        logger.debug("Starting AI generation for %s document(s)", doc_count)
 
         if doc_count <= 1:
             # Single document: Use existing fast path via main window
-            debug_log("[ORCHESTRATOR] Single document mode - using direct Ollama summarization")
+            logger.debug("Single document mode - using direct Ollama summarization")
             self.main_window._start_ai_generation(extracted_documents, ai_params)
         else:
             # Multiple documents: Use hierarchical map-reduce via MultiDocSummaryWorker
-            debug_log("[ORCHESTRATOR] Multi-document mode - using hierarchical summarization")
+            logger.debug("Multi-document mode - using hierarchical summarization")
             self._start_multi_doc_generation(valid_docs, ai_params)
 
     def _start_multi_doc_generation(self, documents: list[dict], ai_params: dict):
@@ -293,11 +299,11 @@ class WorkflowOrchestrator:
             documents=documents, ui_queue=self.main_window.ui_queue, ai_params=ai_params
         )
         self.multi_doc_worker.start()
-        debug_log(f"[ORCHESTRATOR] MultiDocSummaryWorker started for {len(documents)} documents")
+        logger.debug("MultiDocSummaryWorker started for %s documents", len(documents))
 
     def on_summary_complete(self):
         """Handle completion of AI summary generation."""
-        debug_log("[ORCHESTRATOR] AI summary generation complete.")
+        logger.info("AI summary generation complete.")
         self.state.ai_complete = True
         self._check_workflow_complete()
 
@@ -308,16 +314,16 @@ class WorkflowOrchestrator:
         SEQUENTIAL WORKFLOW: Now that vocab is done and visible to user,
         start AI generation if it was requested.
         """
-        debug_log("[ORCHESTRATOR] Vocabulary extraction complete.")
+        logger.info("Vocabulary extraction complete.")
         self.state.vocab_complete = True
 
         # Now start AI generation if it was requested
         if self.state.pending_ai_params and self.state.output_options.get("meta_summary", False):
-            debug_log("[ORCHESTRATOR] Vocab complete, now starting AI generation...")
+            logger.debug("Vocab complete, now starting AI generation...")
             self._start_ai_generation(self.state.extracted_documents, self.state.pending_ai_params)
         else:
             # No AI requested, workflow is complete
-            debug_log("[ORCHESTRATOR] No AI generation requested. Workflow complete.")
+            logger.debug("No AI generation requested. Workflow complete.")
             self._check_workflow_complete()
 
     def _check_workflow_complete(self):
@@ -338,12 +344,12 @@ class WorkflowOrchestrator:
 
         if vocab_done and ai_done:
             self.state.is_complete = True
-            debug_log("[ORCHESTRATOR] All workflow steps complete.")
+            logger.info("All workflow steps complete.")
 
     def reset(self):
         """Reset the orchestrator state for a new workflow."""
         self.state = WorkflowState()
-        debug_log("[ORCHESTRATOR] State reset for new workflow.")
+        logger.debug("State reset for new workflow.")
 
     # =========================================================================
     # Vector Store Methods (Session 24 - Q&A Feature)
@@ -362,7 +368,7 @@ class WorkflowOrchestrator:
 
         def build_store():
             try:
-                debug_log("[ORCHESTRATOR] Vector store thread started.")
+                logger.debug("Vector store thread started.")
 
                 # Update status - embedding model load can take 15-30s on first run
                 if self.state.output_options and self.state.output_options.get(
@@ -411,13 +417,15 @@ class WorkflowOrchestrator:
                     )
                 )
 
-                debug_log(
-                    f"[ORCHESTRATOR] Vector store ready: {result.case_id} "
-                    f"({result.chunk_count} chunks, {result.creation_time_ms:.0f}ms)"
+                logger.info(
+                    "Vector store ready: %s (%s chunks, %.0fms)",
+                    result.case_id,
+                    result.chunk_count,
+                    result.creation_time_ms,
                 )
 
             except Exception as e:
-                debug_log(f"[ORCHESTRATOR] Vector store creation failed: {e}")
+                logger.error("Vector store creation failed: %s", e)
                 self.main_window.ui_queue.put(QueueMessage.vector_store_error(str(e)))
 
         thread = threading.Thread(target=build_store, daemon=True, name="VectorStoreBuilder")
@@ -435,7 +443,7 @@ class WorkflowOrchestrator:
         """
         self.state.vector_store_path = result.get("path")
         self.state.vector_store_ready = True
-        debug_log(f"[ORCHESTRATOR] Vector store complete: {result.get('case_id')}")
+        logger.debug("Vector store complete: %s", result.get("case_id"))
 
         # Start Q&A processing if requested
         if self.state.output_options and self.state.output_options.get("qa_questions", False):
@@ -453,7 +461,7 @@ class WorkflowOrchestrator:
         from src.services.workers import QAWorker
         from src.user_preferences import get_user_preferences
 
-        debug_log("[ORCHESTRATOR] Starting Q&A processing...")
+        logger.debug("Starting Q&A processing...")
 
         # Get user's preferred answer mode from settings
         prefs = get_user_preferences()
@@ -472,7 +480,7 @@ class WorkflowOrchestrator:
             answer_mode=answer_mode,
         )
         self.qa_worker.start()
-        debug_log(f"[ORCHESTRATOR] QAWorker started (mode={answer_mode})")
+        logger.debug("QAWorker started (mode=%s)", answer_mode)
 
     def ask_followup_question(self, question: str):
         """
@@ -484,7 +492,7 @@ class WorkflowOrchestrator:
             question: The question text to ask
         """
         if not self.state.vector_store_ready or not self.state.vector_store_path:
-            debug_log("[ORCHESTRATOR] Cannot ask follow-up: vector store not ready")
+            logger.warning("Cannot ask follow-up: vector store not ready")
             self.main_window.ui_queue.put(
                 QueueMessage.qa_error("Vector store not ready. Process documents first.")
             )
@@ -497,7 +505,7 @@ class WorkflowOrchestrator:
                 from src.services import QAService
                 from src.user_preferences import get_user_preferences
 
-                debug_log(f"[ORCHESTRATOR] Asking follow-up: {question[:50]}...")
+                logger.debug("Asking follow-up: %s...", question[:50])
 
                 # Get answer mode from settings
                 prefs = get_user_preferences()
@@ -522,12 +530,13 @@ class WorkflowOrchestrator:
 
                 # Send result to UI
                 self.main_window.ui_queue.put(QueueMessage.qa_followup_result(result))
-                debug_log(
-                    f"[ORCHESTRATOR] Follow-up answered: {result.answer[:50] if result.answer else 'No answer'}..."
+                logger.debug(
+                    "Follow-up answered: %s...",
+                    result.answer[:50] if result.answer else "No answer",
                 )
 
             except Exception as e:
-                debug_log(f"[ORCHESTRATOR] Follow-up error: {e}")
+                logger.error("Follow-up error: %s", e)
                 self.main_window.ui_queue.put(QueueMessage.qa_error(str(e)))
 
         thread = threading.Thread(target=ask_question, daemon=True, name="FollowupQuestion")

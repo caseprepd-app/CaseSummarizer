@@ -17,13 +17,13 @@ Example usage:
     False
 """
 
+import logging
 import re
 
 import nltk
 from nltk.corpus import words
 
-from src.config import DEBUG_MODE
-from src.logging_config import debug, warning
+logger = logging.getLogger(__name__)
 
 
 class DictionaryUtils:
@@ -61,16 +61,16 @@ class DictionaryUtils:
         Downloads automatically if not present. The corpus contains ~235,000
         English words used for dictionary confidence calculation.
         """
-        debug("Loading NLTK English words corpus")
+        logger.debug("Loading NLTK English words corpus")
 
         try:
             self.english_words = {word.lower() for word in words.words()}
-            debug(f"Loaded {len(self.english_words)} English words")
+            logger.debug("Loaded %d English words", len(self.english_words))
         except LookupError:
-            warning("NLTK words corpus not found. Downloading...")
-            nltk.download("words", quiet=not DEBUG_MODE)
+            logger.warning("NLTK words corpus not found. Downloading...")
+            nltk.download("words", quiet=True)
             self.english_words = {word.lower() for word in words.words()}
-            debug(f"Downloaded and loaded {len(self.english_words)} English words")
+            logger.debug("Downloaded and loaded %d English words", len(self.english_words))
 
     def _load_legal_keywords(self) -> None:
         """
@@ -103,7 +103,7 @@ class DictionaryUtils:
             "PARTY",
             "ACTION",
         }
-        debug(f"Loaded {len(self.legal_keywords)} legal keywords")
+        logger.debug("Loaded %d legal keywords", len(self.legal_keywords))
 
     def calculate_confidence(self, text: str) -> float:
         """

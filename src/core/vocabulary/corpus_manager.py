@@ -18,6 +18,7 @@ Privacy: All processing is local - no documents or data are sent externally.
 
 import hashlib
 import json
+import logging
 import math
 import threading
 import time
@@ -29,7 +30,8 @@ from typing import Any
 
 from src.config import CACHE_DIR, CORPUS_DIR
 from src.core.utils.tokenizer import tokenize
-from src.logging_config import debug_log
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -203,16 +205,16 @@ class CorpusManager:
         current_hash = self._compute_corpus_hash()
 
         if not force_rebuild and self._corpus_hash == current_hash and self._idf_index:
-            debug_log("[BM25] Using cached IDF index (corpus unchanged)")
+            logger.debug("Using cached IDF index (corpus unchanged)")
             return True
 
-        debug_log("[BM25] Building IDF index from corpus...")
+        logger.debug("Building IDF index from corpus...")
         start_time = time.time()
 
         # Get all document files
         doc_files = self._get_corpus_files()
         if not doc_files:
-            debug_log("[BM25] No documents found in corpus folder")
+            logger.debug("No documents found in corpus folder")
             return False
 
         # Document frequency counter: {term: num_docs_containing_term}
@@ -236,11 +238,11 @@ class CorpusManager:
                 total_docs += 1
 
             except Exception as e:
-                debug_log(f"[BM25] Error processing {doc_path.name}: {e}")
+                logger.debug("Error processing %s: %s", doc_path.name, e)
                 continue
 
         if total_docs == 0:
-            debug_log("[BM25] No documents could be processed")
+            logger.debug("No documents could be processed")
             # Set empty index to prevent infinite rebuild loop
             # (would otherwise trigger rebuild on every get_idf call)
             self._idf_index = {"__empty__": 0.0}
@@ -264,9 +266,11 @@ class CorpusManager:
         self._last_build_time = datetime.now().isoformat()
 
         elapsed = time.time() - start_time
-        debug_log(
-            f"[BM25] Built IDF index: {self._vocab_size} terms from "
-            f"{total_docs} documents in {elapsed:.2f}s"
+        logger.debug(
+            "Built IDF index: %d terms from %d documents in %.2fs",
+            self._vocab_size,
+            total_docs,
+            elapsed,
         )
 
         # Save to cache
@@ -299,7 +303,7 @@ class CorpusManager:
         # First time corpus is ready - mark it and reset model
         prefs.set("corpus_was_ever_ready", True)
 
-        debug_log("[Corpus] Corpus became ready for the first time (5+ documents)")
+        logger.debug("Corpus became ready for the first time (5+ documents)")
 
         # Auto-reset the ML model if it's trained
         try:
@@ -307,11 +311,11 @@ class CorpusManager:
 
             learner = get_meta_learner()
             if learner.is_trained:
-                debug_log("[Corpus] Auto-resetting ML model to incorporate corpus features")
+                logger.debug("Auto-resetting ML model to incorporate corpus features")
                 learner.reset_to_default()
-                debug_log("[Corpus] ML model reset complete - will retrain with corpus features")
+                logger.debug("ML model reset complete - will retrain with corpus features")
         except Exception as e:
-            debug_log(f"[Corpus] Error resetting ML model: {e}")
+            logger.debug("Error resetting ML model: %s", e)
 
     def get_corpus_stats(self) -> dict[str, Any]:
         """
@@ -359,13 +363,13 @@ class CorpusManager:
             if result.get("status") == "success":
                 return result.get("extracted_text", "")
             else:
-                debug_log(
-                    f"[BM25] Extraction failed for {file_path.name}: {result.get('error_message')}"
+                logger.debug(
+                    "Extraction failed for %s: %s", file_path.name, result.get("error_message")
                 )
                 return ""
 
         except Exception as e:
-            debug_log(f"[BM25] Error extracting {file_path.name}: {e}")
+            logger.debug("Error extracting %s: %s", file_path.name, e)
             return ""
 
     def _tokenize(self, text: str) -> list[str]:
@@ -425,11 +429,11 @@ class CorpusManager:
             with open(self._cache_file, "w", encoding="utf-8") as f:
                 json.dump(cache_data, f)
 
-            debug_log(f"[BM25] Saved IDF cache to {self._cache_file}")
+            logger.debug("Saved IDF cache to %s", self._cache_file)
             return True
 
         except Exception as e:
-            debug_log(f"[BM25] Error saving cache: {e}")
+            logger.debug("Error saving cache: %s", e)
             return False
 
     def _load_cache(self) -> bool:
@@ -449,7 +453,7 @@ class CorpusManager:
             # Validate cache version (Session 68: Accept v1 or v2, rebuild for older)
             cache_version = cache_data.get("version", 0)
             if cache_version < 1:
-                debug_log("[BM25] Cache version too old, will rebuild")
+                logger.debug("Cache version too old, will rebuild")
                 return False
 
             # Check if corpus has changed
@@ -457,7 +461,7 @@ class CorpusManager:
             current_hash = self._compute_corpus_hash()
 
             if cached_hash != current_hash:
-                debug_log("[BM25] Corpus changed since last build, will rebuild")
+                logger.debug("Corpus changed since last build, will rebuild")
                 return False
 
             # Load cached data
@@ -469,14 +473,15 @@ class CorpusManager:
             # Session 68: Load doc_freq (may be empty for v1 caches)
             self._doc_freq = cache_data.get("doc_freq", {})
 
-            debug_log(
-                f"[BM25] Loaded cached IDF index: {self._vocab_size} terms "
-                f"from {self._doc_count} documents"
+            logger.debug(
+                "Loaded cached IDF index: %d terms from %d documents",
+                self._vocab_size,
+                self._doc_count,
             )
             return True
 
         except Exception as e:
-            debug_log(f"[BM25] Error loading cache: {e}")
+            logger.debug("Error loading cache: %s", e)
             return False
 
     def invalidate_cache(self):
@@ -577,7 +582,7 @@ class CorpusManager:
         from src.core.preprocessing import create_default_pipeline
         from src.core.sanitization import CharacterSanitizer
 
-        debug_log(f"[Corpus] Preprocessing: {file_path.name}")
+        logger.debug("Preprocessing: %s", file_path.name)
 
         # Step 1: Extract text
         extractor = RawTextExtractor()
@@ -602,7 +607,7 @@ class CorpusManager:
         output_path = self._get_preprocessed_path(file_path)
         output_path.write_text(final_text, encoding="utf-8")
 
-        debug_log(f"[Corpus] Saved preprocessed text: {output_path.name} ({len(final_text)} chars)")
+        logger.debug("Saved preprocessed text: %s (%d chars)", output_path.name, len(final_text))
 
         return output_path
 
@@ -617,10 +622,10 @@ class CorpusManager:
         pending = [f for f in files if not f.is_preprocessed]
 
         if not pending:
-            debug_log("[Corpus] No pending files to preprocess")
+            logger.debug("No pending files to preprocess")
             return 0
 
-        debug_log(f"[Corpus] Preprocessing {len(pending)} pending files...")
+        logger.debug("Preprocessing %d pending files...", len(pending))
 
         success_count = 0
         for corpus_file in pending:
@@ -628,9 +633,9 @@ class CorpusManager:
                 self.preprocess_file(corpus_file.path)
                 success_count += 1
             except Exception as e:
-                debug_log(f"[Corpus] Error preprocessing {corpus_file.name}: {e}")
+                logger.debug("Error preprocessing %s: %s", corpus_file.name, e)
 
-        debug_log(f"[Corpus] Preprocessed {success_count}/{len(pending)} files")
+        logger.debug("Preprocessed %d/%d files", success_count, len(pending))
 
         # Invalidate cache since corpus content changed
         if success_count > 0:
@@ -683,7 +688,7 @@ def reset_corpus_manager() -> None:
     global _corpus_manager
     with _corpus_lock:
         _corpus_manager = None
-    debug_log("[CorpusManager] Singleton reset - will reload on next access")
+    logger.debug("Singleton reset - will reload on next access")
 
 
 def get_corpus_manager() -> CorpusManager:
@@ -714,9 +719,9 @@ def get_corpus_manager() -> CorpusManager:
                 registry = get_corpus_registry()
                 active_path = registry.get_active_corpus_path()
                 _corpus_manager = CorpusManager(corpus_dir=active_path)
-                debug_log(f"[CorpusManager] Using active corpus path: {active_path}")
+                logger.debug("Using active corpus path: %s", active_path)
             except Exception as e:
                 # Fallback to default CORPUS_DIR if registry fails
-                debug_log(f"[CorpusManager] Registry failed, using default path: {e}")
+                logger.debug("Registry failed, using default path: %s", e)
                 _corpus_manager = CorpusManager()
     return _corpus_manager

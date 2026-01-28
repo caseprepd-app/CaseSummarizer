@@ -15,6 +15,7 @@ Structured Output Support (Ollama v0.5+):
 """
 
 import json
+import logging
 import re
 import time
 from typing import Any
@@ -30,10 +31,11 @@ from src.config import (
     USER_PROMPTS_DIR,
 )
 from src.core.prompting import PromptTemplateManager, get_prompt_config
-from src.logging_config import debug, debug_log, warning
 
 from .prompt_formatter import wrap_prompt_for_model
 from .summary_post_processor import SummaryPostProcessor
+
+logger = logging.getLogger(__name__)
 
 
 def _get_context_window() -> int:
@@ -52,7 +54,7 @@ def _get_context_window() -> int:
         return prefs.get_effective_context_size()
     except Exception as e:
         # Fallback to config default if preferences unavailable
-        debug_log(f"[OLLAMA] Could not load user preferences for context size: {e}")
+        logger.debug("Could not load user preferences for context size: %s", e)
         return OLLAMA_CONTEXT_WINDOW
 
 
@@ -76,7 +78,7 @@ class OllamaModelManager:
             saved_model = prefs.get("ollama_model", "")
             self.model_name = saved_model if saved_model else OLLAMA_MODEL_NAME
         except Exception as e:
-            debug_log(f"[OLLAMA] Could not load saved model preference: {e}")
+            logger.debug("Could not load saved model preference: %s", e)
             self.model_name = OLLAMA_MODEL_NAME
 
         self.current_model_name = self.model_name  # For compatibility with worker code
@@ -123,18 +125,14 @@ class OllamaModelManager:
             response = requests.get(f"{self.api_base}/api/tags", timeout=OLLAMA_CONNECTION_TIMEOUT)
             self.is_connected = response.status_code == 200
             if self.is_connected:
-                debug("Successfully connected to Ollama")
-                debug_log("[OLLAMA] Connection successful")
+                logger.debug("Successfully connected to Ollama")
             else:
-                debug(f"Ollama returned status {response.status_code}")
-                debug_log(f"[OLLAMA] Connection failed: Status {response.status_code}")
+                logger.debug("Ollama returned status %s", response.status_code)
         except requests.exceptions.ConnectionError:
-            debug(f"Could not connect to Ollama at {self.api_base}")
-            debug_log(f"[OLLAMA] Connection error: Cannot reach {self.api_base}")
+            logger.debug("Could not connect to Ollama at %s", self.api_base)
             self.is_connected = False
         except Exception as e:
-            debug(f"Connection check failed: {e!s}")
-            debug_log(f"[OLLAMA] Connection error: {e!s}")
+            logger.debug("Connection check failed: %s", e)
             self.is_connected = False
 
         return self.is_connected
@@ -167,16 +165,13 @@ class OllamaModelManager:
                             "modified": model.get("modified_at", ""),
                             "description": f"Size: {self._format_size(model.get('size', 0))}",
                         }
-                    debug(f"Found {len(models)} available models")
-                    debug_log(f"[OLLAMA] Found {len(models)} models: {list(models.keys())}")
+                    logger.debug("Found %s available models: %s", len(models), list(models.keys()))
                 else:
-                    debug(f"Failed to get models: {response.status_code}")
+                    logger.debug("Failed to get models: %s", response.status_code)
             except Exception as e:
-                debug(f"Error fetching available models: {e!s}")
-                debug_log(f"[OLLAMA] Error fetching models: {e!s}")
+                logger.debug("Error fetching available models: %s", e)
         else:
-            debug("Ollama not connected - cannot get available models")
-            debug_log("[OLLAMA] Not connected - cannot list models")
+            logger.debug("Ollama not connected - cannot get available models")
 
         return models
 
@@ -208,31 +203,26 @@ class OllamaModelManager:
             self._check_connection()
 
         if not self.is_connected:
-            debug(f"Cannot load model: Ollama not running at {self.api_base}")
-            debug_log("[OLLAMA LOAD] Failed: Ollama not accessible")
+            logger.debug("Cannot load model: Ollama not running at %s", self.api_base)
             return False
 
         try:
-            debug(f"Loading model: {model_name}")
-            debug_log(f"[OLLAMA LOAD] Loading model: {model_name}")
+            logger.debug("Loading model: %s", model_name)
 
             # Check if model is available
             available_models = self.get_available_models()
             if model_name not in available_models:
-                debug(f"Model {model_name} not found. Attempting to pull...")
-                debug_log("[OLLAMA LOAD] Model not found, attempting pull...")
+                logger.debug("Model %s not found, attempting pull...", model_name)
 
                 # Ollama doesn't have explicit "pull" via REST API in older versions
                 # So we attempt to use it and let it auto-pull
                 # This is handled by generate call
 
-            debug(f"Model {model_name} is ready")
-            debug_log(f"[OLLAMA LOAD] Model ready: {model_name}")
+            logger.debug("Model ready: %s", model_name)
             return True
 
         except Exception as e:
-            debug(f"Failed to load model {model_name}: {e!s}")
-            debug_log(f"[OLLAMA LOAD] Error: {e!s}")
+            logger.debug("Failed to load model %s: %s", model_name, e)
             return False
 
     def is_model_loaded(self) -> bool:
@@ -280,17 +270,19 @@ class OllamaModelManager:
         if top_p is None:
             top_p = self.prompt_config.top_p
 
-        debug(f"Generating text (max_tokens={max_tokens}, temp={temperature}, top_p={top_p})")
-        debug_log("\n[OLLAMA GENERATE] Starting text generation (streaming)")
-        debug_log(f"[OLLAMA GENERATE] Model: {self.model_name}")
-        debug_log(f"[OLLAMA GENERATE] Max tokens: {max_tokens}")
-        debug_log(f"[OLLAMA GENERATE] Prompt length: {len(prompt)} chars")
-        debug_log(f"[OLLAMA GENERATE] Temperature: {temperature}, Top P: {top_p}")
+        logger.debug(
+            "Generating text (max_tokens=%s, temp=%s, top_p=%s)", max_tokens, temperature, top_p
+        )
+        logger.debug("Starting text generation (streaming)")
+        logger.debug("Model: %s", self.model_name)
+        logger.debug("Max tokens: %s", max_tokens)
+        logger.debug("Prompt length: %s chars", len(prompt))
+        logger.debug("Temperature: %s, Top P: %s", temperature, top_p)
 
         try:
             # Wrap prompt for model-specific format compatibility (Phase 2.7)
             wrapped_prompt = wrap_prompt_for_model(self.model_name, prompt)
-            debug_log(f"[OLLAMA GENERATE] Wrapped prompt length: {len(wrapped_prompt)} chars")
+            logger.debug("Wrapped prompt length: %s chars", len(wrapped_prompt))
 
             # Check if prompt may exceed context window
             # Session 64: Use dynamic context size based on GPU/VRAM
@@ -299,20 +291,21 @@ class OllamaModelManager:
             estimated_tokens = count_tokens(wrapped_prompt)
             context_window = _get_context_window()
             if estimated_tokens > context_window - 300:  # Leave room for output
-                warning(
-                    f"Prompt ({estimated_tokens} estimated tokens) may be truncated. "
-                    f"Context window is {context_window} tokens."
+                logger.warning(
+                    "Prompt (%s estimated tokens) may be truncated. Context window is %s tokens.",
+                    estimated_tokens,
+                    context_window,
                 )
-                debug_log("[OLLAMA GENERATE] WARNING: Prompt may exceed context window!")
+                logger.debug("Prompt may exceed context window!")
 
-            debug_log(f"[OLLAMA GENERATE] Using context window: {context_window} tokens")
+            logger.debug("Using context window: %s tokens", context_window)
 
-            debug_log("[OLLAMA GENERATE] ===== ORIGINAL PROMPT START =====")
-            debug_log(prompt)
-            debug_log("[OLLAMA GENERATE] ===== ORIGINAL PROMPT END =====")
-            debug_log("[OLLAMA GENERATE] ===== WRAPPED PROMPT START =====")
-            debug_log(wrapped_prompt)
-            debug_log("[OLLAMA GENERATE] ===== WRAPPED PROMPT END =====")
+            logger.debug("===== ORIGINAL PROMPT START =====")
+            logger.debug("%s", prompt)
+            logger.debug("===== ORIGINAL PROMPT END =====")
+            logger.debug("===== WRAPPED PROMPT START =====")
+            logger.debug("%s", wrapped_prompt)
+            logger.debug("===== WRAPPED PROMPT END =====")
 
             # Use official ollama library with streaming for reliability
             start_time = time.time()
@@ -339,18 +332,17 @@ class OllamaModelManager:
             generated_text = "".join(generated_chunks)
             elapsed = time.time() - start_time
 
-            debug_log(f"[OLLAMA GENERATE] Generation complete in {elapsed:.2f}s")
-            debug_log(f"[OLLAMA GENERATE] Output length: {len(generated_text)} chars")
-            debug_log(f"[OLLAMA GENERATE] Output preview (first 100 chars): {generated_text[:100]}")
+            logger.debug("Generation complete in %.2fs", elapsed)
+            logger.debug("Output length: %s chars", len(generated_text))
+            logger.debug("Output preview (first 100 chars): %s", generated_text[:100])
 
             return generated_text.strip()
 
         except ollama.ResponseError as e:
-            debug_log(f"[OLLAMA GENERATE] Response error: {e!s}")
+            logger.debug("Response error: %s", e)
             raise RuntimeError(f"Ollama error: {e!s}") from e
         except Exception as e:
-            debug(f"Text generation failed: {e!s}")
-            debug_log(f"[OLLAMA GENERATE] Error: {e!s}")
+            logger.debug("Text generation failed: %s", e)
             raise RuntimeError(f"Text generation failed: {e!s}") from e
 
     def generate_summary(
@@ -387,7 +379,7 @@ class OllamaModelManager:
                 case_text=case_text,
             )
         except FileNotFoundError:
-            debug(f"Template not found: {preset_id}. Using factual-summary fallback.")
+            logger.debug("Template not found: %s. Using factual-summary fallback.", preset_id)
             # Fallback to factual-summary
             template = self.prompt_template_manager.load_template(model_id, "factual-summary")
             prompt = self.prompt_template_manager.format_template(
@@ -412,7 +404,7 @@ class OllamaModelManager:
 
     def unload_model(self):
         """Unload the current model (Ollama keeps models in memory)."""
-        debug(f"Unloading model: {self.model_name}")
+        logger.debug("Unloading model: %s", self.model_name)
         # Ollama handles unloading automatically
         # This is just for API compatibility
 
@@ -469,19 +461,19 @@ class OllamaModelManager:
                 "Please ensure Ollama is running: https://ollama.ai"
             )
 
-        debug_log("\n[OLLAMA STRUCTURED] Starting structured generation")
-        debug_log(f"[OLLAMA STRUCTURED] Model: {self.model_name}")
-        debug_log(f"[OLLAMA STRUCTURED] Max tokens: {max_tokens}, Temperature: {temperature}")
-        debug_log(f"[OLLAMA STRUCTURED] Prompt length: {len(prompt)} chars")
+        logger.debug("Starting structured generation")
+        logger.debug("Model: %s", self.model_name)
+        logger.debug("Max tokens: %s, Temperature: %s", max_tokens, temperature)
+        logger.debug("Prompt length: %s chars", len(prompt))
 
         try:
             # Session 64: Use dynamic context size based on GPU/VRAM
             context_window = _get_context_window()
-            debug_log(f"[OLLAMA STRUCTURED] Using context window: {context_window} tokens")
+            logger.debug("Using context window: %s tokens", context_window)
 
-            debug_log("[OLLAMA STRUCTURED] ===== PROMPT START =====")
-            debug_log(prompt[:500] + "..." if len(prompt) > 500 else prompt)
-            debug_log("[OLLAMA STRUCTURED] ===== PROMPT END =====")
+            logger.debug("===== PROMPT START =====")
+            logger.debug("%s", prompt[:500] + "..." if len(prompt) > 500 else prompt)
+            logger.debug("===== PROMPT END =====")
 
             # Use official ollama library with JSON format
             start_time = time.time()
@@ -501,25 +493,25 @@ class OllamaModelManager:
             generated_text = response.get("response", "").strip()
             elapsed = time.time() - start_time
 
-            debug_log(f"[OLLAMA STRUCTURED] Complete in {elapsed:.2f}s")
-            debug_log(f"[OLLAMA STRUCTURED] Response length: {len(generated_text)} chars")
-            debug_log(f"[OLLAMA STRUCTURED] Response preview: {generated_text[:200]}...")
+            logger.debug("Complete in %.2fs", elapsed)
+            logger.debug("Response length: %s chars", len(generated_text))
+            logger.debug("Response preview: %s...", generated_text[:200])
 
             # Try to parse the JSON
             parsed = self._parse_json_response(generated_text)
 
             if parsed is not None:
-                debug_log(f"[OLLAMA STRUCTURED] Successfully parsed JSON with {len(parsed)} keys")
+                logger.debug("Successfully parsed JSON with %s keys", len(parsed))
             else:
-                debug_log("[OLLAMA STRUCTURED] Failed to parse JSON response")
+                logger.debug("Failed to parse JSON response")
 
             return parsed
 
         except ollama.ResponseError as e:
-            debug_log(f"[OLLAMA STRUCTURED] Ollama error: {e!s}")
+            logger.debug("Ollama error: %s", e)
             return None
         except Exception as e:
-            debug_log(f"[OLLAMA STRUCTURED] Error: {e!s}")
+            logger.debug("Error: %s", e)
             return None
 
     def _parse_json_response(self, text: str) -> dict[str, Any] | None:
@@ -558,12 +550,10 @@ class OllamaModelManager:
                         except json.JSONDecodeError:
                             continue
                 if all_terms:
-                    debug_log(
-                        f"[OLLAMA STRUCTURED] Merged {len(all_terms)} terms from duplicate arrays"
-                    )
+                    logger.debug("Merged %s terms from duplicate arrays", len(all_terms))
                     return {"terms": all_terms}
             except Exception as e:
-                debug_log(f"[OLLAMA STRUCTURED] Duplicate terms merge failed: {e}")
+                logger.debug("Duplicate terms merge failed: %s", e)
 
         # Strategy 1: Direct parse (ideal case)
         try:
@@ -596,7 +586,7 @@ class OllamaModelManager:
                         except json.JSONDecodeError:
                             continue
         except Exception as e:
-            debug_log(f"[OLLAMA STRUCTURED] JSON block extraction failed: {e}")
+            logger.debug("JSON block extraction failed: %s", e)
 
         # Strategy 4: If it's a JSON array, wrap in dict
         try:
@@ -609,5 +599,5 @@ class OllamaModelManager:
         except json.JSONDecodeError:
             pass
 
-        debug_log(f"[OLLAMA STRUCTURED] All JSON parsing strategies failed for: {text[:100]}...")
+        logger.debug("All JSON parsing strategies failed for: %s...", text[:100])
         return None

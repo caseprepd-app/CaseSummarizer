@@ -7,11 +7,13 @@ Reads patterns from config/vocab_exclude_patterns.txt and removes matching terms
 This allows users to add domain-specific patterns without code changes.
 """
 
+import logging
 import re
 from pathlib import Path
 
 from src.core.vocabulary.filters.base import BaseVocabularyFilter, FilterResult
-from src.logging_config import debug_log
+
+logger = logging.getLogger(__name__)
 
 
 class RegexExclusionFilter(BaseVocabularyFilter):
@@ -57,7 +59,7 @@ class RegexExclusionFilter(BaseVocabularyFilter):
         self.patterns = []
 
         if not self.patterns_file.exists():
-            debug_log(f"[REGEX-FILTER] Patterns file not found: {self.patterns_file}")
+            logger.debug("Patterns file not found: %s", self.patterns_file)
             return
 
         try:
@@ -74,17 +76,21 @@ class RegexExclusionFilter(BaseVocabularyFilter):
                         pattern = re.compile(line, re.IGNORECASE)
                         self.patterns.append(pattern)
                     except re.error as e:
-                        debug_log(
-                            f"[REGEX-FILTER] Invalid regex on line {line_num}: '{line}' - {e}"
+                        logger.debug(
+                            "Invalid regex on line %s: '%s' - %s",
+                            line_num,
+                            line,
+                            e,
                         )
 
-            debug_log(
-                f"[REGEX-FILTER] Loaded {len(self.patterns)} patterns "
-                f"from {self.patterns_file.name}"
+            logger.debug(
+                "Loaded %s patterns from %s",
+                len(self.patterns),
+                self.patterns_file.name,
             )
 
         except Exception as e:
-            debug_log(f"[REGEX-FILTER] Error loading patterns file: {e}")
+            logger.debug("Error loading patterns file: %s", e)
 
     def filter(self, vocabulary: list[dict]) -> FilterResult:
         """Filter terms matching any regex pattern."""
@@ -109,14 +115,15 @@ class RegexExclusionFilter(BaseVocabularyFilter):
             if should_remove:
                 removed_count += 1
                 removed_terms.append(term)
-                debug_log(f"[REGEX-FILTER] Removed: '{term}'")
+                logger.debug("Removed: '%s'", term)
             else:
                 filtered.append(term_data)
 
         if removed_count > 0:
-            debug_log(
-                f"[REGEX-FILTER] Removed {removed_count} terms matching "
-                f"{len(self.patterns)} patterns"
+            logger.debug(
+                "Removed %s terms matching %s patterns",
+                removed_count,
+                len(self.patterns),
             )
 
         return FilterResult(

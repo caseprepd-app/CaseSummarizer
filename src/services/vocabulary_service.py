@@ -11,11 +11,12 @@ Usage:
     vocab_data = service.extract_vocabulary(text)
 """
 
+import logging
 from collections.abc import Callable
 
-from src.config import DEBUG_MODE
 from src.core.vocabulary import VocabularyExtractor
-from src.logging_config import debug_log
+
+logger = logging.getLogger(__name__)
 
 
 class VocabularyService:
@@ -55,14 +56,12 @@ class VocabularyService:
             List of vocabulary dicts with Term, Is Person, Quality Score, etc.
         """
         if not text.strip():
-            if DEBUG_MODE:
-                debug_log("[VocabularyService] Empty text provided, returning empty list")
+            logger.debug("Empty text provided, returning empty list")
             return []
 
         result = self.extractor.extract(text)
 
-        if DEBUG_MODE:
-            debug_log(f"[VocabularyService] Extracted {len(result)} terms")
+        logger.debug("Extracted %s terms", len(result))
 
         return result
 
@@ -88,16 +87,12 @@ class VocabularyService:
             The TermSources enables confidence-weighted canonical selection.
         """
         if not documents:
-            if DEBUG_MODE:
-                debug_log("[VocabularyService] No documents provided, returning empty list")
+            logger.debug("No documents provided, returning empty list")
             return []
 
         result = self.extractor.extract_per_document(documents, progress_callback=progress_callback)
 
-        if DEBUG_MODE:
-            debug_log(
-                f"[VocabularyService] Extracted {len(result)} terms from {len(documents)} documents"
-            )
+        logger.debug("Extracted %s terms from %s documents", len(result), len(documents))
 
         return result
 
@@ -112,9 +107,8 @@ class VocabularyService:
         """
         self.extractor.record_feedback(term, is_positive, document_id)
 
-        if DEBUG_MODE:
-            feedback_type = "positive" if is_positive else "negative"
-            debug_log(f"[VocabularyService] Recorded {feedback_type} feedback for '{term}'")
+        feedback_type = "positive" if is_positive else "negative"
+        logger.debug("Recorded %s feedback for '%s'", feedback_type, term)
 
     def get_algorithm_info(self) -> list[dict]:
         """
@@ -146,9 +140,8 @@ class VocabularyService:
         for algo in self.extractor.algorithms:
             if algo.name == name:
                 algo.enabled = enabled
-                if DEBUG_MODE:
-                    status = "enabled" if enabled else "disabled"
-                    debug_log(f"[VocabularyService] Algorithm {name} {status}")
+                status = "enabled" if enabled else "disabled"
+                logger.debug("Algorithm %s %s", name, status)
                 return True
         return False
 
@@ -177,13 +170,12 @@ class VocabularyService:
                 writer.writeheader()
                 writer.writerows(vocab_data)
 
-            if DEBUG_MODE:
-                debug_log(f"[VocabularyService] Exported {len(vocab_data)} terms to {file_path}")
+            logger.debug("Exported %s terms to %s", len(vocab_data), file_path)
 
             return True
 
         except Exception as e:
-            debug_log(f"[VocabularyService] Export failed: {e}")
+            logger.error("Export failed: %s", e)
             return False
 
     def get_corpus_manager(self):
