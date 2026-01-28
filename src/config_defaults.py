@@ -404,6 +404,17 @@ DEFAULTS = {
         "type": "float",
         "category": "Answer Quality",
     },
+    # =======================================================================
+    # Q&A Export
+    # =======================================================================
+    "qa_export_confidence_floor": {
+        "value": 0.80,
+        "min": 0.0,
+        "max": 1.0,
+        "step": 0.05,
+        "type": "float",
+        "category": "Q&A Export",
+    },
 }
 
 

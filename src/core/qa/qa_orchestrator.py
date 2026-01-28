@@ -27,6 +27,7 @@ from src.config import (
     RETRIEVAL_CONFIDENCE_GATE,
 )
 from src.core.config import load_yaml_with_fallback
+from src.core.qa.qa_constants import UNANSWERED_TEXT
 from src.core.vector_store.qa_retriever import QARetriever, RetrievalResult
 from src.logging_config import debug_log
 
@@ -79,6 +80,33 @@ class QAResult:
     def answer(self) -> str:
         """Backward compatibility: returns quick_answer (or citation as fallback)."""
         return self.quick_answer or self.citation
+
+    @property
+    def is_answered(self) -> bool:
+        """Whether this question received a meaningful answer from the documents."""
+        from src.core.qa.qa_constants import UNANSWERED_TEXT
+
+        return not (self.confidence == 0.0 and self.quick_answer == UNANSWERED_TEXT)
+
+    @property
+    def is_exportable(self) -> bool:
+        """Whether this result meets quality thresholds for export."""
+        import math
+
+        from src.config import QA_EXPORT_CONFIDENCE_FLOOR
+        from src.core.qa.qa_constants import REJECTION_TEXT, UNANSWERED_TEXT
+
+        # Filter NaN or non-finite confidence
+        if not math.isfinite(self.confidence):
+            return False
+        # Filter unanswered
+        if self.confidence == 0.0 and self.quick_answer == UNANSWERED_TEXT:
+            return False
+        # Filter rejected answers
+        if self.quick_answer == REJECTION_TEXT:
+            return False
+        # Filter below confidence threshold
+        return self.confidence >= QA_EXPORT_CONFIDENCE_FLOOR
 
 
 @dataclass
@@ -350,7 +378,7 @@ class QAOrchestrator:
                     f"< gate={RETRIEVAL_CONFIDENCE_GATE} — treating as unanswerable"
                 )
             citation = "No relevant excerpts found in documents."
-            quick_answer = "No relevant information found in the documents."
+            quick_answer = UNANSWERED_TEXT
             source_summary = ""
             confidence = 0.0
 
@@ -358,7 +386,7 @@ class QAOrchestrator:
             question=question,
             quick_answer=quick_answer,
             citation=citation,
-            include_in_export=True,  # Default to included
+            include_in_export=has_quality_context,  # Unanswered questions default to unchecked
             source_summary=source_summary,
             confidence=confidence,
             retrieval_time_ms=retrieval_result.retrieval_time_ms,

@@ -576,4 +576,18 @@ DESCRIPTIONS = {
             "Rejected answers display: 'Confidence too low, declining to show.'"
         ),
     },
+    # =======================================================================
+    # Q&A Export
+    # =======================================================================
+    "qa_export_confidence_floor": {
+        "label": "Q&A export confidence floor",
+        "tooltip": (
+            "Minimum confidence score (0-1) for a Q&A answer to be\n"
+            "included in exports. Answers below this threshold are\n"
+            "excluded from Export All and combined HTML reports.\n\n"
+            "Default: 0.80 (80%)\n\n"
+            "Increase: Only export highly confident answers.\n"
+            "Decrease: Include more answers even with lower confidence."
+        ),
+    },
 }

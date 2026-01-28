@@ -4,11 +4,9 @@ Export Functions Mixin.
 Session 82: Extracted from main_window.py for modularity.
 
 Contains:
-- Export All functionality
-- Combined Report export (Word/PDF)
+- Export All functionality (tabbed HTML export)
 """
 
-import os
 from datetime import datetime
 from pathlib import Path
 from tkinter import filedialog, messagebox
@@ -24,83 +22,36 @@ class ExportMixin:
     - self.output_display: DynamicOutputWidget
     - self._qa_results: List of QA results
     - self.export_all_btn: Export All button
-    - self.combined_report_btn: Combined Report button
     """
 
     def _export_all(self):
         """
-        Export all results (vocabulary, Q&A, summary) to Documents folder.
+        Export all results (vocabulary, Q&A, summary) to a single tabbed HTML file.
 
-        Creates timestamped files for each output type that has data.
-        """
-        from src.services import DocumentService
-
-        doc_service = DocumentService()
-        documents_path = doc_service.get_default_documents_folder()
-
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        exported = []
-
-        # Export vocabulary CSV
-        vocab_data = self.output_display._outputs.get("Names & Vocabulary", [])
-        if vocab_data:
-            csv_content = self.output_display._build_vocab_csv(vocab_data)
-            vocab_path = os.path.join(documents_path, f"vocabulary_{timestamp}.csv")
-            with open(vocab_path, "w", encoding="utf-8", newline="") as f:
-                f.write(csv_content)
-            exported.append(f"Vocabulary: {len(vocab_data)} terms")
-
-        # Export Q&A results
-        if self._qa_results:
-            qa_panel = self.output_display._qa_panel
-            if qa_panel:
-                # Select all for export
-                for r in qa_panel._results:
-                    r.include_in_export = True
-                txt_content = qa_panel._format_txt_export(qa_panel._results)
-                qa_path = os.path.join(documents_path, f"qa_results_{timestamp}.txt")
-                with open(qa_path, "w", encoding="utf-8") as f:
-                    f.write(txt_content)
-                exported.append(f"Q&A: {len(qa_panel._results)} answers")
-
-        # Export summary
-        summary = self.output_display._outputs.get("Summary", "")
-        if not summary:
-            summary = self.output_display._outputs.get("Meta-Summary", "")
-        if summary and summary.strip():
-            summary_path = os.path.join(documents_path, f"summary_{timestamp}.txt")
-            with open(summary_path, "w", encoding="utf-8") as f:
-                f.write(summary)
-            exported.append("Summary")
-
-        # Flash button and show result
-        if exported:
-            self.export_all_btn.configure(text="Exported!")
-            self.after(1500, lambda: self.export_all_btn.configure(text="Export All"))
-            # Status bar with auto-clear (Session 69)
-            self.set_status(f"Exported to Documents: {', '.join(exported)}", duration_ms=5000)
-            debug_log(f"[MainWindow] Export All: {exported}")
-        else:
-            messagebox.showwarning("No Data", "No results to export yet.")
-
-    def _export_combined_report(self):
-        """
-        Export vocabulary and Q&A together in a single Word document.
-
-        Session 73: Combined export feature - creates unified report.
+        Opens a save dialog defaulting to .html. Gathers score-filtered vocab,
+        answered Q&A, and summary text into one combined HTML document.
         """
         from src.services import DocumentService, get_export_service
         from src.user_preferences import get_user_preferences
 
-        # Gather data
-        vocab_data = self.output_display._outputs.get("Names & Vocabulary", [])
+        # Gather filtered vocabulary data
+        vocab_data = self.output_display._get_filtered_vocab_data()
+
+        # Gather answered Q&A results only
         qa_results = []
         if self._qa_results:
             qa_panel = self.output_display._qa_panel
             if qa_panel and qa_panel._results:
-                qa_results = qa_panel._results
+                qa_results = [r for r in qa_panel._results if r.is_exportable]
 
-        if not vocab_data and not qa_results:
+        # Gather summary text
+        summary = self.output_display._outputs.get("Summary", "")
+        if not summary:
+            summary = self.output_display._outputs.get("Meta-Summary", "")
+        summary_text = summary.strip() if summary else ""
+
+        # Check we have something to export
+        if not vocab_data and not qa_results and not summary_text:
             messagebox.showwarning("No Data", "No results to export yet.")
             return
 
@@ -109,47 +60,52 @@ class ExportMixin:
         doc_service = DocumentService()
         initial_dir = prefs.get("last_export_path") or doc_service.get_default_documents_folder()
 
-        # Ask for save location with format choice
+        # Open save dialog
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         filepath = filedialog.asksaveasfilename(
-            defaultextension=".docx",
+            defaultextension=".html",
             filetypes=[
-                ("Word documents", "*.docx"),
-                ("PDF documents", "*.pdf"),
+                ("HTML files", "*.html"),
                 ("All files", "*.*"),
             ],
-            initialfile=f"combined_report_{timestamp}.docx",
+            initialfile=f"case_report_{timestamp}.html",
             initialdir=initial_dir,
-            title="Export Combined Report",
+            title="Export All Results",
         )
 
         if not filepath:
             return
 
-        # Determine format from extension
-        export_service = get_export_service()
-        ext = Path(filepath).suffix.lower()
+        # Get visible columns from vocab display
+        visible_columns = self.output_display._get_visible_columns()
 
-        if ext == ".pdf":
-            success = export_service.export_combined_to_pdf(vocab_data, qa_results, filepath)
-        else:
-            success = export_service.export_combined_to_word(vocab_data, qa_results, filepath)
+        # Export combined HTML
+        export_service = get_export_service()
+        success = export_service.export_combined_html(
+            vocab_data=vocab_data,
+            qa_results=qa_results,
+            summary_text=summary_text,
+            file_path=filepath,
+            visible_columns=visible_columns,
+        )
 
         if success:
             # Remember export folder
             prefs.set("last_export_path", str(Path(filepath).parent))
 
             # Flash button and status
-            self.combined_report_btn.configure(text="Exported!")
-            self.after(1500, lambda: self.combined_report_btn.configure(text="Combined Report"))
+            self.export_all_btn.configure(text="Exported!")
+            self.after(1500, lambda: self.export_all_btn.configure(text="Export All"))
 
             filename = Path(filepath).name
-            term_count = len(vocab_data)
-            qa_count = len(qa_results)
-            self.set_status(
-                f"Combined report: {term_count} terms + {qa_count} Q&A → {filename}",
-                duration_ms=5000,
-            )
-            debug_log(f"[MainWindow] Combined report exported: {filepath}")
+            parts = []
+            if vocab_data:
+                parts.append(f"{len(vocab_data)} terms")
+            if qa_results:
+                parts.append(f"{len(qa_results)} Q&A")
+            if summary_text:
+                parts.append("summary")
+            self.set_status(f"Exported {' + '.join(parts)} to {filename}", duration_ms=5000)
+            debug_log(f"[MainWindow] Export All HTML: {filepath}")
         else:
-            messagebox.showerror("Export Failed", "Failed to create combined report.")
+            messagebox.showerror("Export Failed", "Failed to create HTML report.")
