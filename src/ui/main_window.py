@@ -144,6 +144,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         self._update_default_questions_label()  # Set initial question count
         self._update_vocab_llm_checkbox_state()  # Set LLM checkbox based on settings/GPU
         self._update_qa_checkbox_state()  # Set Q&A checkbox based on model size
+        self._setup_summary_tooltip()  # Add tooltip explaining slow performance
 
         # Initialize drag-and-drop support (Session 73)
         self._setup_drag_drop()
@@ -1081,6 +1082,22 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
 
         # Create new tooltip
         self._qa_tooltip_hide = create_tooltip(self.qa_check, text)
+
+    def _setup_summary_tooltip(self):
+        """
+        Set up the tooltip for the Summary checkbox.
+
+        Unlike LLM/Q&A tooltips which change based on state, the summary
+        tooltip is static - it always warns about the long processing time.
+        """
+        from src.ui.tooltip_helper import create_tooltip
+
+        tooltip_text = (
+            "Summary generation takes 30+ minutes and results\n"
+            "depend heavily on your hardware.\n\n"
+            "For quick case familiarization, Q&A is recommended."
+        )
+        self._summary_tooltip_hide = create_tooltip(self.summary_check, tooltip_text)
 
     def _on_vocab_check_changed(self):
         """Handle Vocabulary checkbox state change."""

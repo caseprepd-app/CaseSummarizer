@@ -100,7 +100,7 @@ class TaskMixin:
 
         # Summary task
         if self.summary_check.get():
-            parts.append("Summary (slow)")
+            parts.append("Summary")
 
         # Build preview text
         preview = "Will run: " + ", ".join(parts) if parts else "Select tasks above"

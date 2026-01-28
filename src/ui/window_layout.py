@@ -221,12 +221,13 @@ class WindowLayoutMixin:
         self.ask_default_questions_check.pack(anchor="w", pady=(0, 2), padx=(20, 0))
         self.ask_default_questions_check.select()  # ON by default
 
-        # Summary checkbox (default OFF, with warning)
+        # Summary checkbox (default OFF, with warning tooltip)
         self.summary_check = ctk.CTkCheckBox(
-            task_frame, text="Generate Summary (slow)", command=self._on_summary_checked
+            task_frame, text="Generate Summary", command=self._on_summary_checked
         )
         self.summary_check.pack(anchor="w", pady=2)
         # OFF by default - no select()
+        # Tooltip set by _setup_summary_tooltip() in MainWindow.__init__
 
         # "Perform N Tasks" button
         self.generate_btn = ctk.CTkButton(
