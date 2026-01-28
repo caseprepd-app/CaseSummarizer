@@ -144,7 +144,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         self._update_default_questions_label()  # Set initial question count
         self._update_vocab_llm_checkbox_state()  # Set LLM checkbox based on settings/GPU
         self._update_qa_checkbox_state()  # Set Q&A checkbox based on model size
-        self._setup_summary_tooltip()  # Add tooltip explaining slow performance
+        self._update_summary_checkbox_state()  # Set Summary checkbox based on GPU/settings
 
         # Initialize drag-and-drop support (Session 73)
         self._setup_drag_drop()
@@ -318,6 +318,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         self._update_ollama_status()
         self._update_vocab_llm_checkbox_state()  # Session 63b: Refresh LLM checkbox
         self._update_qa_checkbox_state()  # Session 90: Refresh Q&A checkbox for model size
+        self._update_summary_checkbox_state()  # Session 93: Refresh Summary checkbox
 
     # =========================================================================
     # Corpus Management
@@ -1082,21 +1083,65 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         # Create new tooltip
         self._qa_tooltip_hide = create_tooltip(self.qa_check, text)
 
-    def _setup_summary_tooltip(self):
+    def _update_summary_checkbox_state(self):
         """
-        Set up the tooltip for the Summary checkbox.
+        Update Summary checkbox state based on GPU availability and settings.
 
-        Unlike LLM/Q&A tooltips which change based on state, the summary
-        tooltip is static - it always warns about the long processing time.
+        Called at startup, when settings change, and similar to
+        _update_vocab_llm_checkbox_state().
+
+        Greying logic:
+        - If no dedicated GPU and setting is "auto": disable with tooltip
+        - If setting is "yes": enable regardless of GPU
+        - If GPU detected: enable
+        """
+        from src.user_preferences import get_user_preferences
+
+        prefs = get_user_preferences()
+        allowed, reason = prefs.is_summary_allowed()
+
+        if allowed:
+            # GPU detected or user overrode the requirement
+            self.summary_check.configure(state="normal")
+            self._set_summary_tooltip(
+                "Summary generation can take several hours without\n"
+                "a dedicated GPU.\n\n"
+                "For quick case familiarization, Q&A is recommended."
+            )
+        else:
+            # No GPU and setting is "auto" - disable checkbox
+            self.summary_check.deselect()
+            self.summary_check.configure(state="disabled")
+            self._set_summary_tooltip(reason)
+
+        from src.services import AIService
+
+        ai_svc = AIService()
+        logger.debug(
+            "Summary checkbox: allowed=%s, has_gpu=%s",
+            allowed,
+            ai_svc.has_dedicated_gpu(),
+        )
+
+    def _set_summary_tooltip(self, text: str):
+        """
+        Update the tooltip for the Summary checkbox.
+
+        Args:
+            text: New tooltip text to display
         """
         from src.ui.tooltip_helper import create_tooltip
 
-        tooltip_text = (
-            "Summary generation can take several hours without\n"
-            "a dedicated GPU.\n\n"
-            "For quick case familiarization, Q&A is recommended."
-        )
-        self._summary_tooltip_hide = create_tooltip(self.summary_check, tooltip_text)
+        # Remove existing tooltip bindings
+        if hasattr(self, "_summary_tooltip_hide") and self._summary_tooltip_hide:
+            try:
+                self.summary_check.unbind("<Enter>")
+                self.summary_check.unbind("<Leave>")
+            except Exception:
+                pass
+
+        # Create new tooltip
+        self._summary_tooltip_hide = create_tooltip(self.summary_check, text)
 
     def _on_vocab_check_changed(self):
         """Handle Vocabulary checkbox state change."""
@@ -1781,6 +1826,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         self._update_ollama_status()
         self._update_vocab_llm_checkbox_state()  # Session 63b: Refresh LLM checkbox
         self._update_qa_checkbox_state()  # Session 90: Refresh Q&A checkbox for model size
+        self._update_summary_checkbox_state()  # Session 93: Refresh Summary checkbox
         self.refresh_default_questions_label()  # Update question count after settings change
 
     # =========================================================================

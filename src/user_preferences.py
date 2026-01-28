@@ -355,6 +355,64 @@ class UserPreferencesManager:
         return True, ""
 
     # =========================================================================
+    # Summary GPU Requirements (Session 93)
+    # =========================================================================
+
+    def get_summary_gpu_override_mode(self) -> str:
+        """
+        Get Summary GPU override mode.
+
+        Returns:
+            str: "auto" (require GPU), "yes" (allow without GPU)
+        """
+        value = self._preferences.get("summary_gpu_override", "auto")
+        return value if value in ("auto", "yes") else "auto"
+
+    def set_summary_gpu_override_mode(self, mode: str) -> None:
+        """
+        Set Summary GPU override mode.
+
+        Args:
+            mode: "auto" (require GPU) or "yes" (allow without GPU)
+        """
+        if mode not in ("auto", "yes"):
+            raise ValueError(f"Invalid mode: {mode}, must be 'auto' or 'yes'")
+        self._preferences["summary_gpu_override"] = mode
+        self._save_preferences()
+
+    def is_summary_allowed(self) -> tuple[bool, str]:
+        """
+        Check if summary generation is allowed based on GPU availability and settings.
+
+        Returns:
+            Tuple of (allowed: bool, reason: str)
+            - If allowed, reason is empty
+            - If not allowed, reason explains why (for tooltip)
+        """
+        mode = self.get_summary_gpu_override_mode()
+
+        # User allowed summary without GPU
+        if mode == "yes":
+            return True, ""
+
+        # "auto" mode - check GPU availability
+        from src.core.utils.gpu_detector import has_dedicated_gpu
+
+        if has_dedicated_gpu():
+            return True, ""
+        else:
+            from src.services import AIService
+
+            gpu_status = AIService().get_gpu_status_text()
+            return False, (
+                f"Summary generation is strongly recommended only with\n"
+                f"a dedicated GPU.\n\n"
+                f"{gpu_status}\n\n"
+                "Without a GPU, summary generation can take several hours.\n\n"
+                "To enable: Settings > Performance > 'Summary generation'"
+            )
+
+    # =========================================================================
     # Logging Level Settings
     # =========================================================================
 
@@ -594,6 +652,10 @@ class UserPreferencesManager:
         elif key in ("retrieval_weight_faiss", "retrieval_weight_bm25"):
             if not isinstance(value, (int, float)) or value < 0.0 or value > 2.0:
                 raise ValueError(f"{key} must be 0.0-2.0, got {value}")
+        # Summary GPU override validation
+        elif key == "summary_gpu_override":
+            if value not in ("auto", "yes"):
+                raise ValueError(f"summary_gpu_override must be 'auto' or 'yes', got {value}")
 
         self._preferences[key] = value
         self._save_preferences()

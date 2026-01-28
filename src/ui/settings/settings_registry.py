@@ -1568,6 +1568,34 @@ def _register_all_settings():
         )
     )
 
+    SettingsRegistry.register(
+        SettingDefinition(
+            key="summary_gpu_override",
+            label="Summary generation",
+            category="Performance",
+            setting_type=SettingType.DROPDOWN,
+            tooltip=lambda: (
+                "Summary generation is a long-running task that processes all "
+                "document chunks through the LLM. Without a dedicated GPU, this "
+                "can take several hours.\n\n"
+                "• Require GPU: Only enable the Summary checkbox if a dedicated "
+                "GPU is detected. Without a GPU, the checkbox is grayed out "
+                "with an explanation.\n"
+                "• Allow without GPU: Enable the Summary checkbox regardless of "
+                "GPU availability. Use this if you're willing to wait several "
+                "hours for the summary to complete.\n\n"
+                f"Current status: {_get_gpu_status_for_tooltip()}"
+            ),
+            default="auto",
+            options=[
+                ("Require GPU (recommended)", "auto"),
+                ("Allow without GPU", "yes"),
+            ],
+            getter=lambda: prefs.get_summary_gpu_override_mode(),
+            setter=lambda v: prefs.set_summary_gpu_override_mode(v),
+        )
+    )
+
 
 # Register all settings when this module is imported
 _register_all_settings()
