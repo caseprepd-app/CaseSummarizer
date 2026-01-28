@@ -315,7 +315,7 @@ class IndexPageRemover(BasePreprocessor):
         for i, page in enumerate(pages):
             if self._is_index_page(page):
                 index_start = i
-                debug_log(f"[Index Page Remover] Index detected at page {i + 1}")
+                logger.debug("Index detected at page %s", i + 1)
                 break
 
         if index_start is None:
@@ -329,9 +329,11 @@ class IndexPageRemover(BasePreprocessor):
         kept_pages = pages[:index_start]
         removed_count = len(pages) - index_start
 
-        debug_log(
-            f"[Index Page Remover] Removing {removed_count} pages "
-            f"(index starts at page {index_start + 1} of {len(pages)})"
+        logger.debug(
+            "Removing %s pages (index starts at page %s of %s)",
+            removed_count,
+            index_start + 1,
+            len(pages),
         )
 
         result = "\n\n".join(kept_pages) if kept_pages else text

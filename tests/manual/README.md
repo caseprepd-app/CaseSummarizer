@@ -38,7 +38,7 @@ python tests/manual/test_slider_config.py
 
 | File | Purpose |
 |------|---------|
-| `test_debug_mode.py` | Integration test for model pipeline with verbose debug output |
+| `test_debug_mode.py` | Integration test for model pipeline with verbose logging output |
 | `test_model_generation.py` | Unit tests for ModelManager text generation methods |
 | `test_model_quick.py` | Fast smoke test for basic model connectivity |
 | `test_ollama_workflow.py` | Comprehensive Ollama integration test (4 workflows) |

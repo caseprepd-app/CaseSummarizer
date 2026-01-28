@@ -17,7 +17,7 @@ class TestMojibakeFix:
         """Test fixing common PDF encoding corruption patterns."""
         sanitizer = CharacterSanitizer()
 
-        # Real examples from debug_flow.txt
+        # Real examples from log output
         test_cases = [
             ("ñêcessary", "necessary"),  # Common encoding issue
             ("ñecessary", "necessary"),  # Variant

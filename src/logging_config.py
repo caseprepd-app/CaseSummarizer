@@ -258,7 +258,7 @@ def refresh_log_filter() -> None:
         _file_handler.setLevel(_LEVEL_MAP.get(level, logging.INFO))
 
 
-# Keep old name as alias so existing UI code doesn't break during migration
+# Alias used by logging_dialog.py
 refresh_custom_log_filter = refresh_log_filter
 
 
@@ -337,10 +337,6 @@ def clear_log_file() -> bool:
         return False
 
 
-# Keep old name as alias
-clear_debug_log = clear_log_file
-
-
 # ---------------------------------------------------------------------------
 # Timer context manager (unchanged public interface)
 # ---------------------------------------------------------------------------
@@ -416,7 +412,6 @@ class Timer:
 __all__ = [
     "LOG_CATEGORIES",
     "Timer",
-    "clear_debug_log",
     "clear_log_file",
     "get_log_file_path",
     "get_log_file_size_mb",

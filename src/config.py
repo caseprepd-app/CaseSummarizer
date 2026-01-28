@@ -13,7 +13,7 @@ from src.config_defaults import get_default as _d
 
 logger = logging.getLogger(__name__)
 
-# Debug Mode Configuration — kept temporarily for backward compat (Phase 4 removes)
+# Debug Mode — controls feedback file routing (developer vs user data)
 DEBUG_MODE = os.environ.get("DEBUG", "false").lower() == "true"
 
 # Application Name (loaded from config/app_name.txt for easy rebranding)

@@ -539,7 +539,7 @@ def _register_all_settings():
             else:
                 messagebox.showerror(
                     "Reset Failed",
-                    "Failed to reset vocabulary model. Check the debug log for details.",
+                    "Failed to reset vocabulary model. Check the log file for details.",
                 )
 
     SettingsRegistry.register(
@@ -603,7 +603,7 @@ def _register_all_settings():
                         "Reset Partially Failed",
                         f"Model reset: {'OK' if model_ok else 'FAILED'}\n"
                         f"Feedback clear: {'OK' if feedback_ok else 'FAILED'}\n\n"
-                        "Check the debug log for details.",
+                        "Check the log file for details.",
                     )
 
     SettingsRegistry.register(
@@ -1373,7 +1373,7 @@ def _register_all_settings():
             category="Logging",
             setting_type=SettingType.DROPDOWN,
             tooltip=(
-                "Controls how much detail is written to the debug log file.\n\n"
+                "Controls how much detail is written to the log file.\n\n"
                 "• Off: No logging (saves disk space)\n"
                 "• Brief: Key milestones only - document processing, results, "
                 "errors. Recommended for normal use.\n"
@@ -1445,18 +1445,18 @@ def _register_all_settings():
         )
     )
 
-    def _clear_debug_log():
-        """Clear the debug log file with confirmation."""
+    def _clear_log_file():
+        """Clear the log file with confirmation."""
         from tkinter import messagebox
 
         from src.logging_config import clear_log_file, get_log_file_size_mb
 
         size_mb = get_log_file_size_mb()
         result = messagebox.askyesno(
-            "Clear Debug Log",
-            f"Clear the debug log file?\n\n"
+            "Clear Log File",
+            f"Clear the log file?\n\n"
             f"Current size: {size_mb:.2f} MB\n\n"
-            "This will erase all logged debugging information. "
+            "This will erase all logged information. "
             "A new session header will be written.",
             icon="question",
         )
@@ -1465,12 +1465,12 @@ def _register_all_settings():
             if clear_log_file():
                 messagebox.showinfo(
                     "Log Cleared",
-                    "Debug log has been cleared and reinitialized.",
+                    "Log file has been cleared and reinitialized.",
                 )
             else:
                 messagebox.showerror(
                     "Clear Failed",
-                    "Failed to clear the debug log. The file may be in use.",
+                    "Failed to clear the log file. The file may be in use.",
                 )
 
     SettingsRegistry.register(
@@ -1486,7 +1486,7 @@ def _register_all_settings():
                 "Note: This cannot be undone."
             ),
             default=None,
-            action=_clear_debug_log,
+            action=_clear_log_file,
         )
     )
 

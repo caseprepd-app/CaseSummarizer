@@ -53,7 +53,7 @@ The virtual environment is at `.venv`. Claude Code's bash tool runs in a Linux s
 
 3. **Only run one instance at a time** — The GUI app doesn't prevent multiple instances. If a command fails, don't retry until you've confirmed the previous attempt isn't still running.
 
-4. **Verify debug mode is active** — Look for `DEBUG_MODE=True` in the console output after launch.
+4. **Verify debug mode is active** — DEBUG_MODE controls feedback file routing (developer data vs user data). Look for `DEBUG_MODE=True` in the console output after launch.
 
 ### Commands
 

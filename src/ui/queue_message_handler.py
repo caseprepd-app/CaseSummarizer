@@ -506,7 +506,6 @@ class QueueMessageHandler:
         """
         # Check if checkbox is enabled
         if not self.main_window.ask_default_questions_check.get():
-            # LOG-013: debug_log always exists; just call it directly
             logger.debug("Default questions disabled, skipping")
             return
 

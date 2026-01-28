@@ -36,7 +36,9 @@ import pytest
 # Ensure src is importable
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from src.logging_config import debug_log
+import logging
+
+logger = logging.getLogger(__name__)
 from src.ui.queue_messages import MessageType, QueueMessage
 
 # =============================================================================
@@ -145,12 +147,12 @@ class QueueCollector:
             # Check timeout
             elapsed = time.time() - start_time
             if elapsed > timeout:
-                debug_log(f"[COLLECTOR] Timeout after {elapsed:.1f}s")
+                logger.debug(f"[COLLECTOR] Timeout after {elapsed:.1f}s")
                 return False
 
             # Check condition
             if condition():
-                debug_log(f"[COLLECTOR] Condition met after {elapsed:.1f}s")
+                logger.debug(f"[COLLECTOR] Condition met after {elapsed:.1f}s")
                 return True
 
             # Collect any pending messages
@@ -173,7 +175,7 @@ class QueueCollector:
     def _handle_message(self, msg):
         """Handle a single queue message."""
         if not isinstance(msg, tuple) or len(msg) != 2:
-            debug_log(f"[COLLECTOR] Invalid message format: {msg}")
+            logger.debug(f"[COLLECTOR] Invalid message format: {msg}")
             return
 
         msg_type, data = msg
@@ -182,34 +184,34 @@ class QueueCollector:
         # Update progress based on message type
         if msg_type == MessageType.FILE_PROCESSED:
             self.progress.files_processed += 1
-            debug_log(f"[COLLECTOR] File processed: {self.progress.files_processed}")
+            logger.debug(f"[COLLECTOR] File processed: {self.progress.files_processed}")
 
         elif msg_type == MessageType.PROCESSING_FINISHED:
             self.progress.preprocessing_complete = True
-            debug_log(f"[COLLECTOR] Preprocessing complete: {len(data)} files")
+            logger.debug(f"[COLLECTOR] Preprocessing complete: {len(data)} files")
 
         elif msg_type == MessageType.NER_COMPLETE:
             self.progress.ner_complete = True
             term_count = len(data) if data else 0
-            debug_log(f"[COLLECTOR] NER complete: {term_count} terms")
+            logger.debug(f"[COLLECTOR] NER complete: {term_count} terms")
 
         elif msg_type == MessageType.QA_READY:
             self.progress.qa_ready = True
             chunk_count = data.get("chunk_count", 0) if isinstance(data, dict) else 0
-            debug_log(f"[COLLECTOR] Q&A ready: {chunk_count} chunks")
+            logger.debug(f"[COLLECTOR] Q&A ready: {chunk_count} chunks")
 
         elif msg_type == MessageType.LLM_COMPLETE:
             self.progress.llm_complete = True
             term_count = len(data) if data else 0
-            debug_log(f"[COLLECTOR] LLM complete: {term_count} terms")
+            logger.debug(f"[COLLECTOR] LLM complete: {term_count} terms")
 
         elif msg_type == MessageType.ERROR:
             self.progress.errors.append(str(data))
-            debug_log(f"[COLLECTOR] Error: {data}")
+            logger.debug(f"[COLLECTOR] Error: {data}")
 
         elif msg_type == MessageType.PROGRESS:
             pct, msg = data if isinstance(data, tuple) else (0, str(data))
-            debug_log(f"[COLLECTOR] Progress {pct}%: {msg}")
+            logger.debug(f"[COLLECTOR] Progress {pct}%: {msg}")
 
 
 # =============================================================================
@@ -327,7 +329,7 @@ class TestHeadlessVocabulary:
 
         assert result is not None, f"Vocabulary extraction timed out after {PHASE1_TIMEOUT}s"
         assert len(result) > 0, "No vocabulary terms extracted"
-        debug_log(f"[TEST] Extracted {len(result)} vocabulary terms")
+        logger.debug(f"[TEST] Extracted {len(result)} vocabulary terms")
 
 
 class TestHeadlessProgressiveExtraction:
@@ -345,7 +347,7 @@ class TestHeadlessProgressiveExtraction:
         from src.services.workers import ProcessingWorker, ProgressiveExtractionWorker
 
         # Phase 0: Preprocessing
-        debug_log("[TEST] Starting preprocessing...")
+        logger.debug("[TEST] Starting preprocessing...")
         preprocess_worker = ProcessingWorker(file_paths=sample_pdfs, ui_queue=ui_queue)
         preprocess_worker.start()
 
@@ -363,12 +365,12 @@ class TestHeadlessProgressiveExtraction:
         # Check confidence scores
         for doc in documents:
             conf = doc.get("confidence", 0)
-            debug_log(f"[TEST] {doc.get('filename', '?')}: {conf}% confidence")
+            logger.debug(f"[TEST] {doc.get('filename', '?')}: {conf}% confidence")
             # Your typical range is 80-90%
             assert conf > 50, f"Low confidence: {conf}%"
 
         # Phase 1-3: Progressive Extraction
-        debug_log("[TEST] Starting progressive extraction...")
+        logger.debug("[TEST] Starting progressive extraction...")
         combined_text = combine_document_texts(documents)
 
         # Reset progress tracker for extraction phases
@@ -392,36 +394,36 @@ class TestHeadlessProgressiveExtraction:
         extract_collector = QueueCollector(extract_queue, extract_progress)
 
         # Wait for NER (Phase 1)
-        debug_log("[TEST] Waiting for Phase 1 (NER)...")
+        logger.debug("[TEST] Waiting for Phase 1 (NER)...")
         ner_success = extract_collector.collect_until(
             condition=lambda: extract_progress.ner_complete, timeout=PHASE1_TIMEOUT
         )
         assert ner_success, f"Phase 1 (NER) timed out. Messages: {extract_progress.messages[-10:]}"
-        debug_log("[TEST] Phase 1 complete!")
+        logger.debug("[TEST] Phase 1 complete!")
 
         # Wait for Q&A Ready (Phase 2)
-        debug_log("[TEST] Waiting for Phase 2 (Q&A indexing)...")
+        logger.debug("[TEST] Waiting for Phase 2 (Q&A indexing)...")
         qa_success = extract_collector.collect_until(
             condition=lambda: extract_progress.qa_ready, timeout=PHASE2_TIMEOUT
         )
         assert qa_success, f"Phase 2 (Q&A) timed out. Messages: {extract_progress.messages[-10:]}"
-        debug_log("[TEST] Phase 2 complete!")
+        logger.debug("[TEST] Phase 2 complete!")
 
         # Wait for LLM Complete (Phase 3) - even with use_llm=False, we get llm_complete with empty list
-        debug_log("[TEST] Waiting for Phase 3 (LLM/finalization)...")
+        logger.debug("[TEST] Waiting for Phase 3 (LLM/finalization)...")
         llm_success = extract_collector.collect_until(
             condition=lambda: extract_progress.llm_complete,
             timeout=60,  # Should be fast since LLM is disabled
         )
         assert llm_success, f"Phase 3 timed out. Messages: {extract_progress.messages[-10:]}"
-        debug_log("[TEST] Phase 3 complete!")
+        logger.debug("[TEST] Phase 3 complete!")
 
         # Cleanup
         extract_worker.join(timeout=10)
 
         # Final assertions
         assert not extract_progress.errors, f"Errors during extraction: {extract_progress.errors}"
-        debug_log("[TEST] All phases completed successfully!")
+        logger.debug("[TEST] All phases completed successfully!")
 
 
 # =============================================================================
@@ -507,7 +509,9 @@ class TestGUISimulation:
                     app.destroy()
                     return
 
-                debug_log(f"[GUI TEST] Preprocessing complete: {len(app.processing_results)} files")
+                logger.debug(
+                    f"[GUI TEST] Preprocessing complete: {len(app.processing_results)} files"
+                )
 
                 # Simulate clicking "Process Documents"
                 # Set checkboxes
@@ -525,9 +529,9 @@ class TestGUISimulation:
 
                     # Check if tasks completed
                     if hasattr(app, "_completed_tasks") and "vocab" in app._completed_tasks:
-                        debug_log("[GUI TEST] Vocabulary task complete")
+                        logger.debug("[GUI TEST] Vocabulary task complete")
                     if app._qa_ready:
-                        debug_log("[GUI TEST] Q&A ready")
+                        logger.debug("[GUI TEST] Q&A ready")
 
                     # Check for stuck state
                     if (
@@ -619,7 +623,7 @@ class TestDiagnostics:
         HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2", model_kwargs={"device": "cpu"})
 
         load_time = time.time() - start_time
-        debug_log(f"[DIAGNOSTIC] Embeddings loaded in {load_time:.1f}s")
+        logger.debug(f"[DIAGNOSTIC] Embeddings loaded in {load_time:.1f}s")
 
         # Should load within reasonable time
         assert load_time < 60, f"Embeddings took too long to load: {load_time}s"
@@ -633,7 +637,7 @@ class TestDiagnostics:
         if not manager.is_connected:
             pytest.skip("Ollama not running - LLM tests will be skipped")
 
-        debug_log(f"[DIAGNOSTIC] Ollama connected, model: {manager.model_name}")
+        logger.debug(f"[DIAGNOSTIC] Ollama connected, model: {manager.model_name}")
 
 
 # =============================================================================

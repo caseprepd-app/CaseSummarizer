@@ -25,7 +25,7 @@ Sessions represent significant development/design decisions made during pair pro
 | 68 | Corpus Familiarity | Added corpus familiarity filtering and is_title_case |
 | 70 | Name Caching | LRU cache for phrase component scores |
 | 76 | Feature Overhaul | Major ML feature overhaul with word-level frequency |
-| 77 | Debug Mode Routing | DEBUG_MODE controls feedback routing (temp hard-coded) |
+| 77 | Feedback Routing | DEBUG_MODE controls feedback file routing (developer vs user data) |
 | 78 | TermSources | Per-document confidence tracking with TermSources |
 | 79 | Rule-Based Adjustments | Quality score adjustments based on TermSources |
 | 80 | Artifact Filter | Common-word variant detection for Person entities |
