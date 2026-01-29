@@ -181,7 +181,7 @@ class TestVocabularyPreferenceLearner:
             "total_unique_terms": 100,
         }
         features = extract_features(term_data)
-        assert len(features) == 46  # 7 count bins + log_count + 38 other features
+        assert len(features) == 48  # 7 count bins + log_count + 40 other features
         # features[0-6] are count bins: count=3 → count_bin_3=1.0
         assert features[0] == 0.0  # count_bin_1
         assert features[1] == 0.0  # count_bin_2
@@ -194,65 +194,67 @@ class TestVocabularyPreferenceLearner:
         assert round(features[7], 2) == 0.60  # log_count
         # features[8] is occurrence_ratio: 3/100 = 0.03
         assert features[8] == 0.03
-        # features[9-11] are algorithm flags
+        # features[9-13] are algorithm flags
         assert features[9] == 1.0  # has_ner
         assert features[10] == 1.0  # has_rake
         assert features[11] == 0.0  # has_bm25
-        # features[13] is has_trailing_punctuation: "hypertension" has none
-        assert features[13] == 0.0
-        # features[14] is has_leading_digit: "hypertension" has none
-        assert features[14] == 0.0
-        # features[16] is word_count: "hypertension" is 1 word
-        assert features[16] == 1.0
-        # features[17] is is_all_caps: "hypertension" is not all caps
-        assert features[17] == 0.0
-        # features[28] is has_medical_suffix: "hypertension" ends with -ion (not medical suffix)
-        assert features[28] == 0.0
+        assert features[12] == 0.0  # has_textrank
+        assert features[13] == 0.0  # textrank_score
+        # features[15] is has_trailing_punctuation: "hypertension" has none
+        assert features[15] == 0.0
+        # features[16] is has_leading_digit: "hypertension" has none
+        assert features[16] == 0.0
+        # features[18] is word_count: "hypertension" is 1 word
+        assert features[18] == 1.0
+        # features[19] is is_all_caps: "hypertension" is not all caps
+        assert features[19] == 0.0
+        # features[30] is has_medical_suffix: "hypertension" ends with -ion (not medical suffix)
+        assert features[30] == 0.0
 
     def test_feature_extraction_artifacts(self, meta_learner):
         """Test that artifact patterns are detected correctly.
 
-        Feature indices (46 total, with log_count at index 7):
-        13: has_trailing_punctuation, 14: has_leading_digit,
-        15: has_trailing_digit, 16: word_count, 17: is_all_caps
-        26: is_single_letter, 28: has_medical_suffix,
-        29: has_repeated_chars, 30: contains_hyphen
+        Feature indices (48 total, with log_count at index 7):
+        15: has_trailing_punctuation, 16: has_leading_digit,
+        17: has_trailing_digit, 18: word_count, 19: is_all_caps
+        28: is_single_letter, 30: has_medical_suffix,
+        31: has_repeated_chars, 32: contains_hyphen
         """
         # Test trailing punctuation
         term_data = {"Term": "Smith:", "type": "Person"}
         features = extract_features(term_data)
-        assert features[13] == 1.0  # has_trailing_punctuation
+        assert features[15] == 1.0  # has_trailing_punctuation
 
         # Test leading digit
         term_data = {"Term": "4 Ms. Di Leo", "type": "Person"}
         features = extract_features(term_data)
-        assert features[14] == 1.0  # has_leading_digit
-        assert features[16] == 4.0  # word_count: "4", "Ms.", "Di", "Leo"
+        assert features[16] == 1.0  # has_leading_digit
+        assert features[18] == 4.0  # word_count: "4", "Ms.", "Di", "Leo"
 
         # Test all caps
         term_data = {"Term": "PLAINTIFF", "type": "Unknown"}
         features = extract_features(term_data)
-        assert features[17] == 1.0  # is_all_caps
+        assert features[19] == 1.0  # is_all_caps
 
         # Test medical suffix
         term_data = {"Term": "radiculopathy"}
         features = extract_features(term_data)
-        assert features[28] == 1.0  # has_medical_suffix (-pathy)
+        assert features[30] == 1.0  # has_medical_suffix (-pathy)
 
         # Test single letter
         term_data = {"Term": "Q"}
         features = extract_features(term_data)
-        assert features[26] == 1.0  # is_single_letter
+        assert features[28] == 1.0  # is_single_letter
 
         # Test repeated chars
         term_data = {"Term": "aaaa"}
         features = extract_features(term_data)
-        assert features[29] == 1.0  # has_repeated_chars
+        assert features[31] == 1.0  # has_repeated_chars
 
         # Test contains hyphen
         term_data = {"Term": "anti-inflammatory"}
         features = extract_features(term_data)
-        assert features[30] == 1.0  # contains_hyphen
+        assert features[32] == 1.0  # contains_hyphen
 
     def test_training_insufficient_data_no_defaults(self, temp_feedback_dir, meta_learner):
         """Test that training fails with insufficient data when no defaults exist.

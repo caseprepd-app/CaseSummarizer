@@ -188,6 +188,16 @@ class VocabularyExtractor:
                     )
                 except Exception as e:
                     logger.debug("Failed to initialize BM25: %s", e)
+
+            # Conditionally add TextRank if pytextrank is installed
+            try:
+                from src.core.vocabulary.algorithms.textrank_algorithm import TextRankAlgorithm
+
+                textrank = TextRankAlgorithm()
+                self.algorithms.append(textrank)
+                logger.debug("TextRank algorithm enabled")
+            except ImportError:
+                logger.debug("TextRank unavailable (pytextrank not installed)")
         else:
             self.algorithms = algorithms
 
@@ -745,6 +755,7 @@ class VocabularyExtractor:
                 "NER": "Yes" if "NER" in sources_upper else "No",
                 "RAKE": "Yes" if "RAKE" in sources_upper else "No",
                 "BM25": "Yes" if "BM25" in sources_upper else "No",
+                "TextRank": "Yes" if "TEXTRANK" in sources_upper else "No",
                 "Algo Count": algo_count,  # Sum of algorithms that found term
                 # Session 80: Display columns from TermSources
                 "# Docs": sources_obj.num_documents,
@@ -761,6 +772,7 @@ class VocabularyExtractor:
                 "is_person": 1 if is_person else 0,  # Session 52: Binary flag for ML
                 "total_unique_terms": total_unique_terms,  # For ML occurrence_ratio
                 "source_doc_confidence": doc_confidence,  # Session 54: OCR quality for ML
+                "textrank_score": float(merged.metadata.get("textrank_score", 0.0)),
             }
 
             # Apply ML boost if meta-learner is trained (Session 25)

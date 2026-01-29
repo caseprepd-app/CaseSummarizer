@@ -5,7 +5,7 @@ Extracts feature vectors from term data for ML model training and prediction.
 
 Features include:
 - Count bins (one-hot encoded occurrence frequency)
-- Algorithm source features (NER, RAKE, BM25)
+- Algorithm source features (NER, RAKE, BM25, TextRank)
 - Character/format features (artifact detection)
 - Document quality features
 - Name validation features
@@ -122,6 +122,8 @@ FEATURE_NAMES = [
     "has_ner",
     "has_rake",
     "has_bm25",  # Added in Session 47 for per-algorithm tracking
+    "has_textrank",  # Binary: TextRank found this term
+    "textrank_score",  # PageRank centrality score (0-1)
     "is_person",  # NER person detection - the only reliable type info
     # Character/format features for artifact detection
     "has_trailing_punctuation",  # "Smith:", "Di Leo." - likely artifacts
@@ -185,7 +187,7 @@ def extract_features(term_data: dict[str, Any]) -> np.ndarray:
                   May include "sources" (TermSources) and "total_docs_in_session"
 
     Returns:
-        numpy array of 46 features (7 count bins + log_count + 38 other features)
+        numpy array of 48 features (7 count bins + log_count + 40 other features)
 
     Raises:
         ValueError: If term_data is not a dict or missing required fields
@@ -235,6 +237,8 @@ def extract_features(term_data: dict[str, Any]) -> np.ndarray:
     has_ner = 1.0 if "ner" in algorithms else 0.0
     has_rake = 1.0 if "rake" in algorithms else 0.0
     has_bm25 = 1.0 if "bm25" in algorithms else 0.0
+    has_textrank = 1.0 if "textrank" in algorithms else 0.0
+    textrank_score = float(term_data.get("textrank_score", 0.0))
 
     # === PERSON DETECTION ===
     is_person_val = term_data.get("is_person", 0)
@@ -441,6 +445,8 @@ def extract_features(term_data: dict[str, Any]) -> np.ndarray:
             has_ner,
             has_rake,
             has_bm25,
+            has_textrank,
+            textrank_score,
             # Type feature (1)
             is_person,
             # Original artifact features (6)
