@@ -1685,18 +1685,20 @@ def _register_all_settings():
             setting_type=SettingType.DROPDOWN,
             tooltip=(
                 "Choose which model verifies Q&A answers for hallucination.\n\n"
-                "• Standard (~150MB): Well-tested LettuceDetect model. "
-                "More accurate, recommended for production use.\n"
-                "• Fast (~17MB): TinyLettuce model, ~10x smaller. "
-                "Experimental — faster loading and inference but less "
-                "validated on legal documents.\n\n"
-                "Both models use the same LettuceDetect library. "
+                "• Standard (~150M params): Well-tested LettuceDetect model. "
+                "Most accurate on real-world benchmarks (76% F1).\n"
+                "• Fast (~68M params): TinyLettuce-68M, half the size. "
+                "Nearly as accurate (75% F1), faster loading.\n"
+                "• Fastest (~17M params): TinyLettuce-17M, 10x smaller. "
+                "Quick checks only — lower accuracy (69% F1).\n\n"
+                "All three use the same LettuceDetect library. "
                 "Change takes effect on next Q&A session."
             ),
             default="standard",
             options=[
                 ("Standard (recommended)", "standard"),
-                ("Fast (experimental)", "fast"),
+                ("Fast", "fast"),
+                ("Fastest (less accurate)", "fastest"),
             ],
             getter=lambda: prefs.get("hallucination_model_variant", "standard"),
             setter=lambda v: prefs.set("hallucination_model_variant", v),

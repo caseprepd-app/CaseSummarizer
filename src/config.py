@@ -732,12 +732,14 @@ UNIFIED_CHUNK_ENCODING = "cl100k_base"
 # When enabled, adds ~100-200ms per answer
 HALLUCINATION_VERIFICATION_ENABLED = _d("hallucination_verification_enabled")
 
-# Hallucination model variants
-# "standard": KRLabsOrg/lettucedect-base-modernbert-en-v1 (~150MB, well-tested)
-# "fast": KRLabsOrg/tinylettuce-17m-v1 (~35MB, experimental, 10x smaller)
+# Hallucination model variants (all use same lettucedetect API)
+# "standard": 150M params, 76% F1 on RAGTruth — most accurate, recommended
+# "fast":      68M params, 75% F1 on RAGTruth — good tradeoff
+# "fastest":   17M params, 69% F1 on RAGTruth — quick checks, low resources
 HALLUCINATION_MODEL = "KRLabsOrg/lettucedect-base-modernbert-en-v1"
-HALLUCINATION_MODEL_FAST = "KRLabsOrg/tinylettuce-17m-v1"
-HALLUCINATION_MODEL_VARIANT = "standard"  # User-selectable: "standard" or "fast"
+HALLUCINATION_MODEL_FAST = "KRLabsOrg/tinylettuce-ettin-68m-en"
+HALLUCINATION_MODEL_FASTEST = "KRLabsOrg/tinylettuce-ettin-17m-en"
+HALLUCINATION_MODEL_VARIANT = "standard"  # User-selectable: "standard", "fast", "fastest"
 
 # Span classification thresholds for color-coding answer text
 # LettuceDetect returns probability of hallucination (0.0-1.0)
@@ -768,7 +770,8 @@ HALLUCINATION_REJECTION_MESSAGE = (
 # LOG-001: Renamed to avoid conflict with MODELS_DIR defined earlier
 BUNDLED_MODELS_DIR = Path(__file__).parent.parent / "models"
 HALLUCINATION_MODEL_LOCAL_PATH = BUNDLED_MODELS_DIR / "lettucedect-base-modernbert-en-v1"
-HALLUCINATION_MODEL_FAST_LOCAL_PATH = BUNDLED_MODELS_DIR / "tinylettuce-17m-v1"
+HALLUCINATION_MODEL_FAST_LOCAL_PATH = BUNDLED_MODELS_DIR / "tinylettuce-ettin-68m-en"
+HALLUCINATION_MODEL_FASTEST_LOCAL_PATH = BUNDLED_MODELS_DIR / "tinylettuce-ettin-17m-en"
 
 # Embedding model for FAISS semantic search (Session 85)
 # Upgraded from all-MiniLM-L6-v2 (33MB) to bge-base-en-v1.5 (110MB) for better retrieval

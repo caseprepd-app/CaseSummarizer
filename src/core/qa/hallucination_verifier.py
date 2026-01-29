@@ -77,7 +77,7 @@ class HallucinationVerifier:
         Initialize verifier.
 
         Args:
-            model_variant: "standard" (default ~150MB) or "fast" (~17MB TinyLettuce).
+            model_variant: "standard" (150M), "fast" (68M), or "fastest" (17M).
                           If None, reads from user preferences or config default.
         """
         self._detector = None  # Lazy load
@@ -89,7 +89,11 @@ class HallucinationVerifier:
             model_variant = prefs.get("hallucination_model_variant", "standard")
 
         self._model_variant = model_variant
-        if model_variant == "fast":
+        if model_variant == "fastest":
+            from src.core.qa.verification_config import VERIFIER_MODEL_PATH_FASTEST
+
+            self._model_path = VERIFIER_MODEL_PATH_FASTEST
+        elif model_variant == "fast":
             from src.core.qa.verification_config import VERIFIER_MODEL_PATH_FAST
 
             self._model_path = VERIFIER_MODEL_PATH_FAST
@@ -112,7 +116,11 @@ class HallucinationVerifier:
 
         # Determine model path and loading mode
         # Check for bundled model based on variant
-        if self._model_variant == "fast":
+        if self._model_variant == "fastest":
+            from src.config import HALLUCINATION_MODEL_FASTEST_LOCAL_PATH
+
+            bundled_path = HALLUCINATION_MODEL_FASTEST_LOCAL_PATH
+        elif self._model_variant == "fast":
             from src.config import HALLUCINATION_MODEL_FAST_LOCAL_PATH
 
             bundled_path = HALLUCINATION_MODEL_FAST_LOCAL_PATH
