@@ -29,9 +29,10 @@ import pdfplumber
 from src.config import MIN_DICTIONARY_CONFIDENCE
 from src.logging_config import Timer
 
-logger = logging.getLogger(__name__)
-
 from .dictionary_utils import TermExtractionHelpers
+from .layout_analyzer import LayoutAnalyzer
+
+logger = logging.getLogger(__name__)
 
 
 def extract_portfolio_pdf(file_path: Path) -> bytes | None:
@@ -102,6 +103,7 @@ class PDFExtractor:
             dictionary: TermExtractionHelpers instance for word validation during voting
         """
         self.dictionary = dictionary
+        self._layout_analyzer = LayoutAnalyzer()
 
     def extract(self, file_path: Path) -> dict:
         """
@@ -133,9 +135,12 @@ class PDFExtractor:
         """
         logger.debug("Processing PDF: %s", file_path.name)
 
-        # Step 1: Try PyMuPDF extraction (primary)
+        # Step 1: Try layout-aware PyMuPDF extraction, fall back to flat
         with Timer("PyMuPDF text extraction"):
-            primary_text, page_count, primary_error = self._extract_pymupdf(file_path)
+            primary_text, page_count, primary_error = self._extract_pymupdf_layout(file_path)
+            if primary_text is None and primary_error is None:
+                # Layout detection failed gracefully; try flat extraction
+                primary_text, page_count, primary_error = self._extract_pymupdf(file_path)
 
         # Step 2: Try pdfplumber extraction (secondary)
         with Timer("pdfplumber text extraction"):
@@ -200,6 +205,88 @@ class PDFExtractor:
             "needs_ocr": needs_ocr,
             "error": None,
         }
+
+    def _extract_pymupdf_layout(self, file_path: Path) -> tuple[str | None, int, str | None]:
+        """
+        Extract text using PyMuPDF with layout-aware zone clipping.
+
+        Uses LayoutAnalyzer to detect header/footer/line-number zones, then
+        clips each page to the content zone before extracting text. This
+        prevents boilerplate from entering the extracted text.
+
+        Returns (None, 0, None) — no error — when layout detection fails
+        gracefully (too few pages, no repeating blocks). The caller should
+        fall back to flat extraction in that case.
+
+        Args:
+            file_path: Path to the PDF file
+
+        Returns:
+            Tuple of (text, page_count, error_type)
+        """
+        try:
+            with fitz.open(file_path) as doc:
+                page_count = len(doc)
+                if page_count == 0:
+                    return None, 0, "empty"
+
+                # Detect content zone from sample pages
+                zone = self._layout_analyzer.detect_zones(doc)
+                if zone is None:
+                    logger.debug("Layout extraction: zone detection failed, will use flat")
+                    return None, page_count, None
+
+                # Build clip rectangle
+                clip = fitz.Rect(zone.left, zone.top, zone.right, zone.bottom)
+                logger.debug(
+                    "Layout extraction: clipping to (%.0f, %.0f, %.0f, %.0f)",
+                    clip.x0,
+                    clip.y0,
+                    clip.x1,
+                    clip.y1,
+                )
+
+                pages_text = []
+                for i, page in enumerate(doc, 1):
+                    if i % 10 == 0:
+                        logger.debug("PyMuPDF layout: Extracting page %d/%d", i, page_count)
+                    page_text = page.get_text(clip=clip)
+                    if page_text:
+                        pages_text.append(page_text)
+
+                text = "\f".join(pages_text)
+
+                # Safety check: if clipping removed too much text, reject
+                flat_text = "".join(p.get_text() for p in doc)
+                flat_words = len(flat_text.split())
+                clip_words = len(text.split())
+
+                if flat_words > 0:
+                    ratio = clip_words / flat_words
+                    if ratio < 0.70:
+                        logger.warning(
+                            "Layout extraction kept only %.0f%% of words "
+                            "(%.0f vs %.0f); falling back to flat",
+                            ratio * 100,
+                            clip_words,
+                            flat_words,
+                        )
+                        return None, page_count, None
+
+                    logger.debug(
+                        "Layout extraction kept %.0f%% of words (removed boilerplate)",
+                        ratio * 100,
+                    )
+
+                return text, page_count, None
+
+        except fitz.FileDataError:
+            # Let the flat extractor handle the error reporting
+            return None, 0, None
+
+        except Exception as e:
+            logger.debug("Layout extraction failed: %s", e)
+            return None, 0, None
 
     def _extract_pymupdf(self, file_path: Path) -> tuple[str | None, int, str | None]:
         """
