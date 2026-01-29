@@ -1176,6 +1176,15 @@ def _register_all_settings():
         )
         link.pack(anchor="w")
 
+        tip = ctk.CTkLabel(
+            frame,
+            text="Tip: Models with 8B+ parameters produce significantly better answers.",
+            font=FONTS["small"],
+            text_color=("#888888", "#999999"),
+            anchor="w",
+        )
+        tip.pack(anchor="w", pady=(2, 0))
+
         return frame
 
     SettingsRegistry.register(
