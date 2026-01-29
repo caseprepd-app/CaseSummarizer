@@ -46,3 +46,5 @@ python-docx>=0.8.11
 fpdf2>=2.7.0
 # Drag-and-drop file support (Session 73)
 tkinterdnd2>=0.3.0
+# Graph-based keyword extraction for vocabulary (pytextrank)
+pytextrank>=3.0.0

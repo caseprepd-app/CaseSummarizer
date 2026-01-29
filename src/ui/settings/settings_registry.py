@@ -1679,6 +1679,32 @@ def _register_all_settings():
 
     SettingsRegistry.register(
         SettingDefinition(
+            key="hallucination_model_variant",
+            label="Hallucination detection model",
+            category="Performance",
+            setting_type=SettingType.DROPDOWN,
+            tooltip=(
+                "Choose which model verifies Q&A answers for hallucination.\n\n"
+                "• Standard (~150MB): Well-tested LettuceDetect model. "
+                "More accurate, recommended for production use.\n"
+                "• Fast (~17MB): TinyLettuce model, ~10x smaller. "
+                "Experimental — faster loading and inference but less "
+                "validated on legal documents.\n\n"
+                "Both models use the same LettuceDetect library. "
+                "Change takes effect on next Q&A session."
+            ),
+            default="standard",
+            options=[
+                ("Standard (recommended)", "standard"),
+                ("Fast (experimental)", "fast"),
+            ],
+            getter=lambda: prefs.get("hallucination_model_variant", "standard"),
+            setter=lambda v: prefs.set("hallucination_model_variant", v),
+        )
+    )
+
+    SettingsRegistry.register(
+        SettingDefinition(
             key="summary_gpu_override",
             label="Summary generation",
             category="Performance",

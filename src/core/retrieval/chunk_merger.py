@@ -1,18 +1,21 @@
 """
 Chunk Merger for Multi-Algorithm Retrieval.
 
-Merges and ranks results from multiple retrieval algorithms.
-When the same chunk is found by multiple algorithms, their relevance scores
-are combined using weighted averaging.
+Merges and ranks results from multiple retrieval algorithms using
+Reciprocal Rank Fusion (RRF). Each algorithm's results are ranked
+independently, then RRF combines ranks across algorithms.
 
-Merge Strategy:
-1. Collect all retrieved chunks from all algorithms
-2. Group by chunk_id (same chunk from different algorithms)
-3. Combine relevance scores weighted by algorithm weights
-4. Rank by combined score
-5. Track which algorithms found each chunk (for ML features)
+RRF Formula: score(chunk) = sum(1 / (k + rank_i)) for each algorithm i
+where k=60 (standard constant that prevents high-ranked items from dominating).
 
-This mirrors the vocabulary extraction AlgorithmScoreMerger pattern for consistency.
+Why RRF over weighted averaging:
+- Score distributions differ between algorithms (FAISS cosine vs BM25+ TF-IDF)
+- RRF uses rank positions only, so score scale doesn't matter
+- Chunks found by multiple algorithms naturally accumulate higher RRF scores
+- No weight tuning needed (k=60 is the standard default)
+
+Reference: Cormack, Clarke & Buettcher (2009), "Reciprocal Rank Fusion
+outperforms Condorcet and individual Rank Learning Methods"
 """
 
 from dataclasses import dataclass, field
@@ -32,7 +35,7 @@ class MergedChunk:
     Attributes:
         chunk_id: Unique identifier for the chunk
         text: The chunk text content
-        combined_score: Weighted average relevance across algorithms
+        combined_score: RRF score across algorithms (higher = better)
         sources: List of algorithm names that retrieved this chunk
         filename: Source document filename
         chunk_num: Chunk number within the document
@@ -78,46 +81,40 @@ class MergedRetrievalResult:
 
 class ChunkMerger:
     """
-    Merges and ranks results from multiple retrieval algorithms.
+    Merges and ranks results from multiple retrieval algorithms using RRF.
 
-    The merger groups chunks by chunk_id, then combines their relevance scores
-    using algorithm weights. Chunks found by multiple algorithms get boosted
-    scores, reflecting higher confidence.
-
-    Scoring Strategy:
-    1. Weighted average of relevance scores from each algorithm
-    2. Bonus for being found by multiple algorithms (+0.1 per additional algo)
-    3. Final score clamped to 0-1 range
+    Reciprocal Rank Fusion assigns each chunk a score based on its rank
+    position within each algorithm's result list. Chunks found by multiple
+    algorithms accumulate scores from each list, naturally boosting
+    consensus results without explicit multi-algorithm bonuses.
 
     Example:
-        merger = ChunkMerger(algorithm_weights={"FAISS": 0.8, "BM25+": 0.2})
+        merger = ChunkMerger()
         merged = merger.merge([bm25_result, faiss_result], k=10)
     """
 
     def __init__(self, algorithm_weights: dict[str, float] | None = None):
         """
-        Initialize merger with algorithm weights.
+        Initialize merger.
 
         Args:
-            algorithm_weights: Mapping of algorithm name to weight (0.0-1.0+).
-                              Higher weight = more influence on final score.
-                              If None, all algorithms weighted equally at 1.0.
+            algorithm_weights: Legacy parameter, kept for backward compatibility
+                              and metadata logging. Does not affect RRF scoring.
         """
-        from src.config import RETRIEVAL_MULTI_ALGO_BONUS
+        from src.config import RRF_K
 
         self.algorithm_weights = algorithm_weights or {}
-
-        # Bonus score for each additional algorithm that finds the chunk
-        # This reflects higher confidence when multiple methods agree
-        self.multi_algo_bonus = RETRIEVAL_MULTI_ALGO_BONUS
+        self.rrf_k = RRF_K
 
     def merge(
         self, results: list[AlgorithmRetrievalResult], k: int | None = None
     ) -> MergedRetrievalResult:
         """
-        Merge results from multiple algorithms.
+        Merge results from multiple algorithms using Reciprocal Rank Fusion.
 
-        Groups chunks by chunk_id, combines scores, and ranks.
+        For each algorithm, chunks are ranked by relevance_score descending.
+        Each chunk receives RRF score = 1/(k + rank) from each algorithm
+        that found it. Scores are summed across algorithms.
 
         Args:
             results: List of AlgorithmRetrievalResult from different algorithms
@@ -130,23 +127,27 @@ class ChunkMerger:
 
         start_time = time.perf_counter()
 
-        # Group by chunk_id
-        chunk_groups: dict[str, list[RetrievedChunk]] = {}
+        # Step 1: Compute RRF scores per chunk across all algorithms
+        rrf_scores: dict[str, float] = {}
+        chunk_lookup: dict[str, list[RetrievedChunk]] = {}
 
         for result in results:
-            for chunk in result.chunks:
-                key = chunk.chunk_id
-                if key not in chunk_groups:
-                    chunk_groups[key] = []
-                chunk_groups[key].append(chunk)
+            # Sort this algorithm's chunks by relevance_score descending
+            sorted_chunks = sorted(result.chunks, key=lambda c: c.relevance_score, reverse=True)
+            for rank, chunk in enumerate(sorted_chunks, start=1):
+                cid = chunk.chunk_id
+                rrf_scores[cid] = rrf_scores.get(cid, 0.0) + 1.0 / (self.rrf_k + rank)
+                if cid not in chunk_lookup:
+                    chunk_lookup[cid] = []
+                chunk_lookup[cid].append(chunk)
 
-        # Merge each group
+        # Step 2: Build MergedChunk for each unique chunk_id
         merged_chunks = []
-        for _chunk_id, chunks in chunk_groups.items():
-            merged = self._merge_group(chunks)
+        for chunk_id, chunks in chunk_lookup.items():
+            merged = self._merge_group(chunks, rrf_scores[chunk_id])
             merged_chunks.append(merged)
 
-        # Sort by combined score (descending)
+        # Sort by RRF score (descending)
         merged_chunks.sort(key=lambda c: c.combined_score, reverse=True)
 
         # Limit to top k if specified
@@ -164,36 +165,27 @@ class ChunkMerger:
             processing_time_ms=elapsed_ms,
             query=query,
             metadata={
-                "algorithm_weights": self.algorithm_weights,
-                "multi_algo_bonus": self.multi_algo_bonus,
-                "total_unique_chunks": len(chunk_groups),
+                "merge_strategy": "reciprocal_rank_fusion",
+                "rrf_k": self.rrf_k,
+                "algorithm_weights_legacy": self.algorithm_weights,
+                "total_unique_chunks": len(chunk_lookup),
                 "chunks_returned": len(merged_chunks),
             },
         )
 
-    def _merge_group(self, chunks: list[RetrievedChunk]) -> MergedChunk:
+    def _merge_group(self, chunks: list[RetrievedChunk], rrf_score: float) -> MergedChunk:
         """
-        Merge a group of chunks (same chunk_id from different algorithms).
+        Build a MergedChunk from a group of chunks (same chunk_id).
 
         Args:
             chunks: All retrievals of the same chunk from different algorithms
+            rrf_score: Pre-computed RRF score for this chunk
 
         Returns:
-            Single MergedChunk combining all algorithm scores
+            Single MergedChunk with RRF score and source metadata
         """
-        # Use first chunk as template
         first = chunks[0]
-
-        # Collect unique sources
         sources = list({c.source_algorithm for c in chunks})
-
-        # Calculate weighted score
-        combined_score = self._calculate_weighted_score(chunks)
-
-        # Apply multi-algorithm bonus
-        if len(sources) > 1:
-            bonus = (len(sources) - 1) * self.multi_algo_bonus
-            combined_score = min(1.0, combined_score + bonus)
 
         # Merge metadata for ML training
         merged_metadata = {
@@ -207,13 +199,13 @@ class ChunkMerger:
                 for c in chunks
             ],
             "algorithm_count": len(sources),
-            "multi_algo_bonus_applied": len(sources) > 1,
+            "rrf_score": rrf_score,
         }
 
         return MergedChunk(
             chunk_id=first.chunk_id,
             text=first.text,
-            combined_score=combined_score,
+            combined_score=rrf_score,
             sources=sources,
             filename=first.filename,
             chunk_num=first.chunk_num,
@@ -221,33 +213,11 @@ class ChunkMerger:
             metadata=merged_metadata,
         )
 
-    def _calculate_weighted_score(self, chunks: list[RetrievedChunk]) -> float:
-        """
-        Calculate weighted average score across algorithms.
-
-        Args:
-            chunks: All retrievals of the same chunk
-
-        Returns:
-            Weighted average score (0.0-1.0)
-        """
-        total_weight = 0.0
-        weighted_score = 0.0
-
-        for chunk in chunks:
-            weight = self.algorithm_weights.get(chunk.source_algorithm, 1.0)
-            weighted_score += chunk.relevance_score * weight
-            total_weight += weight
-
-        if total_weight > 0:
-            return weighted_score / total_weight
-        return 0.0  # No weights = no confidence
-
     def update_weights(self, new_weights: dict[str, float]) -> None:
         """
-        Update algorithm weights (e.g., from ML learner).
+        Update algorithm weights (legacy, kept for backward compatibility).
 
         Args:
-            new_weights: New weight mapping to use for future merges
+            new_weights: New weight mapping (stored for metadata only)
         """
         self.algorithm_weights.update(new_weights)

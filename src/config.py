@@ -238,6 +238,7 @@ VOCAB_ALGORITHM_WEIGHTS = {
     "NER": _d("vocab_weight_ner"),
     "RAKE": _d("vocab_weight_rake"),
     "BM25": _d("vocab_weight_bm25"),
+    "TextRank": 0.6,
 }
 
 # Similarity Thresholds (consolidated from scattered definitions)
@@ -662,9 +663,13 @@ RETRIEVAL_MIN_SCORE = _d("retrieval_min_score")
 # Below this, the question is treated as unanswerable for this document
 RETRIEVAL_CONFIDENCE_GATE = _d("retrieval_confidence_gate")
 
-# Multi-algorithm bonus: extra score when multiple algorithms find the same chunk
-# This reflects higher confidence when both BM25+ and FAISS agree
+# Multi-algorithm bonus: legacy setting, kept for backward compatibility
+# RRF fusion naturally rewards multi-algorithm consensus without explicit bonus
 RETRIEVAL_MULTI_ALGO_BONUS = _d("retrieval_multi_algo_bonus")
+
+# Reciprocal Rank Fusion constant (standard value from literature)
+# Higher k = less advantage for top-ranked items, more uniform blending
+RRF_K = 60
 
 # FAISS semantic relevance floor: if the best FAISS chunk scores below this,
 # there's no semantic match and the question is likely unanswerable
@@ -726,10 +731,12 @@ UNIFIED_CHUNK_ENCODING = "cl100k_base"
 # When enabled, adds ~100-200ms per answer
 HALLUCINATION_VERIFICATION_ENABLED = _d("hallucination_verification_enabled")
 
-# Model to use for verification (smaller = faster, larger = more accurate)
-# Options: "KRLabsOrg/lettucedect-base-modernbert-en-v1" (~150MB, recommended)
-#          "KRLabsOrg/tinylettuce-17m-v1" (~35MB, faster but less accurate)
+# Hallucination model variants
+# "standard": KRLabsOrg/lettucedect-base-modernbert-en-v1 (~150MB, well-tested)
+# "fast": KRLabsOrg/tinylettuce-17m-v1 (~35MB, experimental, 10x smaller)
 HALLUCINATION_MODEL = "KRLabsOrg/lettucedect-base-modernbert-en-v1"
+HALLUCINATION_MODEL_FAST = "KRLabsOrg/tinylettuce-17m-v1"
+HALLUCINATION_MODEL_VARIANT = "standard"  # User-selectable: "standard" or "fast"
 
 # Span classification thresholds for color-coding answer text
 # LettuceDetect returns probability of hallucination (0.0-1.0)
@@ -760,6 +767,7 @@ HALLUCINATION_REJECTION_MESSAGE = (
 # LOG-001: Renamed to avoid conflict with MODELS_DIR defined earlier
 BUNDLED_MODELS_DIR = Path(__file__).parent.parent / "models"
 HALLUCINATION_MODEL_LOCAL_PATH = BUNDLED_MODELS_DIR / "lettucedect-base-modernbert-en-v1"
+HALLUCINATION_MODEL_FAST_LOCAL_PATH = BUNDLED_MODELS_DIR / "tinylettuce-17m-v1"
 
 # Embedding model for FAISS semantic search (Session 85)
 # Upgraded from all-MiniLM-L6-v2 (33MB) to bge-base-en-v1.5 (110MB) for better retrieval

@@ -156,6 +156,19 @@ def create_default_algorithms(**config) -> list[BaseExtractionAlgorithm]:
         rake.weight = config.get("rake_weight", 0.7)
         algorithms.append(rake)
 
+    # TextRank Algorithm (graph-based keyphrase extraction)
+    if config.get("textrank_enabled", True):
+        try:
+            from src.core.vocabulary.algorithms.textrank_algorithm import TextRankAlgorithm
+
+            textrank = TextRankAlgorithm()
+            textrank.weight = config.get("textrank_weight", 0.6)
+            algorithms.append(textrank)
+        except ImportError:
+            import logging
+
+            logging.getLogger(__name__).debug("TextRank unavailable (pytextrank not installed)")
+
     return algorithms
 
 

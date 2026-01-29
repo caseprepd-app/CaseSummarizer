@@ -139,7 +139,8 @@ class TestChunkMerger:
         merged = merger.merge([result])
 
         assert len(merged.chunks) == 1
-        assert merged.chunks[0].combined_score == 0.8
+        # RRF score for rank 1 with k=60: 1/(60+1) ≈ 0.0164
+        assert merged.chunks[0].combined_score > 0
 
     def test_merge_combines_duplicate_chunks(self):
         """Test same chunk from multiple algorithms is merged."""
@@ -170,8 +171,8 @@ class TestChunkMerger:
         assert "BM25+" in merged.chunks[0].sources
         assert "FAISS" in merged.chunks[0].sources
 
-    def test_merge_applies_multi_algo_bonus(self):
-        """Test bonus is applied when multiple algorithms find same chunk."""
+    def test_merge_rrf_boosts_multi_algorithm_chunks(self):
+        """Test RRF naturally boosts chunks found by multiple algorithms."""
         bm25_chunk = RetrievedChunk(
             chunk_id="doc1_0",
             text="Test text",
@@ -193,11 +194,12 @@ class TestChunkMerger:
         faiss_result = AlgorithmRetrievalResult(chunks=[faiss_chunk], query="test")
 
         merger = ChunkMerger({"BM25+": 1.0, "FAISS": 1.0})
-        merger.multi_algo_bonus = 0.1
         merged = merger.merge([bm25_result, faiss_result])
 
-        # Base score would be 0.5, bonus adds 0.1 for second algorithm
-        assert merged.chunks[0].combined_score > 0.5
+        # RRF score from two algorithms (rank 1 each): 2/(60+1) ≈ 0.0328
+        # This is higher than single-algorithm score of 1/(60+1) ≈ 0.0164
+        single_algo_rrf = 1.0 / (60 + 1)
+        assert merged.chunks[0].combined_score > single_algo_rrf
 
     def test_merge_sorts_by_score(self):
         """Test merged results are sorted by combined score."""

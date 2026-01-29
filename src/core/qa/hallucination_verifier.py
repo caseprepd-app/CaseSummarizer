@@ -72,15 +72,29 @@ class HallucinationVerifier:
     The model is lazy-loaded on first use to avoid startup delay.
     """
 
-    def __init__(self, model_path: str = VERIFIER_MODEL_PATH):
+    def __init__(self, model_variant: str | None = None):
         """
         Initialize verifier.
 
         Args:
-            model_path: HuggingFace model path for LettuceDetect
+            model_variant: "standard" (default ~150MB) or "fast" (~17MB TinyLettuce).
+                          If None, reads from user preferences or config default.
         """
         self._detector = None  # Lazy load
-        self._model_path = model_path
+
+        if model_variant is None:
+            from src.user_preferences import get_user_preferences
+
+            prefs = get_user_preferences()
+            model_variant = prefs.get("hallucination_model_variant", "standard")
+
+        self._model_variant = model_variant
+        if model_variant == "fast":
+            from src.core.qa.verification_config import VERIFIER_MODEL_PATH_FAST
+
+            self._model_path = VERIFIER_MODEL_PATH_FAST
+        else:
+            self._model_path = VERIFIER_MODEL_PATH
 
     def _load_detector(self) -> None:
         """
@@ -97,9 +111,17 @@ class HallucinationVerifier:
         os.environ["TRANSFORMERS_CACHE"] = str(HF_CACHE_DIR)
 
         # Determine model path and loading mode
-        if HALLUCINATION_MODEL_LOCAL_PATH.exists():
+        # Check for bundled model based on variant
+        if self._model_variant == "fast":
+            from src.config import HALLUCINATION_MODEL_FAST_LOCAL_PATH
+
+            bundled_path = HALLUCINATION_MODEL_FAST_LOCAL_PATH
+        else:
+            bundled_path = HALLUCINATION_MODEL_LOCAL_PATH
+
+        if bundled_path.exists():
             # Use bundled model (production/installer mode)
-            model_path = str(HALLUCINATION_MODEL_LOCAL_PATH)
+            model_path = str(bundled_path)
             local_only = True
             logger.debug("Using bundled model: %s", model_path)
         else:
