@@ -5,14 +5,15 @@ Merges and ranks results from multiple retrieval algorithms using
 Reciprocal Rank Fusion (RRF). Each algorithm's results are ranked
 independently, then RRF combines ranks across algorithms.
 
-RRF Formula: score(chunk) = sum(1 / (k + rank_i)) for each algorithm i
-where k=60 (standard constant that prevents high-ranked items from dominating).
+Weighted RRF Formula: score(chunk) = sum(w_i / (k + rank_i)) for each algorithm i
+where k=60 and w_i is the algorithm weight from RETRIEVAL_ALGORITHM_WEIGHTS.
 
 Why RRF over weighted averaging:
 - Score distributions differ between algorithms (FAISS cosine vs BM25+ TF-IDF)
 - RRF uses rank positions only, so score scale doesn't matter
 - Chunks found by multiple algorithms naturally accumulate higher RRF scores
-- No weight tuning needed (k=60 is the standard default)
+- Algorithm weights apply a modest preference (e.g., semantic over lexical)
+  without distorting rank-based fusion
 
 Reference: Cormack, Clarke & Buettcher (2009), "Reciprocal Rank Fusion
 outperforms Condorcet and individual Rank Learning Methods"
@@ -98,8 +99,9 @@ class ChunkMerger:
         Initialize merger.
 
         Args:
-            algorithm_weights: Legacy parameter, kept for backward compatibility
-                              and metadata logging. Does not affect RRF scoring.
+            algorithm_weights: Mapping of algorithm name to weight (0.0-1.0+).
+                              Scales each algorithm's RRF contribution.
+                              Higher weight = more influence on final ranking.
         """
         from src.config import RRF_K
 
@@ -113,8 +115,8 @@ class ChunkMerger:
         Merge results from multiple algorithms using Reciprocal Rank Fusion.
 
         For each algorithm, chunks are ranked by relevance_score descending.
-        Each chunk receives RRF score = 1/(k + rank) from each algorithm
-        that found it. Scores are summed across algorithms.
+        Each chunk receives RRF score = w/(k + rank) from each algorithm
+        that found it, where w is the algorithm weight. Scores are summed.
 
         Args:
             results: List of AlgorithmRetrievalResult from different algorithms
@@ -134,9 +136,12 @@ class ChunkMerger:
         for result in results:
             # Sort this algorithm's chunks by relevance_score descending
             sorted_chunks = sorted(result.chunks, key=lambda c: c.relevance_score, reverse=True)
+            # Get algorithm weight (once per result, not per chunk)
+            algo_name = sorted_chunks[0].source_algorithm if sorted_chunks else ""
+            weight = self.algorithm_weights.get(algo_name, 1.0)
             for rank, chunk in enumerate(sorted_chunks, start=1):
                 cid = chunk.chunk_id
-                rrf_scores[cid] = rrf_scores.get(cid, 0.0) + 1.0 / (self.rrf_k + rank)
+                rrf_scores[cid] = rrf_scores.get(cid, 0.0) + weight / (self.rrf_k + rank)
                 if cid not in chunk_lookup:
                     chunk_lookup[cid] = []
                 chunk_lookup[cid].append(chunk)
@@ -167,7 +172,7 @@ class ChunkMerger:
             metadata={
                 "merge_strategy": "reciprocal_rank_fusion",
                 "rrf_k": self.rrf_k,
-                "algorithm_weights_legacy": self.algorithm_weights,
+                "algorithm_weights": self.algorithm_weights,
                 "total_unique_chunks": len(chunk_lookup),
                 "chunks_returned": len(merged_chunks),
             },
@@ -215,9 +220,9 @@ class ChunkMerger:
 
     def update_weights(self, new_weights: dict[str, float]) -> None:
         """
-        Update algorithm weights (legacy, kept for backward compatibility).
+        Update algorithm weights (e.g., from ML learner or settings).
 
         Args:
-            new_weights: New weight mapping (stored for metadata only)
+            new_weights: New weight mapping for RRF scaling
         """
         self.algorithm_weights.update(new_weights)

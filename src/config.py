@@ -639,13 +639,14 @@ QA_CONVERSATION_CONTEXT_PAIRS = 3  # Include last N Q&A pairs in follow-up quest
 # ============================================================================
 # Multi-algorithm retrieval for Q&A - mirrors vocabulary extraction architecture
 
-# Algorithm weights for result merging (defaults - user can override in Settings)
-# Higher weight = more influence on final relevance score
-# FAISS uses semantic/embedding matching - finds conceptually related content
-# BM25+ uses lexical/keyword matching - favors exact text matches
+# Algorithm weights for weighted RRF merging (scale each algorithm's rank contribution)
+# Higher weight = more influence on final ranking
+# Semantic search weighted higher: reporters ask exploratory questions about
+# documents they haven't memorized, so meaning-based retrieval matters more
+# than exact keyword matching.
 RETRIEVAL_ALGORITHM_WEIGHTS = {
-    "FAISS": 1.0,  # Semantic search - phrasing is forgiving
-    "BM25+": 0.8,  # Exact text matching - precise terminology
+    "FAISS": 1.0,  # Semantic search — weighted higher for exploratory queries
+    "BM25+": 0.9,  # Lexical matching — still valuable for name/term queries
 }
 
 # Algorithm enable/disable flags
