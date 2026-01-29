@@ -12,7 +12,7 @@
 |---|--------|--------|----------|--------|
 | 1 | ✅ **RRF fusion** (replace weighted score merging) | ~10 lines | None | Eliminates hand-tuned BM25/FAISS weights |
 | 2 | **FlashRank reranker** (replace bge-reranker-base) | Small | `flashrank` (ONNX only, 4MB) | No PyTorch overhead for reranking |
-| 3 | ✅ **TinyLettuce** (user-selectable model variant) | Small | Same library | 17M params vs 150M, faster — offered as "Fast" option in Settings |
+| 3 | ✅ **TinyLettuce** (three-tier model selection) | Small | Same library | Standard/Fast/Fastest — all three bundled for installer |
 | 4 | **GLiNER** (zero-shot NER) | Medium | `gliner` (~200MB) | One model for legal + medical + generic entities |
 | 5 | **KeyBERT** (supplement RAKE) | Low | `keybert` (~80MB) | Semantic keyword extraction, different signal |
 | 6 | ✅ **pytextrank** (supplement RAKE/BM25) | Very low | `pytextrank` (no model) | Graph-based scoring as spaCy component |
@@ -237,18 +237,25 @@
 - **What:** Combines retrieval results by rank position: `score = sum(1/(k+rank))` with k=60. About 10 lines of Python.
 - **New deps:** None
 - **Verdict:** **Single easiest improvement.** Eliminates score normalization and hand-tuned weights. Immune to score distribution differences between BM25 and FAISS.
-- **Implementation:** Replaced `ChunkMerger._calculate_weighted_score()` with RRF in `src/core/retrieval/chunk_merger.py`. Added `RRF_K = 60` to `src/config.py`. Multi-algorithm bonus removed (RRF handles it naturally). Legacy `algorithm_weights` kept for metadata logging. All existing tests updated and passing.
+- **Implementation:** Replaced `ChunkMerger._calculate_weighted_score()` with weighted RRF in `src/core/retrieval/chunk_merger.py`. Formula: `w/(k+rank)` where k=60 and weights favor semantic search (FAISS=1.0, BM25+=0.9) since reporters ask exploratory questions without knowing exact document terminology. Multi-algorithm bonus removed (RRF handles it naturally). All existing tests updated and passing.
 
 #### FlashRank Reranker
 - **What:** ONNX-only reranker. No PyTorch needed for reranking. 4MB (nano) or 86MB (medium).
 - **License:** Apache 2.0
 - **Verdict:** **Strong upgrade.** Eliminates cold start. The `rerankers` library (MIT) provides a unified API to swap between FlashRank, cross-encoders, ColBERT, etc.
 
-#### TinyLettuce (Hallucination Detection) — ✅ IMPLEMENTED (as user-selectable option)
-- **What:** Next-gen LettuceDetect. 17M params (vs 150M). Real-time on CPU. Same MIT license, same token-level span detection.
-- **Accuracy:** F1 90.87% on synthetic data (outperforms GPT-5-mini at 83.69%).
-- **Verdict:** Benchmarks may be cherry-picked. Added as user-selectable option rather than blind replacement.
-- **Implementation:** Added "Hallucination detection model" dropdown in Settings > Performance with "Standard (recommended)" and "Fast (experimental)" options. `HallucinationVerifier` now accepts `model_variant` parameter, reads from user preferences. Bundled model path support for both variants. Default remains Standard until validated on real legal documents.
+#### TinyLettuce (Hallucination Detection) — ✅ IMPLEMENTED (three-tier user selection)
+- **What:** Next-gen LettuceDetect. 17–68M params (vs 150M). Real-time on CPU. Same MIT license, same token-level span detection.
+- **Accuracy on real-world data (RAGTruth benchmark):**
+
+| Model | Params | RAGTruth F1 | Synthetic F1 | Setting |
+|-------|--------|-------------|--------------|---------|
+| LettuceDetect-base (ModernBERT) | 150M | **76.07%** | 87.60% | Standard (default) |
+| TinyLettuce-68M (Ettin) | 68M | 74.97% | 92.64% | Fast |
+| TinyLettuce-17M (Ettin) | 17M | 68.52% | 90.87% | Fastest |
+
+- **Verdict:** The headline "90% F1" numbers are on synthetic data only. On real-world RAGTruth, the base model leads by 1–7.5 F1 points. Standard remains default; Fast and Fastest offered for resource-constrained users.
+- **Implementation:** Three-tier dropdown in Settings > Performance: Standard (recommended), Fast, Fastest (less accurate). `HallucinationVerifier` accepts `model_variant` parameter, reads from user preferences. Bundled model paths for all three variants. Download script (`scripts/download_hallucination_model.py`) updated to fetch all three for installer builds. Weighted RRF also applied (FAISS=1.0, BM25+=0.9) to give semantic search a modest edge.
 
 #### Embedding Model Upgrades
 
