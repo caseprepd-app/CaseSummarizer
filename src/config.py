@@ -745,8 +745,9 @@ HALLUCINATION_THRESHOLDS = {
 # Overall answer rejection threshold - reject if reliability below this
 ANSWER_REJECTION_THRESHOLD = _d("answer_rejection_threshold")
 
-# Q&A Export: minimum confidence to include in exports
+# Q&A Export: minimum thresholds to include in exports (both must be met)
 QA_EXPORT_CONFIDENCE_FLOOR = _d("qa_export_confidence_floor")
+QA_EXPORT_VERIFICATION_FLOOR = _d("qa_export_verification_floor")
 
 # Message shown when answer confidence is too low
 HALLUCINATION_REJECTION_MESSAGE = (

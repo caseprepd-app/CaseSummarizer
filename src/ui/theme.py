@@ -44,6 +44,35 @@ FONTS = {
     "mono_sm": ("Consolas", 10),
 }
 
+# Font size offset labels: Small=-2, Medium=0, Large=+2
+FONT_SIZE_OPTIONS = [
+    ("Small", "small"),
+    ("Medium (Default)", "medium"),
+    ("Large", "large"),
+]
+
+FONT_SIZE_OFFSETS = {"small": -2, "medium": 0, "large": 2}
+
+# Store base sizes for rebuilding
+_BASE_FONTS = {key: val for key, val in FONTS.items()}
+
+
+def scale_fonts(size_key: str) -> None:
+    """
+    Rebuild FONTS dict in-place with scaled sizes.
+
+    Args:
+        size_key: One of 'small', 'medium', 'large'
+    """
+    offset = FONT_SIZE_OFFSETS.get(size_key, 0)
+    for key, base in _BASE_FONTS.items():
+        family = base[0]
+        size = base[1] + offset
+        if len(base) == 3:
+            FONTS[key] = (family, size, base[2])
+        else:
+            FONTS[key] = (family, size)
+
 
 # =============================================================================
 # COLORS
@@ -247,6 +276,8 @@ QA_TEXT_TAGS = {
     "reliability_low": {"foreground": COLORS["reliability_low"], "font": FONTS["body_bold"]},
     # Legend label
     "legend_label": {"foreground": COLORS["text_secondary"], "font": FONTS["small"]},
+    # Score detail (retrieval confidence, shown alongside verification)
+    "score_detail": {"foreground": COLORS["text_secondary"], "font": FONTS["small"]},
 }
 
 

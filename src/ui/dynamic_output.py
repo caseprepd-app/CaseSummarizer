@@ -883,11 +883,17 @@ class DynamicOutputWidget(ctk.CTkFrame):
             for doc_name, doc_summary in sorted(self._document_summaries.items()):
                 self.summary_text_display.insert("end", f"{doc_name}:\n{doc_summary}\n\n")
 
-        # Session 78: Only switch to Vocab tab when there's vocab data
-        # Don't switch to Summary/Q&A automatically - user should stay on Vocab tab
-        # as it's the most useful for court reporters
+        # Session 78: Only auto-switch to Vocab if user isn't already viewing
+        # another tab that has content (prevents Q&A tab from jumping away)
         if vocab_data:
-            self.tabview.set("Names & Vocab")
+            current_tab = self.tabview.get()
+            has_qa = bool(qa_data)
+            has_summary = bool(summary) or bool(self._document_summaries)
+            stay_on_current = (current_tab == "Ask Questions" and has_qa) or (
+                current_tab == "Summary" and has_summary
+            )
+            if not stay_on_current:
+                self.tabview.set("Names & Vocab")
 
     def _display_csv(self, data: list):
         """

@@ -199,6 +199,32 @@ def _register_all_settings():
     prefs = get_user_preferences()
 
     # ===================================================================
+    # APPEARANCE TAB
+    # ===================================================================
+
+    from src.ui.theme import FONT_SIZE_OPTIONS
+
+    SettingsRegistry.register(
+        SettingDefinition(
+            key="font_size",
+            label="Font Size",
+            category="Appearance",
+            setting_type=SettingType.DROPDOWN,
+            tooltip=(
+                "Adjust the font size used throughout the application.\n\n"
+                "• Small: Smaller text, fits more on screen\n"
+                "• Medium: Default size\n"
+                "• Large: Bigger text, easier to read\n\n"
+                "Requires restart to take full effect."
+            ),
+            default="medium",
+            options=FONT_SIZE_OPTIONS,
+            getter=lambda: prefs.get("font_size", "medium"),
+            setter=lambda v: prefs.set("font_size", v),
+        )
+    )
+
+    # ===================================================================
     # PERFORMANCE TAB
     # ===================================================================
 
@@ -1593,6 +1619,56 @@ def _register_all_settings():
             ],
             getter=lambda: prefs.get_summary_gpu_override_mode(),
             setter=lambda v: prefs.set_summary_gpu_override_mode(v),
+        )
+    )
+
+    # ===================================================================
+    # Q&A EXPORT TAB
+    # ===================================================================
+
+    from src.config import QA_EXPORT_CONFIDENCE_FLOOR, QA_EXPORT_VERIFICATION_FLOOR
+
+    SettingsRegistry.register(
+        SettingDefinition(
+            key="qa_export_confidence_floor",
+            label="Retrieval confidence floor",
+            category="Q&A Export",
+            setting_type=SettingType.SLIDER,
+            tooltip=(
+                "Minimum FAISS retrieval confidence (0-1) for a Q&A answer\n"
+                "to be included in exports. This measures how relevant the\n"
+                "retrieved document chunks were to the question.\n\n"
+                "Both this AND the verification floor must be met.\n\n"
+                "Default: 0.40 (40%)"
+            ),
+            default=QA_EXPORT_CONFIDENCE_FLOOR,
+            min_value=0.0,
+            max_value=1.0,
+            step=0.05,
+            getter=lambda: prefs.get("qa_export_confidence_floor", QA_EXPORT_CONFIDENCE_FLOOR),
+            setter=lambda v: prefs.set("qa_export_confidence_floor", float(v)),
+        )
+    )
+
+    SettingsRegistry.register(
+        SettingDefinition(
+            key="qa_export_verification_floor",
+            label="Verification reliability floor",
+            category="Q&A Export",
+            setting_type=SettingType.SLIDER,
+            tooltip=(
+                "Minimum hallucination verification reliability (0-1) for\n"
+                "a Q&A answer to be included in exports. This measures how\n"
+                "well the answer is supported by the source text.\n\n"
+                "Both this AND the retrieval floor must be met.\n\n"
+                "Default: 0.80 (80%)"
+            ),
+            default=QA_EXPORT_VERIFICATION_FLOOR,
+            min_value=0.0,
+            max_value=1.0,
+            step=0.05,
+            getter=lambda: prefs.get("qa_export_verification_floor", QA_EXPORT_VERIFICATION_FLOOR),
+            setter=lambda v: prefs.set("qa_export_verification_floor", float(v)),
         )
     )
 

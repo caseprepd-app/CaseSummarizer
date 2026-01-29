@@ -89,7 +89,11 @@ class WindowLayoutMixin:
 
         # Settings button (right)
         self.settings_btn = ctk.CTkButton(
-            self.header_frame, text="Settings", width=100, command=self._open_settings
+            self.header_frame,
+            text="Settings",
+            width=100,
+            corner_radius=6,
+            command=self._open_settings,
         )
         self.settings_btn.pack(side="right", padx=15, pady=10)
 
@@ -160,7 +164,11 @@ class WindowLayoutMixin:
         file_btn_frame.grid(row=2, column=0, sticky="ew", padx=10, pady=5)
 
         self.add_files_btn = ctk.CTkButton(
-            file_btn_frame, text="+ Add Files", width=100, command=self._select_files
+            file_btn_frame,
+            text="+ Add Files",
+            width=100,
+            corner_radius=6,
+            command=self._select_files,
         )
         self.add_files_btn.pack(side="left", padx=(0, 5))
 
@@ -168,6 +176,7 @@ class WindowLayoutMixin:
             file_btn_frame,
             text="Clear All",
             width=80,
+            corner_radius=6,
             fg_color=("gray70", "gray30"),
             command=self._clear_files,
         )
@@ -184,12 +193,16 @@ class WindowLayoutMixin:
         )
         self.stats_label.grid(row=3, column=0, sticky="w", padx=10, pady=(5, 0))
 
+        # Separator between documents and tasks
+        separator = ctk.CTkFrame(self.left_panel, height=1, fg_color=COLORS["text_disabled"])
+        separator.grid(row=4, column=0, sticky="ew", padx=10, pady=(8, 2))
+
         # Task checkboxes section
         task_header = ctk.CTkLabel(self.left_panel, text="TASKS", font=FONTS["body_bold"])
-        task_header.grid(row=4, column=0, sticky="w", padx=10, pady=(10, 5))
+        task_header.grid(row=5, column=0, sticky="w", padx=10, pady=(8, 5))
 
         task_frame = ctk.CTkFrame(self.left_panel, **FRAME_STYLES["transparent"])
-        task_frame.grid(row=5, column=0, sticky="ew", padx=10, pady=0)
+        task_frame.grid(row=6, column=0, sticky="ew", padx=10, pady=0)
 
         # Vocabulary checkbox (default ON) - moved to first position
         self.vocab_check = ctk.CTkCheckBox(
@@ -235,9 +248,10 @@ class WindowLayoutMixin:
             text="Perform 2 Tasks",
             font=FONTS["heading"],
             height=40,
+            corner_radius=6,
             command=self._perform_tasks,
         )
-        self.generate_btn.grid(row=6, column=0, sticky="ew", padx=10, pady=(15, 5))
+        self.generate_btn.grid(row=7, column=0, sticky="ew", padx=10, pady=(15, 5))
 
         # Task preview label (Session 69) - shows what will run
         self.task_preview_label = ctk.CTkLabel(
@@ -248,7 +262,7 @@ class WindowLayoutMixin:
             wraplength=280,  # Fixed width suitable for left panel (approx 300px)
             justify="left",
         )
-        self.task_preview_label.grid(row=7, column=0, sticky="w", padx=10, pady=(0, 10))
+        self.task_preview_label.grid(row=8, column=0, sticky="w", padx=10, pady=(0, 10))
 
     def _create_right_panel(self):
         """Create the right panel with results display."""
@@ -302,6 +316,7 @@ class WindowLayoutMixin:
             self.followup_frame,
             text="Ask",
             width=60,
+            corner_radius=6,
             command=self._ask_followup,
             state="disabled",  # Enabled after Q&A vector store is built
         )

@@ -580,14 +580,27 @@ DESCRIPTIONS = {
     # Q&A Export
     # =======================================================================
     "qa_export_confidence_floor": {
-        "label": "Q&A export confidence floor",
+        "label": "Q&A export retrieval floor",
         "tooltip": (
-            "Minimum confidence score (0-1) for a Q&A answer to be\n"
-            "included in exports. Answers below this threshold are\n"
-            "excluded from Export All and combined HTML reports.\n\n"
+            "Minimum FAISS retrieval confidence (0-1) for a Q&A answer\n"
+            "to be included in exports. This measures how relevant the\n"
+            "retrieved document chunks were to the question.\n\n"
+            "Both this AND the verification floor must be met.\n\n"
+            "Default: 0.40 (40%)\n\n"
+            "Increase: Require stronger document matches.\n"
+            "Decrease: Allow weaker matches if verification is high."
+        ),
+    },
+    "qa_export_verification_floor": {
+        "label": "Q&A export verification floor",
+        "tooltip": (
+            "Minimum hallucination verification reliability (0-1) for\n"
+            "a Q&A answer to be included in exports. This measures how\n"
+            "well the answer is supported by the source text.\n\n"
+            "Both this AND the retrieval floor must be met.\n\n"
             "Default: 0.80 (80%)\n\n"
-            "Increase: Only export highly confident answers.\n"
-            "Decrease: Include more answers even with lower confidence."
+            "Increase: Only export highly verified answers.\n"
+            "Decrease: Include answers with less verification certainty."
         ),
     },
 }

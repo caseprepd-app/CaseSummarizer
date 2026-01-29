@@ -91,10 +91,15 @@ class QAResult:
 
     @property
     def is_exportable(self) -> bool:
-        """Whether this result meets quality thresholds for export."""
+        """Whether this result meets quality thresholds for export.
+
+        Both retrieval confidence AND verification reliability must meet
+        their respective configurable floors. This ensures two independent
+        signals confirm the answer quality.
+        """
         import math
 
-        from src.config import QA_EXPORT_CONFIDENCE_FLOOR
+        from src.config import QA_EXPORT_CONFIDENCE_FLOOR, QA_EXPORT_VERIFICATION_FLOOR
         from src.core.qa.qa_constants import REJECTION_TEXT, UNANSWERED_TEXT
 
         # Filter NaN or non-finite confidence
@@ -106,8 +111,14 @@ class QAResult:
         # Filter rejected answers
         if self.quick_answer == REJECTION_TEXT:
             return False
-        # Filter below confidence threshold
-        return self.confidence >= QA_EXPORT_CONFIDENCE_FLOOR
+        # Retrieval confidence must meet floor
+        if self.confidence < QA_EXPORT_CONFIDENCE_FLOOR:
+            return False
+        # Verification reliability must meet floor (if verification ran)
+        if self.verification:
+            return self.verification.overall_reliability >= QA_EXPORT_VERIFICATION_FLOOR
+        # No verification available — fall back to retrieval confidence only
+        return True
 
 
 @dataclass

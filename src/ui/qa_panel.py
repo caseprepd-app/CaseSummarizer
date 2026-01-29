@@ -237,8 +237,10 @@ class QAPanel(ctk.CTkFrame):
             answer_rejected = False
 
             if result.verification:
-                # Show reliability header
+                # Show reliability header and retrieval score
                 self._insert_reliability_header(result.verification)
+                retrieval_pct = int(result.confidence * 100)
+                self.text_display.insert("end", f"[Retrieval: {retrieval_pct}%]\n", "score_detail")
 
                 if result.verification.answer_rejected:
                     # Show rejection message in unreliable color
@@ -250,7 +252,12 @@ class QAPanel(ctk.CTkFrame):
                     # Show color-coded verified answer
                     self._insert_verified_answer(result.verification)
             else:
-                # No verification - show plain answer
+                # No verification - show plain answer with retrieval score
+                if result.confidence > 0:
+                    retrieval_pct = int(result.confidence * 100)
+                    self.text_display.insert(
+                        "end", f"[Retrieval: {retrieval_pct}%]\n", "score_detail"
+                    )
                 self.text_display.insert("end", f"{result.quick_answer}\n\n", "answer")
 
             # Only show citation and source if answer was NOT rejected
@@ -324,7 +331,7 @@ class QAPanel(ctk.CTkFrame):
         self.text_display.insert("end", "\n\n")
 
     def _insert_verification_legend(self):
-        """Insert color legend at bottom of display to explain verification colors."""
+        """Insert color legend and score explanations at bottom of display."""
         self.text_display.insert("end", "\n")
         self.text_display.insert("end", "─" * 80 + "\n", "separator")
         self.text_display.insert("end", "Verification Legend: ", "legend_label")
@@ -342,7 +349,21 @@ class QAPanel(ctk.CTkFrame):
             self.text_display.insert("end", label, tag)
             self.text_display.insert("end", " ", "answer")  # Space between items
 
-        self.text_display.insert("end", "\n")
+        self.text_display.insert("end", "\n\n", "answer")
+
+        # Score explanations
+        self.text_display.insert(
+            "end",
+            "Reliability = How well the answer is supported by the source text "
+            "(anti-hallucination check)\n",
+            "score_detail",
+        )
+        self.text_display.insert(
+            "end",
+            "Retrieval = How semantically relevant the retrieved document "
+            "chunks are to the question\n",
+            "score_detail",
+        )
 
     def _set_all_include(self, include: bool):
         """Set include_in_export for all results."""

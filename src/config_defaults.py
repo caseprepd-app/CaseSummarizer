@@ -408,6 +408,14 @@ DEFAULTS = {
     # Q&A Export
     # =======================================================================
     "qa_export_confidence_floor": {
+        "value": 0.40,
+        "min": 0.0,
+        "max": 1.0,
+        "step": 0.05,
+        "type": "float",
+        "category": "Q&A Export",
+    },
+    "qa_export_verification_floor": {
         "value": 0.80,
         "min": 0.0,
         "max": 1.0,

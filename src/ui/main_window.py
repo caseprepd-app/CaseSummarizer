@@ -120,6 +120,13 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         self._qa_results_lock = threading.Lock()  # LOG-007: Thread-safe access
         self._qa_ready = False  # Session 45: Q&A becomes available after indexing
 
+        # Apply saved font size preference before building UI
+        from src.ui.theme import scale_fonts
+        from src.user_preferences import get_user_preferences
+
+        _prefs = get_user_preferences()
+        scale_fonts(_prefs.get("font_size", "medium"))
+
         # Initialize all ttk styles once at startup (prevents freeze on first view switch)
         initialize_all_styles()
 
@@ -1813,6 +1820,10 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
     def _open_settings(self):
         """Open the settings dialog."""
         from src.ui.settings.settings_dialog import SettingsDialog
+        from src.user_preferences import get_user_preferences
+
+        prefs = get_user_preferences()
+        font_size_before = prefs.get("font_size", "medium")
 
         try:
             dialog = SettingsDialog(parent=self)
@@ -1828,6 +1839,14 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         self._update_qa_checkbox_state()  # Session 90: Refresh Q&A checkbox for model size
         self._update_summary_checkbox_state()  # Session 93: Refresh Summary checkbox
         self.refresh_default_questions_label()  # Update question count after settings change
+
+        # Prompt restart if font size changed
+        font_size_after = prefs.get("font_size", "medium")
+        if font_size_after != font_size_before:
+            messagebox.showinfo(
+                "Restart Required",
+                "Font size changed. Please restart the application for the new size to take full effect.",
+            )
 
     # =========================================================================
     # Export All (tabbed HTML)
