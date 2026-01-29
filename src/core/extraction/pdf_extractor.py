@@ -34,6 +34,54 @@ logger = logging.getLogger(__name__)
 from .dictionary_utils import TermExtractionHelpers
 
 
+def extract_portfolio_pdf(file_path: Path) -> bytes | None:
+    """
+    Detect PDF Portfolio/Bundle files and extract the embedded PDF.
+
+    PDF Portfolios are wrapper PDFs (often a 1-page cover sheet) with the
+    real document embedded as an attachment. This function finds and returns
+    the first embedded .pdf attachment.
+
+    Args:
+        file_path: Path to the PDF file
+
+    Returns:
+        Raw bytes of the embedded PDF, or None if not a portfolio
+    """
+    try:
+        with fitz.open(file_path) as doc:
+            if doc.embfile_count() == 0:
+                return None
+
+            logger.info(
+                "PDF Portfolio detected: %d embedded file(s) in %s",
+                doc.embfile_count(),
+                file_path.name,
+            )
+
+            # Find first .pdf attachment
+            for name in doc.embfile_names():
+                info = doc.embfile_info(name)
+                embedded_filename = info.get("filename", "")
+                if embedded_filename.lower().endswith(".pdf"):
+                    logger.info(
+                        "Extracting embedded PDF: %s (%d bytes)",
+                        embedded_filename,
+                        info.get("size", 0),
+                    )
+                    return doc.embfile_get(name)
+
+            logger.warning(
+                "PDF Portfolio has attachments but none are PDFs: %s",
+                doc.embfile_names(),
+            )
+            return None
+
+    except Exception as e:
+        logger.debug("Portfolio detection skipped: %s", e)
+        return None
+
+
 class PDFExtractor:
     """
     Extracts text from PDF files using hybrid dual-extractor voting.

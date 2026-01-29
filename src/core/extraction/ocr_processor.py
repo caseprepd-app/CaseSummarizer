@@ -152,13 +152,22 @@ class OCRProcessor:
             }
 
         except Exception as e:
+            error_msg = str(e)
+            if "poppler" in error_msg.lower() or "pdftoppm" in error_msg.lower():
+                error_msg = (
+                    "OCR unavailable — install Poppler to process scanned PDFs. "
+                    "Download from: https://github.com/osber/poppler-windows/releases"
+                )
+            else:
+                error_msg = f"OCR processing failed: {error_msg}"
+
             return {
                 "text": None,
                 "page_count": page_count,
                 "method": None,
                 "confidence": 0,
                 "status": "error",
-                "error_message": f"OCR processing failed: {e!s}",
+                "error_message": error_msg,
             }
 
     def process_image(self, image) -> dict:

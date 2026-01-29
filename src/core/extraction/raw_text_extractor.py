@@ -283,9 +283,32 @@ class RawTextExtractor:
 
     def _process_pdf(self, file_path: Path) -> dict:
         """Process PDF with hybrid extraction, falling back to OCR if needed."""
-        from src.config import MIN_DICTIONARY_CONFIDENCE
+        import tempfile
+
+        from .pdf_extractor import extract_portfolio_pdf
 
         logger.debug("Processing PDF: %s", file_path.name)
+
+        # Step 0: Check for PDF Portfolio (bundle with embedded PDF)
+        temp_path = None
+        try:
+            embedded_bytes = extract_portfolio_pdf(file_path)
+            if embedded_bytes:
+                temp_file = tempfile.NamedTemporaryFile(suffix=".pdf", delete=False)
+                temp_file.write(embedded_bytes)
+                temp_file.close()
+                temp_path = Path(temp_file.name)
+                logger.info("Using embedded PDF from portfolio: %s", file_path.name)
+                file_path = temp_path
+
+            return self._process_pdf_inner(file_path)
+        finally:
+            if temp_path and temp_path.exists():
+                temp_path.unlink()
+
+    def _process_pdf_inner(self, file_path: Path) -> dict:
+        """Core PDF processing logic (extracted for portfolio support)."""
+        from src.config import MIN_DICTIONARY_CONFIDENCE
 
         # Step 1: Try PyMuPDF extraction (primary)
         # Uses facade methods so tests can mock them
