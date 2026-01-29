@@ -75,6 +75,13 @@ DEFAULTS = {
         "type": "int",
         "category": "Quality Scoring",
     },
+    "score_textrank_centrality_boost": {
+        "value": 8,
+        "min": 0,
+        "max": 15,
+        "type": "int",
+        "category": "Quality Scoring",
+    },
     # =======================================================================
     # BM25 Algorithm
     # =======================================================================

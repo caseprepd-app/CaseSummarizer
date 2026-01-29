@@ -103,6 +103,17 @@ DESCRIPTIONS = {
             "Less negative: More lenient toward terms found by one method."
         ),
     },
+    "score_textrank_centrality_boost": {
+        "label": "TextRank centrality boost",
+        "tooltip": (
+            "Maximum boost for terms with high TextRank centrality.\n"
+            "TextRank measures how central a term is in the document's\n"
+            "word co-occurrence graph (PageRank on words).\n\n"
+            "Default: +8 points (scaled by centrality score 0-1)\n\n"
+            "Higher: Favor terms that are well-connected to other terms.\n"
+            "Lower: Reduce influence of graph centrality on ranking."
+        ),
+    },
     # =======================================================================
     # BM25 Algorithm
     # =======================================================================

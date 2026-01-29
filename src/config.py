@@ -200,6 +200,7 @@ SCORE_MULTI_DOC_BOOST = _d("score_multi_doc_boost")
 SCORE_HIGH_CONF_BOOST = _d("score_high_conf_boost")
 SCORE_ALL_LOW_CONF_PENALTY = _d("score_all_low_conf_penalty")
 SCORE_SINGLE_SOURCE_PENALTY = _d("score_single_source_penalty")
+SCORE_TEXTRANK_CENTRALITY_BOOST = _d("score_textrank_centrality_boost")
 SCORE_SINGLE_SOURCE_MIN_DOCS = 3  # Only apply single-source penalty when session has 3+ docs
 SCORE_SINGLE_SOURCE_CONF_THRESHOLD = 0.70  # Confidence threshold for single-source penalty
 

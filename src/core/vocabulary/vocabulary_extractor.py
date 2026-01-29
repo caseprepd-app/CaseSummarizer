@@ -725,8 +725,13 @@ class VocabularyExtractor:
 
             # Calculate quality score
             frequency_rank = self._get_term_frequency_rank(term)
+            textrank_score = float(merged.metadata.get("textrank_score", 0.0))
             base_quality_score = self._calculate_quality_score(
-                is_person, merged.frequency, frequency_rank, len(merged.sources)
+                is_person,
+                merged.frequency,
+                frequency_rank,
+                len(merged.sources),
+                textrank_score=textrank_score,
             )
 
             # Build term data for potential ML boost
@@ -905,6 +910,7 @@ class VocabularyExtractor:
         algorithm_count: int,
         term_sources: TermSources | None = None,
         total_docs_in_session: int = 1,
+        textrank_score: float = 0.0,
     ) -> float:
         """
         Calculate composite quality score (0-100).
@@ -918,6 +924,7 @@ class VocabularyExtractor:
             algorithm_count: Number of algorithms that found this term
             term_sources: Optional TermSources for per-document confidence data
             total_docs_in_session: Total documents in this extraction session
+            textrank_score: TextRank centrality score (0-1), 0 if not available
 
         Returns:
             Quality score between 0.0 and 100.0
@@ -929,6 +936,7 @@ class VocabularyExtractor:
             SCORE_SINGLE_SOURCE_CONF_THRESHOLD,
             SCORE_SINGLE_SOURCE_MIN_DOCS,
             SCORE_SINGLE_SOURCE_PENALTY,
+            SCORE_TEXTRANK_CENTRALITY_BOOST,
         )
 
         score = 50.0  # Base score
@@ -958,6 +966,11 @@ class VocabularyExtractor:
         # Terms found by multiple algorithms are more trustworthy
         if algorithm_count >= 2:
             score += min(algorithm_count * 3, 10)
+
+        # Boost for TextRank centrality (scaled by score, capped at config max)
+        # High centrality = term is well-connected in document's word graph
+        if textrank_score > 0:
+            score += min(textrank_score * 10, SCORE_TEXTRANK_CENTRALITY_BOOST)
 
         # === TermSources-based adjustments (Session 79) ===
         if term_sources is not None and term_sources.num_documents > 0:
