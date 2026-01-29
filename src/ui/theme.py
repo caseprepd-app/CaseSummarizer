@@ -277,7 +277,7 @@ QA_TEXT_TAGS = {
     # Legend label
     "legend_label": {"foreground": COLORS["text_secondary"], "font": FONTS["small"]},
     # Score detail (retrieval confidence, shown alongside verification)
-    "score_detail": {"foreground": COLORS["text_secondary"], "font": FONTS["small"]},
+    "score_detail": {"foreground": COLORS["text_secondary"], "font": FONTS["body_bold"]},
 }
 
 

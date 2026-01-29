@@ -237,10 +237,10 @@ class QAPanel(ctk.CTkFrame):
             answer_rejected = False
 
             if result.verification:
-                # Show reliability header and retrieval score
-                self._insert_reliability_header(result.verification)
+                # Show retrieval score then reliability header (same font weight)
                 retrieval_pct = int(result.confidence * 100)
                 self.text_display.insert("end", f"[Retrieval: {retrieval_pct}%]\n", "score_detail")
+                self._insert_reliability_header(result.verification)
 
                 if result.verification.answer_rejected:
                     # Show rejection message in unreliable color
