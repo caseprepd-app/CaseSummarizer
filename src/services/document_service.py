@@ -35,7 +35,32 @@ class DocumentService:
         """Initialize the document service with default components."""
         self.extractor = RawTextExtractor()
         self.sanitizer = CharacterSanitizer()
-        self.preprocessor = create_default_pipeline()
+        self.preprocessor = create_default_pipeline(self._get_preprocessing_settings())
+
+    @staticmethod
+    def _get_preprocessing_settings() -> dict:
+        """
+        Read preprocessing toggle settings from user preferences.
+
+        Returns:
+            Dict of setting_key -> bool for each preprocessing toggle.
+        """
+        try:
+            from src.user_preferences import get_user_preferences
+
+            prefs = get_user_preferences()
+            keys = [
+                "preprocess_title_pages",
+                "preprocess_index_pages",
+                "preprocess_headers_footers",
+                "preprocess_line_numbers",
+                "preprocess_page_boundaries",
+                "preprocess_transcript_artifacts",
+                "preprocess_qa_notation",
+            ]
+            return {k: prefs.get(k, True) for k in keys}
+        except Exception:
+            return {}
 
     def process_documents(
         self, file_paths: list[str], progress_callback: Callable[[int, int], None] | None = None

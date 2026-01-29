@@ -194,8 +194,9 @@ class ProcessingWorker(BaseWorker):
         # Store as "preprocessed_text" so downstream consumers don't need to preprocess again
         if self.processed_results:
             from src.core.preprocessing import create_default_pipeline
+            from src.services.document_service import DocumentService
 
-            preprocessor = create_default_pipeline()
+            preprocessor = create_default_pipeline(DocumentService._get_preprocessing_settings())
             for result in self.processed_results:
                 extracted = result.get("extracted_text", "")
                 if extracted:

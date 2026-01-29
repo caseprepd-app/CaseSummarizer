@@ -932,6 +932,80 @@ def _register_all_settings():
     )
 
     # ===================================================================
+    # TEXT PREPROCESSING TAB
+    # ===================================================================
+
+    _preprocess_toggles = [
+        (
+            "preprocess_title_pages",
+            "Remove title pages",
+            "Remove cover/title pages from the start of legal transcripts.\n\n"
+            "These pages typically contain case caption, court info, and "
+            "reporter details that aren't part of the testimony.",
+        ),
+        (
+            "preprocess_index_pages",
+            "Remove index pages",
+            "Remove index/concordance pages from the end of transcripts.\n\n"
+            "These are alphabetical reference pages that list where topics "
+            "appear — useful in print but noise for AI summarization.",
+        ),
+        (
+            "preprocess_headers_footers",
+            "Remove headers/footers",
+            "Remove repetitive headers and footers that appear on every page.\n\n"
+            "Detected by frequency analysis — text that repeats on most pages "
+            "is identified as a header or footer and removed.",
+        ),
+        (
+            "preprocess_line_numbers",
+            "Remove line numbers",
+            "Remove margin line numbers (1-25) common in court transcripts.\n\n"
+            "These numbers are used for reference during depositions but add "
+            "noise when processing text for AI analysis.",
+        ),
+        (
+            "preprocess_page_boundaries",
+            "Clean page boundary artifacts",
+            "Clean artifacts caused by collapsed page boundaries in PDF extraction.\n\n"
+            "When PDF text extraction doesn't preserve page breaks, line numbers, "
+            "page numbers, reporter initials, and headers can merge into body text. "
+            "This cleaner detects and removes those artifacts.\n\n"
+            "Example: '...this 1 2 3 ... 24 sn Proceedings 29 1 Court.' becomes "
+            "'...this Court.'",
+        ),
+        (
+            "preprocess_transcript_artifacts",
+            "Clean transcript artifacts",
+            "Remove transcript-specific artifacts like standalone page numbers "
+            "and inline concordance citations.\n\n"
+            "Handles patterns like embedded page:line references that appear "
+            "in some transcript formats.",
+        ),
+        (
+            "preprocess_qa_notation",
+            "Convert Q/A notation",
+            "Convert shorthand Q./A. notation to readable 'Question:'/'Answer:' "
+            "format.\n\n"
+            "Makes transcript dialogue easier to read in summaries.",
+        ),
+    ]
+
+    for _key, _label, _tooltip in _preprocess_toggles:
+        SettingsRegistry.register(
+            SettingDefinition(
+                key=_key,
+                label=_label,
+                category="Text Preprocessing",
+                setting_type=SettingType.CHECKBOX,
+                tooltip=_tooltip + "\n\nChanges apply on next document load.",
+                default=True,
+                getter=(lambda k=_key: prefs.get(k, True)),
+                setter=(lambda v, k=_key: prefs.set(k, v)),
+            )
+        )
+
+    # ===================================================================
     # CORPUS TAB (Session 64)
     # ===================================================================
 
