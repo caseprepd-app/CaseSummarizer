@@ -75,12 +75,30 @@ DEFAULTS = {
         "type": "int",
         "category": "Quality Scoring",
     },
+    "textrank_max_text_kb": {
+        "value": 1000,
+        "min": 200,
+        "max": 5000,
+        "step": 100,
+        "type": "int",
+        "category": "Quality Scoring",
+    },
     "score_textrank_centrality_boost": {
         "value": 8,
         "min": 0,
         "max": 15,
         "type": "int",
         "category": "Quality Scoring",
+    },
+    # =======================================================================
+    # RAKE Algorithm
+    # =======================================================================
+    "rake_min_frequency": {
+        "value": 3,
+        "min": 1,
+        "max": 10,
+        "type": "int",
+        "category": "RAKE Algorithm",
     },
     # =======================================================================
     # BM25 Algorithm

@@ -551,16 +551,20 @@ SYSTEM_MONITOR_THRESHOLD_YELLOW = 85  # 75-84%: Yellow (elevated)
 SYSTEM_MONITOR_THRESHOLD_CRITICAL = 90  # 90%+: Red with "!" indicator
 
 # Vocabulary Extraction Performance Settings
-# Max text size in KB for spaCy NLP processing
-# spaCy processes ~10-20K words/sec; 200KB ≈ 35K words ≈ 2-3 seconds
-# Larger documents are truncated (still captures most named entities from early pages)
-VOCABULARY_MAX_TEXT_KB = 200  # 200KB max for NLP processing (200,000 characters)
+# Max text size in KB for vocabulary orchestrator (safety net for degenerate inputs)
+# Individual algorithms handle their own limits internally
+VOCABULARY_MAX_TEXT_KB = 10000  # 10MB (~2,500 pages) - safety net only
+
+# TextRank-specific limit (O(n^2) on vocabulary size)
+TEXTRANK_MAX_TEXT_KB = 1000  # 1MB (~250 pages) - balances coverage vs performance
+
+# RAKE minimum phrase frequency — phrases appearing fewer times are filtered
+RAKE_MIN_FREQUENCY = 3
 
 # spaCy batch processing - higher values process faster with more memory
 # Testing shows: batch_size=4 (baseline), 8 (~17% faster), 16 (~25% faster but +100MB RAM)
 # Lower values yield the GIL more often, keeping GUI responsive during NER
-# Default: 2 for GUI responsiveness (batch_size doesn't affect NER accuracy)
-VOCABULARY_BATCH_SIZE = 2
+VOCABULARY_BATCH_SIZE = 16
 
 # Parallel Processing Configuration
 # Controls concurrent document extraction for multi-file workflows

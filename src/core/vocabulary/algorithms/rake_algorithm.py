@@ -71,7 +71,7 @@ class RAKEAlgorithm(BaseExtractionAlgorithm):
         min_length: int = 1,
         max_length: int = 3,
         include_stopwords: bool = False,
-        min_frequency: int = 1,
+        min_frequency: int | None = None,
         max_candidates: int = 150,
         min_score: float = 2.0,
     ):
@@ -86,6 +86,10 @@ class RAKEAlgorithm(BaseExtractionAlgorithm):
             max_candidates: Maximum candidates to return (default: 150)
             min_score: Minimum RAKE score to consider (default: 2.0)
         """
+        if min_frequency is None:
+            from src.config import RAKE_MIN_FREQUENCY
+
+            min_frequency = RAKE_MIN_FREQUENCY
         self.min_length = min_length
         self.max_length = max_length
         self.include_stopwords = include_stopwords

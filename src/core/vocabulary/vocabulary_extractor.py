@@ -258,11 +258,15 @@ class VocabularyExtractor:
         original_kb = len(text) // 1024
         logger.debug("Starting multi-algorithm extraction on %sKB document", original_kb)
 
-        # Limit text size
+        # Limit text size (safety net — individual algorithms handle own limits)
         max_chars = VOCABULARY_MAX_TEXT_KB * 1024
         if len(text) > max_chars:
             text = text[:max_chars]
-            logger.debug("Truncated to %sKB for processing", VOCABULARY_MAX_TEXT_KB)
+            logger.warning(
+                "Truncated to %sKB for processing (input was %sKB)",
+                VOCABULARY_MAX_TEXT_KB,
+                original_kb,
+            )
 
         # 1. Run all enabled algorithms (parallel when possible - Session 69)
         all_results = self._run_algorithms_parallel(text)
@@ -334,11 +338,15 @@ class VocabularyExtractor:
         original_kb = len(text) // 1024
         logger.debug("Starting progressive extraction on %sKB document", original_kb)
 
-        # Limit text size
+        # Limit text size (safety net — individual algorithms handle own limits)
         max_chars = VOCABULARY_MAX_TEXT_KB * 1024
         if len(text) > max_chars:
             text = text[:max_chars]
-            logger.debug("Truncated to %sKB for processing", VOCABULARY_MAX_TEXT_KB)
+            logger.warning(
+                "Truncated to %sKB for processing (input was %sKB)",
+                VOCABULARY_MAX_TEXT_KB,
+                original_kb,
+            )
 
         # Separate algorithms into fast (BM25, RAKE) and slow (NER)
         fast_algorithms = []
@@ -520,7 +528,7 @@ class VocabularyExtractor:
 
         # 3.5 Filter out common words and apply frequency thresholds (Session 45)
         logger.debug("Phase 3.5: Filtering common words...")
-        filtered_reconciled = self._filter_reconciled_terms(reconciled, doc_count)
+        filtered_reconciled = self._filter_reconciled_terms(reconciled, doc_count, len(text))
         logger.debug(
             "After filtering: %s terms (removed %s)",
             len(filtered_reconciled),
@@ -690,7 +698,9 @@ class VocabularyExtractor:
         """
         vocabulary = []
         seen_terms = set()
-        frequency_threshold = doc_count * 4
+        # Estimate total pages across all docs (~3500 chars per transcript page)
+        estimated_pages = max(len(full_text) // 3500, 1) * doc_count
+        frequency_threshold = estimated_pages * 5
         # Total unique terms for ML occurrence_ratio feature
         total_unique_terms = len(merged_terms)
 
@@ -802,7 +812,9 @@ class VocabularyExtractor:
             # For non-person terms, detect based on term characteristics
             return "Vocabulary term"
 
-    def _filter_reconciled_terms(self, reconciled: list, doc_count: int) -> list:
+    def _filter_reconciled_terms(
+        self, reconciled: list, doc_count: int, text_length: int = 0
+    ) -> list:
         """
         Filter reconciled terms for single-word noise (Session 45).
 
@@ -827,7 +839,9 @@ class VocabularyExtractor:
 
         filtered = []
         seen_terms = set()
-        frequency_threshold = doc_count * 4  # Same as _post_process
+        # Estimate total pages across all docs (~3500 chars per transcript page)
+        estimated_pages = max(text_length // 3500, 1) * doc_count
+        frequency_threshold = estimated_pages * 5
 
         for term_obj in reconciled:
             term = term_obj.term
@@ -1307,10 +1321,11 @@ class VocabularyExtractor:
         """
         logger.debug("Extracting from document %s... (conf=%.1f%%)", doc_id[:12], doc_confidence)
 
-        # Limit text size
+        # Limit text size (safety net — individual algorithms handle own limits)
         max_chars = VOCABULARY_MAX_TEXT_KB * 1024
         if len(text) > max_chars:
             text = text[:max_chars]
+            logger.warning("Truncated to %sKB for processing", VOCABULARY_MAX_TEXT_KB)
 
         # Run algorithms
         all_results = self._run_algorithms_parallel(text)

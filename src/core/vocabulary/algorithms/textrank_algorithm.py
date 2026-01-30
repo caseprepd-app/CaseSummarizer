@@ -100,7 +100,9 @@ class TextRankAlgorithm(BaseExtractionAlgorithm):
                 )
 
         # Truncate very long texts (TextRank is O(n^2) on vocabulary)
-        max_chars = 200_000
+        from src.config import TEXTRANK_MAX_TEXT_KB
+
+        max_chars = TEXTRANK_MAX_TEXT_KB * 1024
         truncated = len(text) > max_chars
         process_text = text[:max_chars] if truncated else text
 
