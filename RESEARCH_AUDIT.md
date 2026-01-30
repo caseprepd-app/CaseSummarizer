@@ -225,10 +225,10 @@
 ## Stage 5b: Q&A / RAG Retrieval
 
 ### Current Approach
-- FAISS vector search with all-MiniLM-L6-v2 embeddings
+- FAISS vector search with modernbert-embed-large embeddings (1024 dims, 8192-token context)
 - Custom BM25+ for keyword retrieval
 - Hybrid: BM25 weight 1.0, FAISS weight 0.5
-- bge-reranker-base cross-encoder reranking
+- gte-reranker-modernbert-base cross-encoder reranking
 - LlamaIndex + Ollama query expansion
 - LettuceDetect (ModernBERT, 150M params) for hallucination detection
 

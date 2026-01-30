@@ -519,9 +519,8 @@ class WorkflowOrchestrator:
 
         def ask_question():
             try:
-                from langchain_huggingface import HuggingFaceEmbeddings
-
                 from src.services import QAService
+                from src.services.qa_service import get_embeddings_model
                 from src.user_preferences import get_user_preferences
 
                 logger.debug("Asking follow-up: %s...", question[:50])
@@ -530,11 +529,8 @@ class WorkflowOrchestrator:
                 prefs = get_user_preferences()
                 answer_mode = prefs.get("qa_answer_mode", "ollama")
 
-                # Initialize embeddings
-                # IMPORTANT: Explicitly set device='cpu' to avoid "meta tensor" errors
-                embeddings = HuggingFaceEmbeddings(
-                    model_name="all-MiniLM-L6-v2", model_kwargs={"device": "cpu"}
-                )
+                # Initialize embeddings (shared instance, GPU-aware)
+                embeddings = get_embeddings_model()
 
                 # Create orchestrator with vector store path via QAService
                 qa_service = QAService()
