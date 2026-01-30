@@ -492,6 +492,40 @@ NON_NER_PHRASE_MEAN_PASSTHROUGH_THRESHOLD = 0.65
 # 0.10 = exclude words in the top 10% most common English words
 NON_NER_PHRASE_COMMON_WORD_FLOOR = 0.10
 
+# Person Title Prefixes (Session 140 - title-aware name synthesis)
+# Used by name_deduplicator.py to merge "Dr. Jones" + "James Jones" → "James Jones (Dr.)"
+# Split into generic (discardable in conflict) and role (kept as separate entries)
+PERSON_TITLE_PREFIXES_GENERIC = ["mr.", "ms.", "mrs."]
+PERSON_TITLE_PREFIXES_ROLE = [
+    "dr.",
+    "hon.",
+    "judge",
+    "justice",
+    "senator",
+    "nurse",
+    "officer",
+    "trooper",
+    "investigator",
+    "referee",
+]
+PERSON_TITLE_PREFIXES = PERSON_TITLE_PREFIXES_GENERIC + PERSON_TITLE_PREFIXES_ROLE
+
+# Transcript Section Keywords (Session 140 - header artifact removal)
+# Used by artifact_filter.py to detect "Smith - Direct" style artifacts
+TRANSCRIPT_SECTION_KEYWORDS = {
+    "direct",
+    "cross",
+    "redirect",
+    "recross",
+    "examination",
+    "voir",
+    "dire",
+    "rebuttal",
+    "continued",
+    "resumed",
+    "recalled",
+}
+
 # Artifact Filter: Common word threshold for detecting name+common-word artifacts
 # Used to identify patterns like "Luigi Napolitano Patient" where "Patient" is common
 # Words with rank below this threshold are considered "common" for artifact detection

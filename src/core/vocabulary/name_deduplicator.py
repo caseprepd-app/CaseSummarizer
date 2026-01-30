@@ -20,7 +20,9 @@ import logging
 import re
 from difflib import SequenceMatcher
 
-from src.config import NAME_SIMILARITY_THRESHOLD
+from src.config import (
+    NAME_SIMILARITY_THRESHOLD,
+)
 from src.core.vocabulary.canonical_scorer import create_canonical_scorer
 from src.core.vocabulary.name_regularizer import _load_known_words
 from src.core.vocabulary.person_utils import is_person_entry
@@ -111,7 +113,11 @@ def deduplicate_names(
             "Merged %d Person variants into %d canonical names", merged_count, len(deduplicated)
         )
 
-    return other_terms + deduplicated
+    # Phase 5: Title synthesis — merge "Dr. Jones" + "James Jones" → "James Jones (Dr.)"
+    result = other_terms + deduplicated
+    result = _synthesize_titled_names(result)
+
+    return result
 
 
 def _strip_transcript_artifacts(name: str) -> str:
@@ -268,6 +274,293 @@ def _build_candidate_pairs(keys: list[str]) -> set[tuple[int, int]]:
                 pairs.add((idx1, idx2))
 
     return pairs
+
+
+def _strip_title_prefix(name: str) -> tuple[str, str]:
+    """
+    Strip a title prefix from a person name.
+
+    Args:
+        name: Person name, possibly with title (e.g., "Dr. Jones")
+
+    Returns:
+        Tuple of (name_without_title, title) or (name, "") if no title.
+        Title is returned lowercase with trailing dot if applicable.
+    """
+    name_lower = name.lower().strip()
+    for prefix in PERSON_TITLE_PREFIXES:
+        # Match with or without trailing period
+        prefix_no_dot = prefix.rstrip(".")
+        if name_lower.startswith(prefix + " ") or name_lower.startswith(prefix_no_dot + " "):
+            # Find the actual prefix length in original string
+            if name_lower.startswith(prefix + " "):
+                stripped = name[len(prefix) :].strip()
+            else:
+                stripped = name[len(prefix_no_dot) :].strip()
+            if stripped:
+                return stripped, prefix
+    return name, ""
+
+
+def _is_role_title(title: str) -> bool:
+    """
+    Check if a title is a role title (meaningful) vs generic (discardable).
+
+    Args:
+        title: Lowercase title string (e.g., "dr.", "mr.")
+
+    Returns:
+        True if role title, False if generic
+    """
+    title_normalized = title.lower().rstrip(".")
+    for role in PERSON_TITLE_PREFIXES_ROLE:
+        if role.rstrip(".") == title_normalized:
+            return True
+    return False
+
+
+def _merge_titled_into_target(
+    titled_entry: dict, target_entry: dict, title: str, modified_entries: dict
+) -> None:
+    """
+    Merge a titled entry's frequency and sources into a target full-name entry.
+
+    Modifies modified_entries in-place. Creates a copy of target_entry if
+    not already tracked.
+
+    Args:
+        titled_entry: The title-prefixed entry (e.g., "Dr. Jones")
+        target_entry: The full-name entry to merge into (e.g., "James Jones")
+        title: The title string (e.g., "dr.")
+        modified_entries: Dict of term -> modified entry (mutated in-place)
+    """
+    freq_key = "In-Case Freq"
+    target_term = target_entry.get("Term", "")
+
+    if target_term not in modified_entries:
+        modified_entries[target_term] = target_entry.copy()
+
+    mod = modified_entries[target_term]
+
+    # Merge frequency
+    mod[freq_key] = mod.get(freq_key, 0) + titled_entry.get(freq_key, 1)
+    if "in_case_freq" in mod:
+        mod["in_case_freq"] = mod[freq_key]
+
+    # Merge TermSources if available
+    if "sources" in titled_entry and "sources" in mod:
+        titled_src = titled_entry.get("sources")
+        mod_src = mod.get("sources")
+        if isinstance(titled_src, TermSources) and isinstance(mod_src, TermSources):
+            mod["sources"] = mod_src.merge_with(titled_src)
+
+    # Add role title annotation if it's a role title
+    if _is_role_title(title):
+        existing_titles = mod.get("_titles", set())
+        existing_titles.add(title.rstrip(".").title())
+        mod["_titles"] = existing_titles
+
+
+def _synthesize_titled_names(terms: list[dict]) -> list[dict]:
+    """
+    Merge title-prefixed names with full names (Phase 5 of deduplication).
+
+    When "Dr. Jones", "Mr. Jones", and "James Jones" all appear, produce
+    one result: "James Jones (Dr.)". Only merges when unambiguous — if
+    "Bob Jones" and "Jim Jones" both exist, they're different people.
+
+    Args:
+        terms: Deduplicated vocabulary list (after Phases 1-4)
+
+    Returns:
+        Terms with title-prefixed entries merged into full-name entries
+    """
+    freq_key = "In-Case Freq"
+    person_terms = [t for t in terms if is_person_entry(t)]
+    other_terms = [t for t in terms if not is_person_entry(t)]
+
+    if len(person_terms) < 2:
+        return terms
+
+    titled_entries, full_name_entries = _classify_titled_entries(person_terms)
+    if not titled_entries:
+        return terms
+
+    last_name_index = _build_last_name_index(full_name_entries)
+    merged_titled, modified_entries = _resolve_titled_entries(titled_entries, last_name_index)
+
+    # Apply title annotations to modified entries
+    _apply_title_annotations(modified_entries)
+
+    # Rebuild: replace modified, remove merged titled
+    result_persons = _rebuild_person_list(
+        person_terms, titled_entries, merged_titled, modified_entries
+    )
+
+    if merged_titled:
+        logger.debug("Title synthesis: merged %d titled entries", len(merged_titled))
+
+    return other_terms + result_persons
+
+
+def _classify_titled_entries(person_terms: list[dict]):
+    """
+    Separate person terms into titled and full-name entries.
+
+    Args:
+        person_terms: List of Person vocabulary entries
+
+    Returns:
+        Tuple of (titled_entries, full_name_entries) where:
+        - titled_entries: list of (entry, stripped_name, title)
+        - full_name_entries: list of (entry, last_name, first_parts)
+    """
+    titled = []
+    full_names = []
+
+    for entry in person_terms:
+        name = entry.get("Term", "").strip()
+        stripped, title = _strip_title_prefix(name)
+        if title:
+            titled.append((entry, stripped, title))
+        else:
+            words = name.split()
+            if len(words) >= 2:
+                full_names.append((entry, words[-1].lower(), " ".join(words[:-1]).lower()))
+            else:
+                full_names.append((entry, name.lower(), ""))
+
+    return titled, full_names
+
+
+def _build_last_name_index(
+    full_name_entries: list[tuple[dict, str, str]],
+) -> dict[str, list[tuple[dict, str]]]:
+    """
+    Build index from last name to list of (entry, first_parts).
+
+    Args:
+        full_name_entries: List of (entry, last_name, first_parts)
+
+    Returns:
+        Dict mapping last_name -> [(entry, first_parts)]
+    """
+    index: dict[str, list[tuple[dict, str]]] = {}
+    for entry, last_name, first_parts in full_name_entries:
+        if last_name not in index:
+            index[last_name] = []
+        index[last_name].append((entry, first_parts))
+    return index
+
+
+def _resolve_titled_entries(
+    titled_entries: list[tuple[dict, str, str]],
+    last_name_index: dict[str, list[tuple[dict, str]]],
+) -> tuple[set[int], dict[str, dict]]:
+    """
+    Resolve each titled entry: merge into full name or keep separate.
+
+    Args:
+        titled_entries: List of (entry, stripped_name, title)
+        last_name_index: Last name -> [(entry, first_parts)]
+
+    Returns:
+        Tuple of (merged_indices, modified_entries)
+    """
+    freq_key = "In-Case Freq"
+    merged = set()
+    modified = {}
+
+    for idx, (titled_entry, stripped_name, title) in enumerate(titled_entries):
+        stripped_words = stripped_name.split()
+        last_name = stripped_words[-1].lower() if stripped_words else ""
+
+        if not last_name or last_name not in last_name_index:
+            continue
+
+        candidates = last_name_index[last_name]
+        distinct_firsts = {fp for _, fp in candidates if fp}
+        stripped_first = " ".join(stripped_words[:-1]).lower() if len(stripped_words) >= 2 else ""
+
+        if not distinct_firsts:
+            continue  # No full names, keep title entry as-is
+
+        if len(distinct_firsts) == 1:
+            # Unambiguous — merge into the full-name entry
+            target = next(e for e, fp in candidates if fp == list(distinct_firsts)[0])
+            _merge_titled_into_target(titled_entry, target, title, modified)
+            merged.add(idx)
+            logger.debug(
+                "Merged titled '%s' into '%s'", titled_entry.get("Term"), target.get("Term")
+            )
+
+        elif stripped_first and stripped_first in distinct_firsts:
+            # Conflict but titled entry has full name matching one candidate
+            target = next(e for e, fp in candidates if fp == stripped_first)
+            _merge_titled_into_target(titled_entry, target, title, modified)
+            merged.add(idx)
+
+        elif not _is_role_title(title):
+            # Generic title, ambiguous — merge freq into most frequent
+            best = max(candidates, key=lambda c: c[0].get(freq_key, 0))
+            _merge_titled_into_target(titled_entry, best[0], title, modified)
+            merged.add(idx)
+            logger.debug(
+                "Discarded generic title '%s' (ambiguous, merged into '%s')",
+                titled_entry.get("Term"),
+                best[0].get("Term"),
+            )
+        # Role titles in conflict → keep as separate entry
+
+    return merged, modified
+
+
+def _apply_title_annotations(modified_entries: dict[str, dict]) -> None:
+    """
+    Append role title annotations like '(Dr.)' to modified entry Terms.
+
+    Args:
+        modified_entries: Dict of term -> modified entry (mutated in-place)
+    """
+    for mod in modified_entries.values():
+        titles = mod.pop("_titles", set())
+        if titles:
+            best_title = sorted(titles)[0]
+            mod["Term"] = f"{mod['Term']} ({best_title}.)"
+
+
+def _rebuild_person_list(
+    person_terms: list[dict],
+    titled_entries: list[tuple[dict, str, str]],
+    merged_titled: set[int],
+    modified_entries: dict[str, dict],
+) -> list[dict]:
+    """
+    Rebuild person term list, replacing modified and removing merged entries.
+
+    Args:
+        person_terms: Original person terms list
+        titled_entries: List of (entry, stripped_name, title)
+        merged_titled: Set of indices into titled_entries that were merged
+        modified_entries: Dict of original term -> modified entry
+
+    Returns:
+        Rebuilt list of person term dicts
+    """
+    # Build set of merged entry objects for identity check
+    merged_objects = {id(titled_entries[idx][0]) for idx in merged_titled}
+
+    result = []
+    for entry in person_terms:
+        if id(entry) in merged_objects:
+            continue
+        term = entry.get("Term", "")
+        if term in modified_entries:
+            result.append(modified_entries.pop(term))
+        else:
+            result.append(entry)
+
+    return result
 
 
 def _word_validity_score(name: str) -> float:
@@ -462,6 +755,18 @@ def _select_canonical_legacy(group: list[dict], freq_key: str) -> dict:
         # Prefer names with proper casing (mixed case)
         if any(c.isupper() for c in cleaned) and any(c.islower() for c in cleaned):
             score += 5
+
+        # Prefer names with middle initial (e.g., "James R. Jones")
+        if re.search(r"\b[A-Z]\.\s", cleaned):
+            score += 15
+
+        # Prefer all title-case words (strong name signal)
+        words = cleaned.split()
+        if words and all(w[0].isupper() for w in words if w):
+            score += 10
+
+        # Prefer fuller names (more words = more complete)
+        score += len(words) * 5
 
         # Prefer shorter cleaned names (less artifact residue)
         if len(cleaned) >= 3:

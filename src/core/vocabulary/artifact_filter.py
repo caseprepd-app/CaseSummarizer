@@ -219,6 +219,128 @@ def _remove_component_names(
     return filtered
 
 
+def _remove_header_artifacts(
+    vocabulary: list[dict],
+    term_key: str = "Term",
+) -> list[dict]:
+    """
+    Remove transcript header artifacts like "Smith - Direct" or "Jones Cross".
+
+    Detects Person entries that are combinations of a known name component
+    plus a transcript section keyword (direct, cross, redirect, etc.).
+
+    Args:
+        vocabulary: List of term dictionaries
+        term_key: Dictionary key for the term string
+
+    Returns:
+        Filtered vocabulary with header artifacts removed
+
+    Examples removed:
+        - "Smith - Direct" → "Smith" is component of "John Smith", "Direct" is keyword
+        - "Di Leo - Redirect" → "Di Leo" is canonical, "Redirect" is keyword
+        - "Smith Plaintiff" → "Smith" is component, "Plaintiff" is common word
+    """
+    if not vocabulary:
+        return vocabulary
+
+    # Collect name components from multi-word Person names
+    name_components: set[str] = set()
+    canonical_names: set[str] = set()
+    for term_dict in vocabulary:
+        if not is_person_entry(term_dict):
+            continue
+        term = term_dict.get(term_key, "")
+        words = term.lower().split()
+        if len(words) >= 2:
+            canonical_names.add(term.lower())
+            for word in words:
+                if word:
+                    name_components.add(word)
+            # Also add multi-word sub-sequences (for "Di Leo" style names)
+            for i in range(len(words)):
+                for j in range(i + 1, len(words) + 1):
+                    sub = " ".join(words[i:j])
+                    if sub:
+                        name_components.add(sub)
+
+    if not name_components:
+        return vocabulary
+
+    section_keywords = TRANSCRIPT_SECTION_KEYWORDS
+
+    filtered = []
+    removed_count = 0
+
+    for term_dict in vocabulary:
+        if not is_person_entry(term_dict):
+            filtered.append(term_dict)
+            continue
+
+        term = term_dict.get(term_key, "")
+        # Normalize dashes: "Smith - Direct" → "Smith Direct"
+        normalized = term.replace(" - ", " ").replace("-", " ")
+        words_lower = normalized.lower().split()
+
+        if len(words_lower) < 2:
+            filtered.append(term_dict)
+            continue
+
+        # Skip if this is itself a canonical multi-word name
+        if term.lower() in canonical_names:
+            filtered.append(term_dict)
+            continue
+
+        # Try splitting into name_part + keyword_part (in both directions)
+        is_header = False
+
+        for split_pos in range(1, len(words_lower)):
+            left = " ".join(words_lower[:split_pos])
+            right = " ".join(words_lower[split_pos:])
+
+            # Check: left = name component, right = section keyword(s)
+            if left in name_components:
+                right_words = words_lower[split_pos:]
+                if all(
+                    w in section_keywords or is_common_word(w, COMMON_WORD_THRESHOLD)
+                    for w in right_words
+                ):
+                    logger.debug(
+                        "Removing header artifact '%s' (name='%s', keyword='%s')",
+                        term,
+                        left,
+                        right,
+                    )
+                    is_header = True
+                    break
+
+            # Check: left = section keyword(s), right = name component
+            if right in name_components:
+                left_words = words_lower[:split_pos]
+                if all(
+                    w in section_keywords or is_common_word(w, COMMON_WORD_THRESHOLD)
+                    for w in left_words
+                ):
+                    logger.debug(
+                        "Removing header artifact '%s' (keyword='%s', name='%s')",
+                        term,
+                        left,
+                        right,
+                    )
+                    is_header = True
+                    break
+
+        if is_header:
+            removed_count += 1
+        else:
+            filtered.append(term_dict)
+
+    if removed_count > 0:
+        logger.debug("Removed %d header artifacts", removed_count)
+
+    return filtered
+
+
 def filter_substring_artifacts(
     vocabulary: list[dict],
     canonical_count: int = DEFAULT_CANONICAL_COUNT,
@@ -350,5 +472,8 @@ def filter_substring_artifacts(
 
     # Session 84: Remove single-word Person names that are components of full names
     filtered = _remove_component_names(filtered, term_key=term_key)
+
+    # Session 140: Remove transcript header artifacts like "Smith - Direct"
+    filtered = _remove_header_artifacts(filtered, term_key=term_key)
 
     return filtered
