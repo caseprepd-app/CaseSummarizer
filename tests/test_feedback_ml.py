@@ -181,7 +181,7 @@ class TestVocabularyPreferenceLearner:
             "total_unique_terms": 100,
         }
         features = extract_features(term_data)
-        assert len(features) == 48  # 7 count bins + log_count + 40 other features
+        assert len(features) == 50  # 7 count bins + log_count + 42 other features
         # features[0-6] are count bins: count=3 → count_bin_3=1.0
         assert features[0] == 0.0  # count_bin_1
         assert features[1] == 0.0  # count_bin_2
@@ -214,7 +214,7 @@ class TestVocabularyPreferenceLearner:
     def test_feature_extraction_artifacts(self, meta_learner):
         """Test that artifact patterns are detected correctly.
 
-        Feature indices (48 total, with log_count at index 7):
+        Feature indices (50 total, with log_count at index 7):
         15: has_trailing_punctuation, 16: has_leading_digit,
         17: has_trailing_digit, 18: word_count, 19: is_all_caps
         28: is_single_letter, 30: has_medical_suffix,

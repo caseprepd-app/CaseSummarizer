@@ -16,7 +16,10 @@ from typing import Any
 
 import numpy as np
 
-from src.config import NON_NER_PHRASE_COMMON_WORD_FLOOR, get_count_bin_features
+from src.config import (
+    NON_NER_PHRASE_COMMON_WORD_FLOOR,
+    get_count_bin_features,
+)
 from src.core.vocabulary.adjusted_mean import compute_adjusted_mean
 from src.core.vocabulary.preference_learner_text_analysis import (
     _get_name_country_data,
@@ -165,6 +168,9 @@ FEATURE_NAMES = [
     "has_title_prefix",  # Dr., Mr., Ms., Hon., Judge, etc.
     "has_professional_suffix",  # M.D., Esq., Ph.D., R.N., etc.
     "max_consonant_run",  # Longest consonant streak (gibberish detector)
+    # Stop word boundary features (Session 141)
+    "starts_with_stop_word",  # First word is top-1000 common (e.g., "the same")
+    "ends_with_stop_word",  # Last word is top-1000 common (e.g., "Smith the")
 ]
 
 
@@ -187,7 +193,7 @@ def extract_features(term_data: dict[str, Any]) -> np.ndarray:
                   May include "sources" (TermSources) and "total_docs_in_session"
 
     Returns:
-        numpy array of 48 features (7 count bins + log_count + 40 other features)
+        numpy array of 50 features (7 count bins + log_count + 42 other features)
 
     Raises:
         ValueError: If term_data is not a dict or missing required fields
@@ -392,6 +398,18 @@ def extract_features(term_data: dict[str, Any]) -> np.ndarray:
     # Maximum consonant run (gibberish detector)
     max_consonant_run_val = float(_max_consonant_run(term))
 
+    # === SESSION 141: Stop word boundary features ===
+    # Catches truncation artifacts where extraction grabbed too much or too little
+    from src.config import STOP_WORD_THRESHOLD
+    from src.core.vocabulary.rarity_filter import is_common_word
+
+    if words_lower:
+        starts_with_stop_word = 1.0 if is_common_word(words_lower[0], STOP_WORD_THRESHOLD) else 0.0
+        ends_with_stop_word = 1.0 if is_common_word(words_lower[-1], STOP_WORD_THRESHOLD) else 0.0
+    else:
+        starts_with_stop_word = 0.0
+        ends_with_stop_word = 0.0
+
     # === SESSION 78: TermSources-based per-document features ===
     # These features provide richer signals about term reliability by
     # tracking which source documents contributed each occurrence.
@@ -487,5 +505,8 @@ def extract_features(term_data: dict[str, Any]) -> np.ndarray:
             has_title_prefix,
             has_professional_suffix,
             max_consonant_run_val,
+            # Session 141: Stop word boundary features (2)
+            starts_with_stop_word,
+            ends_with_stop_word,
         ]
     )

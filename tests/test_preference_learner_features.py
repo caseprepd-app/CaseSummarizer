@@ -43,9 +43,17 @@ def mock_deps():
             return_value=0.5,
         ),
     ):
-        from src.core.vocabulary.preference_learner_features import FEATURE_NAMES, extract_features
+        # Mock is_common_word for stop word features (imported inside extract_features)
+        with patch(
+            "src.core.vocabulary.rarity_filter.is_common_word",
+            side_effect=lambda word, top_n=200000: word in ("the", "and", "a", "of"),
+        ):
+            from src.core.vocabulary.preference_learner_features import (
+                FEATURE_NAMES,
+                extract_features,
+            )
 
-        yield extract_features, FEATURE_NAMES
+            yield extract_features, FEATURE_NAMES
 
 
 def test_feature_vector_length(mock_deps):
@@ -53,7 +61,7 @@ def test_feature_vector_length(mock_deps):
     term_data = {"Term": "John Smith", "in_case_freq": 5, "algorithms": "NER", "is_person": 1}
     features = extract_features(term_data)
     assert len(features) == len(FEATURE_NAMES)
-    assert len(features) == 48
+    assert len(features) == 50
 
 
 def test_person_feature(mock_deps):
@@ -98,3 +106,19 @@ def test_medical_suffix(mock_deps):
     term_data = {"Term": "radiculopathy", "in_case_freq": 1, "algorithms": "NER"}
     features = extract_features(term_data)
     assert features[FEATURE_NAMES.index("has_medical_suffix")] == 1.0
+
+
+def test_starts_with_stop_word(mock_deps):
+    extract_features, FEATURE_NAMES = mock_deps
+    term_data = {"Term": "the same", "in_case_freq": 1, "algorithms": "RAKE"}
+    features = extract_features(term_data)
+    assert features[FEATURE_NAMES.index("starts_with_stop_word")] == 1.0
+    assert features[FEATURE_NAMES.index("ends_with_stop_word")] == 0.0
+
+
+def test_ends_with_stop_word(mock_deps):
+    extract_features, FEATURE_NAMES = mock_deps
+    term_data = {"Term": "Smith and", "in_case_freq": 1, "algorithms": "NER"}
+    features = extract_features(term_data)
+    assert features[FEATURE_NAMES.index("starts_with_stop_word")] == 0.0
+    assert features[FEATURE_NAMES.index("ends_with_stop_word")] == 1.0

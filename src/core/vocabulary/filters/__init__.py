@@ -27,6 +27,7 @@ from src.core.vocabulary.filters.name_dedup import NameDeduplicationFilter
 from src.core.vocabulary.filters.rarity import RarityFilter
 from src.core.vocabulary.filters.regex_exclusion import RegexExclusionFilter
 from src.core.vocabulary.filters.regularizer import NameRegularizerFilter
+from src.core.vocabulary.filters.transcript_header import TranscriptHeaderFilter
 
 
 def create_default_filter_chain() -> VocabularyFilterChain:
@@ -37,10 +38,11 @@ def create_default_filter_chain() -> VocabularyFilterChain:
     1. NameDeduplicationFilter (10) - Merge similar person names
     2. RegexExclusionFilter (15) - Remove user-defined pattern matches
     3. ExtractionArtifactFilter (20) - Remove substring artifacts
-    4. NameRegularizerFilter (30) - Remove fragments and typos
-    5. RarityFilter (40) - Remove common-word terms
-    6. CorpusFamiliarityFilter (50) - Remove corpus-familiar terms
-    7. GibberishFilter (60) - Remove nonsense strings
+    4. TranscriptHeaderFilter (25) - Remove transcript header/footer artifacts
+    5. NameRegularizerFilter (30) - Remove fragments and typos
+    6. RarityFilter (40) - Remove common-word terms
+    7. CorpusFamiliarityFilter (50) - Remove corpus-familiar terms
+    8. GibberishFilter (60) - Remove nonsense strings
 
     Returns:
         Configured VocabularyFilterChain instance
@@ -50,6 +52,7 @@ def create_default_filter_chain() -> VocabularyFilterChain:
             NameDeduplicationFilter(),
             RegexExclusionFilter(),
             ExtractionArtifactFilter(),
+            TranscriptHeaderFilter(),
             NameRegularizerFilter(),
             RarityFilter(),
             CorpusFamiliarityFilter(),
@@ -69,8 +72,9 @@ def create_optimized_filter_chain() -> VocabularyFilterChain:
     1. NameDeduplicationFilter (10) - Merge similar person names
     2. RegexExclusionFilter (15) - Remove user-defined pattern matches
     3. ExtractionArtifactFilter (20) - Remove substring artifacts
-    4. NameRegularizerFilter (30) - Remove fragments and typos
-    5. UnifiedPerTermFilter (40) - Rarity + Corpus + Gibberish in one pass
+    4. TranscriptHeaderFilter (25) - Remove transcript header/footer artifacts
+    5. NameRegularizerFilter (30) - Remove fragments and typos
+    6. UnifiedPerTermFilter (40) - Rarity + Corpus + Gibberish in one pass
 
     Returns:
         Configured VocabularyFilterChain instance (optimized)
@@ -80,6 +84,7 @@ def create_optimized_filter_chain() -> VocabularyFilterChain:
             NameDeduplicationFilter(),
             RegexExclusionFilter(),
             ExtractionArtifactFilter(),
+            TranscriptHeaderFilter(),
             NameRegularizerFilter(),
             UnifiedPerTermFilter(),
         ]
@@ -127,6 +132,7 @@ __all__ = [
     "NameRegularizerFilter",
     "RarityFilter",
     "RegexExclusionFilter",
+    "TranscriptHeaderFilter",
     "VocabularyFilterChain",
     # Factory functions
     "create_default_filter_chain",

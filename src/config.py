@@ -526,6 +526,10 @@ TRANSCRIPT_SECTION_KEYWORDS = {
     "recalled",
 }
 
+# Stop Word Threshold for ML feature extraction
+# Words in the top N most common are "stop words" for starts_with/ends_with features
+STOP_WORD_THRESHOLD = 1000
+
 # Artifact Filter: Common word threshold for detecting name+common-word artifacts
 # Used to identify patterns like "Luigi Napolitano Patient" where "Patient" is common
 # Words with rank below this threshold are considered "common" for artifact detection
