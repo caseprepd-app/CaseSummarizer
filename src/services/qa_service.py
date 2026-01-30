@@ -20,6 +20,21 @@ from pathlib import Path
 logger = logging.getLogger(__name__)
 
 
+def get_embeddings_model():
+    """
+    Get the shared embedding model instance (GPU-aware, prefix-configured).
+
+    Re-exports from faiss_semantic for use by UI layer (which cannot
+    import from src.core.* directly).
+
+    Returns:
+        HuggingFaceEmbeddings instance
+    """
+    from src.core.retrieval.algorithms.faiss_semantic import get_embeddings_model as _get
+
+    return _get()
+
+
 class QAService:
     """
     Service layer for Q&A operations.
@@ -63,13 +78,11 @@ class QAService:
             if progress_callback:
                 progress_callback("Loading embeddings model...")
 
-            # Lazy-load embeddings
+            # Lazy-load embeddings (shared instance, GPU-aware)
             if self._embeddings is None:
-                from langchain_huggingface import HuggingFaceEmbeddings
+                from src.core.retrieval.algorithms.faiss_semantic import get_embeddings_model
 
-                self._embeddings = HuggingFaceEmbeddings(
-                    model_name="sentence-transformers/all-MiniLM-L6-v2"
-                )
+                self._embeddings = get_embeddings_model()
 
             if progress_callback:
                 progress_callback("Chunking document...")

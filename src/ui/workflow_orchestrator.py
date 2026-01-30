@@ -405,17 +405,13 @@ class WorkflowOrchestrator:
 
                 # Import and initialize embeddings
                 # NOTE: This import triggers torch loading which can take 10-15 seconds
-                from langchain_huggingface import HuggingFaceEmbeddings
 
                 from src.services import QAService
 
-                # Initialize embeddings (reusing the same model as ChunkingEngine)
-                # Note: First run downloads model (~90MB), subsequent runs use cache
-                # IMPORTANT: Explicitly set device='cpu' to avoid "meta tensor" errors
-                # See: https://discuss.huggingface.co/t/cannot-copy-out-of-meta-tensor-no-data/128996
-                embeddings = HuggingFaceEmbeddings(
-                    model_name="all-MiniLM-L6-v2", model_kwargs={"device": "cpu"}
-                )
+                # Initialize embeddings (shared instance, GPU-aware)
+                from src.services.qa_service import get_embeddings_model
+
+                embeddings = get_embeddings_model()
 
                 # Update status now that model is loaded
                 if self.state.output_options and self.state.output_options.get(
@@ -481,7 +477,6 @@ class WorkflowOrchestrator:
         Args:
             vector_store_result: Dictionary with 'path', 'case_id', 'chunk_count'
         """
-        from langchain_huggingface import HuggingFaceEmbeddings
 
         from src.services.workers import QAWorker
         from src.user_preferences import get_user_preferences
@@ -492,11 +487,10 @@ class WorkflowOrchestrator:
         prefs = get_user_preferences()
         answer_mode = prefs.get("qa_answer_mode", "ollama")
 
-        # Initialize embeddings (same model as vector store creation)
-        # IMPORTANT: Explicitly set device='cpu' to avoid "meta tensor" errors
-        embeddings = HuggingFaceEmbeddings(
-            model_name="all-MiniLM-L6-v2", model_kwargs={"device": "cpu"}
-        )
+        # Initialize embeddings (shared instance, GPU-aware)
+        from src.services.qa_service import get_embeddings_model
+
+        embeddings = get_embeddings_model()
 
         self.qa_worker = QAWorker(
             vector_store_path=Path(vector_store_result["path"]),

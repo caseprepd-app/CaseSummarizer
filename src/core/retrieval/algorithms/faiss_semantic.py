@@ -13,9 +13,10 @@ Why Include Semantic Search:
 - "Who are the parties?" may find "plaintiff and defendant" even without exact match
 - Complements BM25 for comprehensive retrieval
 
-Model Choice (Session 85):
-- Uses BAAI/bge-base-en-v1.5 (~110MB) - trained specifically for retrieval tasks
-- Significantly better than previous all-MiniLM-L6-v2 for legal/medical terminology
+Model Choice:
+- Uses lightonai/modernbert-embed-large (~395M params, 1024 dims, 8192-token context)
+- Upgraded from bge-base-en-v1.5 (512-token limit) to fix silent truncation of large chunks
+- Uses GPU when available, falls back to CPU
 - Bundled locally for offline use (no download at runtime)
 
 This algorithm has higher weight (0.8) compared to BM25+ (0.2) since
@@ -62,12 +63,30 @@ DEFAULT_EMBEDDING_MODEL = _get_embedding_model_path()
 _shared_embeddings: "HuggingFaceEmbeddings | None" = None
 
 
+def _get_embedding_device() -> str:
+    """
+    Auto-detect best device for embedding model.
+
+    Returns:
+        "cuda" if NVIDIA GPU available, otherwise "cpu".
+    """
+    try:
+        import torch
+
+        if torch.cuda.is_available():
+            return "cuda"
+    except ImportError:
+        pass
+    return "cpu"
+
+
 def get_embeddings_model() -> "HuggingFaceEmbeddings":
     """
     Get a shared HuggingFaceEmbeddings model instance.
 
     Lazy-loads the embeddings model on first call and caches it.
-    Used by sub-chunking in answer_generator to avoid reloading.
+    Uses GPU when available for faster embedding.
+    Configures search_document/search_query prefixes for modernbert-embed-large.
 
     Returns:
         HuggingFaceEmbeddings instance
@@ -76,12 +95,16 @@ def get_embeddings_model() -> "HuggingFaceEmbeddings":
     if _shared_embeddings is None:
         from langchain_huggingface import HuggingFaceEmbeddings
 
-        logger.debug("Loading shared embeddings model: %s", DEFAULT_EMBEDDING_MODEL)
+        device = _get_embedding_device()
+        logger.debug(
+            "Loading shared embeddings model: %s (device=%s)", DEFAULT_EMBEDDING_MODEL, device
+        )
 
         _shared_embeddings = HuggingFaceEmbeddings(
             model_name=DEFAULT_EMBEDDING_MODEL,
-            model_kwargs={"device": "cpu"},
-            encode_kwargs={"normalize_embeddings": True},
+            model_kwargs={"device": device},
+            encode_kwargs={"normalize_embeddings": True, "prompt_name": "search_document"},
+            query_encode_kwargs={"normalize_embeddings": True, "prompt_name": "search_query"},
         )
     return _shared_embeddings
 
@@ -144,15 +167,7 @@ class FAISSRetriever(BaseRetrievalAlgorithm):
             HuggingFaceEmbeddings instance
         """
         if self._embeddings is None:
-            from langchain_huggingface import HuggingFaceEmbeddings
-
-            logger.debug("Loading embeddings model: %s", DEFAULT_EMBEDDING_MODEL)
-
-            self._embeddings = HuggingFaceEmbeddings(
-                model_name=DEFAULT_EMBEDDING_MODEL,
-                model_kwargs={"device": "cpu"},
-                encode_kwargs={"normalize_embeddings": True},
-            )
+            self._embeddings = get_embeddings_model()
 
         return self._embeddings
 

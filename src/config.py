@@ -816,11 +816,12 @@ HALLUCINATION_MODEL_LOCAL_PATH = BUNDLED_MODELS_DIR / "lettucedect-base-modernbe
 HALLUCINATION_MODEL_FAST_LOCAL_PATH = BUNDLED_MODELS_DIR / "tinylettuce-ettin-68m-en"
 HALLUCINATION_MODEL_FASTEST_LOCAL_PATH = BUNDLED_MODELS_DIR / "tinylettuce-ettin-17m-en"
 
-# Embedding model for FAISS semantic search (Session 85)
-# Upgraded from all-MiniLM-L6-v2 (33MB) to bge-base-en-v1.5 (110MB) for better retrieval
-# BGE models are trained specifically for retrieval tasks and understand legal/medical terminology better
-EMBEDDING_MODEL_NAME = "BAAI/bge-base-en-v1.5"
-EMBEDDING_MODEL_LOCAL_PATH = BUNDLED_MODELS_DIR / "embeddings" / "bge-base-en-v1.5"
+# Embedding model for FAISS semantic search
+# Upgraded from bge-base-en-v1.5 (110MB, 512-token limit) to modernbert-embed-large
+# (~395M params, 8192-token context, 1024 dims) — fixes silent truncation of large chunks.
+# Uses GPU when available via torch.cuda.is_available(), falls back to CPU.
+EMBEDDING_MODEL_NAME = "lightonai/modernbert-embed-large"
+EMBEDDING_MODEL_LOCAL_PATH = BUNDLED_MODELS_DIR / "embeddings" / "modernbert-embed-large"
 
 # HuggingFace cache directory (used if bundled model not found)
 # Falls back to downloading if bundled model is missing (dev mode)

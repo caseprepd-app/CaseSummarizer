@@ -2,7 +2,7 @@
 
 > **Date:** 2026-01-29
 > **Purpose:** Comprehensive audit of alternative/supplemental approaches across every pipeline stage.
-> **Status:** 5 of 18 items implemented (see ✅ markers below). Remaining items are unimplemented.
+> **Status:** 6 of 18 items implemented (see ✅ markers below). Remaining items are unimplemented.
 
 ---
 
@@ -19,7 +19,7 @@
 | 7 | **scispaCy** (medical NER) | Low | `en_ner_bc5cdr_md` (~200MB) | Drug name and disease detection |
 | 8 | **NUPunkt** (sentence boundaries) | Low | `nupunkt` (no model) | Legal-specific SBD, 91% precision |
 | 9 | **Docling** (PDF structure + tables) | Medium | `docling` (~500MB-1GB) | MIT license, best table extraction |
-| 10 | **nomic-embed-text-v1.5** (embeddings) | Medium | Model (~500MB) | 8K context, Matryoshka dims, better retrieval |
+| 10 | ✅ **modernbert-embed-large** (embeddings) | Medium | Model (~800MB) | 8K context, 1024 dims, Matryoshka, GPU-aware |
 | 11 | **LanceDB** (replace FAISS) | Medium | `lancedb` | Persistent vector store, metadata filtering |
 | 12 | **Late chunking** | Medium | Requires #10 | Preserves cross-chunk context for legal text |
 
@@ -266,7 +266,7 @@
 | bge-base-en-v1.5 | 109M | 768 | 512 | MIT | Best general-purpose upgrade |
 | BGE-M3 | 568M | 1024 | 8192 | MIT | Produces dense + sparse + multi-vector. Best accuracy |
 
-**Recommended:** nomic-embed-text-v1.5. The 8192 token context is transformative for legal documents. Matryoshka lets you use 256 dims for speed.
+**Implemented:** `lightonai/modernbert-embed-large` (~395M params, 1024 dims, 8192-token context). Chosen over nomic-embed-text-v1.5 for higher quality (larger model, same architecture family as reranker + hallucination detector). Matryoshka support (256-1024 dims). GPU-aware loading via `torch.cuda.is_available()`.
 
 #### LanceDB (Replace FAISS)
 - **What:** Embedded vector DB (no server). Apache 2.0. Columnar Lance format. Native hybrid search. Pandas-like API. 4MB idle RAM.
@@ -343,7 +343,7 @@ Explicitly excluded: GPL, AGPL, CC-NC, restricted model weights.
 8. KeyBERT — add semantic keyword extraction
 9. scispaCy — add medical NER for drug/disease detection
 10. NUPunkt — add legal sentence boundary detection
-11. nomic-embed-text-v1.5 — upgrade embedding model
+11. ~~nomic-embed-text-v1.5 — upgrade embedding model~~ ✅ Done (upgraded to modernbert-embed-large for quality)
 12. LanceDB — replace FAISS
 
 ### Larger Investments (research + implementation)

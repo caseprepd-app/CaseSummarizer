@@ -50,7 +50,7 @@ class VectorStoreBuilder:
     Creates and manages FAISS vector stores for Q&A.
 
     Converts processed document chunks into a searchable vector index.
-    Uses HuggingFaceEmbeddings (all-MiniLM-L6-v2) for embedding generation.
+    Uses HuggingFaceEmbeddings (modernbert-embed-large) for embedding generation.
 
     Example:
         builder = VectorStoreBuilder()
@@ -123,6 +123,9 @@ class VectorStoreBuilder:
 
         # SEC-001: Save SHA256 hash for integrity verification on load
         self._save_integrity_hash(persist_dir)
+
+        # Save embedding model name for stale-index detection on model upgrades
+        self._save_model_marker(persist_dir)
 
         elapsed_ms = (time.perf_counter() - start_time) * 1000
 
@@ -233,6 +236,9 @@ class VectorStoreBuilder:
 
         # SEC-001: Save SHA256 hash for integrity verification on load
         self._save_integrity_hash(persist_dir)
+
+        # Save embedding model name for stale-index detection on model upgrades
+        self._save_model_marker(persist_dir)
 
         elapsed_ms = (time.perf_counter() - start_time) * 1000
 
@@ -431,6 +437,55 @@ class VectorStoreBuilder:
         hash_file.write_text(hasher.hexdigest())
 
         logger.debug("Saved integrity hash: %s...", hasher.hexdigest()[:16])
+
+    @staticmethod
+    def _save_model_marker(persist_dir: Path) -> None:
+        """
+        Save embedding model name to .model file for stale-index detection.
+
+        When the embedding model changes, old indexes produce wrong-dimension
+        vectors and must be rebuilt. This marker lets us detect the mismatch.
+
+        Args:
+            persist_dir: Directory containing the vector store files
+        """
+        from src.config import EMBEDDING_MODEL_NAME
+
+        model_file = persist_dir / ".model"
+        model_file.write_text(EMBEDDING_MODEL_NAME)
+        logger.debug("Saved model marker: %s", EMBEDDING_MODEL_NAME)
+
+    @staticmethod
+    def cleanup_stale_stores() -> int:
+        """
+        Delete vector stores built with a different embedding model.
+
+        Stores without a .model marker file are assumed stale (pre-upgrade).
+
+        Returns:
+            Number of stale stores deleted.
+        """
+        import shutil
+
+        from src.config import EMBEDDING_MODEL_NAME
+
+        if not VECTOR_STORE_DIR.exists():
+            return 0
+
+        deleted = 0
+        for d in VECTOR_STORE_DIR.iterdir():
+            if not d.is_dir() or not (d / "index.faiss").exists():
+                continue
+
+            model_file = d / ".model"
+            if not model_file.exists() or model_file.read_text().strip() != EMBEDDING_MODEL_NAME:
+                logger.warning("Deleting stale vector store (wrong embedding model): %s", d.name)
+                shutil.rmtree(d)
+                deleted += 1
+
+        if deleted:
+            logger.warning("Deleted %d stale vector store(s)", deleted)
+        return deleted
 
     @staticmethod
     def get_existing_stores() -> list[Path]:

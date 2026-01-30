@@ -1485,12 +1485,10 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             try:
                 # Lazy-load embeddings model (slow first time, reused after)
                 if self._embeddings is None:
-                    logger.debug("Loading HuggingFaceEmbeddings model...")
-                    from langchain_huggingface import HuggingFaceEmbeddings
+                    logger.debug("Loading embeddings model...")
+                    from src.services.qa_service import get_embeddings_model
 
-                    self._embeddings = HuggingFaceEmbeddings(
-                        model_name="all-MiniLM-L6-v2", model_kwargs={"device": "cpu"}
-                    )
+                    self._embeddings = get_embeddings_model()
                     logger.debug("Embeddings model loaded")
 
                 # Build vector store from documents

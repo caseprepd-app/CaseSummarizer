@@ -1045,14 +1045,12 @@ class ProgressiveExtractionWorker(BaseWorker):
             from src.core.chunking import create_unified_chunker
             from src.core.vector_store import VectorStoreBuilder
 
-            # Lazy-load embeddings if not provided
+            # Lazy-load embeddings if not provided (shared instance, GPU-aware)
             if self.embeddings is None:
                 logger.debug("Loading embeddings model...")
-                from langchain_huggingface import HuggingFaceEmbeddings
+                from src.core.retrieval.algorithms.faiss_semantic import get_embeddings_model
 
-                self.embeddings = HuggingFaceEmbeddings(
-                    model_name="all-MiniLM-L6-v2", model_kwargs={"device": "cpu"}
-                )
+                self.embeddings = get_embeddings_model()
 
             # Create unified chunks from each document with source attribution
             # This ensures each chunk knows which document it came from
