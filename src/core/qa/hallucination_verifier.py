@@ -177,6 +177,19 @@ class HallucinationVerifier:
                 )
 
         try:
+            # Warn if combined input approaches LettuceDetect's 4096-token limit
+            # (~4 chars/token conservative estimate)
+            combined_len = len(context or "") + len(question) + len(answer)
+            char_limit = 4096 * 4
+            if combined_len > char_limit * 0.8:
+                logger.warning(
+                    "Hallucination verifier input is %.0f%% of 4096-token limit "
+                    "(%d chars / ~%d limit) — detection may miss truncated content",
+                    (combined_len / char_limit) * 100,
+                    combined_len,
+                    char_limit,
+                )
+
             # Get span predictions from LettuceDetect
             # Returns list of dicts with: text, start, end, confidence
             predictions = self._detector.predict(
