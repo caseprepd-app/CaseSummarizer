@@ -22,6 +22,8 @@ from difflib import SequenceMatcher
 
 from src.config import (
     NAME_SIMILARITY_THRESHOLD,
+    PERSON_TITLE_PREFIXES,
+    PERSON_TITLE_PREFIXES_ROLE,
 )
 from src.core.vocabulary.canonical_scorer import create_canonical_scorer
 from src.core.vocabulary.name_regularizer import _load_known_words

@@ -25,6 +25,7 @@ import logging
 from src.config import (
     ARTIFACT_FILTER_COMMON_WORD_THRESHOLD,
     ARTIFACT_FILTER_FUZZY_MAX_EDIT_DISTANCE,
+    TRANSCRIPT_SECTION_KEYWORDS,
 )
 from src.core.vocabulary.person_utils import is_person_entry
 from src.core.vocabulary.rarity_filter import is_common_word
