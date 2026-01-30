@@ -1297,7 +1297,232 @@ class VocabularyExtractor:
             return False
 
     # ========================================================================
-    # PER-DOCUMENT EXTRACTION (Session 78)
+    # PER-DOCUMENT PARALLEL EXTRACTION (Session 131)
+    # ========================================================================
+
+    def extract_documents(self, documents, use_llm=False, progress_callback=None):
+        """
+        Run full pipeline per document (in parallel), then merge results.
+
+        Args:
+            documents: List of {"text", "doc_id", "confidence"}
+            use_llm: Whether to use LLM enhancement
+            progress_callback: Optional callback(current, total, doc_id)
+
+        Returns:
+            Merged vocabulary list[dict] with proper # Docs tracking.
+        """
+        if not documents:
+            return []
+
+        # Single doc — no merge needed, just run normally
+        if len(documents) == 1:
+            doc = documents[0]
+            if use_llm:
+                return self.extract_with_llm(doc["text"], doc_count=1)
+            return self.extract(doc["text"], doc_count=1, doc_confidence=doc["confidence"])
+
+        # Multi-doc — parallel extraction
+        from concurrent.futures import as_completed
+
+        from src.core.parallel.executor_strategy import ThreadPoolStrategy
+        from src.system_resources import get_optimal_workers
+
+        max_workers = min(get_optimal_workers(), len(documents))
+        strategy = ThreadPoolStrategy(max_workers=max_workers)
+
+        def _extract_single(doc):
+            """Extract vocab from one document (runs in worker thread)."""
+            if use_llm:
+                vocab = self.extract_with_llm(doc["text"], doc_count=1)
+            else:
+                vocab = self.extract(doc["text"], doc_count=1, doc_confidence=doc["confidence"])
+            return (doc["doc_id"], doc["confidence"], vocab)
+
+        # Submit all docs to thread pool
+        per_doc_results = []
+        futures = {}
+        for doc in documents:
+            future = strategy.submit(_extract_single, doc)
+            futures[future] = doc["doc_id"]
+
+        # Collect results as they complete
+        completed = 0
+        for future in as_completed(futures):
+            result = future.result()
+            per_doc_results.append(result)
+            completed += 1
+            if progress_callback:
+                progress_callback(completed, len(documents), futures[future])
+
+        strategy.shutdown()
+
+        # Merge all doc results
+        return self._merge_multi_doc_results(per_doc_results, len(documents))
+
+    def _merge_multi_doc_results(self, per_doc_results, total_docs):
+        """
+        Merge per-document vocab lists into one with proper multi-doc tracking.
+
+        Args:
+            per_doc_results: List of (doc_id, confidence, vocab_list) tuples
+            total_docs: Total documents in session
+
+        Returns:
+            Merged vocabulary list[dict]
+        """
+        # Index: term_lower -> list of (doc_id, confidence, term_dict)
+        term_index = {}
+
+        for doc_id, confidence, vocab_list in per_doc_results:
+            for term_dict in vocab_list:
+                key = term_dict["Term"].lower()
+                if key not in term_index:
+                    term_index[key] = []
+                term_index[key].append((doc_id, confidence, term_dict))
+
+        # Merge each term
+        merged_vocab = []
+        total_unique = len(term_index)
+
+        for key, doc_entries in term_index.items():
+            merged = self._merge_term_across_docs(doc_entries, total_docs, total_unique)
+            merged_vocab.append(merged)
+
+        # Re-apply ML boost with correct multi-doc data
+        for term_data in merged_vocab:
+            base = term_data["quality_score"]
+            term_data["Quality Score"] = self._apply_ml_boost(term_data, base)
+
+        # Sort by quality score descending
+        return self._sort_vocabulary(merged_vocab)
+
+    def _merge_term_across_docs(self, doc_entries, total_docs, total_unique):
+        """
+        Merge one term's data from multiple documents.
+
+        Args:
+            doc_entries: [(doc_id, confidence, term_dict), ...]
+            total_docs: Total documents in session
+            total_unique: Total unique terms across all docs
+
+        Returns:
+            Single merged term_dict
+        """
+        from collections import Counter
+
+        # Build TermSources from actual per-doc data
+        doc_ids = []
+        confidences = []
+        counts_per_doc = []
+        for doc_id, confidence, td in doc_entries:
+            doc_ids.append(doc_id)
+            confidences.append(confidence / 100.0)
+            counts_per_doc.append(td.get("In-Case Freq", td.get("Frequency", 1)))
+
+        sources = TermSources(
+            doc_ids=doc_ids,
+            confidences=confidences,
+            counts_per_doc=counts_per_doc,
+        )
+
+        # Term display: most frequent casing
+        casing_votes = Counter(td["Term"] for _, _, td in doc_entries)
+        best_term = casing_votes.most_common(1)[0][0]
+
+        # Boolean fields: "Yes" if ANY doc says "Yes"
+        is_person = any(td.get("Is Person") == "Yes" for _, _, td in doc_entries)
+        ner = any(td.get("NER") == "Yes" for _, _, td in doc_entries)
+        rake = any(td.get("RAKE") == "Yes" for _, _, td in doc_entries)
+        bm25 = any(td.get("BM25") == "Yes" for _, _, td in doc_entries)
+        textrank = any(td.get("TextRank") == "Yes" for _, _, td in doc_entries)
+
+        # Set fields: union across docs
+        all_found_by = set()
+        for _, _, td in doc_entries:
+            found = td.get("Found By", td.get("Sources", ""))
+            for algo in found.replace(",", " ").split():
+                algo = algo.strip()
+                if algo and algo != "—":
+                    all_found_by.add(algo)
+        found_by_str = ", ".join(sorted(all_found_by))
+
+        # Numeric: sum / max / first
+        total_freq = sum(td.get("In-Case Freq", td.get("Frequency", 0)) for _, _, td in doc_entries)
+        freq_rank = doc_entries[0][2].get("Freq Rank", 0)
+        textrank_score = max(
+            (td.get("textrank_score", 0.0) for _, _, td in doc_entries),
+            default=0.0,
+        )
+        min_doc_confidence = min(c for _, c, _ in doc_entries)
+
+        # String: longest non-default
+        default_role = "Vocabulary term"
+        roles = [td.get("Role/Relevance", default_role) for _, _, td in doc_entries]
+        best_role = max(
+            (r for r in roles if r != default_role),
+            key=len,
+            default=default_role,
+        )
+
+        definition = ""
+        for _, _, td in doc_entries:
+            d = td.get("Definition", "")
+            if d and d != "—":
+                definition = d
+                break
+
+        # Algo count: recompute from merged flags
+        algo_count = sum([ner, rake, bm25, textrank])
+
+        # Quality score: recalculate with real TermSources
+        quality_score = self._calculate_quality_score(
+            is_person=is_person,
+            term_count=total_freq,
+            frequency_rank=freq_rank,
+            algorithm_count=algo_count,
+            term_sources=sources,
+            total_docs_in_session=total_docs,
+            textrank_score=textrank_score,
+        )
+
+        return {
+            # Display columns
+            "Term": best_term,
+            "Is Person": "Yes" if is_person else "No",
+            "Found By": found_by_str,
+            "Role/Relevance": best_role,
+            "Quality Score": quality_score,
+            "In-Case Freq": total_freq,
+            "Freq Rank": freq_rank,
+            "Definition": definition or "—",
+            "Sources": found_by_str,
+            # Algorithm flags
+            "NER": "Yes" if ner else "No",
+            "RAKE": "Yes" if rake else "No",
+            "BM25": "Yes" if bm25 else "No",
+            "TextRank": "Yes" if textrank else "No",
+            "Algo Count": algo_count,
+            # TermSources display
+            "# Docs": sources.num_documents,
+            "Count": sources.total_count,
+            "Median Conf": f"{sources.median_confidence:.0%}",
+            # TermSources object (for ML/filters)
+            "sources": sources,
+            "total_docs_in_session": total_docs,
+            # ML feature fields
+            "quality_score": quality_score,
+            "in_case_freq": total_freq,
+            "freq_rank": freq_rank,
+            "algorithms": found_by_str,
+            "is_person": 1 if is_person else 0,
+            "total_unique_terms": total_unique,
+            "source_doc_confidence": min_doc_confidence,
+            "textrank_score": textrank_score,
+        }
+
+    # ========================================================================
+    # PER-DOCUMENT EXTRACTION (Session 78) — Legacy
     # ========================================================================
 
     def extract_from_document(

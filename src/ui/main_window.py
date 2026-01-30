@@ -82,9 +82,9 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
     def __init__(self):
         super().__init__()
 
-        from src.config import APP_NAME
+        from src.config import APP_NAME, DEBUG_MODE
 
-        self.title(APP_NAME)
+        self.title(f"{APP_NAME} [DEBUG]" if DEBUG_MODE else APP_NAME)
         self.geometry("1200x750")
         icon_path = Path(__file__).parent.parent.parent / "assets" / "icon.ico"
         if icon_path.exists():
@@ -1325,6 +1325,19 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         doc_confidence = self._calculate_aggregate_confidence(self.processing_results)
         logger.debug("Aggregate document confidence: %.1f%%", doc_confidence)
 
+        # Session 131: Build per-document list for parallel extraction
+        documents = None
+        if len(self.processing_results) > 1:
+            documents = [
+                {
+                    "text": d.get("preprocessed_text") or d.get("extracted_text", ""),
+                    "doc_id": d.get("filename", f"doc_{i}"),
+                    "confidence": d.get("confidence", 100),
+                }
+                for i, d in enumerate(self.processing_results)
+                if d.get("preprocessed_text") or d.get("extracted_text")
+            ]
+
         # Start vocabulary worker
         self._vocabulary_worker = VocabularyWorker(
             combined_text=combined_text,
@@ -1333,8 +1346,9 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             medical_terms_path=str(MEDICAL_TERMS_LIST_PATH),
             user_exclude_path=str(USER_VOCAB_EXCLUDE_PATH),
             doc_count=len(self.processing_results),
-            use_llm=use_llm,  # Session 43: Enable LLM-based extraction
-            doc_confidence=doc_confidence,  # Session 54: OCR quality for ML
+            use_llm=use_llm,
+            doc_confidence=doc_confidence,
+            documents=documents,
         )
         self._vocabulary_worker.start()
 

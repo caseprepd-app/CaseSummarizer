@@ -172,7 +172,12 @@ class WorkflowOrchestrator:
             combined_text, doc_count, doc_confidence = self._get_combined_text(extracted_documents)
             actions_taken["combined_text"] = combined_text
             actions_taken["vocab_extraction_started"] = True
-            self._start_vocab_extraction(combined_text, doc_count, doc_confidence)
+            self._start_vocab_extraction(
+                combined_text,
+                doc_count,
+                doc_confidence,
+                extracted_documents=extracted_documents,
+            )
             logger.debug("Started vocabulary extraction (AI will start after).")
             # Do NOT start AI here - wait for vocab to complete
             return actions_taken
@@ -224,7 +229,11 @@ class WorkflowOrchestrator:
         return combined, doc_count, doc_confidence
 
     def _start_vocab_extraction(
-        self, combined_text: str, doc_count: int = 1, doc_confidence: float = 100.0
+        self,
+        combined_text: str,
+        doc_count: int = 1,
+        doc_confidence: float = 100.0,
+        extracted_documents: list[dict] | None = None,
     ):
         """
         Start vocabulary extraction worker thread.
@@ -233,9 +242,23 @@ class WorkflowOrchestrator:
             combined_text: Combined text from all documents
             doc_count: Number of documents being processed (for frequency filtering)
             doc_confidence: Aggregate OCR confidence (0-100) for ML feature (Session 54)
+            extracted_documents: Optional list of per-document dicts for parallel extraction
         """
         # Import here to avoid circular imports
         from src.services.workers import VocabularyWorker
+
+        # Session 131: Build per-document list for parallel extraction
+        documents = None
+        if extracted_documents and len(extracted_documents) > 1:
+            documents = [
+                {
+                    "text": d.get("preprocessed_text") or d.get("extracted_text", ""),
+                    "doc_id": d.get("filename", f"doc_{i}"),
+                    "confidence": d.get("confidence", 100),
+                }
+                for i, d in enumerate(extracted_documents)
+                if d.get("preprocessed_text") or d.get("extracted_text")
+            ]
 
         self.vocab_worker = VocabularyWorker(
             combined_text=combined_text,
@@ -244,13 +267,15 @@ class WorkflowOrchestrator:
             medical_terms_path=str(MEDICAL_TERMS_LIST_PATH),
             user_exclude_path=str(USER_VOCAB_EXCLUDE_PATH),
             doc_count=doc_count,
-            doc_confidence=doc_confidence,  # Session 54: OCR quality for ML
+            doc_confidence=doc_confidence,
+            documents=documents,
         )
         self.vocab_worker.start()
         logger.debug(
-            "VocabularyWorker thread started (doc_count=%s, confidence=%.1f%%).",
+            "VocabularyWorker thread started (doc_count=%s, confidence=%.1f%%, per_doc=%s).",
             doc_count,
             doc_confidence,
+            documents is not None,
         )
 
     def _start_ai_generation(self, extracted_documents: list[dict], ai_params: dict):

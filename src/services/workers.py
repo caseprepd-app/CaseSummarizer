@@ -283,17 +283,18 @@ class VocabularyWorker(BaseWorker):
         # Check for cancellation before heavy processing
         self.check_cancelled()
 
-        # Session 78: Use per-document extraction if documents are provided
-        if self.documents and not self.use_llm:
-            # Per-document extraction with TermSources tracking
+        # Session 131: Per-document extraction with parallel processing
+        if self.documents:
             self.send_progress(40, f"Extracting vocabulary from {len(self.documents)} documents...")
 
-            def doc_progress(current, total):
+            def doc_progress(current, total, doc_id):
                 pct = 40 + int((current / total) * 25)  # 40-65% range
-                self.send_progress(pct, f"Processing document {current}/{total}...")
+                self.send_progress(pct, f"Document {current}/{total} complete ({doc_id})")
 
-            vocab_data = extractor.extract_per_document(
-                self.documents, progress_callback=doc_progress
+            vocab_data = extractor.extract_documents(
+                self.documents,
+                use_llm=self.use_llm,
+                progress_callback=doc_progress,
             )
         elif self.use_llm:
             # Update progress - NLP/LLM processing is the slow part
@@ -903,29 +904,54 @@ class ProgressiveExtractionWorker(BaseWorker):
             user_exclude_path=self.user_exclude_path,
         )
 
-        # Session 85: Progressive extraction with callbacks for fast UX
-        def on_partial_complete(partial_vocab):
-            """Called when BM25 + RAKE complete (before NER)."""
-            logger.debug("Partial results: %s terms", len(partial_vocab))
-            self.ui_queue.put(QueueMessage.partial_vocab_complete(partial_vocab))
+        # Session 131: Per-document parallel extraction when 2+ documents
+        # Each doc runs the full pipeline independently, then results are merged
+        # with real TermSources (fixes # Docs always showing 1)
+        if len(self.documents) > 1:
+            doc_list = [
+                {
+                    "text": d.get("preprocessed_text") or d.get("extracted_text", ""),
+                    "doc_id": d.get("filename", f"doc_{i}"),
+                    "confidence": d.get("confidence", 100),
+                }
+                for i, d in enumerate(self.documents)
+                if d.get("preprocessed_text") or d.get("extracted_text")
+            ]
 
-        def on_ner_progress(chunk_candidates, chunk_num, total_chunks):
-            """Called after each NER chunk completes."""
-            pct = int((chunk_num / total_chunks) * 100)
-            self.send_progress(
-                10 + int((chunk_num / total_chunks) * 20),  # 10-30% range for NER
-                f"NER: {pct}% complete (chunk {chunk_num}/{total_chunks})...",
+            def doc_progress(current, total, doc_id):
+                pct = 10 + int((current / total) * 20)
+                self.send_progress(pct, f"Document {current}/{total} complete ({doc_id})")
+
+            ner_results = extractor.extract_documents(
+                doc_list,
+                use_llm=self.use_llm,
+                progress_callback=doc_progress,
             )
-            self.ui_queue.put(QueueMessage.ner_progress(chunk_candidates, chunk_num, total_chunks))
+        else:
+            # Single document: use progressive extraction for fast UX
+            def on_partial_complete(partial_vocab):
+                """Called when BM25 + RAKE complete (before NER)."""
+                logger.debug("Partial results: %s terms", len(partial_vocab))
+                self.ui_queue.put(QueueMessage.partial_vocab_complete(partial_vocab))
 
-        # Use progressive extraction: BM25+RAKE first, then NER with progress
-        ner_results = extractor.extract_progressive(
-            self.combined_text,
-            doc_count=len(self.documents),
-            doc_confidence=self.doc_confidence,
-            partial_callback=on_partial_complete,
-            ner_progress_callback=on_ner_progress,
-        )
+            def on_ner_progress(chunk_candidates, chunk_num, total_chunks):
+                """Called after each NER chunk completes."""
+                pct = int((chunk_num / total_chunks) * 100)
+                self.send_progress(
+                    10 + int((chunk_num / total_chunks) * 20),
+                    f"NER: {pct}% complete (chunk {chunk_num}/{total_chunks})...",
+                )
+                self.ui_queue.put(
+                    QueueMessage.ner_progress(chunk_candidates, chunk_num, total_chunks)
+                )
+
+            ner_results = extractor.extract_progressive(
+                self.combined_text,
+                doc_count=len(self.documents),
+                doc_confidence=self.doc_confidence,
+                partial_callback=on_partial_complete,
+                ner_progress_callback=on_ner_progress,
+            )
 
         logger.info("Phase 1 complete: %s terms from local algorithms", len(ner_results))
         self.ui_queue.put(QueueMessage.ner_complete(ner_results))
