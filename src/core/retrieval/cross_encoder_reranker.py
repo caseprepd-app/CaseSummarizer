@@ -1,12 +1,12 @@
 """
 Cross-Encoder Reranker for Q&A Retrieval.
 
-Uses BAAI/bge-reranker-base to rerank candidate chunks after hybrid retrieval.
-Cross-encoders process query+document pairs together for more accurate relevance
-scoring compared to bi-encoder (embedding) approaches.
+Uses Alibaba-NLP/gte-reranker-modernbert-base (149M params, 8192-token context)
+to rerank candidate chunks after hybrid retrieval. The 8192-token limit means
+full chunks are scored without truncation.
 
 Architecture:
-- Lazy-loads model on first use to avoid startup overhead (~400MB)
+- Lazy-loads model on first use to avoid startup overhead (~300MB)
 - Takes top-K candidates from hybrid retrieval
 - Reranks using cross-encoder and returns top-N
 - Preserves original scores in metadata for debugging
@@ -25,6 +25,7 @@ import os
 
 from src.config import (
     HF_CACHE_DIR,
+    RERANKER_MAX_LENGTH,
     RERANKER_MODEL_LOCAL_PATH,
     RERANKER_MODEL_NAME,
 )
@@ -40,7 +41,7 @@ class CrossEncoderReranker:
     relevance judgments than bi-encoders (which encode them separately).
 
     The model is lazy-loaded on first use to avoid startup delay.
-    Downloads to project's models/.hf_cache folder on first use (~400MB).
+    Downloads to project's models/.hf_cache folder on first use (~300MB).
     """
 
     def __init__(self):
@@ -68,7 +69,7 @@ class CrossEncoderReranker:
             logger.debug("Downloading model: %s", model_path)
             logger.debug("Cache directory: %s", HF_CACHE_DIR)
 
-        self._model = CrossEncoder(model_path, max_length=512)
+        self._model = CrossEncoder(model_path, max_length=RERANKER_MAX_LENGTH)
 
         logger.debug("Cross-encoder model loaded successfully")
 
@@ -107,6 +108,20 @@ class CrossEncoderReranker:
 
         # Build query-document pairs for cross-encoder
         pairs = [[query, chunk.text] for chunk in chunks]
+
+        # Warn if any pair approaches the model's token limit (~4 chars/token estimate)
+        char_limit = RERANKER_MAX_LENGTH * 4  # conservative chars-to-tokens estimate
+        for chunk in chunks:
+            pair_len = len(query) + len(chunk.text)
+            if pair_len > char_limit * 0.8:
+                logger.warning(
+                    "Chunk %s #%d is %.0f%% of reranker max length (%d chars / ~%d limit)",
+                    chunk.filename,
+                    chunk.chunk_num,
+                    (pair_len / char_limit) * 100,
+                    pair_len,
+                    char_limit,
+                )
 
         logger.debug("Reranking %d chunks for query: %s...", len(chunks), query[:50])
 

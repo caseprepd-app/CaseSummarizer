@@ -2,7 +2,7 @@
 
 > **Date:** 2026-01-29
 > **Purpose:** Comprehensive audit of alternative/supplemental approaches across every pipeline stage.
-> **Status:** 3 of 18 items implemented (see ✅ markers below). Remaining items are unimplemented.
+> **Status:** 5 of 18 items implemented (see ✅ markers below). Remaining items are unimplemented.
 
 ---
 
@@ -11,7 +11,7 @@
 | # | Change | Effort | New Deps | Impact |
 |---|--------|--------|----------|--------|
 | 1 | ✅ **RRF fusion** (replace weighted score merging) | ~10 lines | None | Eliminates hand-tuned BM25/FAISS weights |
-| 2 | **FlashRank reranker** (replace bge-reranker-base) | Small | `flashrank` (ONNX only, 4MB) | No PyTorch overhead for reranking |
+| 2 | ✅ **gte-reranker-modernbert-base** (replace bge-reranker-base) | Small | None (same `sentence-transformers`) | 149M params, 8192-token context — sees full chunks |
 | 3 | ✅ **TinyLettuce** (three-tier model selection) | Small | Same library | Standard/Fast/Fastest — all three bundled for installer |
 | 4 | **GLiNER** (zero-shot NER) | Medium | `gliner` (~200MB) | One model for legal + medical + generic entities |
 | 5 | **KeyBERT** (supplement RAKE) | Low | `keybert` (~80MB) | Semantic keyword extraction, different signal |
@@ -209,8 +209,9 @@
 - **Size:** ~250MB (ner-fast)
 - **Verdict:** Useful supplement for noisy OCR text.
 
-#### BM25+ vs BM25Okapi
+#### BM25+ vs BM25Okapi — ✅ VERIFIED
 - **Quick check:** Verify whether your `bm25_algorithm.py` uses BM25Okapi or BM25Plus. Plus fixes edge cases with very long documents (avoids excessive length penalties). One-line change if using Okapi.
+- **Result:** The retrieval module (`src/core/retrieval/algorithms/bm25_plus.py`) already imports and uses `BM25Plus` from `rank_bm25`. The vocabulary module (`src/core/vocabulary/algorithms/bm25_algorithm.py`) uses a custom BM25 implementation with configurable k1/b parameters. No changes needed.
 
 #### Skip These
 - **YAKE:** GPL-3.0. License incompatible.
@@ -242,7 +243,7 @@
 #### FlashRank Reranker
 - **What:** ONNX-only reranker. No PyTorch needed for reranking. 4MB (nano) or 86MB (medium).
 - **License:** Apache 2.0
-- **Verdict:** **Strong upgrade.** Eliminates cold start. The `rerankers` library (MIT) provides a unified API to swap between FlashRank, cross-encoders, ColBERT, etc.
+- **Verdict:** Superseded — we upgraded to `Alibaba-NLP/gte-reranker-modernbert-base` instead (149M params, 8192-token context, smaller than bge-reranker-base). Uses same `sentence-transformers` CrossEncoder API, no new dependencies. FlashRank remains an option if we want to eliminate PyTorch entirely.
 
 #### TinyLettuce (Hallucination Detection) — ✅ IMPLEMENTED (three-tier user selection)
 - **What:** Next-gen LettuceDetect. 17–68M params (vs 150M). Real-time on CPU. Same MIT license, same token-level span detection.
@@ -331,10 +332,10 @@ Explicitly excluded: GPL, AGPL, CC-NC, restricted model weights.
 
 ### Quick Wins (1-2 sessions each, no architectural changes)
 1. ~~RRF fusion — replace weighted score merging~~ ✅ Done
-2. FlashRank reranker — replace bge-reranker-base
+2. ~~FlashRank reranker — replace bge-reranker-base~~ ✅ Done (upgraded to gte-reranker-modernbert-base)
 3. ~~TinyLettuce — upgrade hallucination detector~~ ✅ Done (user-selectable option)
 4. ~~pytextrank — add as 5th vocabulary algorithm~~ ✅ Done
-5. BM25+ check — verify Okapi vs Plus variant
+5. ~~BM25+ check — verify Okapi vs Plus variant~~ ✅ Done (retrieval uses `BM25Plus` from `rank_bm25`; vocabulary uses custom implementation)
 6. ONNX export — quantize current embedding model
 
 ### Medium Effort (1-3 sessions each)

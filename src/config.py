@@ -833,12 +833,16 @@ HALLUCINATION_LOCAL_ONLY = HALLUCINATION_MODEL_LOCAL_PATH.exists()
 # ============================================================================
 # Cross-Encoder Reranking Configuration
 # ============================================================================
-# Uses BAAI/bge-reranker-base to rerank candidate chunks after hybrid retrieval.
+# Uses Alibaba-NLP/gte-reranker-modernbert-base to rerank candidate chunks after
+# hybrid retrieval. 149M params, 8192-token context (sees full chunks without truncation).
 # Cross-encoders process query+document pairs together for more accurate relevance.
 
 RERANKING_ENABLED = _d("reranking_enabled")
-RERANKER_MODEL_NAME = "BAAI/bge-reranker-base"  # ~400MB model, downloads on first use
-RERANKER_MODEL_LOCAL_PATH = BUNDLED_MODELS_DIR / "bge-reranker-base"
+RERANKER_MODEL_NAME = (
+    "Alibaba-NLP/gte-reranker-modernbert-base"  # ~300MB model, downloads on first use
+)
+RERANKER_MODEL_LOCAL_PATH = BUNDLED_MODELS_DIR / "gte-reranker-modernbert-base"
+RERANKER_MAX_LENGTH = 8192
 RERANKER_TOP_K = _d("reranker_top_k")
 
 
