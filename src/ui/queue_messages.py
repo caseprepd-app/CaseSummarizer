@@ -29,6 +29,7 @@ class MessageType:
     # Core messages
     PROGRESS = "progress"
     ERROR = "error"
+    STATUS_ERROR = "status_error"  # Non-fatal error displayed in status bar (orange)
 
     # Document processing
     FILE_PROCESSED = "file_processed"
@@ -97,12 +98,25 @@ class QueueMessage:
     @staticmethod
     def error(message: str) -> tuple[str, str]:
         """
-        Create error message.
+        Create error message (shows blocking modal dialog).
 
         Args:
             message: Human-readable error description
         """
         return (MessageType.ERROR, message)
+
+    @staticmethod
+    def status_error(message: str) -> tuple[str, str]:
+        """
+        Create non-fatal status bar error (orange text, no modal).
+
+        Use this for errors that shouldn't block the user, such as
+        a single document failing in a batch or an optional feature failing.
+
+        Args:
+            message: Human-readable error description
+        """
+        return (MessageType.STATUS_ERROR, message)
 
     # =========================================================================
     # Document Processing

@@ -187,8 +187,10 @@ class ProcessingWorker(BaseWorker):
             if task_result.success:
                 self.processed_results.append(task_result.result)
             else:
-                # Log errors but continue with other documents
+                # Log errors and show in status bar (non-blocking)
                 logger.debug("Document failed: %s - %s", task_result.task_id, task_result.error)
+                filename = Path(task_result.task_id).name
+                self.send_status_error(f"Failed to extract {filename}")
 
         # Apply preprocessing to all results (removes line numbers, headers, etc.)
         # Store as "preprocessed_text" so downstream consumers don't need to preprocess again
@@ -316,7 +318,7 @@ class VocabularyWorker(BaseWorker):
             )
         else:
             # Legacy NER-only extraction (combined text mode)
-            self.send_progress(40, "Running local extraction (NER, RAKE)...")
+            self.send_progress(40, "Running local extraction...")
             vocab_data = extractor.extract(
                 self.combined_text, doc_count=self.doc_count, doc_confidence=self.doc_confidence
             )
@@ -1035,7 +1037,7 @@ class ProgressiveExtractionWorker(BaseWorker):
             self.send_progress(90, "Phase 3: Skipped (LLM disabled)")
             # Signal LLM complete with empty list - UI will show NER-only results
             self.ui_queue.put(QueueMessage.llm_complete([]))
-            self.send_progress(100, f"Complete: {len(ner_results)} terms (NER only)")
+            self.send_progress(100, f"Complete: {len(ner_results)} terms (local algorithms only)")
 
         # Wait for Q&A thread to finish
         # Session 80: Increased timeout from 60s to 180s - large documents can take longer
@@ -1124,4 +1126,5 @@ class ProgressiveExtractionWorker(BaseWorker):
 
         except Exception as e:
             logger.error("Q&A indexing failed: %s", e)
+            self.ui_queue.put(QueueMessage.status_error("Q&A indexing failed"))
             self.ui_queue.put(QueueMessage.qa_error(str(e)))

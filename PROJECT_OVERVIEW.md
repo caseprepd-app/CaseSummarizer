@@ -103,6 +103,8 @@ Build a **100% offline, private, commercial Windows desktop application** for co
 5. OUTPUT DISPLAY   → Names & Vocabulary table, Questions panel, optional Summary
 ```
 
+**Status Bar Convention:** The status bar keeps users informed of every pipeline stage. When adding new features, include status bar updates so users know the feature is running. Non-fatal errors should display briefly in the status bar (orange text) via `StatusReporter.error()` in addition to being logged. Use `StatusReporter` from `src/ui/status_reporter.py` for all worker status updates.
+
 ---
 
 ## 7. Future Considerations (Not Yet Prioritized)

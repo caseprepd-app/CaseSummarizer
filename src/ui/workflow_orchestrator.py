@@ -456,6 +456,9 @@ class WorkflowOrchestrator:
 
             except Exception as e:
                 logger.error("Vector store creation failed: %s", e)
+                self.main_window.ui_queue.put(
+                    QueueMessage.status_error("Q&A unavailable (indexing failed)")
+                )
                 self.main_window.ui_queue.put(QueueMessage.vector_store_error(str(e)))
 
         thread = threading.Thread(target=build_store, daemon=True, name="VectorStoreBuilder")

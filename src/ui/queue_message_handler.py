@@ -233,6 +233,19 @@ class QueueMessageHandler:
         self._reset_ui_after_processing()
         self.main_window.pending_ai_generation = None
 
+    def handle_status_error(self, message):
+        """
+        Handle 'status_error' message - show non-fatal error in status bar.
+
+        Displays orange text in the status bar without blocking with a modal.
+        Used for errors that shouldn't interrupt the user (e.g., one document
+        failing in a batch, optional feature failing).
+
+        Args:
+            message: Human-readable error description
+        """
+        self.main_window.set_status_error(message)
+
     def _reset_ui_after_processing(self):
         """Reset UI buttons and progress bar to post-processing state."""
         logger.debug("Resetting UI after processing complete")
@@ -595,6 +608,7 @@ class QueueMessageHandler:
             MessageType.SUMMARY_RESULT: self.handle_summary_result,
             MessageType.MULTI_DOC_RESULT: self.handle_multi_doc_result,
             MessageType.ERROR: self.handle_error,
+            MessageType.STATUS_ERROR: self.handle_status_error,
             # Vector Store Q&A handlers (Session 24)
             MessageType.VECTOR_STORE_READY: self.handle_vector_store_ready,
             MessageType.VECTOR_STORE_ERROR: self.handle_vector_store_error,

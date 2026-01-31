@@ -35,6 +35,7 @@ import traceback
 from queue import Queue
 
 from src.ui.queue_messages import QueueMessage
+from src.ui.status_reporter import StatusReporter
 
 logger = logging.getLogger(__name__)
 
@@ -47,7 +48,7 @@ class BaseWorker(threading.Thread):
     - Daemon thread setup
     - Stop event handling
     - Standard error handling with debug logging
-    - Progress reporting utilities
+    - Progress reporting utilities via StatusReporter
 
     Subclasses should:
     1. Call super().__init__(ui_queue) in their __init__
@@ -66,6 +67,7 @@ class BaseWorker(threading.Thread):
         super().__init__(daemon=True)
         self._stop_event = threading.Event()
         self.ui_queue = ui_queue
+        self.status = StatusReporter(ui_queue)
 
     def stop(self) -> None:
         """
@@ -106,7 +108,19 @@ class BaseWorker(threading.Thread):
             message: Status message to display
         """
         if not self.is_stopped:
-            self.ui_queue.put(QueueMessage.progress(percentage, message))
+            self.status.update(percentage, message)
+
+    def send_status_error(self, message: str) -> None:
+        """
+        Display a non-fatal error in the status bar (orange text).
+
+        Unlike send_error() which shows a blocking modal dialog,
+        this displays briefly in the status bar without interrupting.
+
+        Args:
+            message: Human-readable error description
+        """
+        self.status.error(message)
 
     def send_error(self, operation: str, error: Exception) -> None:
         """
