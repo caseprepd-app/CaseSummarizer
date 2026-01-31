@@ -153,6 +153,11 @@ class AnswerGenerator:
 
         # Truncate if too long
         if len(answer) > 500:
+            logger.warning(
+                "Extraction answer truncated from %d to 500 chars for question: %.80s",
+                len(answer),
+                question,
+            )
             answer = answer[:500].rsplit(" ", 1)[0] + "..."
 
         return answer

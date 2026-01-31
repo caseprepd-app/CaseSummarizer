@@ -245,6 +245,8 @@ class VocabExportMixin:
         # Header row
         pdf.set_font("Helvetica", "B", 8)
         for col in visible_columns:
+            if len(col) > 12:
+                logger.warning("Vocab PDF header truncated: '%s' -> '%s'", col, col[:12])
             pdf.cell(col_width, 8, col[:12], border=1, align="C")
         pdf.ln()
 
@@ -256,6 +258,11 @@ class VocabExportMixin:
                 value = str(term.get(data_key, term.get(col, "")))
                 # Truncate for PDF cell
                 if len(value) > 15:
+                    logger.warning(
+                        "Vocab PDF cell truncated from %d to 12 chars: '%.30s'",
+                        len(value),
+                        value,
+                    )
                     value = value[:12] + "..."
                 pdf.cell(col_width, 6, value, border=1, align="C")
             pdf.ln()

@@ -256,6 +256,11 @@ def _truncate_to_sentence(text: str, max_chars: int) -> str:
     if len(text) <= max_chars:
         return text
 
+    logger.warning(
+        "Citation excerpt truncated from %d to %d chars (embeddings unavailable).",
+        len(text),
+        max_chars,
+    )
     truncated = text[:max_chars]
 
     # Try to find a sentence boundary

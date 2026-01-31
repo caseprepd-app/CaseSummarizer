@@ -12,8 +12,11 @@ Common title page patterns:
 - "DEPOSITION OF [NAME]" titles
 """
 
+import logging
 import re
 from typing import ClassVar
+
+logger = logging.getLogger(__name__)
 
 from src.core.preprocessing.base import BasePreprocessor, PreprocessingResult
 
@@ -122,6 +125,11 @@ class TitlePageRemover(BasePreprocessor):
         # No clear page breaks - return first ~2000 chars as "title page candidate"
         # and rest as "content"
         if len(text) > 3000:
+            logger.warning(
+                "No page breaks found in document (%d chars). "
+                "Using arbitrary 2000-char split for title page detection.",
+                len(text),
+            )
             return [text[:2000], text[2000:]]
 
         return [text]

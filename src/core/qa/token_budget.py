@@ -194,6 +194,11 @@ def _ensure_fits(text, max_tokens):
     tokens = enc.encode(text)
     if len(tokens) <= max_tokens:
         return text
+    logger.warning(
+        "Context truncated from %d to %d tokens to fit token budget.",
+        len(tokens),
+        max_tokens,
+    )
     truncated = enc.decode(tokens[:max_tokens])
     # Try to break at a chunk separator for cleaner truncation
     last_sep = truncated.rfind("\n\n---\n\n")

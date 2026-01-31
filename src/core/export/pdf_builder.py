@@ -4,9 +4,12 @@ PDF Document Builder
 Implements DocumentBuilder using fpdf2 for PDF export.
 """
 
+import logging
 import unicodedata
 
 from fpdf import FPDF
+
+logger = logging.getLogger(__name__)
 
 from src.core.export.base import DocumentBuilder, TextSpan
 
@@ -122,6 +125,8 @@ class PdfDocumentBuilder(DocumentBuilder):
         self.pdf.set_fill_color(240, 240, 240)
 
         for header in headers:
+            if len(header) > 20:
+                logger.warning("PDF table header truncated: '%s' -> '%s'", header, header[:20])
             self.pdf.cell(col_width, 8, _sanitize_for_latin1(header[:20]), border=1, fill=True)
         self.pdf.ln()
 
@@ -144,9 +149,14 @@ class PdfDocumentBuilder(DocumentBuilder):
             for i, cell_text in enumerate(row_data):
                 if i < col_count:
                     # Truncate long text
-                    display_text = (
-                        str(cell_text)[:25] if len(str(cell_text)) > 25 else str(cell_text)
-                    )
+                    cell_str = str(cell_text)
+                    if len(cell_str) > 25:
+                        logger.warning(
+                            "PDF table cell truncated from %d to 25 chars: '%.40s...'",
+                            len(cell_str),
+                            cell_str,
+                        )
+                    display_text = cell_str[:25] if len(cell_str) > 25 else cell_str
                     self.pdf.cell(col_width, 7, _sanitize_for_latin1(display_text), border=1)
             self.pdf.ln()
 

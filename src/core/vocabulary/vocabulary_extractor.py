@@ -1083,6 +1083,11 @@ class VocabularyExtractor:
         if synsets:
             definition = synsets[0].definition()
             if len(definition) > 100:
+                logger.warning(
+                    "WordNet definition truncated from %d to 100 chars for '%s'.",
+                    len(definition),
+                    term,
+                )
                 definition = definition[:97] + "..."
             return definition
 
