@@ -209,7 +209,7 @@ class RawTextExtractor:
                         return result
 
                 # Step 5: Sanitize characters
-                report_progress("Sanitizing characters", 80)
+                report_progress("Fixing character encoding...", 80)
                 if result["extracted_text"]:
                     with Timer("Character sanitization"):
                         sanitized, stats = self.character_sanitizer.sanitize(

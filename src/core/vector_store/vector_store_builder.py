@@ -114,9 +114,15 @@ class VectorStoreBuilder:
 
         logger.debug("Converting %d chunks to embeddings...", len(lc_documents))
 
-        # Create FAISS vector store from documents
-        # This embeds all chunks and builds the index
-        vector_store = FAISS.from_documents(documents=lc_documents, embedding=embeddings)
+        # Create FAISS vector store with inner product (embeddings are L2-normalized,
+        # so inner product = cosine similarity, giving scores in [0, 1])
+        from langchain_community.vectorstores.utils import DistanceStrategy
+
+        vector_store = FAISS.from_documents(
+            documents=lc_documents,
+            embedding=embeddings,
+            distance_strategy=DistanceStrategy.MAX_INNER_PRODUCT,
+        )
 
         # Save to disk as files (index.faiss + index.pkl)
         vector_store.save_local(str(persist_dir))
@@ -147,6 +153,7 @@ class VectorStoreBuilder:
         source_file: str | None = None,
         persist_dir: Path | None = None,
         case_id: str | None = None,
+        progress_callback=None,
     ) -> VectorStoreResult:
         """
         Build vector store from UnifiedChunk objects (Session 45).
@@ -160,6 +167,8 @@ class VectorStoreBuilder:
             source_file: Source filename for metadata (optional)
             persist_dir: Where to save vector store files (auto-generated if None)
             case_id: Unique identifier for this case (auto-generated if None)
+            progress_callback: Optional callback(current, total) called after
+                              each batch of chunks is embedded
 
         Returns:
             VectorStoreResult with persistence path, case ID, and stats
@@ -228,8 +237,34 @@ class VectorStoreBuilder:
         avg_tokens = sum(d.metadata.get("token_count", 0) for d in lc_documents) / len(lc_documents)
         logger.debug("Converting %d chunks (avg %.0f tokens)", len(lc_documents), avg_tokens)
 
-        # Create FAISS vector store from documents
-        vector_store = FAISS.from_documents(documents=lc_documents, embedding=embeddings)
+        # Create FAISS vector store with inner product (embeddings are L2-normalized,
+        # so inner product = cosine similarity, giving scores in [0, 1])
+        from langchain_community.vectorstores.utils import DistanceStrategy
+
+        # Embed texts in batches of 2 for progress reporting, then build
+        # the FAISS index once from pre-computed embeddings. Each chunk's
+        # embedding is independent — batching doesn't affect results.
+        texts = [doc.page_content for doc in lc_documents]
+        metadatas = [doc.metadata for doc in lc_documents]
+        all_embeddings = []
+        batch_size = 2
+        total = len(texts)
+
+        for i in range(0, total, batch_size):
+            batch_texts = texts[i : i + batch_size]
+            batch_vecs = embeddings.embed_documents(batch_texts)
+            all_embeddings.extend(batch_vecs)
+
+            if progress_callback:
+                progress_callback(min(i + batch_size, total), total)
+
+        # Build FAISS index once from all pre-computed embeddings
+        vector_store = FAISS.from_embeddings(
+            text_embeddings=list(zip(texts, all_embeddings)),
+            embedding=embeddings,
+            metadatas=metadatas,
+            distance_strategy=DistanceStrategy.MAX_INNER_PRODUCT,
+        )
 
         # Save to disk as files (index.faiss + index.pkl)
         vector_store.save_local(str(persist_dir))

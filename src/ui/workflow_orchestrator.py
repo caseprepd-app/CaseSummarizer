@@ -299,10 +299,16 @@ class WorkflowOrchestrator:
         if doc_count <= 1:
             # Single document: Use existing fast path via main window
             logger.debug("Single document mode - using direct Ollama summarization")
+            self.main_window.ui_queue.put(
+                QueueMessage.progress(50, "Generating document summary...")
+            )
             self.main_window._start_ai_generation(extracted_documents, ai_params)
         else:
             # Multiple documents: Use hierarchical map-reduce via MultiDocSummaryWorker
             logger.debug("Multi-document mode - using hierarchical summarization")
+            self.main_window.ui_queue.put(
+                QueueMessage.progress(50, f"Generating summaries for {doc_count} documents...")
+            )
             self._start_multi_doc_generation(valid_docs, ai_params)
 
     def _start_multi_doc_generation(self, documents: list[dict], ai_params: dict):
@@ -400,7 +406,9 @@ class WorkflowOrchestrator:
                     "qa_questions", False
                 ):
                     self.main_window.ui_queue.put(
-                        QueueMessage.progress(65, "Loading AI embedding model...")
+                        QueueMessage.progress(
+                            65, "Loading AI embedding model (this may take a moment)..."
+                        )
                     )
 
                 # Import and initialize embeddings
@@ -429,6 +437,7 @@ class WorkflowOrchestrator:
                 )
 
                 # Notify UI that vector store is ready
+                self.main_window.ui_queue.put(QueueMessage.progress(85, "Search index ready!"))
                 self.main_window.ui_queue.put(
                     QueueMessage.vector_store_ready(
                         path=result.persist_dir,

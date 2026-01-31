@@ -327,10 +327,10 @@ class QueueMessageHandler:
             data: Dictionary with 'error' message
         """
         error_msg = data.get("error", "Unknown error")
-        logger.debug("Vector store error: %s", error_msg)
+        logger.warning("Vector store error: %s", error_msg)
 
-        # Update status to indicate Q&A is not available
-        self.main_window.status_label.configure(text="Q&A unavailable (indexing failed)")
+        # Show error in orange on status bar (held for 5s minimum)
+        self.main_window.set_status_error("Q&A unavailable (indexing failed)")
 
         # Mark as not available
         self.main_window.vector_store_path = None
@@ -431,8 +431,10 @@ class QueueMessageHandler:
             data: Dictionary with 'error' key containing error message
         """
         error_msg = data.get("error", "Unknown Q&A error")
-        self.main_window.status_label.configure(text=f"Q&A Error: {error_msg}")
-        logger.debug("Q&A error: %s", error_msg)
+        logger.warning("Q&A error: %s", error_msg)
+
+        # Show error in orange on status bar (held for 5s minimum)
+        self.main_window.set_status_error(f"Q&A Error: {error_msg}")
 
     # =========================================================================
     # Progressive Extraction Handlers (Session 48)
@@ -492,7 +494,7 @@ class QueueMessageHandler:
 
         # Update status
         self.main_window.status_label.configure(
-            text=f"Q&A ready ({chunk_count} chunks). LLM enhancement in progress..."
+            text=f"Q&A ready ({chunk_count} passages indexed). Answering questions..."
         )
 
     def handle_trigger_default_qa(self, data: dict):

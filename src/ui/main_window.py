@@ -663,8 +663,8 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             error_msg = (
                 data.get("error", "Unknown Q&A error") if isinstance(data, dict) else str(data)
             )
-            logger.debug("Q&A indexing error: %s", error_msg)
-            self.set_status(f"Questions and answers unavailable: {error_msg[:50]}...")
+            logger.warning("Q&A indexing error: %s", error_msg)
+            self.set_status_error(f"Q&A unavailable: {error_msg[:50]}")
             # Q&A won't be available but vocab extraction can continue
 
         elif msg_type == "trigger_default_qa":
@@ -1466,6 +1466,9 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         )
         self._progressive_worker.start()
 
+        # Restart timer for extraction phase (was stopped after preprocessing)
+        self._start_timer()
+
         # Ensure queue polling is running (may have stopped after preprocessing)
         if self._queue_poll_id:
             self.after_cancel(self._queue_poll_id)
@@ -2045,12 +2048,27 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             duration_ms: If set, clear to default status after this many milliseconds.
                          Use for temporary confirmations (e.g., "Exported 10 terms").
         """
+        # If an error is being displayed with a hold timer, defer this message
+        if hasattr(self, "_status_error_hold_until") and self._status_error_hold_until:
+            import time
+
+            if time.time() < self._status_error_hold_until:
+                # Schedule this message for after the hold expires
+                remaining_ms = int((self._status_error_hold_until - time.time()) * 1000)
+                self.after(remaining_ms, lambda: self.set_status(message, duration_ms))
+                return
+
         # Cancel any pending status clear
         if hasattr(self, "_status_clear_id") and self._status_clear_id:
             self.after_cancel(self._status_clear_id)
             self._status_clear_id = None
 
-        self.status_label.configure(text=message)
+        # Reset to default text color (in case previous was an error)
+        from src.ui.theme import COLORS
+
+        self.status_label.configure(text=message, text_color=COLORS["text_secondary"])
+
+        self._status_error_hold_until = None
 
         logger.debug("Status: %s", message)
 
@@ -2058,10 +2076,40 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         if duration_ms:
             self._status_clear_id = self.after(duration_ms, lambda: self._clear_status_to_default())
 
+    def set_status_error(self, message: str, hold_seconds: float = 5.0):
+        """
+        Display an error/warning message in orange text on the status bar.
+
+        Convention: all pipeline failures should use this method so users can
+        see that something went wrong. The message is held for hold_seconds
+        before normal status messages can overwrite it.
+
+        Args:
+            message: Error message to display.
+            hold_seconds: Minimum seconds to display before other messages
+                          can overwrite (default 5s).
+        """
+        import time
+
+        from src.ui.theme import COLORS
+
+        # Cancel any pending status clear
+        if hasattr(self, "_status_clear_id") and self._status_clear_id:
+            self.after_cancel(self._status_clear_id)
+            self._status_clear_id = None
+
+        self.status_label.configure(text=message, text_color=COLORS["status_error"])
+        self._status_error_hold_until = time.time() + hold_seconds
+
+        logger.warning("Status (error): %s", message)
+
     def _clear_status_to_default(self):
         """Clear status bar to default 'Ready' message."""
+        from src.ui.theme import COLORS
+
         self._status_clear_id = None
-        self.status_label.configure(text="Ready")
+        self._status_error_hold_until = None
+        self.status_label.configure(text="Ready", text_color=COLORS["text_secondary"])
 
     # =========================================================================
     # Startup Checks

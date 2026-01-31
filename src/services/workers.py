@@ -195,12 +195,15 @@ class ProcessingWorker(BaseWorker):
         if self.processed_results:
             from src.core.preprocessing import create_default_pipeline
             from src.services.document_service import DocumentService
+            from src.ui.silly_messages import get_silly_message
 
+            self.send_progress(80, "Cleaning up headers and footers...")
             preprocessor = create_default_pipeline(DocumentService._get_preprocessing_settings())
             for result in self.processed_results:
                 extracted = result.get("extracted_text", "")
                 if extracted:
                     result["preprocessed_text"] = preprocessor.process(extracted)
+            self.send_progress(90, get_silly_message())
             logger.debug("Preprocessing applied to %s documents", len(self.processed_results))
 
         # Send completion message if not cancelled
@@ -894,6 +897,7 @@ class ProgressiveExtractionWorker(BaseWorker):
         bm25_active = corpus_manager.is_corpus_ready(min_docs=CORPUS_MIN_DOCUMENTS)
 
         algo_list = "NER, RAKE, BM25" if bm25_active else "NER, RAKE"
+        self.send_progress(5, "Scanning for names and entities...")
         self.send_progress(10, f"Phase 1: Running local extraction ({algo_list})...")
 
         from src.core.vocabulary import VocabularyExtractor
@@ -1006,7 +1010,9 @@ class ProgressiveExtractionWorker(BaseWorker):
 
             # Deduplicate NER + LLM results
             from src.core.vocabulary.reconciler import VocabularyDeduplicator
+            from src.ui.silly_messages import get_silly_message
 
+            self.send_progress(92, get_silly_message())
             logger.debug("Deduplicating NER + LLM results...")
             reconciler = VocabularyDeduplicator()
 
@@ -1048,6 +1054,11 @@ class ProgressiveExtractionWorker(BaseWorker):
             # Lazy-load embeddings if not provided (shared instance, GPU-aware)
             if self.embeddings is None:
                 logger.debug("Loading embeddings model...")
+                self.ui_queue.put(
+                    QueueMessage.progress(
+                        22, "Loading AI language model (first time may be slow)..."
+                    )
+                )
                 from src.core.retrieval.algorithms.faiss_semantic import get_embeddings_model
 
                 self.embeddings = get_embeddings_model()
@@ -1055,6 +1066,9 @@ class ProgressiveExtractionWorker(BaseWorker):
             # Create unified chunks from each document with source attribution
             # This ensures each chunk knows which document it came from
             # Use preprocessed_text (already cleaned by ProcessingWorker) to avoid redundant work
+            self.ui_queue.put(
+                QueueMessage.progress(24, "Splitting documents into searchable passages...")
+            )
             chunker = create_unified_chunker()
             all_chunks = []
             for doc in self.documents:
@@ -1066,13 +1080,31 @@ class ProgressiveExtractionWorker(BaseWorker):
                     all_chunks.extend(doc_chunks)
 
             # Build vector store
+            total_chunks = len(all_chunks)
+            self.ui_queue.put(
+                QueueMessage.progress(26, f"Building search index (0/{total_chunks} passages)...")
+            )
+
+            def on_index_progress(current, total):
+                self.ui_queue.put(
+                    QueueMessage.progress(
+                        26, f"Building search index ({current}/{total} passages)..."
+                    )
+                )
+
             builder = VectorStoreBuilder()
             result = builder.create_from_unified_chunks(
                 chunks=all_chunks,
                 embeddings=self.embeddings,
+                progress_callback=on_index_progress,
             )
 
             logger.info("Phase 2 complete: %s chunks indexed", result.chunk_count)
+            self.ui_queue.put(
+                QueueMessage.progress(
+                    28, f"Search index ready! ({result.chunk_count} passages indexed)"
+                )
+            )
             self.ui_queue.put(
                 QueueMessage.qa_ready(
                     vector_store_path=result.persist_dir,
