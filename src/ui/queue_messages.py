@@ -318,7 +318,12 @@ class QueueMessage:
         return (MessageType.NER_COMPLETE, vocab_data)
 
     @staticmethod
-    def qa_ready(vector_store_path: str, embeddings: Any, chunk_count: int) -> tuple[str, dict]:
+    def qa_ready(
+        vector_store_path: str,
+        embeddings: Any,
+        chunk_count: int,
+        chunk_scores: Any = None,
+    ) -> tuple[str, dict]:
         """
         Create Q&A ready message (Phase 2).
 
@@ -326,6 +331,7 @@ class QueueMessage:
             vector_store_path: Path to vector store
             embeddings: HuggingFaceEmbeddings instance
             chunk_count: Number of chunks indexed
+            chunk_scores: Optional ChunkScores for redundancy skipping in summarization
         """
         return (
             MessageType.QA_READY,
@@ -333,6 +339,7 @@ class QueueMessage:
                 "vector_store_path": vector_store_path,
                 "embeddings": embeddings,
                 "chunk_count": chunk_count,
+                "chunk_scores": chunk_scores,
             },
         )
 

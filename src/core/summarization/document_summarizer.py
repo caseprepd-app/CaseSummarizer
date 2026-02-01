@@ -115,6 +115,8 @@ class ProgressiveDocumentSummarizer(DocumentSummarizer):
         config_path: Path | None = None,
         prompt_adapter: StagePromptBuilder | None = None,
         preset_id: str = "factual-summary",
+        chunk_scores=None,
+        enhanced_mode: bool = False,
     ):
         """
         Initialize the progressive document summarizer.
@@ -126,11 +128,15 @@ class ProgressiveDocumentSummarizer(DocumentSummarizer):
                           prompts. If None, uses default hardcoded prompts.
             preset_id: Template preset ID for focus extraction. Used with
                       prompt_adapter to thread user's focus through prompts.
+            chunk_scores: Optional ChunkScores for skipping redundant chunks.
+            enhanced_mode: If True, runs two-pass extraction before summarization.
         """
         self.model_manager = model_manager
         self.config_path = config_path
         self.prompt_adapter = prompt_adapter
         self.preset_id = preset_id
+        self.chunk_scores = chunk_scores
+        self.enhanced_mode = enhanced_mode
         self._model_name: str | None = None  # Cached model name for adapter
 
     def summarize(
@@ -198,6 +204,25 @@ class ProgressiveDocumentSummarizer(DocumentSummarizer):
             # Step 3: Get batch boundaries for progressive updates
             batch_boundaries = progressive._get_batch_boundaries(chunk_count)
 
+            # Step 3.5: Run extraction pass if enhanced mode
+            extraction_results = None
+            if self.enhanced_mode:
+                try:
+                    from src.core.summarization.extraction_pass import ExtractionPassProcessor
+
+                    extractor = ExtractionPassProcessor(
+                        model_manager=self.model_manager,
+                        chunk_scores=self.chunk_scores,
+                        stop_check=stop_check,
+                    )
+                    extraction_results = extractor.extract_from_chunks(
+                        chunks, status_reporter=progress_callback
+                    )
+                    logger.debug("Extraction pass complete: %d results", len(extraction_results))
+                except Exception as e:
+                    logger.warning("Extraction pass failed (proceeding without): %s", e)
+                    extraction_results = None
+
             # Step 4: Process each chunk
             chunk_summaries = []
             target_chunk_words = 75  # Target words per chunk summary
@@ -223,12 +248,36 @@ class ProgressiveDocumentSummarizer(DocumentSummarizer):
                         progress_percent, f"{filename}: chunk {chunk_num}/{chunk_count}"
                     )
 
+                # Skip redundant chunks
+                if (
+                    self.chunk_scores
+                    and i < len(self.chunk_scores.skip)
+                    and self.chunk_scores.skip[i]
+                ):
+                    reason = (
+                        self.chunk_scores.skip_reason[i]
+                        if i < len(self.chunk_scores.skip_reason)
+                        else "redundant"
+                    )
+                    logger.debug("[Skipped chunk %d — %s]", chunk_num, reason)
+                    chunk_summaries.append("")
+                    progressive.df.loc[
+                        progressive.df["chunk_num"] == chunk_num, "chunk_summary"
+                    ] = ""
+                    continue
+
+                # Get extraction context for this chunk (enhanced mode)
+                extraction_context = None
+                if extraction_results and i < len(extraction_results) and extraction_results[i]:
+                    extraction_context = extraction_results[i]
+
                 # Generate chunk summary with context
                 chunk_summary = self._summarize_chunk(
                     progressive=progressive,
                     chunk_num=chunk_num,
                     chunk_text=chunk.text,
                     target_words=target_chunk_words,
+                    extraction_context=extraction_context,
                 )
 
                 chunk_summaries.append(chunk_summary)
@@ -289,6 +338,7 @@ class ProgressiveDocumentSummarizer(DocumentSummarizer):
         chunk_num: int,
         chunk_text: str,
         target_words: int = 75,
+        extraction_context: str | None = None,
     ) -> str:
         """
         Generate a summary for a single chunk with context.
@@ -302,6 +352,7 @@ class ProgressiveDocumentSummarizer(DocumentSummarizer):
             chunk_num: Current chunk number (1-indexed).
             chunk_text: Text of the chunk to summarize.
             target_words: Target word count for chunk summary.
+            extraction_context: Optional extraction results from Pass 1.
 
         Returns:
             Chunk summary string.
@@ -331,6 +382,11 @@ class ProgressiveDocumentSummarizer(DocumentSummarizer):
             prompt = progressive.create_summarization_prompt(
                 chunk_num=chunk_num, chunk_text=chunk_text, summary_target_words=target_words
             )
+
+        # Inject extraction context from Pass 1 (enhanced mode)
+        if extraction_context:
+            extraction_block = f"\nKEY FACTS IDENTIFIED IN THIS SECTION:\n{extraction_context}\n\n"
+            prompt = prompt + extraction_block
 
         # Generate summary via Ollama
         # Use 1.5x tokens per word with buffer

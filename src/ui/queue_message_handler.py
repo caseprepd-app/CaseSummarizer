@@ -481,12 +481,21 @@ class QueueMessageHandler:
         Handle 'qa_ready' message - Phase 2 Q&A vector store ready.
 
         Enables Q&A functionality now that the vector store is built.
+        Stores pre-computed chunk_scores from the worker if available.
 
         Args:
-            data: Dictionary with 'vector_store_path', 'embeddings', 'chunk_count'
+            data: Dictionary with 'vector_store_path', 'embeddings', 'chunk_count',
+                  and optionally 'chunk_scores'
         """
         chunk_count = data.get("chunk_count", 0)
         logger.debug("Q&A ready: %s chunks indexed", chunk_count)
+
+        # Store pre-computed chunk scores for summarization redundancy skipping
+        chunk_scores = data.get("chunk_scores")
+        if chunk_scores and self.orchestrator:
+            self.orchestrator.state.chunk_scores = chunk_scores
+            skip_count = sum(1 for s in chunk_scores.skip if s)
+            logger.debug("Chunk scores received: %d redundant chunks", skip_count)
 
         # Store vector store info on main window
         self.main_window._vector_store_path = data.get("vector_store_path")

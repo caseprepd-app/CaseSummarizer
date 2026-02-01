@@ -768,8 +768,22 @@ class MultiDocSummaryWorker(CleanupWorker):
             template_manager=model_manager.prompt_template_manager, model_manager=model_manager
         )
 
+        # Resolve enhanced mode and chunk scores
+        from src.user_preferences import get_user_preferences
+
+        prefs = get_user_preferences()
+        enhanced_mode = prefs.is_enhanced_summary_enabled()
+        chunk_scores = self.ai_params.get("chunk_scores")
+
+        if enhanced_mode:
+            logger.debug("Enhanced summary mode enabled (two-pass extraction)")
+
         doc_summarizer = ProgressiveDocumentSummarizer(
-            model_manager, prompt_adapter=prompt_adapter, preset_id=preset_id
+            model_manager,
+            prompt_adapter=prompt_adapter,
+            preset_id=preset_id,
+            chunk_scores=chunk_scores,
+            enhanced_mode=enhanced_mode,
         )
 
         self._orchestrator = MultiDocumentOrchestrator(
@@ -1110,11 +1124,28 @@ class ProgressiveExtractionWorker(BaseWorker):
                     28, f"Search index ready! ({result.chunk_count} passages indexed)"
                 )
             )
+            # Run redundancy detection on embeddings for summarization
+            chunk_scores = None
+            if result.chunk_embeddings:
+                try:
+                    from src.core.utils.chunk_scoring import detect_redundant_chunks
+
+                    chunk_scores = detect_redundant_chunks(result.chunk_embeddings)
+                    skip_count = sum(1 for s in chunk_scores.skip if s)
+                    logger.debug(
+                        "Redundancy detection: %d/%d chunks flagged",
+                        skip_count,
+                        len(result.chunk_embeddings),
+                    )
+                except Exception as e:
+                    logger.warning("Redundancy detection failed: %s", e)
+
             self.ui_queue.put(
                 QueueMessage.qa_ready(
                     vector_store_path=result.persist_dir,
                     embeddings=self.embeddings,
                     chunk_count=result.chunk_count,
+                    chunk_scores=chunk_scores,
                 )
             )
 

@@ -1716,6 +1716,34 @@ def _register_all_settings():
 
     SettingsRegistry.register(
         SettingDefinition(
+            key="summary_enhanced_mode",
+            label="Enhanced summary mode (two-pass)",
+            category="Performance",
+            setting_type=SettingType.DROPDOWN,
+            tooltip=lambda: (
+                "When enabled, summarization uses a two-pass approach:\n"
+                "1. Pass 1: Extract key claims, facts, and relief from each chunk\n"
+                "2. Pass 2: Summarize with extracted facts as context\n\n"
+                "This prevents important details from fading during progressive "
+                "summarization, but doubles the number of LLM calls.\n\n"
+                "• Auto: Enable if a dedicated GPU is detected\n"
+                "• Always enable: Always use two-pass (2× processing time)\n"
+                "• Standard only: Single-pass summarization (faster)\n\n"
+                f"Current status: {_get_gpu_status_for_tooltip()}"
+            ),
+            default="auto",
+            options=[
+                ("Auto (enable if GPU detected)", "auto"),
+                ("Always enable (2× processing time)", "yes"),
+                ("Standard only (faster)", "no"),
+            ],
+            getter=lambda: prefs.get_summary_enhanced_mode(),
+            setter=lambda v: prefs.set_summary_enhanced_mode(v),
+        )
+    )
+
+    SettingsRegistry.register(
+        SettingDefinition(
             key="summary_gpu_override",
             label="Summary generation",
             category="Performance",

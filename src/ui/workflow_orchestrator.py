@@ -46,6 +46,7 @@ class WorkflowState:
         is_complete: Whether the entire workflow has finished
         vector_store_path: Path to the created vector store (for Q&A)
         vector_store_ready: Whether vector store is ready for Q&A
+        chunk_scores: Per-chunk redundancy scores from embedding similarity
     """
 
     extracted_documents: list[dict] = None
@@ -56,6 +57,7 @@ class WorkflowState:
     is_complete: bool = False
     vector_store_path: Path | None = None
     vector_store_ready: bool = False
+    chunk_scores: Any = None  # ChunkScores from chunk_scoring.py
 
     def __post_init__(self):
         if self.extracted_documents is None:
@@ -325,6 +327,10 @@ class WorkflowOrchestrator:
         """
         from src.services.workers import MultiDocSummaryWorker
 
+        # Inject chunk_scores into ai_params for the worker
+        if self.state.chunk_scores:
+            ai_params = {**ai_params, "chunk_scores": self.state.chunk_scores}
+
         # Track worker for cancellation
         self.multi_doc_worker = MultiDocSummaryWorker(
             documents=documents, ui_queue=self.main_window.ui_queue, ai_params=ai_params
@@ -469,14 +475,23 @@ class WorkflowOrchestrator:
         Handle completion of vector store creation.
 
         Updates workflow state with vector store path for Q&A retrieval.
+        Stores pre-computed chunk_scores from the worker if available.
         If Q&A is requested, starts the Q&A worker.
 
         Args:
-            result: Dictionary with 'path', 'case_id', 'chunk_count'
+            result: Dictionary with 'path', 'case_id', 'chunk_count',
+                    and optionally 'chunk_scores'
         """
         self.state.vector_store_path = result.get("path")
         self.state.vector_store_ready = True
         logger.debug("Vector store complete: %s", result.get("case_id"))
+
+        # Store pre-computed chunk scores for summarization redundancy skipping
+        chunk_scores = result.get("chunk_scores")
+        if chunk_scores:
+            self.state.chunk_scores = chunk_scores
+            skip_count = sum(1 for s in chunk_scores.skip if s)
+            logger.debug("Chunk scores received: %d redundant chunks", skip_count)
 
         # Start Q&A processing if requested
         if self.state.output_options and self.state.output_options.get("qa_questions", False):

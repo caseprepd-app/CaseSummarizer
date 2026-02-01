@@ -43,6 +43,7 @@ class VectorStoreResult:
     case_id: str
     chunk_count: int
     creation_time_ms: float
+    chunk_embeddings: list[list[float]] | None = None
 
 
 class VectorStoreBuilder:
@@ -286,6 +287,7 @@ class VectorStoreBuilder:
             case_id=case_id,
             chunk_count=len(lc_documents),
             creation_time_ms=elapsed_ms,
+            chunk_embeddings=all_embeddings,
         )
 
     def _convert_to_langchain_documents(self, documents: list[dict]) -> list:

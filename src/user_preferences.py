@@ -413,6 +413,51 @@ class UserPreferencesManager:
             )
 
     # =========================================================================
+    # Enhanced Summary Mode (Two-Pass Extraction)
+    # =========================================================================
+
+    def get_summary_enhanced_mode(self) -> str:
+        """
+        Get enhanced summary mode (two-pass extraction).
+
+        Returns:
+            str: "auto" (enable if GPU detected), "yes" (always), or "no" (standard only)
+        """
+        value = self._preferences.get("summary_enhanced_mode", "auto")
+        return value if value in ("auto", "yes", "no") else "auto"
+
+    def set_summary_enhanced_mode(self, mode: str) -> None:
+        """
+        Set enhanced summary mode.
+
+        Args:
+            mode: "auto", "yes", or "no"
+        """
+        if mode not in ("auto", "yes", "no"):
+            raise ValueError(f"Invalid mode: {mode}, must be 'auto', 'yes', or 'no'")
+        self._preferences["summary_enhanced_mode"] = mode
+        self._save_preferences()
+
+    def is_enhanced_summary_enabled(self) -> bool:
+        """
+        Check if enhanced (two-pass) summarization is enabled.
+
+        Resolves "auto" mode using GPU detection.
+
+        Returns:
+            bool: True if two-pass extraction should be used
+        """
+        mode = self.get_summary_enhanced_mode()
+        if mode == "yes":
+            return True
+        elif mode == "no":
+            return False
+        else:  # "auto" - use GPU detection
+            from src.core.utils.gpu_detector import has_dedicated_gpu
+
+            return has_dedicated_gpu()
+
+    # =========================================================================
     # Logging Level Settings
     # =========================================================================
 
@@ -656,6 +701,12 @@ class UserPreferencesManager:
         elif key == "summary_gpu_override":
             if value not in ("auto", "yes"):
                 raise ValueError(f"summary_gpu_override must be 'auto' or 'yes', got {value}")
+        # Enhanced summary mode validation
+        elif key == "summary_enhanced_mode":
+            if value not in ("auto", "yes", "no"):
+                raise ValueError(
+                    f"summary_enhanced_mode must be 'auto', 'yes', or 'no', got {value}"
+                )
 
         self._preferences[key] = value
         self._save_preferences()
