@@ -22,16 +22,12 @@ from src.config import (
     QA_MAX_TOKENS,
     QA_TEMPERATURE,
 )
+from src.core.utils.sentence_splitter import split_sentences
 
 logger = logging.getLogger(__name__)
 
 # Pre-compiled regex patterns (Session 70 optimization)
-# Previously compiled on every call to _split_sentences and _extract_keywords
 _RE_SOURCE_CITATIONS = re.compile(r"\[[^\]]+\]:")
-_RE_ABBREVIATIONS_TITLES = re.compile(r"(Mr|Mrs|Ms|Dr|Prof|Jr|Sr)\.")
-_RE_ABBREVIATIONS_CORP = re.compile(r"(Inc|Corp|Ltd|Co)\.")
-_RE_NUMBERS_PERIOD = re.compile(r"(\d+)\.")
-_RE_SENTENCE_END = re.compile(r"[.!?]+\s+")
 _RE_WORD_EXTRACT = re.compile(r"\b[a-zA-Z]+\b")
 _RE_WHITESPACE = re.compile(r"\s+")
 
@@ -433,19 +429,7 @@ class AnswerGenerator:
         # Remove source citations for cleaner sentences (using pre-compiled regex)
         clean_text = _RE_SOURCE_CITATIONS.sub("", text)
 
-        # Simple sentence splitting
-        # Handle common abbreviations (using pre-compiled regex)
-        clean_text = _RE_ABBREVIATIONS_TITLES.sub(r"\1<PERIOD>", clean_text)
-        clean_text = _RE_ABBREVIATIONS_CORP.sub(r"\1<PERIOD>", clean_text)
-        clean_text = _RE_NUMBERS_PERIOD.sub(r"\1<PERIOD>", clean_text)
-
-        # Split on sentence-ending punctuation (using pre-compiled regex)
-        sentences = _RE_SENTENCE_END.split(clean_text)
-
-        # Restore periods
-        sentences = [s.replace("<PERIOD>", ".").strip() for s in sentences if s.strip()]
-
-        return sentences
+        return split_sentences(clean_text)
 
     def _score_sentence(self, sentence: str, keywords: set[str]) -> int:
         """

@@ -1076,11 +1076,13 @@ class DynamicOutputWidget(ctk.CTkFrame):
                 self.csv_treeview.tag_configure(tag_name, **tag_config)
 
         # Cancel any pending async insertion before starting new one
-        # This fixes race condition when ner_complete arrives before partial_vocab_complete finishes
+        # Uses a generation counter so old callbacks detect they're stale,
+        # even after the new insertion resets _is_loading.
         if self._is_loading:
             logger.debug("Cancelling pending async insertion for new data")
             self._insertion_cancelled = True
             self._is_loading = False
+        self._insertion_generation = getattr(self, "_insertion_generation", 0) + 1
 
         # Clear existing data and item mapping
         self.csv_treeview.delete(*self.csv_treeview.get_children())
@@ -1139,6 +1141,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
             return
         self._is_loading = True
         self._insertion_cancelled = False  # Reset cancellation flag for new operation
+        my_generation = self._insertion_generation  # Capture generation for this insertion
 
         current_idx = start_idx
 
@@ -1146,7 +1149,9 @@ class DynamicOutputWidget(ctk.CTkFrame):
             nonlocal current_idx
 
             # Check if this operation was cancelled (new data arrived)
-            if self._insertion_cancelled:
+            # Also check generation counter — if a newer insertion started,
+            # this callback is stale even if _insertion_cancelled was reset.
+            if self._insertion_cancelled or self._insertion_generation != my_generation:
                 logger.debug("Async insertion cancelled - stopping")
                 self._is_loading = False
                 return

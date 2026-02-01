@@ -86,7 +86,7 @@ def get_embeddings_model() -> "HuggingFaceEmbeddings":
 
     Lazy-loads the embeddings model on first call and caches it.
     Uses GPU when available for faster embedding.
-    Configures search_document/search_query prefixes for modernbert-embed-large.
+    Configures search_document/search_query prompt prefixes for modernbert-embed-large.
 
     Returns:
         HuggingFaceEmbeddings instance
@@ -103,8 +103,8 @@ def get_embeddings_model() -> "HuggingFaceEmbeddings":
         _shared_embeddings = HuggingFaceEmbeddings(
             model_name=DEFAULT_EMBEDDING_MODEL,
             model_kwargs={"device": device},
-            encode_kwargs={"normalize_embeddings": True, "prompt_name": "search_document"},
-            query_encode_kwargs={"normalize_embeddings": True, "prompt_name": "search_query"},
+            encode_kwargs={"normalize_embeddings": True, "prompt": "search_document: "},
+            query_encode_kwargs={"normalize_embeddings": True, "prompt": "search_query: "},
         )
     return _shared_embeddings
 
@@ -217,8 +217,15 @@ class FAISSRetriever(BaseRetrievalAlgorithm):
 
         logger.debug("Creating embeddings for %d chunks...", len(lc_documents))
 
-        # Build FAISS index
-        self._vector_store = FAISS.from_documents(documents=lc_documents, embedding=embeddings)
+        # Build FAISS index with inner product (embeddings are L2-normalized,
+        # so inner product = cosine similarity, giving scores in [0, 1])
+        from langchain_community.vectorstores.utils import DistanceStrategy
+
+        self._vector_store = FAISS.from_documents(
+            documents=lc_documents,
+            embedding=embeddings,
+            distance_strategy=DistanceStrategy.MAX_INNER_PRODUCT,
+        )
 
         elapsed_ms = (time.perf_counter() - start_time) * 1000
 
@@ -245,19 +252,17 @@ class FAISSRetriever(BaseRetrievalAlgorithm):
 
         logger.debug("Query: '%s...'", query[:50])
 
-        # Perform similarity search with scores
-        # Returns list of (Document, score) tuples
-        # LangChain's relevance_scores can be negative (relevance = 1 - distance, and distance can > 1)
-        docs_and_scores = self._vector_store.similarity_search_with_relevance_scores(query, k=k)
+        # Use raw FAISS scores (inner product on normalized embeddings = cosine similarity)
+        # Avoids LangChain's relevance_score transformations which invert the scores
+        docs_and_scores = self._vector_store.similarity_search_with_score(query, k=k)
 
         # Build result chunks
         retrieved_chunks = []
         for doc, score in docs_and_scores:
             metadata = doc.metadata
 
-            # Use raw cosine similarity directly (already 0-1 for normalized embeddings)
-            # This preserves absolute relevance rather than relative ranking
-            # Clamp to 0-1 in case of numerical edge cases
+            # Raw inner product on normalized vectors = cosine similarity ∈ [0, 1]
+            # Clamp in case of numerical edge cases
             normalized_score = max(0.0, min(float(score), 1.0))
 
             retrieved_chunks.append(

@@ -59,8 +59,11 @@ class WindowLayoutMixin:
         self.header_frame.pack_propagate(False)
 
         # App title (left)
+        from src.config import DEBUG_MODE
+
+        title_text = "CasePrepd [DEBUG]" if DEBUG_MODE else "CasePrepd"
         self.title_label = ctk.CTkLabel(
-            self.header_frame, text="CasePrepd", font=FONTS["heading_xl"]
+            self.header_frame, text=title_text, font=FONTS["heading_xl"]
         )
         self.title_label.pack(side="left", padx=15, pady=10)
 

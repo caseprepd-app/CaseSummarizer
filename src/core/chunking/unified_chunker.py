@@ -322,11 +322,11 @@ class UnifiedChunker:
         """
         Split text at sentence boundaries to reach target token count.
 
-        Uses regex to find sentence endings (., !, ?) followed by space or newline.
+        Uses NUPunkt legal-aware sentence boundary detection.
         """
-        # Sentence boundary pattern
-        sentence_pattern = re.compile(r"(?<=[.!?])\s+")
-        sentences = sentence_pattern.split(text)
+        from src.core.utils.sentence_splitter import split_sentences
+
+        sentences = split_sentences(text)
 
         chunks = []
         current_chunk = []

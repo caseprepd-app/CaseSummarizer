@@ -989,6 +989,15 @@ def _register_all_settings():
             "format.\n\n"
             "Makes transcript dialogue easier to read in summaries.",
         ),
+        (
+            "preprocess_coreference",
+            "Resolve pronoun references",
+            "Replace pronouns (he, she, they) with the names they refer to.\n\n"
+            "This improves search accuracy — chunks that only contain pronouns "
+            "become findable by name. Uses AI-based coreference resolution which "
+            "is correct approximately 81% of the time. Better to use than not, "
+            "but be aware it slightly modifies your input text.",
+        ),
     ]
 
     for _key, _label, _tooltip in _preprocess_toggles:

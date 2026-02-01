@@ -289,9 +289,11 @@ class ProgressiveSummarizer:
             previous_summary = prev_summary_rows.iloc[0] if not prev_summary_rows.empty else ""
             if previous_summary:
                 # Truncate to max sentences if needed
-                sentences = previous_summary.split(". ")
+                from src.core.utils.sentence_splitter import split_sentences
+
+                sentences = split_sentences(previous_summary)
                 if len(sentences) > local_max_sentences:
-                    previous_summary = ". ".join(sentences[:local_max_sentences]) + "."
+                    previous_summary = " ".join(sentences[:local_max_sentences])
                 local_context = f"[Previous: {previous_summary}]"
             else:
                 local_context = "[Previous chunk summary not yet available]"

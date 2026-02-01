@@ -24,6 +24,7 @@ Usage:
 """
 
 from src.core.preprocessing.base import BasePreprocessor, PreprocessingPipeline
+from src.core.preprocessing.coreference_resolver import CoreferenceResolver
 from src.core.preprocessing.header_footer_remover import HeaderFooterRemover
 from src.core.preprocessing.index_page_remover import IndexPageRemover
 from src.core.preprocessing.line_number_remover import LineNumberRemover
@@ -41,6 +42,7 @@ _SETTING_TO_PREPROCESSOR = {
     "preprocess_page_boundaries": "Page Boundary Cleaner",
     "preprocess_transcript_artifacts": "Transcript Cleaner",
     "preprocess_qa_notation": "QA Converter",
+    "preprocess_coreference": "Coreference Resolver",
 }
 
 
@@ -56,6 +58,7 @@ def create_default_pipeline(settings: dict | None = None) -> PreprocessingPipeli
     5. PageBoundaryCleaner - Cleans collapsed page boundary artifacts
     6. TranscriptCleaner - Removes page numbers, certification, index pages
     7. QAConverter - Converts Q./A. notation to readable format
+    8. CoreferenceResolver - Replaces pronouns with named antecedents
 
     Args:
         settings: Optional dict of preprocessing toggle settings.
@@ -73,6 +76,7 @@ def create_default_pipeline(settings: dict | None = None) -> PreprocessingPipeli
         PageBoundaryCleaner(),
         TranscriptCleaner(),
         QAConverter(),
+        CoreferenceResolver(),
     ]
 
     # Apply settings toggles if provided
@@ -90,6 +94,7 @@ def create_default_pipeline(settings: dict | None = None) -> PreprocessingPipeli
 
 __all__ = [
     "BasePreprocessor",
+    "CoreferenceResolver",
     "HeaderFooterRemover",
     "IndexPageRemover",
     "LineNumberRemover",

@@ -177,8 +177,8 @@ class TaskMixin:
             error_msg = (
                 data.get("error", "Unknown Q&A error") if isinstance(data, dict) else str(data)
             )
-            logger.debug("Q&A indexing error: %s", error_msg)
-            self.set_status(f"Questions and answers unavailable: {error_msg[:50]}...")
+            logger.warning("Q&A indexing error: %s", error_msg)
+            self.set_status_error(f"Q&A unavailable: {error_msg[:50]}")
 
         elif msg_type == "trigger_default_qa":
             self._handle_trigger_default_qa(data)

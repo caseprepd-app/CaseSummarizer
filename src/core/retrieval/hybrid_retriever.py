@@ -320,7 +320,7 @@ class HybridRetriever:
                 )
 
                 if faiss_best < FAISS_RELEVANCE_FLOOR:
-                    logger.debug(
+                    logger.warning(
                         "FAISS sanity check FAILED: best=%.4f < floor=%s -- no semantic match, skipping BM25+",
                         faiss_best,
                         FAISS_RELEVANCE_FLOOR,

@@ -210,23 +210,26 @@ def _format_excerpt(full_text: str, start: int, end: int) -> str:
     Returns:
         Formatted excerpt with ellipsis markers as needed.
     """
-    # Try to snap start to a sentence boundary (look back up to 40 chars)
+    # Use NUPunkt sentence spans to snap to nearest boundaries
+    from src.core.utils.sentence_splitter import split_sentence_spans
+
+    spans = split_sentence_spans(full_text)
+
     snapped_start = start
-    if start > 0:
-        search_region = full_text[max(0, start - 40) : start]
-        # Find last sentence-ending punctuation followed by space
-        for i in range(len(search_region) - 1, -1, -1):
-            if search_region[i] in ".!?" and i + 1 < len(search_region):
-                snapped_start = max(0, start - 40) + i + 1
+    snapped_end = end
+
+    if spans:
+        # Snap start: find the last sentence boundary at or before start
+        for _sent, (s, _e) in spans:
+            if s <= start:
+                snapped_start = s
+            else:
                 break
 
-    # Try to snap end to a sentence boundary (look forward up to 40 chars)
-    snapped_end = end
-    if end < len(full_text):
-        search_region = full_text[end : min(len(full_text), end + 40)]
-        for i, ch in enumerate(search_region):
-            if ch in ".!?":
-                snapped_end = end + i + 1
+        # Snap end: find the first sentence that ends at or after end
+        for _sent, (_s, e) in spans:
+            if e >= end:
+                snapped_end = e
                 break
 
     excerpt = full_text[snapped_start:snapped_end].strip()
@@ -261,15 +264,22 @@ def _truncate_to_sentence(text: str, max_chars: int) -> str:
         len(text),
         max_chars,
     )
+    # Use NUPunkt sentence splitter to find clean boundary
+    from src.core.utils.sentence_splitter import split_sentences
+
+    sentences = split_sentences(text)
+    result = ""
+    for sentence in sentences:
+        candidate = result + (" " if result else "") + sentence
+        if len(candidate) > max_chars:
+            break
+        result = candidate
+
+    if result and len(result) > max_chars // 2:
+        return result.strip() + "..."
+
+    # Fall back to word boundary if no sentence fits
     truncated = text[:max_chars]
-
-    # Try to find a sentence boundary
-    for punct in [". ", "! ", "? "]:
-        last_idx = truncated.rfind(punct)
-        if last_idx > max_chars // 2:
-            return truncated[: last_idx + 1].strip() + "..."
-
-    # Fall back to word boundary
     last_space = truncated.rfind(" ")
     if last_space > max_chars // 2:
         return truncated[:last_space].strip() + "..."

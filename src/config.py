@@ -843,6 +843,11 @@ RERANKER_MODEL_NAME = (
     "Alibaba-NLP/gte-reranker-modernbert-base"  # ~300MB model, downloads on first use
 )
 RERANKER_MODEL_LOCAL_PATH = BUNDLED_MODELS_DIR / "gte-reranker-modernbert-base"
+
+# Coreference resolution model (fastcoref LingMess)
+# Resolves pronouns to named entities for improved search/retrieval accuracy
+COREF_MODEL_NAME = "biu-nlp/lingmess-large"
+COREF_MODEL_LOCAL_PATH = BUNDLED_MODELS_DIR / "coref" / "lingmess"
 RERANKER_MAX_LENGTH = 8192
 RERANKER_TOP_K = _d("reranker_top_k")
 

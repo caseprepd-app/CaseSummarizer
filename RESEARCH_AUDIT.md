@@ -2,7 +2,7 @@
 
 > **Date:** 2026-01-29
 > **Purpose:** Comprehensive audit of alternative/supplemental approaches across every pipeline stage.
-> **Status:** 6 of 18 items implemented (see ✅ markers below). Remaining items are unimplemented.
+> **Status:** 7 of 18 items implemented, 2 decided against (see ✅/❌ markers below). Remaining items are unimplemented.
 
 ---
 
@@ -14,10 +14,10 @@
 | 2 | ✅ **gte-reranker-modernbert-base** (replace bge-reranker-base) | Small | None (same `sentence-transformers`) | 149M params, 8192-token context — sees full chunks |
 | 3 | ✅ **TinyLettuce** (three-tier model selection) | Small | Same library | Standard/Fast/Fastest — all three bundled for installer |
 | 4 | **GLiNER** (zero-shot NER) | Medium | `gliner` (~200MB) | One model for legal + medical + generic entities |
-| 5 | **KeyBERT** (supplement RAKE) | Low | `keybert` (~80MB) | Semantic keyword extraction, different signal |
+| 5 | ❌ ~~**KeyBERT**~~ (decided against) | Low | `keybert` (~80MB) | Redundant — see rationale below |
 | 6 | ✅ **pytextrank** (supplement RAKE/BM25) | Very low | `pytextrank` (no model) | Graph-based scoring as spaCy component |
 | 7 | **scispaCy** (medical NER) | Low | `en_ner_bc5cdr_md` (~200MB) | Drug name and disease detection |
-| 8 | **NUPunkt** (sentence boundaries) | Low | `nupunkt` (no model) | Legal-specific SBD, 91% precision |
+| 8 | ✅ **NUPunkt** (sentence boundaries) | Low | `nupunkt` (no model) | Legal-specific SBD, 91% precision |
 | 9 | **Docling** (PDF structure + tables) | Medium | `docling` (~500MB-1GB) | MIT license, best table extraction |
 | 10 | ✅ **modernbert-embed-large** (embeddings) | Medium | Model (~800MB) | 8K context, 1024 dims, Matryoshka, GPU-aware |
 | 11 | **LanceDB** (replace FAISS) | Medium | `lancedb` | Persistent vector store, metadata filtering |
@@ -185,11 +185,11 @@
 - **Size:** ~200MB
 - **Verdict:** **Best targeted medical NER.** Runs alongside en_core_web_lg. Includes abbreviation detector (Schwartz & Hearst algorithm).
 
-#### KeyBERT
+#### KeyBERT — ❌ DECIDED AGAINST
 - **What:** Uses BERT embeddings + cosine similarity to find semantically representative keyphrases.
 - **License:** MIT
 - **Size:** ~80MB (MiniLM backend) or ~8MB (potion-base-8M via Model2Vec)
-- **Verdict:** **Strong supplement to RAKE.** Different algorithm yields different keywords. Higher accuracy in benchmarks.
+- **Verdict:** ~~Strong supplement to RAKE.~~ Decided against. The pipeline already has 5 extraction methods (NER, RAKE, TextRank, BM25, LLM). KeyBERT's signal — "which phrases best represent the document" — overlaps heavily with what TextRank (graph centrality) and LLM extraction (semantic understanding) already capture. The LLM does this better with full contextual reasoning. Additionally, KeyBERT silently truncates long documents with no built-in chunking, requiring a workaround. The marginal value of a 6th algorithm with heavy overlap doesn't justify the added dependency and complexity. Effort is better spent on GLiNER/scispaCy, which surface categorically different information the pipeline currently misses.
 
 #### pytextrank — ✅ IMPLEMENTED
 - **What:** Graph-based keyword scoring using TextRank (PageRank on word co-occurrence). Integrates as a spaCy pipeline component.
@@ -272,10 +272,10 @@
 - **What:** Embedded vector DB (no server). Apache 2.0. Columnar Lance format. Native hybrid search. Pandas-like API. 4MB idle RAM.
 - **Verdict:** Adds persistence and metadata filtering that FAISS lacks. "SQLite of vector DBs."
 
-#### ONNX Export + INT8 Quantization
+#### ONNX Export + INT8 Quantization — ❌ DECIDED AGAINST
 - **What:** Convert embedding model from PyTorch to ONNX runtime with INT8 weights. 2-4x CPU speedup.
 - **How:** `pip install optimum[onnxruntime]`, then export.
-- **Verdict:** **Do this regardless of which embedding model you use.** Pure performance win.
+- **Verdict:** ~~Do this regardless of which embedding model you use.~~ PyTorch is still required by the reranker (`CrossEncoder`) and hallucination detector (LettuceDetect), so converting only the embedding model to ONNX doesn't eliminate the PyTorch dependency. The speedup is limited to the embedding/indexing step only — not worth the added dependency (`optimum[onnxruntime]`) and maintenance burden. Would reconsider if all three components could be converted to ONNX.
 
 #### ColBERT (Late Interaction)
 - **What:** Per-token embeddings with MaxSim scoring. Cross-encoder quality with bi-encoder speed.
@@ -336,13 +336,13 @@ Explicitly excluded: GPL, AGPL, CC-NC, restricted model weights.
 3. ~~TinyLettuce — upgrade hallucination detector~~ ✅ Done (user-selectable option)
 4. ~~pytextrank — add as 5th vocabulary algorithm~~ ✅ Done
 5. ~~BM25+ check — verify Okapi vs Plus variant~~ ✅ Done (retrieval uses `BM25Plus` from `rank_bm25`; vocabulary uses custom implementation)
-6. ONNX export — quantize current embedding model
+6. ~~ONNX export — quantize current embedding model~~ ❌ Decided against — PyTorch is still required by the reranker and hallucination detector, so ONNX for embeddings alone doesn't eliminate the PyTorch overhead. Narrow speedup not worth the extra dependency.
 
 ### Medium Effort (1-3 sessions each)
 7. GLiNER — add zero-shot NER for legal + medical entities
-8. KeyBERT — add semantic keyword extraction
+8. ~~KeyBERT — add semantic keyword extraction~~ ❌ Decided against — redundant with existing 5-algorithm + LLM pipeline; heavy overlap with TextRank and LLM extraction
 9. scispaCy — add medical NER for drug/disease detection
-10. NUPunkt — add legal sentence boundary detection
+10. ~~NUPunkt — add legal sentence boundary detection~~ ✅ Done (shared utility in `src/core/utils/sentence_splitter.py`, replaces 4 regex splitters)
 11. ~~nomic-embed-text-v1.5 — upgrade embedding model~~ ✅ Done (upgraded to modernbert-embed-large for quality)
 12. LanceDB — replace FAISS
 

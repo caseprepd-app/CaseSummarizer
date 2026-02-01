@@ -139,6 +139,8 @@ COLORS = {
     # Progress/status
     "progress_partial": ("orange", "#ffaa00"),  # NER only
     "progress_complete": ("green", "#00cc66"),  # NER + LLM
+    # Status bar error/warning (orange — visible but not alarming like red)
+    "status_error": ("#e67e22", "#f0932b"),  # Light/dark mode orange
     # System monitor
     "monitor_bg": "#1a3a1a",  # System monitor frame bg
     # Hallucination verification colors (Session 60)
