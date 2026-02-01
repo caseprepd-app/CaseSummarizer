@@ -48,7 +48,7 @@ class WindowLayoutMixin:
     - self.file_table, self.add_files_btn, self.clear_files_btn
     - self.qa_check, self.vocab_check, self.summary_check, self.generate_btn
     - self.output_display, self.followup_frame, self.followup_entry, self.followup_btn
-    - self.status_frame, self.status_label, self.timer_label, self.corpus_info_label
+    - self.status_frame, self.status_label, self.timer_label
     - self.ollama_status_frame, self.ollama_status_dot, self.ollama_status_label
     """
 
@@ -326,13 +326,26 @@ class WindowLayoutMixin:
         self.followup_btn.grid(row=1, column=1)
 
     def _create_status_bar(self):
-        """Create status bar at bottom of window."""
-        self.status_frame = ctk.CTkFrame(self, height=30, corner_radius=0)
+        """Create status bar at bottom of window with accent border."""
+        # Top border accent (thin blue line separating status bar from content)
+        self.status_border = ctk.CTkFrame(
+            self, height=2, corner_radius=0, fg_color=COLORS["btn_primary"]
+        )
+        self.status_border.pack(fill="x", side="bottom")
+
+        self.status_frame = ctk.CTkFrame(
+            self, height=30, corner_radius=0, fg_color=COLORS["status_bar_bg"]
+        )
         self.status_frame.pack(fill="x", side="bottom")
         self.status_frame.pack_propagate(False)
 
-        # Status text
-        self.status_label = ctk.CTkLabel(self.status_frame, text="Ready", font=FONTS["small"])
+        # Status text (bright for active messages; idle "Ready" uses text_secondary)
+        self.status_label = ctk.CTkLabel(
+            self.status_frame,
+            text="Ready",
+            font=FONTS["body_bold"],
+            text_color=COLORS["text_secondary"],
+        )
         self.status_label.pack(side="left", padx=10, pady=5)
 
         # Ollama status indicator (small, less prominent)
@@ -382,9 +395,3 @@ class WindowLayoutMixin:
         )
         # Hidden initially - shown after processing completes
         self._export_all_visible = False
-
-        # Corpus info (middle)
-        self.corpus_info_label = ctk.CTkLabel(
-            self.status_frame, text="", font=FONTS["small"], text_color=COLORS["text_secondary"]
-        )
-        self.corpus_info_label.pack(side="right", padx=20, pady=5)

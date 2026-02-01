@@ -347,20 +347,14 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
                 if active_info and active_info.doc_count > 0:
                     doc_text = "doc" if active_info.doc_count == 1 else "docs"
                     self.corpus_doc_count_label.configure(
-                        text=f"({active_info.doc_count} {doc_text})"
-                    )
-                    # Update status bar too
-                    self.corpus_info_label.configure(
-                        text=f"BM25 active: {active_info.doc_count}-document corpus"
+                        text=f"({active_info.doc_count} {doc_text} · BM25 active)"
                     )
                 else:
                     self.corpus_doc_count_label.configure(text="(empty)")
-                    self.corpus_info_label.configure(text="")
             else:
                 self.corpus_dropdown.configure(values=["No corpora"])
                 self.corpus_dropdown.set("No corpora")
                 self.corpus_doc_count_label.configure(text="")
-                self.corpus_info_label.configure(text="")
 
         except Exception as e:
             logger.debug("Error refreshing corpus dropdown: %s", e)
@@ -590,13 +584,23 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             except Empty:
                 pass
 
+            # Re-check: a handler in the final drain may have spawned a new worker
+            # (e.g., trigger_default_qa spawns QAWorker). Resume polling if so.
+            new_qa_alive = (
+                hasattr(self, "_default_qa_worker")
+                and self._default_qa_worker
+                and self._default_qa_worker.is_alive()
+            )
+            if new_qa_alive:
+                self._queue_poll_id = self.after(33, self._poll_queue)
+
     def _handle_queue_message(self, msg_type: str, data):
         """Handle a message from the worker queue."""
         if msg_type == "progress":
             _percentage, message = data
-            # Append Q&A status if ready (prevents status from hiding Q&A readiness)
-            if self._qa_ready and "Q&A ready" not in message and "Questions" not in message:
-                message = f"{message} (Q&A ready)"
+            # Append Q&A status note if index is ready but answers haven't appeared yet
+            if self._qa_ready and "question" not in message.lower() and "Q&A" not in message:
+                message = f"{message} (answering questions...)"
             self.set_status(message)
 
         elif msg_type == "file_processed":
@@ -644,7 +648,10 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             logger.debug("NER complete: %s terms - displaying immediately", term_count)
             self.output_display.update_outputs(vocab_csv_data=data)
             self.output_display.set_extraction_source("ner")
-            self.set_status(f"NER complete: {term_count} terms found. LLM enhancement starting...")
+            if self.use_llm_check.get():
+                self.set_status(f"Found {term_count} terms. LLM enhancement starting...")
+            else:
+                self.set_status(f"Found {term_count} terms. Building search index...")
 
         elif msg_type == "qa_ready":
             chunk_count = data.get("chunk_count", 0)
@@ -656,7 +663,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
                 self._completed_tasks.add("qa")
                 self.followup_btn.configure(state="normal")
             self.set_status(
-                f"Questions and answers ready ({chunk_count} chunks). LLM enhancement in progress..."
+                f"Search index ready ({chunk_count} passages). Preparing to answer questions..."
             )
 
         elif msg_type == "qa_error":
@@ -695,7 +702,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         elif msg_type == "qa_progress":
             current, total, _question = data
             logger.debug("Q&A progress: %s/%s", current + 1, total)
-            self.set_status(f"Answering default questions: {current + 1}/{total}...")
+            self.set_status(f"Answered {current + 1}/{total} questions, working on next...")
 
         elif msg_type == "qa_result":
             # Individual Q&A result - add to results and update display
@@ -1553,9 +1560,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
                 msg_type, data = self._qa_queue.get_nowait()
                 if msg_type == "qa_progress":
                     current, total, _question = data
-                    self.set_status(
-                        f"Questions and answers: Processing question {current + 1}/{total}..."
-                    )
+                    self.set_status(f"Answered {current + 1}/{total} questions, working on next...")
                 elif msg_type == "qa_result":
                     # Individual result - could update incrementally
                     pass
@@ -2066,7 +2071,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         # Reset to default text color (in case previous was an error)
         from src.ui.theme import COLORS
 
-        self.status_label.configure(text=message, text_color=COLORS["text_secondary"])
+        self.status_label.configure(text=message, text_color=COLORS["text_primary"])
 
         self._status_error_hold_until = None
 
