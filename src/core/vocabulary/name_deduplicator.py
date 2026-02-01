@@ -148,9 +148,10 @@ def _normalize_name(name: str) -> str:
     """
     Normalize a name for comparison.
 
+    - Strip possessive suffixes ('s or trailing ' on s-ending names)
     - Title case
     - Single spaces
-    - Strip punctuation except hyphens and apostrophes
+    - Strip punctuation except hyphens and internal apostrophes
 
     Args:
         name: Cleaned name
@@ -162,6 +163,19 @@ def _normalize_name(name: str) -> str:
     normalized = re.sub(r"[^\w\s\-']", "", name)
     # Collapse whitespace
     normalized = re.sub(r"\s+", " ", normalized).strip()
+
+    # Strip possessive suffixes so "Smith's" groups with "Smith"
+    # and "Morales'" groups with "Morales" (trailing ' only if name ends in s)
+    words = normalized.split()
+    stripped_words = []
+    for word in words:
+        if word.endswith("'s") or word.endswith("'S"):
+            word = word[:-2]
+        elif word.endswith("'") and len(word) > 2 and word[-2].lower() == "s":
+            word = word[:-1]
+        stripped_words.append(word)
+    normalized = " ".join(stripped_words)
+
     # Title case
     normalized = normalized.title()
     return normalized
@@ -675,6 +689,7 @@ def _select_canonical_with_scorer(group: list[dict], freq_key: str) -> dict:
             "sources": original.get("sources"),
             "In-Case Freq": original.get(freq_key, 1),
             "_original_entry": entry,  # Keep reference to full entry
+            "_original_casing": original.get("Term", ""),  # For title-case preference
         }
         # Create legacy sources if missing
         if variant["sources"] is None:
@@ -750,22 +765,17 @@ def _select_canonical_legacy(group: list[dict], freq_key: str) -> dict:
         validity_score = _word_validity_score(cleaned)
         score += validity_score * 50
 
-        # Prefer names that aren't all caps (more readable)
-        if cleaned != cleaned.upper():
-            score += 10
-
-        # Prefer names with proper casing (mixed case)
-        if any(c.isupper() for c in cleaned) and any(c.islower() for c in cleaned):
-            score += 5
+        # Strongly prefer title case over ALL CAPS (transcripts have "BY MR. JONES:")
+        words = cleaned.split()
+        if words and all(w[0].isupper() and w[1:].islower() for w in words if len(w) > 1):
+            score += 40  # Strong title-case bonus
+        elif cleaned != cleaned.upper():
+            score += 15  # Mixed case still better than ALL CAPS
+        # ALL CAPS gets no casing bonus
 
         # Prefer names with middle initial (e.g., "James R. Jones")
         if re.search(r"\b[A-Z]\.\s", cleaned):
             score += 15
-
-        # Prefer all title-case words (strong name signal)
-        words = cleaned.split()
-        if words and all(w[0].isupper() for w in words if w):
-            score += 10
 
         # Prefer fuller names (more words = more complete)
         score += len(words) * 5

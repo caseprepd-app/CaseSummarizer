@@ -93,18 +93,20 @@ class CanonicalScorer:
         # Strip common punctuation from each word
         return all(word.strip(".,;:'\"()-") in self.known_words for word in words)
 
-    def calculate_score(self, term: str, sources: TermSources) -> float:
+    def calculate_score(self, term: str, sources: TermSources, original_casing: str = "") -> float:
         """
         Calculate the canonical score for a term.
 
         Formula:
             base_score = sources.weighted_score  # (conf * count)^1.1
             ocr_factor = 1.0 - ocr_penalty if has_ocr_artifacts else 1.0
-            final_score = base_score * ocr_factor
+            casing_bonus = 1.3 if title case, 1.0 if ALL CAPS
+            final_score = base_score * ocr_factor * casing_bonus
 
         Args:
             term: The term string
             sources: TermSources tracking document origins
+            original_casing: Original term before normalization, for casing preference
 
         Returns:
             Float score (higher = more likely to be canonical)
@@ -126,6 +128,18 @@ class CanonicalScorer:
                 penalty * 100,
                 base_score,
             )
+
+        # Apply title-case bonus if original casing is available
+        # Transcripts often have "BY MR. JONES:" inflating ALL CAPS frequency
+        if original_casing:
+            words = original_casing.split()
+            is_title = words and all(
+                w[0].isupper() and w[1:].islower() for w in words if len(w) > 1
+            )
+            if is_title:
+                base_score *= 1.3
+            elif original_casing == original_casing.upper() and len(original_casing) > 1:
+                base_score *= 0.8  # Penalize ALL CAPS
 
         return base_score
 
@@ -237,7 +251,8 @@ class CanonicalScorer:
                     v.get("source_doc_confidence", 100) / 100.0,  # 0-100 scale → 0-1
                 )
 
-            score = self.calculate_score(term, sources)
+            original_casing = v.get("_original_casing", "")
+            score = self.calculate_score(term, sources, original_casing)
             scored.append((v, score))
 
             logger.debug("'%s' score=%.2f", term, score)
