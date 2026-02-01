@@ -6,6 +6,226 @@
 
 ---
 
+## LanceDB vs FAISS: Technical Deep Dive (February 2026)
+
+**Question:** What does LanceDB actually store on disk, how does it compare to FAISS in terms of file size, search algorithm, accuracy, and query latency for small datasets?
+
+**Background:** The current RAG pipeline uses FAISS (in-memory, no persistence API, no metadata filtering). LanceDB was previously identified as a potential replacement ("SQLite of vector DBs"), but detailed technical comparison was lacking.
+
+---
+
+### 1. What LanceDB Stores on Disk
+
+**Storage components:**
+- **Embeddings/vectors** — Stored in the Lance columnar format (disk-based architecture)
+- **Metadata** — Text, scalars, and other simple metadata (fully queryable)
+- **Raw data** — LanceDB is multimodal and can store the actual source data (images, text documents, audio, video) alongside embeddings, unlike traditional vector databases
+- **Schema pointers** — Can point to raw bytes of data stored in the Lance format
+
+**File format:** Lance v2 is a columnar container format with adaptive structural encodings. It's interoperable with Arrow and provides automatic data versioning. Each table is stored as immutable fragments on disk.
+
+**Persistence:** Unlike FAISS (which requires manual serialization), LanceDB writes directly to disk and supports object storage (S3, Azure Blob, GCS) via URI schemes.
+
+---
+
+### 2. File Size and Storage Overhead
+
+**Compression performance:**
+- For **dense vector data**, Lance achieves compression ratios comparable to Parquet while maintaining superior random access performance
+- For **sparse data** (COO format), Lance compression is ineffective (~1.1x compression ratio vs Parquet's ~33x), resulting in files 3-8x larger than Parquet
+- **Vector embeddings specifically:** Existing columnar formats (including Lance) are "less optimized to store and deserialize vector embeddings" and lack specialized floating-point compression for vector data
+
+**Practical file sizes:**
+- No exact benchmark found for 1000 vectors @ 1024 dimensions
+- Benchmarks use GIST1M (1 million 960-dimensional vectors) as standard
+- **Metadata overhead:** Multiple versions can create 100x the metadata overhead of a single version, slowing queries
+- **Temporary storage:** IVF-PQ index creation can require **gigabytes of /tmp space** for intermediate data
+
+**Production recommendations:**
+- Run `optimize()` regularly to remove old versions and prevent disk bloat
+- Redirect `/tmp` to a larger volume if needed during indexing
+- Use object storage (S3, etc.) for cost-effective scaling (up to 100x savings)
+
+**Expected file size (rough estimate):**
+- 1000 vectors × 1024 dims × 4 bytes (float32) = ~4MB raw
+- With Lance overhead + metadata + versioning: likely **10-20MB** for initial table
+- With IVF-PQ index: adds compression but also index structures, net result varies
+
+---
+
+### 3. Search Algorithm Details
+
+**LanceDB uses two primary index types:**
+
+#### **IVF-PQ (Inverted File with Product Quantization) — Default**
+- **Disk-based** index (key differentiator from FAISS)
+- Combines IVF (inverted file partitioning) + PQ (product quantization compression)
+- K-means clustering divides the vector space into Voronoi cells (partitions)
+- Each partition stores compressed (quantized) vectors via PQ
+- At query time, searches `nprobes` partitions (default = 5-10% of total)
+- **128x memory reduction** via quantization (96% lower memory than flat index)
+- **Lossy compression:** Reconstructed vectors are not identical to originals
+
+#### **IVF-HNSW (Hybrid) — Optional**
+- LanceDB does **not** build a single HNSW graph over the entire dataset
+- Instead, it builds **sub-HNSW indices within each IVF partition**
+- Recent optimization (2026): HNSW-accelerated partition computation reduces indexing time by 50%
+- KMeans now runs ~30x faster, speeding up IVF-based index creation
+
+**Key parameters:**
+- `nprobes`: Number of partitions to search (higher = more accurate but slower). 5-10% of dataset is recommended
+- `refine_factor`: Oversamples candidates then refines with exact distance (higher = more accurate). Setting to 30 achieves 0.95 recall
+
+**No index (brute force):** LanceDB can also perform exact brute-force search like FAISS Flat, but this isn't its intended use case.
+
+---
+
+### 4. Search Accuracy: LanceDB vs FAISS
+
+#### **FAISS Flat (Exact Search) — Baseline**
+- **100% recall** — Exhaustive brute-force comparison using exact Euclidean distance
+- Compares query to every vector in the dataset
+- Deterministic — always returns the exact same results for the same query
+- Slow for large datasets (linear time complexity)
+
+#### **FAISS HNSW (Approximate) — In-Memory Graph**
+- Graph-based approximate nearest neighbor (ANN) search
+- Non-deterministic in some configurations (e.g., LSH is randomized)
+- High recall possible with parameter tuning (typically >95%)
+- Significantly faster than flat for large datasets
+
+#### **LanceDB IVF-PQ (Approximate) — Disk-Based**
+- **Recall@1 performance:**
+  - ~0.90 recall in ~3ms (nprobes=25, refine_factor=30)
+  - ~0.95 recall in ~5ms (nprobes=50, refine_factor=30)
+- **IVF-PQ typical recall:** ~50% without tuning (due to PQ compression loss)
+- **Known issue:** IVF_HNSW_SQ and IVF_HNSW_PQ had ~10% lower recall than FAISS in cross-comparison benchmarks
+- Product quantization is **inherently lossy** — reconstructed distances are approximations
+
+#### **Head-to-Head Comparison (GIST1M dataset, in-memory scenario):**
+- **FAISS HNSW:** 978 QPS @ 0.95 recall
+- **LanceDB HNSW:** 178 QPS @ 0.95 recall
+- **Throughput advantage:** FAISS is ~5.5x faster when dataset fits in RAM
+
+**Verdict:** FAISS Flat provides exact results. FAISS HNSW and LanceDB IVF-PQ both provide approximate results with tunable accuracy. LanceDB's recall can match FAISS with proper tuning, but FAISS is faster for in-memory workloads.
+
+---
+
+### 5. Could LanceDB Return a Different "Best Chunk" Than FAISS?
+
+**Yes — for several reasons:**
+
+#### **Different algorithms produce different approximations:**
+- **FAISS Flat:** Exact search — always returns the true nearest neighbor
+- **FAISS HNSW:** Graph-based ANN — may miss the true nearest neighbor due to graph traversal heuristics
+- **LanceDB IVF-PQ:** Partition + quantization — may miss the true nearest neighbor if:
+  - The true nearest neighbor is in an un-searched partition (controlled by `nprobes`)
+  - Distance calculation uses quantized (lossy) vector representations instead of original vectors
+
+#### **Non-deterministic behavior:**
+- Some ANN algorithms (e.g., LSH) are randomized and can return different results on repeated queries
+- HNSW can be non-deterministic depending on implementation details
+- IVF-PQ with low `nprobes` can return different results if partition boundaries are close to the query
+
+#### **Practical example:**
+- Query vector is near the boundary between two IVF partitions
+- FAISS Flat searches all partitions → finds the true nearest neighbor in partition B
+- LanceDB IVF-PQ with `nprobes=10` searches partition A only → returns a suboptimal result from partition A
+- Increasing `nprobes` or `refine_factor` reduces this risk
+
+**Deterministic alternatives:** For reproducible results, use exact search (FAISS Flat or LanceDB brute force). A recent research paper proposed a deterministic IVF variant, but this is not yet mainstream.
+
+---
+
+### 6. Query Latency: Small Datasets (<10,000 Vectors)
+
+**Specific benchmarks for <10,000 vectors:** Not found in search results. Most benchmarks focus on 100K-1M+ vectors where performance differences are pronounced.
+
+**Available data points:**
+
+#### **LanceDB (GIST1M = 1 million 960-dim vectors):**
+- **3ms** for 0.90 recall (nprobes=25, refine_factor=30)
+- **5ms** for 0.95 recall (nprobes=50, refine_factor=30)
+- **<20ms** general query time on 1M vectors
+- **40-60ms** with metadata filtering (from previous research)
+- **50ms** with extensive metadata filtering, supporting thousands of QPS
+
+#### **FAISS HNSW (GIST1M, in-memory):**
+- **978 QPS @ 0.95 recall** → ~1ms per query
+- Significantly faster than LanceDB for in-memory workloads
+
+#### **Expected performance for 10,000 vectors:**
+- Both FAISS and LanceDB should be **very fast** at this scale (sub-millisecond to low single-digit milliseconds)
+- FAISS Flat (exact search) on 10K vectors: likely **<5ms** on modern CPU
+- LanceDB IVF-PQ on 10K vectors: **overkill** — indexing overhead may not be worthwhile
+- For datasets this small, the latency difference would be **negligible** in practice
+
+**Key insight:** At 10,000 vectors, the choice between FAISS and LanceDB should be based on **features** (persistence, metadata filtering, hybrid search) rather than latency, since both will be fast enough for real-time use.
+
+---
+
+### Summary Table: LanceDB vs FAISS
+
+| Dimension | FAISS Flat | FAISS HNSW | LanceDB IVF-PQ |
+|-----------|------------|------------|----------------|
+| **Search type** | Exact (brute force) | Approximate (graph) | Approximate (partition + quantization) |
+| **Recall** | 100% (exact) | >95% (tunable) | 50-95% (tunable) |
+| **Deterministic?** | Yes | Mostly (some variants randomized) | Mostly (partition boundaries can vary) |
+| **Query latency (1M vecs)** | Slow (linear) | ~1ms @ 0.95 recall | ~5ms @ 0.95 recall |
+| **Query latency (10K vecs)** | <5ms (fast) | Sub-ms (very fast) | <5ms (fast) |
+| **Memory usage** | High (all in RAM) | High (all in RAM) | Low (disk-based, ~4MB idle) |
+| **Persistence** | Manual (pickle/save) | Manual (pickle/save) | Automatic (disk-based) |
+| **Metadata filtering** | No | No | Yes (native) |
+| **Hybrid search** | No | No | Yes (native) |
+| **Storage overhead** | N/A (in-memory) | N/A (in-memory) | ~2-5x raw vector size (+ versioning) |
+| **License** | MIT | MIT | Apache 2.0 |
+
+---
+
+### Recommendation for CaseSummarizer
+
+**Current workload:** Likely <10,000 chunks per case. Small dataset.
+
+**If staying with FAISS:**
+- Use `IndexFlatL2` for exact search (current approach is correct)
+- Very fast at this scale, 100% recall, deterministic results
+- No persistence or metadata filtering
+
+**If switching to LanceDB:**
+- **Pros:** Automatic persistence, metadata filtering (filter by document, date, etc.), hybrid search (combine BM25 + vector in one query), lower RAM usage, multimodal storage
+- **Cons:** Slightly slower queries (~5ms vs <1ms), versioning can bloat disk, requires `optimize()` maintenance, more complex setup
+- **For <10K vectors:** Don't use IVF-PQ index — just use brute force search (exact results, fast enough)
+
+**Verdict:** For small datasets, FAISS Flat is simpler and faster. LanceDB's value proposition is **persistence + metadata filtering + hybrid search**, not raw speed. If you need those features, LanceDB is worth it. If you just need fast vector search, stick with FAISS.
+
+---
+
+**Sources:**
+- https://lancedb.com/docs/overview/lance/
+- https://docs.lancedb.com/faq/faq-oss
+- https://lancedb.com/docs/indexing/
+- https://www.lancedb.com/documentation/concepts/indexing.html
+- https://github.com/lancedb/lancedb/blob/main/docs/src/concepts/index_hnsw.md
+- https://medium.com/@amineka9/the-future-of-vector-search-exploring-lancedb-for-billion-scale-vector-search-0664801bc915
+- https://github.com/lancedb/lancedb/issues/1428
+- https://medium.com/etoai/benchmarking-lancedb-92b01032874a
+- https://zilliz.com/comparison/faiss-vs-lancedb
+- https://github.com/facebookresearch/faiss/wiki/Faiss-indexes
+- https://engineering.fb.com/2017/03/29/data-infrastructure/faiss-a-library-for-efficient-similarity-search/
+- https://www.pinecone.io/learn/series/faiss/faiss-tutorial/
+- https://www.pinecone.io/learn/series/faiss/product-quantization/
+- https://docs.opensearch.org/latest/vector-search/optimizing-storage/faiss-product-quantization/
+- https://github.com/lancedb/lancedb/blob/main/docs/src/concepts/index_ivfpq.md
+- https://www.pinecone.io/learn/a-developers-guide-to-ann-algorithms/
+- https://towardsdatascience.com/comprehensive-guide-to-approximate-nearest-neighbors-algorithms-8b94f057d6b6/
+- https://arxiv.org/html/2504.15247v1
+- https://github.com/lance-format/lance/issues/4261
+- https://blog.lancedb.com/lance-v2/
+- https://sprytnyk.dev/posts/running-lancedb-in-production/
+- https://docs.lancedb.com/storage
+
+---
+
 ## TextRank Integration into Vocabulary Pipeline (January 2025)
 
 **Question:** How does TextRank (pytextrank) work, and how should its output integrate into the existing vocabulary quality scoring?
