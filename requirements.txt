@@ -48,5 +48,7 @@ fpdf2>=2.7.0
 tkinterdnd2>=0.3.0
 # Graph-based keyword extraction for vocabulary (pytextrank)
 pytextrank>=3.0.0
+# Medical NER for drug/disease entity extraction
+scispacy
 # Coreference resolution for pronoun-to-name replacement
 fastcoref

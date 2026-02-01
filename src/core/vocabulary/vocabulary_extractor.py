@@ -198,6 +198,16 @@ class VocabularyExtractor:
                 logger.debug("TextRank algorithm enabled")
             except ImportError:
                 logger.debug("TextRank unavailable (pytextrank not installed)")
+
+            # Conditionally add MedicalNER if scispacy is installed
+            try:
+                from src.core.vocabulary.algorithms.scispacy_algorithm import ScispaCyAlgorithm
+
+                medical_ner = ScispaCyAlgorithm()
+                self.algorithms.append(medical_ner)
+                logger.debug("MedicalNER algorithm enabled")
+            except ImportError:
+                logger.debug("MedicalNER unavailable (scispacy not installed)")
         else:
             self.algorithms = algorithms
 
@@ -771,6 +781,7 @@ class VocabularyExtractor:
                 "RAKE": "Yes" if "RAKE" in sources_upper else "No",
                 "BM25": "Yes" if "BM25" in sources_upper else "No",
                 "TextRank": "Yes" if "TEXTRANK" in sources_upper else "No",
+                "MedicalNER": "Yes" if "MEDICALNER" in sources_upper else "No",
                 "Algo Count": algo_count,  # Sum of algorithms that found term
                 # Session 80: Display columns from TermSources
                 "# Docs": sources_obj.num_documents,

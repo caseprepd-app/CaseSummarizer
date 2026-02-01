@@ -162,6 +162,14 @@ DEFAULTS = {
         "type": "float",
         "category": "Algorithm Weights",
     },
+    "vocab_weight_medical_ner": {
+        "value": 0.75,
+        "min": 0.0,
+        "max": 2.0,
+        "step": 0.1,
+        "type": "float",
+        "category": "Algorithm Weights",
+    },
     # =======================================================================
     # Deduplication
     # =======================================================================
@@ -259,10 +267,10 @@ DEFAULTS = {
         "category": "LLM Generation",
     },
     "ollama_timeout_seconds": {
-        "value": 600,
+        "value": 1800,
         "min": 60,
-        "max": 1200,
-        "step": 30,
+        "max": 36000,
+        "step": 60,
         "type": "int",
         "category": "LLM Generation",
     },

@@ -240,6 +240,7 @@ VOCAB_ALGORITHM_WEIGHTS = {
     "RAKE": _d("vocab_weight_rake"),
     "BM25": _d("vocab_weight_bm25"),
     "TextRank": 0.6,
+    "MedicalNER": _d("vocab_weight_medical_ner"),
 }
 
 # Similarity Thresholds (consolidated from scattered definitions)
@@ -281,10 +282,11 @@ OLLAMA_MODEL_FALLBACK = "gemma3:1b"  # Fallback if the primary model fails
 OLLAMA_TIMEOUT_SECONDS = _d("ollama_timeout_seconds")
 QUEUE_TIMEOUT_SECONDS = 2.0  # Timeout for multiprocessing queue operations
 
-# Network/API Timeout Constants (for quick checks, not long operations)
-OLLAMA_CONNECTION_TIMEOUT = 5  # Seconds for initial connection check
-OLLAMA_API_TIMEOUT = 10  # Seconds for API calls (model list, status)
-GPU_DETECTION_TIMEOUT = 10  # Seconds for GPU/VRAM detection via WMI
+# Network/API Timeout Constants
+# Generous timeouts for low-power hardware (65W business laptops running local AI)
+OLLAMA_CONNECTION_TIMEOUT = 15  # Seconds for initial connection check
+OLLAMA_API_TIMEOUT = 30  # Seconds for API calls (model list, status)
+GPU_DETECTION_TIMEOUT = 15  # Seconds for GPU/VRAM detection via WMI
 
 # Context Window Configuration
 # Session 64: Now dynamically set based on GPU VRAM via user preferences.
@@ -573,7 +575,7 @@ VOCABULARY_BATCH_INSERT_DELAY_MS = 10  # Delay between batches (ms)
 
 # spaCy Model Download Timeouts (Session 15)
 # Controls timeout behavior during automatic spaCy model downloads
-SPACY_DOWNLOAD_TIMEOUT_SEC = 600  # Overall timeout: 10 minutes
+SPACY_DOWNLOAD_TIMEOUT_SEC = 3600  # Overall timeout: 1 hour (slow connections)
 SPACY_SOCKET_TIMEOUT_SEC = 10  # Socket timeout per request
 SPACY_THREAD_TIMEOUT_SEC = 15  # Thread termination timeout
 
@@ -737,7 +739,8 @@ QUERY_TRANSFORM_ENABLED = False
 QUERY_TRANSFORM_VARIANTS = 3
 
 # Maximum time to wait for LLM to generate query variants
-QUERY_TRANSFORM_TIMEOUT = 30.0
+# Very generous for CPU-only inference on low-power laptops
+QUERY_TRANSFORM_TIMEOUT = 600.0
 
 # ============================================================================
 # Unified Semantic Chunking Configuration (Session 45, Session 67)
