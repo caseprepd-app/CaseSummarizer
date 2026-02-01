@@ -2,7 +2,7 @@
 
 > **Date:** 2026-01-29
 > **Purpose:** Comprehensive audit of alternative/supplemental approaches across every pipeline stage.
-> **Status:** 8 of 18 items implemented, 3 decided against (see ✅/❌ markers below). Remaining items are unimplemented.
+> **Status:** 10 of 18 items implemented, 3 decided against (see ✅/❌ markers below). 5 remaining items are unimplemented.
 
 ---
 
@@ -16,11 +16,11 @@
 | 4 | **GLiNER** (zero-shot NER) | Medium | `gliner` (~200MB) | One model for legal + medical + generic entities |
 | 5 | ❌ ~~**KeyBERT**~~ (decided against) | Low | `keybert` (~80MB) | Redundant — see rationale below |
 | 6 | ✅ **pytextrank** (supplement RAKE/BM25) | Very low | `pytextrank` (no model) | Graph-based scoring as spaCy component |
-| 7 | **scispaCy** (medical NER) | Low | `en_ner_bc5cdr_md` (~200MB) | Drug name and disease detection |
+| 7 | ✅ **scispaCy** (medical NER) | Low | `en_ner_bc5cdr_md` (~200MB) | Drug name and disease detection |
 | 8 | ✅ **NUPunkt** (sentence boundaries) | Low | `nupunkt` (no model) | Legal-specific SBD, 91% precision |
-| 9 | **Docling** (PDF structure + tables) | Medium | `docling` (~500MB-1GB) | MIT license, best table extraction |
+| 9 | **Docling** (PDF structure + tables) — deprioritized | Medium | `docling` (~500MB-1GB) | MIT license, best table extraction. Core input docs (transcripts, complaints, motions) rarely have tables. Revisit if users report poor table handling in bills of particulars or medical records. |
 | 10 | ✅ **modernbert-embed-large** (embeddings) | Medium | Model (~800MB) | 8K context, 1024 dims, Matryoshka, GPU-aware |
-| 11 | **LanceDB** (replace FAISS) | Medium | `lancedb` | Persistent vector store, metadata filtering |
+| 11 | **LanceDB** (replace FAISS) — deprioritized | Medium | `lancedb` | Persistent vector store, metadata filtering. FAISS Flat already gives 100% recall at our data scale (<10K chunks). Persistence has low value since users typically process docs once. Revisit only if metadata filtering becomes needed. |
 | 12 | ❌ ~~**Late chunking**~~ (decided against) | Medium | Requires #10 | Documents too long for 8K context window |
 
 ---
@@ -41,12 +41,12 @@
 - **Size:** ~15MB on top of PyMuPDF
 - **Verdict:** Best capabilities for near-zero integration cost, but **AGPL license is a blocker** for commercial distribution without a paid license.
 
-#### Docling (IBM)
+#### Docling (IBM) — ⏸️ DEPRIORITIZED
 - **What:** Full document understanding: layout analysis, reading order, table structure (TableFormer — 97.9% accuracy), code blocks, formulas. Outputs Markdown/HTML/JSON.
 - **License:** MIT
 - **GPU:** Optional (CPU works)
 - **Size:** ~500MB-1GB with models
-- **Verdict:** **Strong candidate.** MIT license, strongest table extraction, full structure detection. Could replace or supplement the entire extraction pipeline. Integrates with LangChain/LlamaIndex.
+- **Verdict:** Strong capabilities, but core input documents (transcripts, complaints, motions) are running text with few tables. Bills of particulars and medical records sometimes have tables, but these are infrequent inputs. Revisit if users report poor handling of tabular data.
 
 #### PaddleOCR
 - **What:** Modular OCR pipeline (detection + orientation + recognition). 80+ languages. Better than Tesseract on complex layouts and degraded scans.
@@ -153,10 +153,11 @@
 - **License:** Apache 2.0
 - **Verdict:** Simple topic-aware boundaries. No extra dependencies if you already use NLTK (you do).
 
-#### datasketch (Chunk Deduplication)
+#### datasketch (Chunk Deduplication) — ✅ IMPLEMENTED (alternative approach)
 - **What:** MinHash + LSH for near-duplicate detection. Detects repeated paragraphs across legal documents (boilerplate clauses).
 - **License:** MIT
-- **Verdict:** **Useful supplement** before summarization to avoid redundant LLM calls on duplicate chunks.
+- **Verdict:** ~~Useful supplement.~~ Implemented using cosine similarity on the embedding vectors already computed for FAISS (threshold 0.98). This avoids a new dependency — the embeddings are already in memory. Also added a two-pass extraction mode (claims/facts/relief/testimony) that pins headline facts as context during progressive summarization. Enhanced mode auto-detects GPU availability.
+- **Implementation:** `src/core/utils/chunk_scoring.py` (redundancy detection), `src/core/summarization/extraction_pass.py` (two-pass extraction). Wired through worker → queue → orchestrator → document_summarizer. Settings dropdown in Performance tab.
 
 ---
 
@@ -179,11 +180,12 @@
 - **CPU:** Yes, designed for it. ONNX export available.
 - **Verdict:** **Strongest single candidate.** One model replaces the need for separate legal + medical + generic NER. Near GPT-4o accuracy on standard benchmarks. `gliner-spacy` integration exists.
 
-#### scispaCy (Medical NER)
+#### scispaCy (Medical NER) — ✅ IMPLEMENTED
 - **What:** spaCy pipeline for biomedical text from Allen AI. `en_ner_bc5cdr_md` specializes in drug names and disease mentions (trained on 4409 chemicals, 5818 diseases).
 - **License:** Apache 2.0
 - **Size:** ~200MB
 - **Verdict:** **Best targeted medical NER.** Runs alongside en_core_web_lg. Includes abbreviation detector (Schwartz & Hearst algorithm).
+- **Implementation:** New file `src/core/vocabulary/algorithms/scispacy_algorithm.py` with `@register_algorithm("MedicalNER")`. Integrated into vocabulary extraction pipeline.
 
 #### KeyBERT — ❌ DECIDED AGAINST
 - **What:** Uses BERT embeddings + cosine similarity to find semantically representative keyphrases.
@@ -268,9 +270,9 @@
 
 **Implemented:** `lightonai/modernbert-embed-large` (~395M params, 1024 dims, 8192-token context). Chosen over nomic-embed-text-v1.5 for higher quality (larger model, same architecture family as reranker + hallucination detector). Matryoshka support (256-1024 dims). GPU-aware loading via `torch.cuda.is_available()`.
 
-#### LanceDB (Replace FAISS)
+#### LanceDB (Replace FAISS) — ⏸️ DEPRIORITIZED
 - **What:** Embedded vector DB (no server). Apache 2.0. Columnar Lance format. Native hybrid search. Pandas-like API. 4MB idle RAM.
-- **Verdict:** Adds persistence and metadata filtering that FAISS lacks. "SQLite of vector DBs."
+- **Verdict:** Adds persistence and metadata filtering that FAISS lacks. However, at our scale (<10K chunks per case), FAISS Flat gives 100% recall with sub-5ms queries. LanceDB's approximate indexes (IVF-PQ) actually risk *lower* recall (~90-95%) unless kept in brute-force mode. Persistence has low value since the typical workflow is process-once-and-move-on. Revisit if metadata filtering (e.g., "search only Exhibit A") becomes a user request.
 
 #### ONNX Export + INT8 Quantization — ❌ DECIDED AGAINST
 - **What:** Convert embedding model from PyTorch to ONNX runtime with INT8 weights. 2-4x CPU speedup.
@@ -293,6 +295,8 @@
 
 ### Current Approach
 - Progressive (rolling) map-reduce via Ollama
+- Embedding-based redundancy skipping (cosine sim ≥ 0.98 → skip chunk)
+- Optional two-pass extraction mode: Pass 1 extracts claims/facts/relief, Pass 2 summarizes with extractions as context (GPU-only by default)
 
 ### Alternatives Evaluated
 
@@ -341,15 +345,15 @@ Explicitly excluded: GPL, AGPL, CC-NC, restricted model weights.
 ### Medium Effort (1-3 sessions each)
 7. GLiNER — add zero-shot NER for legal + medical entities
 8. ~~KeyBERT — add semantic keyword extraction~~ ❌ Decided against — redundant with existing 5-algorithm + LLM pipeline; heavy overlap with TextRank and LLM extraction
-9. scispaCy — add medical NER for drug/disease detection
+9. ~~scispaCy — add medical NER for drug/disease detection~~ ✅ Done (implemented as `MedicalNER` algorithm in `src/core/vocabulary/algorithms/scispacy_algorithm.py`)
 10. ~~NUPunkt — add legal sentence boundary detection~~ ✅ Done (shared utility in `src/core/utils/sentence_splitter.py`, replaces 4 regex splitters)
 11. ~~nomic-embed-text-v1.5 — upgrade embedding model~~ ✅ Done (upgraded to modernbert-embed-large for quality)
-12. LanceDB — replace FAISS
+12. LanceDB — replace FAISS *(deprioritized — FAISS Flat gives 100% recall at our scale; persistence has low value for one-and-done workflow)*
 
 ### Larger Investments (research + implementation)
 13. ~~Late chunking — requires #11 first~~ ❌ Decided against — even with 8K-context embeddings, real documents (100-200+ pages) far exceed the context window. Sliding-window workarounds undermine the core benefit. Gradient semantic chunking + BM25/RRF/reranking already compensate well.
-14. Docling — evaluate for table extraction + structure detection
+14. Docling — evaluate for table extraction + structure detection *(deprioritized — core input docs are running text; tables are rare. Revisit if users report issues with bills of particulars or medical record tables)*
 15. ~~coreferee — coreference resolution for name detection~~ ✅ Done (implemented with fastcoref/LingMess instead — 81.4 F1, final preprocessing step, user-togglable)
-16. datasketch — chunk deduplication before summarization
+16. ~~datasketch — chunk deduplication before summarization~~ ✅ Done (implemented with cosine similarity on existing FAISS embeddings instead — lighter than MinHash, no new dependency)
 17. Tree Summarize — test against current map-reduce
 18. DSPy — systematic prompt optimization
