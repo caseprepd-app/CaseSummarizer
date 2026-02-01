@@ -2,7 +2,7 @@
 
 > **Date:** 2026-01-29
 > **Purpose:** Comprehensive audit of alternative/supplemental approaches across every pipeline stage.
-> **Status:** 7 of 18 items implemented, 2 decided against (see ✅/❌ markers below). Remaining items are unimplemented.
+> **Status:** 8 of 18 items implemented, 3 decided against (see ✅/❌ markers below). Remaining items are unimplemented.
 
 ---
 
@@ -21,7 +21,7 @@
 | 9 | **Docling** (PDF structure + tables) | Medium | `docling` (~500MB-1GB) | MIT license, best table extraction |
 | 10 | ✅ **modernbert-embed-large** (embeddings) | Medium | Model (~800MB) | 8K context, 1024 dims, Matryoshka, GPU-aware |
 | 11 | **LanceDB** (replace FAISS) | Medium | `lancedb` | Persistent vector store, metadata filtering |
-| 12 | **Late chunking** | Medium | Requires #10 | Preserves cross-chunk context for legal text |
+| 12 | ❌ ~~**Late chunking**~~ (decided against) | Medium | Requires #10 | Documents too long for 8K context window |
 
 ---
 
@@ -347,9 +347,9 @@ Explicitly excluded: GPL, AGPL, CC-NC, restricted model weights.
 12. LanceDB — replace FAISS
 
 ### Larger Investments (research + implementation)
-13. Late chunking — requires #11 first
+13. ~~Late chunking — requires #11 first~~ ❌ Decided against — even with 8K-context embeddings, real documents (100-200+ pages) far exceed the context window. Sliding-window workarounds undermine the core benefit. Gradient semantic chunking + BM25/RRF/reranking already compensate well.
 14. Docling — evaluate for table extraction + structure detection
-15. coreferee — coreference resolution for name detection
+15. ~~coreferee — coreference resolution for name detection~~ ✅ Done (implemented with fastcoref/LingMess instead — 81.4 F1, final preprocessing step, user-togglable)
 16. datasketch — chunk deduplication before summarization
 17. Tree Summarize — test against current map-reduce
 18. DSPy — systematic prompt optimization

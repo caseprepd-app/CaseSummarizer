@@ -363,7 +363,7 @@ class QueueMessageHandler:
         current, total, question = data
         logger.debug("Q&A progress: %s/%s - %s...", current, total, question[:50])
         self.main_window.status_label.configure(
-            text=f"Q&A: Processing question {current}/{total}..."
+            text=f"Answered {current}/{total} questions, working on next..."
         )
 
     def handle_qa_result(self, result):
@@ -507,7 +507,7 @@ class QueueMessageHandler:
 
         # Update status
         self.main_window.status_label.configure(
-            text=f"Q&A ready ({chunk_count} passages indexed). Answering questions..."
+            text=f"Search index ready ({chunk_count} passages). Preparing to answer questions..."
         )
 
     def handle_trigger_default_qa(self, data: dict):

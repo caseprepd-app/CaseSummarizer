@@ -131,9 +131,9 @@ class TaskMixin:
         """Handle a message from the worker queue."""
         if msg_type == "progress":
             _percentage, message = data
-            # Append Q&A status if ready
-            if self._qa_ready and "Q&A ready" not in message and "Questions" not in message:
-                message = f"{message} (Q&A ready)"
+            # Append Q&A status note if index is ready but answers haven't appeared yet
+            if self._qa_ready and "question" not in message.lower() and "Q&A" not in message:
+                message = f"{message} (answering questions...)"
             self.set_status(message)
 
         elif msg_type == "file_processed":
@@ -154,7 +154,10 @@ class TaskMixin:
             logger.debug("NER complete: %s terms", term_count)
             self.output_display.update_outputs(vocab_csv_data=data)
             self.output_display.set_extraction_source("ner")
-            self.set_status(f"NER complete: {term_count} terms found. LLM enhancement starting...")
+            if self.use_llm_check.get():
+                self.set_status(f"Found {term_count} terms. LLM enhancement starting...")
+            else:
+                self.set_status(f"Found {term_count} terms. Building search index...")
 
         elif msg_type == "qa_ready":
             chunk_count = data.get("chunk_count", 0)
@@ -171,7 +174,9 @@ class TaskMixin:
                 )
             # Session 84: Update status but don't finalize yet - wait for trigger_default_qa
             # which arrives right after qa_ready
-            self.set_status(f"Q&A ready ({chunk_count} chunks). Running default questions...")
+            self.set_status(
+                f"Search index ready ({chunk_count} passages). Preparing to answer questions..."
+            )
 
         elif msg_type == "qa_error":
             error_msg = (
@@ -186,7 +191,7 @@ class TaskMixin:
         elif msg_type == "qa_progress":
             current, total, _question = data
             logger.debug("Q&A progress: %s/%s", current + 1, total)
-            self.set_status(f"Answering default questions: {current + 1}/{total}...")
+            self.set_status(f"Answered {current + 1}/{total} questions, working on next...")
 
         elif msg_type == "qa_result":
             logger.debug("Q&A result received")
@@ -471,9 +476,7 @@ class TaskMixin:
                 msg_type, data = self._qa_queue.get_nowait()
                 if msg_type == "qa_progress":
                     current, total, _question = data
-                    self.set_status(
-                        f"Questions and answers: Processing question {current + 1}/{total}..."
-                    )
+                    self.set_status(f"Answered {current + 1}/{total} questions, working on next...")
                 elif msg_type == "qa_result":
                     pass  # Could update incrementally
                 elif msg_type == "qa_complete":

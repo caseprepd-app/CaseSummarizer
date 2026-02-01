@@ -230,9 +230,15 @@ def setup_logging() -> None:
     # --- Console handler (WARNING+ only) ---
     import sys
 
+    # Use ASCII-safe format for console to avoid UnicodeEncodeError on Windows
+    # cp1252 consoles (the em dash in the file format fails on some terminals)
+    console_fmt = logging.Formatter(
+        "[%(levelname)s %(asctime)s] %(name)s -- %(message)s",
+        datefmt="%H:%M:%S",
+    )
     ch = logging.StreamHandler(sys.stderr)
     ch.setLevel(logging.WARNING)
-    ch.setFormatter(fmt)
+    ch.setFormatter(console_fmt)
     root.addHandler(ch)
 
 

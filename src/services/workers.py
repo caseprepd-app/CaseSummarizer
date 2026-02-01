@@ -1039,10 +1039,13 @@ class ProgressiveExtractionWorker(BaseWorker):
             self.ui_queue.put(QueueMessage.llm_complete([]))
             self.send_progress(100, f"Complete: {len(ner_results)} terms (local algorithms only)")
 
-        # Wait for Q&A thread to finish
-        # Session 80: Increased timeout from 60s to 180s - large documents can take longer
-        # to chunk and build vector store, especially on first run when loading embeddings
-        qa_thread.join(timeout=180)
+        # Wait for Q&A thread to finish (no timeout — embedding on CPU can
+        # take 5+ minutes for large documents and a timeout causes the worker
+        # to die before the vector store is built, killing queue polling)
+        if qa_thread.is_alive():
+            logger.debug("Vocabulary done, waiting for Q&A index to finish...")
+            self.send_progress(100, "Vocabulary complete. Building Q&A search index...")
+        qa_thread.join()
 
     def _build_vector_store(self):
         """Build vector store for Q&A (Phase 2) - runs in parallel thread."""

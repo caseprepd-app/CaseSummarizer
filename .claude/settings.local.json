@@ -86,7 +86,8 @@
       "Bash(Select-Object -First 1)",
       "Bash(ForEach-Object { $_FullName })",
       "WebFetch(domain:explosion.ai)",
-      "Bash(.venvScriptspython.exe -c \"import sys; print\\(sys.executable\\); print\\(sys.prefix\\)\")"
+      "Bash(.venvScriptspython.exe -c \"import sys; print\\(sys.executable\\); print\\(sys.prefix\\)\")",
+      "Bash(.venvScriptspython.exe main.py)"
     ],
     "deny": [],
     "ask": []
