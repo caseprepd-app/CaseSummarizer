@@ -35,9 +35,9 @@ Usage:
 
 import logging
 from dataclasses import dataclass
-from difflib import SequenceMatcher
 
 from src.categories import normalize_category
+from src.core.vocabulary.string_utils import fuzzy_match
 
 logger = logging.getLogger(__name__)
 
@@ -487,7 +487,7 @@ class VocabularyDeduplicator:
         best_ratio = 0.0
 
         for candidate_key in term_dict:
-            ratio = SequenceMatcher(None, term_key, candidate_key).ratio()
+            _, ratio = fuzzy_match(term_key, candidate_key, self.similarity_threshold)
             if ratio > best_ratio and ratio >= self.similarity_threshold:
                 best_ratio = ratio
                 best_match = candidate_key

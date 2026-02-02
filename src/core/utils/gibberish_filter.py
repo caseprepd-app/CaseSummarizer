@@ -24,12 +24,11 @@ Usage:
 """
 
 import logging
-from difflib import SequenceMatcher
 
 from spellchecker import SpellChecker
 
 from src.config import EDIT_DISTANCE_RATIO_THRESHOLD, GIBBERISH_SIMILARITY_THRESHOLD
-from src.core.vocabulary.string_utils import edit_distance
+from src.core.vocabulary.string_utils import edit_distance, fuzzy_match
 
 logger = logging.getLogger(__name__)
 
@@ -134,7 +133,7 @@ class GibberishFilter:
         # Calculate both metrics
         edit_dist = edit_distance(word, best)
         edit_ratio = edit_dist / len(word)
-        similarity = SequenceMatcher(None, word, best).ratio()
+        _, similarity = fuzzy_match(word, best)
 
         # BOTH must pass - strict when they disagree
         ratio_pass = edit_ratio <= EDIT_DISTANCE_RATIO_THRESHOLD

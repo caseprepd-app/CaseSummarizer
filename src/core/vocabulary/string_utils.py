@@ -14,6 +14,33 @@ gibberish_filter.py to eliminate duplicate implementations.
 """
 
 
+def fuzzy_match(s1: str, s2: str, threshold: float = 0.8) -> tuple[bool, float]:
+    """
+    Check if two strings are similar using SequenceMatcher ratio.
+
+    Centralizes the repeated pattern of SequenceMatcher(None, a, b).ratio()
+    compared against a threshold.
+
+    Args:
+        s1: First string
+        s2: Second string
+        threshold: Minimum similarity ratio to consider a match (0-1)
+
+    Returns:
+        Tuple of (is_match, ratio) where is_match = ratio >= threshold
+
+    Examples:
+        >>> fuzzy_match("Smith", "Smitb", 0.8)
+        (True, 0.8)
+        >>> fuzzy_match("hello", "world", 0.8)
+        (False, 0.2)
+    """
+    from difflib import SequenceMatcher
+
+    ratio = SequenceMatcher(None, s1, s2).ratio()
+    return (ratio >= threshold, ratio)
+
+
 def edit_distance(s1: str, s2: str) -> int:
     """
     Calculate Levenshtein edit distance between two strings.

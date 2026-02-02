@@ -18,7 +18,6 @@ Example:
 
 import logging
 import re
-from difflib import SequenceMatcher
 
 from src.config import (
     NAME_SIMILARITY_THRESHOLD,
@@ -28,6 +27,7 @@ from src.config import (
 from src.core.vocabulary.canonical_scorer import create_canonical_scorer
 from src.core.vocabulary.name_regularizer import _load_known_words
 from src.core.vocabulary.person_utils import is_person_entry
+from src.core.vocabulary.string_utils import fuzzy_match
 from src.core.vocabulary.term_sources import TermSources
 
 logger = logging.getLogger(__name__)
@@ -245,8 +245,8 @@ def _fuzzy_merge_groups(groups: dict[str, list], threshold: float) -> list[list[
             if (i, j) not in candidate_pairs:
                 continue
 
-            similarity = SequenceMatcher(None, key1.lower(), key2.lower()).ratio()
-            if similarity >= threshold:
+            is_match, similarity = fuzzy_match(key1.lower(), key2.lower(), threshold)
+            if is_match:
                 current_group.extend(groups[key2])
                 merged_indices.add(j)
                 logger.debug(
