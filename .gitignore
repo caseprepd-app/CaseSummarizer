@@ -76,3 +76,14 @@ nul
 
 # Temp files from Edit tool
 *.tmp.*
+
+# Claude Code plans and transcripts
+.claude/plans/
+
+# Sample documents (user-provided, not shipped)
+sampleDocuments/
+
+# Misc artifacts
+=3.0.0
+import_test_results.txt
+website_diagram.svg
