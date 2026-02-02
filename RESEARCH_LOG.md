@@ -456,7 +456,7 @@
 
 | Library | What It Does | License | Model Size | CPU? | Verdict |
 |---------|-------------|---------|------------|------|---------|
-| **GLiNER** | Zero-shot NER. Extract ANY entity type by specifying labels at inference time. 50-300M params. Bidirectional transformer. Near GPT-4o accuracy on benchmarks. | Apache 2.0 | ~200MB (small), ~600MB (medium), ~1.2GB (large) | Yes (designed for CPU) | **Strongest candidate.** Define custom entity types like "medical_condition", "legal_term", "case_name" without training. Replaces need for multiple specialized NER models. ONNX export available. Apache 2.0. |
+| **GLiNER** ✅ | Zero-shot NER. Extract ANY entity type by specifying labels at inference time. 50-300M params. Bidirectional transformer. Near GPT-4o accuracy on benchmarks. | Apache 2.0 | ~200MB (small), ~600MB (medium), ~1.2GB (large) | Yes (designed for CPU) | **Implemented.** Chose `urchade/gliner_medium-v2.1` (209M params, ~450MB). Best balance of accuracy and size — small model misses too many entities, large model is overkill for CPU. Labels configured via text file targeting rare vocabulary court reporters encounter (anatomical terms, medical procedures, scientific jargon, foreign phrases). |
 | **GLiNER-BioMed** | GLiNER fine-tuned for biomedical entities. | Apache 2.0 | ~600MB-1.2GB | Yes | **Combines legal+medical NER** in one model if using custom labels. |
 | **Flair** (`ner-fast`) | Character-level embeddings + LSTM-CRF NER. Context-sensitive word representations. | MIT | ~250MB (fast), ~1.2GB+ (large) | Moderate (fast variant OK) | **Supplement.** Different architecture catches entities spaCy misses. `ner-fast` variant is CPU-viable. MIT license. |
 | **Stanza** (Stanford NLP) | Full NLP pipeline with NER, dependency parsing. Trained on multiple treebanks. | Apache 2.0 | ~200-400MB | Yes | **Alternative** to spaCy but not clearly better for this use case. |
@@ -471,15 +471,15 @@
 
 ### Recommendations (Priority Order)
 
-1. **GLiNER** (Apache 2.0) -- Biggest bang for effort. Zero-shot means you define "person", "medical_condition", "legal_term", "case_citation" etc. at runtime. Replaces need for Blackstone + scispaCy NER as separate models. ~200MB small model runs on CPU.
+1. ✅ **GLiNER** (Apache 2.0) -- **Done.** Implemented with `urchade/gliner_medium-v2.1` (209M params). Medium model chosen for best accuracy/size balance on CPU. User-configurable labels via text file, default OFF. Labels target rare vocabulary (anatomical terms, medical procedures, scientific jargon, foreign phrases).
 
-2. **scispaCy `en_ner_bc5cdr_md`** (Apache 2.0) -- If GLiNER doesn't catch medical terms well enough, add this as a targeted medical NER pass. Proven on drug/disease detection. ~200MB, fast CPU.
+2. ✅ **scispaCy `en_ner_bc5cdr_md`** (Apache 2.0) -- **Done.** Implemented as `MedicalNER` algorithm. Catches drug names and disease mentions.
 
-3. **KeyBERT with all-MiniLM-L6-v2** (MIT) -- Semantic keyword extraction to supplement RAKE. Different algorithm = different keywords discovered. ~80MB model. Use `potion-base-8M` (8MB) if speed is critical.
+3. ❌ **KeyBERT with all-MiniLM-L6-v2** (MIT) -- **Decided against.** Redundant with 6-algorithm pipeline (NER, RAKE, TextRank, BM25, MedicalNER, GLiNER) plus optional LLM. Heavy overlap with TextRank and LLM extraction.
 
 4. **coreferee** (MIT) -- Lightweight coreference resolution. Maps "he said" back to "Dr. Smith said." Improves name detection completeness. Plugs into existing spaCy pipeline.
 
-5. **pytextrank** (MIT) -- Graph-based keyword scoring as a 5th algorithm alongside RAKE, BM25, NER, LLM. spaCy pipeline component. No new model download.
+5. ✅ **pytextrank** (MIT) -- **Done.** Graph-based keyword scoring as a spaCy pipeline component. No new model download.
 
 **Sources:**
 - https://github.com/urchade/GLiNER
