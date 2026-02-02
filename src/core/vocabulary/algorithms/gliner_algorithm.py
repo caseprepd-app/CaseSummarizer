@@ -9,11 +9,13 @@ without training.
 Model: urchade/gliner_medium-v2.1 (209M params, Apache 2.0)
 
 CRITICAL: GLiNER silently truncates input to ~384 words (~512 subtokens).
-This algorithm chunks documents into ~300-word segments with ~50-word overlap,
-runs prediction on each chunk, and deduplicates across chunks.
+This algorithm chunks documents into ~300-word sentence-aligned segments
+with ~50-word overlap, runs prediction on each chunk, and deduplicates
+across chunks.
 """
 
 import logging
+import threading
 import time
 from typing import Any
 
@@ -33,6 +35,9 @@ _MAX_TEXT_BYTES = 1_024 * 1_024
 # Chunking parameters (words)
 _CHUNK_SIZE_WORDS = 300
 _OVERLAP_WORDS = 50
+
+# Timeout for waiting on background model warm-up (seconds)
+_WARMUP_TIMEOUT_SEC = 120
 
 # Label-to-type mapping keywords
 _TYPE_MAPPING = {
@@ -71,25 +76,57 @@ def _map_label_to_type(label: str) -> str:
 
 def _chunk_text(text: str) -> list[str]:
     """
-    Split text into overlapping word-based chunks for GLiNER processing.
+    Split text into overlapping sentence-aligned chunks for GLiNER processing.
+
+    Uses the legal-aware NUPunkt sentence splitter to avoid cutting entities
+    mid-span. Accumulates sentences until reaching ~300 words, then backs up
+    by ~50 words of sentences for the next chunk's overlap.
 
     Args:
         text: Full document text
 
     Returns:
-        List of text chunks, each ~300 words with ~50-word overlap
+        List of text chunks, each ~300 words with ~50-word sentence overlap
     """
+    from src.core.utils.sentence_splitter import split_sentences
+
     words = text.split()
     if len(words) <= _CHUNK_SIZE_WORDS:
         return [text]
 
+    sentences = split_sentences(text)
+    if not sentences:
+        return [text]
+
+    # Build list of (sentence_text, word_count) for accumulation
+    sent_words = [(s, len(s.split())) for s in sentences]
+
     chunks = []
-    start = 0
-    while start < len(words):
-        end = start + _CHUNK_SIZE_WORDS
-        chunk_words = words[start:end]
-        chunks.append(" ".join(chunk_words))
-        start += _CHUNK_SIZE_WORDS - _OVERLAP_WORDS
+    sent_idx = 0
+
+    while sent_idx < len(sent_words):
+        # Accumulate sentences until we reach the target word count
+        chunk_sents = []
+        chunk_word_count = 0
+        start_idx = sent_idx
+
+        while sent_idx < len(sent_words) and chunk_word_count < _CHUNK_SIZE_WORDS:
+            sent_text, wc = sent_words[sent_idx]
+            chunk_sents.append(sent_text)
+            chunk_word_count += wc
+            sent_idx += 1
+
+        chunks.append(" ".join(chunk_sents))
+
+        # Back up by ~OVERLAP_WORDS worth of sentences for next chunk
+        if sent_idx < len(sent_words):
+            overlap_words = 0
+            back = sent_idx
+            while back > start_idx and overlap_words < _OVERLAP_WORDS:
+                back -= 1
+                overlap_words += sent_words[back][1]
+            sent_idx = max(back, start_idx + 1)
+
     return chunks
 
 
@@ -123,6 +160,29 @@ class GLiNERAlgorithm(BaseExtractionAlgorithm):
         self.threshold = threshold
         self.max_candidates = max_candidates
         self._model = None
+        self._model_ready = threading.Event()
+        self._load_error: str | None = None
+
+    def warm_up(self):
+        """
+        Start loading the model in a background thread.
+
+        Call this early so the model is ready by the time extract() runs.
+        If warm_up() is not called, extract() will load synchronously.
+        """
+
+        def _background_load():
+            try:
+                self._load_model()
+            except Exception as e:
+                self._load_error = str(e)
+                logger.warning("GLiNER background warm-up failed: %s", e)
+            finally:
+                self._model_ready.set()
+
+        thread = threading.Thread(target=_background_load, daemon=True)
+        thread.start()
+        logger.debug("GLiNER model warm-up started in background thread")
 
     def _load_model(self):
         """Load GLiNER model from bundled local path, falling back to HuggingFace."""
@@ -137,6 +197,27 @@ class GLiNERAlgorithm(BaseExtractionAlgorithm):
             self._model = GLiNER.from_pretrained(GLINER_MODEL_NAME)
             logger.debug("Loaded GLiNER model from HuggingFace (bundled not found)")
 
+    def _wait_for_model(self) -> bool:
+        """
+        Wait for model to be ready (from warm_up or load synchronously).
+
+        Returns:
+            True if model is available, False if loading failed.
+        """
+        if self._model is not None:
+            return True
+
+        # If warm_up() was called, wait for it
+        if self._model_ready.is_set() or self._load_error is not None:
+            return self._model is not None
+
+        # If warm_up thread is running but not done, wait with timeout
+        if not self._model_ready.wait(timeout=_WARMUP_TIMEOUT_SEC):
+            logger.warning("GLiNER warm-up timed out after %ds", _WARMUP_TIMEOUT_SEC)
+            return False
+
+        return self._model is not None
+
     def extract(self, text: str, **kwargs) -> AlgorithmResult:
         """
         Extract entities from text using GLiNER zero-shot NER.
@@ -150,16 +231,25 @@ class GLiNERAlgorithm(BaseExtractionAlgorithm):
         """
         start_time = time.time()
 
-        # Lazy-load model
+        # Wait for warm-up or load synchronously
         if self._model is None:
-            try:
-                self._load_model()
-            except Exception as e:
-                logger.warning("GLiNER unavailable: %s", e)
+            if self._model_ready.is_set() or not self._model_ready.wait(timeout=0):
+                # No warm_up() was called — load synchronously
+                try:
+                    self._load_model()
+                except Exception as e:
+                    logger.warning("GLiNER unavailable: %s", e)
+                    return AlgorithmResult(
+                        candidates=[],
+                        processing_time_ms=0.0,
+                        metadata={"skipped": True, "reason": str(e)},
+                    )
+            elif not self._wait_for_model():
+                reason = self._load_error or "warm-up timed out"
                 return AlgorithmResult(
                     candidates=[],
                     processing_time_ms=0.0,
-                    metadata={"skipped": True, "reason": str(e)},
+                    metadata={"skipped": True, "reason": reason},
                 )
 
         # Truncate very long texts
@@ -195,12 +285,17 @@ class GLiNERAlgorithm(BaseExtractionAlgorithm):
                 key = (ent_text.lower(), ent["label"])
                 score = ent.get("score", 0.5)
 
-                if key not in best_entities or score > best_entities[key]["score"]:
+                if key not in best_entities:
                     best_entities[key] = {
                         "text": ent_text,
                         "label": ent["label"],
                         "score": score,
+                        "hits": 1,
                     }
+                else:
+                    best_entities[key]["hits"] += 1
+                    if score > best_entities[key]["score"]:
+                        best_entities[key]["score"] = score
 
         # Convert to CandidateTerm list
         candidates = []
@@ -215,7 +310,7 @@ class GLiNERAlgorithm(BaseExtractionAlgorithm):
                     confidence=ent_data["score"],
                     suggested_type=_map_label_to_type(label),
                     frequency=1,
-                    metadata={"gliner_label": label},
+                    metadata={"gliner_label": label, "chunk_hits": ent_data["hits"]},
                 )
             )
 

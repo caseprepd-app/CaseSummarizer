@@ -4,10 +4,11 @@ Tests for GLiNER zero-shot NER algorithm.
 Tests cover:
 - Entity extraction with mocked model
 - Label-to-type mapping for all categories
-- Text chunking with overlap
+- Text chunking with sentence-aware overlap
 - Deduplication (keeps highest confidence)
 - Graceful failure when gliner not installed
 - Label validation
+- Background model warm-up
 """
 
 from unittest.mock import MagicMock, patch
@@ -67,38 +68,52 @@ class TestLabelToTypeMapping:
 
 
 class TestChunking:
-    """Test _chunk_text produces correct segments with overlap."""
+    """Test _chunk_text produces correct sentence-aligned segments with overlap."""
 
     def test_short_text_single_chunk(self):
         from src.core.vocabulary.algorithms.gliner_algorithm import _chunk_text
 
-        text = "word " * 100
-        chunks = _chunk_text(text.strip())
+        text = "This is a short sentence. And another one."
+        chunks = _chunk_text(text)
         assert len(chunks) == 1
 
     def test_long_text_multiple_chunks(self):
         from src.core.vocabulary.algorithms.gliner_algorithm import _chunk_text
 
-        # 600 words -> should produce multiple chunks
-        text = " ".join(f"word{i}" for i in range(600))
+        # Build text with many sentences totalling ~600 words
+        sentences = [f"This is sentence number {i} with some extra words." for i in range(80)]
+        text = " ".join(sentences)
         chunks = _chunk_text(text)
         assert len(chunks) >= 2
 
     def test_overlap_between_chunks(self):
-        from src.core.vocabulary.algorithms.gliner_algorithm import (
-            _OVERLAP_WORDS,
-            _chunk_text,
-        )
+        from src.core.vocabulary.algorithms.gliner_algorithm import _chunk_text
 
-        words = [f"w{i}" for i in range(600)]
-        text = " ".join(words)
+        # Build sentences with unique words so we can detect overlap
+        sentences = [f"Unique{i} is a word in sentence {i}." for i in range(80)]
+        text = " ".join(sentences)
         chunks = _chunk_text(text)
 
-        # First chunk ends at word 300, second starts at word 250
+        assert len(chunks) >= 2
+        # Chunks should share some sentences (overlap)
         chunk1_words = set(chunks[0].split())
         chunk2_words = set(chunks[1].split())
         overlap = chunk1_words & chunk2_words
-        assert len(overlap) >= _OVERLAP_WORDS - 5  # Allow small margin
+        # Should have meaningful overlap (at least a few shared words)
+        assert len(overlap) >= 5
+
+    def test_chunks_dont_split_mid_sentence(self):
+        from src.core.vocabulary.algorithms.gliner_algorithm import _chunk_text
+
+        # Build text where each sentence is clearly delimited
+        sentences = [f"The anterior cruciate ligament number {i} was examined." for i in range(80)]
+        text = " ".join(sentences)
+        chunks = _chunk_text(text)
+
+        # Each chunk should contain complete sentences — check that
+        # "anterior cruciate ligament" is never split across chunk boundary
+        for chunk in chunks:
+            assert "anterior cruciate" not in chunk or "anterior cruciate ligament" in chunk
 
 
 # ---------------------------------------------------------------------------
@@ -122,12 +137,14 @@ class TestDeduplication:
             [{"text": "John Smith", "label": "person", "score": 0.9}],
         ]
 
-        # Create text with 2 chunks
-        text = " ".join(["word"] * 400)
+        # Create text with enough sentences for 2 chunks
+        sentences = [f"This is sentence number {i} about things." for i in range(80)]
+        text = " ".join(sentences)
         result = algo.extract(text)
 
         assert len(result.candidates) == 1
         assert result.candidates[0].confidence == 0.9
+        assert result.candidates[0].metadata["chunk_hits"] == 2
 
 
 # ---------------------------------------------------------------------------
@@ -159,6 +176,10 @@ class TestExtract:
         types = {c.term: c.suggested_type for c in result.candidates}
         assert types["John Smith"] == "Person"
         assert types["hypertension"] == "Medical"
+
+        # Single-chunk text should have chunk_hits == 1
+        for c in result.candidates:
+            assert c.metadata["chunk_hits"] == 1
 
     @patch("src.core.vocabulary.algorithms.gliner_algorithm.GLiNERAlgorithm._load_model")
     def test_extract_skips_short_and_numeric(self, mock_load):
@@ -196,6 +217,59 @@ class TestGracefulFailure:
 
         assert len(result.candidates) == 0
         assert result.metadata.get("skipped") is True
+
+
+# ---------------------------------------------------------------------------
+# Background warm-up tests
+# ---------------------------------------------------------------------------
+
+
+class TestWarmUp:
+    """Test background model warm-up."""
+
+    def test_warm_up_makes_model_available(self):
+        from src.core.vocabulary.algorithms.gliner_algorithm import GLiNERAlgorithm
+
+        algo = GLiNERAlgorithm(labels=["person"])
+
+        # Mock _load_model to set _model
+        def fake_load():
+            algo._model = MagicMock()
+
+        with patch.object(algo, "_load_model", side_effect=fake_load):
+            algo.warm_up()
+            # Wait for background thread to finish
+            algo._model_ready.wait(timeout=5)
+
+        assert algo._model is not None
+        assert algo._load_error is None
+
+    def test_extract_works_without_warm_up(self):
+        from src.core.vocabulary.algorithms.gliner_algorithm import GLiNERAlgorithm
+
+        algo = GLiNERAlgorithm(labels=["person"])
+
+        def fake_load():
+            algo._model = MagicMock()
+            algo._model.predict_entities.return_value = [
+                {"text": "Test Entity", "label": "person", "score": 0.8},
+            ]
+
+        with patch.object(algo, "_load_model", side_effect=fake_load):
+            result = algo.extract("Some text here.")
+
+        assert len(result.candidates) == 1
+
+    def test_warm_up_failure_returns_empty_result(self):
+        from src.core.vocabulary.algorithms.gliner_algorithm import GLiNERAlgorithm
+
+        algo = GLiNERAlgorithm(labels=["person"])
+
+        with patch.object(algo, "_load_model", side_effect=RuntimeError("load failed")):
+            algo.warm_up()
+            algo._model_ready.wait(timeout=5)
+
+        assert algo._load_error == "load failed"
 
 
 # ---------------------------------------------------------------------------

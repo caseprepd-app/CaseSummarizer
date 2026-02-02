@@ -217,6 +217,7 @@ class VocabularyExtractor:
 
                     gliner_labels = load_gliner_labels()
                     gliner = GLiNERAlgorithm(labels=gliner_labels)
+                    gliner.warm_up()
                     self.algorithms.append(gliner)
                     logger.debug("GLiNER algorithm enabled with %d labels", len(gliner.labels))
                 except ImportError:
