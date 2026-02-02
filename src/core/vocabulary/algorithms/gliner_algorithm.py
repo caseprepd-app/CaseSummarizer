@@ -125,11 +125,17 @@ class GLiNERAlgorithm(BaseExtractionAlgorithm):
         self._model = None
 
     def _load_model(self):
-        """Load GLiNER model with lazy initialization."""
+        """Load GLiNER model from bundled local path, falling back to HuggingFace."""
         from gliner import GLiNER
 
-        self._model = GLiNER.from_pretrained("urchade/gliner_medium-v2.1")
-        logger.debug("Loaded GLiNER model: urchade/gliner_medium-v2.1")
+        from src.config import GLINER_MODEL_LOCAL_PATH, GLINER_MODEL_NAME
+
+        if GLINER_MODEL_LOCAL_PATH.exists():
+            self._model = GLiNER.from_pretrained(str(GLINER_MODEL_LOCAL_PATH))
+            logger.debug("Loaded GLiNER model from bundled path: %s", GLINER_MODEL_LOCAL_PATH)
+        else:
+            self._model = GLiNER.from_pretrained(GLINER_MODEL_NAME)
+            logger.debug("Loaded GLiNER model from HuggingFace (bundled not found)")
 
     def extract(self, text: str, **kwargs) -> AlgorithmResult:
         """

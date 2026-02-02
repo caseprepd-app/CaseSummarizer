@@ -895,6 +895,10 @@ HALLUCINATION_MODEL_LOCAL_PATH = BUNDLED_MODELS_DIR / "lettucedect-base-modernbe
 HALLUCINATION_MODEL_FAST_LOCAL_PATH = BUNDLED_MODELS_DIR / "tinylettuce-ettin-68m-en"
 HALLUCINATION_MODEL_FASTEST_LOCAL_PATH = BUNDLED_MODELS_DIR / "tinylettuce-ettin-17m-en"
 
+# GLiNER zero-shot NER model (209M params, Apache 2.0)
+GLINER_MODEL_NAME = "urchade/gliner_medium-v2.1"
+GLINER_MODEL_LOCAL_PATH = BUNDLED_MODELS_DIR / "gliner_medium-v2.1"
+
 # Embedding model for FAISS semantic search
 # Upgraded from bge-base-en-v1.5 (110MB, 512-token limit) to modernbert-embed-large
 # (~395M params, 8192-token context, 1024 dims) — fixes silent truncation of large chunks.
