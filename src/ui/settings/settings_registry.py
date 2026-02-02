@@ -715,6 +715,173 @@ def _register_all_settings():
         )
     )
 
+    # Session 142: Model & Feedback Export/Import buttons
+    def _export_vocab_model():
+        """Export user vocabulary model from settings."""
+        from tkinter import filedialog, messagebox
+
+        from src.services.model_io_service import export_user_model
+
+        dest = filedialog.asksaveasfilename(
+            title="Export Vocabulary Model",
+            defaultextension=".pkl",
+            filetypes=[("Pickle files", "*.pkl")],
+            initialfile="vocab_model.pkl",
+        )
+        if not dest:
+            return
+        from pathlib import Path
+
+        ok, msg = export_user_model(Path(dest))
+        if ok:
+            messagebox.showinfo("Export Complete", msg)
+        else:
+            messagebox.showerror("Export Failed", msg)
+
+    def _import_vocab_model():
+        """Import vocabulary model from settings."""
+        from tkinter import filedialog, messagebox
+
+        messagebox.showwarning(
+            "Security Warning",
+            "Only load model files from sources you trust.\n"
+            "Model files can contain executable code.\n\n"
+            "Press OK to continue.",
+        )
+
+        src = filedialog.askopenfilename(
+            title="Import Vocabulary Model",
+            filetypes=[("Pickle files", "*.pkl")],
+        )
+        if not src:
+            return
+        from pathlib import Path
+
+        from src.services.model_io_service import import_user_model
+
+        ok, msg = import_user_model(Path(src))
+        if ok:
+            messagebox.showinfo("Import Complete", msg)
+        else:
+            messagebox.showerror("Import Failed", msg)
+
+    def _export_vocab_feedback():
+        """Export user feedback history from settings."""
+        from tkinter import filedialog, messagebox
+
+        from src.services import VocabularyService
+        from src.services.model_io_service import export_user_feedback
+
+        feedback_mgr = VocabularyService().get_feedback_manager()
+        dest = filedialog.asksaveasfilename(
+            title="Export Feedback History",
+            defaultextension=".csv",
+            filetypes=[("CSV files", "*.csv")],
+            initialfile="feedback_history.csv",
+        )
+        if not dest:
+            return
+        from pathlib import Path
+
+        ok, msg = export_user_feedback(Path(dest), feedback_mgr)
+        if ok:
+            messagebox.showinfo("Export Complete", msg)
+        else:
+            messagebox.showerror("Export Failed", msg)
+
+    def _import_vocab_feedback():
+        """Import feedback history from settings."""
+        from tkinter import filedialog, messagebox
+
+        src = filedialog.askopenfilename(
+            title="Import Feedback History",
+            filetypes=[("CSV files", "*.csv")],
+        )
+        if not src:
+            return
+
+        result = messagebox.askyesnocancel(
+            "Import Mode",
+            "How should the imported feedback be combined?\n\n"
+            "Yes = Replace (old data backed up)\n"
+            "No = Append to existing\n"
+            "Cancel = Abort",
+        )
+        if result is None:
+            return
+        mode = "replace" if result else "append"
+
+        from pathlib import Path
+
+        from src.services import VocabularyService
+        from src.services.model_io_service import import_user_feedback
+
+        feedback_mgr = VocabularyService().get_feedback_manager()
+        ok, msg, count = import_user_feedback(Path(src), mode, feedback_mgr)
+
+        if not ok:
+            messagebox.showerror("Import Failed", msg)
+            return
+
+        retrain = messagebox.askyesno(
+            "Retrain Model?",
+            f"{msg}\n\nRetrain the vocabulary model with the new feedback?",
+        )
+        if retrain:
+            learner = VocabularyService().get_meta_learner()
+            learner.train()
+            messagebox.showinfo("Import Complete", f"Imported {count} records. Model retrained.")
+        else:
+            messagebox.showinfo("Import Complete", msg)
+
+    SettingsRegistry.register(
+        SettingDefinition(
+            key="export_vocab_model",
+            label="Export Model",
+            category="Vocabulary",
+            setting_type=SettingType.BUTTON,
+            tooltip="Export your personalized vocabulary model to a file for backup or transfer.",
+            default=None,
+            action=_export_vocab_model,
+        )
+    )
+
+    SettingsRegistry.register(
+        SettingDefinition(
+            key="import_vocab_model",
+            label="Import Model",
+            category="Vocabulary",
+            setting_type=SettingType.BUTTON,
+            tooltip="Import a vocabulary model from a file. The current model will be backed up.",
+            default=None,
+            action=_import_vocab_model,
+        )
+    )
+
+    SettingsRegistry.register(
+        SettingDefinition(
+            key="export_vocab_feedback",
+            label="Export Feedback History",
+            category="Vocabulary",
+            setting_type=SettingType.BUTTON,
+            tooltip="Export your feedback history (thumbs up/down ratings) to a CSV file.",
+            default=None,
+            action=_export_vocab_feedback,
+        )
+    )
+
+    SettingsRegistry.register(
+        SettingDefinition(
+            key="import_vocab_feedback",
+            label="Import Feedback History",
+            category="Vocabulary",
+            setting_type=SettingType.BUTTON,
+            tooltip="Import feedback history from a CSV file. Choose to replace or append.",
+            default=None,
+            action=_import_vocab_feedback,
+        )
+    )
+
     # Session 59: Vocabulary filtering thresholds (user-configurable)
     # Session 62b: Moved from Advanced to Vocabulary tab (consolidated)
     SettingsRegistry.register(
