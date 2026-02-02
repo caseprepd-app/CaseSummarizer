@@ -481,7 +481,7 @@ def _register_all_settings():
     )
 
     # GLiNER Zero-Shot NER (user-togglable, default OFF)
-    from src.config import GLINER_DEFAULT_LABELS, GLINER_MAX_LABELS
+    from src.config import GLINER_LABELS_FILE, GLINER_MAX_LABELS
 
     SettingsRegistry.register(
         SettingDefinition(
@@ -491,12 +491,14 @@ def _register_all_settings():
             setting_type=SettingType.CHECKBOX,
             tooltip=(
                 "Enable GLiNER zero-shot named entity recognition. GLiNER "
-                "finds entities matching your custom labels (below) without "
-                "any model training.\n\n"
+                "finds specialized terms that might trip up court reporters — "
+                "anatomical terms, medical procedures, scientific jargon, and "
+                "other rare vocabulary from expert testimony.\n\n"
+                "GLiNER matches your custom labels (edit with the button below) "
+                "to text spans by meaning. No model training needed.\n\n"
                 "Requires the 'gliner' package to be installed (~450MB model "
                 "download on first use).\n\n"
-                "Default: OFF. Enable if you want custom entity extraction "
-                "beyond what NER and MedicalNER provide."
+                "Default: OFF."
             ),
             default=False,
             getter=lambda: prefs.get("gliner_enabled", False),
@@ -504,92 +506,43 @@ def _register_all_settings():
         )
     )
 
-    def _validate_gliner_labels(labels: list[str]) -> list[str]:
-        """Validate and clean GLiNER labels before saving."""
-        if not labels:
-            return list(GLINER_DEFAULT_LABELS)
-        cleaned = []
-        seen = set()
-        for label in labels:
-            label = label.strip()
-            if not label or len(label) < 2 or len(label) > 50:
-                continue
-            if not any(c.isalpha() for c in label):
-                continue
-            lower = label.lower()
-            if lower in seen:
-                continue
-            seen.add(lower)
-            cleaned.append(label)
-            if len(cleaned) >= GLINER_MAX_LABELS:
-                break
-        return cleaned if cleaned else list(GLINER_DEFAULT_LABELS)
+    def _open_gliner_labels_file():
+        """Open the GLiNER labels file in the default text editor."""
+        from src.config import load_gliner_labels
 
-    def _create_gliner_labels_widget(parent):
-        """Factory for GLiNER label editor widget."""
-        import customtkinter as ctk
+        # Ensure the user file exists (copies default if needed)
+        load_gliner_labels()
 
-        from src.ui.theme import FONTS
+        try:
+            os.startfile(str(GLINER_LABELS_FILE))
+        except AttributeError:
+            import subprocess
+            import sys
 
-        frame = ctk.CTkFrame(parent, fg_color="transparent")
-
-        # Header
-        header = ctk.CTkLabel(
-            frame,
-            text="GLiNER Entity Labels",
-            font=FONTS.get("heading_sm", ("Segoe UI", 13, "bold")),
-            anchor="w",
-        )
-        header.pack(anchor="w", pady=(0, 4))
-
-        tip = ctk.CTkLabel(
-            frame,
-            text=(
-                "Enter short, descriptive labels for the types of entities you "
-                "want to find. GLiNER matches these labels to text spans by "
-                "meaning, so use clear phrases like 'medical condition' rather "
-                "than abbreviations. One concept per label. Keep labels under 20."
-            ),
-            font=FONTS.get("small", ("Segoe UI", 10)),
-            text_color=("#888888", "#999999"),
-            wraplength=400,
-            justify="left",
-            anchor="w",
-        )
-        tip.pack(anchor="w", pady=(0, 8))
-
-        # Text box for labels (one per line)
-        current_labels = prefs.get("gliner_labels", list(GLINER_DEFAULT_LABELS))
-        textbox = ctk.CTkTextbox(frame, height=120, width=380)
-        textbox.insert("1.0", "\n".join(current_labels))
-        textbox.pack(anchor="w", pady=(0, 4))
-
-        # Store get_value method on frame for settings dialog to call
-        def get_value():
-            raw = textbox.get("1.0", "end").strip().split("\n")
-            return _validate_gliner_labels(raw)
-
-        frame.get_value = get_value
-
-        return frame
-
-    def _save_gliner_labels(labels) -> None:
-        """Persist validated GLiNER labels."""
-        if labels is not None:
-            validated = _validate_gliner_labels(labels) if isinstance(labels, list) else labels
-            prefs.set("gliner_labels", validated)
+            if sys.platform == "darwin":
+                subprocess.run(["open", str(GLINER_LABELS_FILE)])
+            else:
+                subprocess.run(["xdg-open", str(GLINER_LABELS_FILE)])
 
     SettingsRegistry.register(
         SettingDefinition(
-            key="gliner_labels",
-            label="",  # Widget has its own header
+            key="gliner_edit_labels",
+            label="Edit GLiNER Labels",
             category="Vocabulary",
-            setting_type=SettingType.CUSTOM,
-            tooltip="",
-            default=list(GLINER_DEFAULT_LABELS),
-            getter=lambda: prefs.get("gliner_labels", list(GLINER_DEFAULT_LABELS)),
-            setter=_save_gliner_labels,
-            widget_factory=_create_gliner_labels_widget,
+            setting_type=SettingType.BUTTON,
+            tooltip=(
+                "Open the GLiNER labels file in your text editor. One label "
+                "per line, lines starting with # are comments.\n\n"
+                "GLiNER matches these labels to text spans by meaning, so "
+                "use clear, descriptive phrases like 'anatomical body part' "
+                "or 'medical procedure' rather than abbreviations.\n\n"
+                f"Maximum {GLINER_MAX_LABELS} labels. Each label: 2-50 "
+                "characters, must contain letters. No duplicates.\n\n"
+                "Changes take effect on next document processing.\n\n"
+                f"File location: {GLINER_LABELS_FILE}"
+            ),
+            default=None,
+            action=_open_gliner_labels_file,
         )
     )
 

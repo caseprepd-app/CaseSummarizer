@@ -246,15 +246,78 @@ VOCAB_ALGORITHM_WEIGHTS = {
 
 # GLiNER Zero-Shot NER Configuration
 GLINER_DEFAULT_LABELS = [
-    "person",
+    "anatomical body part",
+    "medical procedure",
     "medical condition",
     "medication",
-    "case citation",
-    "statute",
-    "legal term",
-    "court name",
+    "chemical compound",
+    "specialized scientific term",
+    "foreign phrase",
 ]
 GLINER_MAX_LABELS = 20
+GLINER_LABELS_FILE = CONFIG_DIR / "gliner_labels.txt"
+GLINER_DEFAULT_LABELS_FILE = Path(__file__).parent.parent / "config" / "gliner_labels.txt"
+
+
+def load_gliner_labels() -> list[str]:
+    """
+    Load GLiNER labels from user's config file, falling back to defaults.
+
+    Reads labels from CONFIG_DIR/gliner_labels.txt. If the file doesn't
+    exist, copies the shipped default file. Validates labels and warns
+    if the maximum is exceeded.
+
+    Returns:
+        List of validated label strings (1-20 labels)
+    """
+    import shutil
+
+    # Copy default file to user config if it doesn't exist yet
+    if not GLINER_LABELS_FILE.exists() and GLINER_DEFAULT_LABELS_FILE.exists():
+        shutil.copy2(GLINER_DEFAULT_LABELS_FILE, GLINER_LABELS_FILE)
+        logger.debug("Copied default GLiNER labels to %s", GLINER_LABELS_FILE)
+
+    # Read from user file
+    labels = []
+    source = GLINER_LABELS_FILE if GLINER_LABELS_FILE.exists() else GLINER_DEFAULT_LABELS_FILE
+    try:
+        with open(source, encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                # Skip comments and empty lines
+                if not line or line.startswith("#"):
+                    continue
+                # Validate: 2-50 chars, must contain letters
+                if len(line) < 2 or len(line) > 50:
+                    logger.debug("Skipping invalid GLiNER label (length): '%s'", line)
+                    continue
+                if not any(c.isalpha() for c in line):
+                    logger.debug("Skipping invalid GLiNER label (no letters): '%s'", line)
+                    continue
+                # Skip duplicates (case-insensitive)
+                if line.lower() in {l.lower() for l in labels}:
+                    continue
+                labels.append(line)
+    except Exception as e:
+        logger.warning("Failed to read GLiNER labels file: %s", e)
+
+    # Warn and truncate if over maximum
+    if len(labels) > GLINER_MAX_LABELS:
+        logger.warning(
+            "GLiNER labels file has %d labels (maximum is %d). Only the first %d will be used.",
+            len(labels),
+            GLINER_MAX_LABELS,
+            GLINER_MAX_LABELS,
+        )
+        labels = labels[:GLINER_MAX_LABELS]
+
+    # Fall back to defaults if empty
+    if not labels:
+        logger.debug("No valid labels found, using defaults")
+        return list(GLINER_DEFAULT_LABELS)
+
+    return labels
+
 
 # Similarity Thresholds (consolidated from scattered definitions)
 # Used for name deduplication, fuzzy matching, and text similarity

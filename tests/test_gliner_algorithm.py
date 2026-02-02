@@ -34,6 +34,8 @@ class TestLabelToTypeMapping:
         assert _map_label_to_type("drug name") == "Medical"
         assert _map_label_to_type("disease") == "Medical"
         assert _map_label_to_type("chronic condition") == "Medical"
+        assert _map_label_to_type("anatomical body part") == "Medical"
+        assert _map_label_to_type("medical procedure") == "Medical"
 
     def test_organization_labels(self):
         from src.core.vocabulary.algorithms.gliner_algorithm import _map_label_to_type
@@ -54,9 +56,9 @@ class TestLabelToTypeMapping:
     def test_technical_fallback(self):
         from src.core.vocabulary.algorithms.gliner_algorithm import _map_label_to_type
 
-        assert _map_label_to_type("case citation") == "Technical"
-        assert _map_label_to_type("statute") == "Technical"
-        assert _map_label_to_type("legal term") == "Technical"
+        assert _map_label_to_type("specialized scientific term") == "Technical"
+        assert _map_label_to_type("chemical compound") == "Technical"
+        assert _map_label_to_type("foreign phrase") == "Technical"
 
 
 # ---------------------------------------------------------------------------
@@ -204,9 +206,7 @@ class TestGracefulFailure:
 class TestLabelValidation:
     """Test GLiNER label validation rules."""
 
-    def test_validate_strips_whitespace(self):
-        # We test the validation function directly
-        # It's defined inside _register_all_settings, so we test via the algorithm
+    def test_default_labels_exist(self):
         from src.config import GLINER_DEFAULT_LABELS, GLINER_MAX_LABELS
 
         assert len(GLINER_DEFAULT_LABELS) >= 1
@@ -225,3 +225,75 @@ class TestLabelValidation:
         custom = ["person", "vehicle"]
         algo = GLiNERAlgorithm(labels=custom)
         assert algo.labels == custom
+
+
+# ---------------------------------------------------------------------------
+# File-based label loading tests
+# ---------------------------------------------------------------------------
+
+
+class TestLoadGlinerLabels:
+    """Test load_gliner_labels reads from file with validation."""
+
+    def test_loads_from_file(self, tmp_path):
+        from unittest.mock import patch as _patch
+
+        labels_file = tmp_path / "gliner_labels.txt"
+        labels_file.write_text(
+            "# comment\nanatomical body part\nmedication\n\n# another comment\nforeign phrase\n",
+            encoding="utf-8",
+        )
+
+        with _patch("src.config.GLINER_LABELS_FILE", labels_file):
+            from src.config import load_gliner_labels
+
+            result = load_gliner_labels()
+
+        assert result == ["anatomical body part", "medication", "foreign phrase"]
+
+    def test_skips_invalid_labels(self, tmp_path):
+        from unittest.mock import patch as _patch
+
+        labels_file = tmp_path / "gliner_labels.txt"
+        labels_file.write_text(
+            "a\n"  # too short
+            "123\n"  # no letters
+            "valid label\n"
+            "valid label\n"  # duplicate
+            "",
+            encoding="utf-8",
+        )
+
+        with _patch("src.config.GLINER_LABELS_FILE", labels_file):
+            from src.config import load_gliner_labels
+
+            result = load_gliner_labels()
+
+        assert result == ["valid label"]
+
+    def test_truncates_over_maximum(self, tmp_path):
+        from unittest.mock import patch as _patch
+
+        labels_file = tmp_path / "gliner_labels.txt"
+        lines = [f"label number {i}" for i in range(25)]
+        labels_file.write_text("\n".join(lines), encoding="utf-8")
+
+        with _patch("src.config.GLINER_LABELS_FILE", labels_file):
+            from src.config import load_gliner_labels
+
+            result = load_gliner_labels()
+
+        assert len(result) == 20
+
+    def test_falls_back_to_defaults_on_empty_file(self, tmp_path):
+        from unittest.mock import patch as _patch
+
+        labels_file = tmp_path / "gliner_labels.txt"
+        labels_file.write_text("# only comments\n", encoding="utf-8")
+
+        with _patch("src.config.GLINER_LABELS_FILE", labels_file):
+            from src.config import GLINER_DEFAULT_LABELS, load_gliner_labels
+
+            result = load_gliner_labels()
+
+        assert result == list(GLINER_DEFAULT_LABELS)

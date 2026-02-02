@@ -212,9 +212,10 @@ class VocabularyExtractor:
             # Conditionally add GLiNER if enabled and gliner is installed
             if self._should_enable_gliner():
                 try:
+                    from src.config import load_gliner_labels
                     from src.core.vocabulary.algorithms.gliner_algorithm import GLiNERAlgorithm
 
-                    gliner_labels = prefs.get("gliner_labels", None)
+                    gliner_labels = load_gliner_labels()
                     gliner = GLiNERAlgorithm(labels=gliner_labels)
                     self.algorithms.append(gliner)
                     logger.debug("GLiNER algorithm enabled with %d labels", len(gliner.labels))

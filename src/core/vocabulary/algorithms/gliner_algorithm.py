@@ -37,7 +37,16 @@ _OVERLAP_WORDS = 50
 # Label-to-type mapping keywords
 _TYPE_MAPPING = {
     "Person": ["person"],
-    "Medical": ["medical", "medication", "drug", "disease", "condition"],
+    "Medical": [
+        "medical",
+        "medication",
+        "drug",
+        "disease",
+        "condition",
+        "anatomical",
+        "body part",
+        "procedure",
+    ],
     "Organization": ["court", "organization", "company"],
     "Place": ["place", "location", "city", "state", "country"],
 }
