@@ -173,12 +173,14 @@
 
 ### Alternatives Evaluated
 
-#### GLiNER (Zero-Shot NER)
-- **What:** Specify entity type labels at inference time — "person", "medical_condition", "legal_term", "case_citation" — and it extracts matching spans without training.
-- **License:** Apache 2.0
-- **Size:** ~200MB (small model)
+#### GLiNER (Zero-Shot NER) — ✅ IMPLEMENTED
+- **What:** Specify entity type labels at inference time and it extracts matching spans without training. Labels are user-configurable via a text file (`config/gliner_labels.txt`).
+- **Model:** `urchade/gliner_medium-v2.1` (209M params, Apache 2.0)
+- **Size:** ~450MB model download on first use
 - **CPU:** Yes, designed for it. ONNX export available.
-- **Verdict:** **Strongest single candidate.** One model replaces the need for separate legal + medical + generic NER. Near GPT-4o accuracy on standard benchmarks. `gliner-spacy` integration exists.
+- **Default labels:** `anatomical body part`, `medical procedure`, `medical condition`, `medication`, `chemical compound`, `specialized scientific term`, `foreign phrase` — targeting rare vocabulary that trips up court reporters (expert testimony jargon, not everyday legal terms).
+- **Implementation:** `src/core/vocabulary/algorithms/gliner_algorithm.py` with `@register_algorithm("GLiNER")`. User-togglable (default OFF). Labels stored in editable text file (one per line, `#` comments). Settings UI has "Edit GLiNER Labels" button that opens the file in Notepad. Maximum 20 labels with validation and warning.
+- **Key technical detail:** GLiNER silently truncates input to ~384 words. The algorithm chunks documents into ~300-word segments with ~50-word overlap, runs prediction on each chunk, and deduplicates across chunks keeping highest confidence.
 
 #### scispaCy (Medical NER) — ✅ IMPLEMENTED
 - **What:** spaCy pipeline for biomedical text from Allen AI. `en_ner_bc5cdr_md` specializes in drug names and disease mentions (trained on 4409 chemicals, 5818 diseases).
@@ -191,7 +193,7 @@
 - **What:** Uses BERT embeddings + cosine similarity to find semantically representative keyphrases.
 - **License:** MIT
 - **Size:** ~80MB (MiniLM backend) or ~8MB (potion-base-8M via Model2Vec)
-- **Verdict:** ~~Strong supplement to RAKE.~~ Decided against. The pipeline already has 5 extraction methods (NER, RAKE, TextRank, BM25, LLM). KeyBERT's signal — "which phrases best represent the document" — overlaps heavily with what TextRank (graph centrality) and LLM extraction (semantic understanding) already capture. The LLM does this better with full contextual reasoning. Additionally, KeyBERT silently truncates long documents with no built-in chunking, requiring a workaround. The marginal value of a 6th algorithm with heavy overlap doesn't justify the added dependency and complexity. Effort is better spent on GLiNER/scispaCy, which surface categorically different information the pipeline currently misses.
+- **Verdict:** ~~Strong supplement to RAKE.~~ Decided against. The pipeline already has 6 extraction methods (NER, RAKE, TextRank, BM25, MedicalNER, GLiNER) plus optional LLM. KeyBERT's signal — "which phrases best represent the document" — overlaps heavily with what TextRank (graph centrality) and LLM extraction (semantic understanding) already capture. The LLM does this better with full contextual reasoning. Additionally, KeyBERT silently truncates long documents with no built-in chunking, requiring a workaround. The marginal value of another algorithm with heavy overlap doesn't justify the added dependency and complexity.
 
 #### pytextrank — ✅ IMPLEMENTED
 - **What:** Graph-based keyword scoring using TextRank (PageRank on word co-occurrence). Integrates as a spaCy pipeline component.
