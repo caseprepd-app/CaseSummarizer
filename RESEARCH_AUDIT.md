@@ -13,7 +13,7 @@
 | 1 | ✅ **RRF fusion** (replace weighted score merging) | ~10 lines | None | Eliminates hand-tuned BM25/FAISS weights |
 | 2 | ✅ **gte-reranker-modernbert-base** (replace bge-reranker-base) | Small | None (same `sentence-transformers`) | 149M params, 8192-token context — sees full chunks |
 | 3 | ✅ **TinyLettuce** (three-tier model selection) | Small | Same library | Standard/Fast/Fastest — all three bundled for installer |
-| 4 | **GLiNER** (zero-shot NER) | Medium | `gliner` (~200MB) | One model for legal + medical + generic entities |
+| 4 | ✅ **GLiNER** (zero-shot NER) | Medium | `gliner` (~200MB) | Implemented with user-configurable labels. Model: urchade/gliner_medium-v2.1 (209M params). User-togglable, default OFF. |
 | 5 | ❌ ~~**KeyBERT**~~ (decided against) | Low | `keybert` (~80MB) | Redundant — see rationale below |
 | 6 | ✅ **pytextrank** (supplement RAKE/BM25) | Very low | `pytextrank` (no model) | Graph-based scoring as spaCy component |
 | 7 | ✅ **scispaCy** (medical NER) | Low | `en_ner_bc5cdr_md` (~200MB) | Drug name and disease detection |
@@ -343,7 +343,7 @@ Explicitly excluded: GPL, AGPL, CC-NC, restricted model weights.
 6. ~~ONNX export — quantize current embedding model~~ ❌ Decided against — PyTorch is still required by the reranker and hallucination detector, so ONNX for embeddings alone doesn't eliminate the PyTorch overhead. Narrow speedup not worth the extra dependency.
 
 ### Medium Effort (1-3 sessions each)
-7. GLiNER — add zero-shot NER for legal + medical entities
+7. ~~GLiNER — add zero-shot NER for legal + medical entities~~ ✅ Done (implemented as `GLiNER` algorithm in `src/core/vocabulary/algorithms/gliner_algorithm.py` with user-configurable labels)
 8. ~~KeyBERT — add semantic keyword extraction~~ ❌ Decided against — redundant with existing 5-algorithm + LLM pipeline; heavy overlap with TextRank and LLM extraction
 9. ~~scispaCy — add medical NER for drug/disease detection~~ ✅ Done (implemented as `MedicalNER` algorithm in `src/core/vocabulary/algorithms/scispacy_algorithm.py`)
 10. ~~NUPunkt — add legal sentence boundary detection~~ ✅ Done (shared utility in `src/core/utils/sentence_splitter.py`, replaces 4 regex splitters)

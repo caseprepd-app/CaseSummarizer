@@ -241,7 +241,20 @@ VOCAB_ALGORITHM_WEIGHTS = {
     "BM25": _d("vocab_weight_bm25"),
     "TextRank": 0.6,
     "MedicalNER": _d("vocab_weight_medical_ner"),
+    "GLiNER": 0.75,
 }
+
+# GLiNER Zero-Shot NER Configuration
+GLINER_DEFAULT_LABELS = [
+    "person",
+    "medical condition",
+    "medication",
+    "case citation",
+    "statute",
+    "legal term",
+    "court name",
+]
+GLINER_MAX_LABELS = 20
 
 # Similarity Thresholds (consolidated from scattered definitions)
 # Used for name deduplication, fuzzy matching, and text similarity

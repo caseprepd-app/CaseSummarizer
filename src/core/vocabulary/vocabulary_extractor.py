@@ -208,6 +208,20 @@ class VocabularyExtractor:
                 logger.debug("MedicalNER algorithm enabled")
             except ImportError:
                 logger.debug("MedicalNER unavailable (scispacy not installed)")
+
+            # Conditionally add GLiNER if enabled and gliner is installed
+            if self._should_enable_gliner():
+                try:
+                    from src.core.vocabulary.algorithms.gliner_algorithm import GLiNERAlgorithm
+
+                    gliner_labels = prefs.get("gliner_labels", None)
+                    gliner = GLiNERAlgorithm(labels=gliner_labels)
+                    self.algorithms.append(gliner)
+                    logger.debug("GLiNER algorithm enabled with %d labels", len(gliner.labels))
+                except ImportError:
+                    logger.debug("GLiNER unavailable (gliner not installed)")
+                except Exception as e:
+                    logger.debug("Failed to initialize GLiNER: %s", e)
         else:
             self.algorithms = algorithms
 
@@ -782,6 +796,7 @@ class VocabularyExtractor:
                 "BM25": "Yes" if "BM25" in sources_upper else "No",
                 "TextRank": "Yes" if "TEXTRANK" in sources_upper else "No",
                 "MedicalNER": "Yes" if "MEDICALNER" in sources_upper else "No",
+                "GLiNER": "Yes" if "GLINER" in sources_upper else "No",
                 "Algo Count": algo_count,  # Sum of algorithms that found term
                 # Session 80: Display columns from TermSources
                 "# Docs": sources_obj.num_documents,
@@ -1272,6 +1287,27 @@ class VocabularyExtractor:
             for alg in self.algorithms:
                 if hasattr(alg, "user_exclude_list"):
                     alg.user_exclude_list = self.user_exclude_list
+
+    def _should_enable_gliner(self) -> bool:
+        """
+        Check if GLiNER algorithm should be enabled.
+
+        GLiNER requires:
+        1. User has enabled GLiNER in settings (default: False)
+        2. gliner package is installed
+
+        Returns:
+            True if GLiNER should be added to algorithm list
+        """
+        try:
+            prefs = get_user_preferences()
+            if not prefs.get("gliner_enabled", False):
+                logger.debug("GLiNER disabled by user preference")
+                return False
+            return True
+        except Exception as e:
+            logger.debug("GLiNER check failed: %s", e)
+            return False
 
     def _should_enable_bm25(self) -> bool:
         """
