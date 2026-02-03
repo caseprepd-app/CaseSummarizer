@@ -5,11 +5,14 @@ Extracts feature vectors from term data for ML model training and prediction.
 
 Features include:
 - Count bins (one-hot encoded occurrence frequency)
-- Algorithm source features (NER, RAKE, BM25, TextRank)
+- freq_per_1k_words: Scale-independent document density (occurrences per 1K words)
+- Algorithm source features (NER, RAKE, BM25, TextRank, MedicalNER, GLiNER)
 - Character/format features (artifact detection)
 - Document quality features
 - Name validation features
 - TermSources-based per-document confidence features
+  - mean_count_per_doc: Average concentration per source document
+  - doc_diversity_ratio: Proportion of session docs containing term
 """
 
 from typing import Any
@@ -120,12 +123,14 @@ FEATURE_NAMES = [
     "count_bin_21_50",  # 21-50 occurrences (appears throughout document)
     "count_bin_51_plus",  # 51+ occurrences (major figure in transcript)
     "log_count",  # Session 131: Log-scaled count preserving magnitude (log10(count+1))
-    "occurrence_ratio",  # Document-relative frequency (count / total_unique_terms)
+    "freq_per_1k_words",  # Scale-independent density (count / (total_words / 1000))
     # Algorithm features
     "has_ner",
     "has_rake",
     "has_bm25",  # Added in Session 47 for per-algorithm tracking
     "has_textrank",  # Binary: TextRank found this term
+    "has_medical_ner",  # Binary: MedicalNER (medspacy) found this term
+    "has_gliner",  # Binary: GLiNER found this term
     "textrank_score",  # PageRank centrality score (0-1)
     "is_person",  # NER person detection - the only reliable type info
     # Character/format features for artifact detection
@@ -152,7 +157,7 @@ FEATURE_NAMES = [
     "contains_hyphen",
     # Session 78: TermSources-based per-document confidence features (7 total)
     # These provide richer signals about term reliability across source documents
-    "num_source_documents",  # How many docs contain this term (more = more reliable)
+    "mean_count_per_doc",  # Average occurrences per source doc (in_case_freq / num_docs)
     "doc_diversity_ratio",  # num_docs / total_docs (0-1, spread across corpus)
     "mean_doc_confidence",  # Count-weighted mean OCR confidence (0-1)
     "median_doc_confidence",  # Median confidence - robust to single bad scan (0-1)
@@ -193,7 +198,7 @@ def extract_features(term_data: dict[str, Any]) -> np.ndarray:
                   May include "sources" (TermSources) and "total_docs_in_session"
 
     Returns:
-        numpy array of 50 features (7 count bins + log_count + 42 other features)
+        numpy array of 52 features (7 count bins + log_count + 44 other features)
 
     Raises:
         ValueError: If term_data is not a dict or missing required fields
@@ -231,12 +236,19 @@ def extract_features(term_data: dict[str, Any]) -> np.ndarray:
     # Examples: 1→0, 10→1.0, 100→2.0, 301→2.48
     log_count = np.log10(count + 1)
 
-    # Document-relative frequency - normalizes for document size
-    total_unique_terms = float(term_data.get("total_unique_terms") or 0)
-    if total_unique_terms > 0:
-        occurrence_ratio = in_case_freq / total_unique_terms
+    # Scale-independent document density: occurrences per 1,000 words
+    # 5 occurrences in 500 words = 10/1Kw (prominent)
+    # 5 occurrences in 50,000 words = 0.1/1Kw (background noise)
+    total_word_count = float(term_data.get("total_word_count") or 0)
+    if total_word_count > 0:
+        freq_per_1k_words = in_case_freq / max(total_word_count / 1000.0, 0.1)
     else:
-        occurrence_ratio = in_case_freq / 100.0  # Fallback for legacy data
+        # Legacy fallback: estimate from total_unique_terms if available
+        total_unique_terms = float(term_data.get("total_unique_terms") or 0)
+        if total_unique_terms > 0:
+            freq_per_1k_words = in_case_freq / max(total_unique_terms / 1000.0, 0.1)
+        else:
+            freq_per_1k_words = in_case_freq / 0.1  # Conservative fallback
 
     # === ALGORITHM SOURCE FEATURES ===
     algorithms = str(term_data.get("algorithms", "")).lower()
@@ -244,6 +256,8 @@ def extract_features(term_data: dict[str, Any]) -> np.ndarray:
     has_rake = 1.0 if "rake" in algorithms else 0.0
     has_bm25 = 1.0 if "bm25" in algorithms else 0.0
     has_textrank = 1.0 if "textrank" in algorithms else 0.0
+    has_medical_ner = 1.0 if "medicalner" in algorithms else 0.0
+    has_gliner = 1.0 if "gliner" in algorithms else 0.0
     textrank_score = float(term_data.get("textrank_score", 0.0))
 
     # === PERSON DETECTION ===
@@ -429,6 +443,7 @@ def extract_features(term_data: dict[str, Any]) -> np.ndarray:
     if isinstance(sources, TermSources) and sources.num_documents > 0:
         # Extract features from actual TermSources
         num_source_documents = float(sources.num_documents)
+        mean_count_per_doc = in_case_freq / max(num_source_documents, 1.0)
         doc_diversity_ratio = sources.doc_diversity_ratio(int(total_docs_in_session))
         mean_doc_confidence = sources.mean_confidence
         median_doc_confidence = sources.median_confidence
@@ -437,8 +452,9 @@ def extract_features(term_data: dict[str, Any]) -> np.ndarray:
         all_low_conf = 1.0 if sources.all_low_conf else 0.0
     else:
         # Legacy fallback: no TermSources available
-        # Use sensible defaults based on available data
-        num_source_documents = 1.0
+        # Try to compute from CSV columns if available
+        num_docs_raw = float(term_data.get("num_source_documents") or 1)
+        mean_count_per_doc = in_case_freq / max(num_docs_raw, 1.0)
         doc_diversity_ratio = 1.0 / total_docs_in_session
         # Use source_doc_confidence as a single-doc approximation
         mean_doc_confidence = source_doc_confidence
@@ -449,7 +465,7 @@ def extract_features(term_data: dict[str, Any]) -> np.ndarray:
 
     return np.array(
         [
-            # Count bin features (7 - expanded Session 130) + log_count (1) + occurrence_ratio (1)
+            # Count bin features (7 - expanded Session 130) + log_count (1) + freq_per_1k_words (1)
             count_bin_1,
             count_bin_2,
             count_bin_3,
@@ -458,12 +474,14 @@ def extract_features(term_data: dict[str, Any]) -> np.ndarray:
             count_bin_21_50,
             count_bin_51_plus,
             log_count,  # Session 131: Log-scaled count for magnitude within bins
-            occurrence_ratio,
+            freq_per_1k_words,  # Scale-independent density
             # Algorithm features (3)
             has_ner,
             has_rake,
             has_bm25,
             has_textrank,
+            has_medical_ner,
+            has_gliner,
             textrank_score,
             # Type feature (1)
             is_person,
@@ -489,7 +507,7 @@ def extract_features(term_data: dict[str, Any]) -> np.ndarray:
             has_repeated_chars,
             contains_hyphen,
             # Session 78: TermSources features (7)
-            num_source_documents,
+            mean_count_per_doc,
             doc_diversity_ratio,
             mean_doc_confidence,
             median_doc_confidence,

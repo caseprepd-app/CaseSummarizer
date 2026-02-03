@@ -10,9 +10,9 @@ TextRank complements NER and RAKE:
 - RAKE uses co-occurrence statistics within stopword-delimited phrases
 - TextRank uses graph centrality across the full document
 
-This algorithm loads a SEPARATE en_core_web_lg instance to avoid mutating
-the shared NER pipeline. Reuses the same model already bundled for NER
-so the installer doesn't need to ship a second spaCy model.
+This algorithm can share the NER pipeline's en_core_web_lg instance since
+textrank is a read-only analysis pipe. Falls back to loading its own
+instance if no shared model is provided.
 
 Reference:
 Mihalcea & Tarau (2004), "TextRank: Bringing Order into Text"
@@ -42,30 +42,41 @@ class TextRankAlgorithm(BaseExtractionAlgorithm):
     Effective for finding domain-specific multi-word phrases and
     important single terms that are central to the document's content.
 
-    Reuses en_core_web_lg (already bundled for NER) in a separate
-    instance to avoid mutating the shared NER pipeline.
+    Can share the NER pipeline's spaCy model to save memory,
+    or loads its own instance if none is provided.
     """
 
     name = "TextRank"
     weight = VOCAB_ALGORITHM_WEIGHTS.get("TextRank", 0.6)
 
-    def __init__(self, max_candidates: int = 150):
+    def __init__(self, max_candidates: int = 150, nlp=None):
         """
         Initialize TextRank algorithm.
 
         Args:
             max_candidates: Maximum number of phrases to return
+            nlp: Optional shared spaCy model (e.g. from NER). If provided,
+                 the textrank pipe is added to it. If None, loads its own.
         """
         self.max_candidates = max_candidates
         self._nlp = None
+
+        if nlp is not None:
+            import pytextrank  # noqa: F401 — registers the pipeline component
+
+            self._nlp = nlp
+            if "textrank" not in self._nlp.pipe_names:
+                self._nlp.add_pipe("textrank")
+                logger.debug("Added textrank pipe to shared spaCy model")
+            else:
+                logger.debug("Shared spaCy model already has textrank pipe")
 
     def _load_nlp(self):
         """
         Load spaCy model with pytextrank pipeline component.
 
-        Reuses en_core_web_lg (already bundled for NER) so the installer
-        doesn't need to ship a second spaCy model. Loads a separate
-        instance to avoid mutating the shared NER pipeline.
+        Fallback: loads en_core_web_lg with textrank when no shared
+        model was provided at init time.
         """
         import pytextrank  # noqa: F401 — registers the pipeline component
         import spacy

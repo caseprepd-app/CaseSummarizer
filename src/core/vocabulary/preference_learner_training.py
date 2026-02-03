@@ -347,11 +347,12 @@ def load_model(
         user_sample_count = model_data.get("user_sample_count", 0)
         total_sample_count = model_data.get("total_sample_count", 0)
 
-        # Check for feature count mismatch (model trained with different features)
-        if len(saved_feature_names) != len(FEATURE_NAMES):
+        # Check for feature mismatch (model trained with different features)
+        if saved_feature_names != FEATURE_NAMES:
             logger.debug(
-                "Feature count mismatch: saved model has %d features, current expects %d. "
-                "Model invalidated - will retrain with new features.",
+                "Feature mismatch: saved model features differ from current. "
+                "Model invalidated - will retrain with new features. "
+                "(saved %d features, current %d features)",
                 len(saved_feature_names),
                 len(FEATURE_NAMES),
             )
