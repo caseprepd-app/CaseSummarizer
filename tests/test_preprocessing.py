@@ -75,6 +75,200 @@ class TestHeaderFooterRemover:
         assert result.text == text
         assert result.changes_made == 0
 
+    def test_removes_section_headers(self):
+        """Should remove transcript section headers that repeat."""
+        remover = HeaderFooterRemover()
+        # Section headers appearing 4 times (on 4 pages)
+        text = (
+            "DIRECT EXAMINATION\nQ. First question?\nA. First answer.\n\n"
+            "DIRECT EXAMINATION\nQ. Second question?\nA. Second answer.\n\n"
+            "DIRECT EXAMINATION\nQ. Third question?\nA. Third answer.\n\n"
+            "DIRECT EXAMINATION\nQ. Fourth question?\nA. Fourth answer."
+        )
+        result = remover.process(text)
+
+        assert "DIRECT EXAMINATION" not in result.text
+        assert "First question" in result.text
+        assert result.changes_made == 4
+
+    def test_removes_opening_statements_header(self):
+        """Should remove OPENING STATEMENTS headers."""
+        remover = HeaderFooterRemover()
+        text = (
+            "OPENING STATEMENTS - PLAINTIFF / MR. KAUFER\nContent 1\n\n"
+            "OPENING STATEMENTS - PLAINTIFF / MR. KAUFER\nContent 2\n\n"
+            "OPENING STATEMENTS - PLAINTIFF / MR. KAUFER\nContent 3\n\n"
+            "OPENING STATEMENTS - PLAINTIFF / MR. KAUFER\nContent 4"
+        )
+        result = remover.process(text)
+
+        assert "OPENING STATEMENTS" not in result.text
+        assert "Content 1" in result.text
+        assert result.changes_made == 4
+
+    def test_removes_short_plaintiff_header(self):
+        """Should remove short lines with PLAINTIFF when they repeat."""
+        remover = HeaderFooterRemover()
+        text = (
+            "PLAINTIFF / MR. SMITH\nSome testimony here.\n\n"
+            "PLAINTIFF / MR. SMITH\nMore testimony here.\n\n"
+            "PLAINTIFF / MR. SMITH\nEven more testimony.\n\n"
+            "PLAINTIFF / MR. SMITH\nFinal testimony."
+        )
+        result = remover.process(text)
+
+        assert "PLAINTIFF / MR. SMITH" not in result.text
+        assert "Some testimony here" in result.text
+        assert result.changes_made == 4
+
+    def test_preserves_plaintiff_in_prose(self):
+        """Should NOT remove 'plaintiff' when it's part of prose content."""
+        remover = HeaderFooterRemover()
+        # Even though "plaintiff" appears, these are content sentences
+        text = (
+            "The plaintiff was injured in the accident.\n"
+            "The plaintiff testified about the incident.\n"
+            "The plaintiff arrived at 3pm that day.\n"
+            "The plaintiff met with his doctor."
+        )
+        result = remover.process(text)
+
+        # Prose should be preserved (sentences end with periods, have many words)
+        assert "plaintiff was injured" in result.text
+        assert result.changes_made == 0
+
+    def test_removes_cross_examination_header(self):
+        """Should remove CROSS EXAMINATION headers."""
+        remover = HeaderFooterRemover()
+        text = (
+            "CROSS EXAMINATION\nQ. First cross?\n\n"
+            "CROSS EXAMINATION\nQ. Second cross?\n\n"
+            "CROSS EXAMINATION\nQ. Third cross?\n\n"
+            "CROSS EXAMINATION\nQ. Fourth cross?"
+        )
+        result = remover.process(text)
+
+        assert "CROSS EXAMINATION" not in result.text
+        assert "First cross" in result.text
+
+    def test_removes_proceedings_header(self):
+        """Should remove PROCEEDINGS as a standalone header."""
+        remover = HeaderFooterRemover()
+        text = (
+            "PROCEEDINGS\nThe court convened at 9am.\n\n"
+            "PROCEEDINGS\nThe witness was sworn.\n\n"
+            "PROCEEDINGS\nCounsel made objections.\n\n"
+            "PROCEEDINGS\nThe court recessed."
+        )
+        result = remover.process(text)
+
+        assert "PROCEEDINGS" not in result.text
+        assert "court convened" in result.text
+
+    def test_removes_closing_arguments_header(self):
+        """Should remove CLOSING ARGUMENTS headers."""
+        remover = HeaderFooterRemover()
+        text = (
+            "CLOSING ARGUMENTS\nContent 1\n\n"
+            "CLOSING ARGUMENTS\nContent 2\n\n"
+            "CLOSING ARGUMENTS\nContent 3\n\n"
+            "CLOSING ARGUMENTS\nContent 4"
+        )
+        result = remover.process(text)
+
+        assert "CLOSING ARGUMENTS" not in result.text
+
+    def test_candidate_check_respects_line_length(self):
+        """Short-line keywords should only match short lines."""
+        remover = HeaderFooterRemover()
+
+        # Short line with PLAINTIFF - should be candidate
+        assert remover._is_header_footer_candidate("PLAINTIFF / MR. SMITH")
+
+        # Long prose line with plaintiff - should NOT be candidate
+        long_line = "The plaintiff was severely injured in the automobile accident on January 15."
+        assert not remover._is_header_footer_candidate(long_line)
+
+    def test_candidate_check_excludes_sentences(self):
+        """Lines ending with sentence punctuation should not match short-line keywords."""
+        remover = HeaderFooterRemover()
+
+        # Header-like (no period) - should match
+        assert remover._is_header_footer_candidate("DEFENDANT - CROSS")
+
+        # Sentence (ends with period) - should not match short-line keywords
+        # Even though it's short and has "defendant"
+        assert not remover._is_header_footer_candidate("The defendant testified.")
+
+    def test_custom_patterns_from_settings(self):
+        """Should use custom patterns from user preferences."""
+        from unittest.mock import patch
+
+        # Mock user preferences to include a custom pattern
+        mock_prefs = {
+            "custom_header_footer_patterns": "SMITH & JONES LLP\nJANE DOE CSR",
+            "header_footer_short_line_detection": True,
+            "header_footer_min_occurrences": 3,
+        }
+
+        with patch("src.user_preferences.get_user_preferences") as mock_get_prefs:
+            mock_get_prefs.return_value.get = lambda k, default=None: mock_prefs.get(k, default)
+            remover = HeaderFooterRemover()
+
+            # Custom patterns should match
+            assert remover._is_header_footer_candidate("Smith & Jones LLP")
+            assert remover._is_header_footer_candidate("Jane Doe CSR")
+
+    def test_short_line_detection_can_be_disabled(self):
+        """Should respect short_line_detection setting."""
+        from unittest.mock import patch
+
+        # Disable short-line detection
+        mock_prefs = {
+            "custom_header_footer_patterns": "",
+            "header_footer_short_line_detection": False,
+            "header_footer_min_occurrences": 3,
+        }
+
+        with patch("src.user_preferences.get_user_preferences") as mock_get_prefs:
+            mock_get_prefs.return_value.get = lambda k, default=None: mock_prefs.get(k, default)
+            remover = HeaderFooterRemover()
+
+            # Short-line keywords should NOT match when detection is disabled
+            # (unless they match standard patterns like "direct examination")
+            assert not remover._is_header_footer_candidate("PLAINTIFF / MR. SMITH")
+
+            # But standard patterns should still work
+            assert remover._is_header_footer_candidate("DIRECT EXAMINATION")
+
+    def test_configurable_min_occurrences(self):
+        """Should use configurable min_occurrences threshold."""
+        from unittest.mock import patch
+
+        # Set higher threshold
+        mock_prefs = {
+            "custom_header_footer_patterns": "",
+            "header_footer_short_line_detection": True,
+            "header_footer_min_occurrences": 5,
+        }
+
+        with patch("src.user_preferences.get_user_preferences") as mock_get_prefs:
+            mock_get_prefs.return_value.get = lambda k, default=None: mock_prefs.get(k, default)
+            remover = HeaderFooterRemover()
+
+            # Header appearing only 4 times should NOT be removed (threshold is 5)
+            text = (
+                "Page 1\nContent line 1\n\n"
+                "Page 2\nContent line 2\n\n"
+                "Page 3\nContent line 3\n\n"
+                "Page 4\nContent line 4"
+            )
+            result = remover.process(text)
+
+            # Pages should NOT be removed (only 4 occurrences, threshold is 5)
+            assert "Page 1" in result.text
+            assert result.changes_made == 0
+
 
 class TestQAConverter:
     """Tests for Q/A Converter preprocessor."""
@@ -160,10 +354,11 @@ class TestPreprocessingPipeline:
         """Should create pipeline with multiple preprocessors."""
         pipeline = create_default_pipeline()
 
-        # 6 preprocessors: TitlePage, IndexPage, HeaderFooter, LineNumber, Transcript, QA
-        assert len(pipeline.preprocessors) == 6
+        # 7 preprocessors: TitlePage, IndexPage, HeaderFooter, LineNumber, PageBoundary, Transcript, QA
+        assert len(pipeline.preprocessors) == 7
         assert any(p.name == "Index Page Remover" for p in pipeline.preprocessors)
         assert any(p.name == "Line Number Remover" for p in pipeline.preprocessors)
+        assert any(p.name == "Page Boundary Cleaner" for p in pipeline.preprocessors)
         assert any(p.name == "Transcript Cleaner" for p in pipeline.preprocessors)
         assert any(p.name == "Q/A Converter" for p in pipeline.preprocessors)
 
