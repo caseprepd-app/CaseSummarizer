@@ -31,6 +31,7 @@ for efficiency with Ollama. This is documented and by design.
 import logging
 import math
 import os
+import threading
 import time
 from pathlib import Path
 
@@ -193,7 +194,7 @@ class VocabularyExtractor:
             try:
                 from src.core.vocabulary.algorithms.textrank_algorithm import TextRankAlgorithm
 
-                textrank = TextRankAlgorithm()
+                textrank = TextRankAlgorithm(nlp=ner.nlp)
                 self.algorithms.append(textrank)
                 logger.debug("TextRank algorithm enabled")
             except ImportError:
@@ -235,28 +236,39 @@ class VocabularyExtractor:
         # Ensure NLTK data is available (for definitions)
         self._ensure_nltk_data()
 
-        # Cache spaCy model reference for categorization
+        # Cache spaCy model reference for categorization (with lock for thread safety)
         self._nlp = None
+        self._nlp_lock = threading.Lock()
 
         # Initialize meta-learner for ML-boosted quality scores (Session 25)
         self._meta_learner = get_meta_learner()
 
     @property
     def nlp(self):
-        """Get spaCy model (from NER algorithm or load separately)."""
-        if self._nlp is None:
-            # Try to get from NER algorithm
-            for alg in self.algorithms:
-                if hasattr(alg, "nlp") and alg.nlp is not None:
-                    self._nlp = alg.nlp
-                    break
-            # Fallback: load minimal model for categorization
+        """Get spaCy model (from NER algorithm or load separately).
+
+        Uses double-checked locking pattern for thread safety.
+        """
+        # Fast path: already loaded
+        if self._nlp is not None:
+            return self._nlp
+
+        # Slow path: need to load (with lock to prevent concurrent loading)
+        with self._nlp_lock:
+            # Double-check after acquiring lock
             if self._nlp is None:
-                try:
-                    self._nlp = spacy.load("en_core_web_lg")
-                except OSError:
-                    self._nlp = spacy.load("en_core_web_sm")
-        return self._nlp
+                # Try to get from NER algorithm
+                for alg in self.algorithms:
+                    if hasattr(alg, "nlp") and alg.nlp is not None:
+                        self._nlp = alg.nlp
+                        break
+                # Fallback: load minimal model for categorization
+                if self._nlp is None:
+                    try:
+                        self._nlp = spacy.load("en_core_web_lg")
+                    except OSError:
+                        self._nlp = spacy.load("en_core_web_sm")
+            return self._nlp
 
     def extract(
         self, text: str, doc_count: int = 1, doc_confidence: float = 100.0
@@ -338,6 +350,7 @@ class VocabularyExtractor:
         doc_confidence: float = 100.0,
         partial_callback=None,
         ner_progress_callback=None,
+        status_callback=None,
     ) -> list[dict[str, str]]:
         """
         Extract vocabulary with progressive updates for better UX (Session 85).
@@ -353,12 +366,12 @@ class VocabularyExtractor:
             partial_callback: Optional callback(vocab_data) called after BM25+RAKE complete
             ner_progress_callback: Optional callback(vocab_data, chunk_num, total_chunks)
                                    called after each NER chunk completes
+            status_callback: Optional callback(message) called before each algorithm
+                            runs, e.g. "RAKE extraction in progress..."
 
         Returns:
             Final merged vocabulary list (same format as extract())
         """
-        from src.core.parallel.executor_strategy import ThreadPoolStrategy
-        from src.core.parallel.task_runner import ParallelTaskRunner
         from src.system_resources import get_optimal_workers
 
         original_kb = len(text) // 1024
@@ -394,29 +407,20 @@ class VocabularyExtractor:
 
             if len(fast_algorithms) == 1:
                 # Sequential for single algorithm
-                result = fast_algorithms[0].extract(text)
+                alg = fast_algorithms[0]
+                if status_callback:
+                    status_callback(f"{alg.name} extraction in progress...")
+                result = alg.extract(text)
                 all_results.append(result)
-                logger.debug("%s: %s candidates", fast_algorithms[0].name, len(result.candidates))
+                logger.debug("%s: %s candidates", alg.name, len(result.candidates))
             else:
-                # Parallel execution
-                strategy = ThreadPoolStrategy(max_workers=workers)
-                try:
-
-                    def run_algorithm(algorithm):
-                        result = algorithm.extract(text)
-                        return (algorithm.name, result)
-
-                    items = [(alg.name, alg) for alg in fast_algorithms]
-                    runner = ParallelTaskRunner(strategy=strategy)
-                    task_results = runner.run(run_algorithm, items)
-
-                    for task_result in task_results:
-                        if task_result.success:
-                            alg_name, result = task_result.result
-                            all_results.append(result)
-                            logger.debug("%s: %s candidates", alg_name, len(result.candidates))
-                finally:
-                    strategy.shutdown(wait=True)
+                # Sequential with status updates (so user sees per-algorithm messages)
+                for alg in fast_algorithms:
+                    if status_callback:
+                        status_callback(f"{alg.name} extraction in progress...")
+                    result = alg.extract(text)
+                    all_results.append(result)
+                    logger.debug("%s: %s candidates", alg.name, len(result.candidates))
 
             # Send partial results if callback provided
             if partial_callback is not None and all_results:
@@ -442,6 +446,8 @@ class VocabularyExtractor:
 
         # Phase 2: Run NER with progress callback
         if ner_algorithm is not None:
+            if status_callback:
+                status_callback("NER extraction in progress...")
             logger.debug("Phase 2: Running NER with progress updates...")
 
             # Wrapper to post-process NER chunk results before sending
@@ -816,6 +822,7 @@ class VocabularyExtractor:
                 "total_unique_terms": total_unique_terms,  # For ML occurrence_ratio
                 "source_doc_confidence": doc_confidence,  # Session 54: OCR quality for ML
                 "textrank_score": float(merged.metadata.get("textrank_score", 0.0)),
+                "total_word_count": len(full_text.split()),  # For freq_per_1k_words feature
             }
 
             # Apply ML boost if meta-learner is trained (Session 25)
@@ -1573,6 +1580,7 @@ class VocabularyExtractor:
             "total_unique_terms": total_unique,
             "source_doc_confidence": min_doc_confidence,
             "textrank_score": textrank_score,
+            "total_word_count": sum(td.get("total_word_count", 0) for _, _, td in doc_entries),
         }
 
     # ========================================================================
@@ -1732,6 +1740,7 @@ class VocabularyExtractor:
                 "is_person": 0,
                 "total_unique_terms": len(term_data),
                 "source_doc_confidence": sources.mean_confidence * 100,
+                "total_word_count": 0,  # Not available in legacy per-doc path
             }
 
             vocabulary.append(term_dict)

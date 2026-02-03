@@ -905,17 +905,6 @@ class ProgressiveExtractionWorker(BaseWorker):
         # Runs BM25 + RAKE first (fast), then NER with chunk progress
         logger.debug("Phase 1: Local algorithm extraction starting...")
 
-        # Check which algorithms will run for accurate status message
-        from src.config import CORPUS_MIN_DOCUMENTS
-        from src.core.vocabulary.corpus_manager import get_corpus_manager
-
-        corpus_manager = get_corpus_manager()
-        bm25_active = corpus_manager.is_corpus_ready(min_docs=CORPUS_MIN_DOCUMENTS)
-
-        algo_list = "NER, RAKE, BM25" if bm25_active else "NER, RAKE"
-        self.send_progress(5, "Scanning for names and entities...")
-        self.send_progress(10, f"Phase 1: Running local extraction ({algo_list})...")
-
         from src.core.vocabulary import VocabularyExtractor
 
         extractor = VocabularyExtractor(
@@ -923,6 +912,11 @@ class ProgressiveExtractionWorker(BaseWorker):
             medical_terms_path=self.medical_terms_path,
             user_exclude_path=self.user_exclude_path,
         )
+
+        # Build algo list dynamically from extractor's enabled algorithms
+        algo_list = ", ".join(alg.name for alg in extractor.algorithms if alg.enabled)
+        self.send_progress(5, "Scanning for names and entities...")
+        self.send_progress(10, f"Phase 1: Running local extraction ({algo_list})...")
 
         # Session 131: Per-document parallel extraction when 2+ documents
         # Each doc runs the full pipeline independently, then results are merged
@@ -940,7 +934,7 @@ class ProgressiveExtractionWorker(BaseWorker):
 
             def doc_progress(current, total, doc_id):
                 pct = 10 + int((current / total) * 20)
-                self.send_progress(pct, f"Document {current}/{total} complete ({doc_id})")
+                self.send_progress(pct, f"Doc {current}/{total}: extraction complete ({doc_id})")
 
             ner_results = extractor.extract_documents(
                 doc_list,
@@ -965,12 +959,17 @@ class ProgressiveExtractionWorker(BaseWorker):
                     QueueMessage.ner_progress(chunk_candidates, chunk_num, total_chunks)
                 )
 
+            def on_algo_status(message):
+                """Called before each algorithm runs."""
+                self.send_progress(10, message)
+
             ner_results = extractor.extract_progressive(
                 self.combined_text,
                 doc_count=len(self.documents),
                 doc_confidence=self.doc_confidence,
                 partial_callback=on_partial_complete,
                 ner_progress_callback=on_ner_progress,
+                status_callback=on_algo_status,
             )
 
         logger.info("Phase 1 complete: %s terms from local algorithms", len(ner_results))
@@ -1053,13 +1052,31 @@ class ProgressiveExtractionWorker(BaseWorker):
             self.ui_queue.put(QueueMessage.llm_complete([]))
             self.send_progress(100, f"Complete: {len(ner_results)} terms (local algorithms only)")
 
-        # Wait for Q&A thread to finish (no timeout — embedding on CPU can
-        # take 5+ minutes for large documents and a timeout causes the worker
-        # to die before the vector store is built, killing queue polling)
+        # Wait for Q&A thread with periodic status updates (CPU embeddings can take 5+ minutes)
+        # Using timeout loop instead of indefinite join to keep UI responsive with status updates
+        QA_JOIN_TIMEOUT_SECONDS = 30  # Check every 30 seconds
+        QA_MAX_WAIT_MINUTES = 15  # Give up after 15 minutes
+        wait_count = 0
+        max_waits = (QA_MAX_WAIT_MINUTES * 60) // QA_JOIN_TIMEOUT_SECONDS
+
+        while qa_thread.is_alive() and wait_count < max_waits:
+            wait_minutes = (wait_count * QA_JOIN_TIMEOUT_SECONDS) // 60
+            if wait_count == 0:
+                logger.debug("Vocabulary done, waiting for Q&A index to finish...")
+                self.send_progress(100, "Vocabulary complete. Building Q&A search index...")
+            else:
+                self.send_progress(
+                    100, f"Q&A index still building ({wait_minutes}m elapsed, please wait)..."
+                )
+            qa_thread.join(timeout=QA_JOIN_TIMEOUT_SECONDS)
+            wait_count += 1
+
         if qa_thread.is_alive():
-            logger.debug("Vocabulary done, waiting for Q&A index to finish...")
-            self.send_progress(100, "Vocabulary complete. Building Q&A search index...")
-        qa_thread.join()
+            logger.warning(
+                "Q&A thread still running after %d minutes, continuing without waiting",
+                QA_MAX_WAIT_MINUTES,
+            )
+            self.send_progress(100, "Q&A index taking too long, proceeding without it...")
 
     def _build_vector_store(self):
         """Build vector store for Q&A (Phase 2) - runs in parallel thread."""

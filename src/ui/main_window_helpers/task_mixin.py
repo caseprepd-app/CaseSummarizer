@@ -186,7 +186,9 @@ class TaskMixin:
                 data.get("error", "Unknown Q&A error") if isinstance(data, dict) else str(data)
             )
             logger.warning("Q&A indexing error: %s", error_msg)
-            self.set_status_error(f"Q&A unavailable: {error_msg[:50]}")
+            # Show more of the error message (200 chars instead of 50)
+            display_msg = error_msg[:200] + "..." if len(error_msg) > 200 else error_msg
+            self.set_status_error(f"Q&A unavailable: {display_msg}")
 
         elif msg_type == "trigger_default_qa":
             self._handle_trigger_default_qa(data)
@@ -200,7 +202,8 @@ class TaskMixin:
             logger.debug("Q&A result received")
             with self._qa_results_lock:
                 self._qa_results.append(data)
-                self.output_display.update_outputs(qa_results=self._qa_results)
+                # Pass a copy to prevent race conditions if list is modified by other threads
+                self.output_display.update_outputs(qa_results=list(self._qa_results))
 
         elif msg_type == "qa_complete":
             qa_results = data if data else []
@@ -208,7 +211,8 @@ class TaskMixin:
             with self._qa_results_lock:
                 self._qa_results = qa_results
             if qa_results:
-                self.output_display.update_outputs(qa_results=qa_results)
+                # Pass a copy to prevent race conditions if list is modified by other threads
+                self.output_display.update_outputs(qa_results=list(qa_results))
                 self.set_status(f"Default questions answered: {len(qa_results)} responses")
             else:
                 self.set_status("Q&A complete (no default questions enabled)")
@@ -652,7 +656,8 @@ class TaskMixin:
             self._qa_results.append(pending_result)
             # Track the index of the pending result so we can replace it later
             self._pending_followup_index = len(self._qa_results) - 1
-            self.output_display.update_outputs(qa_results=self._qa_results)
+            # Pass a copy to prevent race conditions
+            self.output_display.update_outputs(qa_results=list(self._qa_results))
 
         self._followup_queue = queue.Queue()
 
@@ -704,7 +709,8 @@ class TaskMixin:
                     else:
                         # Fallback: append if pending index not found
                         self._qa_results.append(data)
-                    self.output_display.update_outputs(qa_results=self._qa_results)
+                    # Pass a copy to prevent race conditions
+                    self.output_display.update_outputs(qa_results=list(self._qa_results))
                 answer_len = len(data.quick_answer) if data.quick_answer else 0
                 self.set_status(f"Follow-up answered: {answer_len} chars")
                 logger.debug("Follow-up result displayed successfully")
@@ -716,7 +722,8 @@ class TaskMixin:
                         # Check if it's still the pending answer before removing
                         if self._qa_results[pending_idx].quick_answer == PENDING_ANSWER_TEXT:
                             self._qa_results.pop(pending_idx)
-                            self.output_display.update_outputs(qa_results=self._qa_results)
+                            # Pass a copy to prevent race conditions
+                            self.output_display.update_outputs(qa_results=list(self._qa_results))
                         self._pending_followup_index = None
                 self.set_status("Follow-up failed")
                 messagebox.showerror("Error", f"Failed to process follow-up: {data}")

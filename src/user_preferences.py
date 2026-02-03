@@ -61,13 +61,30 @@ class UserPreferencesManager:
             return default_structure
 
     def _save_preferences(self) -> None:
-        """Save preferences to JSON file."""
+        """Save preferences to JSON file using atomic write (write-to-temp then rename)."""
+        import os
+        import tempfile
+
         try:
             # Ensure directory exists
             self.preferences_file.parent.mkdir(parents=True, exist_ok=True)
 
-            with open(self.preferences_file, "w", encoding="utf-8") as f:
-                json.dump(self._preferences, f, indent=2)
+            # Write to temp file first, then atomic rename to prevent corruption on crash
+            fd, temp_path = tempfile.mkstemp(
+                dir=self.preferences_file.parent, suffix=".tmp", prefix=".prefs_"
+            )
+            try:
+                with os.fdopen(fd, "w", encoding="utf-8") as f:
+                    json.dump(self._preferences, f, indent=2)
+                # Atomic rename (works on Windows too via os.replace)
+                os.replace(temp_path, self.preferences_file)
+            except Exception:
+                # Clean up temp file on failure
+                try:
+                    os.unlink(temp_path)
+                except OSError:
+                    pass
+                raise
 
         except Exception as e:
             # Log error but don't crash

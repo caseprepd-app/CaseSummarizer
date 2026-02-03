@@ -96,6 +96,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         self.processing_results: list[dict] = []
         self._processing_start_time: float | None = None
         self._timer_after_id: str | None = None
+        self._processing_active: bool = False
 
         # Managers (via service layer for pipeline architecture)
         from src.services import AIService, VocabularyService
@@ -648,7 +649,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             logger.debug("NER complete: %s terms - displaying immediately", term_count)
             self.output_display.update_outputs(vocab_csv_data=data)
             self.output_display.set_extraction_source("ner")
-            if self.use_llm_check.get():
+            if self.vocab_llm_check.get():
                 self.set_status(f"Found {term_count} terms. LLM enhancement starting...")
             else:
                 self.set_status(f"Found {term_count} terms. Building search index...")
@@ -799,6 +800,11 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
 
     def _update_generate_button_state(self):
         """Update the generate button text and state."""
+        if self._processing_active:
+            self.generate_btn.configure(state="disabled")
+            self.task_preview_label.configure(text="")
+            return
+
         task_count = self._get_task_count()
         has_files = len(self.processing_results) > 0
 
@@ -1252,6 +1258,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             return
 
         # Disable controls during processing
+        self._processing_active = True
         self.generate_btn.configure(state="disabled", text=f"Processing {task_count} tasks...")
         self.add_files_btn.configure(state="disabled")
 
@@ -1634,6 +1641,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
     def _on_tasks_complete(self, success: bool, message: str):
         """Handle task completion."""
         self._stop_timer()
+        self._processing_active = False
 
         # Re-enable controls
         self.add_files_btn.configure(state="normal")
@@ -2151,16 +2159,22 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             self.after_cancel(self._queue_poll_id)
             self._queue_poll_id = None
 
-        # Stop any running workers
-        if self._processing_worker and self._processing_worker.is_alive():
-            # Worker is a daemon thread, will stop when main thread exits
-            pass
-        if (
-            self._vocabulary_worker
-            and hasattr(self._vocabulary_worker, "is_alive")
-            and self._vocabulary_worker.is_alive()
-        ):
-            pass
+        # Explicitly stop all running workers to prevent resource leaks
+        workers_to_stop = [
+            ("processing", self._processing_worker),
+            ("vocabulary", self._vocabulary_worker),
+            ("qa", self._qa_worker),
+            ("progressive", self._progressive_worker),
+        ]
+        # Also check for _default_qa_worker if it exists
+        if hasattr(self, "_default_qa_worker") and self._default_qa_worker:
+            workers_to_stop.append(("default_qa", self._default_qa_worker))
+
+        for name, worker in workers_to_stop:
+            if worker and hasattr(worker, "is_alive") and worker.is_alive():
+                if hasattr(worker, "stop"):
+                    logger.debug("Stopping %s worker...", name)
+                    worker.stop()
 
         # Stop timer
         self._stop_timer()

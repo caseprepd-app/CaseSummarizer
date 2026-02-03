@@ -730,6 +730,16 @@ LOG_DATE_FORMAT = "%H:%M:%S"
 DEBUG_DEFAULT_FILE = Path(__file__).parent.parent / "tests" / "sample_docs" / "test_complaint.pdf"
 
 # ============================================================================
+# UI Timing Constants
+# ============================================================================
+# Queue polling interval in milliseconds (~30 FPS equivalent for UI updates)
+QUEUE_POLL_INTERVAL_MS = 33
+# Debounce delay for resize events to prevent excessive redraws
+RESIZE_DEBOUNCE_MS = 100
+# Maximum characters to show in error messages before truncation
+ERROR_DISPLAY_MAX_CHARS = 200
+
+# ============================================================================
 # Q&A / Vector Search Configuration (Session 24 - RAG-based Q&A)
 # ============================================================================
 

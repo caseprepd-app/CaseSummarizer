@@ -105,6 +105,7 @@ FEEDBACK_COLUMNS = [
     "high_conf_doc_ratio",  # % of source docs with confidence > 0.80 (0-1)
     "all_low_conf",  # 1 if ALL source docs have conf < 0.60, else 0
     "total_docs_in_session",  # Total docs in extraction session
+    "total_word_count",  # Total words in document(s) for scale-independent features
 ]
 
 
@@ -170,6 +171,9 @@ class FeedbackManager:
 
         # Current document ID for feedback context
         self._current_doc_id: str = ""
+
+        # Lock for thread-safe file operations (prevents race condition on rapid clicks)
+        self._file_lock = threading.Lock()
 
         # Ensure directory exists
         self._ensure_directory()
@@ -269,50 +273,66 @@ class FeedbackManager:
         if not target_file.exists():
             return True  # Nothing to delete
 
-        try:
-            # Get count bin for the term being deleted
+        # Use lock to prevent race condition on rapid clicks
+        with self._file_lock:
             try:
-                count = int(term_data.get("In-Case Freq") or 1)
-            except (ValueError, TypeError):
-                count = 1
-            delete_key = (lower_term, get_count_bin(count))
+                # Get count bin for the term being deleted
+                try:
+                    count = int(term_data.get("In-Case Freq") or 1)
+                except (ValueError, TypeError):
+                    count = 1
+                delete_key = (lower_term, get_count_bin(count))
 
-            # Read all rows, filter out matching ones
-            kept_records: list[dict] = []
-            deleted = False
+                # Read all rows, filter out matching ones
+                kept_records: list[dict] = []
+                deleted = False
 
-            with open(target_file, encoding="utf-8", newline="") as f:
-                reader = csv.DictReader(f)
-                for row in reader:
-                    row_term = row.get("term", "").lower().strip()
+                with open(target_file, encoding="utf-8", newline="") as f:
+                    reader = csv.DictReader(f)
+                    for row in reader:
+                        row_term = row.get("term", "").lower().strip()
+                        try:
+                            row_count = int(row.get("in_case_freq") or 1)
+                        except (ValueError, TypeError):
+                            row_count = 1
+                        row_key = (row_term, get_count_bin(row_count))
+
+                        if row_key == delete_key:
+                            deleted = True  # Skip this row (delete it)
+                        else:
+                            kept_records.append(row)
+
+                # Write remaining records back (atomic via temp file)
+                import os
+                import tempfile
+
+                fd, temp_path = tempfile.mkstemp(
+                    dir=target_file.parent, suffix=".tmp", prefix=".feedback_"
+                )
+                try:
+                    with os.fdopen(fd, "w", encoding="utf-8", newline="") as f:
+                        writer = csv.DictWriter(f, fieldnames=FEEDBACK_COLUMNS)
+                        writer.writeheader()
+                        writer.writerows(kept_records)
+                    os.replace(temp_path, target_file)
+                except Exception:
                     try:
-                        row_count = int(row.get("in_case_freq") or 1)
-                    except (ValueError, TypeError):
-                        row_count = 1
-                    row_key = (row_term, get_count_bin(row_count))
+                        os.unlink(temp_path)
+                    except OSError:
+                        pass
+                    raise
 
-                    if row_key == delete_key:
-                        deleted = True  # Skip this row (delete it)
-                    else:
-                        kept_records.append(row)
+                target_type = "default" if DEBUG_MODE else "user"
+                if deleted:
+                    logger.debug("Deleted '%s' from %s feedback", lower_term, target_type)
+                else:
+                    logger.debug("No matching entry to delete for '%s'", lower_term)
 
-            # Write remaining records back
-            with open(target_file, "w", encoding="utf-8", newline="") as f:
-                writer = csv.DictWriter(f, fieldnames=FEEDBACK_COLUMNS)
-                writer.writeheader()
-                writer.writerows(kept_records)
+                return True
 
-            target_type = "default" if DEBUG_MODE else "user"
-            if deleted:
-                logger.debug("Deleted '%s' from %s feedback", lower_term, target_type)
-            else:
-                logger.debug("No matching entry to delete for '%s'", lower_term)
-
-            return True
-
-        except Exception as e:
-            logger.debug("Error deleting feedback: %s", e)
-            return False
+            except Exception as e:
+                logger.debug("Error deleting feedback: %s", e)
+                return False
 
     def record_feedback(
         self, term_data: dict[str, Any], feedback: int, doc_id: str | None = None
@@ -408,6 +428,7 @@ class FeedbackManager:
             "high_conf_doc_ratio": high_conf_doc_ratio,
             "all_low_conf": all_low_conf,
             "total_docs_in_session": total_docs_in_session,
+            "total_word_count": term_data.get("total_word_count", 0),
         }
 
         # Session 76: Route feedback based on DEBUG_MODE
@@ -415,60 +436,76 @@ class FeedbackManager:
         # - DEBUG_MODE=False: Write to user_feedback.csv (user data)
         target_file = self.default_feedback_file if DEBUG_MODE else self.user_feedback_file
 
-        try:
-            # Ensure parent directory exists (needed for default_feedback.csv in config/)
-            target_file.parent.mkdir(parents=True, exist_ok=True)
+        # Use lock to prevent race condition on rapid clicks
+        with self._file_lock:
+            try:
+                # Ensure parent directory exists (needed for default_feedback.csv in config/)
+                target_file.parent.mkdir(parents=True, exist_ok=True)
 
-            # Session 85: Deduplicate by (term, count_bin) at write time
-            # If same (term, count_bin) exists, replace it; otherwise append
-            new_count_bin = get_count_bin(int(record.get("in_case_freq") or 1))
-            new_key = (lower_term, new_count_bin)
+                # Session 85: Deduplicate by (term, count_bin) at write time
+                # If same (term, count_bin) exists, replace it; otherwise append
+                new_count_bin = get_count_bin(int(record.get("in_case_freq") or 1))
+                new_key = (lower_term, new_count_bin)
 
-            existing_records: list[dict] = []
-            replaced = False
+                existing_records: list[dict] = []
+                replaced = False
 
-            if target_file.exists():
-                with open(target_file, encoding="utf-8", newline="") as f:
-                    reader = csv.DictReader(f)
-                    for row in reader:
-                        row_term = row.get("term", "").lower().strip()
-                        try:
-                            row_count = int(row.get("in_case_freq") or 1)
-                        except (ValueError, TypeError):
-                            row_count = 1
-                        row_key = (row_term, get_count_bin(row_count))
+                if target_file.exists():
+                    with open(target_file, encoding="utf-8", newline="") as f:
+                        reader = csv.DictReader(f)
+                        for row in reader:
+                            row_term = row.get("term", "").lower().strip()
+                            try:
+                                row_count = int(row.get("in_case_freq") or 1)
+                            except (ValueError, TypeError):
+                                row_count = 1
+                            row_key = (row_term, get_count_bin(row_count))
 
-                        if row_key == new_key:
-                            # Replace this row with new record
-                            existing_records.append(record)
-                            replaced = True
-                        else:
-                            existing_records.append(row)
+                            if row_key == new_key:
+                                # Replace this row with new record
+                                existing_records.append(record)
+                                replaced = True
+                            else:
+                                existing_records.append(row)
 
-            if not replaced:
-                existing_records.append(record)
+                if not replaced:
+                    existing_records.append(record)
 
-            # Write all records back to file
-            with open(target_file, "w", encoding="utf-8", newline="") as f:
-                writer = csv.DictWriter(f, fieldnames=FEEDBACK_COLUMNS)
-                writer.writeheader()
-                writer.writerows(existing_records)
+                # Write all records back to file (atomic via temp file)
+                import os
+                import tempfile
 
-            self._pending_count += 1
-            target_type = "default" if DEBUG_MODE else "user"
-            action = "replaced" if replaced else "added"
-            logger.debug(
-                "%s %s for '%s' (%s)",
-                action.capitalize(),
-                "+" if feedback > 0 else "-",
-                term,
-                target_type,
-            )
-            return True
+                fd, temp_path = tempfile.mkstemp(
+                    dir=target_file.parent, suffix=".tmp", prefix=".feedback_"
+                )
+                try:
+                    with os.fdopen(fd, "w", encoding="utf-8", newline="") as f:
+                        writer = csv.DictWriter(f, fieldnames=FEEDBACK_COLUMNS)
+                        writer.writeheader()
+                        writer.writerows(existing_records)
+                    os.replace(temp_path, target_file)
+                except Exception:
+                    try:
+                        os.unlink(temp_path)
+                    except OSError:
+                        pass
+                    raise
 
-        except Exception as e:
-            logger.debug("Error recording feedback: %s", e)
-            return False
+                self._pending_count += 1
+                target_type = "default" if DEBUG_MODE else "user"
+                action = "replaced" if replaced else "added"
+                logger.debug(
+                    "%s %s for '%s' (%s)",
+                    action.capitalize(),
+                    "+" if feedback > 0 else "-",
+                    term,
+                    target_type,
+                )
+                return True
+
+            except Exception as e:
+                logger.debug("Error recording feedback: %s", e)
+                return False
 
     def get_rating(self, term: str) -> int:
         """
