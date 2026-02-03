@@ -20,6 +20,9 @@ from tkinter import messagebox
 
 logger = logging.getLogger(__name__)
 
+# Placeholder text shown while waiting for Q&A answer
+PENDING_ANSWER_TEXT = "Answer pending..."
+
 
 class TaskMixin:
     """
@@ -154,7 +157,7 @@ class TaskMixin:
             logger.debug("NER complete: %s terms", term_count)
             self.output_display.update_outputs(vocab_csv_data=data)
             self.output_display.set_extraction_source("ner")
-            if self.use_llm_check.get():
+            if self.vocab_llm_check.get():
                 self.set_status(f"Found {term_count} terms. LLM enhancement starting...")
             else:
                 self.set_status(f"Found {term_count} terms. Building search index...")
@@ -633,6 +636,24 @@ class TaskMixin:
 
         self.set_status(f"Asking: {question[:40]}...")
 
+        # Create pending QAResult and add to display immediately
+        # This gives visual feedback that the question was received
+        from src.services import QAService
+
+        QAResult = QAService().get_qa_result_class()
+        pending_result = QAResult(
+            question=question,
+            quick_answer=PENDING_ANSWER_TEXT,
+            citation="",
+            is_followup=True,
+            include_in_export=False,  # Don't export pending answers
+        )
+        with self._qa_results_lock:
+            self._qa_results.append(pending_result)
+            # Track the index of the pending result so we can replace it later
+            self._pending_followup_index = len(self._qa_results) - 1
+            self.output_display.update_outputs(qa_results=self._qa_results)
+
         self._followup_queue = queue.Queue()
 
         def run_followup():
@@ -675,12 +696,28 @@ class TaskMixin:
         try:
             if msg_type == "success" and data is not None:
                 with self._qa_results_lock:
-                    self._qa_results.append(data)
+                    # Replace the pending result with the real answer
+                    pending_idx = getattr(self, "_pending_followup_index", None)
+                    if pending_idx is not None and pending_idx < len(self._qa_results):
+                        self._qa_results[pending_idx] = data
+                        self._pending_followup_index = None
+                    else:
+                        # Fallback: append if pending index not found
+                        self._qa_results.append(data)
                     self.output_display.update_outputs(qa_results=self._qa_results)
                 answer_len = len(data.quick_answer) if data.quick_answer else 0
                 self.set_status(f"Follow-up answered: {answer_len} chars")
                 logger.debug("Follow-up result displayed successfully")
             elif msg_type == "error":
+                # Remove the pending result on error
+                with self._qa_results_lock:
+                    pending_idx = getattr(self, "_pending_followup_index", None)
+                    if pending_idx is not None and pending_idx < len(self._qa_results):
+                        # Check if it's still the pending answer before removing
+                        if self._qa_results[pending_idx].quick_answer == PENDING_ANSWER_TEXT:
+                            self._qa_results.pop(pending_idx)
+                            self.output_display.update_outputs(qa_results=self._qa_results)
+                        self._pending_followup_index = None
                 self.set_status("Follow-up failed")
                 messagebox.showerror("Error", f"Failed to process follow-up: {data}")
         except Exception as e:

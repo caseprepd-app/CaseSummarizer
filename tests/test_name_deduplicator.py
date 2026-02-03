@@ -168,6 +168,96 @@ class TestTitleSynthesis:
         assert len(jones_terms) >= 2
 
 
+class TestSingleWordNameAbsorption:
+    """Tests for single-word Person name absorption (Session 82 fix)."""
+
+    def test_single_word_absorbed_into_full_name(self):
+        """Single-word name should be absorbed into multi-word name containing it."""
+        from src.core.vocabulary.name_deduplicator import _absorb_single_word_names
+        from src.core.vocabulary.person_utils import is_person_entry
+
+        terms = [
+            _make_term("Emmanuel Hiraldo", is_person=True, freq=5),
+            _make_term("Hiraldo", is_person=True, freq=3),
+        ]
+        result = _absorb_single_word_names(terms)
+
+        # Should have only one Person term
+        person_terms = [t for t in result if is_person_entry(t)]
+        assert len(person_terms) == 1
+        assert person_terms[0]["Term"] == "Emmanuel Hiraldo"
+        # Frequency should be merged (5 + 3 = 8)
+        assert person_terms[0]["In-Case Freq"] == 8
+
+    def test_single_word_without_match_preserved(self):
+        """Single-word name without matching full name should be preserved."""
+        from src.core.vocabulary.name_deduplicator import _absorb_single_word_names
+        from src.core.vocabulary.person_utils import is_person_entry
+
+        terms = [
+            _make_term("Emmanuel Hiraldo", is_person=True, freq=5),
+            _make_term("Duer", is_person=True, freq=2),  # No full name match
+        ]
+        result = _absorb_single_word_names(terms)
+
+        person_terms = [t for t in result if is_person_entry(t)]
+        assert len(person_terms) == 2
+        term_names = [t["Term"] for t in person_terms]
+        assert "Duer" in term_names
+        assert "Emmanuel Hiraldo" in term_names
+
+    def test_non_person_terms_preserved(self):
+        """Non-Person terms should pass through unchanged."""
+        from src.core.vocabulary.name_deduplicator import _absorb_single_word_names
+        from src.core.vocabulary.person_utils import is_person_entry
+
+        terms = [
+            _make_term("Emmanuel Hiraldo", is_person=True, freq=5),
+            _make_term("Hiraldo", is_person=True, freq=3),
+            _make_term("aspirin", is_person=False, freq=1),
+        ]
+        result = _absorb_single_word_names(terms)
+
+        non_person = [t for t in result if not is_person_entry(t)]
+        assert len(non_person) == 1
+        assert non_person[0]["Term"] == "aspirin"
+
+    def test_multiple_single_words_absorbed(self):
+        """Multiple single-word names should be absorbed into their matches."""
+        from src.core.vocabulary.name_deduplicator import _absorb_single_word_names
+        from src.core.vocabulary.person_utils import is_person_entry
+
+        terms = [
+            _make_term("Emmanuel Hiraldo", is_person=True, freq=5),
+            _make_term("Hiraldo", is_person=True, freq=3),
+            _make_term("Ira Sturman", is_person=True, freq=4),
+            _make_term("Sturman", is_person=True, freq=2),
+        ]
+        result = _absorb_single_word_names(terms)
+
+        person_terms = [t for t in result if is_person_entry(t)]
+        assert len(person_terms) == 2
+        term_dict = {t["Term"]: t["In-Case Freq"] for t in person_terms}
+        assert term_dict["Emmanuel Hiraldo"] == 8  # 5 + 3
+        assert term_dict["Ira Sturman"] == 6  # 4 + 2
+
+    def test_deduplicate_names_includes_absorption(self):
+        """Full deduplicate_names should include single-word absorption phase."""
+        from src.core.vocabulary.name_deduplicator import deduplicate_names
+        from src.core.vocabulary.person_utils import is_person_entry
+
+        terms = [
+            _make_term("Emmanuel Hiraldo", is_person=True, freq=5),
+            _make_term("Hiraldo", is_person=True, freq=3),
+        ]
+        result = deduplicate_names(terms)
+
+        person_terms = [t for t in result if is_person_entry(t)]
+        # Single-word "Hiraldo" should have been absorbed
+        term_names = [t["Term"] for t in person_terms]
+        assert "Hiraldo" not in term_names
+
+
 class TestFindPotentialDuplicates:
     def test_word_subset_flagged(self):
         from src.core.vocabulary.name_deduplicator import find_potential_duplicates

@@ -20,6 +20,29 @@ from typing import Any, ClassVar
 from src.core.vocabulary.algorithms.base import AlgorithmResult, CandidateTerm
 
 
+def _normalize_for_merge(term: str) -> str:
+    """
+    Normalize term for merge grouping.
+
+    Strips possessive suffixes so "Sturman's" and "Sturman" merge together.
+
+    Args:
+        term: Raw term string
+
+    Returns:
+        Normalized key for merge grouping
+    """
+    key = term.lower().strip()
+
+    # Strip possessive: 's or trailing ' after s
+    if key.endswith("'s"):
+        key = key[:-2]
+    elif key.endswith("'") and len(key) > 2 and key[-2] == "s":
+        key = key[:-1]
+
+    return key
+
+
 @dataclass
 class MergedTerm:
     """
@@ -101,8 +124,8 @@ class AlgorithmScoreMerger:
 
         for result in results:
             for candidate in result.candidates:
-                # Normalize: lowercase, strip whitespace
-                key = candidate.term.lower().strip()
+                # Normalize: lowercase, strip whitespace, strip possessives
+                key = _normalize_for_merge(candidate.term)
                 if not key:
                     continue  # Skip empty terms
 

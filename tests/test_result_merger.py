@@ -116,3 +116,66 @@ def test_canonical_casing_person_title_case():
     merger = AlgorithmScoreMerger()
     merged = merger.merge([ner])
     assert merged[0].term == "James Lucas"  # Title cased for Person
+
+
+# === Possessive normalization tests (Session 82) ===
+
+
+def test_normalize_for_merge_strips_possessive_s():
+    """_normalize_for_merge should strip 's suffix."""
+    from src.core.vocabulary.result_merger import _normalize_for_merge
+
+    assert _normalize_for_merge("Sturman's") == "sturman"
+    assert _normalize_for_merge("sturman's") == "sturman"
+    assert _normalize_for_merge("Jones's") == "jones"
+
+
+def test_normalize_for_merge_strips_trailing_apostrophe():
+    """_normalize_for_merge should strip trailing ' after s (e.g., Morales')."""
+    from src.core.vocabulary.result_merger import _normalize_for_merge
+
+    assert _normalize_for_merge("Morales'") == "morales"
+    assert _normalize_for_merge("Jones'") == "jones"
+
+
+def test_normalize_for_merge_preserves_non_possessive():
+    """_normalize_for_merge should not strip non-possessive apostrophes."""
+    from src.core.vocabulary.result_merger import _normalize_for_merge
+
+    assert _normalize_for_merge("O'Brien") == "o'brien"
+    assert _normalize_for_merge("normal") == "normal"
+
+
+def test_merge_possessive_with_base_form():
+    """Merger should group 'Sturman's' with 'Sturman' as the same term."""
+    ner = AlgorithmResult(
+        candidates=[
+            CandidateTerm(
+                term="Sturman",
+                source_algorithm="NER",
+                confidence=0.9,
+                suggested_type="Person",
+                frequency=5,
+            )
+        ]
+    )
+    bm25 = AlgorithmResult(
+        candidates=[
+            CandidateTerm(
+                term="Sturman's",
+                source_algorithm="BM25",
+                confidence=0.7,
+                suggested_type="Technical",
+                frequency=3,
+            )
+        ]
+    )
+    merger = AlgorithmScoreMerger()
+    merged = merger.merge([ner, bm25])
+
+    # Should merge into a single term
+    assert len(merged) == 1
+    # Frequency should be combined
+    assert merged[0].frequency == 8
+    # Both sources should be tracked
+    assert set(merged[0].sources) == {"NER", "BM25"}

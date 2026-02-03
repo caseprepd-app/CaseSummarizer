@@ -119,6 +119,9 @@ def deduplicate_names(
     result = other_terms + deduplicated
     result = _synthesize_titled_names(result)
 
+    # Phase 6: Absorb single-word Person names into full names containing that word
+    result = _absorb_single_word_names(result)
+
     return result
 
 
@@ -417,6 +420,67 @@ def _synthesize_titled_names(terms: list[dict]) -> list[dict]:
         logger.debug("Title synthesis: merged %d titled entries", len(merged_titled))
 
     return other_terms + result_persons
+
+
+def _absorb_single_word_names(terms: list[dict]) -> list[dict]:
+    """
+    Merge single-word Person names into full names containing that word.
+
+    Handles cases like "Hiraldo" appearing separately from "Emmanuel Hiraldo".
+    If a single-word Person name matches a word in a multi-word Person name,
+    absorb it into the full name (merge frequency).
+
+    Args:
+        terms: List of vocabulary term dicts
+
+    Returns:
+        Terms with single-word Person names absorbed into matching full names
+    """
+    freq_key = "In-Case Freq"
+
+    person_terms = [t for t in terms if is_person_entry(t)]
+    other_terms = [t for t in terms if not is_person_entry(t)]
+
+    if len(person_terms) < 2:
+        return terms
+
+    # Separate single-word and multi-word Person names
+    single_word = [t for t in person_terms if len(t.get("Term", "").split()) == 1]
+    multi_word = [t for t in person_terms if len(t.get("Term", "").split()) >= 2]
+
+    if not single_word or not multi_word:
+        return terms
+
+    # Build word → full_name mapping (first match wins)
+    word_to_fullname: dict[str, dict] = {}
+    for entry in multi_word:
+        for word in entry.get("Term", "").lower().split():
+            if word not in word_to_fullname:
+                word_to_fullname[word] = entry
+
+    # Absorb single-word names
+    absorbed: set[str] = set()
+    for entry in single_word:
+        word = entry.get("Term", "").lower()
+        if word in word_to_fullname:
+            target = word_to_fullname[word]
+            # Merge frequency into full name
+            target[freq_key] = target.get(freq_key, 0) + entry.get(freq_key, 1)
+            if "in_case_freq" in target:
+                target["in_case_freq"] = target[freq_key]
+            absorbed.add(entry.get("Term", ""))
+            logger.debug(
+                "Absorbed single-word name '%s' into '%s'",
+                entry.get("Term"),
+                target.get("Term"),
+            )
+
+    if absorbed:
+        logger.debug("Single-word absorption: merged %d entries", len(absorbed))
+
+    # Rebuild: others + multi-word + non-absorbed single-word
+    kept_single = [t for t in single_word if t.get("Term", "") not in absorbed]
+    return other_terms + multi_word + kept_single
 
 
 def _classify_titled_entries(person_terms: list[dict]):

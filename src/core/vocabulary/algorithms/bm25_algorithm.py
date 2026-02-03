@@ -146,6 +146,10 @@ class BM25Algorithm(BaseExtractionAlgorithm):
         doc_length = len(tokens)
         term_freqs = Counter(tokens)
 
+        # Build casing map: recover original casing from source text
+        # BM25 needs lowercase for statistics, but we want to preserve original casing
+        casing_map = self._build_casing_map(text)
+
         logger.debug("Processing document: %d tokens, %d unique terms", doc_length, len(term_freqs))
 
         # Get average document length from corpus
@@ -172,9 +176,12 @@ class BM25Algorithm(BaseExtractionAlgorithm):
                 # Scores typically range from 0 to ~15, so divide by 15
                 normalized_confidence = min(score / 15.0, 1.0)
 
+                # Recover original casing from source text
+                display_term = casing_map.get(term, term)
+
                 candidates.append(
                     CandidateTerm(
-                        term=term,
+                        term=display_term,
                         source_algorithm=self.name,
                         confidence=normalized_confidence,
                         suggested_type="Technical",  # Default; NER may override
@@ -230,6 +237,34 @@ class BM25Algorithm(BaseExtractionAlgorithm):
             List of lowercase word tokens
         """
         return tokenize(text)
+
+    def _build_casing_map(self, text: str) -> dict[str, str]:
+        """
+        Build a mapping from lowercase tokens to their original casing.
+
+        BM25 scoring uses lowercase tokens for consistency, but we want to
+        preserve the original casing when returning candidate terms to the user.
+        Uses the first occurrence's casing (typically the most intentional form).
+
+        Args:
+            text: Original source text
+
+        Returns:
+            Dict mapping lowercase token to original casing (e.g., "duer" -> "Duer")
+        """
+        # Import here to avoid circular dependency issues
+        from src.core.utils.tokenizer import TOKEN_PATTERN
+
+        # Extract tokens without lowercasing
+        original_tokens = TOKEN_PATTERN.findall(text)
+
+        casing_map: dict[str, str] = {}
+        for token in original_tokens:
+            key = token.lower()
+            if key not in casing_map:
+                casing_map[key] = token  # Keep first occurrence's casing
+
+        return casing_map
 
     def _is_valid_term(self, term: str) -> bool:
         """

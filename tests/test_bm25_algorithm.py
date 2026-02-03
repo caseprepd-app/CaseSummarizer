@@ -292,6 +292,66 @@ class TestBM25Algorithm:
         assert config["name"] == "BM25"
 
 
+class TestBM25CasingPreservation:
+    """Tests for BM25 casing preservation (Session 82 fix)."""
+
+    def test_build_casing_map_preserves_original_casing(self):
+        """_build_casing_map should map lowercase to original casing."""
+        from src.core.vocabulary.algorithms.bm25_algorithm import BM25Algorithm
+
+        bm25 = BM25Algorithm()
+        text = "Duer went to see Sturman's office. Emmanuel Hiraldo was there."
+
+        casing_map = bm25._build_casing_map(text)
+
+        assert casing_map.get("duer") == "Duer"
+        assert casing_map.get("emmanuel") == "Emmanuel"
+        assert casing_map.get("hiraldo") == "Hiraldo"
+
+    def test_build_casing_map_keeps_first_occurrence(self):
+        """_build_casing_map should keep the first occurrence's casing."""
+        from src.core.vocabulary.algorithms.bm25_algorithm import BM25Algorithm
+
+        bm25 = BM25Algorithm()
+        text = "SMITH testified. Smith was present. smith spoke."
+
+        casing_map = bm25._build_casing_map(text)
+
+        # First occurrence is "SMITH"
+        assert casing_map.get("smith") == "SMITH"
+
+    def test_extract_preserves_casing_in_candidates(self, tmp_path):
+        """extract() should return candidates with original casing, not lowercase."""
+        from src.core.vocabulary.algorithms.bm25_algorithm import BM25Algorithm
+        from src.core.vocabulary.corpus_manager import CorpusManager
+
+        corpus_dir = tmp_path / "corpus"
+        corpus_dir.mkdir()
+
+        # Create 5 text files with common vocabulary
+        for i in range(5):
+            (corpus_dir / f"doc{i}.txt").write_text(
+                "standard legal document with plaintiff defendant court evidence"
+            )
+
+        manager = CorpusManager(corpus_dir=corpus_dir, cache_dir=tmp_path / "cache")
+        manager.build_idf_index()
+
+        bm25 = BM25Algorithm(corpus_manager=manager, min_score_threshold=0.1)
+
+        # Document with proper-cased names that BM25 should preserve
+        result = bm25.extract("Duer testified about Hiraldo and Sturman.")
+
+        # Find the candidates by lowercase key
+        candidate_terms = {c.term.lower(): c.term for c in result.candidates}
+
+        # Check that at least one term preserved its casing (not all lowercase)
+        if "duer" in candidate_terms:
+            assert candidate_terms["duer"] == "Duer", "BM25 should preserve 'Duer' casing"
+        if "hiraldo" in candidate_terms:
+            assert candidate_terms["hiraldo"] == "Hiraldo", "BM25 should preserve 'Hiraldo' casing"
+
+
 class TestBM25Integration:
     """Integration tests for BM25 with VocabularyExtractor."""
 
