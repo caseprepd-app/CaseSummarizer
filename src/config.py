@@ -864,14 +864,10 @@ UNIFIED_CHUNK_ENCODING = "cl100k_base"
 # When enabled, adds ~100-200ms per answer
 HALLUCINATION_VERIFICATION_ENABLED = _d("hallucination_verification_enabled")
 
-# Hallucination model variants (all use same lettucedetect API)
-# "standard": 150M params, 76% F1 on RAGTruth — most accurate, recommended
-# "fast":      68M params, 75% F1 on RAGTruth — good tradeoff
-# "fastest":   17M params, 69% F1 on RAGTruth — quick checks, low resources
-HALLUCINATION_MODEL = "KRLabsOrg/lettucedect-base-modernbert-en-v1"
-HALLUCINATION_MODEL_FAST = "KRLabsOrg/tinylettuce-ettin-68m-en"
-HALLUCINATION_MODEL_FASTEST = "KRLabsOrg/tinylettuce-ettin-17m-en"
-HALLUCINATION_MODEL_VARIANT = "standard"  # User-selectable: "standard", "fast", "fastest"
+# Hallucination detection model (TinyLettuce 68M)
+# 68M params, 75% F1 on RAGTruth — good balance of accuracy and size
+# Uses lettucedetect library for span-level hallucination detection
+HALLUCINATION_MODEL = "KRLabsOrg/tinylettuce-ettin-68m-en"
 
 # Span classification thresholds for color-coding answer text
 # LettuceDetect returns probability of hallucination (0.0-1.0)
@@ -901,9 +897,7 @@ HALLUCINATION_REJECTION_MESSAGE = (
 # This prevents network calls at runtime for privacy and offline use
 # LOG-001: Renamed to avoid conflict with MODELS_DIR defined earlier
 BUNDLED_MODELS_DIR = Path(__file__).parent.parent / "models"
-HALLUCINATION_MODEL_LOCAL_PATH = BUNDLED_MODELS_DIR / "lettucedect-base-modernbert-en-v1"
-HALLUCINATION_MODEL_FAST_LOCAL_PATH = BUNDLED_MODELS_DIR / "tinylettuce-ettin-68m-en"
-HALLUCINATION_MODEL_FASTEST_LOCAL_PATH = BUNDLED_MODELS_DIR / "tinylettuce-ettin-17m-en"
+HALLUCINATION_MODEL_LOCAL_PATH = BUNDLED_MODELS_DIR / "tinylettuce-ettin-68m-en"
 
 # GLiNER zero-shot NER model (209M params, Apache 2.0)
 GLINER_MODEL_NAME = "urchade/gliner_medium-v2.1"
@@ -937,10 +931,11 @@ RERANKER_MODEL_NAME = (
 )
 RERANKER_MODEL_LOCAL_PATH = BUNDLED_MODELS_DIR / "gte-reranker-modernbert-base"
 
-# Coreference resolution model (fastcoref LingMess)
+# Coreference resolution model (fastcoref F-coref)
 # Resolves pronouns to named entities for improved search/retrieval accuracy
-COREF_MODEL_NAME = "biu-nlp/lingmess-large"
-COREF_MODEL_LOCAL_PATH = BUNDLED_MODELS_DIR / "coref" / "lingmess"
+# F-coref: 78.5% F1 on OntoNotes, 16x faster than LingMess, distilled model
+COREF_MODEL_NAME = "biu-nlp/f-coref"
+COREF_MODEL_LOCAL_PATH = BUNDLED_MODELS_DIR / "coref" / "f-coref"
 RERANKER_MAX_LENGTH = 8192
 RERANKER_TOP_K = _d("reranker_top_k")
 

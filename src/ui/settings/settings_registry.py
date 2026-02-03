@@ -1921,34 +1921,6 @@ def _register_all_settings():
 
     SettingsRegistry.register(
         SettingDefinition(
-            key="hallucination_model_variant",
-            label="Hallucination detection model",
-            category="Performance",
-            setting_type=SettingType.DROPDOWN,
-            tooltip=(
-                "Choose which model verifies Q&A answers for hallucination.\n\n"
-                "• Standard (~150M params): Well-tested LettuceDetect model. "
-                "Most accurate on real-world benchmarks (76% F1).\n"
-                "• Fast (~68M params): TinyLettuce-68M, half the size. "
-                "Nearly as accurate (75% F1), faster loading.\n"
-                "• Fastest (~17M params): TinyLettuce-17M, 10x smaller. "
-                "Quick checks only — lower accuracy (69% F1).\n\n"
-                "All three use the same LettuceDetect library. "
-                "Change takes effect on next Q&A session."
-            ),
-            default="standard",
-            options=[
-                ("Standard (recommended)", "standard"),
-                ("Fast", "fast"),
-                ("Fastest (less accurate)", "fastest"),
-            ],
-            getter=lambda: prefs.get("hallucination_model_variant", "standard"),
-            setter=lambda v: prefs.set("hallucination_model_variant", v),
-        )
-    )
-
-    SettingsRegistry.register(
-        SettingDefinition(
             key="summary_enhanced_mode",
             label="Enhanced summary mode (two-pass)",
             category="Performance",

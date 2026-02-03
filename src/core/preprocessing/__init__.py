@@ -34,6 +34,8 @@ from src.core.preprocessing.title_page_remover import TitlePageRemover
 from src.core.preprocessing.transcript_cleaner import TranscriptCleaner
 
 # Mapping from setting key to preprocessor class name
+# Note: Coreference resolution moved to chunking stage (Session 147)
+# It now runs in UnifiedChunker before chunking, only for Q&A and summarization.
 _SETTING_TO_PREPROCESSOR = {
     "preprocess_title_pages": "Title Page Remover",
     "preprocess_index_pages": "Index Page Remover",
@@ -42,7 +44,6 @@ _SETTING_TO_PREPROCESSOR = {
     "preprocess_page_boundaries": "Page Boundary Cleaner",
     "preprocess_transcript_artifacts": "Transcript Cleaner",
     "preprocess_qa_notation": "QA Converter",
-    "preprocess_coreference": "Coreference Resolver",
 }
 
 
@@ -58,7 +59,9 @@ def create_default_pipeline(settings: dict | None = None) -> PreprocessingPipeli
     5. PageBoundaryCleaner - Cleans collapsed page boundary artifacts
     6. TranscriptCleaner - Removes page numbers, certification, index pages
     7. QAConverter - Converts Q./A. notation to readable format
-    8. CoreferenceResolver - Replaces pronouns with named antecedents
+
+    Note: Coreference resolution runs separately in UnifiedChunker (before chunking)
+    so it only affects Q&A and summarization, not vocabulary extraction.
 
     Args:
         settings: Optional dict of preprocessing toggle settings.
@@ -76,7 +79,6 @@ def create_default_pipeline(settings: dict | None = None) -> PreprocessingPipeli
         PageBoundaryCleaner(),
         TranscriptCleaner(),
         QAConverter(),
-        CoreferenceResolver(),
     ]
 
     # Apply settings toggles if provided

@@ -7,7 +7,7 @@ returning span-level hallucination probabilities for color-coded display.
 Architecture:
     - Wraps HallucinationDetector from lettucedetect library
     - Returns VerificationResult with spans and overall reliability
-    - Lazy-loads model to avoid startup overhead (~150MB, loads once per session)
+    - Lazy-loads model to avoid startup overhead (~68MB, loads once per session)
     - Supports bundled models for Windows installer (no network calls)
 
 Usage:
@@ -22,7 +22,7 @@ Usage:
     # result.answer_rejected is True if reliability < 50%
 
 Model Loading:
-    1. First checks for bundled model at models/lettucedect-base-modernbert-en-v1/
+    1. First checks for bundled model at models/tinylettuce-ettin-68m-en/
     2. If bundled model exists, uses local_files_only=True (no network)
     3. If not found, downloads from HuggingFace (development mode)
 """
@@ -66,39 +66,16 @@ class HallucinationVerifier:
     """
     Verifies Q&A answers for hallucination using LettuceDetect.
 
-    Uses KRLabsOrg/lettucedect-base-modernbert-en-v1 model (~150MB).
+    Uses KRLabsOrg/tinylettuce-ettin-68m-en model (~68MB, 75% F1).
     Runs on CPU, processes ~5-10 answers per second.
 
     The model is lazy-loaded on first use to avoid startup delay.
     """
 
-    def __init__(self, model_variant: str | None = None):
-        """
-        Initialize verifier.
-
-        Args:
-            model_variant: "standard" (150M), "fast" (68M), or "fastest" (17M).
-                          If None, reads from user preferences or config default.
-        """
+    def __init__(self):
+        """Initialize verifier."""
         self._detector = None  # Lazy load
-
-        if model_variant is None:
-            from src.user_preferences import get_user_preferences
-
-            prefs = get_user_preferences()
-            model_variant = prefs.get("hallucination_model_variant", "standard")
-
-        self._model_variant = model_variant
-        if model_variant == "fastest":
-            from src.core.qa.verification_config import VERIFIER_MODEL_PATH_FASTEST
-
-            self._model_path = VERIFIER_MODEL_PATH_FASTEST
-        elif model_variant == "fast":
-            from src.core.qa.verification_config import VERIFIER_MODEL_PATH_FAST
-
-            self._model_path = VERIFIER_MODEL_PATH_FAST
-        else:
-            self._model_path = VERIFIER_MODEL_PATH
+        self._model_path = VERIFIER_MODEL_PATH
 
     def _load_detector(self) -> None:
         """
@@ -106,7 +83,7 @@ class HallucinationVerifier:
 
         Loading strategy:
         1. Set HuggingFace cache directory to models/.hf_cache
-        2. If bundled model exists at models/lettucedect-base-modernbert-en-v1/,
+        2. If bundled model exists at models/tinylettuce-ettin-68m-en/,
            use local_files_only=True to prevent network calls
         3. Otherwise, download from HuggingFace (development mode)
         """
@@ -114,18 +91,8 @@ class HallucinationVerifier:
         os.environ["HF_HOME"] = str(HF_CACHE_DIR)
         os.environ["TRANSFORMERS_CACHE"] = str(HF_CACHE_DIR)
 
-        # Determine model path and loading mode
-        # Check for bundled model based on variant
-        if self._model_variant == "fastest":
-            from src.config import HALLUCINATION_MODEL_FASTEST_LOCAL_PATH
-
-            bundled_path = HALLUCINATION_MODEL_FASTEST_LOCAL_PATH
-        elif self._model_variant == "fast":
-            from src.config import HALLUCINATION_MODEL_FAST_LOCAL_PATH
-
-            bundled_path = HALLUCINATION_MODEL_FAST_LOCAL_PATH
-        else:
-            bundled_path = HALLUCINATION_MODEL_LOCAL_PATH
+        # Check for bundled model
+        bundled_path = HALLUCINATION_MODEL_LOCAL_PATH
 
         if bundled_path.exists():
             # Use bundled model (production/installer mode)

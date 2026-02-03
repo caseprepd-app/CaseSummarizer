@@ -2,8 +2,10 @@
 Coreference Resolution Preprocessor
 
 Replaces pronouns (he, she, they, etc.) with the actual names they refer to,
-using the fastcoref library (LingMess mode). This improves search accuracy
+using the fastcoref library (F-coref mode). This improves search accuracy
 since chunks containing only pronouns become findable by name.
+
+F-coref: 78.5% F1 on OntoNotes, 16x faster than LingMess, ~350MB model.
 
 Uses spaCy + fastcoref integration. Model is loaded lazily on first use.
 Falls back gracefully if fastcoref is not installed.
@@ -42,7 +44,7 @@ class CoreferenceResolver(BasePreprocessor):
     """
     Resolves coreference chains, replacing pronouns with named antecedents.
 
-    Uses fastcoref (LingMess, 81.4 F1) via spaCy pipeline integration.
+    Uses fastcoref (F-coref, 78.5 F1) via spaCy pipeline integration.
     Loads model lazily on first call. If fastcoref is unavailable, returns
     text unchanged with a logged warning.
     """
@@ -95,7 +97,7 @@ class CoreferenceResolver(BasePreprocessor):
             nlp.add_pipe(
                 "fastcoref",
                 config={
-                    "model_architecture": "LingMessCoref",
+                    "model_architecture": "FCoref",
                     "model_path": model_path,
                     "device": "cpu",
                 },

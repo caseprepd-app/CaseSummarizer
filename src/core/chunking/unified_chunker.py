@@ -95,6 +95,7 @@ class UnifiedChunker:
         target_tokens: int = DEFAULT_TARGET_TOKENS,
         max_tokens: int = DEFAULT_MAX_TOKENS,
         tiktoken_encoding: str = TIKTOKEN_ENCODING,
+        apply_coreference: bool = True,
     ):
         """
         Initialize the unified chunker.
@@ -104,10 +105,12 @@ class UnifiedChunker:
             target_tokens: Target token count for ideal chunks
             max_tokens: Maximum tokens per chunk (larger chunks get split)
             tiktoken_encoding: Encoding name for tiktoken (default: cl100k_base)
+            apply_coreference: Whether to resolve pronouns before chunking (default: True)
         """
         self.min_tokens = min_tokens
         self.target_tokens = target_tokens
         self.max_tokens = max_tokens
+        self.apply_coreference = apply_coreference
 
         # Initialize tiktoken encoder
         try:
@@ -119,6 +122,9 @@ class UnifiedChunker:
 
         # Initialize semantic chunker components
         self._init_semantic_chunker()
+
+        # Coreference resolver (lazy-loaded on first use)
+        self._coref_resolver = None
 
         # Cache for processed chunks (keyed by source identifier)
         self._chunk_cache: dict[str, list[UnifiedChunk]] = {}
@@ -146,6 +152,54 @@ class UnifiedChunker:
             logger.error("Failed to initialize semantic chunker: %s", e)
             self.embeddings = None
             self.semantic_chunker = None
+
+    def _get_coref_resolver(self):
+        """
+        Lazy-load coreference resolver on first use.
+
+        Returns:
+            CoreferenceResolver instance, or None if unavailable
+        """
+        if self._coref_resolver is None:
+            # Lazy import to avoid circular dependencies
+            from src.core.preprocessing.coreference_resolver import CoreferenceResolver
+
+            self._coref_resolver = CoreferenceResolver()
+            logger.debug("Initialized coreference resolver for chunking")
+        return self._coref_resolver
+
+    def _resolve_coreferences(self, text: str) -> str:
+        """
+        Resolve pronouns to named antecedents in text.
+
+        Runs coreference resolution on full document text before chunking.
+        This improves Q&A retrieval by making chunks self-contained
+        (e.g., "He testified..." becomes "Dr. Smith testified...").
+
+        Args:
+            text: Full document text
+
+        Returns:
+            Text with pronouns replaced by their antecedents
+        """
+        if not self.apply_coreference:
+            return text
+
+        resolver = self._get_coref_resolver()
+        if resolver is None:
+            return text
+
+        try:
+            result = resolver.process(text)
+            if result.changes_made > 0:
+                logger.info(
+                    "Coreference resolution: %d pronouns resolved before chunking",
+                    result.changes_made,
+                )
+            return result.text
+        except Exception as e:
+            logger.warning("Coreference resolution failed, using original text: %s", e)
+            return text
 
     def count_tokens(self, text: str) -> int:
         """
@@ -209,6 +263,11 @@ class UnifiedChunker:
         if not text or not text.strip():
             logger.error("Empty text provided to unified chunker")
             return []
+
+        # Step 0: Coreference resolution (before chunking)
+        # Resolves pronouns to named entities so chunks are self-contained
+        # e.g., "He testified..." becomes "Dr. Smith testified..."
+        text = self._resolve_coreferences(text)
 
         total_tokens = self.count_tokens(text)
         logger.info(
@@ -472,6 +531,7 @@ def create_unified_chunker(
     min_tokens: int | None = None,
     target_tokens: int | None = None,
     max_tokens: int | None = None,
+    apply_coreference: bool = True,
 ) -> UnifiedChunker:
     """
     Factory function to create a UnifiedChunker instance.
@@ -483,6 +543,7 @@ def create_unified_chunker(
         min_tokens: Minimum tokens per chunk (auto-scaled if None)
         target_tokens: Target token count (auto-scaled if None)
         max_tokens: Maximum tokens per chunk (auto-scaled if None)
+        apply_coreference: Whether to resolve pronouns before chunking (default: True)
 
     Returns:
         Configured UnifiedChunker instance
@@ -521,4 +582,5 @@ def create_unified_chunker(
         min_tokens=min_tokens,
         target_tokens=target_tokens,
         max_tokens=max_tokens,
+        apply_coreference=apply_coreference,
     )
