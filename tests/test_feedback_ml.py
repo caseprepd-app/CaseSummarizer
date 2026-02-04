@@ -166,7 +166,7 @@ class TestVocabularyPreferenceLearner:
         0: log_count, 1: freq_per_1k_words, 2-4: has_ner/rake/bm25, 5: is_person,
         6: has_trailing_punctuation, 7: has_leading_digit, 8: has_trailing_digit,
         9: word_count, 10: is_all_caps, 11: is_title_case,
-        12: source_doc_confidence, 13: corpus_familiarity_score,
+        12: source_doc_confidence, 13: corpus_common_term,
         14-22: NEW Session 76 features (freq_dict_word_ratio, all_words_in_freq_dict,
                term_length, vowel_ratio, is_single_letter, has_internal_digits,
                has_medical_suffix, has_repeated_chars, contains_hyphen)

@@ -1,8 +1,11 @@
 """
-Corpus Familiarity Filter
+Corpus Familiarity Feature Adder
 
-Wraps the existing filter_corpus_familiar_terms() function for FilterChain integration.
-Removes terms that appear too frequently in the user's past documents.
+Wraps the add_corpus_common_feature() function for FilterChain integration.
+Adds the corpus_common_term ML feature to terms.
+
+Session 147: This no longer filters terms - it just adds the binary feature
+for the ML model to learn from.
 """
 
 from src.core.vocabulary.filters.base import BaseVocabularyFilter, FilterResult
@@ -10,12 +13,13 @@ from src.core.vocabulary.filters.base import BaseVocabularyFilter, FilterResult
 
 class CorpusFamiliarityFilter(BaseVocabularyFilter):
     """
-    Filters terms based on corpus familiarity.
+    Adds corpus_common_term feature to vocabulary terms.
 
-    Terms appearing in >= X% of past documents are considered "known"
-    and filtered out. Also adds corpus_familiarity_score to remaining terms.
+    Session 147: No longer filters terms. Instead, adds a binary ML feature:
+    - corpus_common_term = True if term in >= 64% of corpus docs AND >= 5 occurrences
+    - corpus_common_term = False otherwise
 
-    Person names are exempt by default (configurable).
+    The ML model learns to deprioritize terms where this is True.
     """
 
     name = "Corpus Familiarity"
@@ -23,13 +27,13 @@ class CorpusFamiliarityFilter(BaseVocabularyFilter):
     exempt_persons = True
 
     def filter(self, vocabulary: list[dict]) -> FilterResult:
-        """Filter corpus-familiar terms and add familiarity scores."""
-        from src.core.vocabulary.corpus_familiarity_filter import filter_corpus_familiar_terms
+        """Add corpus_common_term feature to all terms (no filtering)."""
+        from src.core.vocabulary.corpus_familiarity_filter import add_corpus_common_feature
 
-        original_count = len(vocabulary)
-        filtered = filter_corpus_familiar_terms(vocabulary)
+        # This no longer filters - just adds the feature
+        result = add_corpus_common_feature(vocabulary)
 
         return FilterResult(
-            vocabulary=filtered,
-            removed_count=original_count - len(filtered),
+            vocabulary=result,
+            removed_count=0,  # No terms are removed
         )

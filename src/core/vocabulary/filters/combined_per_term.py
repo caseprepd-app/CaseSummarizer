@@ -1,14 +1,17 @@
 """
 Unified Per-Term Filter
 
-Optimized single-pass filter that unifies Rarity, Corpus Familiarity,
-and Gibberish checks into one iteration through the vocabulary.
+Optimized single-pass filter that unifies Rarity and Gibberish checks
+into one iteration through the vocabulary.
 
-This replaces three separate filters that each iterated the full list.
-Performance improvement: 3 passes → 1 pass.
+This replaces multiple separate filters that each iterated the full list.
 
 Also includes Person validity check to catch garbage terms that spaCy
 NER incorrectly marks as Person (e.g., "ModMess Quanny Desortpdon").
+
+Session 147: Corpus familiarity is no longer used as a hard filter.
+Instead, corpus_common_term is added as an ML feature for the model to
+learn from.
 """
 
 import logging
@@ -24,17 +27,17 @@ class UnifiedPerTermFilter(BaseVocabularyFilter):
     """
     Combines per-term filters into a single pass.
 
-    Instead of iterating the vocabulary 3 times (once for rarity, corpus
-    familiarity, and gibberish), this filter runs all three checks in one loop.
+    Instead of iterating the vocabulary multiple times, this filter runs
+    all checks in one loop.
 
     Checks performed (in order):
     1. Rarity - Filter terms with overly common component words
-    2. Corpus Familiarity - Filter terms seen in too many past documents
-    3. Gibberish - Filter nonsense/random character sequences
+    2. Gibberish - Filter nonsense/random character sequences
 
-    All three checks exempt person names by default.
+    Both checks exempt person names by default.
 
-    Also adds corpus_familiarity_score to remaining terms for ML features.
+    Also adds corpus_common_term ML feature (binary: True if term appears
+    in >= 64% of corpus docs AND >= 5 total occurrences).
     """
 
     name = "Combined Per-Term"
@@ -55,10 +58,7 @@ class UnifiedPerTermFilter(BaseVocabularyFilter):
         import time
 
         from src.core.utils.gibberish_filter import is_gibberish
-        from src.core.vocabulary.corpus_familiarity_filter import (
-            calculate_corpus_familiarity,
-            should_filter_corpus_familiar,
-        )
+        from src.core.vocabulary.corpus_familiarity_filter import is_corpus_common_term
         from src.core.vocabulary.rarity_filter import (
             should_filter_phrase,
             should_passthrough_non_ner_term,
@@ -66,7 +66,6 @@ class UnifiedPerTermFilter(BaseVocabularyFilter):
 
         filtered = []
         removed_by_rarity = 0
-        removed_by_corpus = 0
         removed_by_gibberish = 0
         removed_terms = []
 
@@ -87,19 +86,12 @@ class UnifiedPerTermFilter(BaseVocabularyFilter):
                 removed_terms.append(term)
                 continue
 
-            # === CHECK 2: Corpus Familiarity Filter ===
-            # Check if too familiar (person exemption handled inside)
-            if should_filter_corpus_familiar(term, is_person):
-                removed_by_corpus += 1
-                removed_terms.append(term)
-                continue
+            # Add corpus_common_term ML feature (Session 147: simplified binary feature)
+            # True if term appears in >= 64% of corpus docs AND >= 5 occurrences
+            # No filtering here - let the ML model learn to deprioritize common terms
+            term_data["corpus_common_term"] = is_corpus_common_term(term)
 
-            # Add corpus familiarity score for ML features (even if not filtered)
-            # This is what the original filter did - always add the score
-            familiarity_score = calculate_corpus_familiarity(term)
-            term_data["corpus_familiarity_score"] = familiarity_score
-
-            # === CHECK 3: Gibberish Filter ===
+            # === CHECK 2: Gibberish Filter ===
             # Person names exempt (foreign names may look unusual)
             if not is_person and is_gibberish(term):
                 removed_by_gibberish += 1
@@ -128,7 +120,7 @@ class UnifiedPerTermFilter(BaseVocabularyFilter):
             if iteration_count % 50 == 0:
                 time.sleep(0)
 
-        total_removed = removed_by_rarity + removed_by_corpus + removed_by_gibberish
+        total_removed = removed_by_rarity + removed_by_gibberish
 
         return FilterResult(
             vocabulary=filtered,
@@ -136,7 +128,6 @@ class UnifiedPerTermFilter(BaseVocabularyFilter):
             removed_terms=removed_terms,
             metadata={
                 "rarity_removed": removed_by_rarity,
-                "corpus_removed": removed_by_corpus,
                 "gibberish_removed": removed_by_gibberish,
             },
         )

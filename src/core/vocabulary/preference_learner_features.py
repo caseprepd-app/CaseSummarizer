@@ -109,7 +109,7 @@ PROFESSIONAL_SUFFIXES = (
 # Session 52: Removed unreliable type features (is_medical, is_technical, is_place, is_unknown)
 # Only is_person is reliable (NER person detection)
 # Session 54: Added source_doc_confidence to weight terms by OCR quality
-# Session 68: Added corpus_familiarity_score and is_title_case
+# Session 68: Added corpus feature and is_title_case (Session 147: simplified to binary)
 # Session 78: Added 7 TermSources features for per-document confidence tracking
 FEATURE_NAMES = [
     # Count bin features (Session 84, expanded Session 130) - one-hot encoded
@@ -142,8 +142,8 @@ FEATURE_NAMES = [
     "is_title_case",  # 1.0 if term.istitle() (proper nouns), 0.0 otherwise
     # Document quality feature (Session 54)
     "source_doc_confidence",  # OCR/extraction confidence (0-100) - lower = more OCR errors
-    # Corpus familiarity features (Session 68)
-    "corpus_familiarity_score",  # 0.0-1.0, proportion of corpus docs containing term
+    # Corpus familiarity feature (Session 68, simplified Session 147)
+    "corpus_common_term",  # Binary: True if term in >=64% of corpus docs AND >=5 occurrences
     # Session 76 features (9 total) + Session 130 rarity score
     "freq_dict_word_ratio",
     "all_words_in_freq_dict",
@@ -289,8 +289,10 @@ def extract_features(term_data: dict[str, Any]) -> np.ndarray:
     source_doc_confidence_raw = float(term_data.get("source_doc_confidence") or 100)
     source_doc_confidence = source_doc_confidence_raw / 100.0
 
-    # Corpus familiarity (Session 68)
-    corpus_familiarity_score = float(term_data.get("corpus_familiarity_score") or 0)
+    # Corpus common term feature (Session 68, simplified Session 147)
+    # Binary feature: 1.0 if term is common in corpus (>=64% docs AND >=5 occurrences)
+    corpus_common_raw = term_data.get("corpus_common_term", False)
+    corpus_common_term = 1.0 if corpus_common_raw else 0.0
 
     # Title case detection (Session 68)
     is_title_case = 1.0 if term and term.istitle() else 0.0
@@ -494,7 +496,7 @@ def extract_features(term_data: dict[str, Any]) -> np.ndarray:
             is_title_case,
             # Quality features (2)
             source_doc_confidence,
-            corpus_familiarity_score,
+            corpus_common_term,
             # Session 76 features (9) + Session 130 rarity score (1)
             freq_dict_word_ratio,
             all_words_in_freq_dict,

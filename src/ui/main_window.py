@@ -154,6 +154,13 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         self._update_qa_checkbox_state()  # Set Q&A checkbox based on model size
         self._update_summary_checkbox_state()  # Set Summary checkbox based on GPU/settings
 
+        # Session 148: Initialize tab status config to match checkbox states
+        self.output_display.set_tab_status_config(
+            vocab_enabled=self.vocab_check.get(),
+            qa_enabled=self.qa_check.get(),
+            summary_enabled=self.summary_check.get(),
+        )
+
         # Initialize drag-and-drop support (Session 73)
         self._setup_drag_drop()
 
@@ -161,6 +168,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         self._check_ollama_service()
         self._update_ollama_status()
         self._update_model_display()
+        self._check_corpus_limit()  # Check if corpus exceeds doc limit
 
         dnd_status = "enabled" if HAS_DND else "disabled (tkinterdnd2 not installed)"
         logger.debug("Initialized with two-panel layout, drag-drop %s", dnd_status)
@@ -680,6 +688,11 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             if not self.ask_default_questions_check.get():
                 logger.debug("Default questions disabled, skipping")
             else:
+                # Session 148: Update workflow phase for tab status
+                from src.ui.workflow_status import WorkflowPhase
+
+                self.output_display.set_workflow_phase(WorkflowPhase.QA_ANSWERING)
+
                 # Spawn QAWorker with default questions
                 from src.services.workers import QAWorker
                 from src.user_preferences import get_user_preferences
@@ -871,6 +884,9 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             if not result:
                 self.summary_check.deselect()
 
+        # Session 148: Update tab status messages
+        self.output_display.set_tab_status_config(summary_enabled=self.summary_check.get())
+
         self._update_generate_button_state()
 
     def _load_default_question_count(self) -> tuple[int, int]:
@@ -920,6 +936,9 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         """Handle Q&A checkbox state change."""
         self._update_generate_button_state()
         self._update_default_questions_checkbox_state()
+
+        # Session 148: Update tab status messages
+        self.output_display.set_tab_status_config(qa_enabled=self.qa_check.get())
 
         state = "enabled" if self.qa_check.get() else "disabled"
         logger.debug("Q&A %s", state)
@@ -1168,6 +1187,9 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         self._update_generate_button_state()
         self._update_vocab_llm_checkbox_state()
 
+        # Session 148: Update tab status messages
+        self.output_display.set_tab_status_config(vocab_enabled=self.vocab_check.get())
+
         state = "enabled" if self.vocab_check.get() else "disabled"
         logger.debug("Vocabulary extraction %s", state)
 
@@ -1277,6 +1299,16 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         self._pending_tasks = {"vocab": do_vocab, "qa": do_qa, "summary": do_summary}
         self._completed_tasks = set()
         self._qa_ready = False
+
+        # Session 148: Set initial workflow phase for tab status messages
+        from src.ui.workflow_status import WorkflowPhase
+
+        if do_vocab:
+            self.output_display.set_workflow_phase(WorkflowPhase.VOCAB_RUNNING)
+        elif do_qa:
+            self.output_display.set_workflow_phase(WorkflowPhase.QA_INDEXING)
+        elif do_summary:
+            self.output_display.set_workflow_phase(WorkflowPhase.SUMMARY_RUNNING)
 
         # Session 45: Use progressive extraction for vocabulary (includes Q&A indexing)
         if do_vocab:
@@ -1621,6 +1653,11 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
 
     def _start_summary_task(self):
         """Start summary generation task."""
+        # Session 148: Update workflow phase for tab status
+        from src.ui.workflow_status import WorkflowPhase
+
+        self.output_display.set_workflow_phase(WorkflowPhase.SUMMARY_RUNNING)
+
         self.set_status("Summary: This feature can take several hours...")
 
         # Summary is complex - show placeholder for now
@@ -1642,6 +1679,11 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         """Handle task completion."""
         self._stop_timer()
         self._processing_active = False
+
+        # Session 148: Update workflow phase for tab status
+        from src.ui.workflow_status import WorkflowPhase
+
+        self.output_display.set_workflow_phase(WorkflowPhase.COMPLETE)
 
         # Re-enable controls
         self.add_files_btn.configure(state="normal")
@@ -2147,6 +2189,31 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
                 "To start: Run 'ollama serve' in a terminal\n\n"
                 "Vocabulary extraction will still work without Ollama.",
             )
+
+    def _check_corpus_limit(self):
+        """Check if corpus exceeds the maximum document limit on startup."""
+        try:
+            from src.services import VocabularyService
+
+            vocab_service = VocabularyService()
+            max_docs = vocab_service.get_max_corpus_docs()
+
+            if vocab_service.is_corpus_disabled():
+                reason = vocab_service.get_corpus_disabled_reason()
+                logger.warning("Corpus disabled on startup: %s", reason)
+
+                messagebox.showwarning(
+                    "Corpus Disabled",
+                    f"Corpus disabled: document count exceeds {max_docs}.\n\n"
+                    "The corpus folder has too many documents. Corpus features "
+                    "will be disabled for this session.\n\n"
+                    "To re-enable:\n"
+                    "1. Open the corpus folder via Settings > Manage Corpus\n"
+                    "2. Remove files until you have 25 or fewer documents\n"
+                    "3. Restart the application",
+                )
+        except Exception as e:
+            logger.debug("Error checking corpus limit: %s", e)
 
     # =========================================================================
     # Cleanup

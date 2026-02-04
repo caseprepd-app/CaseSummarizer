@@ -25,7 +25,7 @@ class TestFeatureExtraction:
             "algorithms": "NER,RAKE",
             "is_person": 1,
             "source_doc_confidence": 95,
-            "corpus_familiarity_score": 0.1,
+            "corpus_common_term": False,
             "total_unique_terms": 100,
             "total_docs_in_session": 3,
             "timestamp": "2024-01-01T00:00:00",

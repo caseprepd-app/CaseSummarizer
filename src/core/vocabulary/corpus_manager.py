@@ -33,6 +33,12 @@ from src.core.utils.tokenizer import tokenize
 
 logger = logging.getLogger(__name__)
 
+# Corpus limits and thresholds
+MAX_CORPUS_DOCS = 25  # Maximum documents allowed in a corpus
+MIN_CORPUS_DOCS = 5  # Minimum documents for corpus to be "ready"
+CORPUS_COMMON_THRESHOLD = 0.64  # 64% - term must appear in this % of docs to be "common"
+CORPUS_COMMON_MIN_OCCURRENCES = 5  # Term must appear at least this many times total
+
 
 @dataclass
 class CorpusFile:
@@ -88,9 +94,16 @@ class CorpusManager:
         self._cache_file = self.cache_dir / "bm25_idf_index.json"
         self._corpus_hash: str | None = None
 
+        # Corpus disabled state (when >25 docs added manually)
+        self._corpus_disabled: bool = False
+        self._disabled_reason: str | None = None
+
         # Ensure directories exist
         self.corpus_dir.mkdir(parents=True, exist_ok=True)
         self.cache_dir.mkdir(parents=True, exist_ok=True)
+
+        # Check if corpus exceeds document limit
+        self._check_corpus_limit()
 
         # Try to load cached index
         self._load_cache()
@@ -113,7 +126,7 @@ class CorpusManager:
 
         return len(files)
 
-    def is_corpus_ready(self, min_docs: int = 5) -> bool:
+    def is_corpus_ready(self, min_docs: int = MIN_CORPUS_DOCS) -> bool:
         """
         Check if corpus has enough documents for BM25.
 
@@ -121,9 +134,72 @@ class CorpusManager:
             min_docs: Minimum number of documents required
 
         Returns:
-            True if corpus has at least min_docs documents
+            True if corpus has at least min_docs documents and is not disabled
         """
+        if self._corpus_disabled:
+            return False
         return self.get_document_count() >= min_docs
+
+    def is_corpus_disabled(self) -> bool:
+        """
+        Check if corpus is disabled due to exceeding document limit.
+
+        Returns:
+            True if corpus has >25 documents and is disabled
+        """
+        return self._corpus_disabled
+
+    def get_disabled_reason(self) -> str | None:
+        """
+        Get the reason why corpus is disabled.
+
+        Returns:
+            Error message if disabled, None if not disabled
+        """
+        return self._disabled_reason
+
+    def _check_corpus_limit(self) -> None:
+        """
+        Check if corpus exceeds the maximum document limit.
+
+        If >25 documents are in the corpus folder, disable corpus processing.
+        This prevents users from manually adding too many files.
+        """
+        doc_count = self.get_document_count()
+        if doc_count > MAX_CORPUS_DOCS:
+            self._corpus_disabled = True
+            self._disabled_reason = (
+                f"Corpus disabled: {doc_count} documents exceeds the "
+                f"maximum allowed ({MAX_CORPUS_DOCS}). Remove files to re-enable."
+            )
+            logger.warning(self._disabled_reason)
+        else:
+            self._corpus_disabled = False
+            self._disabled_reason = None
+
+    def can_add_documents(self, count: int = 1) -> tuple[bool, str | None]:
+        """
+        Check if adding documents would exceed the corpus limit.
+
+        Args:
+            count: Number of documents to add
+
+        Returns:
+            Tuple of (can_add, error_message).
+            can_add is True if addition is allowed, False otherwise.
+            error_message is None if allowed, or the reason why not.
+        """
+        current_count = self.get_document_count()
+        new_total = current_count + count
+
+        if new_total > MAX_CORPUS_DOCS:
+            return (
+                False,
+                f"Cannot add {count} document(s). Current count: {current_count}, "
+                f"maximum allowed: {MAX_CORPUS_DOCS}. "
+                f"Would result in {new_total} documents.",
+            )
+        return (True, None)
 
     def get_idf(self, term: str) -> float:
         """
@@ -183,6 +259,41 @@ class CorpusManager:
             self.build_idf_index()
 
         return self._doc_count
+
+    def is_corpus_common_term(self, term: str) -> bool:
+        """
+        Check if a term is common in the corpus (appears frequently).
+
+        A term is considered "common" if:
+        1. It appears in >= 64% of corpus documents, AND
+        2. It has at least 5 total document occurrences
+
+        This binary feature helps the ML model learn to deprioritize
+        domain-common terms that the user likely already knows.
+
+        Args:
+            term: The term to evaluate (case-insensitive)
+
+        Returns:
+            True if the term is common in the corpus, False otherwise.
+            Returns False if corpus is disabled or not ready.
+        """
+        if self._corpus_disabled:
+            return False
+
+        total_docs = self.get_total_docs_indexed()
+        if total_docs < MIN_CORPUS_DOCS:
+            return False
+
+        doc_freq = self.get_doc_freq(term)
+
+        # Must appear at least CORPUS_COMMON_MIN_OCCURRENCES times
+        if doc_freq < CORPUS_COMMON_MIN_OCCURRENCES:
+            return False
+
+        # Must appear in >= CORPUS_COMMON_THRESHOLD of documents
+        frequency_ratio = doc_freq / total_docs
+        return frequency_ratio >= CORPUS_COMMON_THRESHOLD
 
     def build_idf_index(self, force_rebuild: bool = False) -> bool:
         """

@@ -619,6 +619,22 @@ class CorpusDialog(BaseModalDialog):
         try:
             corpus_path = self.registry.get_corpus_path(self._selected_corpus)
 
+            # Check if adding these files would exceed the corpus limit
+            max_docs = self._vocab_service.get_max_corpus_docs()
+            current_count = self._vocab_service.get_corpus_doc_count(corpus_path)
+            new_total = current_count + len(files)
+
+            if new_total > max_docs:
+                messagebox.showerror(
+                    "Corpus Limit Exceeded",
+                    f"Cannot add {len(files)} document(s).\n\n"
+                    f"Current documents: {current_count}\n"
+                    f"Maximum allowed: {max_docs}\n"
+                    f"Would result in: {new_total} documents\n\n"
+                    "Please remove some documents first or select fewer files.",
+                )
+                return
+
             # Copy files to corpus folder
             import shutil
 

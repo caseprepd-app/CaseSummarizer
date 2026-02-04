@@ -264,3 +264,64 @@ class VocabularyService:
         from src.core.vocabulary.preference_learner import get_meta_learner
 
         return get_meta_learner()
+
+    def get_max_corpus_docs(self) -> int:
+        """
+        Get the maximum number of documents allowed in a corpus.
+
+        Returns:
+            Maximum document count (currently 25).
+        """
+        from src.core.vocabulary.corpus_manager import MAX_CORPUS_DOCS
+
+        return MAX_CORPUS_DOCS
+
+    def get_corpus_doc_count(self, corpus_path) -> int:
+        """
+        Count documents in a corpus folder.
+
+        Args:
+            corpus_path: Path to the corpus directory.
+
+        Returns:
+            Number of supported documents (PDF, TXT, RTF) in the folder.
+        """
+        from pathlib import Path
+
+        from src.core.vocabulary.corpus_manager import SUPPORTED_EXTENSIONS
+
+        path = Path(corpus_path)
+        if not path.exists():
+            return 0
+
+        # Count supported files (excluding preprocessed files)
+        count = 0
+        for ext in SUPPORTED_EXTENSIONS:
+            for f in path.glob(f"*{ext}"):
+                if "_preprocessed" not in f.stem:
+                    count += 1
+            for f in path.glob(f"*{ext.upper()}"):
+                if "_preprocessed" not in f.stem:
+                    count += 1
+
+        return count
+
+    def is_corpus_disabled(self) -> bool:
+        """
+        Check if the active corpus is disabled due to exceeding document limit.
+
+        Returns:
+            True if corpus has >25 documents and is disabled.
+        """
+        manager = self.get_corpus_manager()
+        return manager.is_corpus_disabled()
+
+    def get_corpus_disabled_reason(self) -> str | None:
+        """
+        Get the reason why the corpus is disabled.
+
+        Returns:
+            Error message if disabled, None if not disabled.
+        """
+        manager = self.get_corpus_manager()
+        return manager.get_disabled_reason()

@@ -122,18 +122,45 @@ class DynamicOutputWidget(ctk.CTkFrame):
         # Session 85: Extraction state for feedback blocking
         self._extraction_in_progress = False
 
-        # Q&A Tab: Q&A panel (created eagerly to prevent tab switching artifacts)
+        # Session 148: Workflow status tracking for tab status messages
+        from src.ui.workflow_status import TabStatusConfig, WorkflowPhase
+
+        self._workflow_phase = WorkflowPhase.IDLE
+        self._tab_status_config = TabStatusConfig()
+
+        # Q&A Tab: Status placeholder (shown when no results) + Q&A panel
         # See: https://github.com/TomSchimansky/CustomTkinter/issues/1508
+        self._qa_status_label = ctk.CTkLabel(
+            self.tabview.tab("Ask Questions"),
+            text="",
+            font=FONTS["body"],
+            text_color=COLORS["text_secondary"],
+            justify="center",
+            wraplength=400,
+        )
+        self._qa_status_label.grid(row=0, column=0, sticky="nsew", padx=20, pady=50)
+
         self._qa_panel = QAPanel(self.tabview.tab("Ask Questions"))
         self._qa_panel.grid(row=0, column=0, sticky="nsew")
+        self._qa_panel.grid_remove()  # Hidden initially, shown when results arrive
 
-        # Summary Tab: Textbox for summaries
+        # Summary Tab: Status placeholder (shown when no summary) + textbox
+        self._summary_status_label = ctk.CTkLabel(
+            self.tabview.tab("Summary"),
+            text="",
+            font=FONTS["body"],
+            text_color=COLORS["text_secondary"],
+            justify="center",
+            wraplength=400,
+        )
+        self._summary_status_label.grid(row=0, column=0, sticky="nsew", padx=20, pady=50)
+
         self.summary_text_display = ctk.CTkTextbox(self.tabview.tab("Summary"), wrap="word")
         self.summary_text_display.grid(row=0, column=0, sticky="nsew", padx=5, pady=5)
-        self.summary_text_display.insert(
-            "0.0",
-            "Generated summaries will appear here.\n\nProcess documents and enable 'Summary' to generate content.",
-        )
+        self.summary_text_display.grid_remove()  # Hidden initially, shown when summary arrives
+
+        # Initialize tab status messages
+        self._update_tab_status_messages()
 
         # Button bar (below tabs)
         self.button_frame = ctk.CTkFrame(self)
@@ -243,6 +270,84 @@ class DynamicOutputWidget(ctk.CTkFrame):
         self._batch_insertion_paused = False
         self._resize_after_id = None
         logger.debug("Resize complete - batch insertion resumed")
+
+    # -------------------------------------------------------------------------
+    # Session 148: Workflow Status Methods for Tab Status Messages
+    # -------------------------------------------------------------------------
+
+    def _update_tab_status_messages(self):
+        """Update status labels in Q&A and Summary tabs based on workflow phase and config."""
+        from src.ui.workflow_status import get_qa_tab_status, get_summary_tab_status
+
+        # Update Q&A tab status
+        qa_status = get_qa_tab_status(self._workflow_phase, self._tab_status_config)
+        self._qa_status_label.configure(text=qa_status)
+
+        # Update Summary tab status
+        summary_status = get_summary_tab_status(self._workflow_phase, self._tab_status_config)
+        self._summary_status_label.configure(text=summary_status)
+
+    def set_workflow_phase(self, phase):
+        """
+        Update the workflow phase and refresh tab status messages.
+
+        Called by MainWindow when workflow transitions between phases.
+
+        Args:
+            phase: WorkflowPhase enum value
+        """
+
+        self._workflow_phase = phase
+        self._update_tab_status_messages()
+        logger.debug("Workflow phase set to: %s", phase.name)
+
+    def set_tab_status_config(self, vocab_enabled=None, qa_enabled=None, summary_enabled=None):
+        """
+        Update which features are enabled and refresh tab status messages.
+
+        Called by MainWindow when checkboxes change.
+
+        Args:
+            vocab_enabled: Whether vocabulary extraction is enabled (or None to keep current)
+            qa_enabled: Whether Q&A is enabled (or None to keep current)
+            summary_enabled: Whether summary generation is enabled (or None to keep current)
+        """
+        if vocab_enabled is not None:
+            self._tab_status_config.vocab_enabled = vocab_enabled
+        if qa_enabled is not None:
+            self._tab_status_config.qa_enabled = qa_enabled
+        if summary_enabled is not None:
+            self._tab_status_config.summary_enabled = summary_enabled
+
+        self._update_tab_status_messages()
+        logger.debug(
+            "Tab status config updated: vocab=%s, qa=%s, summary=%s",
+            self._tab_status_config.vocab_enabled,
+            self._tab_status_config.qa_enabled,
+            self._tab_status_config.summary_enabled,
+        )
+
+    def show_qa_content(self):
+        """Show the Q&A panel and hide the status label (called when results arrive)."""
+        self._qa_status_label.grid_remove()
+        self._qa_panel.grid()
+
+    def show_qa_status(self):
+        """Show the Q&A status label and hide the panel (called when clearing or before results)."""
+        self._qa_panel.grid_remove()
+        self._qa_status_label.grid()
+        self._update_tab_status_messages()
+
+    def show_summary_content(self):
+        """Show the summary textbox and hide the status label (called when summary arrives)."""
+        self._summary_status_label.grid_remove()
+        self.summary_text_display.grid()
+
+    def show_summary_status(self):
+        """Show the summary status label and hide the textbox (called when clearing)."""
+        self.summary_text_display.grid_remove()
+        self._summary_status_label.grid()
+        self._update_tab_status_messages()
 
     def _on_tab_changed(self):
         """
@@ -883,6 +988,10 @@ class DynamicOutputWidget(ctk.CTkFrame):
             for doc_name, doc_summary in sorted(self._document_summaries.items()):
                 self.summary_text_display.insert("end", f"{doc_name}:\n{doc_summary}\n\n")
 
+        # Show summary content if we have any (hide status label)
+        if summary or self._document_summaries:
+            self.show_summary_content()
+
         # Session 78: Only auto-switch to Vocab if user isn't already viewing
         # another tab that has content (prevents Q&A tab from jumping away)
         if vocab_data:
@@ -1120,8 +1229,9 @@ class DynamicOutputWidget(ctk.CTkFrame):
                 self._qa_panel.set_followup_callback(main_window._ask_followup_for_qa_panel)
                 logger.debug("Follow-up callback connected to MainWindow")
 
-        # Display results
+        # Display results and show the Q&A panel (hide status label)
         self._qa_panel.display_results(results)
+        self.show_qa_content()
 
         logger.debug("Showing %s Q&A results", len(results))
 

@@ -223,13 +223,16 @@ BM25_K1 = _d("bm25_k1")  # Term frequency saturation
 BM25_B = _d("bm25_b")  # Length normalization
 BM25_DELTA = _d("bm25_delta")  # BM25+ improvement factor
 
-# Corpus Familiarity Filtering Configuration (Session 68)
-# Filters terms that appear too frequently across the user's corpus.
-# Terms above threshold are removed (user already knows them).
-# Terms below threshold get corpus_familiarity_score as ML feature.
-CORPUS_FAMILIARITY_THRESHOLD = 0.75  # Filter terms in 75%+ of corpus docs
-CORPUS_FAMILIARITY_MIN_DOCS = 10  # Alternative: filter if in 10+ docs
-CORPUS_FAMILIARITY_EXEMPT_PERSONS = True  # Exempt person names from filtering
+# Corpus Familiarity Configuration (Session 68, simplified Session 147)
+# NOTE: These are DEPRECATED - corpus no longer filters terms.
+# Corpus now uses a binary ML feature (corpus_common_term) defined in corpus_manager.py:
+# - MAX_CORPUS_DOCS = 25 (hard limit)
+# - CORPUS_COMMON_THRESHOLD = 0.64 (64% of docs)
+# - CORPUS_COMMON_MIN_OCCURRENCES = 5 (minimum doc frequency)
+# These old constants are kept for backwards compatibility with user preferences.
+CORPUS_FAMILIARITY_THRESHOLD = 0.75  # DEPRECATED - no longer filters
+CORPUS_FAMILIARITY_MIN_DOCS = 10  # DEPRECATED - no longer filters
+CORPUS_FAMILIARITY_EXEMPT_PERSONS = True  # DEPRECATED - no filtering to exempt from
 
 # Vocabulary Extraction Algorithm Weights (Session 47)
 # Centralized weights for multi-algorithm vocabulary extraction

@@ -51,7 +51,7 @@ SAMPLE_PDFS = list(SAMPLE_DOCS_DIR.glob("*.pdf"))
 # Timeouts (seconds)
 PREPROCESSING_TIMEOUT = 120  # 2 minutes per file
 PHASE1_TIMEOUT = 180  # 3 minutes for NER/RAKE/BM25 (BM25 corpus build can take ~30s)
-PHASE2_TIMEOUT = 180  # 3 minutes for Q&A indexing (embeddings load can take ~30s)
+PHASE2_TIMEOUT = 600  # 10 minutes for Q&A indexing (CPU embedding can be very slow)
 PHASE3_TIMEOUT = 600  # 10 minutes for LLM (if enabled)
 TOTAL_TIMEOUT = 900  # 15 minutes total
 
