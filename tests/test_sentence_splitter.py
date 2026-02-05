@@ -21,6 +21,8 @@ class TestSplitSentences:
         result = split_sentences("First sentence. Second sentence.")
         assert len(result) == 2
 
+    # TODO: split_sentences does not handle legal abbreviations (v., U.S.C., Dr., Inc.)
+    #   These 4 tests document the desired behavior but currently fail.
     def test_legal_abbreviation_v(self):
         """'v.' in case names should NOT cause a split."""
         text = "The ruling in Smith v. Jones was unanimous. The appeal was denied."

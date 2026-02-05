@@ -131,6 +131,7 @@ class TestAnswerGenerator:
         assert "name" in keywords
         assert "plaintiff" in keywords
 
+    # TODO: _split_sentences does not handle abbreviations (Dr., Jan.) — splits mid-sentence
     def test_split_sentences_handles_abbreviations(self):
         """_split_sentences should handle common abbreviations."""
         from src.core.qa import AnswerGenerator
