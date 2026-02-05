@@ -59,7 +59,8 @@ class DocumentService:
                 "preprocess_qa_notation",
             ]
             return {k: prefs.get(k, True) for k in keys}
-        except Exception:
+        except Exception as e:
+            logger.debug("Failed to load preprocessing settings: %s", e)
             return {}
 
     def process_documents(

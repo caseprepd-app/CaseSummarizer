@@ -527,8 +527,8 @@ class DynamicOutputWidget(ctk.CTkFrame):
                 width = self.csv_treeview.column(col, "width")
                 if isinstance(width, int) and 30 <= width <= 500:
                     widths[col] = width
-            except Exception:
-                pass  # Column may not exist in current view
+            except Exception as e:
+                logger.debug("Could not read column '%s' width: %s", col, e)
 
         if widths:
             prefs = get_user_preferences()
@@ -862,7 +862,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
         filter_lower = filter_text.lower()
         for item_id in self.csv_treeview.get_children():
             values = self.csv_treeview.item(item_id, "values")
-            if values:
+            if values and len(values) >= 1:
                 term = str(values[0])  # First column is Term
                 if use_regex and regex_pattern:
                     matches = regex_pattern.search(term) is not None
@@ -1487,7 +1487,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
             self.csv_treeview.selection_set(item_id)
             # Get the term value (first column)
             values = self.csv_treeview.item(item_id, "values")
-            if values:
+            if values and len(values) >= 1:
                 self._selected_term = values[0]  # Term is first column
                 # Show context menu at cursor position
                 try:
@@ -2143,7 +2143,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
 
         # Get the term from the row
         values = self.csv_treeview.item(item_id, "values")
-        if not values:
+        if not values or len(values) < 1:
             return
 
         term = values[0]  # Term is first column

@@ -179,8 +179,8 @@ class SystemMonitor(ctk.CTkFrame):
             if self._metrics_updated:
                 self._update_display()
                 self._metrics_updated = False
-        except Exception:
-            pass  # Ignore display errors during heavy processing
+        except Exception as e:
+            logger.debug("Display update error during processing: %s", e)
 
         # Schedule next check - use after() which is resilient to busy main thread
         import contextlib

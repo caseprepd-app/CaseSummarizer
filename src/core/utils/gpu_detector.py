@@ -193,6 +193,8 @@ def _detect_gpu_cli() -> dict | None:
             if result.returncode == 0 and result.stdout.strip():
                 line = result.stdout.strip().split("\n")[0]
                 parts = [p.strip() for p in line.split(",")]
+                if not parts:
+                    return None
                 gpu_name = parts[0]
                 vram_mib = int(parts[1]) if len(parts) > 1 and parts[1].isdigit() else 0
                 vram_bytes = vram_mib * 1024 * 1024

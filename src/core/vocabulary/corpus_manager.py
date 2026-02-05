@@ -716,7 +716,10 @@ class CorpusManager:
 
         # Step 4: Save as _preprocessed.txt
         output_path = self._get_preprocessed_path(file_path)
-        output_path.write_text(final_text, encoding="utf-8")
+        try:
+            output_path.write_text(final_text, encoding="utf-8")
+        except OSError as e:
+            raise OSError(f"Failed to save preprocessed text to {output_path}: {e}") from e
 
         logger.debug("Saved preprocessed text: %s (%d chars)", output_path.name, len(final_text))
 

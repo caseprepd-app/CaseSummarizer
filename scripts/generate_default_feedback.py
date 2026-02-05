@@ -187,31 +187,39 @@ def generate_algorithms(category: str) -> tuple[str, bool, bool, bool]:
     """
     if category == "phrase":
         # Phrases typically come from RAKE
-        choice = random.choice([
-            ("RAKE", False, True, False),
-            ("RAKE, NER", True, True, False),
-            ("RAKE, BM25", False, True, True),
-        ])
+        choice = random.choice(
+            [
+                ("RAKE", False, True, False),
+                ("RAKE, NER", True, True, False),
+                ("RAKE, BM25", False, True, True),
+            ]
+        )
     elif category == "artifact":
         # Artifacts might come from any algorithm
-        choice = random.choice([
-            ("NER", True, False, False),
-            ("RAKE", False, True, False),
-            ("NER, RAKE", True, True, False),
-        ])
+        choice = random.choice(
+            [
+                ("NER", True, False, False),
+                ("RAKE", False, True, False),
+                ("NER, RAKE", True, True, False),
+            ]
+        )
     elif category == "ocr":
         # OCR errors often detected by NER (misidentified entities)
-        choice = random.choice([
-            ("NER", True, False, False),
-            ("NER, RAKE", True, True, False),
-        ])
+        choice = random.choice(
+            [
+                ("NER", True, False, False),
+                ("NER, RAKE", True, True, False),
+            ]
+        )
     else:  # common_word
         # Common words often from RAKE or BM25
-        choice = random.choice([
-            ("RAKE", False, True, False),
-            ("BM25", False, False, True),
-            ("RAKE, BM25", False, True, True),
-        ])
+        choice = random.choice(
+            [
+                ("RAKE", False, True, False),
+                ("BM25", False, False, True),
+                ("RAKE, BM25", False, True, True),
+            ]
+        )
     return choice
 
 
@@ -282,12 +290,7 @@ def generate_entry(term: str, index: int) -> dict:
 def main():
     """Generate the default feedback CSV."""
     # Combine all terms
-    all_terms = (
-        COMMON_PHRASES
-        + TRANSCRIPT_ARTIFACTS
-        + OCR_ARTIFACTS
-        + COMMON_WORDS
-    )
+    all_terms = COMMON_PHRASES + TRANSCRIPT_ARTIFACTS + OCR_ARTIFACTS + COMMON_WORDS
 
     # Remove duplicates while preserving order
     seen = set()
@@ -309,10 +312,14 @@ def main():
         entries.append(entry)
 
     # Write to CSV
-    with open(OUTPUT_PATH, "w", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(f, fieldnames=COLUMNS)
-        writer.writeheader()
-        writer.writerows(entries)
+    try:
+        with open(OUTPUT_PATH, "w", newline="", encoding="utf-8") as f:
+            writer = csv.DictWriter(f, fieldnames=COLUMNS)
+            writer.writeheader()
+            writer.writerows(entries)
+    except OSError as e:
+        print(f"ERROR: Failed to write CSV to {OUTPUT_PATH}: {e}")
+        return
 
     print(f"Written to: {OUTPUT_PATH}")
     print(f"Total entries: {len(entries)}")

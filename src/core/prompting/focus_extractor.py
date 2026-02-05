@@ -128,9 +128,8 @@ class AIFocusExtractor(FocusExtractor):
         self._cache[template_hash] = focus
 
         # Log extracted emphasis (truncated for readability)
-        emphasis_preview = (
-            focus["emphasis"][:60] + "..." if len(focus["emphasis"]) > 60 else focus["emphasis"]
-        )
+        emphasis = str(focus.get("emphasis", ""))
+        emphasis_preview = emphasis[:60] + "..." if len(emphasis) > 60 else emphasis
         logger.debug("Extracted emphasis: %s", emphasis_preview)
 
         return focus

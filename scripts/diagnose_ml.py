@@ -42,16 +42,22 @@ def analyze_feedback():
     # Load default feedback
     dfs = []
     if DEFAULT_FEEDBACK.exists():
-        df_default = pd.read_csv(DEFAULT_FEEDBACK)
-        df_default["source"] = "default"
-        dfs.append(df_default)
-        print(f"\nDefault feedback: {len(df_default)} samples")
+        try:
+            df_default = pd.read_csv(DEFAULT_FEEDBACK)
+            df_default["source"] = "default"
+            dfs.append(df_default)
+            print(f"\nDefault feedback: {len(df_default)} samples")
+        except (OSError, pd.errors.ParserError, UnicodeDecodeError, ValueError) as e:
+            print(f"ERROR: Failed to read default feedback: {e}")
 
     if USER_FEEDBACK.exists():
-        df_user = pd.read_csv(USER_FEEDBACK)
-        df_user["source"] = "user"
-        dfs.append(df_user)
-        print(f"User feedback: {len(df_user)} samples")
+        try:
+            df_user = pd.read_csv(USER_FEEDBACK)
+            df_user["source"] = "user"
+            dfs.append(df_user)
+            print(f"User feedback: {len(df_user)} samples")
+        except (OSError, pd.errors.ParserError, UnicodeDecodeError, ValueError) as e:
+            print(f"ERROR: Failed to read user feedback: {e}")
     else:
         print("User feedback: Not found")
 
@@ -61,7 +67,18 @@ def analyze_feedback():
 
     df = pd.concat(dfs, ignore_index=True)
 
+    # Validate required columns exist
+    required_cols = {"feedback", "term", "in_case_freq"}
+    missing = required_cols - set(df.columns)
+    if missing:
+        print(f"ERROR: Missing required columns: {missing}")
+        return None
+
     print(f"\nTotal samples: {len(df)}")
+    if len(df) == 0:
+        print("No data to analyze.")
+        return df
+
     pos_count = (df["feedback"] == 1).sum()
     neg_count = (df["feedback"] == -1).sum()
     print(f"Positive (+1): {pos_count} ({100 * pos_count / len(df):.1f}%)")
@@ -106,7 +123,8 @@ def analyze_feedback():
     # Reorder bins
     bin_order = ["bin_1", "bin_2", "bin_3", "bin_4_6", "bin_7_20", "bin_21_50", "bin_51_plus"]
     crosstab = crosstab.reindex(bin_order)
-    crosstab.columns = ["-1 (negative)", "+1 (positive)"]
+    col_labels = {-1: "-1 (negative)", 1: "+1 (positive)"}
+    crosstab.columns = [col_labels.get(c, str(c)) for c in crosstab.columns]
     print(crosstab)
 
     # Calculate positive rate by bin
@@ -313,8 +331,12 @@ def analyze_model():
         print(f"\nModel not found at: {MODEL_PATH}")
         return
 
-    with open(MODEL_PATH, "rb") as f:
-        model_data = pickle.load(f)
+    try:
+        with open(MODEL_PATH, "rb") as f:
+            model_data = pickle.load(f)
+    except (OSError, pickle.UnpicklingError, EOFError) as e:
+        print(f"ERROR: Failed to load model from {MODEL_PATH}: {e}")
+        return
 
     print(f"\nModel path: {MODEL_PATH}")
     print(f"Total samples trained on: {model_data.get('total_sample_count', 'unknown')}")

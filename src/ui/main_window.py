@@ -1050,8 +1050,8 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             try:
                 self.vocab_llm_check.unbind("<Enter>")
                 self.vocab_llm_check.unbind("<Leave>")
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug("Failed to unbind vocab LLM tooltip: %s", e)
 
         # Create new tooltip
         self._vocab_llm_tooltip_hide = create_tooltip(self.vocab_llm_check, text)
@@ -1104,8 +1104,8 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
                 try:
                     self.qa_check.unbind("<Enter>")
                     self.qa_check.unbind("<Leave>")
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug("Failed to unbind QA tooltip: %s", e)
                 self._qa_tooltip_hide = None
             return
 
@@ -1116,8 +1116,8 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             try:
                 self.qa_check.unbind("<Enter>")
                 self.qa_check.unbind("<Leave>")
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug("Failed to unbind QA tooltip: %s", e)
 
         # Create new tooltip
         self._qa_tooltip_hide = create_tooltip(self.qa_check, text)
@@ -1176,8 +1176,8 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             try:
                 self.summary_check.unbind("<Enter>")
                 self.summary_check.unbind("<Leave>")
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug("Failed to unbind summary tooltip: %s", e)
 
         # Create new tooltip
         self._summary_tooltip_hide = create_tooltip(self.summary_check, text)

@@ -271,11 +271,13 @@ def extract_features(term_data: dict[str, Any]) -> np.ndarray:
     # === CHARACTER/FORMAT FEATURES ===
     # Trailing punctuation (":Smith", "Di Leo.") - likely artifacts
     trailing_punct = ":;.,!?"
-    has_trailing_punctuation = 1.0 if term and term[-1] in trailing_punct else 0.0
+    has_trailing_punctuation = (
+        1.0 if term and len(term.strip()) > 0 and term[-1] in trailing_punct else 0.0
+    )
 
     # Leading/trailing digits
-    has_leading_digit = 1.0 if term and term[0].isdigit() else 0.0
-    has_trailing_digit = 1.0 if term and term[-1].isdigit() else 0.0
+    has_leading_digit = 1.0 if term and len(term.strip()) > 0 and term[0].isdigit() else 0.0
+    has_trailing_digit = 1.0 if term and len(term.strip()) > 0 and term[-1].isdigit() else 0.0
 
     # Word count
     words = term.split() if term else []

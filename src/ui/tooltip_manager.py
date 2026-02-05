@@ -20,9 +20,12 @@ Usage:
     # ... then create your new tooltip
 """
 
+import logging
 from typing import Optional
 
 import customtkinter as ctk
+
+logger = logging.getLogger(__name__)
 
 
 class TooltipManager:
@@ -72,8 +75,8 @@ class TooltipManager:
             try:
                 if self._active_tooltip.winfo_exists():
                     self._active_tooltip.destroy()
-            except Exception:
-                pass  # Window may already be destroyed
+            except Exception as e:
+                logger.debug("Tooltip cleanup failed (window may be destroyed): %s", e)
             self._active_tooltip = None
             self._active_owner = None
 

@@ -232,8 +232,8 @@ class CorpusSettingsWidget(ctk.CTkFrame):
                 main_window = parent.master
                 if main_window and hasattr(main_window, "_refresh_corpus_dropdown"):
                     main_window._refresh_corpus_dropdown()
-            except Exception:
-                pass  # Main window refresh is best-effort
+            except Exception as e:
+                logger.debug("Main window corpus refresh failed (best-effort): %s", e)
 
     def get_value(self):
         """No value to return - changes are made via dialog."""
