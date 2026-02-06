@@ -133,7 +133,10 @@ class TaskMixin:
     def _handle_queue_message(self, msg_type: str, data):
         """Handle a message from the worker queue."""
         if msg_type == "progress":
-            _percentage, message = data
+            percentage, message = data
+            # Update determinate progress bar with actual percentage
+            if percentage and hasattr(self, "_update_progress"):
+                self._update_progress(percentage)
             # Append Q&A status note if index is ready but answers haven't appeared yet
             if self._qa_ready and "question" not in message.lower() and "Q&A" not in message:
                 message = f"{message} (answering questions...)"
@@ -144,6 +147,10 @@ class TaskMixin:
             self.file_table.add_result(data)
 
         elif msg_type == "processing_finished":
+            if hasattr(self, "pipeline_indicator"):
+                self.pipeline_indicator.set_step_state("Extract", "done")
+                if self._pending_tasks.get("vocab"):
+                    self.pipeline_indicator.set_step_state("Vocabulary", "active")
             self._on_preprocessing_complete(data)
 
         elif msg_type == "error":
@@ -165,6 +172,8 @@ class TaskMixin:
         elif msg_type == "qa_ready":
             chunk_count = data.get("chunk_count", 0)
             logger.debug("Q&A ready: %s chunks indexed", chunk_count)
+            if hasattr(self, "pipeline_indicator"):
+                self.pipeline_indicator.set_step_state("Q&A", "active")
             self._vector_store_path = data.get("vector_store_path")
             self._embeddings = data.get("embeddings")
             self._qa_ready = True
@@ -208,6 +217,8 @@ class TaskMixin:
         elif msg_type == "qa_complete":
             qa_results = data if data else []
             logger.debug("Q&A complete: %s answers", len(qa_results))
+            if hasattr(self, "pipeline_indicator"):
+                self.pipeline_indicator.set_step_state("Q&A", "done")
             with self._qa_results_lock:
                 self._qa_results = qa_results
             if qa_results:
@@ -236,6 +247,8 @@ class TaskMixin:
         elif msg_type == "llm_complete":
             term_count = len(data) if data else 0
             logger.debug("LLM complete: %s reconciled terms", term_count)
+            if hasattr(self, "pipeline_indicator"):
+                self.pipeline_indicator.set_step_state("Vocabulary", "done")
 
             if data:
                 self.output_display.update_outputs(vocab_csv_data=data)
@@ -322,6 +335,21 @@ class TaskMixin:
         self._pending_tasks = {"vocab": do_vocab, "qa": do_qa, "summary": do_summary}
         self._completed_tasks = set()
         self._qa_ready = False
+
+        # Show pipeline indicator with enabled steps
+        if hasattr(self, "pipeline_indicator"):
+            enabled_steps = ["Extract"]  # Always starts with extraction
+            if do_vocab:
+                enabled_steps.append("Vocabulary")
+            if do_qa:
+                enabled_steps.append("Q&A")
+            if do_summary:
+                enabled_steps.append("Summary")
+            self.pipeline_indicator.set_enabled_steps(enabled_steps)
+            self.pipeline_indicator.set_step_state("Extract", "active")
+            if not self._pipeline_indicator_visible:
+                self.pipeline_indicator.pack(fill="x", padx=10, pady=(0, 5), before=self.main_frame)
+                self._pipeline_indicator_visible = True
 
         # Use progressive extraction for vocabulary (includes Q&A indexing)
         if do_vocab:
@@ -536,6 +564,8 @@ class TaskMixin:
 
     def _start_summary_task(self):
         """Start summary generation task."""
+        if hasattr(self, "pipeline_indicator"):
+            self.pipeline_indicator.set_step_state("Summary", "active")
         self.set_status("Summary: This feature can take several hours...")
 
         self._completed_tasks.add("summary")
@@ -551,6 +581,11 @@ class TaskMixin:
 
     def _finalize_tasks(self):
         """Finalize all tasks and update UI."""
+        # Mark remaining pipeline steps as done
+        if hasattr(self, "pipeline_indicator"):
+            for step in ["Extract", "Vocabulary", "Q&A", "Summary"]:
+                if self.pipeline_indicator._step_states.get(step) == "active":
+                    self.pipeline_indicator.set_step_state(step, "done")
         completed = len(self._completed_tasks)
         self._on_tasks_complete(True, f"Completed {completed} task(s)")
 
@@ -579,7 +614,26 @@ class TaskMixin:
             extraction_stats = self._gather_extraction_stats()
             self._update_session_stats(extraction_stats)
 
-        self.set_status(message)
+        # Success celebration: brief green flash on status bar
+        if success:
+            from src.ui.theme import COLORS
+
+            self.status_frame.configure(fg_color=COLORS["monitor_bg"])
+            self.status_label.configure(text=f"\u2713 {message}", text_color=COLORS["success"])
+            # Restore normal status bar after 2 seconds
+            self.after(
+                2000,
+                lambda: self._restore_status_bar_color(message),
+            )
+        else:
+            self.set_status(message)
+
+    def _restore_status_bar_color(self, message: str):
+        """Restore status bar to normal colors after success celebration."""
+        from src.ui.theme import COLORS
+
+        self.status_frame.configure(fg_color=COLORS["status_bar_bg"])
+        self.status_label.configure(text=message, text_color=COLORS["text_secondary"])
 
     def _gather_extraction_stats(self) -> dict:
         """Gather extraction statistics after task completion."""

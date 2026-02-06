@@ -37,6 +37,18 @@ class FileReviewTable(ctk.CTkFrame):
 
         self._create_treeview()
         self.file_item_map = {}  # To map filename to treeview item ID
+        self._result_data = {}  # Map filename -> full result dict (for hover previews)
+        self._hovered_row = None  # Track currently hovered row for tooltip
+        self._tooltip_window = None  # Single tooltip window for hover previews
+
+        # Empty state overlay
+        self._empty_label = ctk.CTkLabel(
+            self,
+            text="\U0001f4c4  Drop files here or click + Add Files",
+            font=FONTS["body"],
+            text_color=COLORS["text_secondary"],
+        )
+        self._empty_label.place(relx=0.5, rely=0.5, anchor="center")
 
     def _create_treeview(self):
         """Create the Treeview widget."""
@@ -49,9 +61,20 @@ class FileReviewTable(ctk.CTkFrame):
 
         self.tree.pack(expand=True, fill="both")
 
+        # Hover preview bindings
+        self.tree.bind("<Motion>", self._on_hover)
+        self.tree.bind("<Leave>", self._on_leave)
+
     def add_result(self, result):
         """Add or update a processing result in the table."""
         filename = result.get("filename", "Unknown")
+
+        # Hide empty state overlay on first file
+        if not self.file_item_map and self._empty_label.winfo_ismapped():
+            self._empty_label.place_forget()
+
+        # Store full result data for hover previews
+        self._result_data[filename] = result
 
         values, status_color_tag = self._prepare_result_for_display(result)
 
@@ -124,9 +147,97 @@ class FileReviewTable(ctk.CTkFrame):
         return f"{round(size)} {units[unit_index]}"
 
     def clear(self):
+        """Clear all items and show empty state overlay."""
         self.file_item_map.clear()
+        self._result_data.clear()
+        self._hide_tooltip()
         for item in self.tree.get_children():
             self.tree.delete(item)
+        # Show empty state overlay again
+        self._empty_label.place(relx=0.5, rely=0.5, anchor="center")
+
+    def _on_hover(self, event):
+        """Show a tooltip with file details when hovering over a row."""
+        row_id = self.tree.identify_row(event.y)
+        if not row_id or row_id == self._hovered_row:
+            return
+
+        self._hovered_row = row_id
+        # Get filename from the row values (column index 1)
+        try:
+            values = self.tree.item(row_id, "values")
+            filename = values[1] if values and len(values) > 1 else None
+        except Exception:
+            return
+
+        result = self._result_data.get(filename)
+        if not result:
+            return
+
+        # Build tooltip text
+        lines = []
+        file_path = result.get("file_path", result.get("filepath", ""))
+        if file_path:
+            lines.append(f"Path: {file_path}")
+        word_count = result.get("word_count", 0)
+        if word_count:
+            lines.append(f"Words: {word_count:,}")
+        page_count = result.get("page_count", 0)
+        if page_count:
+            lines.append(f"Pages: {page_count}")
+        method = result.get("method", "")
+        if method:
+            lines.append(f"Method: {method.replace('_', ' ').title()}")
+        case_numbers = result.get("case_numbers", [])
+        if case_numbers:
+            lines.append(f"Case #: {', '.join(case_numbers[:3])}")
+
+        if not lines:
+            return
+
+        tooltip_text = "\n".join(lines)
+        self._show_tooltip(event.x_root + 15, event.y_root + 10, tooltip_text)
+
+    def _on_leave(self, _event):
+        """Hide tooltip when mouse leaves the treeview."""
+        self._hovered_row = None
+        self._hide_tooltip()
+
+    def _show_tooltip(self, x, y, text):
+        """Display a tooltip at the given screen coordinates."""
+        self._hide_tooltip()
+        try:
+            self._tooltip_window = ctk.CTkToplevel(self.winfo_toplevel())
+        except Exception:
+            return
+        self._tooltip_window.wm_overrideredirect(True)
+        self._tooltip_window.wm_attributes("-topmost", True)
+        import contextlib
+
+        with contextlib.suppress(Exception):
+            self._tooltip_window.wm_attributes("-toolwindow", True)
+
+        label = ctk.CTkLabel(
+            self._tooltip_window,
+            text=text,
+            bg_color=("#333333", "#333333"),
+            text_color=("white", "white"),
+            corner_radius=5,
+            wraplength=350,
+            font=FONTS["small"],
+            justify="left",
+        )
+        label.pack(padx=8, pady=6)
+        self._tooltip_window.wm_geometry(f"+{x}+{y}")
+
+    def _hide_tooltip(self):
+        """Destroy the tooltip window if it exists."""
+        if self._tooltip_window:
+            import contextlib
+
+            with contextlib.suppress(Exception):
+                self._tooltip_window.destroy()
+            self._tooltip_window = None
 
 
 class ModelSelectionWidget(ctk.CTkFrame):

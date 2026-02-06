@@ -133,6 +133,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
 
         # Build UI
         self._create_header()
+        self._create_pipeline_indicator()
         self._create_main_panels()
         self._create_status_bar()
 
@@ -416,6 +417,12 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             # Register the left panel (file table area) as a drop target
             self.left_panel.drop_target_register(DND_FILES)
             self.left_panel.dnd_bind("<<Drop>>", self._on_file_drop)
+            self.left_panel.dnd_bind("<<DragEnter>>", self._on_drag_enter)
+            self.left_panel.dnd_bind("<<DragLeave>>", self._on_drag_leave)
+
+            # Store original border state for restoration
+            self._original_border_color = self.left_panel.cget("border_color")
+            self._original_border_width = self.left_panel.cget("border_width")
 
             logger.debug("Drag-drop enabled on file table area")
 
@@ -479,10 +486,32 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             self.export_all_btn.pack_forget()
             self._export_all_visible = False
 
+        # Reset drop zone highlight
+        self._reset_drop_zone_border()
+
         # Process the dropped files
         self.selected_files = valid_files
         self.set_status(f"Processing {len(valid_files)} dropped file(s)...")
         self._start_preprocessing()
+
+    def _on_drag_enter(self, _event):
+        """Highlight the file table area when files are dragged over it."""
+        from src.ui.theme import COLORS
+
+        self.left_panel.configure(border_color=COLORS["drop_zone_border"], border_width=2)
+
+    def _on_drag_leave(self, _event):
+        """Remove highlight when files leave the drop zone."""
+        self._reset_drop_zone_border()
+
+    def _reset_drop_zone_border(self):
+        """Restore the left panel's original border state."""
+        original_color = getattr(self, "_original_border_color", None)
+        original_width = getattr(self, "_original_border_width", 0)
+        self.left_panel.configure(
+            border_color=original_color or "transparent",
+            border_width=original_width or 0,
+        )
 
     def _select_files(self):
         """Open file dialog to select documents for this session."""

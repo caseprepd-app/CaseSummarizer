@@ -128,6 +128,14 @@ class WindowLayoutMixin:
         )
         self.manage_corpus_btn.pack(side="left", padx=(5, 0))
 
+    def _create_pipeline_indicator(self):
+        """Create the pipeline step indicator between header and main panels."""
+        from src.ui.pipeline_indicator import PipelineIndicator
+
+        self.pipeline_indicator = PipelineIndicator(self)
+        # Hidden initially - shown when processing starts
+        self._pipeline_indicator_visible = False
+
     def _create_main_panels(self):
         """Create the two-panel main content area."""
         self.main_frame = ctk.CTkFrame(self, **FRAME_STYLES["transparent"])
@@ -367,6 +375,18 @@ class WindowLayoutMixin:
             text_color=COLORS["text_secondary"],
         )
         self.ollama_status_label.pack(side="left")
+
+        # Determinate progress bar - shows actual percentage during processing
+        self.progress_bar = ctk.CTkProgressBar(
+            self.status_frame,
+            width=120,
+            height=8,
+            mode="determinate",
+            progress_color=COLORS["progress_bar"],
+        )
+        self.progress_bar.set(0)
+        # Hidden initially - shown during processing
+        self._progress_bar_visible = False
 
         # Activity indicator (animated progress bar) - shows during processing
         self.activity_indicator = ctk.CTkProgressBar(

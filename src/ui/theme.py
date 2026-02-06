@@ -143,6 +143,11 @@ COLORS = {
     "status_error": ("#e67e22", "#f0932b"),  # Light/dark mode orange
     # Status bar
     "status_bar_bg": "#1a1a2e",  # Deep navy (matches output pane dark mode)
+    # Progress bar
+    "progress_bar": "#3d8bfd",  # Blue (matches primary button family)
+    # Drag-and-drop zone
+    "drop_zone_border": "#3d8bfd",  # Blue highlight on drag enter
+    "drop_zone_bg": "#1a3050",  # Subtle blue tint on drag enter
     # System monitor
     "monitor_bg": "#1a3a1a",  # System monitor frame bg
     # Hallucination verification colors (Session 60)

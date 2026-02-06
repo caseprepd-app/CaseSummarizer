@@ -363,6 +363,9 @@ class DynamicOutputWidget(ctk.CTkFrame):
         """
         current_tab = self.tabview.get()
 
+        # Brief dim/reveal transition effect
+        self._animate_tab_transition()
+
         # Session 80: Save column widths when leaving Names & Vocab tab
         # (Widths may have been adjusted by user dragging column separators)
         self._save_column_widths()
@@ -395,6 +398,26 @@ class DynamicOutputWidget(ctk.CTkFrame):
                 # Hide vocab-specific widgets on Summary tab
                 self.column_picker_btn.pack_forget()
                 self.export_dropdown.pack_forget()
+
+    def _animate_tab_transition(self):
+        """Brief dim/reveal effect when switching tabs."""
+        current_tab = self.tabview.get()
+        tab_frame = self.tabview.tab(current_tab)
+
+        # Step 1: Dim by placing a temporary overlay
+        overlay = ctk.CTkFrame(tab_frame, fg_color=COLORS["bg_dark"], corner_radius=0)
+        overlay.place(relx=0, rely=0, relwidth=1, relheight=1)
+        overlay.lift()
+
+        # Step 2: Remove overlay after brief delay to create "reveal" effect
+        def remove_overlay():
+            try:
+                overlay.place_forget()
+                overlay.destroy()
+            except Exception:
+                pass
+
+        self.after(100, remove_overlay)
 
     def _update_progress_badge(self, source: str):
         """

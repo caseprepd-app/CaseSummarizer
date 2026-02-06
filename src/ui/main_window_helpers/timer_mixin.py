@@ -47,21 +47,41 @@ class TimerMixin:
         self._stop_activity_indicator()
 
     def _start_activity_indicator(self):
-        """Show and start the animated activity indicator."""
+        """Show and start the animated activity indicator and progress bar."""
         if hasattr(self, "activity_indicator"):
             if not self._activity_indicator_visible:
                 self.activity_indicator.pack(side="right", padx=(0, 5), pady=5)
                 self._activity_indicator_visible = True
             self.activity_indicator.start()
+        if hasattr(self, "progress_bar"):
+            self.progress_bar.set(0)
+            if not self._progress_bar_visible:
+                self.progress_bar.pack(side="right", padx=(0, 5), pady=5)
+                self._progress_bar_visible = True
+        if hasattr(self, "activity_indicator"):
             self.update_idletasks()  # Force initial render for smooth animation
 
     def _stop_activity_indicator(self):
-        """Stop and hide the activity indicator."""
+        """Stop and hide the activity indicator and progress bar."""
         if hasattr(self, "activity_indicator"):
             self.activity_indicator.stop()
             if self._activity_indicator_visible:
                 self.activity_indicator.pack_forget()
                 self._activity_indicator_visible = False
+        if hasattr(self, "progress_bar"):
+            if self._progress_bar_visible:
+                self.progress_bar.pack_forget()
+                self._progress_bar_visible = False
+
+    def _update_progress(self, percentage: float):
+        """
+        Update the determinate progress bar.
+
+        Args:
+            percentage: Progress value 0-100
+        """
+        if hasattr(self, "progress_bar"):
+            self.progress_bar.set(max(0.0, min(1.0, percentage / 100.0)))
 
     def _update_timer(self):
         """Update the timer display."""
