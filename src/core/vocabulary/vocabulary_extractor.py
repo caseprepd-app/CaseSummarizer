@@ -774,6 +774,7 @@ class VocabularyExtractor:
                 frequency_rank,
                 len(merged.sources),
                 textrank_score=textrank_score,
+                term=term,
             )
 
             # Build term data for potential ML boost
@@ -960,6 +961,7 @@ class VocabularyExtractor:
         term_sources: TermSources | None = None,
         total_docs_in_session: int = 1,
         textrank_score: float = 0.0,
+        term: str = "",
     ) -> float:
         """
         Calculate composite quality score (0-100).
@@ -974,6 +976,7 @@ class VocabularyExtractor:
             term_sources: Optional TermSources for per-document confidence data
             total_docs_in_session: Total documents in this extraction session
             textrank_score: TextRank centrality score (0-1), 0 if not available
+            term: The term text (for artifact detection penalties)
 
         Returns:
             Quality score between 0.0 and 100.0
@@ -1043,6 +1046,26 @@ class VocabularyExtractor:
                 and term_sources.mean_confidence < SCORE_SINGLE_SOURCE_CONF_THRESHOLD
             ):
                 score += SCORE_SINGLE_SOURCE_PENALTY
+
+        # === Artifact detection penalties (half-strength, ML handles the rest) ===
+        if term:
+            # All caps - headers/labels, rarely useful vocabulary (-7.5)
+            alpha_chars = [c for c in term if c.isalpha()]
+            if alpha_chars and all(c.isupper() for c in alpha_chars):
+                score -= 7.5
+
+            # Leading digit - line numbers attached to terms (-5)
+            if term[0].isdigit():
+                score -= 5.0
+
+            # Single letter - "Q", "A" transcript artifacts (-10)
+            stripped = term.strip()
+            if len(stripped) == 1 and stripped.isalpha():
+                score -= 10.0
+
+            # Trailing punctuation - extraction boundary errors (-2.5)
+            if term[-1] in ":;.,!?":
+                score -= 2.5
 
         return min(100.0, max(0.0, round(score, 1)))
 
@@ -1545,6 +1568,7 @@ class VocabularyExtractor:
             term_sources=sources,
             total_docs_in_session=total_docs,
             textrank_score=textrank_score,
+            term=best_term,
         )
 
         return {
@@ -1710,6 +1734,7 @@ class VocabularyExtractor:
                 1,
                 term_sources=sources,
                 total_docs_in_session=total_docs,
+                term=display_term,
             )
 
             term_dict = {
