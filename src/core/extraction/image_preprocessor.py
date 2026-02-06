@@ -286,8 +286,8 @@ class ImagePreprocessor:
                 self.adaptive_block_size,
                 self.adaptive_constant,
             )
-        except Exception:
-            # Fallback to Otsu's method
+        except Exception as e1:
+            logger.debug("Adaptive thresholding failed: %s, trying Otsu fallback", e1)
             try:
                 _, binary = cv2.threshold(enhanced, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
                 stats.binarized = True

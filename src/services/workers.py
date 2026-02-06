@@ -22,7 +22,7 @@ import threading
 from pathlib import Path
 from queue import Empty, Queue
 
-from src.config import PARALLEL_MAX_WORKERS
+from src.config import LEGAL_EXCLUDE_LIST_PATH, MEDICAL_TERMS_LIST_PATH, PARALLEL_MAX_WORKERS
 from src.core.extraction import RawTextExtractor
 from src.core.parallel import (
     ExecutorStrategy,
@@ -250,8 +250,8 @@ class VocabularyWorker(BaseWorker):
     ):
         super().__init__(ui_queue)
         self.combined_text = combined_text
-        self.exclude_list_path = exclude_list_path or "config/legal_exclude.txt"
-        self.medical_terms_path = medical_terms_path or "config/medical_terms.txt"
+        self.exclude_list_path = exclude_list_path or LEGAL_EXCLUDE_LIST_PATH
+        self.medical_terms_path = medical_terms_path or MEDICAL_TERMS_LIST_PATH
         self.user_exclude_path = user_exclude_path  # User's personal exclusion list
         self.doc_count = doc_count  # Number of documents (for frequency filtering)
         self.use_llm = use_llm  # Whether to use LLM extraction (Session 43)

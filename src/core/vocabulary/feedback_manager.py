@@ -199,10 +199,6 @@ class FeedbackManager:
         target_file = self.default_feedback_file if DEBUG_MODE else self.user_feedback_file
         target_type = "default" if DEBUG_MODE else "user"
 
-        if not target_file.exists():
-            logger.debug("No existing %s feedback file, starting fresh", target_type)
-            return
-
         try:
             with open(target_file, encoding="utf-8", newline="") as f:
                 reader = csv.DictReader(f)
@@ -221,6 +217,8 @@ class FeedbackManager:
                 target_type,
                 DEBUG_MODE,
             )
+        except FileNotFoundError:
+            logger.debug("No existing %s feedback file, starting fresh", target_type)
         except Exception as e:
             logger.debug("Error loading %s feedback: %s", target_type, e)
 
@@ -269,9 +267,6 @@ class FeedbackManager:
             True if deletion succeeded (or no matching row existed)
         """
         target_file = self.default_feedback_file if DEBUG_MODE else self.user_feedback_file
-
-        if not target_file.exists():
-            return True  # Nothing to delete
 
         # Use lock to prevent race condition on rapid clicks
         with self._file_lock:
@@ -330,6 +325,8 @@ class FeedbackManager:
 
                 return True
 
+            except FileNotFoundError:
+                return True  # Nothing to delete
             except Exception as e:
                 logger.debug("Error deleting feedback: %s", e)
                 return False
@@ -450,7 +447,7 @@ class FeedbackManager:
                 existing_records: list[dict] = []
                 replaced = False
 
-                if target_file.exists():
+                try:
                     with open(target_file, encoding="utf-8", newline="") as f:
                         reader = csv.DictReader(f)
                         for row in reader:
@@ -467,6 +464,8 @@ class FeedbackManager:
                                 replaced = True
                             else:
                                 existing_records.append(row)
+                except FileNotFoundError:
+                    pass  # New file, no existing records to load
 
                 if not replaced:
                     existing_records.append(record)
@@ -569,29 +568,44 @@ class FeedbackManager:
         # Delete ALL entries for this term from CSV (any count bin)
         target_file = self.default_feedback_file if DEBUG_MODE else self.user_feedback_file
 
-        if not target_file.exists():
-            return True
+        with self._file_lock:
+            try:
+                kept_records: list[dict] = []
+                with open(target_file, encoding="utf-8", newline="") as f:
+                    reader = csv.DictReader(f)
+                    for row in reader:
+                        row_term = row.get("term", "").lower().strip()
+                        if row_term != lower_term:
+                            kept_records.append(row)
 
-        try:
-            kept_records: list[dict] = []
-            with open(target_file, encoding="utf-8", newline="") as f:
-                reader = csv.DictReader(f)
-                for row in reader:
-                    row_term = row.get("term", "").lower().strip()
-                    if row_term != lower_term:
-                        kept_records.append(row)
+                # Write remaining records back (atomic via temp file)
+                import os
+                import tempfile
 
-            with open(target_file, "w", encoding="utf-8", newline="") as f:
-                writer = csv.DictWriter(f, fieldnames=FEEDBACK_COLUMNS)
-                writer.writeheader()
-                writer.writerows(kept_records)
+                fd, temp_path = tempfile.mkstemp(
+                    dir=target_file.parent, suffix=".tmp", prefix=".feedback_"
+                )
+                try:
+                    with os.fdopen(fd, "w", encoding="utf-8", newline="") as f:
+                        writer = csv.DictWriter(f, fieldnames=FEEDBACK_COLUMNS)
+                        writer.writeheader()
+                        writer.writerows(kept_records)
+                    os.replace(temp_path, target_file)
+                except Exception:
+                    try:
+                        os.unlink(temp_path)
+                    except OSError:
+                        pass
+                    raise
 
-            logger.debug("Cleared all ratings for '%s'", term)
-            return True
+                logger.debug("Cleared all ratings for '%s'", term)
+                return True
 
-        except Exception as e:
-            logger.debug("Error clearing rating: %s", e)
-            return True  # Cache was cleared, file error is secondary
+            except FileNotFoundError:
+                return True  # File doesn't exist, nothing to clear
+            except Exception as e:
+                logger.debug("Error clearing rating: %s", e)
+                return True  # Cache was cleared, file error is secondary
 
     def _load_feedback_from_file(self, filepath: Path) -> list[dict]:
         """
@@ -603,13 +617,12 @@ class FeedbackManager:
         Returns:
             List of feedback records as dictionaries
         """
-        if not filepath.exists():
-            return []
-
         try:
             with open(filepath, encoding="utf-8", newline="") as f:
                 reader = csv.DictReader(f)
                 return list(reader)
+        except FileNotFoundError:
+            return []
         except Exception as e:
             logger.debug("Error loading feedback from %s: %s", filepath, e)
             return []
