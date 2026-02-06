@@ -214,6 +214,7 @@ class GLiNERAlgorithm(BaseExtractionAlgorithm):
         # If warm_up thread is running but not done, wait with timeout
         if not self._model_ready.wait(timeout=_WARMUP_TIMEOUT_SEC):
             logger.warning("GLiNER warm-up timed out after %ds", _WARMUP_TIMEOUT_SEC)
+            self._load_error = f"warm-up timed out after {_WARMUP_TIMEOUT_SEC}s"
             return False
 
         return self._model is not None

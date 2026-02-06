@@ -982,6 +982,9 @@ class ProgressiveExtractionWorker(BaseWorker):
 
         # ===== PHASE 2: Q&A Indexing (Fast - ~10-30 seconds) =====
         # Run in parallel thread while Phase 3 starts
+        # Use an event to distinguish successful completion from a crash
+        self._qa_succeeded = threading.Event()
+        self._qa_error_msg: str | None = None
         qa_thread = threading.Thread(target=self._build_vector_store, daemon=True)
         qa_thread.start()
 
@@ -1077,6 +1080,16 @@ class ProgressiveExtractionWorker(BaseWorker):
                 QA_MAX_WAIT_MINUTES,
             )
             self.send_progress(100, "Q&A index taking too long, proceeding without it...")
+            self.ui_queue.put(
+                QueueMessage.status_error(
+                    "Q&A search index timed out. Q&A tab may not work for this session."
+                )
+            )
+        elif not self._qa_succeeded.is_set():
+            # Thread exited but didn't signal success — it crashed
+            error_detail = self._qa_error_msg or "unknown error"
+            logger.error("Q&A thread failed: %s", error_detail)
+            self.send_progress(100, "Q&A indexing failed, vocabulary results still available.")
 
     def _build_vector_store(self):
         """Build vector store for Q&A (Phase 2) - runs in parallel thread."""
@@ -1175,7 +1188,11 @@ class ProgressiveExtractionWorker(BaseWorker):
                 )
             )
 
+            # Signal success so the main thread knows we didn't crash
+            self._qa_succeeded.set()
+
         except Exception as e:
             logger.error("Q&A indexing failed: %s", e)
+            self._qa_error_msg = str(e)
             self.ui_queue.put(QueueMessage.status_error("Q&A indexing failed"))
             self.ui_queue.put(QueueMessage.qa_error(str(e)))
