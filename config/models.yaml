@@ -1,14 +1,26 @@
 # Model-specific configurations
 #
 # context_window: The theoretical maximum context size of the model in tokens.
-# max_input_tokens: A safe, practical limit for the number of tokens to send to the model for a single summarization task. 
+# max_input_tokens: A safe, practical limit for the number of tokens to send to the model for a single summarization task.
 #                   This should be less than the context_window to leave room for the prompt instructions and the generated output.
 
 models:
   gemma3:1b:
     context_window: 8192
     max_input_tokens: 4096
-  
+
+  gemma3:12b:
+    context_window: 8192
+    max_input_tokens: 6144
+
+  llama3.1:8b:
+    context_window: 8192
+    max_input_tokens: 6144
+
+  qwen2.5:7b:
+    context_window: 32768
+    max_input_tokens: 16384
+
   # Example for a future smaller model like Phi-3 Mini
   phi3:mini:
     context_window: 4096

@@ -12,14 +12,14 @@
 |---|--------|--------|----------|--------|
 | 1 | ✅ **RRF fusion** (replace weighted score merging) | ~10 lines | None | Eliminates hand-tuned BM25/FAISS weights |
 | 2 | ✅ **gte-reranker-modernbert-base** (replace bge-reranker-base) | Small | None (same `sentence-transformers`) | 149M params, 8192-token context — sees full chunks |
-| 3 | ✅ **TinyLettuce** (three-tier model selection) | Small | Same library | Standard/Fast/Fastest — all three bundled for installer |
+| 3 | ✅ **TinyLettuce** (single model: 68M params, 75% F1) | Small | Same library | tinylettuce-ettin-68m-en — only model used |
 | 4 | ✅ **GLiNER** (zero-shot NER) | Medium | `gliner` (~200MB) | Implemented with user-configurable labels. Model: urchade/gliner_medium-v2.1 (209M params). User-togglable, default OFF. |
 | 5 | ❌ ~~**KeyBERT**~~ (decided against) | Low | `keybert` (~80MB) | Redundant — see rationale below |
 | 6 | ✅ **pytextrank** (supplement RAKE/BM25) | Very low | `pytextrank` (no model) | Graph-based scoring as spaCy component |
 | 7 | ✅ **scispaCy** (medical NER) | Low | `en_ner_bc5cdr_md` (~200MB) | Drug name and disease detection |
 | 8 | ✅ **NUPunkt** (sentence boundaries) | Low | `nupunkt` (no model) | Legal-specific SBD, 91% precision |
 | 9 | **Docling** (PDF structure + tables) — deprioritized | Medium | `docling` (~500MB-1GB) | MIT license, best table extraction. Core input docs (transcripts, complaints, motions) rarely have tables. Revisit if users report poor table handling in bills of particulars or medical records. |
-| 10 | ✅ **modernbert-embed-large** (embeddings) | Medium | Model (~800MB) | 8K context, 1024 dims, Matryoshka, GPU-aware |
+| 10 | ✅ **nomic-embed-text-v1.5** (embeddings) | Medium | Model (~270MB) | 8K context, 768 dims, Matryoshka, GPU-aware |
 | 11 | **LanceDB** (replace FAISS) — deprioritized | Medium | `lancedb` | Persistent vector store, metadata filtering. FAISS Flat already gives 100% recall at our data scale (<10K chunks). Persistence has low value since users typically process docs once. Revisit only if metadata filtering becomes needed. |
 | 12 | ❌ ~~**Late chunking**~~ (decided against) | Medium | Requires #10 | Documents too long for 8K context window |
 
@@ -229,7 +229,7 @@
 ## Stage 5b: Q&A / RAG Retrieval
 
 ### Current Approach
-- FAISS vector search with modernbert-embed-large embeddings (1024 dims, 8192-token context)
+- FAISS vector search with nomic-embed-text-v1.5 embeddings (768 dims, 8192-token context)
 - Custom BM25+ for keyword retrieval
 - Hybrid: BM25 weight 1.0, FAISS weight 0.5
 - gte-reranker-modernbert-base cross-encoder reranking
@@ -260,7 +260,7 @@
 | TinyLettuce-17M (Ettin) | 17M | 68.52% | 90.87% | Fastest |
 
 - **Verdict:** The headline "90% F1" numbers are on synthetic data only. On real-world RAGTruth, the base model leads by 1–7.5 F1 points. Standard remains default; Fast and Fastest offered for resource-constrained users.
-- **Implementation:** Three-tier dropdown in Settings > Performance: Standard (recommended), Fast, Fastest (less accurate). `HallucinationVerifier` accepts `model_variant` parameter, reads from user preferences. Bundled model paths for all three variants. Download script (`scripts/download_hallucination_model.py`) updated to fetch all three for installer builds. Weighted RRF also applied (FAISS=1.0, BM25+=0.9) to give semantic search a modest edge.
+- **Implementation:** Single model bundled: `tinylettuce-ettin-68m-en` (68M params, 75% F1). The Standard (150M) and Fastest (17M) variants were removed — no UI selector exists and the 68M model offers the best size/accuracy tradeoff. Download script simplified to single-model fetch.
 
 #### Embedding Model Upgrades
 
@@ -270,7 +270,7 @@
 | bge-base-en-v1.5 | 109M | 768 | 512 | MIT | Best general-purpose upgrade |
 | BGE-M3 | 568M | 1024 | 8192 | MIT | Produces dense + sparse + multi-vector. Best accuracy |
 
-**Implemented:** `lightonai/modernbert-embed-large` (~395M params, 1024 dims, 8192-token context). Chosen over nomic-embed-text-v1.5 for higher quality (larger model, same architecture family as reranker + hallucination detector). Matryoshka support (256-1024 dims). GPU-aware loading via `torch.cuda.is_available()`.
+**Implemented:** `nomic-ai/nomic-embed-text-v1.5` (137M params, 768 dims, 8192-token context). Downsized from modernbert-embed-large (1.58GB) — research shows small embeddings + strong cross-encoder reranker performs equivalently, saving ~1.3GB for the installer. Matryoshka support (64-768 dims). GPU-aware loading via `torch.cuda.is_available()`.
 
 #### LanceDB (Replace FAISS) — ⏸️ DEPRIORITIZED
 - **What:** Embedded vector DB (no server). Apache 2.0. Columnar Lance format. Native hybrid search. Pandas-like API. 4MB idle RAM.
@@ -349,7 +349,7 @@ Explicitly excluded: GPL, AGPL, CC-NC, restricted model weights.
 8. ~~KeyBERT — add semantic keyword extraction~~ ❌ Decided against — redundant with existing 5-algorithm + LLM pipeline; heavy overlap with TextRank and LLM extraction
 9. ~~scispaCy — add medical NER for drug/disease detection~~ ✅ Done (implemented as `MedicalNER` algorithm in `src/core/vocabulary/algorithms/scispacy_algorithm.py`)
 10. ~~NUPunkt — add legal sentence boundary detection~~ ✅ Done (shared utility in `src/core/utils/sentence_splitter.py`, replaces 4 regex splitters)
-11. ~~nomic-embed-text-v1.5 — upgrade embedding model~~ ✅ Done (upgraded to modernbert-embed-large for quality)
+11. ~~nomic-embed-text-v1.5 — upgrade embedding model~~ ✅ Done (downsized from modernbert-embed-large to nomic-embed-text-v1.5 — same quality with reranker, saves 1.3GB)
 12. LanceDB — replace FAISS *(deprioritized — FAISS Flat gives 100% recall at our scale; persistence has low value for one-and-done workflow)*
 
 ### Larger Investments (research + implementation)

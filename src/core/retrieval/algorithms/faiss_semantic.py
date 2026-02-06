@@ -14,8 +14,9 @@ Why Include Semantic Search:
 - Complements BM25 for comprehensive retrieval
 
 Model Choice:
-- Uses lightonai/modernbert-embed-large (~395M params, 1024 dims, 8192-token context)
-- Upgraded from bge-base-en-v1.5 (512-token limit) to fix silent truncation of large chunks
+- Uses nomic-ai/nomic-embed-text-v1.5 (137M params, 768 dims, 8192-token context)
+- Downsized from modernbert-embed-large (1.58GB) — small embeddings + strong reranker
+  performs equivalently, saving ~1.3GB for the installer
 - Uses GPU when available, falls back to CPU
 - Bundled locally for offline use (no download at runtime)
 
@@ -102,7 +103,7 @@ def get_embeddings_model() -> "HuggingFaceEmbeddings":
 
         _shared_embeddings = HuggingFaceEmbeddings(
             model_name=DEFAULT_EMBEDDING_MODEL,
-            model_kwargs={"device": device},
+            model_kwargs={"device": device, "trust_remote_code": True},
             encode_kwargs={"normalize_embeddings": True, "prompt": "search_document: "},
             query_encode_kwargs={"normalize_embeddings": True, "prompt": "search_query: "},
         )

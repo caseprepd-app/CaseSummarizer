@@ -51,7 +51,7 @@ class VectorStoreBuilder:
     Creates and manages FAISS vector stores for Q&A.
 
     Converts processed document chunks into a searchable vector index.
-    Uses HuggingFaceEmbeddings (modernbert-embed-large) for embedding generation.
+    Uses HuggingFaceEmbeddings (nomic-embed-text-v1.5) for embedding generation.
 
     Example:
         builder = VectorStoreBuilder()

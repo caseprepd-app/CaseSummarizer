@@ -83,6 +83,7 @@ class OllamaModelManager:
 
         self.current_model_name = self.model_name  # For compatibility with worker code
         self.timeout = OLLAMA_TIMEOUT_SECONDS
+
         self.is_connected = False
         self.prompt_config = get_prompt_config()
         self.prompt_template_manager = PromptTemplateManager(PROMPTS_DIR, USER_PROMPTS_DIR)
@@ -225,8 +226,15 @@ class OllamaModelManager:
             logger.debug("Failed to load model %s: %s", model_name, e)
             return False
 
+    @property
+    def has_model(self) -> bool:
+        """Check if a model has been selected (non-empty name)."""
+        return bool(self.model_name)
+
     def is_model_loaded(self) -> bool:
         """Check if a model is available and connection is active."""
+        if not self.has_model:
+            return False
         if not self.is_connected:
             self._check_connection()
         return self.is_connected

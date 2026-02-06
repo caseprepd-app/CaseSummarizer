@@ -105,6 +105,7 @@ class TestOllamaPayload:
             from src.core.ai.ollama_model_manager import OllamaModelManager
 
             manager = OllamaModelManager()
+            manager.model_name = "test-model:latest"
             manager.is_connected = True
 
             # Make a test call
@@ -152,6 +153,7 @@ class TestTruncationWarning:
         from src.core.ai.ollama_model_manager import OllamaModelManager
 
         manager = OllamaModelManager()
+        manager.model_name = "test-model:latest"
         manager.is_connected = True
 
         # Create a prompt that's close to context limit
@@ -188,6 +190,7 @@ class TestTruncationWarning:
         from src.core.ai.ollama_model_manager import OllamaModelManager
 
         manager = OllamaModelManager()
+        manager.model_name = "test-model:latest"
         manager.is_connected = True
 
         # Create a small prompt (well under limit)
@@ -197,3 +200,100 @@ class TestTruncationWarning:
 
         # Verify logger.warning was NOT called
         assert not mock_logger.warning.called, "No warning should be issued for small prompts"
+
+
+class TestEmptyModelHandling:
+    """Test that empty OLLAMA_MODEL_NAME is handled gracefully."""
+
+    @patch("src.core.ai.ollama_model_manager.requests.get")
+    def test_has_model_false_when_empty(self, mock_get):
+        """has_model returns False when no model is configured."""
+        mock_get_response = MagicMock()
+        mock_get_response.status_code = 200
+        mock_get_response.json.return_value = {"models": []}
+        mock_get.return_value = mock_get_response
+
+        from src.core.ai.ollama_model_manager import OllamaModelManager
+
+        manager = OllamaModelManager()
+        # With empty OLLAMA_MODEL_NAME and no saved preference, model_name is ""
+        manager.model_name = ""
+
+        assert manager.has_model is False
+
+    @patch("src.core.ai.ollama_model_manager.requests.get")
+    def test_is_model_loaded_false_when_no_model(self, mock_get):
+        """is_model_loaded returns False without attempting connection when no model."""
+        mock_get_response = MagicMock()
+        mock_get_response.status_code = 200
+        mock_get_response.json.return_value = {"models": []}
+        mock_get.return_value = mock_get_response
+
+        from src.core.ai.ollama_model_manager import OllamaModelManager
+
+        manager = OllamaModelManager()
+        manager.model_name = ""
+
+        # Reset connection check count after __init__
+        mock_get.reset_mock()
+
+        result = manager.is_model_loaded()
+
+        assert result is False
+        # Should not have tried to connect — early return before connection check
+        mock_get.assert_not_called()
+
+    @patch("src.core.ai.ollama_model_manager.requests.get")
+    def test_has_model_true_when_set(self, mock_get):
+        """has_model returns True when a model name is set."""
+        mock_get_response = MagicMock()
+        mock_get_response.status_code = 200
+        mock_get_response.json.return_value = {"models": []}
+        mock_get.return_value = mock_get_response
+
+        from src.core.ai.ollama_model_manager import OllamaModelManager
+
+        manager = OllamaModelManager()
+        manager.model_name = "gemma3:12b"
+
+        assert manager.has_model is True
+
+
+class TestQueryTransformerEmptyModel:
+    """Test that query transformer skips expansion when no model configured."""
+
+    @patch("src.config.OLLAMA_MODEL_NAME", "")
+    def test_init_llm_returns_false_when_no_model(self):
+        """_init_llm returns False and skips LlamaIndex when no model configured."""
+        from src.core.retrieval.query_transformer import QueryTransformer
+
+        transformer = QueryTransformer(enabled=True)
+
+        # Mock user_preferences to also return empty
+        with patch("src.user_preferences.get_user_preferences") as mock_prefs:
+            mock_prefs_obj = MagicMock()
+            mock_prefs_obj.get.return_value = ""
+            mock_prefs.return_value = mock_prefs_obj
+
+            result = transformer._init_llm()
+
+        assert result is False
+        assert transformer._llm is None
+
+    @patch("src.config.OLLAMA_MODEL_NAME", "")
+    def test_transform_returns_original_query_when_no_model(self):
+        """transform() returns original query unchanged when no model available."""
+        from src.core.retrieval.query_transformer import QueryTransformer
+
+        transformer = QueryTransformer(enabled=True)
+
+        with patch("src.user_preferences.get_user_preferences") as mock_prefs:
+            mock_prefs_obj = MagicMock()
+            mock_prefs_obj.get.return_value = ""
+            mock_prefs.return_value = mock_prefs_obj
+
+            result = transformer.transform("Who are the plaintiffs?")
+
+        assert result.original_query == "Who are the plaintiffs?"
+        assert result.expanded_queries == []
+        assert result.success is False

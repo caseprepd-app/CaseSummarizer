@@ -1,11 +1,11 @@
 """
-Download modernbert-embed-large embedding model from HuggingFace.
+Download nomic-embed-text-v1.5 embedding model from HuggingFace.
 
 Downloads the embedding model to the project's models/ directory
 for bundling with the Windows installer. Run this once before building.
 
 Model:
-    lightonai/modernbert-embed-large (~395M params, 1024 dims, 8192-token context)
+    nomic-ai/nomic-embed-text-v1.5 (137M params, 768 dims, 8192-token context)
 
 Usage:
     python scripts/download_embedding_model.py
@@ -21,8 +21,8 @@ script_dir = Path(__file__).parent
 project_root = script_dir.parent
 models_dir = project_root / "models" / "embeddings"
 
-MODEL_ID = "lightonai/modernbert-embed-large"
-MODEL_DIR = "modernbert-embed-large"
+MODEL_ID = "nomic-ai/nomic-embed-text-v1.5"
+MODEL_DIR = "nomic-embed-text-v1.5"
 
 
 def download_model() -> bool:
@@ -42,6 +42,7 @@ def download_model() -> bool:
             repo_id=MODEL_ID,
             local_dir=str(target_dir),
             local_dir_use_symlinks=False,
+            ignore_patterns=["onnx/*", "onnx/**"],  # Skip ONNX variants (~1.6GB)
         )
         print("  [OK] Model downloaded")
         return True
@@ -70,7 +71,7 @@ def verify_model() -> bool:
 def main():
     """Download embedding model for installer bundling."""
     print("=" * 60)
-    print("Downloading ModernBERT Embed Large")
+    print("Downloading Nomic Embed Text v1.5")
     print("=" * 60)
 
     models_dir.mkdir(parents=True, exist_ok=True)

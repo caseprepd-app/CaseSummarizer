@@ -356,8 +356,8 @@ OCR_ENABLE_CLAHE = _d("ocr_enable_clahe")
 
 # AI Model Configuration
 OLLAMA_API_BASE = "http://localhost:11434"  # Default Ollama API endpoint
-OLLAMA_MODEL_NAME = "gemma3:1b"  # Default model for the application
-OLLAMA_MODEL_FALLBACK = "gemma3:1b"  # Fallback if the primary model fails
+OLLAMA_MODEL_NAME = ""  # No default — user selects via Ollama GUI, app persists last choice
+OLLAMA_MODEL_FALLBACK = ""  # No fallback — user must select a model
 OLLAMA_TIMEOUT_SECONDS = _d("ollama_timeout_seconds")
 QUEUE_TIMEOUT_SECONDS = 2.0  # Timeout for multiprocessing queue operations
 
@@ -907,11 +907,12 @@ GLINER_MODEL_NAME = "urchade/gliner_medium-v2.1"
 GLINER_MODEL_LOCAL_PATH = BUNDLED_MODELS_DIR / "gliner_medium-v2.1"
 
 # Embedding model for FAISS semantic search
-# Upgraded from bge-base-en-v1.5 (110MB, 512-token limit) to modernbert-embed-large
-# (~395M params, 8192-token context, 1024 dims) — fixes silent truncation of large chunks.
+# nomic-embed-text-v1.5 (137M params, 768 dims, 8192-token context, 270MB)
+# Downsized from modernbert-embed-large (1.58GB) — research shows small embeddings
+# + strong cross-encoder reranker >= large embeddings + reranker. Saves ~1.3GB.
 # Uses GPU when available via torch.cuda.is_available(), falls back to CPU.
-EMBEDDING_MODEL_NAME = "lightonai/modernbert-embed-large"
-EMBEDDING_MODEL_LOCAL_PATH = BUNDLED_MODELS_DIR / "embeddings" / "modernbert-embed-large"
+EMBEDDING_MODEL_NAME = "nomic-ai/nomic-embed-text-v1.5"
+EMBEDDING_MODEL_LOCAL_PATH = BUNDLED_MODELS_DIR / "embeddings" / "nomic-embed-text-v1.5"
 
 # HuggingFace cache directory (used if bundled model not found)
 # Falls back to downloading if bundled model is missing (dev mode)

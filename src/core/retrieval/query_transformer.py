@@ -129,16 +129,31 @@ Alternative queries:"""
         try:
             from llama_index.llms.ollama import Ollama
 
-            # Get model name from config
+            # Get model name from config or user preferences
             from src.config import OLLAMA_MODEL_NAME
 
+            model_name = OLLAMA_MODEL_NAME
+            if not model_name:
+                # Try user preferences for last-used model
+                try:
+                    from src.user_preferences import get_user_preferences
+
+                    prefs = get_user_preferences()
+                    model_name = prefs.get("ollama_model", "")
+                except Exception:
+                    pass
+
+            if not model_name:
+                logger.debug("No Ollama model configured — skipping query expansion")
+                return False
+
             self._llm = Ollama(
-                model=OLLAMA_MODEL_NAME,
+                model=model_name,
                 request_timeout=self.timeout_seconds,
                 temperature=0.3,  # Some creativity for query variants
             )
 
-            logger.debug("LlamaIndex Ollama initialized with model: %s", OLLAMA_MODEL_NAME)
+            logger.debug("LlamaIndex Ollama initialized with model: %s", model_name)
 
             return True
 
