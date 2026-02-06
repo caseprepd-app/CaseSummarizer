@@ -146,7 +146,6 @@ FEATURE_NAMES = [
     "corpus_common_term",  # Binary: True if term in >=64% of corpus docs AND >=5 occurrences
     # Session 76 features (9 total) + Session 130 rarity score
     "freq_dict_word_ratio",
-    "all_words_in_freq_dict",
     "word_log_rarity_score",  # Session 130: Mean log-scaled rarity (0=common, 1=rare)
     "term_length",
     "vowel_ratio",
@@ -159,7 +158,6 @@ FEATURE_NAMES = [
     # These provide richer signals about term reliability across source documents
     "mean_count_per_doc",  # Average occurrences per source doc (in_case_freq / num_docs)
     "doc_diversity_ratio",  # num_docs / total_docs (0-1, spread across corpus)
-    "mean_doc_confidence",  # Count-weighted mean OCR confidence (0-1)
     "median_doc_confidence",  # Median confidence - robust to single bad scan (0-1)
     "confidence_std_dev",  # Consistency of confidence across docs (0-0.5)
     "high_conf_doc_ratio",  # % of source docs with confidence > 0.80 (0-1)
@@ -198,7 +196,7 @@ def extract_features(term_data: dict[str, Any]) -> np.ndarray:
                   May include "sources" (TermSources) and "total_docs_in_session"
 
     Returns:
-        numpy array of 52 features (7 count bins + log_count + 44 other features)
+        numpy array of 50 features (7 count bins + log_count + 42 other features)
 
     Raises:
         ValueError: If term_data is not a dict or missing required fields
@@ -307,7 +305,6 @@ def extract_features(term_data: dict[str, Any]) -> np.ndarray:
     if words_lower:
         words_in_dict = [1.0 if w in freq_dict else 0.0 for w in words_lower]
         freq_dict_word_ratio = sum(words_in_dict) / len(words_in_dict)
-        all_words_in_freq_dict = 1.0 if all(w in freq_dict for w in words_lower) else 0.0
 
         # Session 130: Log-scaled rarity score (adjusted mean across words)
         # Distinguishes "Comiskey" (rank 96755, rare) from "Clerk" (rank 5435, common)
@@ -321,7 +318,6 @@ def extract_features(term_data: dict[str, Any]) -> np.ndarray:
         )
     else:
         freq_dict_word_ratio = 0.0
-        all_words_in_freq_dict = 0.0
         word_log_rarity_score = 0.5  # Default for empty terms
 
     # Term length (character count)
@@ -449,7 +445,6 @@ def extract_features(term_data: dict[str, Any]) -> np.ndarray:
         num_source_documents = float(sources.num_documents)
         mean_count_per_doc = in_case_freq / max(num_source_documents, 1.0)
         doc_diversity_ratio = sources.doc_diversity_ratio(int(total_docs_in_session))
-        mean_doc_confidence = sources.mean_confidence
         median_doc_confidence = sources.median_confidence
         confidence_std_dev = sources.confidence_std_dev
         high_conf_doc_ratio = sources.high_conf_doc_ratio
@@ -461,7 +456,6 @@ def extract_features(term_data: dict[str, Any]) -> np.ndarray:
         mean_count_per_doc = in_case_freq / max(num_docs_raw, 1.0)
         doc_diversity_ratio = 1.0 / total_docs_in_session
         # Use source_doc_confidence as a single-doc approximation
-        mean_doc_confidence = source_doc_confidence
         median_doc_confidence = source_doc_confidence
         confidence_std_dev = 0.0  # No variance with single source
         high_conf_doc_ratio = 1.0 if source_doc_confidence > 0.80 else 0.0
@@ -499,9 +493,8 @@ def extract_features(term_data: dict[str, Any]) -> np.ndarray:
             # Quality features (2)
             source_doc_confidence,
             corpus_common_term,
-            # Session 76 features (9) + Session 130 rarity score (1)
+            # Session 76 features (8) + Session 130 rarity score (1)
             freq_dict_word_ratio,
-            all_words_in_freq_dict,
             word_log_rarity_score,  # Session 130: log-scaled word rarity
             term_length,
             vowel_ratio,
@@ -510,10 +503,9 @@ def extract_features(term_data: dict[str, Any]) -> np.ndarray:
             has_medical_suffix,
             has_repeated_chars,
             contains_hyphen,
-            # Session 78: TermSources features (7)
+            # Session 78: TermSources features (6)
             mean_count_per_doc,
             doc_diversity_ratio,
-            mean_doc_confidence,
             median_doc_confidence,
             confidence_std_dev,
             high_conf_doc_ratio,

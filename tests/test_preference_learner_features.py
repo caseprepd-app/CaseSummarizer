@@ -61,7 +61,7 @@ def test_feature_vector_length(mock_deps):
     term_data = {"Term": "John Smith", "in_case_freq": 5, "algorithms": "NER", "is_person": 1}
     features = extract_features(term_data)
     assert len(features) == len(FEATURE_NAMES)
-    assert len(features) == 52
+    assert len(features) == 50
 
 
 def test_person_feature(mock_deps):

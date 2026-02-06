@@ -23,7 +23,10 @@ from src.core.vocabulary.preference_learner import (  # noqa: E402
     VocabularyPreferenceLearner,
     confidence_weighted_blend,
 )
-from src.core.vocabulary.preference_learner_features import extract_features  # noqa: E402
+from src.core.vocabulary.preference_learner_features import (  # noqa: E402
+    FEATURE_NAMES,
+    extract_features,
+)
 
 
 @pytest.fixture
@@ -167,8 +170,8 @@ class TestVocabularyPreferenceLearner:
         6: has_trailing_punctuation, 7: has_leading_digit, 8: has_trailing_digit,
         9: word_count, 10: is_all_caps, 11: is_title_case,
         12: source_doc_confidence, 13: corpus_common_term,
-        14-22: NEW Session 76 features (freq_dict_word_ratio, all_words_in_freq_dict,
-               term_length, vowel_ratio, is_single_letter, has_internal_digits,
+        14-21: NEW Session 76 features (freq_dict_word_ratio, term_length,
+               vowel_ratio, is_single_letter, has_internal_digits,
                has_medical_suffix, has_repeated_chars, contains_hyphen)
         """
         term_data = {
@@ -181,7 +184,7 @@ class TestVocabularyPreferenceLearner:
             "total_unique_terms": 100,
         }
         features = extract_features(term_data)
-        assert len(features) == 52  # 7 count bins + log_count + 44 other features
+        assert len(features) == 50  # 7 count bins + log_count + 42 other features
         # features[0-6] are count bins: count=3 → count_bin_3=1.0
         assert features[0] == 0.0  # count_bin_1
         assert features[1] == 0.0  # count_bin_2
@@ -217,47 +220,43 @@ class TestVocabularyPreferenceLearner:
     def test_feature_extraction_artifacts(self, meta_learner):
         """Test that artifact patterns are detected correctly.
 
-        Feature indices (52 total, with log_count at index 7):
-        17: has_trailing_punctuation, 18: has_leading_digit,
-        19: has_trailing_digit, 20: word_count, 21: is_all_caps
-        30: is_single_letter, 32: has_medical_suffix,
-        33: has_repeated_chars, 34: contains_hyphen
+        Uses FEATURE_NAMES.index() for robust lookups regardless of feature order.
         """
         # Test trailing punctuation
         term_data = {"Term": "Smith:", "type": "Person"}
         features = extract_features(term_data)
-        assert features[17] == 1.0  # has_trailing_punctuation
+        assert features[FEATURE_NAMES.index("has_trailing_punctuation")] == 1.0
 
         # Test leading digit
         term_data = {"Term": "4 Ms. Di Leo", "type": "Person"}
         features = extract_features(term_data)
-        assert features[18] == 1.0  # has_leading_digit
-        assert features[20] == 4.0  # word_count: "4", "Ms.", "Di", "Leo"
+        assert features[FEATURE_NAMES.index("has_leading_digit")] == 1.0
+        assert features[FEATURE_NAMES.index("word_count")] == 4.0  # "4", "Ms.", "Di", "Leo"
 
         # Test all caps
         term_data = {"Term": "PLAINTIFF", "type": "Unknown"}
         features = extract_features(term_data)
-        assert features[21] == 1.0  # is_all_caps
+        assert features[FEATURE_NAMES.index("is_all_caps")] == 1.0
 
         # Test medical suffix
         term_data = {"Term": "radiculopathy"}
         features = extract_features(term_data)
-        assert features[32] == 1.0  # has_medical_suffix (-pathy)
+        assert features[FEATURE_NAMES.index("has_medical_suffix")] == 1.0
 
         # Test single letter
         term_data = {"Term": "Q"}
         features = extract_features(term_data)
-        assert features[30] == 1.0  # is_single_letter
+        assert features[FEATURE_NAMES.index("is_single_letter")] == 1.0
 
         # Test repeated chars
         term_data = {"Term": "aaaa"}
         features = extract_features(term_data)
-        assert features[33] == 1.0  # has_repeated_chars
+        assert features[FEATURE_NAMES.index("has_repeated_chars")] == 1.0
 
         # Test contains hyphen
         term_data = {"Term": "anti-inflammatory"}
         features = extract_features(term_data)
-        assert features[34] == 1.0  # contains_hyphen
+        assert features[FEATURE_NAMES.index("contains_hyphen")] == 1.0
 
     def test_training_insufficient_data_no_defaults(self, temp_feedback_dir, meta_learner):
         """Test that training fails with insufficient data when no defaults exist.
