@@ -1512,11 +1512,72 @@ class DynamicOutputWidget(ctk.CTkFrame):
             values = self.csv_treeview.item(item_id, "values")
             if values and len(values) >= 1:
                 self._selected_term = values[0]  # Term is first column
+
+                # Rebuild "View Alternatives" menu item based on term data
+                self._update_alternatives_menu_item(item_id)
+
                 # Show context menu at cursor position
                 try:
                     self.context_menu.tk_popup(event.x_root, event.y_root)
                 finally:
                     self.context_menu.grab_release()
+
+    def _update_alternatives_menu_item(self, item_id: str):
+        """
+        Add or update the View Alternatives menu item based on selected term.
+
+        Adds a separator and "View Alternatives" item if not already present.
+        Enables the item only for Person names that have alternatives.
+
+        Args:
+            item_id: Treeview item ID for the selected row
+        """
+        # Remove existing alternatives item if present (always at the end)
+        menu_size = self.context_menu.index("end")
+        if menu_size is not None and menu_size >= 3:
+            # Remove from index 3 onward (separator + alternatives item)
+            try:
+                self.context_menu.delete(3, "end")
+            except Exception:
+                pass
+
+        # Look up the term data
+        term_data = self._item_to_data.get(item_id, {})
+        alternatives = term_data.get("_alternatives", [])
+        is_person = str(term_data.get("Is Person", "")).lower() in ("yes", "true", "1")
+        if not is_person:
+            is_person = str(term_data.get("Type", "")).lower() == "person"
+
+        has_alts = bool(alternatives) and is_person
+        alt_count = len(alternatives)
+
+        # Add separator and menu item
+        self.context_menu.add_separator()
+        if has_alts:
+            label = f"View Alternatives ({alt_count} variant"
+            if alt_count != 1:
+                label += "s"
+            label += ")"
+            self.context_menu.add_command(
+                label=label,
+                command=lambda: self._show_alternatives_dialog(term_data),
+            )
+        else:
+            self.context_menu.add_command(
+                label="View Alternatives",
+                state="disabled",
+            )
+
+    def _show_alternatives_dialog(self, term_data: dict):
+        """
+        Open the AlternativesDialog for a term.
+
+        Args:
+            term_data: Term dict with _alternatives and _canonical_reason keys
+        """
+        from src.ui.alternatives_dialog import AlternativesDialog
+
+        AlternativesDialog(self, term_data)
 
     def _on_double_click(self, event):
         """Handle double-click to copy the term."""

@@ -194,12 +194,16 @@ class CanonicalScorer:
             # Exactly one known → it wins decisively
             canonical = known_variants[0]
             logger.debug("'%s' wins (only known variant)", canonical.get(term_key))
-            return self._merge_into_canonical(canonical, variants, term_key, sources_key)
+            result = self._merge_into_canonical(canonical, variants, term_key, sources_key)
+            result["_selection_branch"] = "single_known"
+            return result
 
         elif len(known_variants) == 0:
             # None known → exotic name scenario, use weighted scoring
             logger.debug("No known variants, using weighted scores")
-            return self._select_by_score(variants, term_key, sources_key)
+            result = self._select_by_score(variants, term_key, sources_key)
+            result["_selection_branch"] = "none_known"
+            return result
 
         else:
             # Multiple known → use weighted score as tiebreaker
@@ -208,6 +212,7 @@ class CanonicalScorer:
                 [v.get(term_key) for v in known_variants],
             )
             result = self._select_by_score(known_variants, term_key, sources_key)
+            result["_selection_branch"] = "multiple_known"
 
             # Merge unknown variants' frequencies into the canonical
             unknown_variants = [v for v in variants if v not in known_variants]
@@ -265,12 +270,14 @@ class CanonicalScorer:
         logger.debug("'%s' wins with score=%.2f", canonical.get(term_key), best_score)
 
         # Return with merged sources from all variants
-        return self._merge_into_canonical(
+        result = self._merge_into_canonical(
             canonical,
             [v for v, _ in scored],
             term_key,
             sources_key,
         )
+        result["_scored_variants"] = [(v.get(term_key, ""), s) for v, s in scored]
+        return result
 
     def _merge_into_canonical(
         self,

@@ -379,6 +379,11 @@ def _single_pass_regularize(
             canonical_multiword.append(term)
 
     # FRAGMENT FILTER: Only applies to bottom terms vs top terms
+    # Build lookup from canonical term string to its dict for alternative attachment
+    canonical_term_dicts: dict[str, dict] = {}
+    for td in top_terms:
+        canonical_term_dicts[td.get(term_key, "")] = td
+
     filtered_after_fragments = []
     fragment_removed = 0
 
@@ -389,6 +394,15 @@ def _single_pass_regularize(
             if _is_fragment_of(term, canonical):
                 is_fragment = True
                 fragment_removed += 1
+                # Attach fragment as alternative to the canonical term
+                from src.core.vocabulary.alternative_reasons import build_fragment_alternative
+
+                canon_dict = canonical_term_dicts.get(canonical)
+                if canon_dict is not None:
+                    alt = build_fragment_alternative(term, term_dict.get(count_key, 0), canonical)
+                    existing = canon_dict.get("_alternatives", [])
+                    existing.append(alt)
+                    canon_dict["_alternatives"] = existing
                 break
         if not is_fragment:
             filtered_after_fragments.append(term_dict)
@@ -462,6 +476,17 @@ def _single_pass_regularize(
         canonical = scorer.select_canonical(variants)
         canonical_term = canonical["Term"].lower()
 
+        # Find the winning term's original dict to attach alternatives
+        winning_dict = None
+        for term_dict, term in group:
+            if term.lower() == canonical_term:
+                winning_dict = term_dict
+                break
+
+        # Build alternatives metadata for the winning term
+        branch = canonical.get("_selection_branch", "")
+        scored_list = canonical.get("_scored_variants")
+
         # Mark non-canonical terms for removal
         for _term_dict, term in group:
             if term.lower() != canonical_term:
@@ -470,6 +495,27 @@ def _single_pass_regularize(
                 logger.debug(
                     f"[NAME-REG] Removing typo '{term}' in favor of canonical '{canonical['Term']}'"
                 )
+
+                # Attach as alternative to the winning term's dict
+                if winning_dict is not None:
+                    from src.core.vocabulary.alternative_reasons import build_typo_alternative
+
+                    winning_score = 0.0
+                    if scored_list:
+                        for t, s in scored_list:
+                            if t.lower() == canonical_term:
+                                winning_score = s
+                                break
+                    alt = build_typo_alternative(
+                        term,
+                        _term_dict.get(count_key, 0),
+                        branch,
+                        scored_list,
+                        winning_score,
+                    )
+                    existing = winning_dict.get("_alternatives", [])
+                    existing.append(alt)
+                    winning_dict["_alternatives"] = existing
 
     # Filter out removed terms
     result = [t for t in all_terms if t.get(term_key, "").lower() not in terms_to_remove]

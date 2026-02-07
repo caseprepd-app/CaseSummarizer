@@ -24,6 +24,9 @@ from src.config import (
     PERSON_TITLE_PREFIXES,
     PERSON_TITLE_PREFIXES_ROLE,
 )
+from src.core.vocabulary.alternative_reasons import (
+    build_alternatives_from_scorer,
+)
 from src.core.vocabulary.canonical_scorer import create_canonical_scorer
 from src.core.vocabulary.name_regularizer import _load_known_words
 from src.core.vocabulary.person_utils import is_person_entry
@@ -379,6 +382,14 @@ def _merge_titled_into_target(
         existing_titles.add(title.rstrip(".").title())
         mod["_titles"] = existing_titles
 
+    # Append to alternatives list
+    from src.core.vocabulary.alternative_reasons import build_titled_alternative
+
+    alt_entry = build_titled_alternative(titled_entry, title)
+    existing_alts = mod.get("_alternatives", [])
+    existing_alts.append(alt_entry)
+    mod["_alternatives"] = existing_alts
+
 
 def _synthesize_titled_names(terms: list[dict]) -> list[dict]:
     """
@@ -469,6 +480,15 @@ def _absorb_single_word_names(terms: list[dict]) -> list[dict]:
             if "in_case_freq" in target:
                 target["in_case_freq"] = target[freq_key]
             absorbed.add(entry.get("Term", ""))
+
+            # Append to alternatives list
+            from src.core.vocabulary.alternative_reasons import build_single_word_alternative
+
+            alt = build_single_word_alternative(entry, target.get("Term", ""))
+            existing_alts = target.get("_alternatives", [])
+            existing_alts.append(alt)
+            target["_alternatives"] = existing_alts
+
             logger.debug(
                 "Absorbed single-word name '%s' into '%s'",
                 entry.get("Term"),
@@ -782,6 +802,16 @@ def _select_canonical_with_scorer(group: list[dict], freq_key: str) -> dict:
     if "in_case_freq" in canonical:
         canonical["in_case_freq"] = canonical[freq_key]
 
+    # Attach alternatives metadata
+    if len(group) > 1:
+        branch = canonical_variant.get("_selection_branch", "")
+        scored_list = canonical_variant.get("_scored_variants")
+        alts, reason = build_alternatives_from_scorer(
+            variants, canonical["Term"], branch, scored_list
+        )
+        canonical["_alternatives"] = alts
+        canonical["_canonical_reason"] = reason
+
     # Log what we merged
     if len(group) > 1:
         merged_terms = [
@@ -865,6 +895,14 @@ def _select_canonical_legacy(group: list[dict], freq_key: str) -> dict:
 
     if "in_case_freq" in canonical:
         canonical["in_case_freq"] = total_freq
+
+    # Attach alternatives metadata
+    if len(group) > 1:
+        from src.core.vocabulary.alternative_reasons import build_alternatives_from_legacy
+
+        alts, reason = build_alternatives_from_legacy(sorted_group, freq_key)
+        canonical["_alternatives"] = alts
+        canonical["_canonical_reason"] = reason
 
     # Log what we merged
     if len(group) > 1:
