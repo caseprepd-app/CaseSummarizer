@@ -8,7 +8,7 @@ MOCK_KNOWN_WORDS = {"james", "john", "bob", "arthur", "diana", "jim"}
 
 
 def _make_term(term, is_person=True, freq=5):
-    return {"Term": term, "Is Person": is_person, "In-Case Freq": freq}
+    return {"Term": term, "Is Person": is_person, "Occurrences": freq}
 
 
 @pytest.fixture(autouse=True)
@@ -187,7 +187,7 @@ class TestSingleWordNameAbsorption:
         assert len(person_terms) == 1
         assert person_terms[0]["Term"] == "Emmanuel Hiraldo"
         # Frequency should be merged (5 + 3 = 8)
-        assert person_terms[0]["In-Case Freq"] == 8
+        assert person_terms[0]["Occurrences"] == 8
 
     def test_single_word_without_match_preserved(self):
         """Single-word name without matching full name should be preserved."""
@@ -237,7 +237,7 @@ class TestSingleWordNameAbsorption:
 
         person_terms = [t for t in result if is_person_entry(t)]
         assert len(person_terms) == 2
-        term_dict = {t["Term"]: t["In-Case Freq"] for t in person_terms}
+        term_dict = {t["Term"]: t["Occurrences"] for t in person_terms}
         assert term_dict["Emmanuel Hiraldo"] == 8  # 5 + 3
         assert term_dict["Ira Sturman"] == 6  # 4 + 2
 

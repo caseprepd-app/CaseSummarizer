@@ -4,7 +4,7 @@ from unittest.mock import patch
 
 
 def _make_term(term, is_person=True, freq=5):
-    return {"Term": term, "Is Person": is_person, "In-Case Freq": freq}
+    return {"Term": term, "Is Person": is_person, "Occurrences": freq}
 
 
 class TestFilterSubstringArtifacts:
@@ -17,7 +17,7 @@ class TestFilterSubstringArtifacts:
             _make_term("Ms. Di Leo", is_person=True, freq=10),
         ]
         canonical_count = 10
-        result = filter_substring_artifacts(vocab, canonical_count, "In-Case Freq", "Term")
+        result = filter_substring_artifacts(vocab, canonical_count, "Occurrences", "Term")
         result_terms = [t["Term"] for t in result]
         assert "Ms. Di Leo" in result_terms
         assert "Ms. Di Leo:" not in result_terms
@@ -29,7 +29,7 @@ class TestFilterSubstringArtifacts:
         vocab = [
             _make_term("John Smith", is_person=True, freq=10),
         ]
-        result = filter_substring_artifacts(vocab, 10, "In-Case Freq", "Term")
+        result = filter_substring_artifacts(vocab, 10, "Occurrences", "Term")
         assert len(result) == 1
         assert result[0]["Term"] == "John Smith"
 
@@ -41,7 +41,7 @@ class TestFilterSubstringArtifacts:
             _make_term("Cervical Spine", is_person=False, freq=10),
             _make_term("Cervical", is_person=False, freq=5),
         ]
-        result = filter_substring_artifacts(vocab, 10, "In-Case Freq", "Term")
+        result = filter_substring_artifacts(vocab, 10, "Occurrences", "Term")
         # Non-person terms have different filtering rules
         assert len(result) >= 1
 

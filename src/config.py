@@ -148,7 +148,7 @@ def get_count_bin(count: int) -> str:
     Get count bin name for a given occurrence count.
 
     Args:
-        count: Term occurrence count (in_case_freq)
+        count: Term occurrence count (occurrences)
 
     Returns:
         Bin name: one of COUNT_BIN_NAMES
@@ -175,7 +175,7 @@ def get_count_bin_features(count: int) -> tuple[float, float, float, float, floa
     Get one-hot encoded count bin features for ML model.
 
     Args:
-        count: Term occurrence count (in_case_freq)
+        count: Term occurrence count (occurrences)
 
     Returns:
         Tuple of 7 floats: (bin_1, bin_2, bin_3, bin_4_6, bin_7_20, bin_21_50, bin_51_plus)
@@ -997,15 +997,14 @@ COLUMN_DEFINITIONS = [
     ColumnDefinition("Found By", "Found By", 120, 20, True, True, True, False),
     # TermSources columns (default visible)
     ColumnDefinition("# Docs", "# Docs", 55, 4, True, True, True, True),
-    ColumnDefinition("Count", "Count", 60, 6, True, True, True, True),
-    ColumnDefinition("Median Conf", "Median Conf", 80, 5, True, True, True, False),
+    ColumnDefinition("OCR Confidence", "OCR Confidence", 80, 5, True, True, True, False),
     # Algorithm detail columns (default hidden)
     ColumnDefinition("NER", "NER", 45, 4, False, True, True, False),
     ColumnDefinition("RAKE", "RAKE", 50, 4, False, True, True, False),
     ColumnDefinition("BM25", "BM25", 50, 4, False, True, True, False),
     ColumnDefinition("Algo Count", "Algo Count", 55, 3, False, True, True, True),
     # Additional columns (default hidden)
-    ColumnDefinition("Freq Rank", "Freq Rank", 80, 10, False, True, True, True),
+    ColumnDefinition("Google Rarity Rank", "Google Rarity Rank", 80, 10, False, True, True, True),
     # Feedback columns (default visible) - Keep/Skip don't need sort warning
     # as they're action columns, not data columns
     ColumnDefinition("Keep", "Keep", 45, 3, True, True, False, False),

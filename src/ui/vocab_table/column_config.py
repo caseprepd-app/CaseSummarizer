@@ -39,15 +39,14 @@ COLUMN_REGISTRY = {
     "Found By": {"width": 120, "max_chars": 20, "default": True, "can_hide": True},
     # TermSources columns (Session 80 - default visible)
     "# Docs": {"width": 55, "max_chars": 4, "default": True, "can_hide": True},
-    "Count": {"width": 60, "max_chars": 6, "default": True, "can_hide": True},
-    "Median Conf": {"width": 80, "max_chars": 5, "default": True, "can_hide": True},
+    "OCR Confidence": {"width": 80, "max_chars": 5, "default": True, "can_hide": True},
     # Algorithm detail columns (default hidden - formerly "Show Details")
     "NER": {"width": 45, "max_chars": 4, "default": False, "can_hide": True},
     "RAKE": {"width": 50, "max_chars": 4, "default": False, "can_hide": True},
     "BM25": {"width": 50, "max_chars": 4, "default": False, "can_hide": True},
     "Algo Count": {"width": 55, "max_chars": 3, "default": False, "can_hide": True},
     # Additional columns (default hidden)
-    "Freq Rank": {"width": 80, "max_chars": 10, "default": False, "can_hide": True},
+    "Google Rarity Rank": {"width": 80, "max_chars": 10, "default": False, "can_hide": True},
     # Feedback columns (default visible)
     "Keep": {"width": 45, "max_chars": 3, "default": True, "can_hide": True},
     "Skip": {"width": 45, "max_chars": 3, "default": True, "can_hide": True},
@@ -60,13 +59,12 @@ COLUMN_ORDER = [
     "Is Person",
     "Found By",
     "# Docs",
-    "Count",
-    "Median Conf",
+    "OCR Confidence",
     "NER",
     "RAKE",
     "BM25",
     "Algo Count",
-    "Freq Rank",
+    "Google Rarity Rank",
     "Keep",
     "Skip",
 ]
@@ -93,14 +91,13 @@ ALL_EXPORT_COLUMNS = (
     "Is Person",
     "Found By",
     "# Docs",
-    "Count",
-    "Median Conf",
+    "OCR Confidence",
     "NER",
     "RAKE",
     "BM25",
     "Algo Count",
-    "In-Case Freq",
-    "Freq Rank",
+    "Occurrences",
+    "Google Rarity Rank",
 )
 
 # UI-002: Centralized mapping from display column names to data field names

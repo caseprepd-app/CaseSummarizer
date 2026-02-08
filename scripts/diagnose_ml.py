@@ -68,7 +68,7 @@ def analyze_feedback():
     df = pd.concat(dfs, ignore_index=True)
 
     # Validate required columns exist
-    required_cols = {"feedback", "term", "in_case_freq"}
+    required_cols = {"feedback", "term", "occurrences"}
     missing = required_cols - set(df.columns)
     if missing:
         print(f"ERROR: Missing required columns: {missing}")
@@ -88,8 +88,8 @@ def analyze_feedback():
     print("\n" + "-" * 60)
     print("FREQUENCY DISTRIBUTION BY FEEDBACK")
     print("-" * 60)
-    pos = df[df["feedback"] == 1]["in_case_freq"]
-    neg = df[df["feedback"] == -1]["in_case_freq"]
+    pos = df[df["feedback"] == 1]["occurrences"]
+    neg = df[df["feedback"] == -1]["occurrences"]
     print("\nPositive samples (+1):")
     print(f"  Mean:   {pos.mean():.1f}")
     print(f"  Median: {pos.median():.1f}")
@@ -105,20 +105,20 @@ def analyze_feedback():
     print("\n" + "-" * 60)
     print("HIGH FREQUENCY EXAMPLES (count > 50)")
     print("-" * 60)
-    high_freq = df[df["in_case_freq"] > 50].sort_values("in_case_freq", ascending=False)
+    high_freq = df[df["occurrences"] > 50].sort_values("occurrences", ascending=False)
     if len(high_freq) == 0:
         print("No high-frequency examples found.")
     else:
         for _, row in high_freq.iterrows():
             label = "+1" if row["feedback"] == 1 else "-1"
             term = str(row["term"])[:25]
-            print(f"  {label} | {term:25s} | count={int(row['in_case_freq']):3d}")
+            print(f"  {label} | {term:25s} | count={int(row['occurrences']):3d}")
 
     # Count bin distribution
     print("\n" + "-" * 60)
     print("COUNT BIN DISTRIBUTION (positive vs negative)")
     print("-" * 60)
-    df["count_bin"] = df["in_case_freq"].apply(get_bin)
+    df["count_bin"] = df["occurrences"].apply(get_bin)
     crosstab = pd.crosstab(df["count_bin"], df["feedback"])
     # Reorder bins
     bin_order = ["bin_1", "bin_2", "bin_3", "bin_4_6", "bin_7_20", "bin_21_50", "bin_51_plus"]
@@ -179,7 +179,7 @@ def analyze_feature_patterns(df):
         print("\n  BM25-detected NEGATIVE examples:")
         for _, row in bm25_neg.iterrows():
             term = str(row["term"])[:30]
-            count = int(row["in_case_freq"])
+            count = int(row["occurrences"])
             print(f"    -1 | {term:30s} | count={count:3d}")
 
     # Show BM25 positive examples (for comparison)
@@ -187,7 +187,7 @@ def analyze_feature_patterns(df):
         print("\n  BM25-detected POSITIVE examples (sample):")
         for _, row in bm25_pos.head(10).iterrows():
             term = str(row["term"])[:30]
-            count = int(row["in_case_freq"])
+            count = int(row["occurrences"])
             print(f"    +1 | {term:30s} | count={count:3d}")
 
     # Hyphen Analysis
@@ -303,7 +303,7 @@ def analyze_feature_patterns(df):
     print("PERSON STATUS BY FREQUENCY BIN")
     print("-" * 60)
 
-    df["count_bin"] = df["in_case_freq"].apply(get_bin)
+    df["count_bin"] = df["occurrences"].apply(get_bin)
     bin_order = ["bin_1", "bin_2", "bin_3", "bin_4_6", "bin_7_20", "bin_21_50", "bin_51_plus"]
 
     print("\n  Positive rate for PERSONS by frequency bin:")

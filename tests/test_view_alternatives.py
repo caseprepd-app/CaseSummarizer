@@ -32,8 +32,8 @@ class TestBuildAlternativesFromScorer:
     def test_single_known_branch(self):
         """Single-known branch: winner is 'only variant in dictionary'."""
         variants = [
-            {"Term": "Jenkins", "In-Case Freq": 40},
-            {"Term": "Jenidns", "In-Case Freq": 3},
+            {"Term": "Jenkins", "Occurrences": 40},
+            {"Term": "Jenidns", "Occurrences": 3},
         ]
         alts, reason = build_alternatives_from_scorer(
             variants, "Jenkins", "single_known", scored_list=None
@@ -47,8 +47,8 @@ class TestBuildAlternativesFromScorer:
     def test_none_known_branch_with_scores(self):
         """None-known branch: winner has highest confidence-weighted score."""
         variants = [
-            {"Term": "Djamel", "In-Case Freq": 10},
-            {"Term": "Djamle", "In-Case Freq": 2},
+            {"Term": "Djamel", "Occurrences": 10},
+            {"Term": "Djamle", "Occurrences": 2},
         ]
         scored_list = [("Djamel", 45.2), ("Djamle", 12.4)]
         alts, reason = build_alternatives_from_scorer(variants, "Djamel", "none_known", scored_list)
@@ -60,8 +60,8 @@ class TestBuildAlternativesFromScorer:
     def test_multiple_known_branch(self):
         """Multiple-known branch: winner among known variants."""
         variants = [
-            {"Term": "Smith", "In-Case Freq": 30},
-            {"Term": "Smyth", "In-Case Freq": 5},
+            {"Term": "Smith", "Occurrences": 30},
+            {"Term": "Smyth", "Occurrences": 5},
         ]
         scored_list = [("Smith", 60.0), ("Smyth", 10.0)]
         alts, reason = build_alternatives_from_scorer(
@@ -74,8 +74,8 @@ class TestBuildAlternativesFromScorer:
     def test_canonical_excluded_from_alternatives(self):
         """The canonical term itself should not appear in the alternatives list."""
         variants = [
-            {"Term": "Jones", "In-Case Freq": 50},
-            {"Term": "Jomes", "In-Case Freq": 2},
+            {"Term": "Jones", "Occurrences": 50},
+            {"Term": "Jomes", "Occurrences": 2},
         ]
         alts, _ = build_alternatives_from_scorer(variants, "Jones", "single_known")
         variant_names = [a["variant"] for a in alts]
@@ -84,9 +84,9 @@ class TestBuildAlternativesFromScorer:
     def test_case_insensitive_canonical_matching(self):
         """Canonical matching should be case-insensitive."""
         variants = [
-            {"Term": "JENKINS", "In-Case Freq": 10},
-            {"Term": "jenkins", "In-Case Freq": 5},
-            {"Term": "Jenidns", "In-Case Freq": 1},
+            {"Term": "JENKINS", "Occurrences": 10},
+            {"Term": "jenkins", "Occurrences": 5},
+            {"Term": "Jenidns", "Occurrences": 1},
         ]
         # "jenkins" matches canonical "JENKINS" case-insensitively
         alts, _ = build_alternatives_from_scorer(variants, "JENKINS", "single_known")
@@ -103,8 +103,8 @@ class TestBuildAlternativesFromScorer:
     def test_all_caps_rejection_reason(self):
         """ALL CAPS variant should include formatting penalty in reason."""
         variants = [
-            {"Term": "Jenkins", "In-Case Freq": 40},
-            {"Term": "JENIDNS", "In-Case Freq": 3},
+            {"Term": "Jenkins", "Occurrences": 40},
+            {"Term": "JENIDNS", "Occurrences": 3},
         ]
         alts, _ = build_alternatives_from_scorer(variants, "Jenkins", "single_known")
         assert "ALL CAPS formatting penalty" in alts[0]["reason"]
@@ -112,8 +112,8 @@ class TestBuildAlternativesFromScorer:
     def test_unknown_branch_fallback(self):
         """Unknown branch string should produce generic reason."""
         variants = [
-            {"Term": "A", "In-Case Freq": 1},
-            {"Term": "B", "In-Case Freq": 1},
+            {"Term": "A", "Occurrences": 1},
+            {"Term": "B", "Occurrences": 1},
         ]
         _, reason = build_alternatives_from_scorer(variants, "A", "unexpected_branch")
         assert reason == "Selected as canonical variant"
@@ -126,15 +126,15 @@ class TestBuildAlternativesFromLegacy:
         """Legacy path should list losers with heuristic score reason."""
         sorted_group = [
             {
-                "original": {"Term": "Arthur Jenkins", "In-Case Freq": 45},
+                "original": {"Term": "Arthur Jenkins", "Occurrences": 45},
                 "cleaned": "Arthur Jenkins",
             },
             {
-                "original": {"Term": "ARTHUR JENKINS", "In-Case Freq": 12},
+                "original": {"Term": "ARTHUR JENKINS", "Occurrences": 12},
                 "cleaned": "ARTHUR JENKINS",
             },
         ]
-        alts, reason = build_alternatives_from_legacy(sorted_group, "In-Case Freq")
+        alts, reason = build_alternatives_from_legacy(sorted_group, "Occurrences")
         assert "heuristic" in reason.lower()
         assert len(alts) == 1
         assert alts[0]["variant"] == "ARTHUR JENKINS"
@@ -143,16 +143,16 @@ class TestBuildAlternativesFromLegacy:
 
     def test_empty_group(self):
         """Empty group should return empty list."""
-        alts, reason = build_alternatives_from_legacy([], "In-Case Freq")
+        alts, reason = build_alternatives_from_legacy([], "Occurrences")
         assert alts == []
         assert reason == "No variants"
 
     def test_single_entry_group(self):
         """Single entry has no losers, so no alternatives."""
         sorted_group = [
-            {"original": {"Term": "Jenkins", "In-Case Freq": 50}, "cleaned": "Jenkins"},
+            {"original": {"Term": "Jenkins", "Occurrences": 50}, "cleaned": "Jenkins"},
         ]
-        alts, _ = build_alternatives_from_legacy(sorted_group, "In-Case Freq")
+        alts, _ = build_alternatives_from_legacy(sorted_group, "Occurrences")
         assert alts == []
 
 
@@ -161,7 +161,7 @@ class TestBuildHelperFunctions:
 
     def test_build_single_word_alternative(self):
         """Single-word alternative should reference the target name."""
-        entry = {"Term": "Hiraldo", "In-Case Freq": 5}
+        entry = {"Term": "Hiraldo", "Occurrences": 5}
         alt = build_single_word_alternative(entry, "Emmanuel Hiraldo")
         assert alt["variant"] == "Hiraldo"
         assert alt["frequency"] == 5
@@ -170,7 +170,7 @@ class TestBuildHelperFunctions:
 
     def test_build_titled_alternative(self):
         """Titled alternative should describe the merge."""
-        entry = {"Term": "Dr. Jones", "In-Case Freq": 8}
+        entry = {"Term": "Dr. Jones", "Occurrences": 8}
         alt = build_titled_alternative(entry, "dr.")
         assert alt["variant"] == "Dr. Jones"
         assert alt["frequency"] == 8
@@ -228,7 +228,7 @@ class TestScorerMetadata:
         """Helper to create a variant dict with TermSources."""
         return {
             "Term": term,
-            "In-Case Freq": freq,
+            "Occurrences": freq,
             "sources": TermSources.create_legacy(freq, confidence),
         }
 
@@ -299,7 +299,7 @@ class TestDeduplicatorAlternatives:
         return {
             "Term": term,
             "Is Person": "Yes",
-            "In-Case Freq": freq,
+            "Occurrences": freq,
             "sources": TermSources.create_legacy(freq, confidence),
         }
 
@@ -389,7 +389,7 @@ class TestDeduplicatorAlternatives:
         from src.core.vocabulary.name_deduplicator import deduplicate_names
 
         terms = [
-            {"Term": "radiculopathy", "Is Person": "No", "In-Case Freq": 10},
+            {"Term": "radiculopathy", "Is Person": "No", "Occurrences": 10},
             self._make_person("John Smith", 20, 0.95),
         ]
         result = deduplicate_names(terms)
@@ -423,8 +423,8 @@ class TestDeduplicatorAlternatives:
 
         # Terms without 'sources' key trigger legacy path
         terms = [
-            {"Term": "Arthur Jenkins", "Is Person": "Yes", "In-Case Freq": 45},
-            {"Term": "Anhur Jenkins", "Is Person": "Yes", "In-Case Freq": 3},
+            {"Term": "Arthur Jenkins", "Is Person": "Yes", "Occurrences": 45},
+            {"Term": "Anhur Jenkins", "Is Person": "Yes", "Occurrences": 3},
         ]
         result = deduplicate_names(terms)
         assert len(result) == 1
@@ -448,12 +448,12 @@ class TestRegularizerAlternatives:
 
         # "Di Leo" high-frequency, "Di" low-frequency fragment
         vocab = [
-            {"Term": "Di Leo", "In-Case Freq": 50},
-            {"Term": "Di", "In-Case Freq": 3},
+            {"Term": "Di Leo", "Occurrences": 50},
+            {"Term": "Di", "Occurrences": 3},
             # Need enough terms for the filter to activate (min 4)
-            {"Term": "Smith Johnson", "In-Case Freq": 40},
-            {"Term": "Williams Brown", "In-Case Freq": 35},
-            {"Term": "Mary Davis", "In-Case Freq": 30},
+            {"Term": "Smith Johnson", "Occurrences": 40},
+            {"Term": "Williams Brown", "Occurrences": 35},
+            {"Term": "Mary Davis", "Occurrences": 30},
         ]
         result = regularize_names(vocab)
 
@@ -476,12 +476,12 @@ class TestRegularizerAlternatives:
 
         # "Jenkins" is a real word, "Jenidns" is a typo (1 edit distance)
         vocab = [
-            {"Term": "Jenkins", "In-Case Freq": 40},
-            {"Term": "Jenidns", "In-Case Freq": 2},
+            {"Term": "Jenkins", "Occurrences": 40},
+            {"Term": "Jenidns", "Occurrences": 2},
             # Need enough terms for the filter to activate
-            {"Term": "Smith Johnson", "In-Case Freq": 35},
-            {"Term": "Williams Brown", "In-Case Freq": 30},
-            {"Term": "Mary Davis", "In-Case Freq": 25},
+            {"Term": "Smith Johnson", "Occurrences": 35},
+            {"Term": "Williams Brown", "Occurrences": 30},
+            {"Term": "Mary Davis", "Occurrences": 25},
         ]
         result = regularize_names(vocab)
 
@@ -501,10 +501,10 @@ class TestRegularizerAlternatives:
         from src.core.vocabulary.name_regularizer import regularize_names
 
         vocab = [
-            {"Term": "Completely Unique", "In-Case Freq": 40},
-            {"Term": "Another Different", "In-Case Freq": 35},
-            {"Term": "Third Distinct", "In-Case Freq": 30},
-            {"Term": "Fourth Separate", "In-Case Freq": 25},
+            {"Term": "Completely Unique", "Occurrences": 40},
+            {"Term": "Another Different", "Occurrences": 35},
+            {"Term": "Third Distinct", "Occurrences": 30},
+            {"Term": "Fourth Separate", "Occurrences": 25},
         ]
         result = regularize_names(vocab)
 
@@ -529,13 +529,13 @@ class TestEndToEndAlternativesFlow:
             {
                 "Term": "Arthur Jenkins",
                 "Is Person": "Yes",
-                "In-Case Freq": 45,
+                "Occurrences": 45,
                 "sources": TermSources.create_legacy(45, 0.95),
             },
             {
                 "Term": "Anhur Jenkins",
                 "Is Person": "Yes",
-                "In-Case Freq": 3,
+                "Occurrences": 3,
                 "sources": TermSources.create_legacy(3, 0.60),
             },
         ]
@@ -559,13 +559,13 @@ class TestEndToEndAlternativesFlow:
             {
                 "Term": "Arthur Jenkins",
                 "Is Person": "Yes",
-                "In-Case Freq": 45,
+                "Occurrences": 45,
                 "sources": TermSources.create_legacy(45, 0.95),
             },
             {
                 "Term": "Anhur Jenkins",
                 "Is Person": "Yes",
-                "In-Case Freq": 3,
+                "Occurrences": 3,
                 "sources": TermSources.create_legacy(3, 0.60),
             },
         ]

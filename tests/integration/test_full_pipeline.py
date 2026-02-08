@@ -21,7 +21,7 @@ class TestFeatureExtraction:
         mock_term = {
             "Term": "TestName",
             "term": "TestName",
-            "in_case_freq": 5,
+            "occurrences": 5,
             "algorithms": "NER,RAKE",
             "is_person": 1,
             "source_doc_confidence": 95,
@@ -44,7 +44,7 @@ class TestFeatureExtraction:
         from src.core.vocabulary.preference_learner_features import extract_features
 
         with pytest.raises(ValueError, match="must contain 'Term' or 'term' key"):
-            extract_features({"in_case_freq": 5})
+            extract_features({"occurrences": 5})
 
     def test_extract_features_requires_dict(self):
         """Verify extract_features raises ValueError for non-dict input."""
@@ -59,7 +59,7 @@ class TestFeatureExtraction:
 
         mock_term = {
             "Term": "cervical radiculopathy",
-            "in_case_freq": 10,
+            "occurrences": 10,
             "algorithms": "NER,RAKE,BM25",
             "is_person": 0,
             "source_doc_confidence": 85,
@@ -117,7 +117,7 @@ class TestMLModelTraining:
                 {
                     "term": f"term_{i}",
                     "Term": f"term_{i}",
-                    "in_case_freq": i + 1,
+                    "occurrences": i + 1,
                     "algorithms": "NER" if i % 2 == 0 else "RAKE",
                     "is_person": i % 3 == 0,
                     "source_doc_confidence": 80 + (i % 20),
@@ -147,7 +147,7 @@ class TestMLModelTraining:
                 {
                     "term": f"term_{i}",
                     "Term": f"term_{i}",
-                    "in_case_freq": i + 1,
+                    "occurrences": i + 1,
                     "algorithms": "NER",
                     "is_person": 0,
                     "feedback": "+1" if i % 2 == 0 else "-1",
@@ -162,7 +162,7 @@ class TestMLModelTraining:
             # Make a prediction
             test_term = {
                 "Term": "test_term",
-                "in_case_freq": 5,
+                "occurrences": 5,
                 "algorithms": "NER",
                 "is_person": 0,
             }

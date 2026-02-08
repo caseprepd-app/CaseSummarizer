@@ -218,12 +218,12 @@ class CanonicalScorer:
             unknown_variants = [v for v in variants if v not in known_variants]
             if unknown_variants:
                 extra_freq = sum(
-                    v.get("In-Case Freq", 0) or v.get("in_case_freq", 0) or 0
+                    v.get("Occurrences", 0) or v.get("occurrences", 0) or 0
                     for v in unknown_variants
                 )
-                result["In-Case Freq"] = result.get("In-Case Freq", 0) + extra_freq
-                if "in_case_freq" in result:
-                    result["in_case_freq"] = result.get("in_case_freq", 0) + extra_freq
+                result["Occurrences"] = result.get("Occurrences", 0) + extra_freq
+                if "occurrences" in result:
+                    result["occurrences"] = result.get("occurrences", 0) + extra_freq
 
             return result
 
@@ -252,7 +252,7 @@ class CanonicalScorer:
             # Handle missing sources gracefully
             if sources is None:
                 sources = TermSources.create_legacy(
-                    v.get("In-Case Freq", 1),
+                    v.get("Occurrences", 1),
                     v.get("source_doc_confidence", 100) / 100.0,  # 0-100 scale → 0-1
                 )
 
@@ -305,11 +305,11 @@ class CanonicalScorer:
 
         # Merge frequencies
         total_freq = sum(
-            v.get("In-Case Freq", 0) or v.get("in_case_freq", 0) or 0 for v in all_variants
+            v.get("Occurrences", 0) or v.get("occurrences", 0) or 0 for v in all_variants
         )
-        result["In-Case Freq"] = total_freq
-        if "in_case_freq" in result:
-            result["in_case_freq"] = total_freq
+        result["Occurrences"] = total_freq
+        if "occurrences" in result:
+            result["occurrences"] = total_freq
 
         # Merge TermSources
         merged_sources = TermSources()
@@ -383,8 +383,8 @@ def select_canonical_spelling(
 
     Example:
         canonical = select_canonical_spelling([
-            {"Term": "Jenkins", "In-Case Freq": 5, "sources": sources1},
-            {"Term": "Jenidns", "In-Case Freq": 8, "sources": sources2},
+            {"Term": "Jenkins", "Occurrences": 5, "sources": sources1},
+            {"Term": "Jenidns", "Occurrences": 8, "sources": sources2},
         ])
         # Returns Jenkins entry
     """

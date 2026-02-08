@@ -24,8 +24,8 @@ CSV Schema:
 - BM25_detection: Boolean - whether BM25 algorithm detected this term
 - algo_count: Number of algorithms that detected this term (sum of detection booleans)
 - quality_score: Quality score at time of feedback
-- in_case_freq: Term occurrence count
-- freq_rank: Google frequency rank
+- occurrences: Term occurrence count
+- rarity_rank: Google frequency rank
 
 Session 78: Added TermSources-based per-document features:
 - num_source_documents: How many docs contain this term
@@ -94,8 +94,8 @@ FEEDBACK_COLUMNS = [
     "BM25_detection",
     "algo_count",
     "quality_score",
-    "in_case_freq",
-    "freq_rank",
+    "occurrences",
+    "rarity_rank",
     # Session 78: TermSources-based features
     "num_source_documents",  # How many docs contain this term
     "doc_diversity_ratio",  # num_docs / total_docs (0-1)
@@ -273,7 +273,7 @@ class FeedbackManager:
             try:
                 # Get count bin for the term being deleted
                 try:
-                    count = int(term_data.get("In-Case Freq") or 1)
+                    count = int(term_data.get("Occurrences") or 1)
                 except (ValueError, TypeError):
                     count = 1
                 delete_key = (lower_term, get_count_bin(count))
@@ -287,7 +287,7 @@ class FeedbackManager:
                     for row in reader:
                         row_term = row.get("term", "").lower().strip()
                         try:
-                            row_count = int(row.get("in_case_freq") or 1)
+                            row_count = int(row.get("occurrences") or 1)
                         except (ValueError, TypeError):
                             row_count = 1
                         row_key = (row_term, get_count_bin(row_count))
@@ -339,7 +339,7 @@ class FeedbackManager:
 
         Args:
             term_data: Dictionary with term info (from vocabulary extractor)
-                      Expected keys: Term, Type, Sources, Quality Score, In-Case Freq, Freq Rank
+                      Expected keys: Term, Type, Sources, Quality Score, Occurrences, Google Rarity Rank
             feedback: +1 for thumbs up, -1 for thumbs down, 0 to clear
             doc_id: Optional document ID (uses current_doc_id if not provided)
 
@@ -414,8 +414,8 @@ class FeedbackManager:
             "BM25_detection": bm25_detected,
             "algo_count": algo_count,
             "quality_score": term_data.get("Quality Score", 0),
-            "in_case_freq": term_data.get("In-Case Freq", 1),
-            "freq_rank": term_data.get("Freq Rank", 0),
+            "occurrences": term_data.get("Occurrences", 1),
+            "rarity_rank": term_data.get("Google Rarity Rank", 0),
             # Session 78: TermSources-based features
             "num_source_documents": num_source_documents,
             "doc_diversity_ratio": doc_diversity_ratio,
@@ -441,7 +441,7 @@ class FeedbackManager:
 
                 # Session 85: Deduplicate by (term, count_bin) at write time
                 # If same (term, count_bin) exists, replace it; otherwise append
-                new_count_bin = get_count_bin(int(record.get("in_case_freq") or 1))
+                new_count_bin = get_count_bin(int(record.get("occurrences") or 1))
                 new_key = (lower_term, new_count_bin)
 
                 existing_records: list[dict] = []
@@ -453,7 +453,7 @@ class FeedbackManager:
                         for row in reader:
                             row_term = row.get("term", "").lower().strip()
                             try:
-                                row_count = int(row.get("in_case_freq") or 1)
+                                row_count = int(row.get("occurrences") or 1)
                             except (ValueError, TypeError):
                                 row_count = 1
                             row_key = (row_term, get_count_bin(row_count))
@@ -785,7 +785,7 @@ class FeedbackManager:
 
             # Get count bin for deduplication key
             try:
-                count = int(record.get("in_case_freq") or 1)
+                count = int(record.get("occurrences") or 1)
             except (ValueError, TypeError):
                 count = 1
             count_bin = get_count_bin(count)

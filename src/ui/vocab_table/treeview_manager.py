@@ -264,12 +264,11 @@ class TreeviewManagerMixin:
                 "Score",
                 "Quality Score",
                 "# Docs",
-                "Count",
                 "NER",
                 "RAKE",
                 "BM25",
                 "Algo Count",
-                "Freq Rank",
+                "Google Rarity Rank",
             ):
                 try:
                     return float(val) if val else 0

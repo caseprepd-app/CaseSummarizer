@@ -288,8 +288,8 @@ class VocabularyExtractor:
             - Type: Person/Place/Medical/Technical/Unknown
             - Role/Relevance: Context-specific role
             - Quality Score: 0-100 composite score
-            - In-Case Freq: Term occurrence count
-            - Freq Rank: Google frequency rank
+            - Occurrences: Term occurrence count
+            - Google Rarity Rank: Google frequency rank
             - Definition: WordNet definition (Medical/Technical only)
             - Sources: Comma-separated algorithm names
         """
@@ -795,8 +795,8 @@ class VocabularyExtractor:
                 "Found By": found_by,  # Session 52: Show which algorithms found this term
                 "Role/Relevance": role_relevance,
                 "Quality Score": base_quality_score,
-                "In-Case Freq": merged.frequency,
-                "Freq Rank": frequency_rank,
+                "Occurrences": merged.frequency,
+                "Google Rarity Rank": frequency_rank,
                 "Definition": self._get_definition(term, is_person),
                 "Sources": ",".join(merged.sources),  # Keep for backward compatibility
                 # Per-algorithm detection flags (Session 47)
@@ -809,15 +809,14 @@ class VocabularyExtractor:
                 "Algo Count": algo_count,  # Sum of algorithms that found term
                 # Session 80: Display columns from TermSources
                 "# Docs": sources_obj.num_documents,
-                "Count": sources_obj.total_count,
-                "Median Conf": f"{sources_obj.median_confidence:.0%}",
+                "OCR Confidence": f"{sources_obj.median_confidence:.0%}",
                 # Session 78: TermSources object for ML/filters
                 "sources": sources_obj,
                 "total_docs_in_session": doc_count,
                 # ML feature fields (from feedback CSV schema)
-                "quality_score": base_quality_score,
-                "in_case_freq": merged.frequency,
-                "freq_rank": frequency_rank,
+                "base_quality_score": base_quality_score,
+                "occurrences": merged.frequency,
+                "rarity_rank": frequency_rank,
                 "algorithms": ",".join(merged.sources),
                 "is_person": 1 if is_person else 0,  # Session 52: Binary flag for ML
                 "total_unique_terms": total_unique_terms,  # For ML occurrence_ratio
@@ -1475,7 +1474,7 @@ class VocabularyExtractor:
 
         # Re-apply ML boost with correct multi-doc data
         for term_data in merged_vocab:
-            base = term_data["quality_score"]
+            base = term_data["base_quality_score"]
             term_data["Quality Score"] = self._apply_ml_boost(term_data, base)
 
         # Sort by quality score descending
@@ -1502,7 +1501,7 @@ class VocabularyExtractor:
         for doc_id, confidence, td in doc_entries:
             doc_ids.append(doc_id)
             confidences.append(confidence / 100.0)
-            counts_per_doc.append(td.get("In-Case Freq", td.get("Frequency", 1)))
+            counts_per_doc.append(td.get("Occurrences", td.get("Frequency", 1)))
 
         sources = TermSources(
             doc_ids=doc_ids,
@@ -1532,8 +1531,8 @@ class VocabularyExtractor:
         found_by_str = ", ".join(sorted(all_found_by))
 
         # Numeric: sum / max / first
-        total_freq = sum(td.get("In-Case Freq", td.get("Frequency", 0)) for _, _, td in doc_entries)
-        freq_rank = doc_entries[0][2].get("Freq Rank", 0)
+        total_freq = sum(td.get("Occurrences", td.get("Frequency", 0)) for _, _, td in doc_entries)
+        rarity_rank = doc_entries[0][2].get("Google Rarity Rank", 0)
         textrank_score = max(
             (td.get("textrank_score", 0.0) for _, _, td in doc_entries),
             default=0.0,
@@ -1563,7 +1562,7 @@ class VocabularyExtractor:
         quality_score = self._calculate_quality_score(
             is_person=is_person,
             term_count=total_freq,
-            frequency_rank=freq_rank,
+            frequency_rank=rarity_rank,
             algorithm_count=algo_count,
             term_sources=sources,
             total_docs_in_session=total_docs,
@@ -1578,8 +1577,8 @@ class VocabularyExtractor:
             "Found By": found_by_str,
             "Role/Relevance": best_role,
             "Quality Score": quality_score,
-            "In-Case Freq": total_freq,
-            "Freq Rank": freq_rank,
+            "Occurrences": total_freq,
+            "Google Rarity Rank": rarity_rank,
             "Definition": definition or "—",
             "Sources": found_by_str,
             # Algorithm flags
@@ -1590,15 +1589,14 @@ class VocabularyExtractor:
             "Algo Count": algo_count,
             # TermSources display
             "# Docs": sources.num_documents,
-            "Count": sources.total_count,
-            "Median Conf": f"{sources.median_confidence:.0%}",
+            "OCR Confidence": f"{sources.median_confidence:.0%}",
             # TermSources object (for ML/filters)
             "sources": sources,
             "total_docs_in_session": total_docs,
             # ML feature fields
-            "quality_score": quality_score,
-            "in_case_freq": total_freq,
-            "freq_rank": freq_rank,
+            "base_quality_score": quality_score,
+            "occurrences": total_freq,
+            "rarity_rank": rarity_rank,
             "algorithms": found_by_str,
             "is_person": 1 if is_person else 0,
             "total_unique_terms": total_unique,
@@ -1743,8 +1741,8 @@ class VocabularyExtractor:
                 "Found By": "—",
                 "Role/Relevance": "Vocabulary term",
                 "Quality Score": base_quality_score,
-                "In-Case Freq": data["total_count"],
-                "Freq Rank": frequency_rank,
+                "Occurrences": data["total_count"],
+                "Google Rarity Rank": frequency_rank,
                 "Definition": "—",
                 "Sources": "",
                 "NER": "No",
@@ -1753,15 +1751,14 @@ class VocabularyExtractor:
                 "Algo Count": 0,
                 # Session 80: Display columns from TermSources
                 "# Docs": sources.num_documents,
-                "Count": sources.total_count,
-                "Median Conf": f"{sources.median_confidence:.0%}",
+                "OCR Confidence": f"{sources.median_confidence:.0%}",
                 # Session 78: TermSources tracking
                 "sources": sources,
                 "total_docs_in_session": total_docs,
                 # ML feature fields
-                "quality_score": base_quality_score,
-                "in_case_freq": data["total_count"],
-                "freq_rank": frequency_rank,
+                "base_quality_score": base_quality_score,
+                "occurrences": data["total_count"],
+                "rarity_rank": frequency_rank,
                 "is_person": 0,
                 "total_unique_terms": len(term_data),
                 "source_doc_confidence": sources.mean_confidence * 100,

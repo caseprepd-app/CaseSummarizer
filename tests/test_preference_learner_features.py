@@ -58,7 +58,7 @@ def mock_deps():
 
 def test_feature_vector_length(mock_deps):
     extract_features, FEATURE_NAMES = mock_deps
-    term_data = {"Term": "John Smith", "in_case_freq": 5, "algorithms": "NER", "is_person": 1}
+    term_data = {"Term": "John Smith", "occurrences": 5, "algorithms": "NER", "is_person": 1}
     features = extract_features(term_data)
     assert len(features) == len(FEATURE_NAMES)
     assert len(features) == 50
@@ -66,7 +66,7 @@ def test_feature_vector_length(mock_deps):
 
 def test_person_feature(mock_deps):
     extract_features, FEATURE_NAMES = mock_deps
-    term_data = {"Term": "John Smith", "in_case_freq": 1, "algorithms": "NER", "is_person": 1}
+    term_data = {"Term": "John Smith", "occurrences": 1, "algorithms": "NER", "is_person": 1}
     features = extract_features(term_data)
     idx = FEATURE_NAMES.index("is_person")
     assert features[idx] == 1.0
@@ -74,7 +74,7 @@ def test_person_feature(mock_deps):
 
 def test_algorithm_features(mock_deps):
     extract_features, FEATURE_NAMES = mock_deps
-    term_data = {"Term": "test term", "in_case_freq": 1, "algorithms": "NER, RAKE, BM25"}
+    term_data = {"Term": "test term", "occurrences": 1, "algorithms": "NER, RAKE, BM25"}
     features = extract_features(term_data)
     assert features[FEATURE_NAMES.index("has_ner")] == 1.0
     assert features[FEATURE_NAMES.index("has_rake")] == 1.0
@@ -85,7 +85,7 @@ def test_algorithm_features(mock_deps):
 def test_missing_term_raises(mock_deps):
     extract_features, _ = mock_deps
     with pytest.raises(ValueError):
-        extract_features({"in_case_freq": 1})
+        extract_features({"occurrences": 1})
 
 
 def test_non_dict_raises(mock_deps):
@@ -96,21 +96,21 @@ def test_non_dict_raises(mock_deps):
 
 def test_artifact_features(mock_deps):
     extract_features, FEATURE_NAMES = mock_deps
-    term_data = {"Term": "Smith:", "in_case_freq": 1, "algorithms": ""}
+    term_data = {"Term": "Smith:", "occurrences": 1, "algorithms": ""}
     features = extract_features(term_data)
     assert features[FEATURE_NAMES.index("has_trailing_punctuation")] == 1.0
 
 
 def test_medical_suffix(mock_deps):
     extract_features, FEATURE_NAMES = mock_deps
-    term_data = {"Term": "radiculopathy", "in_case_freq": 1, "algorithms": "NER"}
+    term_data = {"Term": "radiculopathy", "occurrences": 1, "algorithms": "NER"}
     features = extract_features(term_data)
     assert features[FEATURE_NAMES.index("has_medical_suffix")] == 1.0
 
 
 def test_starts_with_stop_word(mock_deps):
     extract_features, FEATURE_NAMES = mock_deps
-    term_data = {"Term": "the same", "in_case_freq": 1, "algorithms": "RAKE"}
+    term_data = {"Term": "the same", "occurrences": 1, "algorithms": "RAKE"}
     features = extract_features(term_data)
     assert features[FEATURE_NAMES.index("starts_with_stop_word")] == 1.0
     assert features[FEATURE_NAMES.index("ends_with_stop_word")] == 0.0
@@ -118,7 +118,7 @@ def test_starts_with_stop_word(mock_deps):
 
 def test_ends_with_stop_word(mock_deps):
     extract_features, FEATURE_NAMES = mock_deps
-    term_data = {"Term": "Smith and", "in_case_freq": 1, "algorithms": "NER"}
+    term_data = {"Term": "Smith and", "occurrences": 1, "algorithms": "NER"}
     features = extract_features(term_data)
     assert features[FEATURE_NAMES.index("starts_with_stop_word")] == 0.0
     assert features[FEATURE_NAMES.index("ends_with_stop_word")] == 1.0

@@ -34,7 +34,7 @@ class AlternativesDialog(BaseModalDialog):
             parent: Parent window
             term_data: Term dict with keys:
                 - Term: The canonical name string
-                - In-Case Freq: Occurrence count
+                - Occurrences: Occurrence count
                 - _canonical_reason: Why this name was chosen
                 - _alternatives: List of dicts with 'variant', 'reason', 'frequency'
         """
@@ -54,7 +54,7 @@ class AlternativesDialog(BaseModalDialog):
     def _create_ui(self):
         """Build the dialog content."""
         term = self._term_data.get("Term", "Unknown")
-        freq = self._term_data.get("In-Case Freq", 0)
+        freq = self._term_data.get("Occurrences", 0)
         reason = self._term_data.get("_canonical_reason", "Selected as canonical variant")
         alternatives = self._term_data.get("_alternatives", [])
 

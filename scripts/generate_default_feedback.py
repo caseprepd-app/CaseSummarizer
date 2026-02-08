@@ -39,8 +39,8 @@ COLUMNS = [
     "BM25_detection",
     "algo_count",
     "quality_score",
-    "in_case_freq",
-    "freq_rank",
+    "occurrences",
+    "rarity_rank",
 ]
 
 
@@ -257,18 +257,18 @@ def generate_entry(term: str, index: int) -> dict:
     quality_score = random.randint(40, 70)
 
     # In-case frequency: realistic range (2-15)
-    in_case_freq = random.randint(2, 15)
+    occurrences = random.randint(2, 15)
 
     # Frequency rank: varies by category
     if category in ("common_word", "phrase"):
         # Common words have low rank (more common)
-        freq_rank = random.randint(100, 50000)
+        rarity_rank = random.randint(100, 50000)
     elif category == "artifact":
         # Artifacts might not be in frequency list
-        freq_rank = random.randint(0, 10000)
+        rarity_rank = random.randint(0, 10000)
     else:  # ocr
         # OCR errors typically not in frequency list
-        freq_rank = 0
+        rarity_rank = 0
 
     return {
         "timestamp": timestamp,
@@ -282,8 +282,8 @@ def generate_entry(term: str, index: int) -> dict:
         "BM25_detection": bm25,
         "algo_count": algo_count,
         "quality_score": quality_score,
-        "in_case_freq": in_case_freq,
-        "freq_rank": freq_rank,
+        "occurrences": occurrences,
+        "rarity_rank": rarity_rank,
     }
 
 

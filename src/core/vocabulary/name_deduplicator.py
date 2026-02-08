@@ -69,7 +69,7 @@ def deduplicate_names(
         terms: List of vocabulary term dicts. Expected keys:
             - Term: The term string
             - Is Person: "Yes" or "No" (NER person detection)
-            - In-Case Freq: Occurrence count (int)
+            - Occurrences: Occurrence count (int)
         similarity_threshold: Minimum similarity ratio for fuzzy grouping (0.0-1.0)
 
     Returns:
@@ -356,7 +356,7 @@ def _merge_titled_into_target(
         title: The title string (e.g., "dr.")
         modified_entries: Dict of term -> modified entry (mutated in-place)
     """
-    freq_key = "In-Case Freq"
+    freq_key = "Occurrences"
     target_term = target_entry.get("Term", "")
 
     if target_term not in modified_entries:
@@ -366,8 +366,8 @@ def _merge_titled_into_target(
 
     # Merge frequency
     mod[freq_key] = mod.get(freq_key, 0) + titled_entry.get(freq_key, 1)
-    if "in_case_freq" in mod:
-        mod["in_case_freq"] = mod[freq_key]
+    if "occurrences" in mod:
+        mod["occurrences"] = mod[freq_key]
 
     # Merge TermSources if available
     if "sources" in titled_entry and "sources" in mod:
@@ -405,7 +405,7 @@ def _synthesize_titled_names(terms: list[dict]) -> list[dict]:
     Returns:
         Terms with title-prefixed entries merged into full-name entries
     """
-    freq_key = "In-Case Freq"
+    freq_key = "Occurrences"
     person_terms = [t for t in terms if is_person_entry(t)]
     other_terms = [t for t in terms if not is_person_entry(t)]
 
@@ -447,7 +447,7 @@ def _absorb_single_word_names(terms: list[dict]) -> list[dict]:
     Returns:
         Terms with single-word Person names absorbed into matching full names
     """
-    freq_key = "In-Case Freq"
+    freq_key = "Occurrences"
 
     person_terms = [t for t in terms if is_person_entry(t)]
     other_terms = [t for t in terms if not is_person_entry(t)]
@@ -477,8 +477,8 @@ def _absorb_single_word_names(terms: list[dict]) -> list[dict]:
             target = word_to_fullname[word]
             # Merge frequency into full name
             target[freq_key] = target.get(freq_key, 0) + entry.get(freq_key, 1)
-            if "in_case_freq" in target:
-                target["in_case_freq"] = target[freq_key]
+            if "occurrences" in target:
+                target["occurrences"] = target[freq_key]
             absorbed.add(entry.get("Term", ""))
 
             # Append to alternatives list
@@ -567,7 +567,7 @@ def _resolve_titled_entries(
     Returns:
         Tuple of (merged_indices, modified_entries)
     """
-    freq_key = "In-Case Freq"
+    freq_key = "Occurrences"
     merged = set()
     modified = {}
 
@@ -723,7 +723,7 @@ def _select_canonical(group: list[dict]) -> dict:
 
     Args:
         group: List of similar name entries, each with:
-            - 'original': The vocabulary dict (Term, In-Case Freq, sources?)
+            - 'original': The vocabulary dict (Term, Occurrences, sources?)
             - 'cleaned': Artifact-stripped name string
             - 'normalized': Normalized name for display
 
@@ -733,7 +733,7 @@ def _select_canonical(group: list[dict]) -> dict:
     if len(group) == 1:
         return group[0]["original"]
 
-    freq_key = "In-Case Freq"
+    freq_key = "Occurrences"
 
     # Check if any entry has TermSources (Session 78 infrastructure)
     has_sources = any(
@@ -771,14 +771,14 @@ def _select_canonical_with_scorer(group: list[dict], freq_key: str) -> dict:
         variant = {
             "Term": entry["normalized"],  # Use normalized for canonical selection
             "sources": original.get("sources"),
-            "In-Case Freq": original.get(freq_key, 1),
+            "Occurrences": original.get(freq_key, 1),
             "_original_entry": entry,  # Keep reference to full entry
             "_original_casing": original.get("Term", ""),  # For title-case preference
         }
         # Create legacy sources if missing
         if variant["sources"] is None:
             variant["sources"] = TermSources.create_legacy(
-                variant["In-Case Freq"], original.get("source_doc_confidence", 0.85)
+                variant["Occurrences"], original.get("source_doc_confidence", 0.85)
             )
         variants.append(variant)
 
@@ -792,15 +792,15 @@ def _select_canonical_with_scorer(group: list[dict], freq_key: str) -> dict:
 
     # Use the canonical term (what the scorer decided)
     canonical["Term"] = canonical_variant["Term"]
-    canonical[freq_key] = canonical_variant["In-Case Freq"]
+    canonical[freq_key] = canonical_variant["Occurrences"]
 
     # Include merged sources
     if "sources" in canonical_variant:
         canonical["sources"] = canonical_variant["sources"]
 
     # Update internal key if present
-    if "in_case_freq" in canonical:
-        canonical["in_case_freq"] = canonical[freq_key]
+    if "occurrences" in canonical:
+        canonical["occurrences"] = canonical[freq_key]
 
     # Attach alternatives metadata
     if len(group) > 1:
@@ -893,8 +893,8 @@ def _select_canonical_legacy(group: list[dict], freq_key: str) -> dict:
     canonical["Term"] = best["normalized"]
     canonical[freq_key] = total_freq
 
-    if "in_case_freq" in canonical:
-        canonical["in_case_freq"] = total_freq
+    if "occurrences" in canonical:
+        canonical["occurrences"] = total_freq
 
     # Attach alternatives metadata
     if len(group) > 1:

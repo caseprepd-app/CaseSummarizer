@@ -29,8 +29,8 @@ def _make_term_dict(
     is_person="No",
     found_by="NER",
     quality_score=70.0,
-    in_case_freq=5,
-    freq_rank=0,
+    occurrences=5,
+    rarity_rank=0,
     definition="\u2014",
     ner="Yes",
     rake="No",
@@ -52,8 +52,8 @@ def _make_term_dict(
         "Found By": sources_str,
         "Role/Relevance": role,
         "Quality Score": quality_score,
-        "In-Case Freq": in_case_freq,
-        "Freq Rank": freq_rank,
+        "Occurrences": occurrences,
+        "Google Rarity Rank": rarity_rank,
         "Definition": definition,
         "Sources": sources_str,
         "NER": ner,
@@ -62,13 +62,12 @@ def _make_term_dict(
         "TextRank": textrank,
         "Algo Count": algo_count,
         "# Docs": 1,
-        "Count": in_case_freq,
-        "Median Conf": "95%",
-        "sources": TermSources.create_legacy(in_case_freq),
+        "OCR Confidence": "95%",
+        "sources": TermSources.create_legacy(occurrences),
         "total_docs_in_session": 1,
-        "quality_score": quality_score,
-        "in_case_freq": in_case_freq,
-        "freq_rank": freq_rank,
+        "base_quality_score": quality_score,
+        "occurrences": occurrences,
+        "rarity_rank": rarity_rank,
         "algorithms": sources_str,
         "is_person": 1 if is_person == "Yes" else 0,
         "total_unique_terms": 10,
@@ -97,8 +96,8 @@ class TestMergeTermAcrossDocs:
     def test_num_docs_tracks_document_count(self, extractor):
         """Term in 2 docs -> # Docs = 2."""
         doc_entries = [
-            ("doc1", 95.0, _make_term_dict(term="radiculopathy", in_case_freq=3)),
-            ("doc2", 90.0, _make_term_dict(term="radiculopathy", in_case_freq=2)),
+            ("doc1", 95.0, _make_term_dict(term="radiculopathy", occurrences=3)),
+            ("doc2", 90.0, _make_term_dict(term="radiculopathy", occurrences=2)),
         ]
         merged = extractor._merge_term_across_docs(doc_entries, total_docs=2, total_unique=5)
 
@@ -107,22 +106,22 @@ class TestMergeTermAcrossDocs:
     def test_single_doc_term_has_one_doc(self, extractor):
         """Term in 1 doc -> # Docs = 1."""
         doc_entries = [
-            ("doc1", 95.0, _make_term_dict(term="radiculopathy", in_case_freq=3)),
+            ("doc1", 95.0, _make_term_dict(term="radiculopathy", occurrences=3)),
         ]
         merged = extractor._merge_term_across_docs(doc_entries, total_docs=2, total_unique=5)
 
         assert merged["# Docs"] == 1
 
     def test_frequency_is_summed(self, extractor):
-        """In-Case Freq should be sum across all docs."""
+        """Occurrences should be sum across all docs."""
         doc_entries = [
-            ("doc1", 95.0, _make_term_dict(term="Herniation", in_case_freq=10)),
-            ("doc2", 90.0, _make_term_dict(term="Herniation", in_case_freq=7)),
-            ("doc3", 85.0, _make_term_dict(term="herniation", in_case_freq=3)),
+            ("doc1", 95.0, _make_term_dict(term="Herniation", occurrences=10)),
+            ("doc2", 90.0, _make_term_dict(term="Herniation", occurrences=7)),
+            ("doc3", 85.0, _make_term_dict(term="herniation", occurrences=3)),
         ]
         merged = extractor._merge_term_across_docs(doc_entries, total_docs=3, total_unique=5)
 
-        assert merged["In-Case Freq"] == 20
+        assert merged["Occurrences"] == 20
 
     def test_is_person_true_if_any_doc(self, extractor):
         """Is Person = 'Yes' if ANY doc detected person."""
@@ -222,8 +221,8 @@ class TestMergeTermAcrossDocs:
     def test_term_sources_object_created(self, extractor):
         """TermSources object should reflect actual per-doc data."""
         doc_entries = [
-            ("doc1", 90.0, _make_term_dict(term="test", in_case_freq=5)),
-            ("doc2", 80.0, _make_term_dict(term="test", in_case_freq=3)),
+            ("doc1", 90.0, _make_term_dict(term="test", occurrences=5)),
+            ("doc2", 80.0, _make_term_dict(term="test", occurrences=3)),
         ]
         merged = extractor._merge_term_across_docs(doc_entries, total_docs=2, total_unique=5)
 
@@ -237,13 +236,13 @@ class TestMergeTermAcrossDocs:
     def test_quality_score_in_valid_range(self, extractor):
         """Quality score should be 0-100."""
         doc_entries = [
-            ("doc1", 95.0, _make_term_dict(term="test", in_case_freq=5)),
-            ("doc2", 90.0, _make_term_dict(term="test", in_case_freq=3)),
+            ("doc1", 95.0, _make_term_dict(term="test", occurrences=5)),
+            ("doc2", 90.0, _make_term_dict(term="test", occurrences=3)),
         ]
         merged = extractor._merge_term_across_docs(doc_entries, total_docs=2, total_unique=5)
 
         assert 0.0 <= merged["Quality Score"] <= 100.0
-        assert 0.0 <= merged["quality_score"] <= 100.0
+        assert 0.0 <= merged["base_quality_score"] <= 100.0
 
     def test_textrank_score_takes_max(self, extractor):
         """textrank_score should be max across docs."""
@@ -277,8 +276,8 @@ class TestMergeMultiDocResults:
     def test_shared_term_merged_into_one(self, extractor):
         """Same term in 2 docs -> 1 entry in output."""
         results = [
-            ("doc1", 95.0, [_make_term_dict(term="radiculopathy", in_case_freq=3)]),
-            ("doc2", 90.0, [_make_term_dict(term="radiculopathy", in_case_freq=2)]),
+            ("doc1", 95.0, [_make_term_dict(term="radiculopathy", occurrences=3)]),
+            ("doc2", 90.0, [_make_term_dict(term="radiculopathy", occurrences=2)]),
         ]
         merged = extractor._merge_multi_doc_results(results, total_docs=2)
 
@@ -316,8 +315,8 @@ class TestMergeMultiDocResults:
                 "doc1",
                 95.0,
                 [
-                    _make_term_dict(term="low_score", quality_score=30.0, in_case_freq=1),
-                    _make_term_dict(term="high_score", quality_score=90.0, in_case_freq=50),
+                    _make_term_dict(term="low_score", quality_score=30.0, occurrences=1),
+                    _make_term_dict(term="high_score", quality_score=90.0, occurrences=50),
                 ],
             ),
         ]
@@ -382,7 +381,7 @@ class TestExtractDocuments:
 
     def test_multi_doc_calls_merge(self, extractor):
         """Multiple documents should invoke parallel extraction and merge."""
-        fake_vocab = [_make_term_dict(term="test", in_case_freq=3)]
+        fake_vocab = [_make_term_dict(term="test", occurrences=3)]
 
         # Mock extract() to return fake vocab for each doc
         with patch.object(extractor, "extract", return_value=fake_vocab):
@@ -397,7 +396,7 @@ class TestExtractDocuments:
         # Both docs return same term -> should merge into 1 entry with # Docs = 2
         assert len(result) == 1
         assert result[0]["# Docs"] == 2
-        assert result[0]["In-Case Freq"] == 6  # 3 + 3
+        assert result[0]["Occurrences"] == 6  # 3 + 3
 
     def test_progress_callback_fires(self, extractor):
         """Progress callback should fire once per document."""

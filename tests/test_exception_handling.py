@@ -286,35 +286,35 @@ class TestPreferenceFeaturesBoundsChecking:
     def test_empty_string_term_raises_valueerror(self, mock_deps):
         """Empty string term should raise ValueError (validated at function start)."""
         extract_features = mock_deps
-        term_data = {"Term": "", "in_case_freq": 1, "is_person": 0, "algorithms": "NER"}
+        term_data = {"Term": "", "occurrences": 1, "is_person": 0, "algorithms": "NER"}
         with pytest.raises(ValueError, match="non-empty"):
             extract_features(term_data)
 
     def test_whitespace_only_term(self, mock_deps):
         """Whitespace-only term should not raise IndexError."""
         extract_features = mock_deps
-        term_data = {"Term": "   ", "in_case_freq": 1, "is_person": 0, "algorithms": "NER"}
+        term_data = {"Term": "   ", "occurrences": 1, "is_person": 0, "algorithms": "NER"}
         result = extract_features(term_data)
         assert result is not None
 
     def test_single_char_term(self, mock_deps):
         """Single character term should work without IndexError."""
         extract_features = mock_deps
-        term_data = {"Term": "X", "in_case_freq": 1, "is_person": 0, "algorithms": "NER"}
+        term_data = {"Term": "X", "occurrences": 1, "is_person": 0, "algorithms": "NER"}
         result = extract_features(term_data)
         assert result is not None
 
     def test_term_with_trailing_punctuation(self, mock_deps):
         """Term ending in punctuation should detect it safely."""
         extract_features = mock_deps
-        term_data = {"Term": "Smith:", "in_case_freq": 3, "is_person": 1, "algorithms": "NER"}
+        term_data = {"Term": "Smith:", "occurrences": 3, "is_person": 1, "algorithms": "NER"}
         result = extract_features(term_data)
         assert result is not None
 
     def test_term_with_leading_digit(self, mock_deps):
         """Term starting with a digit should detect it safely."""
         extract_features = mock_deps
-        term_data = {"Term": "3M", "in_case_freq": 2, "is_person": 0, "algorithms": "RAKE"}
+        term_data = {"Term": "3M", "occurrences": 2, "is_person": 0, "algorithms": "RAKE"}
         result = extract_features(term_data)
         assert result is not None
 
@@ -347,7 +347,7 @@ class TestDiagnoseMLColumnValidation:
         import scripts.diagnose_ml as diag
 
         csv_path = tmp_path / "empty_feedback.csv"
-        csv_path.write_text("feedback,term,in_case_freq\n")
+        csv_path.write_text("feedback,term,occurrences\n")
 
         with patch.object(diag, "DEFAULT_FEEDBACK", csv_path):
             with patch.object(diag, "USER_FEEDBACK", tmp_path / "nonexistent.csv"):
@@ -363,7 +363,7 @@ class TestDiagnoseMLColumnValidation:
         import scripts.diagnose_ml as diag
 
         csv_path = tmp_path / "good_feedback.csv"
-        csv_path.write_text("feedback,term,in_case_freq,is_person,algorithms\n1,Smith,5,1,NER\n")
+        csv_path.write_text("feedback,term,occurrences,is_person,algorithms\n1,Smith,5,1,NER\n")
 
         with patch.object(diag, "DEFAULT_FEEDBACK", csv_path):
             with patch.object(diag, "USER_FEEDBACK", tmp_path / "nonexistent.csv"):
@@ -498,7 +498,7 @@ class TestDiagnoseMLDivisionSafety:
 
         csv_path = tmp_path / "feedback.csv"
         csv_path.write_text(
-            "feedback,term,in_case_freq,is_person,algorithms\n1,Smith,5,1,NER\n-1,the,100,0,RAKE\n"
+            "feedback,term,occurrences,is_person,algorithms\n1,Smith,5,1,NER\n-1,the,100,0,RAKE\n"
         )
 
         with patch.object(diag, "DEFAULT_FEEDBACK", csv_path):
@@ -513,7 +513,7 @@ class TestDiagnoseMLDivisionSafety:
         import scripts.diagnose_ml as diag
 
         csv_path = tmp_path / "feedback.csv"
-        csv_path.write_text("feedback,term,in_case_freq,is_person,algorithms\n1,Smith,5,1,NER\n")
+        csv_path.write_text("feedback,term,occurrences,is_person,algorithms\n1,Smith,5,1,NER\n")
 
         with patch.object(diag, "DEFAULT_FEEDBACK", csv_path):
             with patch.object(diag, "USER_FEEDBACK", tmp_path / "nonexistent.csv"):

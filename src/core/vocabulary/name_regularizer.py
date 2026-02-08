@@ -152,7 +152,7 @@ def _is_fragment_of(fragment: str, canonical: str) -> bool:
 def filter_name_fragments(
     vocabulary: list[dict],
     top_fraction: float = 0.25,
-    count_key: str = "In-Case Freq",
+    count_key: str = "Occurrences",
     term_key: str = "Term",
 ) -> list[dict]:
     """
@@ -231,7 +231,7 @@ def filter_typo_variants(
     top_fraction: float = 0.25,
     max_edit_distance: int = 1,
     min_term_length: int = 5,
-    count_key: str = "In-Case Freq",
+    count_key: str = "Occurrences",
     term_key: str = "Term",
 ) -> list[dict]:
     """
@@ -467,7 +467,7 @@ def _single_pass_regularize(
                 {
                     "Term": term,
                     "sources": sources,
-                    "In-Case Freq": term_dict.get(count_key, 1),
+                    "Occurrences": term_dict.get(count_key, 1),
                     "_original_dict": term_dict,
                 }
             )
@@ -528,7 +528,7 @@ def regularize_names(
     top_fraction: float = 0.25,
     min_canonical_count: int = 10,
     num_passes: int = 3,
-    count_key: str = "In-Case Freq",
+    count_key: str = "Occurrences",
     term_key: str = "Term",
 ) -> list[dict]:
     """

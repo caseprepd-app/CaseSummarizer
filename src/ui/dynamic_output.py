@@ -628,6 +628,33 @@ class DynamicOutputWidget(ctk.CTkFrame):
         self._save_column_visibility()
         self._refresh_treeview_columns()
 
+    def _auto_hide_single_doc_columns(self, data: list[dict]):
+        """
+        Auto-hide '# Docs' column when session has only 1 document.
+
+        When all terms come from a single document, '# Docs' always shows 1
+        and provides no useful information. Auto-restores when multi-doc
+        data is processed next.
+
+        Args:
+            data: Vocabulary data list (each item has 'total_docs_in_session')
+        """
+        if not data:
+            return
+
+        total_docs = data[0].get("total_docs_in_session", 1)
+        is_single_doc = total_docs <= 1
+        currently_visible = self._column_visibility.get("# Docs", True)
+
+        if is_single_doc and currently_visible:
+            self._column_visibility["# Docs"] = False
+            self._save_column_visibility()
+            logger.debug("Auto-hid '# Docs' column (single document session)")
+        elif not is_single_doc and not currently_visible:
+            self._column_visibility["# Docs"] = True
+            self._save_column_visibility()
+            logger.debug("Auto-restored '# Docs' column (multi-document session)")
+
     def _refresh_treeview_columns(self):
         """Refresh treeview when column visibility changes."""
         vocab_data = self._outputs.get("Names & Vocabulary", [])
@@ -717,14 +744,13 @@ class DynamicOutputWidget(ctk.CTkFrame):
         column_key_map = {
             "Score": "Quality Score",
             "# Docs": "# Docs",
-            "Count": "Count",
             "Algo Count": "Algo Count",
-            "Freq Rank": "Freq Rank",
+            "Google Rarity Rank": "Google Rarity Rank",
         }
         data_key = column_key_map.get(column, column)
 
         # Numeric columns for type-aware sorting
-        numeric_columns = {"Score", "Quality Score", "# Docs", "Count", "Algo Count", "Freq Rank"}
+        numeric_columns = {"Score", "Quality Score", "# Docs", "Algo Count", "Google Rarity Rank"}
         is_numeric = column in numeric_columns or data_key in numeric_columns
 
         def sort_key(item):
@@ -1082,6 +1108,9 @@ class DynamicOutputWidget(ctk.CTkFrame):
         if not data:
             logger.debug("All items filtered by score floor")
             return
+
+        # Auto-hide "# Docs" column when only 1 document in session
+        self._auto_hide_single_doc_columns(data)
 
         # Session 80: Store unsorted data for sort operations and reset sort state
         # Group potential duplicates together for easier review
@@ -1709,7 +1738,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
         Build CSV string from vocabulary data.
 
         Respects the vocab_export_format user preference:
-        - "all": All columns including Quality Score, In-Case Freq, Freq Rank
+        - "all": All columns including Quality Score, Occurrences, Google Rarity Rank
         - "basic": Term, Score, Is Person, Found By
         - "terms_only": Just the Term column
 
@@ -1756,7 +1785,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
         Returns the currently displayed content for copy/save operations.
 
         For vocabulary CSV, respects the vocab_export_format setting:
-        - "all": All columns including Quality Score, In-Case Freq, Freq Rank
+        - "all": All columns including Quality Score, Occurrences, Google Rarity Rank
         - "basic": Term, Score, Is Person, Found By
         - "terms_only": Just the Term column
         """

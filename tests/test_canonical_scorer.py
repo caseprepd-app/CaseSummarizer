@@ -119,8 +119,8 @@ class TestSelectCanonicalBranching:
         jenidns_sources = TermSources.from_single_document("doc2", 0.95, 100)
 
         variants = [
-            {"Term": "Jenkins", "sources": jenkins_sources, "In-Case Freq": 2},
-            {"Term": "Jenidns", "sources": jenidns_sources, "In-Case Freq": 100},
+            {"Term": "Jenkins", "sources": jenkins_sources, "Occurrences": 2},
+            {"Term": "Jenidns", "sources": jenidns_sources, "Occurrences": 100},
         ]
 
         result = scorer.select_canonical(variants)
@@ -128,7 +128,7 @@ class TestSelectCanonicalBranching:
         # Jenkins wins because it's the only known variant
         assert result["Term"] == "Jenkins"
         # Frequency should be merged
-        assert result["In-Case Freq"] == 102
+        assert result["Occurrences"] == 102
 
     def test_zero_known_uses_weighted_score(self, scorer):
         """When no variants are known, highest weighted score wins."""
@@ -137,8 +137,8 @@ class TestSelectCanonicalBranching:
         boualme_sources = TermSources.from_single_document("doc2", 0.60, 5)
 
         variants = [
-            {"Term": "Boualem", "sources": boualem_sources, "In-Case Freq": 10},
-            {"Term": "Boualme", "sources": boualme_sources, "In-Case Freq": 5},
+            {"Term": "Boualem", "sources": boualem_sources, "Occurrences": 10},
+            {"Term": "Boualme", "sources": boualme_sources, "Occurrences": 5},
         ]
 
         result = scorer.select_canonical(variants)
@@ -160,8 +160,8 @@ class TestSelectCanonicalBranching:
         smyth_sources = TermSources.from_single_document("doc3", 0.70, 4)
 
         variants = [
-            {"Term": "Smith", "sources": smith_sources, "In-Case Freq": 8},
-            {"Term": "Smyth", "sources": smyth_sources, "In-Case Freq": 4},
+            {"Term": "Smith", "sources": smith_sources, "Occurrences": 8},
+            {"Term": "Smyth", "sources": smyth_sources, "Occurrences": 4},
         ]
 
         result = scorer.select_canonical(variants)
@@ -212,15 +212,15 @@ class TestRealWorldScenarios:
         )
 
         variants = [
-            {"Term": "Jenkins", "sources": jenkins_sources, "In-Case Freq": 7},
-            {"Term": "Jenidns", "sources": jenidns_sources, "In-Case Freq": 8},
+            {"Term": "Jenkins", "sources": jenkins_sources, "Occurrences": 7},
+            {"Term": "Jenidns", "sources": jenidns_sources, "Occurrences": 8},
         ]
 
         result = scorer.select_canonical(variants)
 
         assert result["Term"] == "Jenkins"
         # Merged frequency
-        assert result["In-Case Freq"] == 15
+        assert result["Occurrences"] == 15
 
     def test_ocr_artifact_loses_to_clean(self):
         """OCR artifact should lose to clean spelling even with higher count."""
@@ -232,8 +232,8 @@ class TestRealWorldScenarios:
         srnith_sources = TermSources.from_single_document("doc2", 0.90, 10)
 
         variants = [
-            {"Term": "Smith", "sources": smith_sources, "In-Case Freq": 5},
-            {"Term": "Srnith", "sources": srnith_sources, "In-Case Freq": 10},
+            {"Term": "Smith", "sources": smith_sources, "Occurrences": 5},
+            {"Term": "Srnith", "sources": srnith_sources, "Occurrences": 10},
         ]
 
         result = scorer.select_canonical(variants)
@@ -253,8 +253,8 @@ class TestRealWorldScenarios:
         djamei_sources = TermSources.from_single_document("doc2", 0.50, 10)
 
         variants = [
-            {"Term": "Djamel", "sources": djamel_sources, "In-Case Freq": 3},
-            {"Term": "Djamei", "sources": djamei_sources, "In-Case Freq": 10},
+            {"Term": "Djamel", "sources": djamel_sources, "Occurrences": 3},
+            {"Term": "Djamei", "sources": djamei_sources, "Occurrences": 10},
         ]
 
         scorer.select_canonical(variants)
@@ -280,14 +280,14 @@ class TestMergeIntoCanonical:
         sources3 = TermSources.from_single_document("doc3", 0.70, 2)
 
         variants = [
-            {"Term": "Smith", "sources": sources1, "In-Case Freq": 5},
-            {"Term": "Srnith", "sources": sources2, "In-Case Freq": 3},
-            {"Term": "Smlth", "sources": sources3, "In-Case Freq": 2},
+            {"Term": "Smith", "sources": sources1, "Occurrences": 5},
+            {"Term": "Srnith", "sources": sources2, "Occurrences": 3},
+            {"Term": "Smlth", "sources": sources3, "Occurrences": 2},
         ]
 
         result = scorer.select_canonical(variants)
 
-        assert result["In-Case Freq"] == 10  # 5 + 3 + 2
+        assert result["Occurrences"] == 10  # 5 + 3 + 2
 
     def test_sources_merged(self):
         """TermSources should be merged from all variants."""
@@ -297,8 +297,8 @@ class TestMergeIntoCanonical:
         sources2 = TermSources.from_single_document("doc2", 0.80, 3)
 
         variants = [
-            {"Term": "Smith", "sources": sources1, "In-Case Freq": 5},
-            {"Term": "Srnith", "sources": sources2, "In-Case Freq": 3},
+            {"Term": "Smith", "sources": sources1, "Occurrences": 5},
+            {"Term": "Srnith", "sources": sources2, "Occurrences": 3},
         ]
 
         result = scorer.select_canonical(variants)
@@ -333,8 +333,8 @@ class TestFactoryFunctions:
         sources2 = TermSources.from_single_document("doc2", 0.60, 3)
 
         variants = [
-            {"Term": "Smith", "sources": sources1, "In-Case Freq": 5},
-            {"Term": "Srnith", "sources": sources2, "In-Case Freq": 3},
+            {"Term": "Smith", "sources": sources1, "Occurrences": 5},
+            {"Term": "Srnith", "sources": sources2, "Occurrences": 3},
         ]
 
         # Use default known words (should include "smith")

@@ -72,8 +72,8 @@ class TestFeedbackManager:
             "Type": "Medical",
             "Sources": "NER",
             "Quality Score": 75,
-            "In-Case Freq": 3,
-            "Freq Rank": 250000,
+            "Occurrences": 3,
+            "Google Rarity Rank": 250000,
         }
         result = feedback_manager.record_feedback(term_data, +1)
         assert result is True
@@ -177,8 +177,8 @@ class TestVocabularyPreferenceLearner:
         term_data = {
             "Term": "hypertension",
             "quality_score": 75,  # No longer used (removed Session 76)
-            "in_case_freq": 3,
-            "freq_rank": 250000,  # No longer used (replaced with word-level features)
+            "occurrences": 3,
+            "rarity_rank": 250000,  # No longer used (replaced with word-level features)
             "algorithms": "NER,RAKE",
             "type": "Medical",
             "total_unique_terms": 100,
@@ -284,8 +284,8 @@ class TestVocabularyPreferenceLearner:
                     "BM25_detection",
                     "algo_count",
                     "quality_score",
-                    "in_case_freq",
-                    "freq_rank",
+                    "occurrences",
+                    "rarity_rank",
                 ]
             )
 

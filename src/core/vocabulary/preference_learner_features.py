@@ -156,7 +156,7 @@ FEATURE_NAMES = [
     "contains_hyphen",
     # Session 78: TermSources-based per-document confidence features (7 total)
     # These provide richer signals about term reliability across source documents
-    "mean_count_per_doc",  # Average occurrences per source doc (in_case_freq / num_docs)
+    "mean_count_per_doc",  # Average occurrences per source doc (occurrences / num_docs)
     "doc_diversity_ratio",  # num_docs / total_docs (0-1, spread across corpus)
     "median_doc_confidence",  # Median confidence - robust to single bad scan (0-1)
     "confidence_std_dev",  # Consistency of confidence across docs (0-0.5)
@@ -182,7 +182,7 @@ def extract_features(term_data: dict[str, Any]) -> np.ndarray:
     Extract feature vector from term data.
 
     Session 76: Major feature overhaul
-    - Removed: quality_score (circular), num_algorithms (redundant), freq_rank_normalized
+    - Removed: quality_score (circular), num_algorithms (redundant), rarity_rank_normalized
     - Added: 9 new features including word-level frequency, vowel ratio, medical suffix
 
     Session 78: Added 7 TermSources-based per-document features:
@@ -213,8 +213,8 @@ def extract_features(term_data: dict[str, Any]) -> np.ndarray:
     term_lower = term.lower()
 
     # === FREQUENCY FEATURES ===
-    in_case_freq = float(term_data.get("in_case_freq") or 1)
-    count = int(in_case_freq)
+    occurrences = float(term_data.get("occurrences") or 1)
+    count = int(occurrences)
 
     # Count bins (Session 84/85, expanded Session 130) - one-hot encoded via config
     # Rationale: count=1 could be OCR error, higher counts more reliable
@@ -239,14 +239,14 @@ def extract_features(term_data: dict[str, Any]) -> np.ndarray:
     # 5 occurrences in 50,000 words = 0.1/1Kw (background noise)
     total_word_count = float(term_data.get("total_word_count") or 0)
     if total_word_count > 0:
-        freq_per_1k_words = in_case_freq / max(total_word_count / 1000.0, 0.1)
+        freq_per_1k_words = occurrences / max(total_word_count / 1000.0, 0.1)
     else:
         # Legacy fallback: estimate from total_unique_terms if available
         total_unique_terms = float(term_data.get("total_unique_terms") or 0)
         if total_unique_terms > 0:
-            freq_per_1k_words = in_case_freq / max(total_unique_terms / 1000.0, 0.1)
+            freq_per_1k_words = occurrences / max(total_unique_terms / 1000.0, 0.1)
         else:
-            freq_per_1k_words = in_case_freq / 0.1  # Conservative fallback
+            freq_per_1k_words = occurrences / 0.1  # Conservative fallback
 
     # === ALGORITHM SOURCE FEATURES ===
     algorithms = str(term_data.get("algorithms", "")).lower()
@@ -443,7 +443,7 @@ def extract_features(term_data: dict[str, Any]) -> np.ndarray:
     if isinstance(sources, TermSources) and sources.num_documents > 0:
         # Extract features from actual TermSources
         num_source_documents = float(sources.num_documents)
-        mean_count_per_doc = in_case_freq / max(num_source_documents, 1.0)
+        mean_count_per_doc = occurrences / max(num_source_documents, 1.0)
         doc_diversity_ratio = sources.doc_diversity_ratio(int(total_docs_in_session))
         median_doc_confidence = sources.median_confidence
         confidence_std_dev = sources.confidence_std_dev
@@ -453,7 +453,7 @@ def extract_features(term_data: dict[str, Any]) -> np.ndarray:
         # Legacy fallback: no TermSources available
         # Try to compute from CSV columns if available
         num_docs_raw = float(term_data.get("num_source_documents") or 1)
-        mean_count_per_doc = in_case_freq / max(num_docs_raw, 1.0)
+        mean_count_per_doc = occurrences / max(num_docs_raw, 1.0)
         doc_diversity_ratio = 1.0 / total_docs_in_session
         # Use source_doc_confidence as a single-doc approximation
         median_doc_confidence = source_doc_confidence

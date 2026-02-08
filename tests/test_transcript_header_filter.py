@@ -11,7 +11,7 @@ from src.core.vocabulary.filters.transcript_header import (
 
 
 def _make_term(term, is_person=False, freq=5):
-    return {"Term": term, "Is Person": is_person, "In-Case Freq": freq}
+    return {"Term": term, "Is Person": is_person, "Occurrences": freq}
 
 
 class TestContainsSectionKeyword:

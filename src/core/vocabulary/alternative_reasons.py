@@ -25,7 +25,7 @@ def build_alternatives_from_scorer(
     Build alternative metadata after CanonicalScorer picks a winner.
 
     Args:
-        variants: All variant dicts with 'Term' and 'In-Case Freq' keys
+        variants: All variant dicts with 'Term' and 'Occurrences' keys
         canonical_term: The winning term string
         branch: Selection branch ('single_known', 'none_known', 'multiple_known')
         scored_list: List of (term_str, score) tuples from _select_by_score,
@@ -51,7 +51,7 @@ def build_alternatives_from_scorer(
         if term.lower() == canonical_term.lower():
             continue
 
-        freq = v.get("In-Case Freq", 0)
+        freq = v.get("Occurrences", 0)
         reason = _format_rejection_reason(term, branch, score_map, winning_score)
         alternatives.append({"variant": term, "reason": reason, "frequency": freq})
 
@@ -111,7 +111,7 @@ def build_single_word_alternative(
         Alternative dict with 'variant', 'reason', 'frequency'
     """
     term = single_entry.get("Term", "")
-    freq = single_entry.get("In-Case Freq", 0)
+    freq = single_entry.get("Occurrences", 0)
     return {
         "variant": term,
         "reason": f"Single-word fragment of '{target_term}'",
@@ -134,7 +134,7 @@ def build_titled_alternative(
         Alternative dict with 'variant', 'reason', 'frequency'
     """
     term = titled_entry.get("Term", "")
-    freq = titled_entry.get("In-Case Freq", 0)
+    freq = titled_entry.get("Occurrences", 0)
     return {
         "variant": term,
         "reason": "Title-prefixed variant merged into full name",

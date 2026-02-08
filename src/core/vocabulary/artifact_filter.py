@@ -345,7 +345,7 @@ def _remove_header_artifacts(
 def filter_substring_artifacts(
     vocabulary: list[dict],
     canonical_count: int = DEFAULT_CANONICAL_COUNT,
-    count_key: str = "In-Case Freq",
+    count_key: str = "Occurrences",
     term_key: str = "Term",
 ) -> list[dict]:
     """

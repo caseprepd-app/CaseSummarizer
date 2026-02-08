@@ -60,7 +60,7 @@ def export_vocabulary(
                     v.get("NER", ""),
                     v.get("RAKE", ""),
                     v.get("BM25", ""),
-                    str(v.get("In-Case Freq", "")),
+                    str(v.get("Occurrences", "")),
                 ]
             )
     else:

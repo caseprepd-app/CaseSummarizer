@@ -12,13 +12,13 @@ Layout:
     │  ☑ Term (required)   ☑ Score   ☑ Is Person   ☑ Found By    │
     │                                                             │
     │  Term Sources:                                              │
-    │  ☑ # Docs   ☑ Count   ☑ Median Conf                        │
+    │  ☑ # Docs   ☑ Count   ☑ OCR Confidence                        │
     │                                                             │
     │  Algorithm Details:                                         │
     │  ☐ NER   ☐ RAKE   ☐ BM25   ☐ Algo Count                    │
     │                                                             │
     │  Other:                                                     │
-    │  ☐ Freq Rank   ☑ Keep   ☑ Skip                             │
+    │  ☐ Google Rarity Rank   ☑ Keep   ☑ Skip                             │
     ├─────────────────────────────────────────────────────────────┤
     │  [Reset to Defaults]                                        │
     └─────────────────────────────────────────────────────────────┘
@@ -44,9 +44,9 @@ class ColumnVisibilityWidget(ctk.CTkFrame):
     # Column groups for organized display
     COLUMN_GROUPS: ClassVar[list[tuple[str, list[str]]]] = [
         ("Basic", ["Term", "Score", "Is Person", "Found By"]),
-        ("Term Sources", ["# Docs", "Count", "Median Conf"]),
+        ("Term Sources", ["# Docs", "OCR Confidence"]),
         ("Algorithm Details", ["NER", "RAKE", "BM25", "Algo Count"]),
-        ("Other", ["Freq Rank", "Keep", "Skip"]),
+        ("Other", ["Google Rarity Rank", "Keep", "Skip"]),
     ]
 
     def __init__(self, parent, **kwargs):

@@ -106,7 +106,7 @@ class TestFilterNameFragments:
 
     def _make_vocab(self, terms_and_counts: list[tuple[str, int]]) -> list[dict]:
         """Helper to create vocabulary list from (term, count) tuples."""
-        return [{"Term": term, "In-Case Freq": count} for term, count in terms_and_counts]
+        return [{"Term": term, "Occurrences": count} for term, count in terms_and_counts]
 
     def test_removes_fragments_from_bottom(self):
         """Fragments in bottom 3/4 are removed if canonical is in top quartile."""
@@ -180,7 +180,7 @@ class TestFilterTypoVariants:
 
     def _make_vocab(self, terms_and_counts: list[tuple[str, int]]) -> list[dict]:
         """Helper to create vocabulary list from (term, count) tuples."""
-        return [{"Term": term, "In-Case Freq": count} for term, count in terms_and_counts]
+        return [{"Term": term, "Occurrences": count} for term, count in terms_and_counts]
 
     def test_removes_one_char_typos(self):
         """Typos with 1-character difference are removed."""
@@ -256,7 +256,7 @@ class TestRegularizeNames:
 
     def _make_vocab(self, terms_and_counts: list[tuple[str, int]]) -> list[dict]:
         """Helper to create vocabulary list from (term, count) tuples."""
-        return [{"Term": term, "In-Case Freq": count} for term, count in terms_and_counts]
+        return [{"Term": term, "Occurrences": count} for term, count in terms_and_counts]
 
     def test_applies_both_filters(self):
         """Both fragment and typo filters are applied."""
@@ -304,7 +304,7 @@ class TestRegularizeNames:
 
         # First term should still be highest count
         assert result[0]["Term"] == "High Count"
-        assert result[0]["In-Case Freq"] == 100
+        assert result[0]["Occurrences"] == 100
 
 
 class TestRealWorldScenarios:
@@ -312,7 +312,7 @@ class TestRealWorldScenarios:
 
     def _make_vocab(self, terms_and_counts: list[tuple[str, int]]) -> list[dict]:
         """Helper to create vocabulary list from (term, count) tuples."""
-        return [{"Term": term, "In-Case Freq": count} for term, count in terms_and_counts]
+        return [{"Term": term, "Occurrences": count} for term, count in terms_and_counts]
 
     def test_ms_di_leo_scenario(self):
         """

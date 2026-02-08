@@ -130,8 +130,8 @@ def test_extract(extractor):
             assert found_terms[term]["Definition"] == "—"
         # Session 23: Verify new confidence columns exist
         assert "Quality Score" in found_terms[term], "Missing Quality Score column"
-        assert "In-Case Freq" in found_terms[term], "Missing In-Case Freq column"
-        assert "Freq Rank" in found_terms[term], "Missing Freq Rank column"
+        assert "Occurrences" in found_terms[term], "Missing Occurrences column"
+        assert "Google Rarity Rank" in found_terms[term], "Missing Google Rarity Rank column"
         # Session 25: Verify Sources column exists
         assert "Sources" in found_terms[term], "Missing Sources column"
 
