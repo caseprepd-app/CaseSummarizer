@@ -71,7 +71,12 @@ class CoreferenceResolver(BasePreprocessor):
             import spacy
             from fastcoref import spacy_component  # noqa: F401 — registers the pipe
 
-            from src.config import COREF_MODEL_LOCAL_PATH, COREF_MODEL_NAME, HF_CACHE_DIR
+            from src.config import (
+                COREF_MODEL_LOCAL_PATH,
+                COREF_MODEL_NAME,
+                HF_CACHE_DIR,
+                SPACY_EN_CORE_WEB_SM_PATH,
+            )
         except ImportError:
             logger.warning(
                 "fastcoref not installed — coreference resolution disabled. "
@@ -81,7 +86,13 @@ class CoreferenceResolver(BasePreprocessor):
             return False
 
         try:
-            nlp = spacy.load("en_core_web_sm", exclude=["ner", "lemmatizer"])
+            # Bundled spaCy model (Windows installer) or installed package
+            spacy_model = (
+                str(SPACY_EN_CORE_WEB_SM_PATH)
+                if SPACY_EN_CORE_WEB_SM_PATH.exists()
+                else "en_core_web_sm"
+            )
+            nlp = spacy.load(spacy_model, exclude=["ner", "lemmatizer"])
 
             # Determine model path: bundled first, then HuggingFace fallback
             model_path = (

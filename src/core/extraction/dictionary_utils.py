@@ -20,7 +20,6 @@ Example usage:
 import logging
 import re
 
-import nltk
 from nltk.corpus import words
 
 logger = logging.getLogger(__name__)
@@ -67,10 +66,9 @@ class TermExtractionHelpers:
             self.english_words = {word.lower() for word in words.words()}
             logger.debug("Loaded %d English words", len(self.english_words))
         except LookupError:
-            logger.warning("NLTK words corpus not found. Downloading...")
-            nltk.download("words", quiet=True)
-            self.english_words = {word.lower() for word in words.words()}
-            logger.debug("Downloaded and loaded %d English words", len(self.english_words))
+            raise RuntimeError(
+                "NLTK 'words' corpus not found. Run: python scripts/download_models.py"
+            )
 
     def _load_legal_keywords(self) -> None:
         """

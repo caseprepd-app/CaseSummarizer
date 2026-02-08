@@ -556,10 +556,46 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         self._update_session_stats()  # Clear stats display
         self.set_status("Files cleared")
 
+    def _check_ocr_availability(self) -> bool:
+        """
+        Check if OCR is available and prompt user if not.
+
+        Returns:
+            True if OCR should be allowed, False to skip OCR.
+        """
+        import time
+
+        from src.services.ocr_availability import OCRStatus, check_ocr_availability
+        from src.user_preferences import get_user_preferences
+
+        status = check_ocr_availability()
+        if status == OCRStatus.AVAILABLE:
+            return True
+
+        # Check 90-day snooze
+        prefs = get_user_preferences()
+        dismiss_until = prefs.get("ocr_dismiss_until", 0)
+        if dismiss_until > time.time():
+            return False
+
+        # Show dialog on the UI thread
+        from src.ui.ocr_dialog import OCRDialog
+
+        dialog = OCRDialog(self)
+        result = dialog.result
+
+        if result == "snooze":
+            prefs.set("ocr_dismiss_until", time.time() + 90 * 86400)
+        # "download" and "skip" both skip OCR for this session
+        return False
+
     def _start_preprocessing(self):
         """Start preprocessing selected files."""
         if not self.selected_files:
             return
+
+        # Check OCR availability before starting (runs once per batch)
+        ocr_allowed = self._check_ocr_availability()
 
         # Disable controls during preprocessing
         self.add_files_btn.configure(state="disabled")
@@ -577,7 +613,9 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
 
         # Create and start worker
         self._processing_worker = ProcessingWorker(
-            file_paths=self.selected_files, ui_queue=self._ui_queue
+            file_paths=self.selected_files,
+            ui_queue=self._ui_queue,
+            ocr_allowed=ocr_allowed,
         )
         self._processing_worker.start()
 

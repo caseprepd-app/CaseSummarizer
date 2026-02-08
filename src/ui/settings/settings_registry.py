@@ -2058,6 +2058,37 @@ def _register_all_settings():
         )
     )
 
+    # --- OCR ---
+
+    def _install_tesseract_action():
+        """Open Tesseract download page and clear snooze."""
+        import webbrowser
+        from tkinter import messagebox
+
+        webbrowser.open("https://github.com/UB-Mannheim/tesseract/wiki")
+        prefs.set("ocr_dismiss_until", 0)
+        messagebox.showinfo(
+            "Tesseract OCR",
+            "After installing Tesseract, restart CasePrepd for OCR to take effect.",
+        )
+
+    SettingsRegistry.register(
+        SettingDefinition(
+            key="install_tesseract_ocr",
+            label="Install Tesseract OCR",
+            category="Performance",
+            setting_type=SettingType.BUTTON,
+            tooltip=(
+                "Opens the Tesseract OCR download page. Required for reading "
+                "scanned/image-based PDFs.\n\n"
+                "After installing, restart CasePrepd for OCR to take effect."
+            ),
+            default=None,
+            action=_install_tesseract_action,
+            section="OCR",
+        )
+    )
+
     # ===================================================================
     # Q&A EXPORT TAB
     # ===================================================================

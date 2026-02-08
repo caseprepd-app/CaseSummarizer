@@ -35,7 +35,6 @@ import threading
 import time
 from pathlib import Path
 
-import nltk
 import spacy
 from nltk.corpus import wordnet
 
@@ -1282,9 +1281,9 @@ class VocabularyExtractor:
         try:
             wordnet.synsets("test")
         except LookupError:
-            logger.debug("Downloading NLTK wordnet...")
-            nltk.download("wordnet", quiet=True)
-            nltk.download("omw-1.4", quiet=True)
+            raise RuntimeError(
+                "NLTK 'wordnet' corpus not found. Run: python scripts/download_models.py"
+            )
 
     def add_user_exclusion(self, term: str) -> bool:
         """Add a term to the user's exclusion list."""

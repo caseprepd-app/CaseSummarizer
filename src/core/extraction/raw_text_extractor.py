@@ -75,15 +75,19 @@ class RawTextExtractor:
         ...     print(f"Extracted {len(result['extracted_text'])} chars")
     """
 
-    def __init__(self, jurisdiction: str = "ny"):
+    def __init__(self, jurisdiction: str = "ny", ocr_allowed: bool = True):
         """
         Initialize the RawTextExtractor with all component modules.
 
         Args:
             jurisdiction: Legal jurisdiction (ny, ca, federal). Currently
                          only affects logging; keywords are universal.
+            ocr_allowed: Whether OCR processing is permitted. When False,
+                        scanned PDFs return low-quality digital text instead
+                        of attempting OCR (used when Tesseract is missing).
         """
         self.jurisdiction = jurisdiction
+        self.ocr_allowed = ocr_allowed
 
         with Timer("RawTextExtractor initialization"):
             # Initialize component modules
@@ -372,6 +376,20 @@ class RawTextExtractor:
 
         # Decision: Use digital text or fall back to OCR
         needs_ocr = confidence <= MIN_DICTIONARY_CONFIDENCE or len(text) <= 1000
+
+        if needs_ocr and not self.ocr_allowed:
+            logger.debug(
+                "Digital text quality insufficient but OCR is disabled. "
+                "Returning low-quality digital text as fallback."
+            )
+            return {
+                "status": "ocr_skipped",
+                "error_message": "OCR skipped — Tesseract not installed.",
+                "text": text,
+                "method": method,
+                "confidence": int(confidence),
+                "page_count": page_count,
+            }
 
         if needs_ocr:
             logger.debug("Digital text quality insufficient. Performing OCR...")

@@ -24,9 +24,6 @@ Example usage:
 import logging
 from pathlib import Path
 
-import pytesseract
-from pdf2image import convert_from_path
-
 from src.config import (
     OCR_DENOISE_STRENGTH,
     OCR_DPI,
@@ -102,6 +99,9 @@ class OCRProcessor:
         logger.debug("Starting OCR on %s", file_path.name)
 
         try:
+            import pytesseract
+            from pdf2image import convert_from_path
+
             # Convert PDF to images
             with Timer("PDF to images conversion"):
                 images = convert_from_path(str(file_path), dpi=OCR_DPI)
@@ -192,6 +192,8 @@ class OCRProcessor:
             >>> result = processor.process_image(img)
         """
         try:
+            import pytesseract
+
             # Apply preprocessing if enabled
             if self.preprocessor is not None:
                 processed_img, stats = self.preprocessor.preprocess(image)

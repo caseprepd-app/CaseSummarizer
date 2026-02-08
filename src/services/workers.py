@@ -77,6 +77,7 @@ class ProcessingWorker(BaseWorker):
         ui_queue: Queue,
         jurisdiction: str = "ny",
         strategy: ExecutorStrategy = None,
+        ocr_allowed: bool = True,
     ):
         """
         Initialize the processing worker.
@@ -87,6 +88,7 @@ class ProcessingWorker(BaseWorker):
             jurisdiction: Legal jurisdiction for parsing (default "ny").
             strategy: ExecutorStrategy for execution. Defaults to ThreadPoolStrategy
                      with PARALLEL_MAX_WORKERS from config.
+            ocr_allowed: Whether OCR is permitted (False when Tesseract missing).
         """
         super().__init__(ui_queue)
         self.file_paths = file_paths
@@ -96,7 +98,7 @@ class ProcessingWorker(BaseWorker):
         self.strategy = strategy or ThreadPoolStrategy(max_workers=PARALLEL_MAX_WORKERS)
 
         # RawTextExtractor is thread-safe (stateless after init)
-        self.extractor = RawTextExtractor(jurisdiction=self.jurisdiction)
+        self.extractor = RawTextExtractor(jurisdiction=self.jurisdiction, ocr_allowed=ocr_allowed)
 
         self.processed_results = []
         self._runner = None  # Track runner for cancellation

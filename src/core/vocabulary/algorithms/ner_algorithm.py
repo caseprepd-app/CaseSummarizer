@@ -21,10 +21,6 @@ algorithms contribute their candidates. This ensures consistent filtering.
 
 import logging
 import re
-import socket
-import subprocess
-import sys
-import threading
 import time
 from collections import defaultdict
 from typing import Any
@@ -34,9 +30,6 @@ from nltk.corpus import wordnet
 
 from src.categories import get_ner_mapping
 from src.config import (
-    SPACY_DOWNLOAD_TIMEOUT_SEC,
-    SPACY_SOCKET_TIMEOUT_SEC,
-    SPACY_THREAD_TIMEOUT_SEC,
     VOCAB_ALGORITHM_WEIGHTS,
     VOCABULARY_BATCH_SIZE,
     VOCABULARY_RARITY_THRESHOLD,
@@ -400,52 +393,37 @@ class NERAlgorithm(BaseExtractionAlgorithm):
     # ========================================================================
 
     def _load_spacy_model(self):
-        """Load or download the spaCy model."""
+        """
+        Load the spaCy model from bundled path or installed package.
+
+        Checks bundled models/spacy/ directory first (Windows installer),
+        then falls back to spacy.load() for dev environments.
+
+        Returns:
+            Loaded spaCy Language model.
+
+        Raises:
+            RuntimeError: If model not found in either location.
+        """
+        from src.config import SPACY_EN_CORE_WEB_LG_PATH
+
+        # Bundled model (Windows installer)
+        if SPACY_EN_CORE_WEB_LG_PATH.exists():
+            nlp = spacy.load(str(SPACY_EN_CORE_WEB_LG_PATH))
+            logger.debug("Loaded bundled spaCy model: %s", SPACY_EN_CORE_WEB_LG_PATH)
+            return nlp
+
+        # Installed package (dev environment)
         try:
             nlp = spacy.load(SPACY_MODEL_NAME)
-            logger.debug("Loaded spaCy model: %s", SPACY_MODEL_NAME)
+            logger.debug("Loaded installed spaCy model: %s", SPACY_MODEL_NAME)
             return nlp
         except OSError:
-            logger.debug("Model %s not found, downloading...", SPACY_MODEL_NAME)
-            return self._download_and_load_model()
-
-    def _download_and_load_model(self):
-        """Download spaCy model using subprocess."""
-        python_executable = sys.executable
-
-        original_socket_timeout = socket.getdefaulttimeout()
-        socket.setdefaulttimeout(SPACY_SOCKET_TIMEOUT_SEC)
-
-        download_error = [None]
-        downloaded_model = [None]
-
-        def download_thread():
-            try:
-                result = subprocess.run(
-                    [python_executable, "-m", "spacy", "download", SPACY_MODEL_NAME],
-                    check=True,
-                    capture_output=True,
-                    text=True,
-                    timeout=SPACY_DOWNLOAD_TIMEOUT_SEC,
-                )
-                logger.debug("Download output: %s", result.stdout[:500])
-                downloaded_model[0] = spacy.load(SPACY_MODEL_NAME)
-            except Exception as e:
-                download_error[0] = str(e)
-
-        thread = threading.Thread(target=download_thread)
-        thread.start()
-        thread.join(timeout=SPACY_THREAD_TIMEOUT_SEC)
-
-        socket.setdefaulttimeout(original_socket_timeout)
-
-        if download_error[0]:
-            raise RuntimeError(f"Failed to download spaCy model: {download_error[0]}")
-
-        if downloaded_model[0] is None:
-            raise RuntimeError("spaCy model download timed out")
-
-        return downloaded_model[0]
+            raise RuntimeError(
+                f"spaCy model '{SPACY_MODEL_NAME}' not found.\n"
+                f"Run: python scripts/download_models.py\n"
+                f"Or:  python -m spacy download {SPACY_MODEL_NAME}"
+            )
 
     def _chunk_text(self, text: str, chunk_size_kb: int = 50) -> list[str]:
         """Split text into chunks for efficient processing."""

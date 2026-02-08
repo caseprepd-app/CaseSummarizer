@@ -56,11 +56,18 @@ class ScispaCyAlgorithm(BaseExtractionAlgorithm):
         self._nlp = None
 
     def _load_nlp(self):
-        """Load scispaCy en_ner_bc5cdr_md model."""
+        """Load scispaCy en_ner_bc5cdr_md model from bundled path or package."""
         import spacy
 
-        self._nlp = spacy.load("en_ner_bc5cdr_md")
-        logger.debug("Loaded scispaCy en_ner_bc5cdr_md model")
+        from src.config import SPACY_EN_NER_BC5CDR_MD_PATH
+
+        model_path = (
+            str(SPACY_EN_NER_BC5CDR_MD_PATH)
+            if SPACY_EN_NER_BC5CDR_MD_PATH.exists()
+            else "en_ner_bc5cdr_md"
+        )
+        self._nlp = spacy.load(model_path)
+        logger.debug("Loaded scispaCy model: %s", model_path)
 
     def extract(self, text: str, **kwargs) -> AlgorithmResult:
         """
