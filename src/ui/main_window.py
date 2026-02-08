@@ -154,6 +154,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         self._update_vocab_llm_checkbox_state()  # Set LLM checkbox based on settings/GPU
         self._update_qa_checkbox_state()  # Set Q&A checkbox based on model size
         self._update_summary_checkbox_state()  # Set Summary checkbox based on GPU/settings
+        self._restore_task_checkbox_states()  # Restore user's checkbox preferences
 
         # Session 148: Initialize tab status config to match checkbox states
         self.output_display.set_tab_status_config(
@@ -923,6 +924,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         self.output_display.set_tab_status_config(summary_enabled=self.summary_check.get())
 
         self._update_generate_button_state()
+        self._save_task_checkbox_states()
 
     def _load_default_question_count(self) -> tuple[int, int]:
         """
@@ -959,10 +961,48 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
                 text=f"Ask {enabled:,}/{total:,} default {question_word}"
             )
 
+    def _save_task_checkbox_states(self):
+        """Save task checkbox states to user preferences for persistence."""
+        from src.user_preferences import get_user_preferences
+
+        prefs = get_user_preferences()
+        prefs.set("task_extract_vocab", self.vocab_check.get())
+        prefs.set("task_ask_questions", self.qa_check.get())
+        prefs.set("task_default_questions", self.ask_default_questions_check.get())
+        prefs.set("task_generate_summary", self.summary_check.get())
+
+    def _restore_task_checkbox_states(self):
+        """Restore task checkbox states from user preferences."""
+        from src.user_preferences import get_user_preferences
+
+        prefs = get_user_preferences()
+
+        # Restore vocab checkbox
+        if not prefs.get("task_extract_vocab", True):
+            self.vocab_check.deselect()
+
+        # Restore Q&A checkbox
+        if not prefs.get("task_ask_questions", True):
+            self.qa_check.deselect()
+
+        # Restore default questions checkbox
+        if not prefs.get("task_default_questions", True):
+            self.ask_default_questions_check.deselect()
+
+        # Restore summary checkbox (default OFF)
+        if prefs.get("task_generate_summary", False):
+            self.summary_check.select()
+
+        # Refresh dependent states after restoring
+        self._update_generate_button_state()
+        self._update_default_questions_checkbox_state()
+        self._update_vocab_llm_checkbox_state()
+
     def _on_default_questions_toggled(self):
         """Handle default questions checkbox state change."""
         # Just update button state - no other action needed here
         self._update_generate_button_state()
+        self._save_task_checkbox_states()
 
         state = "enabled" if self.ask_default_questions_check.get() else "disabled"
         logger.debug("Default questions %s", state)
@@ -971,6 +1011,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         """Handle Q&A checkbox state change."""
         self._update_generate_button_state()
         self._update_default_questions_checkbox_state()
+        self._save_task_checkbox_states()
 
         # Session 148: Update tab status messages
         self.output_display.set_tab_status_config(qa_enabled=self.qa_check.get())
@@ -1221,6 +1262,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         """Handle Vocabulary checkbox state change."""
         self._update_generate_button_state()
         self._update_vocab_llm_checkbox_state()
+        self._save_task_checkbox_states()
 
         # Session 148: Update tab status messages
         self.output_display.set_tab_status_config(vocab_enabled=self.vocab_check.get())
