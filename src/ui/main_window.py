@@ -1845,6 +1845,23 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
 
         self.set_status(f"Asking: {question[:40]}...")
 
+        # Show pending result immediately in Q&A panel
+        from src.services import QAService
+
+        QAResult = QAService().get_qa_result_class()
+        pending_result = QAResult(
+            question=question,
+            quick_answer="Answer pending...",
+            citation="",
+            is_followup=True,
+            include_in_export=False,
+        )
+        self._qa_results.append(pending_result)
+        self._pending_followup_index = len(self._qa_results) - 1
+        self.output_display.update_outputs(qa_results=list(self._qa_results))
+        # Switch to Q&A tab so user sees the pending question
+        self.output_display.tabview.set("Ask Questions")
+
         # Run Q&A in background thread to keep GUI responsive
         import queue
         import threading
@@ -1892,15 +1909,30 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
 
         try:
             if msg_type == "success" and data is not None:
-                # Add to existing results and refresh display
-                with self._qa_results_lock:  # LOG-007: Thread-safe access
-                    self._qa_results.append(data)
-                    self.output_display.update_outputs(qa_results=self._qa_results)
-                # Note: QAResult uses 'quick_answer', not 'answer'
+                # Replace pending result with actual answer
+                with self._qa_results_lock:
+                    pending_idx = getattr(self, "_pending_followup_index", None)
+                    if pending_idx is not None and pending_idx < len(self._qa_results):
+                        if self._qa_results[pending_idx].quick_answer == "Answer pending...":
+                            self._qa_results[pending_idx] = data
+                        else:
+                            self._qa_results.append(data)
+                    else:
+                        self._qa_results.append(data)
+                    self._pending_followup_index = None
+                    self.output_display.update_outputs(qa_results=list(self._qa_results))
                 answer_len = len(data.quick_answer) if data.quick_answer else 0
                 self.set_status(f"Follow-up answered: {answer_len} chars")
                 logger.debug("Follow-up result displayed successfully")
             elif msg_type == "error":
+                # Remove pending result on error
+                with self._qa_results_lock:
+                    pending_idx = getattr(self, "_pending_followup_index", None)
+                    if pending_idx is not None and pending_idx < len(self._qa_results):
+                        if self._qa_results[pending_idx].quick_answer == "Answer pending...":
+                            self._qa_results.pop(pending_idx)
+                    self._pending_followup_index = None
+                    self.output_display.update_outputs(qa_results=list(self._qa_results))
                 self.set_status("Follow-up failed")
                 messagebox.showerror("Error", f"Failed to process follow-up: {data}")
         except Exception as e:
