@@ -30,12 +30,14 @@ python -m spacy download en_core_web_lg
 ## Running
 
 ```bash
-# Normal mode
+# Normal mode — feedback saves to user_feedback.csv
 python src/main.py
 
-# Debug mode (verbose logging)
-set DEBUG=true && python src/main.py
+# Debug mode — feedback saves to default_feedback.csv (developer training data)
+python src/main.py --debug
 ```
+
+**Debug mode** routes vocabulary feedback (thumbs up/down) to the developer dataset (`config/default_feedback.csv`) instead of the user dataset. This is how you build the baseline training data that ships with the app. User feedback is upweighted over developer data as the end user adds more ratings.
 
 ## For Claude Code Sessions
 
@@ -47,9 +49,9 @@ The virtual environment is at `.venv`. Claude Code's bash tool runs in a Linux s
    - Correct: `.venv\Scripts\python.exe src/main.py`
    - Wrong: `python src/main.py` (may use system Python)
 
-2. **Environment variables need special syntax** — The `$` character gets stripped by bash, so use `[Environment]::SetEnvironmentVariable()` instead of `$env:VAR`:
-   - Correct: `[Environment]::SetEnvironmentVariable('DEBUG','true')`
-   - Wrong: `$env:DEBUG='true'` (the `$` gets eaten by bash)
+2. **Use `--debug` flag for developer mode** — Routes feedback to developer dataset:
+   - Correct: `.venv\Scripts\python.exe src/main.py --debug`
+   - Also works: `set DEBUG=true` env var (but `--debug` is simpler)
 
 3. **Only run one instance at a time** — The GUI app doesn't prevent multiple instances. If a command fails, don't retry until you've confirmed the previous attempt isn't still running.
 
@@ -61,8 +63,8 @@ The virtual environment is at `.venv`. Claude Code's bash tool runs in a Linux s
 # Run the app (normal mode)
 powershell -Command "& '.venv\Scripts\python.exe' src/main.py"
 
-# Run the app with DEBUG=true
-powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -Command "& {[Environment]::SetEnvironmentVariable('DEBUG','true'); & '.venv\Scripts\python.exe' src/main.py}"
+# Run the app in debug mode (developer feedback)
+powershell -Command "& '.venv\Scripts\python.exe' src/main.py --debug"
 
 # Run any Python command
 powershell -Command "& '.venv\Scripts\python.exe' -c \"print('hello')\""

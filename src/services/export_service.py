@@ -97,7 +97,11 @@ class ExportService:
     """
 
     def export_vocabulary_to_word(
-        self, vocab_data: list[dict], file_path: str, include_details: bool = False
+        self,
+        vocab_data: list[dict],
+        file_path: str,
+        include_details: bool = False,
+        is_single_doc: bool = True,
     ) -> bool:
         """
         Export vocabulary to Word document.
@@ -106,6 +110,7 @@ class ExportService:
             vocab_data: List of vocabulary dicts
             file_path: Output file path (.docx)
             include_details: Include algorithm columns
+            is_single_doc: If True, omit "# Docs" column
 
         Returns:
             True if successful, False otherwise
@@ -113,7 +118,7 @@ class ExportService:
 
         def do_export():
             builder = WordDocumentBuilder()
-            export_vocabulary(vocab_data, builder, include_details)
+            export_vocabulary(vocab_data, builder, include_details, is_single_doc=is_single_doc)
             builder.save(file_path)
 
         return _run_export(
@@ -121,7 +126,11 @@ class ExportService:
         )
 
     def export_vocabulary_to_pdf(
-        self, vocab_data: list[dict], file_path: str, include_details: bool = False
+        self,
+        vocab_data: list[dict],
+        file_path: str,
+        include_details: bool = False,
+        is_single_doc: bool = True,
     ) -> bool:
         """
         Export vocabulary to PDF document.
@@ -130,6 +139,7 @@ class ExportService:
             vocab_data: List of vocabulary dicts
             file_path: Output file path (.pdf)
             include_details: Include algorithm columns
+            is_single_doc: If True, omit "# Docs" column
 
         Returns:
             True if successful, False otherwise
@@ -137,7 +147,7 @@ class ExportService:
 
         def do_export():
             builder = PdfDocumentBuilder()
-            export_vocabulary(vocab_data, builder, include_details)
+            export_vocabulary(vocab_data, builder, include_details, is_single_doc=is_single_doc)
             builder.save(file_path)
 
         return _run_export(

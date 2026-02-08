@@ -38,6 +38,7 @@ COLUMN_REGISTRY = {
     "Is Person": {"width": 65, "max_chars": 4, "default": True, "can_hide": True},
     "Found By": {"width": 120, "max_chars": 20, "default": True, "can_hide": True},
     # TermSources columns (Session 80 - default visible)
+    "Occurrences": {"width": 65, "max_chars": 6, "default": True, "can_hide": True},
     "# Docs": {"width": 55, "max_chars": 4, "default": True, "can_hide": True},
     "OCR Confidence": {"width": 80, "max_chars": 5, "default": True, "can_hide": True},
     # Algorithm detail columns (default hidden - formerly "Show Details")
@@ -58,6 +59,7 @@ COLUMN_ORDER = [
     "Score",
     "Is Person",
     "Found By",
+    "Occurrences",
     "# Docs",
     "OCR Confidence",
     "NER",

@@ -179,11 +179,11 @@ class TaskMixin:
             self._qa_ready = True
             if self._pending_tasks.get("qa"):
                 self._completed_tasks.add("qa")
-                # Enable follow-up controls now that Q&A is ready
-                self.followup_btn.configure(state="normal")
-                self.followup_entry.configure(
-                    state="normal", placeholder_text="Ask a follow-up question..."
-                )
+            # Enable follow-up controls whenever Q&A index is ready
+            self.followup_btn.configure(state="normal")
+            self.followup_entry.configure(
+                state="normal", placeholder_text="Type your question here..."
+            )
             # Session 84: Update status but don't finalize yet - wait for trigger_default_qa
             # which arrives right after qa_ready
             self.set_status(

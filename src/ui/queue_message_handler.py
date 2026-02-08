@@ -509,10 +509,11 @@ class QueueMessageHandler:
         # Mark Q&A as complete if it was requested
         if self.main_window._pending_tasks.get("qa"):
             self.main_window._completed_tasks.add("qa")
-            # Enable follow-up question controls
-            self.main_window.followup_btn.configure(state="normal")
-            self.main_window.followup_entry.configure(state="normal")
-            self.main_window.followup_entry.configure(placeholder_text="Type your question here...")
+
+        # Enable follow-up question controls whenever Q&A index is ready
+        self.main_window.followup_btn.configure(state="normal")
+        self.main_window.followup_entry.configure(state="normal")
+        self.main_window.followup_entry.configure(placeholder_text="Type your question here...")
 
         # Update status
         self.main_window.status_label.configure(
@@ -531,6 +532,9 @@ class QueueMessageHandler:
         # Check if checkbox is enabled
         if not self.main_window.ask_default_questions_check.get():
             logger.debug("Default questions disabled, skipping")
+            self.main_window.status_label.configure(
+                text="Ready. Type a question below to search your documents."
+            )
             return
 
         # Spawn QAWorker with default questions

@@ -18,6 +18,7 @@ def export_vocabulary(
     builder: DocumentBuilder,
     include_details: bool = False,
     title: str = "Names & Vocabulary",
+    is_single_doc: bool = True,
 ) -> None:
     """
     Export vocabulary data using provided document builder.
@@ -27,6 +28,7 @@ def export_vocabulary(
         builder: Word or PDF builder instance
         include_details: Include algorithm detail columns (NER, RAKE, BM25)
         title: Document title
+        is_single_doc: If True, omit "# Docs" column (always 1, not useful)
     """
     # Add title
     builder.add_heading(title, level=1)
@@ -46,35 +48,32 @@ def export_vocabulary(
         builder.add_paragraph("No vocabulary data to export.")
         return
 
-    # Build table
+    # Build column list dynamically
     if include_details:
-        headers = ["Term", "Score", "Person", "Found By", "NER", "RAKE", "BM25", "Freq"]
-        rows = []
-        for v in vocab_data:
-            rows.append(
-                [
-                    v.get("Term", ""),
-                    str(v.get("Quality Score", "")),
-                    v.get("Is Person", ""),
-                    v.get("Found By", ""),
-                    v.get("NER", ""),
-                    v.get("RAKE", ""),
-                    v.get("BM25", ""),
-                    str(v.get("Occurrences", "")),
-                ]
-            )
+        headers = ["Term", "Score", "Person", "Found By", "Occurrences"]
+        if not is_single_doc:
+            headers.append("# Docs")
+        headers.extend(["NER", "RAKE", "BM25"])
     else:
-        headers = ["Term", "Score", "Person", "Found By"]
-        rows = []
-        for v in vocab_data:
-            rows.append(
-                [
-                    v.get("Term", ""),
-                    str(v.get("Quality Score", "")),
-                    v.get("Is Person", ""),
-                    v.get("Found By", ""),
-                ]
-            )
+        headers = ["Term", "Score", "Person", "Found By", "Occurrences"]
+        if not is_single_doc:
+            headers.append("# Docs")
+
+    # Build rows matching headers
+    key_map = {
+        "Term": "Term",
+        "Score": "Quality Score",
+        "Person": "Is Person",
+        "Found By": "Found By",
+        "Occurrences": "Occurrences",
+        "# Docs": "# Docs",
+        "NER": "NER",
+        "RAKE": "RAKE",
+        "BM25": "BM25",
+    }
+    rows = []
+    for v in vocab_data:
+        rows.append([str(v.get(key_map[h], "")) for h in headers])
 
     builder.add_table(headers, rows)
 

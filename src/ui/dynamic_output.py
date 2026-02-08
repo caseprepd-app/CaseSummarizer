@@ -750,7 +750,14 @@ class DynamicOutputWidget(ctk.CTkFrame):
         data_key = column_key_map.get(column, column)
 
         # Numeric columns for type-aware sorting
-        numeric_columns = {"Score", "Quality Score", "# Docs", "Algo Count", "Google Rarity Rank"}
+        numeric_columns = {
+            "Score",
+            "Quality Score",
+            "Occurrences",
+            "# Docs",
+            "Algo Count",
+            "Google Rarity Rank",
+        }
         is_numeric = column in numeric_columns or data_key in numeric_columns
 
         def sort_key(item):
@@ -1762,6 +1769,10 @@ class DynamicOutputWidget(ctk.CTkFrame):
         else:  # "basic" (default)
             columns = list(GUI_DISPLAY_COLUMNS)
 
+        # Respect auto-hide: remove "# Docs" when hidden (single-doc session)
+        if not self._column_visibility.get("# Docs", True) and "# Docs" in columns:
+            columns.remove("# Docs")
+
         output = io.StringIO()
         writer = csv.writer(output)
         writer.writerow(columns)
@@ -1984,7 +1995,10 @@ class DynamicOutputWidget(ctk.CTkFrame):
         include_details = any(
             self._column_visibility.get(col, False) for col in ["NER", "RAKE", "BM25", "Algo Count"]
         )
-        success = export_service.export_vocabulary_to_word(vocab_data, filepath, include_details)
+        is_single_doc = not self._column_visibility.get("# Docs", True)
+        success = export_service.export_vocabulary_to_word(
+            vocab_data, filepath, include_details, is_single_doc=is_single_doc
+        )
 
         if success:
             # Session 73: Remember export folder
@@ -2031,7 +2045,10 @@ class DynamicOutputWidget(ctk.CTkFrame):
         include_details = any(
             self._column_visibility.get(col, False) for col in ["NER", "RAKE", "BM25", "Algo Count"]
         )
-        success = export_service.export_vocabulary_to_pdf(vocab_data, filepath, include_details)
+        is_single_doc = not self._column_visibility.get("# Docs", True)
+        success = export_service.export_vocabulary_to_pdf(
+            vocab_data, filepath, include_details, is_single_doc=is_single_doc
+        )
 
         if success:
             # Session 73: Remember export folder

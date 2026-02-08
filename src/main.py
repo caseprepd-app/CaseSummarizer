@@ -80,6 +80,10 @@ def main():
     """
     Main entry point for CasePrepd desktop application.
     """
+    # Support --debug CLI flag (sets DEBUG env var before config reads it)
+    if "--debug" in sys.argv:
+        os.environ["DEBUG"] = "true"
+
     # Setup stdout/stderr crash log (separate from structured logging)
     setup_file_logging()
 

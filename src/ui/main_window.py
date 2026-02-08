@@ -699,7 +699,10 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             self._qa_ready = True
             if self._pending_tasks.get("qa"):
                 self._completed_tasks.add("qa")
-                self.followup_btn.configure(state="normal")
+            # Enable question input whenever Q&A index is ready
+            self.followup_btn.configure(state="normal")
+            self.followup_entry.configure(state="normal")
+            self.followup_entry.configure(placeholder_text="Type your question here...")
             self.set_status(
                 f"Search index ready ({chunk_count} passages). Preparing to answer questions..."
             )
@@ -716,6 +719,9 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             # Check if default questions checkbox is enabled
             if not self.ask_default_questions_check.get():
                 logger.debug("Default questions disabled, skipping")
+                self.status_label.configure(
+                    text="Ready. Type a question below to search your documents."
+                )
             else:
                 # Session 148: Update workflow phase for tab status
                 from src.ui.workflow_status import WorkflowPhase
