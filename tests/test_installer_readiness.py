@@ -461,15 +461,33 @@ class TestDownloadModelsScript:
         finally:
             sys.path.pop(0)
 
-    def test_hf_models_dict(self):
+    def test_hf_models_list(self):
         """Script defines expected HuggingFace models."""
         script_path = Path(__file__).parent.parent / "scripts"
         sys.path.insert(0, str(script_path))
         try:
             import download_models
 
-            assert "biu-nlp/f-coref" in download_models.HF_MODELS
-            assert "nomic-ai/nomic-embed-text-v1.5" in download_models.HF_MODELS
+            repo_ids = [entry[0] for entry in download_models.HF_MODELS]
+            assert "biu-nlp/f-coref" in repo_ids
+            assert "nomic-ai/nomic-embed-text-v1.5" in repo_ids
+        finally:
+            sys.path.pop(0)
+
+    def test_embedding_model_has_ignore_patterns(self):
+        """Embedding model download skips ONNX variants."""
+        script_path = Path(__file__).parent.parent / "scripts"
+        sys.path.insert(0, str(script_path))
+        try:
+            import download_models
+
+            for repo_id, _, ignore in download_models.HF_MODELS:
+                if repo_id == "nomic-ai/nomic-embed-text-v1.5":
+                    assert ignore is not None
+                    assert any("onnx" in p for p in ignore)
+                    break
+            else:
+                pytest.fail("nomic-embed-text-v1.5 not found in HF_MODELS")
         finally:
             sys.path.pop(0)
 

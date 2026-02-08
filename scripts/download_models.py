@@ -38,14 +38,18 @@ SPACY_DIR = MODELS_DIR / "spacy"
 NLTK_CORPORA = ["words", "wordnet", "omw-1.4"]
 NLTK_DIR = MODELS_DIR / "nltk_data"
 
-# HuggingFace models (repo_id -> local subdirectory under models/)
-HF_MODELS = {
-    "tinylettuce/ettin-68m-en": "tinylettuce-ettin-68m-en",
-    "urchade/gliner_medium-v2.1": "gliner_medium-v2.1",
-    "nomic-ai/nomic-embed-text-v1.5": "embeddings/nomic-embed-text-v1.5",
-    "Alibaba-NLP/gte-reranker-modernbert-base": "gte-reranker-modernbert-base",
-    "biu-nlp/f-coref": "coref/f-coref",
-}
+# HuggingFace models: (repo_id, local_subdir, ignore_patterns)
+HF_MODELS = [
+    ("tinylettuce/ettin-68m-en", "tinylettuce-ettin-68m-en", None),
+    ("urchade/gliner_medium-v2.1", "gliner_medium-v2.1", None),
+    (
+        "nomic-ai/nomic-embed-text-v1.5",
+        "embeddings/nomic-embed-text-v1.5",
+        ["onnx/*", "onnx/**"],
+    ),  # Skip ONNX variants (~1.6GB)
+    ("Alibaba-NLP/gte-reranker-modernbert-base", "gte-reranker-modernbert-base", None),
+    ("biu-nlp/f-coref", "coref/f-coref", None),
+]
 
 
 def download_spacy_models() -> dict[str, bool]:
@@ -135,7 +139,7 @@ def download_huggingface_models() -> dict[str, bool]:
 
     results = {}
 
-    for repo_id, local_subdir in HF_MODELS.items():
+    for repo_id, local_subdir, ignore in HF_MODELS:
         target = MODELS_DIR / local_subdir
 
         if target.exists() and any(target.iterdir()):
@@ -146,11 +150,14 @@ def download_huggingface_models() -> dict[str, bool]:
         target.mkdir(parents=True, exist_ok=True)
         print(f"  Downloading {repo_id}...")
         try:
-            snapshot_download(
-                repo_id=repo_id,
-                local_dir=str(target),
-                local_dir_use_symlinks=False,
-            )
+            kwargs = {
+                "repo_id": repo_id,
+                "local_dir": str(target),
+                "local_dir_use_symlinks": False,
+            }
+            if ignore:
+                kwargs["ignore_patterns"] = ignore
+            snapshot_download(**kwargs)
             print(f"  [OK] {repo_id}")
             results[repo_id] = True
         except Exception as e:
