@@ -72,19 +72,23 @@ def download_spacy_models() -> dict[str, bool]:
             results[model_name] = True
             continue
 
-        print(f"  Downloading {model_name}...")
+        print(f"  Bundling {model_name}...")
         try:
-            subprocess.run(
-                [sys.executable, "-m", "spacy", "download", model_name],
-                check=True,
-                capture_output=True,
-                text=True,
-            )
-
-            # Find the installed model in site-packages
             import importlib
 
-            mod = importlib.import_module(model_name)
+            # Try importing already-installed model first
+            try:
+                mod = importlib.import_module(model_name)
+            except ImportError:
+                # Not installed yet — download via spacy (works for official models)
+                subprocess.run(
+                    [sys.executable, "-m", "spacy", "download", model_name],
+                    check=True,
+                    capture_output=True,
+                    text=True,
+                )
+                mod = importlib.import_module(model_name)
+
             source = Path(mod.__file__).parent
 
             # Copy to bundled directory
