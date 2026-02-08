@@ -89,7 +89,19 @@ def download_spacy_models() -> dict[str, bool]:
                 )
                 mod = importlib.import_module(model_name)
 
-            source = Path(mod.__file__).parent
+            package_dir = Path(mod.__file__).parent
+
+            # spaCy packages nest the actual model data in a versioned
+            # subdirectory (e.g. en_core_web_lg/en_core_web_lg-3.7.1/).
+            # spacy.load() expects config.cfg at the top level, so copy
+            # the inner data directory, not the Python package wrapper.
+            data_dirs = [
+                d for d in package_dir.iterdir() if d.is_dir() and (d / "config.cfg").exists()
+            ]
+            if data_dirs:
+                source = data_dirs[0]
+            else:
+                source = package_dir
 
             # Copy to bundled directory
             shutil.copytree(source, target)
