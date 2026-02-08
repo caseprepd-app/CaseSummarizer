@@ -110,7 +110,7 @@ class QAPanel(ctk.CTkFrame):
         display_frame = ctk.CTkFrame(self, **FRAME_STYLES["card"])
         display_frame.grid(row=1, column=0, sticky="nsew", padx=5, pady=5)
         display_frame.grid_columnconfigure(0, weight=1)
-        display_frame.grid_rowconfigure(0, weight=1)
+        display_frame.grid_rowconfigure(1, weight=1)  # Textbox row expands
 
         # Create scrollable textbox (read-only display)
         self.text_display = ctk.CTkTextbox(
@@ -123,13 +123,24 @@ class QAPanel(ctk.CTkFrame):
             scrollbar_button_hover_color=COLORS["bg_hover"],
             state="disabled",  # Read-only - users shouldn't type here
         )
-        self.text_display.grid(row=0, column=0, sticky="nsew", padx=2, pady=2)
+        self.text_display.grid(row=1, column=0, sticky="nsew", padx=2, pady=2)
+
+        # Inline find bar (hidden by default, shown on Ctrl+F)
+        from src.ui.text_find_bar import TextFindBar
+
+        self._find_bar = TextFindBar(display_frame, self.text_display)
+        self._find_bar.grid(row=0, column=0, sticky="ew", padx=2, pady=(2, 0))
+        self._find_bar.grid_remove()
 
         # Configure text tags for formatting
         # IMPORTANT: CTkTextbox forbids 'font' kwarg in tag_config() - use cnf={} instead
         # See RESEARCH_LOG.md "Q&A Follow-up Font Scaling Error"
         for tag_name, tag_config in QA_TEXT_TAGS.items():
             self.text_display.tag_config(tag_name, cnf=tag_config)
+
+    def show_find_bar(self):
+        """Show the inline find bar (triggered by Ctrl+F)."""
+        self._find_bar.show()
 
     def _create_button_bar(self):
         """Create action buttons bar."""

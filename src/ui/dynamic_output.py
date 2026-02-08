@@ -153,14 +153,27 @@ class DynamicOutputWidget(ctk.CTkFrame):
             justify="center",
             wraplength=400,
         )
-        self._summary_status_label.grid(row=0, column=0, sticky="nsew", padx=20, pady=50)
+        self._summary_status_label.grid(row=1, column=0, sticky="nsew", padx=20, pady=50)
 
         self.summary_text_display = ctk.CTkTextbox(self.tabview.tab("Summary"), wrap="word")
-        self.summary_text_display.grid(row=0, column=0, sticky="nsew", padx=5, pady=5)
+        self.summary_text_display.grid(row=1, column=0, sticky="nsew", padx=5, pady=5)
         self.summary_text_display.grid_remove()  # Hidden initially, shown when summary arrives
+
+        # Inline find bar for Summary tab (hidden by default)
+        from src.ui.text_find_bar import TextFindBar
+
+        self._summary_find_bar = TextFindBar(self.tabview.tab("Summary"), self.summary_text_display)
+        self._summary_find_bar.grid(row=0, column=0, sticky="ew", padx=5, pady=(2, 0))
+        self._summary_find_bar.grid_remove()
+
+        # Summary tab row 1 (textbox) expands
+        self.tabview.tab("Summary").grid_rowconfigure(1, weight=1)
 
         # Initialize tab status messages
         self._update_tab_status_messages()
+
+        # Bind Ctrl+F for find-in-text
+        self._bind_find_shortcut()
 
         # Button bar (below tabs)
         self.button_frame = ctk.CTkFrame(self)
@@ -244,6 +257,21 @@ class DynamicOutputWidget(ctk.CTkFrame):
 
         # Bind to Configure event for resize debouncing
         self.bind("<Configure>", self._on_window_resize)
+
+    def _bind_find_shortcut(self):
+        """Bind Ctrl+F to show the find bar for the active text tab."""
+
+        def _on_ctrl_f(event):
+            active_tab = self.tabview.get()
+            if active_tab == "Ask Questions":
+                self._qa_panel.show_find_bar()
+            elif active_tab == "Summary":
+                self._summary_find_bar.show()
+            # Names & Vocab tab has its own filter bar — no-op
+            return "break"
+
+        # Bind on the top-level window so it works regardless of focus
+        self.winfo_toplevel().bind("<Control-f>", _on_ctrl_f)
 
     def _on_window_resize(self, event):
         """
