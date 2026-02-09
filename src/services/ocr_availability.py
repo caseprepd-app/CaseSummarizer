@@ -37,16 +37,44 @@ class OCRStatus(Enum):
     BOTH_MISSING = "both_missing"
 
 
+def _find_tesseract() -> bool:
+    """
+    Check if Tesseract is available on PATH or in standard install locations.
+
+    Returns:
+        True if tesseract executable is found.
+    """
+    if shutil.which("tesseract") is not None:
+        return True
+
+    # Check standard Windows install locations
+    import os
+    from pathlib import Path
+
+    standard_paths = [
+        Path("C:/Program Files/Tesseract-OCR/tesseract.exe"),
+        Path("C:/Program Files (x86)/Tesseract-OCR/tesseract.exe"),
+        Path(os.environ.get("LOCALAPPDATA", ""), "Tesseract-OCR/tesseract.exe"),
+    ]
+    for path in standard_paths:
+        if path.exists():
+            logger.debug("Tesseract found at %s (not on PATH)", path)
+            return True
+
+    return False
+
+
 def check_ocr_availability() -> OCRStatus:
     """
     Check whether OCR executables are installed.
 
-    Looks for 'tesseract' and 'pdftoppm' (Poppler) on the system PATH.
+    Looks for 'tesseract' on PATH and standard Windows install locations,
+    and 'pdftoppm' (Poppler) on PATH.
 
     Returns:
         OCRStatus indicating which components are available.
     """
-    has_tesseract = shutil.which("tesseract") is not None
+    has_tesseract = _find_tesseract()
     has_poppler = shutil.which("pdftoppm") is not None
 
     if has_tesseract and has_poppler:

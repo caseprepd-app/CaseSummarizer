@@ -1,0 +1,25 @@
+timestamp,document_id,term,feedback,is_person,algorithms,NER_detection,RAKE_detection,BM25_detection,algo_count,quality_score,occurrences,rarity_rank,num_source_documents,doc_diversity_ratio,mean_doc_confidence,median_doc_confidence,confidence_std_dev,high_conf_doc_ratio,all_low_conf,total_docs_in_session,total_word_count
+2026-02-07T22:46:13.309190,unknown,you'd,-1,0,BM25,False,False,True,1,92.5,4,0,1,0.3333333333333333,0.94,0.94,0.0,1.0,0,3,9256
+2026-02-07T22:47:33.109119,unknown,Capiola - Plaintiff,-1,1,"NER, TextRank",True,False,False,1,100.0,61,0,1,0.3333333333333333,0.94,0.94,0.0,1.0,0,3,9256
+2026-02-07T22:47:57.501026,unknown,N. Q. I,-1,1,NER,True,False,False,1,85.0,1,0,1,0.3333333333333333,0.94,0.94,0.0,1.0,0,3,9256
+2026-02-07T22:48:10.195283,unknown,Osteophyte Formation,1,0,RAKE,False,True,False,1,92.5,4,0,1,0.3333333333333333,0.94,0.94,0.0,1.0,0,3,30085
+2026-02-07T22:52:30.974206,unknown,Beth Israel,1,1,"NER, RAKE",True,True,False,2,100.0,13,0,1,0.3333333333333333,0.94,0.94,0.0,1.0,0,3,20867
+2026-02-07T22:52:40.419786,unknown,David R. Payne,1,1,NER,True,False,False,1,100.0,4,0,1,0.3333333333333333,0.94,0.94,0.0,1.0,0,3,30085
+2026-02-07T22:53:03.729582,unknown,Enid Tovar,1,1,"NER, TextRank",True,False,False,1,100.0,429,0,2,0.6666666666666666,0.94,0.94,0.0,1.0,0,3,50952
+2026-02-07T23:15:31.033469,unknown,Devi Nampiaparampil,1,1,"NER, TextRank",True,False,False,1,100.0,192,0,1,0.5,0.94,0.94,0.0,1.0,0,2,36843
+2026-02-07T23:16:16.459331,unknown,Robert Genna,1,1,"NER, RAKE, TextRank",True,True,False,2,100.0,35,0,2,1.0,0.94,0.94,0.0,1.0,0,2,54450
+2026-02-07T23:16:22.525191,unknown,De Moura,1,1,"NER, RAKE, TextRank",True,True,False,2,100.0,44,0,1,0.5,0.94,0.94,0.0,1.0,0,2,17607
+2026-02-07T23:16:27.852417,unknown,John Nc,-1,1,NER,True,False,False,1,92.5,1,0,1,0.5,0.94,0.94,0.0,1.0,0,2,36843
+2026-02-07T23:16:41.339090,unknown,Hal M. Epstein,1,1,NER,True,False,False,1,92.5,1,0,1,0.5,0.94,0.94,0.0,1.0,0,2,17607
+2026-02-07T23:17:24.579412,unknown,Louis Cornacchia,1,1,"NER, TextRank",True,False,False,1,100.0,151,0,1,0.5,0.94,0.94,0.0,1.0,0,2,17607
+2026-02-07T23:17:37.514687,unknown,Hal Epstein,1,1,"MedicalNER, NER",True,False,False,1,100.0,27,0,1,0.5,0.94,0.94,0.0,1.0,0,2,36843
+2026-02-07T23:17:41.786919,unknown,she's,-1,0,BM25,False,False,True,1,100.0,15,0,1,0.5,0.94,0.94,0.0,1.0,0,2,36843
+2026-02-07T23:18:08.336474,unknown,Kim Townsend,1,1,NER,True,False,False,1,100.0,1018,0,2,1.0,0.94,0.94,0.0,1.0,0,2,54450
+2026-02-07T23:18:20.545389,unknown,osteophyte,1,0,"BM25, MedicalNER, NER",True,False,True,2,100.0,23,0,1,0.5,0.9399999999999998,0.94,0.0,1.0,0,2,17607
+2026-02-07T23:18:31.451478,unknown,Demoura,1,1,"MedicalNER, NER",True,False,False,1,100.0,7,0,1,0.5,0.9400000000000001,0.94,0.0,1.0,0,2,36843
+2026-02-07T23:18:39.332829,unknown,Stephanie Hansraj,1,1,"NER, TextRank",True,False,False,1,100.0,3,0,1,0.5,0.94,0.94,0.0,1.0,0,2,36843
+2026-02-07T23:19:52.632239,unknown,Andrew Lauri,1,1,NER,True,False,False,1,100.0,6,0,2,1.0,0.94,0.94,0.0,1.0,0,2,54450
+2026-02-07T23:47:10.849111,unknown,Antonio Vargas,1,1,"NER, RAKE, TextRank",True,True,False,2,100.0,222,0,2,1.0,0.9529729729729729,0.95,0.010000000000000009,1.0,0,2,28209
+2026-02-07T23:47:34.878853,unknown,Nicholas Bellizzi,1,1,"NER, TextRank",True,False,False,1,100.0,6,0,1,0.5,0.9499999999999998,0.95,0.0,1.0,0,2,19117
+2026-02-07T23:47:58.525549,unknown,Mui,1,1,"BM25, MedicalNER, NER, TextRank",True,False,True,2,100.0,421,51551,2,1.0,0.9548456057007126,0.95,0.010000000000000009,1.0,0,2,28209
+2026-02-08T00:22:11.112086,unknown,Shaun Martinsen,1,1,NER,True,False,False,1,100.0,10,0,1,0.5,0.97,0.97,0.0,1.0,0,2,9092

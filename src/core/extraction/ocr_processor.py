@@ -22,6 +22,8 @@ Example usage:
 """
 
 import logging
+import os
+import shutil
 from pathlib import Path
 
 from src.config import (
@@ -33,6 +35,33 @@ from src.config import (
 from src.logging_config import Timer
 
 logger = logging.getLogger(__name__)
+
+# Standard Windows install locations for Tesseract
+_TESSERACT_STANDARD_PATHS = [
+    Path("C:/Program Files/Tesseract-OCR/tesseract.exe"),
+    Path("C:/Program Files (x86)/Tesseract-OCR/tesseract.exe"),
+    Path(os.environ.get("LOCALAPPDATA", ""), "Tesseract-OCR/tesseract.exe"),
+]
+
+
+def _configure_tesseract():
+    """
+    Set pytesseract.tesseract_cmd if Tesseract is installed but not on PATH.
+
+    Checks standard Windows install locations so users don't need to
+    manually add Tesseract to their PATH after installing it.
+    """
+    import pytesseract
+
+    if shutil.which("tesseract") is not None:
+        return  # Already on PATH
+
+    for path in _TESSERACT_STANDARD_PATHS:
+        if path.exists():
+            pytesseract.tesseract_cmd = str(path)
+            logger.debug("Configured pytesseract to use %s", path)
+            return
+
 
 from .dictionary_utils import TermExtractionHelpers
 from .image_preprocessor import ImagePreprocessor
@@ -101,6 +130,8 @@ class OCRProcessor:
         try:
             import pytesseract
             from pdf2image import convert_from_path
+
+            _configure_tesseract()
 
             # Convert PDF to images
             with Timer("PDF to images conversion"):
@@ -193,6 +224,8 @@ class OCRProcessor:
         """
         try:
             import pytesseract
+
+            _configure_tesseract()
 
             # Apply preprocessing if enabled
             if self.preprocessor is not None:

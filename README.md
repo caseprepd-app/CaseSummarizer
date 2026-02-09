@@ -30,14 +30,34 @@ python -m spacy download en_core_web_lg
 ## Running
 
 ```bash
-# Normal mode — feedback saves to user_feedback.csv
+# Normal mode
 python src/main.py
 
-# Debug mode — feedback saves to default_feedback.csv (developer training data)
+# Debug mode (developer training data)
 python src/main.py --debug
 ```
 
-**Debug mode** routes vocabulary feedback (thumbs up/down) to the developer dataset (`config/default_feedback.csv`) instead of the user dataset. This is how you build the baseline training data that ships with the app. User feedback is upweighted over developer data as the end user adds more ratings.
+### Debug Mode and the Developer Dataset
+
+CasePrepd uses a two-dataset ML system for vocabulary filtering. When you rate terms with thumbs up/down, the feedback trains a model that learns which extracted terms are useful vs. noise.
+
+**Two separate CSVs:**
+- `config/default_feedback.csv` — Developer dataset. Ships with the app as a baseline.
+- `%APPDATA%/CasePrepd/feedback/user_feedback.csv` — End-user dataset. Built up as the user rates terms.
+
+**Running with `--debug`** routes all feedback to the developer CSV instead of the user CSV. The window title shows `"CasePrepd [DEBUG]"` so you know which mode you're in. Use this to build the baseline training data — rate common junk terms (transcript artifacts, OCR errors, filler phrases) as thumbs-down so new users get a useful model out of the box.
+
+**At training time, both CSVs are combined with source-based weighting.** The developer baseline stabilizes the model early on, then gradually yields to the user's own preferences:
+
+| User Samples | Developer Weight | User Weight | Effect |
+|---|---|---|---|
+| 0 | 1.0x | — | Only developer data exists |
+| 1-2 | 1.0x | 1.5x | User feedback immediately valued higher |
+| 10-24 | 0.95x | 2.5x | Developer data starts fading |
+| 50-99 | 0.8x | 3.5x | User strongly dominates |
+| 200+ | 0.6x | 5.0x | Developer data is just a baseline floor |
+
+The developer dataset is never deleted — it just gets increasingly outweighed as the user adds their own ratings.
 
 ## For Claude Code Sessions
 

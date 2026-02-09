@@ -6,6 +6,35 @@
 
 ---
 
+## Tesseract OCR: Windows Install Locations (February 2026)
+
+**Question:** Where does Tesseract install on Windows, and which paths should we check when it's not on PATH?
+
+**Background:** The UB-Mannheim installer is the standard Windows distribution. Users often install Tesseract but don't add it to PATH, causing `shutil.which("tesseract")` to return None even though the executable exists.
+
+**Standard install locations:**
+
+| Path | When |
+|------|------|
+| `C:\Program Files\Tesseract-OCR\tesseract.exe` | Default 64-bit UB-Mannheim installer |
+| `C:\Program Files (x86)\Tesseract-OCR\tesseract.exe` | 32-bit installer on 64-bit Windows |
+| `%LOCALAPPDATA%\Tesseract-OCR\tesseract.exe` | User-level install (no admin rights) |
+
+**Other approaches (not worth auto-detecting):**
+- Custom install directories — impossible to guess, user must add to PATH
+- `TESSDATA_PREFIX` env var — points to tessdata folder, not the executable
+- `winget install UB-Mannheim.TesseractOCR` — installs to standard Program Files location
+
+**Decision:** Check all three standard paths in both `ocr_availability.py` (detection) and `ocr_processor.py` (pytesseract.tesseract_cmd configuration). For custom paths, the user must add Tesseract to their PATH.
+
+**Sources:**
+- https://github.com/UB-Mannheim/tesseract/wiki
+- https://tesseract-ocr.github.io/tessdoc/Installation.html
+- https://pypi.org/project/pytesseract/
+- https://docs.coro.net/featured/agent/install-tesseract-windows
+
+---
+
 ## LanceDB vs FAISS: Technical Deep Dive (February 2026)
 
 **Question:** What does LanceDB actually store on disk, how does it compare to FAISS in terms of file size, search algorithm, accuracy, and query latency for small datasets?

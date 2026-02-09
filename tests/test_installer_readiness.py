@@ -38,20 +38,26 @@ class TestOCRAvailability:
             assert check_ocr_availability() == OCRStatus.AVAILABLE
 
     def test_both_missing(self):
-        """Neither on PATH → BOTH_MISSING."""
+        """Neither on PATH nor standard locations → BOTH_MISSING."""
         from src.services.ocr_availability import OCRStatus, check_ocr_availability
 
-        with patch("shutil.which", return_value=None):
+        with (
+            patch("src.services.ocr_availability._find_tesseract", return_value=False),
+            patch("shutil.which", return_value=None),
+        ):
             assert check_ocr_availability() == OCRStatus.BOTH_MISSING
 
     def test_tesseract_missing(self):
-        """Only pdftoppm on PATH → TESSERACT_MISSING."""
+        """Only pdftoppm available → TESSERACT_MISSING."""
         from src.services.ocr_availability import OCRStatus, check_ocr_availability
 
-        def which_stub(cmd):
-            return "/usr/bin/pdftoppm" if cmd == "pdftoppm" else None
-
-        with patch("shutil.which", side_effect=which_stub):
+        with (
+            patch("src.services.ocr_availability._find_tesseract", return_value=False),
+            patch(
+                "shutil.which",
+                side_effect=lambda cmd: "/usr/bin/pdftoppm" if cmd == "pdftoppm" else None,
+            ),
+        ):
             assert check_ocr_availability() == OCRStatus.TESSERACT_MISSING
 
     def test_poppler_missing(self):
