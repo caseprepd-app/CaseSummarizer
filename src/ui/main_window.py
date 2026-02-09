@@ -569,7 +569,9 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         from src.user_preferences import get_user_preferences
 
         status = check_ocr_availability()
-        if status == OCRStatus.AVAILABLE:
+        if status in (OCRStatus.AVAILABLE, OCRStatus.POPPLER_MISSING):
+            # Poppler missing only affects PDF-to-image conversion;
+            # Tesseract can still OCR image files directly.
             return True
 
         # Check 90-day snooze
