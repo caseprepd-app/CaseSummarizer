@@ -7,12 +7,17 @@ This module initializes the CustomTkinter application and launches the main wind
 
 # Set environment variables BEFORE any imports that might trigger torch loading.
 import os
+import sys
 
 os.environ["TOKENIZERS_PARALLELISM"] = "false"  # Prevent HuggingFace tokenizer deadlocks
 os.environ["HF_HUB_DISABLE_SYMLINKS_WARNING"] = "1"  # Suppress HuggingFace Hub symlink warning
 
+# Support --debug CLI flag — MUST be set before src.config is imported,
+# because DEBUG_MODE is evaluated at import time.
+if "--debug" in sys.argv:
+    os.environ["DEBUG"] = "true"
+
 import multiprocessing
-import sys
 from datetime import datetime
 
 # Add project root to Python path
@@ -80,10 +85,6 @@ def main():
     """
     Main entry point for CasePrepd desktop application.
     """
-    # Support --debug CLI flag (sets DEBUG env var before config reads it)
-    if "--debug" in sys.argv:
-        os.environ["DEBUG"] = "true"
-
     # Setup stdout/stderr crash log (separate from structured logging)
     setup_file_logging()
 
