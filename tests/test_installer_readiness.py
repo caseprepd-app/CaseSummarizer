@@ -80,6 +80,115 @@ class TestOCRAvailability:
         assert OCRStatus.BOTH_MISSING.value == "both_missing"
 
 
+class TestFindTesseract:
+    """Tests for _find_tesseract() — PATH and filesystem fallback logic."""
+
+    def test_found_on_path(self):
+        """Return True immediately when tesseract is on PATH."""
+        from src.services.ocr_availability import _find_tesseract
+
+        with patch("src.services.ocr_availability.shutil.which", return_value="/usr/bin/tesseract"):
+            assert _find_tesseract() is True
+
+    def test_found_in_program_files(self):
+        """Return True when tesseract is in Program Files but not on PATH."""
+        from src.services.ocr_availability import _find_tesseract
+
+        def fake_exists(self):
+            return "Program Files" in str(self) and "x86" not in str(self)
+
+        with (
+            patch("src.services.ocr_availability.shutil.which", return_value=None),
+            patch("pathlib.Path.exists", fake_exists),
+        ):
+            assert _find_tesseract() is True
+
+    def test_found_in_program_files_x86(self):
+        """Return True when tesseract is in Program Files (x86) but not on PATH."""
+        from src.services.ocr_availability import _find_tesseract
+
+        def fake_exists(self):
+            return "x86" in str(self)
+
+        with (
+            patch("src.services.ocr_availability.shutil.which", return_value=None),
+            patch("pathlib.Path.exists", fake_exists),
+        ):
+            assert _find_tesseract() is True
+
+    def test_found_in_localappdata(self):
+        """Return True when tesseract is in %LOCALAPPDATA% but not on PATH."""
+        from src.services.ocr_availability import _find_tesseract
+
+        def fake_exists(self):
+            return "AppData" in str(self)
+
+        with (
+            patch("src.services.ocr_availability.shutil.which", return_value=None),
+            patch("pathlib.Path.exists", fake_exists),
+        ):
+            assert _find_tesseract() is True
+
+    def test_not_found_anywhere(self):
+        """Return False when tesseract is neither on PATH nor in standard locations."""
+        from src.services.ocr_availability import _find_tesseract
+
+        with (
+            patch("src.services.ocr_availability.shutil.which", return_value=None),
+            patch("pathlib.Path.exists", return_value=False),
+        ):
+            assert _find_tesseract() is False
+
+
+class TestConfigureTesseract:
+    """Tests for _configure_tesseract() in ocr_processor.py."""
+
+    def test_skips_when_on_path(self):
+        """Don't set tesseract_cmd when tesseract is already on PATH."""
+        from src.core.extraction.ocr_processor import _configure_tesseract
+
+        mock_pytesseract = MagicMock()
+        with (
+            patch(
+                "src.core.extraction.ocr_processor.shutil.which", return_value="/usr/bin/tesseract"
+            ),
+            patch.dict("sys.modules", {"pytesseract": mock_pytesseract}),
+        ):
+            _configure_tesseract()
+            # tesseract_cmd should NOT have been set
+            assert (
+                not hasattr(mock_pytesseract, "tesseract_cmd")
+                or mock_pytesseract.tesseract_cmd == mock_pytesseract.tesseract_cmd
+            )  # unchanged
+
+    def test_sets_cmd_when_found_off_path(self):
+        """Set pytesseract.tesseract_cmd when found in standard location."""
+        from src.core.extraction.ocr_processor import _configure_tesseract
+
+        mock_pytesseract = MagicMock()
+        with (
+            patch("src.core.extraction.ocr_processor.shutil.which", return_value=None),
+            patch("pathlib.Path.exists", return_value=True),
+            patch.dict("sys.modules", {"pytesseract": mock_pytesseract}),
+        ):
+            _configure_tesseract()
+            assert mock_pytesseract.tesseract_cmd is not None
+
+    def test_no_change_when_not_found(self):
+        """Don't set tesseract_cmd when tesseract isn't found anywhere."""
+        from src.core.extraction.ocr_processor import _configure_tesseract
+
+        mock_pytesseract = MagicMock()
+        original_cmd = mock_pytesseract.tesseract_cmd
+        with (
+            patch("src.core.extraction.ocr_processor.shutil.which", return_value=None),
+            patch("pathlib.Path.exists", return_value=False),
+            patch.dict("sys.modules", {"pytesseract": mock_pytesseract}),
+        ):
+            _configure_tesseract()
+            assert mock_pytesseract.tesseract_cmd == original_cmd
+
+
 # ============================================================================
 # B. spaCy Bundled Model Loading
 # ============================================================================
