@@ -365,7 +365,7 @@ def get_optimal_context_size() -> int:
     # Find appropriate tier
     for min_vram, context_size in VRAM_CONTEXT_TIERS:
         if vram_gb >= min_vram:
-            logger.info(f"[GPU] VRAM: {vram_gb:.1f}GB → optimal context: {context_size:,} tokens")
+            logger.info(f"[GPU] VRAM: {vram_gb:.1f}GB -> optimal context: {context_size:,} tokens")
             return context_size
 
     # Fallback (shouldn't reach here due to 0 tier)

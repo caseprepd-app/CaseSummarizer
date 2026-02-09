@@ -165,7 +165,7 @@ class TextFindBar(ctk.CTkFrame):
         else:
             self._count_label.configure(text="No matches")
 
-        logger.debug("Find: '%s' → %d matches", query, total)
+        logger.debug("Find: '%s' -> %d matches", query, total)
 
     def _next_match(self):
         """Move to the next match."""

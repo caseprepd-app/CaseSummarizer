@@ -54,7 +54,12 @@ def setup_file_logging():
                 self.logfile = None
 
         def write(self, message):
-            self.terminal.write(message)
+            try:
+                self.terminal.write(message)
+            except UnicodeEncodeError:
+                # Windows terminal uses cp1252 which can't encode all Unicode.
+                # Replace unencodable characters rather than crashing the app.
+                self.terminal.write(message.encode("ascii", errors="replace").decode("ascii"))
             if self.logfile:
                 try:
                     self.logfile.write(message)

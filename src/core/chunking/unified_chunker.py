@@ -37,7 +37,10 @@ from src.config import (
 
 logger = logging.getLogger(__name__)
 
-# Fallback values if config import fails (should match config.py)
+# Chunk token limits (should match config.py defaults).
+# The embedding model (nomic-embed-text-v1.5) has an 8,192-token context window,
+# so even the max chunk size (1000 tokens) fits comfortably within that limit.
+# Chunks are sized for retrieval quality, not to fill the embedding window.
 DEFAULT_MIN_TOKENS = UNIFIED_CHUNK_MIN_TOKENS  # Fallback: 400
 DEFAULT_TARGET_TOKENS = UNIFIED_CHUNK_TARGET_TOKENS  # Fallback: 700
 DEFAULT_MAX_TOKENS = UNIFIED_CHUNK_MAX_TOKENS  # Fallback: 1000
