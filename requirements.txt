@@ -53,4 +53,5 @@ pytextrank>=3.0.0
 scispacy
 # Coreference resolution for pronoun-to-name replacement
 fastcoref
-# Optional: gliner  (zero-shot NER, ~450MB model)
+# Zero-shot NER for rare vocabulary extraction (~450MB model)
+gliner
