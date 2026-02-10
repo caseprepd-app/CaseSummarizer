@@ -105,6 +105,18 @@ class DynamicOutputWidget(ctk.CTkFrame):
         )
         self._progress_badge.grid(row=1, column=0, sticky="w", padx=10, pady=(0, 5))
 
+        # Feedback balance hint - nudges users toward balanced keep/skip voting
+        self._balance_hint = ctk.CTkLabel(
+            self.tabview.tab("Names & Vocab"),
+            text="",
+            font=FONTS["small"],
+            text_color=("gray50", "gray70"),
+            cursor="hand2",
+        )
+        self._balance_hint.grid(row=2, column=0, sticky="w", padx=10, pady=(0, 5))
+        self._balance_hint.bind("<Button-1>", lambda e: self._dismiss_balance_hint())
+        self._balance_hint_dismissed = False
+
         # Names & Vocab Tab: Treeview frame (initially None, created when needed)
         self.csv_treeview = None
         self.treeview_frame = None  # Frame to hold treeview and scrollbars
@@ -2328,6 +2340,43 @@ class DynamicOutputWidget(ctk.CTkFrame):
             # This filters them out of future extractions
             if new_rating == -1:
                 self._add_to_user_exclusion_list(term)
+
+            # Check if feedback is lopsided and show hint if needed
+            self._update_balance_hint()
+
+    def _update_balance_hint(self):
+        """
+        Show a hint if user feedback is heavily lopsided (>75% one class).
+
+        Helps users understand that balanced feedback improves ML predictions.
+        Only shown after 20+ votes. Dismissable per session.
+        """
+        if self._balance_hint_dismissed:
+            return
+
+        keep_count = len(self._feedback_manager.get_rated_terms(rating_filter=+1))
+        skip_count = len(self._feedback_manager.get_rated_terms(rating_filter=-1))
+        total = keep_count + skip_count
+
+        if total < 20:
+            self._balance_hint.configure(text="")
+            return
+
+        majority_pct = max(keep_count, skip_count) / total
+        if majority_pct < 0.75:
+            self._balance_hint.configure(text="")
+            return
+
+        if keep_count > skip_count:
+            msg = "Tip: Your feedback is mostly keeps \u2014 voting skip on some terms helps the model learn faster  (click to dismiss)"
+        else:
+            msg = "Tip: Your feedback is mostly skips \u2014 voting keep on good terms helps the model learn faster  (click to dismiss)"
+        self._balance_hint.configure(text=msg, text_color=("gray50", "gray70"))
+
+    def _dismiss_balance_hint(self):
+        """Dismiss the balance hint for the rest of this session."""
+        self._balance_hint_dismissed = True
+        self._balance_hint.configure(text="")
 
     def _find_term_data(self, term: str) -> dict | None:
         """
