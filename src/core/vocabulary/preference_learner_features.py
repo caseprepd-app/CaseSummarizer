@@ -174,6 +174,9 @@ FEATURE_NAMES = [
     # Stop word boundary features (Session 141)
     "starts_with_stop_word",  # First word is top-1000 common (e.g., "the same")
     "ends_with_stop_word",  # Last word is top-1000 common (e.g., "Smith the")
+    # User-defined indicator pattern features
+    "matches_positive_indicator",  # User-defined positive pattern match
+    "matches_negative_indicator",  # User-defined negative pattern match
 ]
 
 
@@ -196,7 +199,7 @@ def extract_features(term_data: dict[str, Any]) -> np.ndarray:
                   May include "sources" (TermSources) and "total_docs_in_session"
 
     Returns:
-        numpy array of 50 features (7 count bins + log_count + 42 other features)
+        numpy array of 52 features (7 count bins + log_count + 44 other features)
 
     Raises:
         ValueError: If term_data is not a dict or missing required fields
@@ -424,6 +427,12 @@ def extract_features(term_data: dict[str, Any]) -> np.ndarray:
         starts_with_stop_word = 0.0
         ends_with_stop_word = 0.0
 
+    # === User-defined indicator pattern features ===
+    from src.core.vocabulary.indicator_patterns import matches_negative, matches_positive
+
+    matches_positive_indicator = 1.0 if matches_positive(term) else 0.0
+    matches_negative_indicator = 1.0 if matches_negative(term) else 0.0
+
     # === SESSION 78: TermSources-based per-document features ===
     # These features provide richer signals about term reliability by
     # tracking which source documents contributed each occurrence.
@@ -522,5 +531,8 @@ def extract_features(term_data: dict[str, Any]) -> np.ndarray:
             # Session 141: Stop word boundary features (2)
             starts_with_stop_word,
             ends_with_stop_word,
+            # User-defined indicator pattern features (2)
+            matches_positive_indicator,
+            matches_negative_indicator,
         ]
     )

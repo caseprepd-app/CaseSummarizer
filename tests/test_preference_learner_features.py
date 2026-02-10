@@ -44,9 +44,15 @@ def mock_deps():
         ),
     ):
         # Mock is_common_word for stop word features (imported inside extract_features)
-        with patch(
-            "src.core.vocabulary.rarity_filter.is_common_word",
-            side_effect=lambda word, top_n=200000: word in ("the", "and", "a", "of"),
+        with (
+            patch(
+                "src.core.vocabulary.rarity_filter.is_common_word",
+                side_effect=lambda word, top_n=200000: word in ("the", "and", "a", "of"),
+            ),
+            patch(
+                "src.core.vocabulary.indicator_patterns.get_user_preferences",
+                return_value=MockPrefs(),
+            ),
         ):
             from src.core.vocabulary.preference_learner_features import (
                 FEATURE_NAMES,
@@ -61,7 +67,7 @@ def test_feature_vector_length(mock_deps):
     term_data = {"Term": "John Smith", "occurrences": 5, "algorithms": "NER", "is_person": 1}
     features = extract_features(term_data)
     assert len(features) == len(FEATURE_NAMES)
-    assert len(features) == 50
+    assert len(features) == 52
 
 
 def test_person_feature(mock_deps):

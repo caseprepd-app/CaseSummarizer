@@ -1164,6 +1164,60 @@ def _register_all_settings():
         )
     )
 
+    # Session: User-defined indicator patterns for vocabulary ML
+    def _create_indicator_pattern_widget(parent):
+        """Factory function to create the IndicatorPatternWidget."""
+        from src.ui.settings.indicator_pattern_widget import IndicatorPatternWidget
+
+        return IndicatorPatternWidget(parent)
+
+    def _save_indicator_patterns(value: dict) -> None:
+        """Save indicator patterns to preferences and trigger retrain."""
+        if not isinstance(value, dict):
+            return
+        prefs.set("vocab_positive_indicators", value.get("positive_strings", []))
+        prefs.set("vocab_negative_indicators", value.get("negative_strings", []))
+        prefs.set("vocab_positive_regex_override", value.get("positive_override", ""))
+        prefs.set("vocab_negative_regex_override", value.get("negative_override", ""))
+
+        # Trigger preference learner retrain with new features
+        # (indicator_patterns cache auto-invalidates when preferences change)
+        try:
+            from src.services import VocabularyService
+
+            learner = VocabularyService().get_meta_learner()
+            learner.train(force=True)
+            logger.info("Vocabulary model retrained with updated indicator patterns")
+        except Exception as e:
+            logger.warning("Could not retrain vocabulary model: %s", e)
+
+    SettingsRegistry.register(
+        SettingDefinition(
+            key="vocab_indicator_patterns",
+            label="Indicator Patterns",
+            category="Vocabulary",
+            setting_type=SettingType.CUSTOM,
+            tooltip=(
+                "Define strings that indicate good or bad vocabulary terms.\n\n"
+                "Positive indicators: Strings found in terms you tend to keep "
+                "(e.g., 'dr.', 'plaintiff').\n\n"
+                "Negative indicators: Strings found in terms you tend to skip "
+                "(e.g., 'direct', 'redirect', 'cross').\n\n"
+                "These become ML features — the model learns from your votes "
+                "whether these patterns correlate with terms you keep or skip."
+            ),
+            default=None,
+            getter=lambda: {
+                "positive_strings": prefs.get("vocab_positive_indicators", []),
+                "negative_strings": prefs.get("vocab_negative_indicators", []),
+                "positive_override": prefs.get("vocab_positive_regex_override", ""),
+                "negative_override": prefs.get("vocab_negative_regex_override", ""),
+            },
+            setter=_save_indicator_patterns,
+            widget_factory=_create_indicator_pattern_widget,
+        )
+    )
+
     # ===================================================================
     # TEXT PREPROCESSING TAB
     # ===================================================================

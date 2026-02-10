@@ -724,6 +724,23 @@ class UserPreferencesManager:
                 raise ValueError(
                     f"summary_enhanced_mode must be 'auto', 'yes', or 'no', got {value}"
                 )
+        # Vocabulary indicator pattern validation
+        elif key in ("vocab_positive_indicators", "vocab_negative_indicators"):
+            if not isinstance(value, list):
+                raise ValueError(f"{key} must be a list, got {type(value).__name__}")
+            for item in value:
+                if not isinstance(item, str):
+                    raise ValueError(f"{key} items must be strings, got {type(item).__name__}")
+        elif key in ("vocab_positive_regex_override", "vocab_negative_regex_override"):
+            if not isinstance(value, str):
+                raise ValueError(f"{key} must be a string, got {type(value).__name__}")
+            if value.strip():
+                import re as _re
+
+                try:
+                    _re.compile(value.strip())
+                except _re.error as e:
+                    raise ValueError(f"{key} contains invalid regex: {e}")
 
         self._preferences[key] = value
         self._save_preferences()
