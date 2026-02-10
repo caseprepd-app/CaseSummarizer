@@ -99,7 +99,7 @@ class ExtractionPassProcessor:
                     if i < len(self.chunk_scores.skip_reason)
                     else "redundant"
                 )
-                logger.debug("[Pass 1] Skipped chunk %d — %s", i + 1, reason)
+                logger.debug("[Pass 1] Skipped chunk %d - %s", i + 1, reason)
                 results.append("")
                 continue
 

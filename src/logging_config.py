@@ -199,7 +199,7 @@ def setup_logging() -> None:
         return  # already configured
 
     fmt = logging.Formatter(
-        "[%(levelname)s %(asctime)s] %(name)s — %(message)s",
+        "[%(levelname)s %(asctime)s] %(name)s - %(message)s",
         datefmt="%H:%M:%S",
     )
 
@@ -314,7 +314,7 @@ def clear_log_file() -> bool:
         # Re-create handler
 
         fmt = logging.Formatter(
-            "[%(levelname)s %(asctime)s] %(name)s — %(message)s",
+            "[%(levelname)s %(asctime)s] %(name)s - %(message)s",
             datefmt="%H:%M:%S",
         )
         fh = RotatingFileHandler(

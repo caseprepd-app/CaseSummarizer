@@ -1984,7 +1984,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
 
         # Save the file
         try:
-            with open(filepath, "w", encoding="utf-8", newline="") as f:
+            with open(filepath, "w", encoding="utf-8-sig", newline="") as f:
                 f.write(csv_content)
 
             # Session 73: Remember export folder

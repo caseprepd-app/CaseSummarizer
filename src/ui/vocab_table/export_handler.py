@@ -100,7 +100,7 @@ class VocabExportMixin:
         )
 
         if filepath:
-            with open(filepath, "w", encoding="utf-8", newline="") as f:
+            with open(filepath, "w", encoding="utf-8-sig", newline="") as f:
                 f.write(csv_content)
             logger.info("Exported %s terms to %s", len(sorted_data), filepath)
 

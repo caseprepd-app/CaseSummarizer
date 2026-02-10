@@ -56,6 +56,8 @@ def get_system_resources() -> ResourceInfo:
     """
     prefs = get_user_preferences()
     resource_pct = prefs.get("resource_usage_pct", 75)
+    if not isinstance(resource_pct, (int, float)) or resource_pct < 25 or resource_pct > 100:
+        resource_pct = 75
 
     cpu_count = os.cpu_count() or 4
 

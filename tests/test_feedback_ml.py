@@ -184,7 +184,9 @@ class TestVocabularyPreferenceLearner:
             "total_unique_terms": 100,
         }
         features = extract_features(term_data)
-        assert len(features) == 50  # 7 count bins + log_count + 42 other features
+        assert (
+            len(features) == 52
+        )  # 7 count bins + log_count + 42 other features + 2 indicator patterns
         # features[0-6] are count bins: count=3 → count_bin_3=1.0
         assert features[0] == 0.0  # count_bin_1
         assert features[1] == 0.0  # count_bin_2

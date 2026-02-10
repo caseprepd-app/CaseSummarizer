@@ -259,7 +259,7 @@ class ProgressiveDocumentSummarizer(DocumentSummarizer):
                         if i < len(self.chunk_scores.skip_reason)
                         else "redundant"
                     )
-                    logger.debug("[Skipped chunk %d — %s]", chunk_num, reason)
+                    logger.debug("[Skipped chunk %d - %s]", chunk_num, reason)
                     chunk_summaries.append("")
                     progressive.df.loc[
                         progressive.df["chunk_num"] == chunk_num, "chunk_summary"

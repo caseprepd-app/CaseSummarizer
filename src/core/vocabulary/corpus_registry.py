@@ -341,9 +341,7 @@ class CorpusRegistry:
             raise ValueError(f"Corpus '{name}' does not exist")
 
         prefs = get_user_preferences()
-        # Use the internal _preferences dict directly to avoid validation
-        prefs._preferences["active_corpus"] = name
-        prefs._save_preferences()
+        prefs.set("active_corpus", name)
 
         # Reset CorpusManager singleton so it picks up the new path
         # Session 64: Ensures BM25 uses the newly selected corpus

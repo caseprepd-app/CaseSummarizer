@@ -514,7 +514,7 @@ class QAPanel(ctk.CTkFrame):
 
         try:
             content = self._format_csv_export(exportable)
-            with open(filepath, "w", encoding="utf-8", newline="") as f:
+            with open(filepath, "w", encoding="utf-8-sig", newline="") as f:
                 f.write(content)
 
             # Session 73: Remember export folder

@@ -165,7 +165,7 @@ class VocabularyService:
             # Get headers from first item
             headers = list(vocab_data[0].keys())
 
-            with open(file_path, "w", newline="", encoding="utf-8") as f:
+            with open(file_path, "w", newline="", encoding="utf-8-sig") as f:
                 writer = csv.DictWriter(f, fieldnames=headers)
                 writer.writeheader()
                 writer.writerows(vocab_data)

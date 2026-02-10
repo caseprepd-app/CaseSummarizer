@@ -68,10 +68,13 @@ def _get_effective_algorithm_weights() -> dict[str, float]:
         from src.user_preferences import get_user_preferences
 
         prefs = get_user_preferences()
-        return {
-            "FAISS": prefs.get("retrieval_weight_faiss", RETRIEVAL_ALGORITHM_WEIGHTS["FAISS"]),
-            "BM25+": prefs.get("retrieval_weight_bm25", RETRIEVAL_ALGORITHM_WEIGHTS["BM25+"]),
-        }
+        faiss_w = prefs.get("retrieval_weight_faiss", RETRIEVAL_ALGORITHM_WEIGHTS["FAISS"])
+        bm25_w = prefs.get("retrieval_weight_bm25", RETRIEVAL_ALGORITHM_WEIGHTS["BM25+"])
+        if not isinstance(faiss_w, (int, float)):
+            faiss_w = RETRIEVAL_ALGORITHM_WEIGHTS["FAISS"]
+        if not isinstance(bm25_w, (int, float)):
+            bm25_w = RETRIEVAL_ALGORITHM_WEIGHTS["BM25+"]
+        return {"FAISS": faiss_w, "BM25+": bm25_w}
     except Exception:
         return RETRIEVAL_ALGORITHM_WEIGHTS
 

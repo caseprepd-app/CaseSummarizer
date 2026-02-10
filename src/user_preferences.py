@@ -56,8 +56,9 @@ class UserPreferencesManager:
             else:
                 return default_structure
 
-        except (json.JSONDecodeError, Exception):
-            # If file is corrupted, return defaults
+        except (json.JSONDecodeError, Exception) as e:
+            # If file is corrupted, log warning and return defaults
+            logger.warning("Preferences file corrupted, using defaults: %s", e)
             return default_structure
 
     def _save_preferences(self) -> None:
@@ -724,6 +725,13 @@ class UserPreferencesManager:
                 raise ValueError(
                     f"summary_enhanced_mode must be 'auto', 'yes', or 'no', got {value}"
                 )
+        # Active corpus validation
+        elif key == "active_corpus":
+            if not isinstance(value, str) or not value.strip():
+                raise ValueError("active_corpus must be a non-empty string")
+            # Block path traversal attempts
+            if ".." in value or "/" in value or "\\" in value:
+                raise ValueError(f"active_corpus contains invalid characters: {value}")
         # Vocabulary indicator pattern validation
         elif key in ("vocab_positive_indicators", "vocab_negative_indicators"):
             if not isinstance(value, list):

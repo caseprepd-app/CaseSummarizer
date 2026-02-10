@@ -144,7 +144,7 @@ Alternative queries:"""
                     pass
 
             if not model_name:
-                logger.debug("No Ollama model configured — skipping query expansion")
+                logger.debug("No Ollama model configured - skipping query expansion")
                 return False
 
             self._llm = Ollama(
