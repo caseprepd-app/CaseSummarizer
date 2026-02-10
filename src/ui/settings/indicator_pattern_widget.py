@@ -1,4 +1,4 @@
-"""
+r"""
 Indicator Pattern Widget for Vocabulary Settings.
 
 Lets users define positive and negative indicator strings that become
@@ -7,15 +7,15 @@ strings; the app auto-builds OR regexes. A "Show regex" toggle reveals
 the generated pattern for advanced editing.
 
 Layout:
-    ┌─ Positive indicators ─────────────────────────────┐
-    │  [text entry] [Add]                               │
-    │  dr.  [x]   plaintiff  [x]   defendant  [x]      │
-    ├─ Negative indicators ─────────────────────────────┤
-    │  [text entry] [Add]                               │
-    │  direct  [x]   redirect  [x]   cross  [x]        │
-    ├─ Show regex ──────────────────────────────────────┤
-    │  (?i)(?:dr\\.|plaintiff|defendant)    [Edit]      │
-    └───────────────────────────────────────────────────┘
+    +-- Positive indicators ----------------------------+
+    |  [text entry, comma-separated] [Add]              |
+    |  dr.  [x]   plaintiff  [x]   defendant  [x]      |
+    +-- Negative indicators ----------------------------+
+    |  [text entry, comma-separated] [Add]              |
+    |  direct  [x]   redirect  [x]   cross  [x]        |
+    +-- Show regex -------------------------------------+
+    |  (?i)(?:dr\.|plaintiff|defendant)    [Edit]       |
+    +---------------------------------------------------+
 """
 
 import re
@@ -44,6 +44,36 @@ def _validate_regex(regex_str: str) -> str | None:
         return str(e)
 
 
+# Shared tooltip text
+_POSITIVE_TOOLTIP = (
+    "Strings that appear in vocabulary terms you want to KEEP.\n\n"
+    "How to enter: Type one or more strings separated by commas,\n"
+    "then click Add (or press Enter). Each string becomes a\n"
+    "separate indicator that the model can learn from.\n\n"
+    "Example: typing 'dr., plaintiff, defendant' and clicking Add\n"
+    "creates three indicators. Any vocabulary term containing\n"
+    "'dr.', 'plaintiff', or 'defendant' will have its positive\n"
+    "indicator feature set to 1.\n\n"
+    "The model does NOT automatically keep these terms. Instead,\n"
+    "it learns from your thumbs-up/thumbs-down votes whether\n"
+    "terms with these patterns tend to be ones you keep."
+)
+
+_NEGATIVE_TOOLTIP = (
+    "Strings that appear in vocabulary terms you want to SKIP.\n\n"
+    "How to enter: Type one or more strings separated by commas,\n"
+    "then click Add (or press Enter). Each string becomes a\n"
+    "separate indicator that the model can learn from.\n\n"
+    "Example: typing 'direct, redirect, cross, recross' and\n"
+    "clicking Add creates four indicators. Any vocabulary term\n"
+    "containing these strings (like 'REDIRECT EXAMINATION') will\n"
+    "have its negative indicator feature set to 1.\n\n"
+    "The model does NOT automatically skip these terms. Instead,\n"
+    "it learns from your thumbs-up/thumbs-down votes whether\n"
+    "terms with these patterns tend to be ones you skip."
+)
+
+
 class IndicatorPatternWidget(ctk.CTkFrame):
     """
     Settings widget for user-defined vocabulary indicator patterns.
@@ -70,29 +100,41 @@ class IndicatorPatternWidget(ctk.CTkFrame):
         self._negative_override: str = self._prefs.get("vocab_negative_regex_override", "")
         self._show_regex = False
         self._regex_error_label = None
+        # Track the auto-generated regex text so Edit can copy it
+        self._pos_auto_regex = ""
+        self._neg_auto_regex = ""
 
         self._setup_ui()
 
     def _setup_ui(self):
         """Create the widget layout."""
+        from src.ui.settings.settings_widgets import TooltipIcon
+
         self.grid_columnconfigure(0, weight=1)
         row = 0
 
         # === Positive indicators section ===
+        pos_header = ctk.CTkFrame(self, fg_color="transparent")
+        pos_header.grid(row=row, column=0, sticky="ew", pady=(0, 2))
+
         pos_label = ctk.CTkLabel(
-            self,
+            pos_header,
             text="Positive indicators (terms to favor)",
             font=FONTS["body"],
             anchor="w",
         )
-        pos_label.grid(row=row, column=0, sticky="w", pady=(0, 2))
+        pos_label.pack(side="left", padx=(0, 5))
+
+        TooltipIcon(pos_header, tooltip_text=_POSITIVE_TOOLTIP).pack(side="left")
         row += 1
 
         pos_input_frame = ctk.CTkFrame(self, fg_color="transparent")
         pos_input_frame.grid(row=row, column=0, sticky="ew", pady=(0, 2))
         pos_input_frame.grid_columnconfigure(0, weight=1)
 
-        self._pos_entry = ctk.CTkEntry(pos_input_frame, placeholder_text="e.g. dr.")
+        self._pos_entry = ctk.CTkEntry(
+            pos_input_frame, placeholder_text="e.g. dr., plaintiff, defendant"
+        )
         self._pos_entry.grid(row=0, column=0, sticky="ew", padx=(0, 5))
         self._pos_entry.bind("<Return>", lambda e: self._add_positive())
 
@@ -110,20 +152,27 @@ class IndicatorPatternWidget(ctk.CTkFrame):
         row += 1
 
         # === Negative indicators section ===
+        neg_header = ctk.CTkFrame(self, fg_color="transparent")
+        neg_header.grid(row=row, column=0, sticky="ew", pady=(0, 2))
+
         neg_label = ctk.CTkLabel(
-            self,
+            neg_header,
             text="Negative indicators (terms to demote)",
             font=FONTS["body"],
             anchor="w",
         )
-        neg_label.grid(row=row, column=0, sticky="w", pady=(0, 2))
+        neg_label.pack(side="left", padx=(0, 5))
+
+        TooltipIcon(neg_header, tooltip_text=_NEGATIVE_TOOLTIP).pack(side="left")
         row += 1
 
         neg_input_frame = ctk.CTkFrame(self, fg_color="transparent")
         neg_input_frame.grid(row=row, column=0, sticky="ew", pady=(0, 2))
         neg_input_frame.grid_columnconfigure(0, weight=1)
 
-        self._neg_entry = ctk.CTkEntry(neg_input_frame, placeholder_text="e.g. redirect")
+        self._neg_entry = ctk.CTkEntry(
+            neg_input_frame, placeholder_text="e.g. direct, redirect, cross"
+        )
         self._neg_entry.grid(row=0, column=0, sticky="ew", padx=(0, 5))
         self._neg_entry.bind("<Return>", lambda e: self._add_negative())
 
@@ -171,8 +220,8 @@ class IndicatorPatternWidget(ctk.CTkFrame):
         help_label = ctk.CTkLabel(
             self,
             text=(
-                "Add strings that indicate good or bad vocabulary terms.\n"
-                "The ML model learns from your votes whether these patterns "
+                "Type strings separated by commas, then click Add.\n"
+                "The ML model learns from your votes whether these patterns\n"
                 "correlate with terms you keep or skip."
             ),
             font=FONTS["small"],
@@ -184,23 +233,46 @@ class IndicatorPatternWidget(ctk.CTkFrame):
 
         # Initial render
         self._render_tags()
-        self._regex_frame.grid_remove()  # Hidden by default
+        self._regex_frame.grid_remove()
         self._regex_error_label.grid_remove()
 
+    def _parse_entry(self, entry_text: str) -> list[str]:
+        """
+        Parse comma-separated entry text into a list of trimmed strings.
+
+        Args:
+            entry_text: Raw text from the entry widget.
+
+        Returns:
+            List of non-empty trimmed strings.
+        """
+        parts = entry_text.split(",")
+        return [p.strip() for p in parts if p.strip()]
+
     def _add_positive(self):
-        """Add a string to the positive indicators list."""
-        text = self._pos_entry.get().strip()
-        if text and text not in self._positive_strings:
-            self._positive_strings.append(text)
+        """Add strings from the entry to the positive indicators list."""
+        raw = self._pos_entry.get()
+        new_strings = self._parse_entry(raw)
+        added = False
+        for s in new_strings:
+            if s not in self._positive_strings:
+                self._positive_strings.append(s)
+                added = True
+        if added:
             self._pos_entry.delete(0, "end")
             self._render_tags()
             self._update_regex_preview()
 
     def _add_negative(self):
-        """Add a string to the negative indicators list."""
-        text = self._neg_entry.get().strip()
-        if text and text not in self._negative_strings:
-            self._negative_strings.append(text)
+        """Add strings from the entry to the negative indicators list."""
+        raw = self._neg_entry.get()
+        new_strings = self._parse_entry(raw)
+        added = False
+        for s in new_strings:
+            if s not in self._negative_strings:
+                self._negative_strings.append(s)
+                added = True
+        if added:
             self._neg_entry.delete(0, "end")
             self._render_tags()
             self._update_regex_preview()
@@ -239,7 +311,7 @@ class IndicatorPatternWidget(ctk.CTkFrame):
         if not strings:
             return
 
-        for i, text in enumerate(strings):
+        for text in strings:
             tag = ctk.CTkButton(
                 parent_frame,
                 text=f"{text}  \u00d7",
@@ -267,6 +339,10 @@ class IndicatorPatternWidget(ctk.CTkFrame):
         for widget in self._regex_frame.winfo_children():
             widget.destroy()
 
+        # Compute auto-generated regexes and cache for Edit button
+        self._pos_auto_regex = _build_regex_preview(self._positive_strings)
+        self._neg_auto_regex = _build_regex_preview(self._negative_strings)
+
         # Positive regex
         pos_label = ctk.CTkLabel(
             self._regex_frame,
@@ -276,14 +352,14 @@ class IndicatorPatternWidget(ctk.CTkFrame):
         )
         pos_label.grid(row=0, column=0, sticky="w", pady=(2, 0))
 
-        pos_preview = self._positive_override or _build_regex_preview(self._positive_strings)
+        pos_text = self._positive_override if self._positive_override else self._pos_auto_regex
         self._pos_regex_entry = ctk.CTkEntry(
             self._regex_frame,
             font=FONTS.get("mono", FONTS["small"]),
         )
         self._pos_regex_entry.grid(row=1, column=0, sticky="ew", pady=(0, 4))
-        if pos_preview:
-            self._pos_regex_entry.insert(0, pos_preview)
+        if pos_text:
+            self._pos_regex_entry.insert(0, pos_text)
         if not self._positive_override:
             self._pos_regex_entry.configure(state="disabled")
 
@@ -306,14 +382,14 @@ class IndicatorPatternWidget(ctk.CTkFrame):
         )
         neg_label.grid(row=2, column=0, sticky="w", pady=(2, 0))
 
-        neg_preview = self._negative_override or _build_regex_preview(self._negative_strings)
+        neg_text = self._negative_override if self._negative_override else self._neg_auto_regex
         self._neg_regex_entry = ctk.CTkEntry(
             self._regex_frame,
             font=FONTS.get("mono", FONTS["small"]),
         )
         self._neg_regex_entry.grid(row=3, column=0, sticky="ew", pady=(0, 4))
-        if neg_preview:
-            self._neg_regex_entry.insert(0, neg_preview)
+        if neg_text:
+            self._neg_regex_entry.insert(0, neg_text)
         if not self._negative_override:
             self._neg_regex_entry.configure(state="disabled")
 
@@ -330,26 +406,20 @@ class IndicatorPatternWidget(ctk.CTkFrame):
     def _toggle_positive_regex_edit(self):
         """Toggle between auto-generated and manual regex for positive."""
         if self._positive_override:
-            # Switch to auto mode
+            # Switch back to auto mode
             self._positive_override = ""
-            self._build_regex_preview()
         else:
-            # Switch to edit mode — copy current auto value as starting point
-            self._positive_override = (
-                self._pos_regex_entry.get() if hasattr(self, "_pos_regex_entry") else ""
-            )
-            self._build_regex_preview()
+            # Switch to edit mode — use cached auto regex as starting point
+            self._positive_override = self._pos_auto_regex
+        self._build_regex_preview()
 
     def _toggle_negative_regex_edit(self):
         """Toggle between auto-generated and manual regex for negative."""
         if self._negative_override:
             self._negative_override = ""
-            self._build_regex_preview()
         else:
-            self._negative_override = (
-                self._neg_regex_entry.get() if hasattr(self, "_neg_regex_entry") else ""
-            )
-            self._build_regex_preview()
+            self._negative_override = self._neg_auto_regex
+        self._build_regex_preview()
 
     def _update_regex_preview(self):
         """Update regex preview if visible."""
@@ -367,9 +437,15 @@ class IndicatorPatternWidget(ctk.CTkFrame):
         pos_override = self._positive_override
         neg_override = self._negative_override
         if self._show_regex and pos_override and hasattr(self, "_pos_regex_entry"):
-            pos_override = self._pos_regex_entry.get().strip()
+            try:
+                pos_override = self._pos_regex_entry.get().strip()
+            except Exception:
+                pass
         if self._show_regex and neg_override and hasattr(self, "_neg_regex_entry"):
-            neg_override = self._neg_regex_entry.get().strip()
+            try:
+                neg_override = self._neg_regex_entry.get().strip()
+            except Exception:
+                pass
 
         return {
             "positive_strings": list(self._positive_strings),
@@ -385,8 +461,6 @@ class IndicatorPatternWidget(ctk.CTkFrame):
         Args:
             value: Dict or None. Ignored since we load from prefs in __init__.
         """
-        # Values are loaded from preferences in __init__, so this is a no-op
-        # unless called with explicit data
         if isinstance(value, dict):
             self._positive_strings = list(value.get("positive_strings", []))
             self._negative_strings = list(value.get("negative_strings", []))
