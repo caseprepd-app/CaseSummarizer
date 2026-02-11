@@ -31,3 +31,11 @@ timestamp,document_id,term,feedback,is_person,algorithms,NER_detection,RAKE_dete
 2026-02-08T22:31:42.078770,unknown,Mike,-1,1,NER,True,False,False,1,76.9,2,1704,1,0.5,0.95,0.95,0.0,1.0,0,2,12805
 2026-02-08T22:31:49.323789,unknown,Charlie,-1,1,NER,True,False,False,1,72.5,1,5138,1,0.5,0.94,0.94,0.0,1.0,0,2,20397
 2026-02-08T22:32:07.825113,unknown,Nc Hansraj - Plaintiff,-1,1,"NER, TextRank",True,False,False,1,100.0,12,0,1,0.5,0.9499999999999998,0.95,0.0,1.0,0,2,12805
+2026-02-09T20:21:29.957641,unknown,Nc Genna - Defense,-1,1,NER,True,False,False,1,62.8,5,0,1,0.3333333333333333,0.9399999999999998,0.94,0.0,1.0,0,3,36827
+2026-02-09T20:21:36.917671,unknown,--You,-1,1,NER,True,False,False,1,60.1,2,0,2,0.6666666666666666,0.94,0.94,0.0,1.0,0,3,73670
+2026-02-09T22:12:57.690451,unknown,Numbness,-1,1,"BM25, MedicalNER, NER",True,False,True,2,97.3,21,37016,1,0.25,0.9000000000000001,0.9,0.0,1.0,0,4,6141
+2026-02-09T22:13:05.308007,unknown,David Martinez Swo N,-1,1,NER,True,False,False,1,91.0,1,0,1,0.25,0.9,0.9,0.0,1.0,0,4,6141
+2026-02-09T22:15:32.002340,unknown,Countyof,-1,1,NER,True,False,False,1,67.4,1,0,1,0.25,0.88,0.88,0.0,1.0,0,4,2261
+2026-02-09T22:25:43.594122,unknown,Myown,-1,1,NER,True,False,False,1,59.2,1,0,1,0.25,0.9,0.9,0.0,1.0,0,4,6141
+2026-02-09T22:26:05.225710,unknown,Thecal Sac,1,0,RAKE,False,True,False,1,84.4,5,0,1,0.25,0.9,0.9,0.0,1.0,0,4,6141
+2026-02-09T22:26:11.360431,unknown,Rotator Cuff,1,1,"NER, RAKE",True,True,False,2,95.7,9,0,1,0.25,0.8999999999999999,0.9,0.0,1.0,0,4,6141

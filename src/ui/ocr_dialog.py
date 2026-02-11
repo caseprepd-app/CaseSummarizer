@@ -83,6 +83,20 @@ class OCRDialog(BaseModalDialog):
             anchor="w",
         ).pack(fill="x", pady=(8, 0))
 
+        # Clickable info link
+        info_link = ctk.CTkLabel(
+            msg_frame,
+            text="What is Tesseract OCR? Learn more...",
+            text_color=("#1a73e8", "#8ab4f8"),
+            cursor="hand2",
+            anchor="w",
+        )
+        info_link.pack(fill="x", pady=(4, 0))
+        info_link.bind(
+            "<Button-1>",
+            lambda e: webbrowser.open("https://tesseract-ocr.github.io/"),
+        )
+
         # Buttons
         btn_frame = ctk.CTkFrame(self, fg_color="transparent")
         btn_frame.pack(fill="x", padx=20, pady=(10, 20), side="bottom")

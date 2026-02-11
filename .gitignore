@@ -70,18 +70,23 @@ nul
 *.spec
 *.exe
 *.msi
+*.bin
+installer/Output/
+build_log.txt
 
-# Claude Code local settings (never commit)
-.claude/settings.local.json
+# Claude Code (project config, not shipped)
+.claude/
 
 # Temp files from Edit tool
 *.tmp.*
 
-# Claude Code plans and transcripts
-.claude/plans/
-
-# Sample documents (user-provided, not shipped)
+# Sample documents and test files (user-provided, not shipped)
 sampleDocuments/
+files for testing/
+
+# Debug artifacts
+debug/
+debug_flow.txt
 
 # Misc artifacts
 =3.0.0

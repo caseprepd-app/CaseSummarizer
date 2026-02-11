@@ -46,20 +46,28 @@ def setup_file_logging():
         """LOG-002, LOG-003: Added error handling and close method."""
 
         def __init__(self, filepath):
+            # In PyInstaller windowed mode (--noconsole), sys.stdout is None
             self.terminal = sys.stdout
             try:
                 self.logfile = open(filepath, "w", encoding="utf-8")  # noqa: SIM115
             except OSError as e:
-                print(f"Warning: Could not open log file {filepath}: {e}", file=sys.stderr)
+                if self.terminal is not None:
+                    print(f"Warning: Could not open log file {filepath}: {e}", file=sys.stderr)
                 self.logfile = None
 
         def write(self, message):
-            try:
-                self.terminal.write(message)
-            except UnicodeEncodeError:
-                # Windows terminal uses cp1252 which can't encode all Unicode.
-                # Replace unencodable characters rather than crashing the app.
-                self.terminal.write(message.encode("ascii", errors="replace").decode("ascii"))
+            if self.terminal is not None:
+                try:
+                    self.terminal.write(message)
+                except (UnicodeEncodeError, OSError):
+                    # Windows terminal uses cp1252 which can't encode all Unicode.
+                    # Replace unencodable characters rather than crashing the app.
+                    try:
+                        self.terminal.write(
+                            message.encode("ascii", errors="replace").decode("ascii")
+                        )
+                    except OSError:
+                        pass
             if self.logfile:
                 try:
                     self.logfile.write(message)
@@ -68,7 +76,8 @@ def setup_file_logging():
                     pass  # Log file may have been closed
 
         def flush(self):
-            self.terminal.flush()
+            if self.terminal is not None:
+                self.terminal.flush()
             if self.logfile:
                 with contextlib.suppress(OSError):
                     self.logfile.flush()
