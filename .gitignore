@@ -67,6 +67,7 @@ nul
 
 # Distribution / packaging
 *.spec
+!caseprepd.spec
 *.exe
 *.msi
 *.bin
