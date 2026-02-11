@@ -65,7 +65,9 @@ class ProgressiveSummarizer:
             config_path: Path to chunking_config.yaml. If None, uses default.
         """
         if config_path is None:
-            config_path = Path(__file__).parent.parent / "config" / "chunking_config.yaml"
+            from src.config import CONFIG_FILES_DIR
+
+            config_path = CONFIG_FILES_DIR / "chunking_config.yaml"
 
         self.config = self._load_config(config_path)
         self.unified_chunker = create_unified_chunker()
@@ -320,7 +322,9 @@ class ProgressiveSummarizer:
         global_context, local_context = self.get_context_for_chunk(chunk_num)
 
         # Load template
-        template_path = Path(__file__).parent.parent / "config" / "chunked_prompt_template.txt"
+        from src.config import BUNDLED_CONFIG_DIR
+
+        template_path = BUNDLED_CONFIG_DIR / "chunked_prompt_template.txt"
 
         try:
             with open(template_path, encoding="utf-8") as f:
@@ -366,7 +370,9 @@ Summary:"""
             Path to saved CSV file
         """
         if output_dir is None:
-            output_dir = Path(__file__).parent.parent / "debug"
+            from src.config import LOGS_DIR
+
+            output_dir = LOGS_DIR / "debug"
 
         output_dir.mkdir(exist_ok=True)
 

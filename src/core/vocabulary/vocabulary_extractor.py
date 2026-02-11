@@ -263,10 +263,20 @@ class VocabularyExtractor:
                         break
                 # Fallback: load minimal model for categorization
                 if self._nlp is None:
-                    try:
-                        self._nlp = spacy.load("en_core_web_lg")
-                    except OSError:
-                        self._nlp = spacy.load("en_core_web_sm")
+                    from src.config import (
+                        SPACY_EN_CORE_WEB_LG_PATH,
+                        SPACY_EN_CORE_WEB_SM_PATH,
+                    )
+
+                    if SPACY_EN_CORE_WEB_LG_PATH.exists():
+                        self._nlp = spacy.load(str(SPACY_EN_CORE_WEB_LG_PATH))
+                    elif SPACY_EN_CORE_WEB_SM_PATH.exists():
+                        self._nlp = spacy.load(str(SPACY_EN_CORE_WEB_SM_PATH))
+                    else:
+                        try:
+                            self._nlp = spacy.load("en_core_web_lg")
+                        except OSError:
+                            self._nlp = spacy.load("en_core_web_sm")
             return self._nlp
 
     def extract(

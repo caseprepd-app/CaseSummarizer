@@ -18,20 +18,32 @@ if "--debug" in sys.argv:
     os.environ["DEBUG"] = "true"
 
 import multiprocessing
+import traceback
 from datetime import datetime
+from pathlib import Path
 
-# Add project root to Python path
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+# Add project root to Python path (skip in frozen mode — PyInstaller handles it)
+if not getattr(sys, "frozen", False):
+    sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 import contextlib
 
-import customtkinter as ctk
+# Early crash log for import failures (before Logger redirect is set up).
+# In windowed mode sys.stdout/stderr are None, so errors would be silent.
+_CRASH_LOG = Path(os.environ.get("APPDATA", ".")) / "CasePrepd" / "crash.log"
 
-# CRITICAL: Import src.core.ai BEFORE UI framework to avoid DirectML DLL conflicts on Windows
-# This pre-loads onnxruntime_genai before UI framework initializes
-import src.core.ai  # noqa: F401
-from src.config import LOGS_DIR
-from src.ui.main_window import MainWindow
+try:
+    import customtkinter as ctk
+
+    # CRITICAL: Import src.core.ai BEFORE UI framework to avoid DirectML DLL conflicts
+    # This pre-loads onnxruntime_genai before UI framework initializes
+    import src.core.ai  # noqa: F401
+    from src.config import LOGS_DIR
+    from src.ui.main_window import MainWindow
+except Exception:
+    _CRASH_LOG.parent.mkdir(parents=True, exist_ok=True)
+    _CRASH_LOG.write_text(traceback.format_exc(), encoding="utf-8")
+    raise
 
 
 def setup_file_logging():

@@ -16,9 +16,15 @@ logger = logging.getLogger(__name__)
 # Debug Mode — controls feedback file routing (developer vs user data)
 DEBUG_MODE = os.environ.get("DEBUG", "false").lower() == "true"
 
+# Base directory for bundled files (works in both dev and PyInstaller frozen mode)
+# In dev: src/config.py -> parent.parent = project root
+# In frozen: _internal/src/config.py -> parent.parent = _internal/
+BUNDLED_BASE_DIR = Path(__file__).parent.parent
+BUNDLED_CONFIG_DIR = BUNDLED_BASE_DIR / "config"
+
 # Application Name (loaded from config/app_name.txt for easy rebranding)
 # This file contains just the app name on a single line
-_APP_NAME_FILE = Path(__file__).parent.parent / "config" / "app_name.txt"
+_APP_NAME_FILE = BUNDLED_CONFIG_DIR / "app_name.txt"
 if _APP_NAME_FILE.exists():
     APP_NAME = _APP_NAME_FILE.read_text(encoding="utf-8").strip()
 else:

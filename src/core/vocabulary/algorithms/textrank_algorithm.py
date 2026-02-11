@@ -81,7 +81,13 @@ class TextRankAlgorithm(BaseExtractionAlgorithm):
         import pytextrank  # noqa: F401 — registers the pipeline component
         import spacy
 
-        self._nlp = spacy.load("en_core_web_lg")
+        from src.config import SPACY_EN_CORE_WEB_LG_PATH
+
+        if SPACY_EN_CORE_WEB_LG_PATH.exists():
+            self._nlp = spacy.load(str(SPACY_EN_CORE_WEB_LG_PATH))
+            logger.debug("Loaded bundled spaCy model: %s", SPACY_EN_CORE_WEB_LG_PATH)
+        else:
+            self._nlp = spacy.load("en_core_web_lg")
         self._nlp.add_pipe("textrank")
         logger.debug("Loaded en_core_web_lg with pytextrank pipeline")
 
