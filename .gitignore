@@ -39,7 +39,6 @@ cleaned/
 config/user_preferences.json  # User settings - never commit (defaults in code)
 
 # User data (never commit)
-%APPDATA%/CasePrepd/
 AppData/
 data/keywords/*.txt
 data/frequency/*.txt
@@ -92,7 +91,6 @@ debug_flow.txt
 useful commands.txt
 
 # Misc artifacts
-=3.0.0
 import_test_results.txt
 website_diagram.svg
 website-copy.md

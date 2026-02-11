@@ -19,11 +19,6 @@
 - [x] Settings system — 5-tab dialog with GPU auto-detection
 - [x] Export to Word/PDF — Vocabulary and Q&A export
 
-### Not Yet Built ○
-- [ ] License server integration
-- [ ] Model-aware prompt wrapping
-- [ ] Batch processing mode
-
 ---
 
 ## 2. Layered Architecture
@@ -137,7 +132,7 @@ This diagram shows what the user does and what happens behind the scenes.
 ║       ↓                             ├─ spaCy NER (finds names, orgs, places)  ║
 ║  Vocabulary table starts            ├─ RAKE (extracts key phrases)            ║
 ║  filling with terms:                └─ BM25 corpus (finds rare legal terms)   ║
-║  • Dr. James Mitchell                    ↓                                    ║
+║  • Dr. Sarah Chen                    ↓                                    ║
 ║  • Plaintiff                        Results merged & deduplicated             ║
 ║  • Femur fracture                        ↓                                    ║
 ║  (Source: NER+RAKE)                 ~142 terms found quickly                  ║
@@ -213,7 +208,7 @@ This diagram shows what the user does and what happens behind the scenes.
 ║  ┌────────────────┬──────────┬────────────┐                                   ║
 ║  │ Term           │ Category │ Source     │   • Sort by confidence            ║
 ║  ├────────────────┼──────────┼────────────┤                                   ║
-║  │ Dr. Mitchell   │ Person   │ complaint  │   • Filter by category            ║
+║  │ Dr. Chen       │ Person   │ complaint  │   • Filter by category            ║
 ║  │ Femur fracture │ Medical  │ answer     │                                   ║
 ║  │ Negligence     │ Legal    │ exhibits   │   • Give feedback (👍/👎)          ║
 ║  └────────────────┴──────────┴────────────┘     (trains ML scorer)            ║

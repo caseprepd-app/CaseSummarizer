@@ -13,7 +13,7 @@ sentence-transformers>=3.0.0
 einops  # Required by nomic-embed-text-v1.5 custom model code
 faiss-cpu>=1.7.4
 pdfplumber
-pymupdf>=1.24.0  # Hybrid PDF extraction with word-level voting (Session 79)
+pymupdf>=1.24.0  # Hybrid PDF extraction with word-level voting
 pdf2image
 pytesseract
 requests
@@ -31,21 +31,20 @@ rank-bm25>=0.2.2
 # LlamaIndex for Q&A query transformation
 llama-index-core>=0.10.0
 llama-index-llms-ollama>=0.1.0
-# Token counting for semantic chunking (Session 45)
+# Token counting for semantic chunking
 tiktoken>=0.5.0
-# OCR error / gibberish detection (Session 55)
+# OCR error / gibberish detection
 pyspellchecker>=0.8.0
-# Hallucination verification for Q&A (Session 60)
+# Hallucination verification for Q&A
 lettucedetect>=0.1.6
-# GPU detection: Uses PyTorch (already installed via sentence-transformers) - Session 64
-# OCR image preprocessing for improved accuracy (Session 63)
+# OCR image preprocessing for improved accuracy
 opencv-python-headless>=4.8.0
 deskew>=1.5.0
 scikit-image>=0.22.0
-# Word/PDF export (Session 71)
+# Word/PDF export
 python-docx>=0.8.11
 fpdf2>=2.7.0
-# Drag-and-drop file support (Session 73)
+# Drag-and-drop file support
 tkinterdnd2>=0.3.0
 # Graph-based keyword extraction for vocabulary (pytextrank)
 pytextrank>=3.0.0

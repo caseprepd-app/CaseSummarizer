@@ -1,8 +1,6 @@
 # Research Log
 
-> **Purpose:** Cache external research so it doesn't have to be repeated. Check here BEFORE searching.
->
-> **Format:** Append new entries at the top. Only log actual research with external sources.
+Technical research decisions with sources. Newest entries at the top.
 
 ---
 

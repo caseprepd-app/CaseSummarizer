@@ -1,28 +1,14 @@
 # CasePrepd - Project Overview
 
-> **Document Type:** Prescriptive (upstream) — Defines WHAT we're building and WHY.
-> For HOW it's built, see [ARCHITECTURE.md](ARCHITECTURE.md).
+> For technical implementation details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
-## Documentation System
+## Documentation
 
-This project uses exactly 3 documentation files:
-
-| File | Purpose | When to Update |
-|------|---------|----------------|
-| **PROJECT_OVERVIEW.md** (this file) | What, why, and rationale — business goals, constraints, key decisions | When goals/constraints change or major decisions are made |
-| **[ARCHITECTURE.md](ARCHITECTURE.md)** | How — implementation status, diagrams, code patterns, setup | When code structure changes |
-| **[RESEARCH_LOG.md](RESEARCH_LOG.md)** | Research cache — prevents re-searching the same technical questions | After completing any technical research |
-
-**Rules:**
-- No other documentation files (no TODO.md, no session logs, no human summaries)
-- PROJECT_OVERVIEW.md is the north star — check here for why things are the way they are
-- ARCHITECTURE.md tracks what's built (✓) vs what's not (○)
-- RESEARCH_LOG.md is a cache — check before searching, update after searching
-
-**When stuck on a coding issue:**
-1. Check RESEARCH_LOG.md first — the solution may already be documented
-2. If absent or inadequate, do an online search
-3. Update RESEARCH_LOG.md with findings so future sessions don't repeat the search
+| File | Purpose |
+|------|---------|
+| **PROJECT_OVERVIEW.md** (this file) | What we're building and why |
+| **[ARCHITECTURE.md](ARCHITECTURE.md)** | How it's built — diagrams, components, setup |
+| **[RESEARCH_LOG.md](RESEARCH_LOG.md)** | Technical research decisions with sources |
 
 ---
 
@@ -103,14 +89,13 @@ Build a **100% offline, private, commercial Windows desktop application** for co
 5. OUTPUT DISPLAY   → Names & Vocabulary table, Questions panel, optional Summary
 ```
 
-**Status Bar Convention:** The status bar keeps users informed of every pipeline stage. When adding new features, include status bar updates so users know the feature is running. Non-fatal errors should display briefly in the status bar (orange text) via `StatusReporter.error()` in addition to being logged. Use `StatusReporter` from `src/ui/status_reporter.py` for all worker status updates.
+The status bar keeps users informed of progress through each pipeline stage.
 
 ---
 
 ## 7. Future Considerations (Not Yet Prioritized)
 
 - License server for commercial distribution
-- Model downloads via Dropbox with quota tracking
 - Batch processing mode (overnight jobs)
 
 ---
