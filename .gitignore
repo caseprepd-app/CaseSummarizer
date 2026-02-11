@@ -88,6 +88,9 @@ files for testing/
 debug/
 debug_flow.txt
 
+# Developer scratch files
+useful commands.txt
+
 # Misc artifacts
 =3.0.0
 import_test_results.txt

@@ -1,41 +1,41 @@
 timestamp,document_id,term,feedback,is_person,algorithms,NER_detection,RAKE_detection,BM25_detection,algo_count,quality_score,occurrences,rarity_rank,num_source_documents,doc_diversity_ratio,mean_doc_confidence,median_doc_confidence,confidence_std_dev,high_conf_doc_ratio,all_low_conf,total_docs_in_session,total_word_count
-2026-02-07T22:46:13.309190,unknown,you'd,-1,0,BM25,False,False,True,1,92.5,4,0,1,0.3333333333333333,0.94,0.94,0.0,1.0,0,3,9256
-2026-02-07T22:47:33.109119,unknown,Capiola - Plaintiff,-1,1,"NER, TextRank",True,False,False,1,100.0,61,0,1,0.3333333333333333,0.94,0.94,0.0,1.0,0,3,9256
-2026-02-07T22:47:57.501026,unknown,N. Q. I,-1,1,NER,True,False,False,1,85.0,1,0,1,0.3333333333333333,0.94,0.94,0.0,1.0,0,3,9256
-2026-02-07T22:48:10.195283,unknown,Osteophyte Formation,1,0,RAKE,False,True,False,1,92.5,4,0,1,0.3333333333333333,0.94,0.94,0.0,1.0,0,3,30085
-2026-02-07T22:52:30.974206,unknown,Beth Israel,1,1,"NER, RAKE",True,True,False,2,100.0,13,0,1,0.3333333333333333,0.94,0.94,0.0,1.0,0,3,20867
-2026-02-07T22:52:40.419786,unknown,David R. Payne,1,1,NER,True,False,False,1,100.0,4,0,1,0.3333333333333333,0.94,0.94,0.0,1.0,0,3,30085
-2026-02-07T22:53:03.729582,unknown,Enid Tovar,1,1,"NER, TextRank",True,False,False,1,100.0,429,0,2,0.6666666666666666,0.94,0.94,0.0,1.0,0,3,50952
-2026-02-07T23:15:31.033469,unknown,Devi Nampiaparampil,1,1,"NER, TextRank",True,False,False,1,100.0,192,0,1,0.5,0.94,0.94,0.0,1.0,0,2,36843
-2026-02-07T23:16:16.459331,unknown,Robert Genna,1,1,"NER, RAKE, TextRank",True,True,False,2,100.0,35,0,2,1.0,0.94,0.94,0.0,1.0,0,2,54450
-2026-02-07T23:16:22.525191,unknown,De Moura,1,1,"NER, RAKE, TextRank",True,True,False,2,100.0,44,0,1,0.5,0.94,0.94,0.0,1.0,0,2,17607
-2026-02-07T23:16:27.852417,unknown,John Nc,-1,1,NER,True,False,False,1,92.5,1,0,1,0.5,0.94,0.94,0.0,1.0,0,2,36843
-2026-02-07T23:16:41.339090,unknown,Hal M. Epstein,1,1,NER,True,False,False,1,92.5,1,0,1,0.5,0.94,0.94,0.0,1.0,0,2,17607
-2026-02-07T23:17:24.579412,unknown,Louis Cornacchia,1,1,"NER, TextRank",True,False,False,1,100.0,151,0,1,0.5,0.94,0.94,0.0,1.0,0,2,17607
-2026-02-07T23:17:37.514687,unknown,Hal Epstein,1,1,"MedicalNER, NER",True,False,False,1,100.0,27,0,1,0.5,0.94,0.94,0.0,1.0,0,2,36843
-2026-02-07T23:17:41.786919,unknown,she's,-1,0,BM25,False,False,True,1,100.0,15,0,1,0.5,0.94,0.94,0.0,1.0,0,2,36843
-2026-02-07T23:18:08.336474,unknown,Kim Townsend,1,1,NER,True,False,False,1,100.0,1018,0,2,1.0,0.94,0.94,0.0,1.0,0,2,54450
-2026-02-07T23:18:20.545389,unknown,osteophyte,1,0,"BM25, MedicalNER, NER",True,False,True,2,100.0,23,0,1,0.5,0.9399999999999998,0.94,0.0,1.0,0,2,17607
-2026-02-07T23:18:31.451478,unknown,Demoura,1,1,"MedicalNER, NER",True,False,False,1,100.0,7,0,1,0.5,0.9400000000000001,0.94,0.0,1.0,0,2,36843
-2026-02-07T23:18:39.332829,unknown,Stephanie Hansraj,1,1,"NER, TextRank",True,False,False,1,100.0,3,0,1,0.5,0.94,0.94,0.0,1.0,0,2,36843
-2026-02-07T23:19:52.632239,unknown,Andrew Lauri,1,1,NER,True,False,False,1,100.0,6,0,2,1.0,0.94,0.94,0.0,1.0,0,2,54450
-2026-02-07T23:47:10.849111,unknown,Antonio Vargas,1,1,"NER, RAKE, TextRank",True,True,False,2,100.0,222,0,2,1.0,0.9529729729729729,0.95,0.010000000000000009,1.0,0,2,28209
-2026-02-07T23:47:34.878853,unknown,Nicholas Bellizzi,1,1,"NER, TextRank",True,False,False,1,100.0,6,0,1,0.5,0.9499999999999998,0.95,0.0,1.0,0,2,19117
-2026-02-07T23:47:58.525549,unknown,Mui,1,1,"BM25, MedicalNER, NER, TextRank",True,False,True,2,100.0,421,51551,2,1.0,0.9548456057007126,0.95,0.010000000000000009,1.0,0,2,28209
-2026-02-08T00:22:11.112086,unknown,Shaun Martinsen,1,1,NER,True,False,False,1,100.0,10,0,1,0.5,0.97,0.97,0.0,1.0,0,2,9092
-2026-02-08T22:27:51.522566,unknown,South Conduit,1,1,"NER, RAKE, TextRank",True,True,False,2,100.0,27,0,1,0.5,0.95,0.95,0.0,1.0,0,2,12805
-2026-02-08T22:27:56.396337,unknown,you'll,-1,0,BM25,False,False,True,1,100.0,12,0,1,0.5,0.94,0.94,0.0,1.0,0,2,20397
-2026-02-08T22:28:29.412780,unknown,Scott Occhiogrosso,1,1,NER,True,False,False,1,100.0,305,0,2,1.0,0.9455409836065574,0.95,0.0050000000000000044,1.0,0,2,33202
-2026-02-08T22:28:37.351313,unknown,David Smith,1,1,NER,True,False,False,1,100.0,2,0,2,1.0,0.945,0.945,0.0050000000000000044,1.0,0,2,33202
-2026-02-08T22:28:42.707695,unknown,Alexandre Demoura,1,1,"MedicalNER, NER",True,False,False,1,100.0,14,0,1,0.5,0.9400000000000001,0.94,0.0,1.0,0,2,20397
-2026-02-08T22:31:42.078770,unknown,Mike,-1,1,NER,True,False,False,1,76.9,2,1704,1,0.5,0.95,0.95,0.0,1.0,0,2,12805
-2026-02-08T22:31:49.323789,unknown,Charlie,-1,1,NER,True,False,False,1,72.5,1,5138,1,0.5,0.94,0.94,0.0,1.0,0,2,20397
-2026-02-08T22:32:07.825113,unknown,Nc Hansraj - Plaintiff,-1,1,"NER, TextRank",True,False,False,1,100.0,12,0,1,0.5,0.9499999999999998,0.95,0.0,1.0,0,2,12805
-2026-02-09T20:21:29.957641,unknown,Nc Genna - Defense,-1,1,NER,True,False,False,1,62.8,5,0,1,0.3333333333333333,0.9399999999999998,0.94,0.0,1.0,0,3,36827
-2026-02-09T20:21:36.917671,unknown,--You,-1,1,NER,True,False,False,1,60.1,2,0,2,0.6666666666666666,0.94,0.94,0.0,1.0,0,3,73670
-2026-02-09T22:12:57.690451,unknown,Numbness,-1,1,"BM25, MedicalNER, NER",True,False,True,2,97.3,21,37016,1,0.25,0.9000000000000001,0.9,0.0,1.0,0,4,6141
-2026-02-09T22:13:05.308007,unknown,David Martinez Swo N,-1,1,NER,True,False,False,1,91.0,1,0,1,0.25,0.9,0.9,0.0,1.0,0,4,6141
-2026-02-09T22:15:32.002340,unknown,Countyof,-1,1,NER,True,False,False,1,67.4,1,0,1,0.25,0.88,0.88,0.0,1.0,0,4,2261
-2026-02-09T22:25:43.594122,unknown,Myown,-1,1,NER,True,False,False,1,59.2,1,0,1,0.25,0.9,0.9,0.0,1.0,0,4,6141
-2026-02-09T22:26:05.225710,unknown,Thecal Sac,1,0,RAKE,False,True,False,1,84.4,5,0,1,0.25,0.9,0.9,0.0,1.0,0,4,6141
-2026-02-09T22:26:11.360431,unknown,Rotator Cuff,1,1,"NER, RAKE",True,True,False,2,95.7,9,0,1,0.25,0.8999999999999999,0.9,0.0,1.0,0,4,6141
+2026-01-15T10:00:01.000000,unknown,you'd,-1,0,BM25,False,False,True,1,92.5,4,0,1,0.3333333333333333,0.94,0.94,0.0,1.0,0,3,9256
+2026-01-15T10:01:00.000000,unknown,James Morrison - Plaintiff,-1,1,"NER, TextRank",True,False,False,1,100.0,61,0,1,0.3333333333333333,0.94,0.94,0.0,1.0,0,3,9256
+2026-01-15T10:02:00.000000,unknown,N. Q. I,-1,1,NER,True,False,False,1,85.0,1,0,1,0.3333333333333333,0.94,0.94,0.0,1.0,0,3,9256
+2026-01-15T10:03:00.000000,unknown,Osteophyte Formation,1,0,RAKE,False,True,False,1,92.5,4,0,1,0.3333333333333333,0.94,0.94,0.0,1.0,0,3,30085
+2026-01-15T10:04:00.000000,unknown,Memorial General,1,1,"NER, RAKE",True,True,False,2,100.0,13,0,1,0.3333333333333333,0.94,0.94,0.0,1.0,0,3,20867
+2026-01-15T10:05:00.000000,unknown,Richard P. Warren,1,1,NER,True,False,False,1,100.0,4,0,1,0.3333333333333333,0.94,0.94,0.0,1.0,0,3,30085
+2026-01-15T10:06:00.000000,unknown,Maria Santos,1,1,"NER, TextRank",True,False,False,1,100.0,429,0,2,0.6666666666666666,0.94,0.94,0.0,1.0,0,3,50952
+2026-01-15T10:07:00.000000,unknown,Priya Rajagopal,1,1,"NER, TextRank",True,False,False,1,100.0,192,0,1,0.5,0.94,0.94,0.0,1.0,0,2,36843
+2026-01-15T10:08:00.000000,unknown,Thomas Mitchell,1,1,"NER, RAKE, TextRank",True,True,False,2,100.0,35,0,2,1.0,0.94,0.94,0.0,1.0,0,2,54450
+2026-01-15T10:09:00.000000,unknown,De Costa,1,1,"NER, RAKE, TextRank",True,True,False,2,100.0,44,0,1,0.5,0.94,0.94,0.0,1.0,0,2,17607
+2026-01-15T10:10:00.000000,unknown,John Nc,-1,1,NER,True,False,False,1,92.5,1,0,1,0.5,0.94,0.94,0.0,1.0,0,2,36843
+2026-01-15T10:11:00.000000,unknown,Lawrence B. Foster,1,1,NER,True,False,False,1,92.5,1,0,1,0.5,0.94,0.94,0.0,1.0,0,2,17607
+2026-01-15T10:12:00.000000,unknown,Frank Benedetti,1,1,"NER, TextRank",True,False,False,1,100.0,151,0,1,0.5,0.94,0.94,0.0,1.0,0,2,17607
+2026-01-15T10:13:00.000000,unknown,Lawrence Foster,1,1,"MedicalNER, NER",True,False,False,1,100.0,27,0,1,0.5,0.94,0.94,0.0,1.0,0,2,36843
+2026-01-15T10:14:00.000000,unknown,she's,-1,0,BM25,False,False,True,1,100.0,15,0,1,0.5,0.94,0.94,0.0,1.0,0,2,36843
+2026-01-15T10:15:00.000000,unknown,Karen Whitfield,1,1,NER,True,False,False,1,100.0,1018,0,2,1.0,0.94,0.94,0.0,1.0,0,2,54450
+2026-01-15T10:16:00.000000,unknown,osteophyte,1,0,"BM25, MedicalNER, NER",True,False,True,2,100.0,23,0,1,0.5,0.94,0.94,0.0,1.0,0,2,17607
+2026-01-15T10:17:00.000000,unknown,Decosta,1,1,"MedicalNER, NER",True,False,False,1,100.0,7,0,1,0.5,0.94,0.94,0.0,1.0,0,2,36843
+2026-01-15T10:18:00.000000,unknown,Jennifer Park,1,1,"NER, TextRank",True,False,False,1,100.0,3,0,1,0.5,0.94,0.94,0.0,1.0,0,2,36843
+2026-01-15T10:19:00.000000,unknown,William Chang,1,1,NER,True,False,False,1,100.0,6,0,2,1.0,0.94,0.94,0.0,1.0,0,2,54450
+2026-01-15T10:20:00.000000,unknown,Carlos Rivera,1,1,"NER, RAKE, TextRank",True,True,False,2,100.0,222,0,2,1.0,0.95,0.95,0.01,1.0,0,2,28209
+2026-01-15T10:21:00.000000,unknown,Daniel Ferraro,1,1,"NER, TextRank",True,False,False,1,100.0,6,0,1,0.5,0.95,0.95,0.0,1.0,0,2,19117
+2026-01-15T10:22:00.000000,unknown,Mui,1,1,"BM25, MedicalNER, NER, TextRank",True,False,True,2,100.0,421,51551,2,1.0,0.95,0.95,0.01,1.0,0,2,28209
+2026-01-15T10:23:00.000000,unknown,Brian Calloway,1,1,NER,True,False,False,1,100.0,10,0,1,0.5,0.97,0.97,0.0,1.0,0,2,9092
+2026-01-15T10:24:00.000000,unknown,North Central,1,1,"NER, RAKE, TextRank",True,True,False,2,100.0,27,0,1,0.5,0.95,0.95,0.0,1.0,0,2,12805
+2026-01-15T10:25:00.000000,unknown,you'll,-1,0,BM25,False,False,True,1,100.0,12,0,1,0.5,0.94,0.94,0.0,1.0,0,2,20397
+2026-01-15T10:26:00.000000,unknown,Peter Antonacci,1,1,NER,True,False,False,1,100.0,305,0,2,1.0,0.95,0.95,0.005,1.0,0,2,33202
+2026-01-15T10:27:00.000000,unknown,David Smith,1,1,NER,True,False,False,1,100.0,2,0,2,1.0,0.95,0.95,0.005,1.0,0,2,33202
+2026-01-15T10:28:00.000000,unknown,Elena Decosta,1,1,"MedicalNER, NER",True,False,False,1,100.0,14,0,1,0.5,0.94,0.94,0.0,1.0,0,2,20397
+2026-01-15T10:29:00.000000,unknown,Mike,-1,1,NER,True,False,False,1,76.9,2,1704,1,0.5,0.95,0.95,0.0,1.0,0,2,12805
+2026-01-15T10:30:00.000000,unknown,Charlie,-1,1,NER,True,False,False,1,72.5,1,5138,1,0.5,0.94,0.94,0.0,1.0,0,2,20397
+2026-01-15T10:31:00.000000,unknown,Nc Park - Plaintiff,-1,1,"NER, TextRank",True,False,False,1,100.0,12,0,1,0.5,0.95,0.95,0.0,1.0,0,2,12805
+2026-01-15T10:32:00.000000,unknown,Nc Mitchell - Defense,-1,1,NER,True,False,False,1,62.8,5,0,1,0.3333333333333333,0.94,0.94,0.0,1.0,0,3,36827
+2026-01-15T10:33:00.000000,unknown,--You,-1,1,NER,True,False,False,1,60.1,2,0,2,0.6666666666666666,0.94,0.94,0.0,1.0,0,3,73670
+2026-01-15T10:34:00.000000,unknown,Numbness,-1,1,"BM25, MedicalNER, NER",True,False,True,2,97.3,21,37016,1,0.25,0.9,0.9,0.0,1.0,0,4,6141
+2026-01-15T10:35:00.000000,unknown,David Martinez Swo N,-1,1,NER,True,False,False,1,91.0,1,0,1,0.25,0.9,0.9,0.0,1.0,0,4,6141
+2026-01-15T10:36:00.000000,unknown,Countyof,-1,1,NER,True,False,False,1,67.4,1,0,1,0.25,0.88,0.88,0.0,1.0,0,4,2261
+2026-01-15T10:37:00.000000,unknown,Myown,-1,1,NER,True,False,False,1,59.2,1,0,1,0.25,0.9,0.9,0.0,1.0,0,4,6141
+2026-01-15T10:38:00.000000,unknown,Thecal Sac,1,0,RAKE,False,True,False,1,84.4,5,0,1,0.25,0.9,0.9,0.0,1.0,0,4,6141
+2026-01-15T10:39:00.000000,unknown,Rotator Cuff,1,1,"NER, RAKE",True,True,False,2,95.7,9,0,1,0.25,0.9,0.9,0.0,1.0,0,4,6141
