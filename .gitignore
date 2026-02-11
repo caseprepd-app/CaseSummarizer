@@ -73,6 +73,7 @@ nul
 *.bin
 installer/Output/
 build_log.txt
+docs/
 
 # Claude Code (project config, not shipped)
 .claude/
