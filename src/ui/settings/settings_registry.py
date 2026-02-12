@@ -1165,6 +1165,17 @@ def _register_all_settings():
     )
 
     # Session: User-defined indicator patterns for vocabulary ML
+    def _get_indicator_patterns(p):
+        """Get current indicator pattern config with shipped defaults."""
+        from src.config import DEFAULT_NEGATIVE_INDICATORS, DEFAULT_POSITIVE_INDICATORS
+
+        return {
+            "positive_strings": p.get("vocab_positive_indicators", DEFAULT_POSITIVE_INDICATORS),
+            "negative_strings": p.get("vocab_negative_indicators", DEFAULT_NEGATIVE_INDICATORS),
+            "positive_override": p.get("vocab_positive_regex_override", ""),
+            "negative_override": p.get("vocab_negative_regex_override", ""),
+        }
+
     def _create_indicator_pattern_widget(parent):
         """Factory function to create the IndicatorPatternWidget."""
         from src.ui.settings.indicator_pattern_widget import IndicatorPatternWidget
@@ -1207,12 +1218,7 @@ def _register_all_settings():
                 "whether these patterns correlate with terms you keep or skip."
             ),
             default=None,
-            getter=lambda: {
-                "positive_strings": prefs.get("vocab_positive_indicators", []),
-                "negative_strings": prefs.get("vocab_negative_indicators", []),
-                "positive_override": prefs.get("vocab_positive_regex_override", ""),
-                "negative_override": prefs.get("vocab_negative_regex_override", ""),
-            },
+            getter=lambda: _get_indicator_patterns(prefs),
             setter=_save_indicator_patterns,
             widget_factory=_create_indicator_pattern_widget,
         )
@@ -1975,6 +1981,32 @@ def _register_all_settings():
             ),
             default=None,
             action=_clear_log_file,
+        )
+    )
+
+    SettingsRegistry.register(
+        SettingDefinition(
+            key="log_retention_days",
+            label="Auto-delete old logs",
+            category="Logging",
+            setting_type=SettingType.DROPDOWN,
+            tooltip=(
+                "Automatically delete old main_log_*.txt debug files "
+                "when the application starts.\n\n"
+                "These files capture stdout/stderr output for crash "
+                "debugging. They accumulate over time in:\n"
+                "  %APPDATA%/CasePrepd/logs/\n\n"
+                "This does NOT affect the structured caseprepd.log file."
+            ),
+            default="90",
+            options=[
+                ("Keep forever", "0"),
+                ("7 days", "7"),
+                ("30 days", "30"),
+                ("90 days (Recommended)", "90"),
+            ],
+            getter=lambda: str(prefs.get("log_retention_days", "90")),
+            setter=lambda v: prefs.set("log_retention_days", v),
         )
     )
 

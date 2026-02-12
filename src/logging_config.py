@@ -241,6 +241,11 @@ def setup_logging() -> None:
     ch.setFormatter(console_fmt)
     root.addHandler(ch)
 
+    # Session header — marks log boundary and records app version
+    from src import __version__
+
+    root.info("-- CasePrepd v%s session start --", __version__)
+
 
 # ---------------------------------------------------------------------------
 # Public helpers used by settings UI
@@ -340,6 +345,49 @@ def clear_log_file() -> bool:
         return False
 
 
+def purge_old_logs() -> int:
+    """
+    Delete ``main_log_*.txt`` files older than the user's retention setting.
+
+    Reads ``log_retention_days`` from user preferences.  A value of 0 means
+    "keep forever" and skips purging entirely.
+
+    Returns:
+        int: Number of files deleted.
+    """
+    try:
+        from src.user_preferences import get_user_preferences
+
+        days = int(get_user_preferences().get("log_retention_days", 90))
+    except Exception:
+        days = 90
+
+    if days <= 0:
+        return 0
+
+    from src.config import LOGS_DIR
+
+    logger = logging.getLogger(__name__)
+    cutoff = time.time() - (days * 86400)
+    deleted = 0
+
+    try:
+        for path in LOGS_DIR.glob("main_log_*.txt"):
+            try:
+                if path.stat().st_mtime < cutoff:
+                    path.unlink()
+                    deleted += 1
+            except OSError:
+                pass
+    except OSError:
+        pass
+
+    if deleted:
+        logger.info("Purged %d old log file(s) (retention: %d days)", deleted, days)
+
+    return deleted
+
+
 # ---------------------------------------------------------------------------
 # Timer context manager (unchanged public interface)
 # ---------------------------------------------------------------------------
@@ -418,6 +466,7 @@ __all__ = [
     "clear_log_file",
     "get_log_file_path",
     "get_log_file_size_mb",
+    "purge_old_logs",
     "refresh_custom_log_filter",
     "refresh_log_filter",
     "setup_logging",

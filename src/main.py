@@ -115,9 +115,10 @@ def main():
     setup_file_logging()
 
     # Configure structured logging (RotatingFileHandler → caseprepd.log)
-    from src.logging_config import setup_logging
+    from src.logging_config import purge_old_logs, setup_logging
 
     setup_logging()
+    purge_old_logs()
 
     # Enable multiprocessing support for Windows frozen executables
     multiprocessing.freeze_support()
