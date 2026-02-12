@@ -658,6 +658,12 @@ VOCABULARY_ROWS_PER_PAGE = 50  # Initial rows shown; "Load More" adds more
 VOCABULARY_BATCH_INSERT_SIZE = 20  # Rows inserted per async batch
 VOCABULARY_BATCH_INSERT_DELAY_MS = 10  # Delay between batches (ms)
 
+# Vocabulary Indicator Pattern Defaults
+# Negative indicators: common transcript procedural terms that court reporters
+# already know and don't need in a prep vocabulary list.
+DEFAULT_NEGATIVE_INDICATORS = ["proceedings", "Direct", "Cross", "Redirect", "Recross"]
+DEFAULT_POSITIVE_INDICATORS: list[str] = []
+
 # spaCy Model Download Timeouts (Session 15)
 # Controls timeout behavior during automatic spaCy model downloads
 SPACY_DOWNLOAD_TIMEOUT_SEC = 3600  # Overall timeout: 1 hour (slow connections)

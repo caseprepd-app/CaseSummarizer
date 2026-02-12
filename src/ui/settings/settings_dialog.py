@@ -61,9 +61,9 @@ class SettingsDialog(BaseModalDialog):
         super().__init__(
             parent=parent,
             title="Settings",
-            width=700,
+            width=850,
             height=520,
-            min_width=550,
+            min_width=650,
             min_height=420,
         )
 
@@ -106,8 +106,8 @@ class SettingsDialog(BaseModalDialog):
         )
         self.tabview.grid(row=1, column=0, padx=20, pady=10, sticky="nsew")
 
-        # Make tab buttons larger and bolder
-        self.tabview._segmented_button.configure(font=FONTS["heading"], height=36)
+        # Style tab buttons - small enough to fit all tabs without overlap
+        self.tabview._segmented_button.configure(font=FONTS["small_bold"], height=32)
 
         # Create tabs from registry
         categories = SettingsRegistry.get_categories()
@@ -185,6 +185,8 @@ class SettingsDialog(BaseModalDialog):
                 widget = self._create_widget(scroll_frame, setting)
                 widget.grid(row=idx, column=0, sticky="ew", pady=10, padx=5)
                 self.widgets[setting.key] = widget
+            # Spacer row absorbs extra space so content anchors to the top
+            scroll_frame.grid_rowconfigure(len(settings), weight=1)
         else:
             self._populate_sectioned_tab(scroll_frame, settings)
 
@@ -259,6 +261,9 @@ class SettingsDialog(BaseModalDialog):
                 widget = self._create_widget(section.content_frame, setting)
                 widget.grid(row=widget_idx, column=0, sticky="ew", pady=6, padx=5)
                 self.widgets[setting.key] = widget
+
+        # Spacer row absorbs extra space so content anchors to the top
+        scroll_frame.grid_rowconfigure(row_idx, weight=1)
 
     def _create_widget(self, parent, setting) -> ctk.CTkFrame:
         """

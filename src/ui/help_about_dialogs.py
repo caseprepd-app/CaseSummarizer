@@ -397,7 +397,7 @@ class AboutDialog(BaseModalDialog):
 
         version = ctk.CTkLabel(
             self,
-            text="Version 2.1",
+            text="Version 1.0.0",
             font=FONTS["body"],
             text_color=COLORS["text_secondary"],
         )

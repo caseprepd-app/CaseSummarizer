@@ -307,7 +307,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         return f"{model_name}{param_info}"
 
     def _open_model_settings(self):
-        """Open the settings dialog directly to the Questions tab (model config)."""
+        """Open the settings dialog directly to the AI Model tab."""
         from src.ui.settings.settings_dialog import SettingsDialog
         from src.user_preferences import get_user_preferences
 
@@ -316,7 +316,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         old_model = prefs.get("ollama_model", self.model_manager.model_name)
 
         try:
-            dialog = SettingsDialog(parent=self, initial_tab="Questions")
+            dialog = SettingsDialog(parent=self, initial_tab="AI Model")
             dialog.wait_window()
         except Exception as e:
             logger.debug("Failed to open settings dialog: %s", e)

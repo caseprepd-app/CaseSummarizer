@@ -94,8 +94,14 @@ class IndicatorPatternWidget(ctk.CTkFrame):
         from src.user_preferences import get_user_preferences
 
         self._prefs = get_user_preferences()
-        self._positive_strings: list[str] = list(self._prefs.get("vocab_positive_indicators", []))
-        self._negative_strings: list[str] = list(self._prefs.get("vocab_negative_indicators", []))
+        from src.config import DEFAULT_NEGATIVE_INDICATORS, DEFAULT_POSITIVE_INDICATORS
+
+        self._positive_strings: list[str] = list(
+            self._prefs.get("vocab_positive_indicators", DEFAULT_POSITIVE_INDICATORS)
+        )
+        self._negative_strings: list[str] = list(
+            self._prefs.get("vocab_negative_indicators", DEFAULT_NEGATIVE_INDICATORS)
+        )
         self._positive_override: str = self._prefs.get("vocab_positive_regex_override", "")
         self._negative_override: str = self._prefs.get("vocab_negative_regex_override", "")
         self._show_regex = False
