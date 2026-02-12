@@ -1864,7 +1864,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
                 "1. Add document files\n"
                 "2. Ensure the 'Ask Questions' checkbox is checked\n"
                 "3. Click 'Perform Tasks'\n"
-                "4. Wait for 'Questions and answers ready' status message\n\n"
+                "4. Wait for the search index to finish building\n\n"
                 "The question system will be ready once the vector index is built.",
             )
             return
@@ -2357,7 +2357,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
                     "The corpus folder has too many documents. Corpus features "
                     "will be disabled for this session.\n\n"
                     "To re-enable:\n"
-                    "1. Open the corpus folder via Settings > Manage Corpus\n"
+                    "1. Open the corpus folder via the Manage button (or Settings > Corpus)\n"
                     "2. Remove files until you have 25 or fewer documents\n"
                     "3. Restart the application",
                 )

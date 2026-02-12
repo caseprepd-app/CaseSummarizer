@@ -674,7 +674,7 @@ class TaskMixin:
                 "1. Add document files\n"
                 "2. Ensure the 'Ask Questions' checkbox is checked\n"
                 "3. Click 'Perform Tasks'\n"
-                "4. Wait for 'Questions and answers ready' status message",
+                "4. Wait for the search index to finish building",
             )
             return
 

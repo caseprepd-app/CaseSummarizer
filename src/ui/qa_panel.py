@@ -475,7 +475,7 @@ class QAPanel(ctk.CTkFrame):
         else:
             messagebox.showinfo(
                 "Edit Questions",
-                "Question editor will be available in Settings > Q&A > Edit Default Questions",
+                "You can edit default questions in Settings > Q&A",
             )
 
     def _export_to_csv(self):

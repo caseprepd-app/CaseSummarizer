@@ -309,9 +309,7 @@ def _register_all_settings():
             category="Performance",
             setting_type=SettingType.SLIDER,
             tooltip=(
-                "Default target word count for the summary length slider in the "
-                "main window. You can adjust the slider per-session before "
-                'clicking "Perform Tasks" — this just sets where it starts.\n\n'
+                "Default target word count for generated summaries.\n\n"
                 "The actual summary length depends on the LLM and document "
                 "complexity. Treat this as a guideline, not a hard limit."
             ),

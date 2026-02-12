@@ -176,7 +176,7 @@ SYSTEM REQUIREMENTS
         text = f"""THE 5-STEP WORKFLOW
 
 STEP 1: SELECT FILES
-Click "Select Files" or use Ctrl+O to choose your documents.
+Drag files onto the file list, click "+ Add Files", or use Ctrl+O.
 Supported formats: PDF, TXT, RTF, DOCX, PNG, JPG
 
 You can select multiple documents at once - complaints, answers, exhibits, motions, medical records, etc. {APP_NAME} processes them together to build a complete case picture.
@@ -196,7 +196,7 @@ Select which tasks to run using the checkboxes:
 - Generate Summary (optional, can take hours without GPU)
 
 STEP 4: PROCESS
-Click the "Perform Tasks" button. Processing time depends on:
+Click "Perform Tasks". Processing time depends on:
 - Number and size of documents
 - Tasks selected
 - Your computer's speed
@@ -205,7 +205,7 @@ You'll see progress updates as it works.
 
 STEP 5: REVIEW & EXPORT
 Results appear in three tabs:
-- Names & Vocabulary: Table of extracted terms
+- Names & Vocab: Table of extracted terms
 - Ask Questions: Q&A results and follow-up input
 - Summary: Generated case summary (if enabled)
 
@@ -214,6 +214,7 @@ Export your results to Word, PDF, CSV, or other formats.
 KEYBOARD SHORTCUTS
 
 Ctrl+O    Select Files
+Ctrl+F    Find in Results
 Ctrl+,    Open Settings
 Ctrl+Q    Exit Application"""
 
@@ -347,7 +348,7 @@ TROUBLESHOOTING
 Poor vocabulary results?
 - Check document quality (OCR confidence)
 - Rate more terms to train the model
-- Try enabling LLM enhancement in settings
+- Try enabling GLiNER under Settings > Vocabulary for better entity detection
 
 Processing seems stuck?
 - Large documents take time - check the progress indicator
