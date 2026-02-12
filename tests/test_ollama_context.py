@@ -86,69 +86,56 @@ class TestChunkingConfig:
 class TestOllamaPayload:
     """Test that Ollama API payload includes context window."""
 
-    @patch("src.core.ai.ollama_model_manager.requests.post")
-    def test_num_ctx_in_payload(self, mock_post):
+    @patch("ollama.generate")
+    @patch("src.core.ai.ollama_model_manager.requests.get")
+    def test_num_ctx_in_payload(self, mock_get, mock_generate):
         """Verify num_ctx is included in Ollama API calls."""
-        # Setup mock response
-        mock_response = MagicMock()
-        mock_response.status_code = 200
-        mock_response.json.return_value = {"response": "Test summary", "eval_count": 10}
-        mock_post.return_value = mock_response
+        # Mock connection check
+        mock_get_response = MagicMock()
+        mock_get_response.status_code = 200
+        mock_get_response.json.return_value = {"models": []}
+        mock_get.return_value = mock_get_response
 
-        # Also mock the connection check
-        with patch("src.core.ai.ollama_model_manager.requests.get") as mock_get:
-            mock_get_response = MagicMock()
-            mock_get_response.status_code = 200
-            mock_get_response.json.return_value = {"models": []}
-            mock_get.return_value = mock_get_response
+        # Mock ollama.generate to return a streaming iterator
+        mock_generate.return_value = iter([{"response": "Test summary"}])
 
-            from src.core.ai.ollama_model_manager import OllamaModelManager
+        from src.core.ai.ollama_model_manager import OllamaModelManager
 
-            manager = OllamaModelManager()
-            manager.model_name = "test-model:latest"
-            manager.is_connected = True
+        manager = OllamaModelManager()
+        manager.model_name = "test-model:latest"
+        manager.is_connected = True
 
-            # Make a test call
-            import contextlib
+        manager.generate_text("Test prompt", max_tokens=100)
 
-            with contextlib.suppress(Exception):
-                manager.generate_text("Test prompt", max_tokens=100)
-
-            # Check that requests.post was called with num_ctx in options
-            if mock_post.called:
-                call_args = mock_post.call_args
-                payload = call_args.kwargs.get(
-                    "json", call_args.args[1] if len(call_args.args) > 1 else {}
-                )
-
-                assert "options" in payload, "Payload should include 'options'"
-                assert "num_ctx" in payload["options"], "Options should include 'num_ctx'"
-                # Session 64: Context is now dynamic based on GPU VRAM
-                # Just verify it's set to a reasonable value (4K-64K range)
-                num_ctx = payload["options"]["num_ctx"]
-                assert 4000 <= num_ctx <= 64000, (
-                    f"num_ctx should be in valid range (4000-64000), got {num_ctx}"
-                )
+        # Check that ollama.generate was called with num_ctx in options
+        assert mock_generate.called, "ollama.generate should have been called"
+        call_kwargs = mock_generate.call_args.kwargs
+        assert "options" in call_kwargs, "Call should include 'options'"
+        assert "num_ctx" in call_kwargs["options"], "Options should include 'num_ctx'"
+        # Session 64: Context is dynamic based on GPU VRAM
+        # 2048 (no GPU) through 64000 (24GB+ VRAM) are valid
+        num_ctx = call_kwargs["options"]["num_ctx"]
+        assert 2048 <= num_ctx <= 64000, (
+            f"num_ctx should be in valid range (2048-64000), got {num_ctx}"
+        )
 
 
 class TestTruncationWarning:
     """Test that truncation warnings are issued appropriately."""
 
     @patch("src.core.ai.ollama_model_manager.logger")
-    @patch("src.core.ai.ollama_model_manager.requests.post")
+    @patch("ollama.generate")
     @patch("src.core.ai.ollama_model_manager.requests.get")
-    def test_warning_on_large_prompt(self, mock_get, mock_post, mock_logger):
+    def test_warning_on_large_prompt(self, mock_get, mock_generate, mock_logger):
         """Verify warning is issued when prompt approaches context limit."""
-        # Setup mocks
+        # Mock connection check
         mock_get_response = MagicMock()
         mock_get_response.status_code = 200
         mock_get_response.json.return_value = {"models": []}
         mock_get.return_value = mock_get_response
 
-        mock_post_response = MagicMock()
-        mock_post_response.status_code = 200
-        mock_post_response.json.return_value = {"response": "Summary", "eval_count": 10}
-        mock_post.return_value = mock_post_response
+        # Mock ollama.generate to return a streaming iterator
+        mock_generate.return_value = iter([{"response": "Summary"}])
 
         from src.core.ai.ollama_model_manager import OllamaModelManager
 
@@ -172,20 +159,18 @@ class TestTruncationWarning:
         )
 
     @patch("src.core.ai.ollama_model_manager.logger")
-    @patch("src.core.ai.ollama_model_manager.requests.post")
+    @patch("ollama.generate")
     @patch("src.core.ai.ollama_model_manager.requests.get")
-    def test_no_warning_on_small_prompt(self, mock_get, mock_post, mock_logger):
+    def test_no_warning_on_small_prompt(self, mock_get, mock_generate, mock_logger):
         """Verify no warning for prompts well under context limit."""
-        # Setup mocks
+        # Mock connection check
         mock_get_response = MagicMock()
         mock_get_response.status_code = 200
         mock_get_response.json.return_value = {"models": []}
         mock_get.return_value = mock_get_response
 
-        mock_post_response = MagicMock()
-        mock_post_response.status_code = 200
-        mock_post_response.json.return_value = {"response": "Summary", "eval_count": 10}
-        mock_post.return_value = mock_post_response
+        # Mock ollama.generate to return a streaming iterator
+        mock_generate.return_value = iter([{"response": "Summary"}])
 
         from src.core.ai.ollama_model_manager import OllamaModelManager
 
