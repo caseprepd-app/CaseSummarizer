@@ -148,6 +148,8 @@ COLORS = {
     # Drag-and-drop zone
     "drop_zone_border": "#3d8bfd",  # Blue highlight on drag enter
     "drop_zone_bg": "#1a3050",  # Subtle blue tint on drag enter
+    "drop_zone_idle_border": "#555555",  # Subtle border for empty-state drop zone
+    "drop_zone_idle_bg": "#2b2b2b",  # Slightly lighter than panel background
     # System monitor
     "monitor_bg": "#1a3a1a",  # System monitor frame bg
     # Hallucination verification colors (Session 60)

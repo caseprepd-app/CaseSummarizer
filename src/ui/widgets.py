@@ -41,14 +41,29 @@ class FileReviewTable(ctk.CTkFrame):
         self._hovered_row = None  # Track currently hovered row for tooltip
         self._tooltip_window = None  # Single tooltip window for hover previews
 
-        # Empty state overlay
-        self._empty_label = ctk.CTkLabel(
+        # Empty state overlay -- framed drop zone
+        self._drop_zone = ctk.CTkFrame(
             self,
+            fg_color=COLORS["drop_zone_idle_bg"],
+            border_width=2,
+            border_color=COLORS["drop_zone_idle_border"],
+            corner_radius=10,
+        )
+        self._drop_zone_label = ctk.CTkLabel(
+            self._drop_zone,
             text="\U0001f4c4  Drop files here or click + Add Files",
             font=FONTS["body"],
             text_color=COLORS["text_secondary"],
         )
-        self._empty_label.place(relx=0.5, rely=0.5, anchor="center")
+        self._drop_zone_label.pack(expand=True, pady=(0, 2))
+        self._drop_zone_hint = ctk.CTkLabel(
+            self._drop_zone,
+            text="Supported: PDF, DOCX, TXT, RTF",
+            font=FONTS["small"],
+            text_color=COLORS["text_disabled"],
+        )
+        self._drop_zone_hint.pack()
+        self._drop_zone.place(relx=0.5, rely=0.5, anchor="center", relwidth=0.85, relheight=0.7)
 
     def _create_treeview(self):
         """Create the Treeview widget."""
@@ -70,8 +85,8 @@ class FileReviewTable(ctk.CTkFrame):
         filename = result.get("filename", "Unknown")
 
         # Hide empty state overlay on first file
-        if not self.file_item_map and self._empty_label.winfo_ismapped():
-            self._empty_label.place_forget()
+        if not self.file_item_map and self._drop_zone.winfo_ismapped():
+            self._drop_zone.place_forget()
 
         # Store full result data for hover previews
         self._result_data[filename] = result
@@ -154,7 +169,7 @@ class FileReviewTable(ctk.CTkFrame):
         for item in self.tree.get_children():
             self.tree.delete(item)
         # Show empty state overlay again
-        self._empty_label.place(relx=0.5, rely=0.5, anchor="center")
+        self._drop_zone.place(relx=0.5, rely=0.5, anchor="center", relwidth=0.85, relheight=0.7)
 
     def _on_hover(self, event):
         """Show a tooltip with file details when hovering over a row."""

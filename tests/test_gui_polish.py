@@ -39,13 +39,13 @@ class TestFileReviewTableEmptyState:
         table._result_data = {}
         table._hovered_row = None
         table._tooltip_window = None
-        table._empty_label = MagicMock()
-        table._empty_label.winfo_ismapped.return_value = True
+        table._drop_zone = MagicMock()
+        table._drop_zone.winfo_ismapped.return_value = True
         table.tree = MagicMock()
         table.tree.identify_row.return_value = ""
         return table
 
-    def test_empty_label_hidden_on_first_file(self):
+    def test_drop_zone_hidden_on_first_file(self):
         """Empty state overlay should hide when first file is added."""
         table = self._make_table()
         table.tree.insert.return_value = "item1"
@@ -60,13 +60,13 @@ class TestFileReviewTableEmptyState:
         }
 
         table.add_result(result)
-        table._empty_label.place_forget.assert_called_once()
+        table._drop_zone.place_forget.assert_called_once()
 
-    def test_empty_label_not_hidden_on_update(self):
+    def test_drop_zone_not_hidden_on_update(self):
         """Overlay should not re-hide when updating existing file."""
         table = self._make_table()
         table.file_item_map["test.pdf"] = "item1"
-        table._empty_label.winfo_ismapped.return_value = False
+        table._drop_zone.winfo_ismapped.return_value = False
 
         result = {
             "filename": "test.pdf",
@@ -78,9 +78,9 @@ class TestFileReviewTableEmptyState:
         }
 
         table.add_result(result)
-        table._empty_label.place_forget.assert_not_called()
+        table._drop_zone.place_forget.assert_not_called()
 
-    def test_empty_label_shown_on_clear(self):
+    def test_drop_zone_shown_on_clear(self):
         """Empty state overlay should reappear after clearing all files."""
         table = self._make_table()
         table.file_item_map["test.pdf"] = "item1"
@@ -88,7 +88,9 @@ class TestFileReviewTableEmptyState:
 
         table.clear()
 
-        table._empty_label.place.assert_called_once_with(relx=0.5, rely=0.5, anchor="center")
+        table._drop_zone.place.assert_called_once_with(
+            relx=0.5, rely=0.5, anchor="center", relwidth=0.85, relheight=0.7
+        )
 
     def test_clear_resets_result_data(self):
         """Clear should also reset hover preview data."""
@@ -424,8 +426,8 @@ class TestHoverPreviews:
         table._result_data = {}
         table._hovered_row = None
         table._tooltip_window = None
-        table._empty_label = MagicMock()
-        table._empty_label.winfo_ismapped.return_value = False
+        table._drop_zone = MagicMock()
+        table._drop_zone.winfo_ismapped.return_value = False
         table.tree = MagicMock()
         return table
 
