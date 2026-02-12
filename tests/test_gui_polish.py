@@ -749,3 +749,164 @@ class TestThemeColors:
         from src.ui.theme import COLORS
 
         assert "drop_zone_bg" in COLORS
+
+    def test_drop_zone_idle_border_color_exists(self):
+        """drop_zone_idle_border color should be defined for empty-state rectangle."""
+        from src.ui.theme import COLORS
+
+        assert "drop_zone_idle_border" in COLORS
+        assert isinstance(COLORS["drop_zone_idle_border"], str)
+
+    def test_drop_zone_idle_bg_color_exists(self):
+        """drop_zone_idle_bg color should be defined for empty-state rectangle."""
+        from src.ui.theme import COLORS
+
+        assert "drop_zone_idle_bg" in COLORS
+        assert isinstance(COLORS["drop_zone_idle_bg"], str)
+
+    def test_drop_zone_idle_colors_are_valid_hex(self):
+        """Idle drop zone colors should be valid hex color strings."""
+        from src.ui.theme import COLORS
+
+        for key in ("drop_zone_idle_border", "drop_zone_idle_bg"):
+            color = COLORS[key]
+            assert color.startswith("#"), f"{key} should start with #"
+            assert len(color) == 7, f"{key} should be 7 chars (#RRGGBB)"
+
+
+# =========================================================================
+# Feature 1b: Drop Zone Frame Structure
+# =========================================================================
+
+
+class TestDropZoneStructure:
+    """Test the drop zone frame, labels, and placement in FileReviewTable."""
+
+    def _make_table(self):
+        """Create a FileReviewTable with manually set attributes (skips __init__)."""
+        from src.ui.widgets import FileReviewTable
+
+        table = FileReviewTable.__new__(FileReviewTable)
+        table.column_map = {
+            "include": ("Include", 50),
+            "filename": ("Filename", 300),
+            "status": ("Status", 100),
+            "method": ("Method", 100),
+            "confidence": ("Confidence", 100),
+            "pages": ("Pages", 50),
+            "size": ("Size", 80),
+        }
+        table.file_item_map = {}
+        table._result_data = {}
+        table._hovered_row = None
+        table._tooltip_window = None
+        table._drop_zone = MagicMock()
+        table._drop_zone.winfo_ismapped.return_value = True
+        table._drop_zone_label = MagicMock()
+        table._drop_zone_hint = MagicMock()
+        table.tree = MagicMock()
+        table.tree.identify_row.return_value = ""
+        return table
+
+    def test_drop_zone_hidden_after_multiple_files(self):
+        """Drop zone should stay hidden when adding second file."""
+        table = self._make_table()
+        table.tree.insert.return_value = "item1"
+
+        # Add first file -- hides drop zone
+        table.add_result(
+            {
+                "filename": "a.pdf",
+                "status": "success",
+                "confidence": 90,
+                "method": "digital",
+                "page_count": 1,
+                "file_size": 100,
+            }
+        )
+        table._drop_zone.place_forget.assert_called_once()
+        table._drop_zone.place_forget.reset_mock()
+
+        # Add second file -- should NOT call place_forget again
+        table.tree.insert.return_value = "item2"
+        table._drop_zone.winfo_ismapped.return_value = False
+        table.add_result(
+            {
+                "filename": "b.pdf",
+                "status": "success",
+                "confidence": 85,
+                "method": "digital",
+                "page_count": 2,
+                "file_size": 200,
+            }
+        )
+        table._drop_zone.place_forget.assert_not_called()
+
+    def test_clear_then_add_shows_and_hides_drop_zone(self):
+        """After clear + re-add, drop zone should show then hide again."""
+        table = self._make_table()
+        table.tree.insert.return_value = "item1"
+
+        # Add file
+        table.add_result(
+            {
+                "filename": "a.pdf",
+                "status": "success",
+                "confidence": 90,
+                "method": "digital",
+                "page_count": 1,
+                "file_size": 100,
+            }
+        )
+        table._drop_zone.place_forget.assert_called_once()
+
+        # Clear
+        table.tree.get_children.return_value = ["item1"]
+        table.clear()
+        table._drop_zone.place.assert_called_once()
+
+        # Re-add -- file_item_map is empty after clear, drop zone is mapped
+        table._drop_zone.winfo_ismapped.return_value = True
+        table._drop_zone.place_forget.reset_mock()
+        table.tree.insert.return_value = "item2"
+        table.add_result(
+            {
+                "filename": "b.pdf",
+                "status": "success",
+                "confidence": 80,
+                "method": "ocr",
+                "page_count": 3,
+                "file_size": 300,
+            }
+        )
+        table._drop_zone.place_forget.assert_called_once()
+
+    def test_clear_placement_uses_correct_dimensions(self):
+        """clear() should restore drop zone at 85% width, 70% height."""
+        table = self._make_table()
+        table.tree.get_children.return_value = []
+
+        table.clear()
+
+        args = table._drop_zone.place.call_args
+        assert args.kwargs["relwidth"] == 0.85
+        assert args.kwargs["relheight"] == 0.7
+        assert args.kwargs["anchor"] == "center"
+
+    def test_drop_zone_not_hidden_when_not_mapped(self):
+        """If drop zone is already hidden, add_result should not call place_forget."""
+        table = self._make_table()
+        table._drop_zone.winfo_ismapped.return_value = False
+        table.tree.insert.return_value = "item1"
+
+        table.add_result(
+            {
+                "filename": "a.pdf",
+                "status": "success",
+                "confidence": 90,
+                "method": "digital",
+                "page_count": 1,
+                "file_size": 100,
+            }
+        )
+        table._drop_zone.place_forget.assert_not_called()
