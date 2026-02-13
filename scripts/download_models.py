@@ -156,6 +156,18 @@ def download_nltk_data() -> dict[str, bool]:
             print(f"  [FAILED] {corpus_name}: {e}")
             results[corpus_name] = False
 
+    # Extract any .zip files that lack a corresponding extracted directory.
+    # PyInstaller frozen bundles on Windows can't reliably read NLTK zips,
+    # so we need the extracted directories to exist.
+    import zipfile
+
+    for zip_path in NLTK_DIR.rglob("*.zip"):
+        extracted_dir = zip_path.with_suffix("")
+        if not extracted_dir.is_dir():
+            print(f"  Extracting {zip_path.name}...")
+            with zipfile.ZipFile(zip_path, "r") as zf:
+                zf.extractall(zip_path.parent)
+
     return results
 
 
