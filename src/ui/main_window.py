@@ -204,6 +204,29 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         status = "connected" if self.model_manager.is_connected else "disconnected"
         logger.debug("Ollama status: %s", status)
 
+    def _is_ollama_ready(self) -> tuple:
+        """
+        Check if Ollama is connected and has a model loaded.
+
+        Returns:
+            (bool, str): (ready, reason). If not ready, reason explains why.
+        """
+        if not self.model_manager.is_model_loaded():
+            if not self.model_manager.is_connected:
+                return (
+                    False,
+                    "Ollama is not running.\n\n"
+                    "To fix:\n"
+                    "- Ensure Ollama is installed (ollama.ai)\n"
+                    "- Run 'ollama serve' in a terminal\n"
+                    "- Restart this app or open Settings to reconnect",
+                )
+            return (
+                False,
+                "No Ollama model configured.\n\nTo fix: Settings > Model > select a model",
+            )
+        return (True, "")
+
     def _setup_ollama_tooltip(self):
         """Set up hover tooltip for disconnected Ollama status."""
         tooltip_text = (
@@ -1090,6 +1113,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
 
         Greying logic (in order of precedence):
         - If vocab checkbox is unchecked: disable LLM checkbox
+        - If Ollama is not connected or has no model: disable
         - If no dedicated GPU detected: disable (requires GPU)
         - If vocab_use_llm setting is "no": disable and uncheck
         - Otherwise: enable and set based on is_vocab_llm_enabled()
@@ -1108,6 +1132,14 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             self.vocab_llm_check.deselect()
             self.vocab_llm_check.configure(state="disabled")
             self._set_vocab_llm_tooltip("Enable 'Extract Vocabulary' first")
+            return
+
+        # Case 1.5: Ollama not ready - disable LLM checkbox
+        ollama_ready, ollama_reason = self._is_ollama_ready()
+        if not ollama_ready:
+            self.vocab_llm_check.deselect()
+            self.vocab_llm_check.configure(state="disabled")
+            self._set_vocab_llm_tooltip(ollama_reason)
             return
 
         # Case 2: No GPU detected - always disable regardless of settings
@@ -1178,34 +1210,25 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
 
     def _update_qa_checkbox_state(self):
         """
-        Update Q&A checkbox state based on model size requirements.
+        Update Q&A checkbox state based on Ollama readiness.
 
-        Q&A requires an 8B+ parameter model for quality answers.
-        Users can override this in Settings.
+        If Ollama is not connected or has no model: disable.
+        Otherwise: enable. Small-model warning is handled at run time
+        via _check_small_model_warning().
 
         Called at startup and when model changes.
         """
-        from src.user_preferences import get_user_preferences
-
-        prefs = get_user_preferences()
-        model_name = prefs.get("ollama_model", "")
-
-        # Check if Q&A is allowed for current model
-        allowed, reason = prefs.is_qa_allowed_for_model(model_name)
-
-        if allowed:
-            # Enable Q&A checkbox
-            self.qa_check.configure(state="normal")
-            self._set_qa_tooltip("")  # Clear any warning tooltip
-        else:
-            # Disable Q&A checkbox and show reason
+        ollama_ready, ollama_reason = self._is_ollama_ready()
+        if not ollama_ready:
             self.qa_check.deselect()
             self.qa_check.configure(state="disabled")
-            self._set_qa_tooltip(reason)
-            # Also disable the sub-checkbox
+            self._set_qa_tooltip(ollama_reason)
             self._update_default_questions_checkbox_state()
+            return
 
-        logger.debug("Q&A checkbox: model=%s, allowed=%s", model_name, allowed)
+        self.qa_check.configure(state="normal")
+        self._set_qa_tooltip("")
+        logger.debug("Q&A checkbox: enabled (Ollama ready)")
 
     def _set_qa_tooltip(self, text: str):
         """
@@ -1240,16 +1263,22 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
 
     def _update_summary_checkbox_state(self):
         """
-        Update Summary checkbox state based on GPU availability and settings.
+        Update Summary checkbox state based on Ollama readiness and GPU.
 
-        Called at startup, when settings change, and similar to
-        _update_vocab_llm_checkbox_state().
-
-        Greying logic:
+        Precedence:
+        - If Ollama is not connected or has no model: disable
         - If no dedicated GPU and setting is "auto": disable with tooltip
         - If setting is "yes": enable regardless of GPU
         - If GPU detected: enable
         """
+        # Check Ollama connection first
+        ollama_ready, ollama_reason = self._is_ollama_ready()
+        if not ollama_ready:
+            self.summary_check.deselect()
+            self.summary_check.configure(state="disabled")
+            self._set_summary_tooltip(ollama_reason)
+            return
+
         from src.user_preferences import get_user_preferences
 
         prefs = get_user_preferences()
@@ -1297,6 +1326,109 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
 
         # Create new tooltip
         self._summary_tooltip_hide = create_tooltip(self.summary_check, text)
+
+    def _check_small_model_warning(self) -> bool:
+        """
+        Show a one-time warning if the user's model has < 8B parameters.
+
+        Called before processing when Q&A or Summary is enabled.
+        Returns True to proceed, False to cancel.
+        """
+        from src.user_preferences import get_user_preferences
+
+        prefs = get_user_preferences()
+
+        # Only warn if Q&A or Summary is enabled
+        if not self.qa_check.get() and not self.summary_check.get():
+            return True
+
+        # Already dismissed - don't show again
+        if prefs.has_dismissed_small_model_warning():
+            return True
+
+        # Check model size
+        model_name = prefs.get("ollama_model", "")
+        param_count = prefs.get_model_param_count(model_name)
+
+        # Can't parse size or large enough - no warning needed
+        if param_count is None or param_count >= 8:
+            return True
+
+        # Show modal warning dialog
+        import customtkinter as ctk
+
+        from src.ui.theme import COLORS, FONTS
+
+        result = {"proceed": False}
+
+        dialog = ctk.CTkToplevel(self)
+        dialog.title("Small Model Detected")
+        dialog.geometry("450x250")
+        dialog.resizable(False, False)
+        dialog.grab_set()
+
+        # Center on screen
+        dialog.update_idletasks()
+        x = (dialog.winfo_screenwidth() - 450) // 2
+        y = (dialog.winfo_screenheight() - 250) // 2
+        dialog.geometry(f"+{x}+{y}")
+
+        frame = ctk.CTkFrame(dialog, fg_color="transparent")
+        frame.pack(fill="both", expand=True, padx=20, pady=20)
+
+        title = ctk.CTkLabel(
+            frame,
+            text="Small Model Detected",
+            font=FONTS["heading"],
+        )
+        title.pack(pady=(0, 10))
+
+        body = ctk.CTkLabel(
+            frame,
+            text=(
+                f"Your current model ({model_name}) has {param_count}B parameters.\n\n"
+                "We recommend models with 8B+ parameters for reliable\n"
+                "Q&A and summary results with legal documents.\n\n"
+                "Smaller models may produce inaccurate or\n"
+                "hallucinated information."
+            ),
+            justify="left",
+            anchor="w",
+        )
+        body.pack(fill="x", pady=(0, 15))
+
+        btn_frame = ctk.CTkFrame(frame, fg_color="transparent")
+        btn_frame.pack(fill="x")
+
+        def on_continue():
+            result["proceed"] = True
+            prefs.dismiss_small_model_warning()
+            dialog.destroy()
+
+        def on_cancel():
+            dialog.destroy()
+
+        cancel_btn = ctk.CTkButton(
+            btn_frame,
+            text="Cancel",
+            command=on_cancel,
+            width=100,
+            fg_color=COLORS.get("secondary", "#555555"),
+        )
+        cancel_btn.pack(side="left", padx=(0, 10))
+
+        continue_btn = ctk.CTkButton(
+            btn_frame,
+            text="Continue Anyway",
+            command=on_continue,
+            width=140,
+        )
+        continue_btn.pack(side="right")
+
+        dialog.protocol("WM_DELETE_WINDOW", on_cancel)
+        dialog.wait_window()
+
+        return result["proceed"]
 
     def _on_vocab_check_changed(self):
         """Handle Vocabulary checkbox state change."""
@@ -1394,6 +1526,10 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         task_count = self._get_task_count()
         if task_count == 0:
             messagebox.showwarning("No Tasks", "Please select at least one task.")
+            return
+
+        # One-time warning for small models with Q&A or Summary
+        if not self._check_small_model_warning():
             return
 
         # Disable controls during processing

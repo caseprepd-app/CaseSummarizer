@@ -335,7 +335,7 @@ PERFORMANCE
 
 OLLAMA TIPS
 - Make sure Ollama is running before starting {APP_NAME}
-- Models with 8B+ parameters recommended for Q&A
+- Models with 8B+ parameters recommended for Q&A and summaries
 - Check Settings > AI Model for model selection
 - For setup help: Help menu > Ollama Setup Guide
 

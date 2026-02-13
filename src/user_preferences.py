@@ -306,71 +306,34 @@ class UserPreferencesManager:
         return get_optimal_chunk_sizes(context_size)
 
     # =========================================================================
-    # Q&A Model Size Requirements (Session 90)
+    # Small Model Warning (Session 90 -> simplified)
     # =========================================================================
 
-    def get_qa_model_override_mode(self) -> str:
+    def get_model_param_count(self, model_name: str):
         """
-        Get Q&A model size override mode.
-
-        Returns:
-            str: "auto" (require 8B+ model), "yes" (allow any model), or "no" (disable Q&A)
-        """
-        value = self._preferences.get("qa_model_override", "auto")
-        return value if value in ("auto", "yes", "no") else "auto"
-
-    def set_qa_model_override_mode(self, mode: str) -> None:
-        """
-        Set Q&A model size override mode.
-
-        Args:
-            mode: "auto" (require 8B+), "yes" (allow any size), or "no" (disable Q&A)
-        """
-        if mode not in ("auto", "yes", "no"):
-            raise ValueError(f"Invalid mode: {mode}, must be 'auto', 'yes', or 'no'")
-        self._preferences["qa_model_override"] = mode
-        self._save_preferences()
-
-    def is_qa_allowed_for_model(self, model_name: str) -> tuple[bool, str]:
-        """
-        Check if Q&A is allowed for the given model based on parameter count.
+        Extract parameter count from an Ollama model name.
 
         Args:
             model_name: Ollama model name (e.g., "llama3.2:3b", "gemma2:9b")
 
         Returns:
-            Tuple of (allowed: bool, reason: str)
-            - If allowed, reason is empty
-            - If not allowed, reason explains why
+            float or None: Parameter count in billions, or None if unparseable
         """
         import re
 
-        mode = self.get_qa_model_override_mode()
-
-        # User disabled Q&A entirely
-        if mode == "no":
-            return False, "Q&A is disabled in Settings"
-
-        # User allowed any model size
-        if mode == "yes":
-            return True, ""
-
-        # "auto" mode - check model parameter count
-        # Pattern matches "model:Xb" where X is the parameter count
         match = re.search(r":(\d+\.?\d*)b", model_name.lower())
         if match:
-            param_count = float(match.group(1))
-            if param_count >= 8:
-                return True, ""
-            else:
-                return False, (
-                    f"Q&A requires an 8B+ parameter model for quality answers.\n"
-                    f"Current model ({model_name}) has {param_count}B parameters.\n\n"
-                    "Select a larger model or enable override in Settings."
-                )
+            return float(match.group(1))
+        return None
 
-        # Couldn't parse parameter count - allow but warn
-        return True, ""
+    def has_dismissed_small_model_warning(self) -> bool:
+        """Check if the user has dismissed the small-model warning popup."""
+        return bool(self._preferences.get("small_model_warning_dismissed", False))
+
+    def dismiss_small_model_warning(self) -> None:
+        """Record that the user dismissed the small-model warning popup."""
+        self._preferences["small_model_warning_dismissed"] = True
+        self._save_preferences()
 
     # =========================================================================
     # Summary GPU Requirements (Session 93)
