@@ -77,21 +77,8 @@ def test_algorithms_initialized(extractor):
     assert "RAKE" in algorithm_names
 
 
-def test_get_definition(extractor):
-    """Test WordNet definition lookup."""
-    # Session 52: API changed to use is_person instead of category
-
-    # WordNet definition for non-person term
-    definition = extractor._get_definition("cat", is_person=False)
-    assert "feline" in definition.lower()  # Check for part of the definition
-
-    # No WordNet definition
-    definition_no_def = extractor._get_definition("asdfghjkl", is_person=False)
-    assert definition_no_def == "—"
-
-    # Person - no definition needed
-    definition_person = extractor._get_definition("John Smith", is_person=True)
-    assert definition_person == "—"
+# test_get_definition removed: WordNet definitions no longer generated.
+# _get_definition() method was commented out in vocabulary_extractor.py.
 
 
 def test_extract(extractor):
@@ -125,9 +112,7 @@ def test_extract(extractor):
             )
         else:
             assert found_terms[term]["Role/Relevance"] == expected_roles
-        # Definition check: Person should be "—", non-Person may have definition or "—"
-        if expected_data["Is Person"] == "Yes":
-            assert found_terms[term]["Definition"] == "—"
+        # Definition column removed: WordNet definitions no longer generated
         # Session 23: Verify new confidence columns exist
         assert "Quality Score" in found_terms[term], "Missing Quality Score column"
         assert "Occurrences" in found_terms[term], "Missing Occurrences column"
@@ -154,7 +139,7 @@ def test_extract_deduplication(extractor):
     )
     assert found_john_smith is not None, "John Smith not found in extracted vocabulary"
     assert found_john_smith["Is Person"] == "Yes"  # Named entity, is a person
-    assert found_john_smith["Definition"] == "—"  # Person entries don't have definitions
+    # Definition column removed: WordNet definitions no longer generated
     # Verify deduplication: only one entry for "John Smith"
     john_smith_count = sum(1 for item in vocabulary_dup if item["Term"].lower() == "john smith")
     assert john_smith_count == 1, f"Expected 1 entry for 'John Smith', found {john_smith_count}"

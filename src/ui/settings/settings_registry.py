@@ -428,7 +428,6 @@ def _register_all_settings():
     )
 
     # Session 23: CSV export column format setting
-    # TODO: Investigate definition quality - are WordNet definitions useful for legal terms?
     SettingsRegistry.register(
         SettingDefinition(
             key="vocab_export_format",
@@ -438,13 +437,13 @@ def _register_all_settings():
             tooltip=(
                 "Controls which columns are included when saving vocabulary to CSV. "
                 "'All columns' includes Quality Score, Frequency, and Rank for "
-                "Excel filtering. 'Basic' exports Term, Type, Role, and Definition. "
+                "Excel filtering. 'Basic' exports Term, Type, and Role. "
                 "'Terms only' exports just the vocabulary terms."
             ),
             default="basic",
             options=[
                 ("All columns (with quality metrics)", "all"),
-                ("Basic (Term, Type, Role, Definition)", "basic"),
+                ("Basic (Term, Type, Role)", "basic"),
                 ("Terms only", "terms_only"),
             ],
             getter=lambda: prefs.get("vocab_export_format", "basic"),

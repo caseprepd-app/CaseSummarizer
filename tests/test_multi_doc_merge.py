@@ -31,7 +31,6 @@ def _make_term_dict(
     quality_score=70.0,
     occurrences=5,
     rarity_rank=0,
-    definition="\u2014",
     ner="Yes",
     rake="No",
     bm25="No",
@@ -54,7 +53,7 @@ def _make_term_dict(
         "Quality Score": quality_score,
         "Occurrences": occurrences,
         "Google Rarity Rank": rarity_rank,
-        "Definition": definition,
+        # "Definition" removed: definitions no longer generated
         "Sources": sources_str,
         "NER": ner,
         "RAKE": rake,
@@ -208,15 +207,7 @@ class TestMergeTermAcrossDocs:
 
         assert merged["Role/Relevance"] == "Vocabulary term"
 
-    def test_definition_picks_first_non_dash(self, extractor):
-        """Definition should pick the first non-dash value."""
-        doc_entries = [
-            ("doc1", 95.0, _make_term_dict(term="test", definition="\u2014")),
-            ("doc2", 90.0, _make_term_dict(term="test", definition="a medical condition")),
-        ]
-        merged = extractor._merge_term_across_docs(doc_entries, total_docs=2, total_unique=5)
-
-        assert merged["Definition"] == "a medical condition"
+    # test_definition_picks_first_non_dash removed: definitions no longer generated
 
     def test_term_sources_object_created(self, extractor):
         """TermSources object should reflect actual per-doc data."""

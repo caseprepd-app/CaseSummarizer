@@ -98,7 +98,7 @@ def build_output_display_quadrant(parent_frame):
     create_tooltip(
         output_display_label,
         "Individual summaries: Per-document outputs (from parallel processing). Meta-summary: Hierarchical summary of all docs (blocking final step). "
-        "Vocabulary: CSV of technical terms (category, definition, relevance). Dropdown switches between output types. Copy/Save buttons available.",
+        "Vocabulary: CSV of technical terms (category, role, relevance). Dropdown switches between output types. Copy/Save buttons available.",
     )
 
     # Output display widget

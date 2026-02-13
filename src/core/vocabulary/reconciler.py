@@ -88,7 +88,6 @@ class ReconciledTerm:
         type: Category (Person, Place, Medical, Technical, Unknown)
         found_by: Which method(s) found this term ("Both", "NER", "LLM")
         frequency: Total occurrences across all sources
-        definition: WordNet definition if available
         ner_confidence: Confidence from NER (0 if not found by NER)
         llm_confidence: Confidence from LLM (0 if not found by LLM)
     """
@@ -97,7 +96,7 @@ class ReconciledTerm:
     type: str
     found_by: FoundBy
     frequency: int = 1
-    definition: str = ""
+    # definition: str = ""  # Removed: WordNet definitions unhelpful for legal terms
     ner_confidence: float = 0.0
     llm_confidence: float = 0.0
 
@@ -567,8 +566,9 @@ class VocabularyDeduplicator:
                 "Quality Score": round(term.combined_confidence * 100, 1),
             }
 
-            if include_definitions:
-                row["Definition"] = term.definition or ""
+            # Definition column removed: WordNet definitions unhelpful for legal terms.
+            # if include_definitions:
+            #     row["Definition"] = term.definition or ""
 
             csv_data.append(row)
 

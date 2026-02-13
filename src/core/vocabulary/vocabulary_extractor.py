@@ -232,7 +232,7 @@ class VocabularyExtractor:
             algorithm_weights={alg.name: alg.weight for alg in self.algorithms}
         )
 
-        # Ensure NLTK data is available (for definitions)
+        # Ensure NLTK data is available (wordnet used by NER rarity check)
         self._ensure_nltk_data()
 
         # Cache spaCy model reference for categorization (with lock for thread safety)
@@ -577,14 +577,17 @@ class VocabularyExtractor:
         )
         reconciled = filtered_reconciled
 
-        # 4. Add definitions for Medical/Technical terms
-        logger.debug("Phase 4: Adding definitions...")
-        for term in reconciled:
-            if term.type in ("Medical", "Technical") and not term.definition:
-                term.definition = self._get_definition(term.term, term.type == "Person")
+        # Definitions removed: WordNet generic definitions were unhelpful for legal
+        # terms (e.g., "Hearing" got the sense-organ definition, not legal proceeding).
+        # To reinstate, uncomment below and restore _get_definition() method at end of file.
+        # # 4. Add definitions for Medical/Technical terms
+        # logger.debug("Phase 4: Adding definitions...")
+        # for term in reconciled:
+        #     if term.type in ("Medical", "Technical") and not term.definition:
+        #         term.definition = self._get_definition(term.term, term.type == "Person")
 
         # 5. Convert to CSV format
-        csv_data = reconciler.to_csv_data(reconciled, include_definitions=True)
+        csv_data = reconciler.to_csv_data(reconciled, include_definitions=False)
 
         # 6. Add Role/Relevance using role profile
         for i, row in enumerate(csv_data):
@@ -806,7 +809,7 @@ class VocabularyExtractor:
                 "Quality Score": base_quality_score,
                 "Occurrences": merged.frequency,
                 "Google Rarity Rank": frequency_rank,
-                "Definition": self._get_definition(term, is_person),
+                # "Definition": self._get_definition(term, is_person),  # Removed: see Phase 4 comment
                 "Sources": ",".join(merged.sources),  # Keep for backward compatibility
                 # Per-algorithm detection flags (Session 47)
                 "NER": "Yes" if "NER" in sources_upper else "No",
@@ -1138,26 +1141,22 @@ class VocabularyExtractor:
             logger.debug("Error applying boost: %s", e)
             return base_score
 
-    def _get_definition(self, term: str, is_person: bool) -> str:
-        """Get definition for non-person terms only."""
-        if is_person:
-            return "—"  # Person names don't need definitions
-
-        lower_term = term.lower()
-        synsets = wordnet.synsets(lower_term)
-
-        if synsets:
-            definition = synsets[0].definition()
-            if len(definition) > 100:
-                logger.warning(
-                    "WordNet definition truncated from %d to 100 chars for '%s'.",
-                    len(definition),
-                    term,
-                )
-                definition = definition[:97] + "..."
-            return definition
-
-        return "—"
+    # Definition lookup removed: WordNet generic definitions were unhelpful for
+    # legal terms (e.g., "Hearing" → sense-organ, not legal proceeding).
+    # To reinstate, uncomment and restore the Definition column in extract() and
+    # _merge_term_across_docs().
+    # def _get_definition(self, term: str, is_person: bool) -> str:
+    #     """Get definition for non-person terms only."""
+    #     if is_person:
+    #         return "—"
+    #     lower_term = term.lower()
+    #     synsets = wordnet.synsets(lower_term)
+    #     if synsets:
+    #         definition = synsets[0].definition()
+    #         if len(definition) > 100:
+    #             definition = definition[:97] + "..."
+    #         return definition
+    #     return "—"
 
     def _get_term_frequency_rank(self, term: str) -> int:
         """Get Google frequency rank for a term."""
@@ -1557,12 +1556,14 @@ class VocabularyExtractor:
             default=default_role,
         )
 
-        definition = ""
-        for _, _, td in doc_entries:
-            d = td.get("Definition", "")
-            if d and d != "—":
-                definition = d
-                break
+        # Definition removed: WordNet definitions unhelpful for legal terms.
+        # To reinstate, uncomment below and restore _get_definition() method.
+        # definition = ""
+        # for _, _, td in doc_entries:
+        #     d = td.get("Definition", "")
+        #     if d and d != "—":
+        #         definition = d
+        #         break
 
         # Algo count: recompute from merged flags
         algo_count = sum([ner, rake, bm25, textrank])
@@ -1588,7 +1589,7 @@ class VocabularyExtractor:
             "Quality Score": quality_score,
             "Occurrences": total_freq,
             "Google Rarity Rank": rarity_rank,
-            "Definition": definition or "—",
+            # "Definition": definition or "—",  # Removed: see Phase 4 comment
             "Sources": found_by_str,
             # Algorithm flags
             "NER": "Yes" if ner else "No",
@@ -1752,7 +1753,7 @@ class VocabularyExtractor:
                 "Quality Score": base_quality_score,
                 "Occurrences": data["total_count"],
                 "Google Rarity Rank": frequency_rank,
-                "Definition": "—",
+                # "Definition": "—",  # Removed: see Phase 4 comment
                 "Sources": "",
                 "NER": "No",
                 "RAKE": "No",
