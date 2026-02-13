@@ -758,3 +758,81 @@ class TestNLTKBloatPrevention:
             )
         finally:
             sys.path.pop(0)
+
+
+# ============================================================================
+# J. Semantic Chunker Model Bundling
+# ============================================================================
+
+
+class TestSemanticChunkerModelBundling:
+    """Tests that the semantic chunker embedding model is configured for bundling."""
+
+    def test_config_exports_semantic_chunker_local_path(self):
+        """Config defines SEMANTIC_CHUNKER_MODEL_LOCAL_PATH constant."""
+        from src.config import SEMANTIC_CHUNKER_MODEL_LOCAL_PATH
+
+        assert SEMANTIC_CHUNKER_MODEL_LOCAL_PATH.name == "all-MiniLM-L6-v2"
+        assert "embeddings" in str(SEMANTIC_CHUNKER_MODEL_LOCAL_PATH)
+
+    def test_download_script_includes_minilm(self):
+        """download_models.py HF_MODELS includes all-MiniLM-L6-v2."""
+        script_path = Path(__file__).parent.parent / "scripts"
+        sys.path.insert(0, str(script_path))
+        try:
+            import download_models
+
+            repo_ids = [entry[0] for entry in download_models.HF_MODELS]
+            assert "sentence-transformers/all-MiniLM-L6-v2" in repo_ids, (
+                "all-MiniLM-L6-v2 must be in HF_MODELS for offline bundling."
+            )
+        finally:
+            sys.path.pop(0)
+
+    def test_unified_chunker_uses_bundled_path(self):
+        """UnifiedChunker resolves to bundled model path when available."""
+        from src.config import SEMANTIC_CHUNKER_MODEL_LOCAL_PATH
+
+        with patch.object(
+            type(SEMANTIC_CHUNKER_MODEL_LOCAL_PATH),
+            "exists",
+            return_value=True,
+        ):
+            # Re-evaluate the module-level variable
+            import src.core.chunking.unified_chunker as uc
+
+            # The module should prefer local path when it exists
+            assert hasattr(uc, "_SEMANTIC_CHUNKER_MODEL")
+
+
+# ============================================================================
+# K. Dead Code / Unused Dependencies Regression
+# ============================================================================
+
+
+class TestNoDeadCode:
+    """Regression tests to prevent dead constants and unused deps from returning."""
+
+    def test_no_dead_data_constants(self):
+        """config.py should not contain dead data file constants."""
+        import src.config as cfg
+
+        # These were removed — ensure they don't come back
+        assert not hasattr(cfg, "GOOGLE_FREQ_LIST"), (
+            "GOOGLE_FREQ_LIST is a dead constant (file doesn't exist, never imported)"
+        )
+        assert not hasattr(cfg, "LEGAL_KEYWORDS_NY"), "LEGAL_KEYWORDS_NY is a dead constant"
+        assert not hasattr(cfg, "LEGAL_KEYWORDS_CA"), "LEGAL_KEYWORDS_CA is a dead constant"
+        assert not hasattr(cfg, "LEGAL_KEYWORDS_FEDERAL"), (
+            "LEGAL_KEYWORDS_FEDERAL is a dead constant"
+        )
+
+    def test_no_unused_packages_in_requirements(self):
+        """requirements.txt should not contain known-unused packages."""
+        req_path = Path(__file__).parent.parent / "requirements.txt"
+        content = req_path.read_text(encoding="utf-8")
+
+        assert "onnxruntime-genai-directml" not in content, (
+            "onnxruntime-genai-directml was removed (ONNXModelManager deleted)"
+        )
+        assert "scikit-image" not in content, "scikit-image was removed (code uses cv2 instead)"

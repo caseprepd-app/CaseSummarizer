@@ -47,6 +47,7 @@ HF_MODELS = [
         "embeddings/nomic-embed-text-v1.5",
         ["onnx/*", "onnx/**"],
     ),  # Skip ONNX variants (~1.6GB)
+    ("sentence-transformers/all-MiniLM-L6-v2", "embeddings/all-MiniLM-L6-v2", None),
     ("Alibaba-NLP/gte-reranker-modernbert-base", "gte-reranker-modernbert-base", None),
     ("biu-nlp/f-coref", "coref/f-coref", None),
 ]

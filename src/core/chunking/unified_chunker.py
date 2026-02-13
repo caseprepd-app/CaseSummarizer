@@ -29,6 +29,7 @@ from langchain_huggingface import HuggingFaceEmbeddings
 
 from src.config import (
     SEMANTIC_CHUNKER_EMBEDDING_MODEL,
+    SEMANTIC_CHUNKER_MODEL_LOCAL_PATH,
     UNIFIED_CHUNK_ENCODING,
     UNIFIED_CHUNK_MAX_TOKENS,
     UNIFIED_CHUNK_MIN_TOKENS,
@@ -47,6 +48,12 @@ DEFAULT_MAX_TOKENS = UNIFIED_CHUNK_MAX_TOKENS  # Fallback: 1000
 
 # tiktoken encoding from config
 TIKTOKEN_ENCODING = UNIFIED_CHUNK_ENCODING  # Fallback: "cl100k_base"
+
+# Resolve semantic chunker model: prefer bundled, fall back to HF download
+if SEMANTIC_CHUNKER_MODEL_LOCAL_PATH.exists():
+    _SEMANTIC_CHUNKER_MODEL = str(SEMANTIC_CHUNKER_MODEL_LOCAL_PATH)
+else:
+    _SEMANTIC_CHUNKER_MODEL = SEMANTIC_CHUNKER_EMBEDDING_MODEL
 
 
 @dataclass
@@ -141,9 +148,9 @@ class UnifiedChunker:
         init_start = time.time()
 
         try:
-            # Use same embedding model as existing chunking_engine.py
+            # Use bundled model if available, otherwise fall back to HF download
             self.embeddings = HuggingFaceEmbeddings(
-                model_name=SEMANTIC_CHUNKER_EMBEDDING_MODEL, model_kwargs={"device": "cpu"}
+                model_name=_SEMANTIC_CHUNKER_MODEL, model_kwargs={"device": "cpu"}
             )
             self.semantic_chunker = SemanticChunker(
                 self.embeddings, breakpoint_threshold_type="gradient"

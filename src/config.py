@@ -482,12 +482,7 @@ LLM_EXTRACTOR_MAX_TOKENS = 1000  # Maximum tokens for LLM response
 SUMMARY_LENGTH_TOLERANCE = _d("summary_length_tolerance")
 SUMMARY_MAX_CONDENSE_ATTEMPTS = 3  # Maximum condensation attempts before returning best effort
 
-# Data Files
-GOOGLE_FREQ_LIST = Path(__file__).parent.parent / "data" / "frequency" / "google_word_freq.txt"
-LEGAL_KEYWORDS_NY = Path(__file__).parent.parent / "data" / "keywords" / "legal_keywords_ny.txt"
-LEGAL_KEYWORDS_CA = Path(__file__).parent.parent / "data" / "keywords" / "legal_keywords_ca.txt"
-
-# New: Vocabulary Extractor Data Files
+# Vocabulary Extractor Data Files
 LEGAL_EXCLUDE_LIST_PATH = Path(__file__).parent.parent / "config" / "legal_exclude.txt"
 MEDICAL_TERMS_LIST_PATH = Path(__file__).parent.parent / "config" / "medical_terms.txt"
 # User-specific vocabulary exclusions (stored in AppData, user can add via right-click)
@@ -727,10 +722,6 @@ USER_PROMPTS_DIR = APPDATA_DIR / "prompts"  # User-created prompts survive app u
 
 # Ensure user prompts directory exists
 USER_PROMPTS_DIR.mkdir(parents=True, exist_ok=True)
-LEGAL_KEYWORDS_FEDERAL = (
-    Path(__file__).parent.parent / "data" / "keywords" / "legal_keywords_federal.txt"
-)
-
 # License Configuration
 LICENSE_FILE = CONFIG_DIR / "license.dat"
 LICENSE_API_BASE_URL = "https://api.localscribe.example.com"  # Placeholder - will be updated
@@ -925,6 +916,10 @@ GLINER_MODEL_LOCAL_PATH = BUNDLED_MODELS_DIR / "gliner_medium-v2.1"
 # Uses GPU when available via torch.cuda.is_available(), falls back to CPU.
 EMBEDDING_MODEL_NAME = "nomic-ai/nomic-embed-text-v1.5"
 EMBEDDING_MODEL_LOCAL_PATH = BUNDLED_MODELS_DIR / "embeddings" / "nomic-embed-text-v1.5"
+
+# Semantic chunker embedding model (used by UnifiedChunker for text splitting)
+# all-MiniLM-L6-v2 (22MB) — lightweight model for detecting semantic boundaries
+SEMANTIC_CHUNKER_MODEL_LOCAL_PATH = BUNDLED_MODELS_DIR / "embeddings" / "all-MiniLM-L6-v2"
 
 # HuggingFace cache directory (used if bundled model not found)
 # Falls back to downloading if bundled model is missing (dev mode)

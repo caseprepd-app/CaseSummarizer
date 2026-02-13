@@ -35,8 +35,7 @@ _CRASH_LOG = Path(os.environ.get("APPDATA", ".")) / "CasePrepd" / "crash.log"
 try:
     import customtkinter as ctk
 
-    # CRITICAL: Import src.core.ai BEFORE UI framework to avoid DirectML DLL conflicts
-    # This pre-loads onnxruntime_genai before UI framework initializes
+    # CRITICAL: Import src.core.ai BEFORE UI framework to avoid DLL load order conflicts
     import src.core.ai  # noqa: F401
     from src.config import LOGS_DIR
     from src.ui.main_window import MainWindow
