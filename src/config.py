@@ -5,6 +5,7 @@ Centralized configuration for the application.
 
 import logging
 import os
+import sys
 from pathlib import Path
 
 import yaml
@@ -18,8 +19,11 @@ DEBUG_MODE = os.environ.get("DEBUG", "false").lower() == "true"
 
 # Base directory for bundled files (works in both dev and PyInstaller frozen mode)
 # In dev: src/config.py -> parent.parent = project root
-# In frozen: _internal/src/config.py -> parent.parent = _internal/
-BUNDLED_BASE_DIR = Path(__file__).parent.parent
+# In frozen (onedir): sys._MEIPASS = dist/CasePrepd/_internal/
+if getattr(sys, "frozen", False):
+    BUNDLED_BASE_DIR = Path(sys._MEIPASS)
+else:
+    BUNDLED_BASE_DIR = Path(__file__).parent.parent
 BUNDLED_CONFIG_DIR = BUNDLED_BASE_DIR / "config"
 
 # Application Name (loaded from config/app_name.txt for easy rebranding)
@@ -879,7 +883,7 @@ HALLUCINATION_REJECTION_MESSAGE = (
 # Models are stored in PROJECT_ROOT/models/ and shipped with the installer
 # This prevents network calls at runtime for privacy and offline use
 # LOG-001: Renamed to avoid conflict with MODELS_DIR defined earlier
-BUNDLED_MODELS_DIR = Path(__file__).parent.parent / "models"
+BUNDLED_MODELS_DIR = BUNDLED_BASE_DIR / "models"
 HALLUCINATION_MODEL_LOCAL_PATH = BUNDLED_MODELS_DIR / "tinylettuce-ettin-68m-en"
 
 # GLiNER zero-shot NER model (209M params, Apache 2.0)
