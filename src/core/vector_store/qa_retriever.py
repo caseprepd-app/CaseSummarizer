@@ -24,9 +24,6 @@ from typing import TYPE_CHECKING
 from src.config import (
     QA_CONTEXT_WINDOW,
     QA_RETRIEVAL_K,
-    QUERY_TRANSFORM_ENABLED,
-    QUERY_TRANSFORM_TIMEOUT,
-    QUERY_TRANSFORM_VARIANTS,
     RETRIEVAL_ALGORITHM_WEIGHTS,
     RETRIEVAL_ENABLE_BM25,
     RETRIEVAL_ENABLE_FAISS,
@@ -165,19 +162,10 @@ class QARetriever:
         # Initialize hybrid retriever
         self._hybrid_retriever = self._init_hybrid_retriever()
 
-        # Initialize query transformer (LlamaIndex + Ollama)
-        self._query_transformer = self._init_query_transformer()
-
         # Initialize cross-encoder reranker (lazy-loaded on first use)
         self._reranker = self._init_reranker()
 
-        # PERF-007: LRU cache for query transformation results
-        self._query_cache: dict[str, list[str]] = {}
-        self._query_cache_maxsize = 50
-
         logger.debug("Hybrid retriever initialized with %d chunks", len(self._documents))
-        if self._query_transformer:
-            logger.debug("Query transformer enabled")
         if self._reranker:
             logger.debug("Cross-encoder reranking enabled")
 
@@ -295,41 +283,6 @@ class QARetriever:
 
         return retriever
 
-    def _init_query_transformer(self):
-        """
-        Initialize the query transformer for expanding vague queries.
-
-        Uses LlamaIndex + Ollama to generate query variants.
-
-        Returns:
-            QueryTransformer instance or None if disabled/unavailable
-        """
-        if not QUERY_TRANSFORM_ENABLED:
-            return None
-
-        try:
-            from src.core.retrieval import QueryTransformer
-
-            transformer = QueryTransformer(
-                variant_count=QUERY_TRANSFORM_VARIANTS,
-                timeout_seconds=QUERY_TRANSFORM_TIMEOUT,
-                enabled=True,
-            )
-
-            # Check if LlamaIndex + Ollama is available
-            if transformer.is_available():
-                return transformer
-            else:
-                logger.debug("Query transformer not available (LlamaIndex/Ollama issue)")
-                return None
-
-        except ImportError as e:
-            logger.debug("Query transformer import failed: %s", e)
-            return None
-        except Exception as e:
-            logger.debug("Query transformer init failed: %s", e)
-            return None
-
     def _init_reranker(self):
         """
         Initialize the cross-encoder reranker for improved precision.
@@ -389,55 +342,27 @@ class QARetriever:
 
         logger.debug("Query: '%s...' (k=%d, min_score=%s)", question[:50], k, min_score)
 
-        # Transform query into variants if transformer is available
-        # PERF-007: Check cache first to avoid redundant LLM calls
-        queries_to_search = [question]
-        if self._query_transformer:
-            if question in self._query_cache:
-                queries_to_search = self._query_cache[question]
-                logger.debug("Query expansion cache hit: %d variants", len(queries_to_search))
-            else:
-                transform_result = self._query_transformer.transform(question)
-                if transform_result.success and transform_result.expanded_queries:
-                    queries_to_search = transform_result.all_queries
-                    # Cache the result (with size limit)
-                    if len(self._query_cache) >= self._query_cache_maxsize:
-                        # Remove oldest entry (first inserted)
-                        oldest_key = next(iter(self._query_cache))
-                        del self._query_cache[oldest_key]
-                    self._query_cache[question] = queries_to_search
-                    logger.debug("Query expanded to %d variants", len(queries_to_search))
+        # Retrieve chunks using hybrid retrieval
+        merged_result = self._hybrid_retriever.retrieve(question, k=k)
 
-        # Retrieve for all query variants and merge results
+        logger.debug("Received %d merged chunks from hybrid retriever", len(merged_result.chunks))
+
         all_chunks = {}  # chunk_id -> best chunk result (avoid duplicates)
 
-        for query in queries_to_search:
-            merged_result = self._hybrid_retriever.retrieve(query, k=k)
+        for chunk in merged_result.chunks:
+            chunk_key = f"{chunk.filename}_{chunk.chunk_num}"
 
-            # Diagnostic: log what we received
-            logger.debug(
-                "Received %d merged chunks from hybrid retriever", len(merged_result.chunks)
-            )
-
-            for chunk in merged_result.chunks:
-                chunk_key = f"{chunk.filename}_{chunk.chunk_num}"
-
-                # Keep the best score for each chunk
-                if (
-                    chunk_key not in all_chunks
-                    or chunk.combined_score > all_chunks[chunk_key].combined_score
-                ):
-                    all_chunks[chunk_key] = chunk
+            # Keep the best score for each chunk
+            if (
+                chunk_key not in all_chunks
+                or chunk.combined_score > all_chunks[chunk_key].combined_score
+            ):
+                all_chunks[chunk_key] = chunk
 
         # Sort all chunks by score descending and take top k
         sorted_chunks = sorted(all_chunks.values(), key=lambda c: c.combined_score, reverse=True)[
             :k
         ]
-
-        if len(queries_to_search) > 1:
-            logger.debug(
-                "Merged %d unique chunks from %d queries", len(all_chunks), len(queries_to_search)
-            )
 
         # Rerank with cross-encoder if enabled (improves precision)
         if self._reranker and sorted_chunks:

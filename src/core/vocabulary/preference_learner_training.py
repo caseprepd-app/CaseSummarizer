@@ -11,7 +11,6 @@ Handles:
 
 import logging
 import pickle
-import shutil
 from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -22,7 +21,6 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.preprocessing import StandardScaler
 
 from src.config import (
-    DEFAULT_VOCAB_MODEL_PATH,
     ML_DECAY_HALF_LIFE_DAYS,
     ML_DECAY_WEIGHT_FLOOR,
     ML_ENSEMBLE_MIN_SAMPLES,
@@ -398,15 +396,7 @@ def reset_to_default(model_path: Path = VOCAB_MODEL_PATH) -> bool:
         True if reset succeeded
     """
     try:
-        # Check if default model exists (bundled with app)
-        if DEFAULT_VOCAB_MODEL_PATH.exists():
-            # Copy default model to user's model path
-            model_path.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(DEFAULT_VOCAB_MODEL_PATH, model_path)
-            logger.debug("Reset to default model from %s", DEFAULT_VOCAB_MODEL_PATH)
-            return True
-
-        # No default model - just delete user's model to start fresh
+        # Delete user's model to start fresh
         if model_path.exists():
             model_path.unlink()
             logger.debug("Deleted user model (no default available)")

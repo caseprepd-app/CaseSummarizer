@@ -30,7 +30,6 @@ from src.core.retrieval.base import (
 from src.core.retrieval.chunk_merger import ChunkMerger, MergedChunk
 from src.core.retrieval.cross_encoder_reranker import CrossEncoderReranker
 from src.core.retrieval.hybrid_retriever import HybridRetriever
-from src.core.retrieval.query_transformer import QueryTransformer, QueryTransformResult
 
 __all__ = [
     "AlgorithmRetrievalResult",
@@ -44,8 +43,5 @@ __all__ = [
     # Main retriever
     "HybridRetriever",
     "MergedChunk",
-    "QueryTransformResult",
-    # Query transformation (LlamaIndex)
-    "QueryTransformer",
     "RetrievedChunk",
 ]

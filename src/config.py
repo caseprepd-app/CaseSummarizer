@@ -59,11 +59,6 @@ USER_FEEDBACK_CSV = FEEDBACK_DIR / "user_feedback.csv"
 # Legacy path - kept for backward compatibility detection only
 VOCAB_FEEDBACK_CSV = FEEDBACK_DIR / "vocab_feedback.csv"
 
-# Default model path (bundled with app for reset functionality)
-# This model is trained by the developer and shipped with the app
-# Users can reset to this model if they accidentally train in a bad direction
-DEFAULT_VOCAB_MODEL_PATH = Path(__file__).parent.parent / "config" / "default_vocab_model.pkl"
-
 # ML Training Thresholds (Session 84)
 # Don't train until we have enough samples to matter.
 ML_MIN_SAMPLES = _d("ml_min_samples")  # Minimum samples before ML training starts
@@ -815,24 +810,6 @@ FAISS_RELEVANCE_FLOOR = _d("faiss_relevance_floor")
 
 # Target characters for focused citation excerpt — embedding-selected window
 QA_CITATION_MAX_CHARS = _d("qa_citation_max_chars")
-
-# ============================================================================
-# Query Transformation Configuration (Session 44 - LlamaIndex Integration)
-# ============================================================================
-# Uses LlamaIndex + Ollama to expand vague queries into specific search terms
-# Example: "What happened?" → ["What happened?", "plaintiff injuries", "defendant actions"]
-
-# Enable/disable query transformation (disable for faster retrieval)
-# Disabled: Query expansion was generating off-target search terms for legal docs
-QUERY_TRANSFORM_ENABLED = False
-
-# Number of query variants to generate (1-5)
-# More variants = broader search but slower
-QUERY_TRANSFORM_VARIANTS = 3
-
-# Maximum time to wait for LLM to generate query variants
-# Very generous for CPU-only inference on low-power laptops
-QUERY_TRANSFORM_TIMEOUT = 600.0
 
 # ============================================================================
 # Unified Semantic Chunking Configuration (Session 45, Session 67)

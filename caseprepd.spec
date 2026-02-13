@@ -97,7 +97,6 @@ packages_to_collect = [
     "catalogue",
     "confection",
     "pydantic",
-    "llama_index",
 ]
 
 for pkg in packages_to_collect:
@@ -127,7 +126,6 @@ data_packages = [
     "lettucedetect",     # Prompt templates for hallucination verifier
     "tkinterdnd2",       # TCL scripts + native DLLs for drag-and-drop
     "fpdf",              # sRGB ICC color profile for PDF export
-    "llama_index",       # Bundled configs for query transformation
 ]
 
 for pkg in data_packages:
