@@ -243,13 +243,15 @@ class QAService:
 
     def cleanup(self) -> None:
         """Delete temp vector store directory if we created one."""
-        if self._temp_dir and self._temp_dir.exists():
+        if self._temp_dir is None:
+            return
+        if self._temp_dir.exists():
             import shutil
 
             shutil.rmtree(self._temp_dir, ignore_errors=True)
             logger.debug("Cleaned up temp dir: %s", self._temp_dir)
-            self._temp_dir = None
-            self._vector_store_path = None
+        self._temp_dir = None
+        self._vector_store_path = None
 
     def get_default_questions_manager(self):
         """
