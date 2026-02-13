@@ -114,6 +114,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         self._vocabulary_worker: VocabularyWorker | None = None
         self._qa_worker: QAWorker | None = None
         self._progressive_worker: ProgressiveExtractionWorker | None = None  # Session 45
+        self._summary_worker = None  # MultiDocSummaryWorker
         self._ui_queue: Queue | None = None
         self._queue_poll_id: str | None = None
 
@@ -676,9 +677,16 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             and self._default_qa_worker
             and self._default_qa_worker.is_alive()
         )
+        summary_alive = self._summary_worker and self._summary_worker.is_alive()
         more_messages_likely = messages_processed >= max_messages_per_poll
 
-        if processing_alive or progressive_alive or default_qa_alive or more_messages_likely:
+        if (
+            processing_alive
+            or progressive_alive
+            or default_qa_alive
+            or summary_alive
+            or more_messages_likely
+        ):
             self._queue_poll_id = self.after(33, self._poll_queue)  # ~30fps for smooth animation
         else:
             # Final poll to catch any remaining messages
@@ -690,13 +698,14 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
                 pass
 
             # Re-check: a handler in the final drain may have spawned a new worker
-            # (e.g., trigger_default_qa spawns QAWorker). Resume polling if so.
+            # (e.g., trigger_default_qa spawns QAWorker, summary task starts).
             new_qa_alive = (
                 hasattr(self, "_default_qa_worker")
                 and self._default_qa_worker
                 and self._default_qa_worker.is_alive()
             )
-            if new_qa_alive:
+            new_summary_alive = self._summary_worker and self._summary_worker.is_alive()
+            if new_qa_alive or new_summary_alive:
                 self._queue_poll_id = self.after(33, self._poll_queue)
 
     def _handle_queue_message(self, msg_type: str, data):
@@ -862,9 +871,49 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             else:
                 self._finalize_tasks()
 
+        elif msg_type == "multi_doc_result":
+            self._on_summary_complete(data)
+
         else:
             # Log unhandled messages for debugging
             logger.debug("Unhandled message type: %s", msg_type)
+
+    def _on_summary_complete(self, result):
+        """Handle multi-document summary result from worker."""
+        logger.debug(
+            "Summary complete: %s processed, %s failed",
+            result.documents_processed,
+            result.documents_failed,
+        )
+
+        # Extract individual summaries as dict[filename, summary_text]
+        individual_summaries = {}
+        for filename, doc_result in result.individual_summaries.items():
+            if doc_result.success:
+                individual_summaries[filename] = doc_result.summary
+            else:
+                individual_summaries[filename] = f"[Error: {doc_result.error_message}]"
+
+        # Display results
+        self.output_display.update_outputs(
+            meta_summary=result.meta_summary,
+            document_summaries=individual_summaries,
+        )
+
+        self._completed_tasks.add("summary")
+        self._summary_worker = None
+
+        if result.documents_failed > 0:
+            self.set_status(
+                f"Summary complete: {result.documents_processed} succeeded, "
+                f"{result.documents_failed} failed"
+            )
+        else:
+            self.set_status(
+                f"Summary complete: {result.documents_processed} document(s) summarized"
+            )
+
+        self._finalize_tasks()
 
     def _on_preprocessing_complete(self, results: list[dict]):
         """Handle preprocessing completion."""
@@ -1912,23 +1961,51 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             self._finalize_tasks()
 
     def _start_summary_task(self):
-        """Start summary generation task."""
-        # Session 148: Update workflow phase for tab status
+        """Start summary generation using MultiDocSummaryWorker."""
+        from src.services.workers import MultiDocSummaryWorker
         from src.ui.workflow_status import WorkflowPhase
+        from src.user_preferences import get_user_preferences
 
         self.output_display.set_workflow_phase(WorkflowPhase.SUMMARY_RUNNING)
 
-        self.set_status("Summary: This feature can take several hours...")
+        # Gather documents from processing results
+        valid_docs = [
+            {
+                "filename": d.get("filename", f"doc_{i}"),
+                "extracted_text": d.get("preprocessed_text") or d.get("extracted_text", ""),
+            }
+            for i, d in enumerate(self.processing_results)
+            if d.get("preprocessed_text") or d.get("extracted_text")
+        ]
 
-        # Summary is complex - show placeholder for now
-        self._completed_tasks.add("summary")
+        if not valid_docs:
+            logger.warning("No documents with text available for summary")
+            self.set_status("Summary skipped: no document text available")
+            self._completed_tasks.add("summary")
+            self._finalize_tasks()
+            return
 
-        self.output_display.update_outputs(
-            meta_summary="Summary generation can take several hours without a dedicated GPU. "
-            "For quick case familiarization, use Q&A instead."
+        # Build AI params from user preferences
+        prefs = get_user_preferences()
+        ai_params = {
+            "model_name": prefs.get("ollama_model", self.model_manager.model_name),
+            "summary_length": 200,
+            "meta_length": 500,
+        }
+
+        doc_count = len(valid_docs)
+        self.set_status(f"Generating summary for {doc_count} document(s)...")
+        logger.debug("Starting summary worker for %s documents", doc_count)
+
+        # Launch worker (daemon thread via BaseWorker)
+        self._summary_worker = MultiDocSummaryWorker(
+            documents=valid_docs, ui_queue=self._ui_queue, ai_params=ai_params
         )
+        self._summary_worker.start()
 
-        self._finalize_tasks()
+        # Ensure polling is active to receive worker messages
+        if not self._queue_poll_id:
+            self._queue_poll_id = self.after(33, self._poll_queue)
 
     def _finalize_tasks(self):
         """Finalize all tasks and update UI."""
@@ -2534,6 +2611,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             ("vocabulary", self._vocabulary_worker),
             ("qa", self._qa_worker),
             ("progressive", self._progressive_worker),
+            ("summary", self._summary_worker),
         ]
         # Also check for _default_qa_worker if it exists
         if hasattr(self, "_default_qa_worker") and self._default_qa_worker:
