@@ -105,6 +105,7 @@ class RAKEAlgorithm(BaseExtractionAlgorithm):
         """Lazy-load RAKE instance."""
         if self._rake is None:
             self._rake = Rake(
+                stopwords=STOPWORDS,
                 min_length=self.min_length,
                 max_length=self.max_length,
                 include_repeated_phrases=True,

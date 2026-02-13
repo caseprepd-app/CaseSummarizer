@@ -378,6 +378,60 @@ class TestNLTKBundledData:
 
 
 # ============================================================================
+# C2. RAKE Stopwords (no NLTK corpus dependency)
+# ============================================================================
+
+
+class TestRAKEStopwords:
+    """Tests that RAKE uses the app's hardcoded STOPWORDS, not NLTK corpus."""
+
+    def test_rake_passes_explicit_stopwords(self):
+        """RAKEAlgorithm passes STOPWORDS to Rake() constructor."""
+        from src.core.utils.tokenizer import STOPWORDS
+        from src.core.vocabulary.algorithms.rake_algorithm import RAKEAlgorithm
+
+        algo = RAKEAlgorithm()
+        # Access the lazy-loaded Rake instance
+        rake_instance = algo.rake
+        assert rake_instance.stopwords == STOPWORDS, (
+            "Rake should use the app's STOPWORDS, not NLTK corpus"
+        )
+
+    def test_rake_stopwords_not_empty(self):
+        """The STOPWORDS set passed to RAKE is non-empty."""
+        from src.core.vocabulary.algorithms.rake_algorithm import RAKEAlgorithm
+
+        algo = RAKEAlgorithm()
+        assert len(algo.rake.stopwords) > 50, (
+            "STOPWORDS should contain a substantial number of entries"
+        )
+
+    def test_rake_does_not_import_nltk_stopwords(self):
+        """rake_algorithm.py does not import from nltk.corpus.stopwords."""
+        from src.core.vocabulary.algorithms import rake_algorithm as mod
+
+        source = Path(mod.__file__).read_text(encoding="utf-8")
+        assert "nltk.corpus.stopwords" not in source
+        assert "from nltk.corpus import stopwords" not in source
+
+    def test_rake_extracts_without_nltk_stopwords_corpus(self):
+        """RAKE extraction works even when NLTK stopwords corpus is absent."""
+        from src.core.vocabulary.algorithms.rake_algorithm import RAKEAlgorithm
+
+        # Mock nltk.corpus.stopwords to raise if accessed
+        with patch("nltk.corpus.stopwords") as mock_sw:
+            mock_sw.words.side_effect = LookupError("stopwords not found")
+
+            algo = RAKEAlgorithm()
+            # Should not raise — uses explicit stopwords, not NLTK corpus
+            result = algo.extract(
+                "The defendant filed a motion for summary judgment "
+                "regarding the breach of fiduciary duty claim."
+            )
+            assert result is not None
+
+
+# ============================================================================
 # D. RawTextExtractor OCR Flag
 # ============================================================================
 
@@ -573,6 +627,8 @@ class TestDownloadModelsScript:
             assert "words" in download_models.NLTK_CORPORA
             assert "wordnet" in download_models.NLTK_CORPORA
             assert "omw-1.4" in download_models.NLTK_CORPORA
+            assert "stopwords" in download_models.NLTK_CORPORA
+            assert "punkt_tab" in download_models.NLTK_CORPORA
         finally:
             sys.path.pop(0)
 
@@ -662,40 +718,40 @@ class TestOCRPreCheck:
 class TestNLTKBloatPrevention:
     """Tests that only required NLTK corpora are bundled, not the full 3+ GB."""
 
-    REQUIRED_CORPORA = {"words", "wordnet", "omw-1.4"}
+    REQUIRED_CORPORA = {"words", "wordnet", "omw-1.4", "stopwords", "punkt_tab"}
 
-    def test_models_nltk_data_contains_only_required_corpora(self):
-        """models/nltk_data/ has only the 3 needed corpora, no extras."""
+    def test_models_nltk_data_contains_only_required_resources(self):
+        """models/nltk_data/ has only the required resources, no extras."""
         models_nltk = Path(__file__).parent.parent / "models" / "nltk_data"
         if not models_nltk.exists():
             pytest.skip("models/nltk_data not present (pre-download step)")
 
-        # Collect all corpus names (folders and zips in corpora/)
-        corpora_dir = models_nltk / "corpora"
-        assert corpora_dir.exists(), "models/nltk_data/corpora/ missing"
-
+        # Collect resource names from corpora/ and tokenizers/ subdirs
         entries = set()
-        for item in corpora_dir.iterdir():
-            name = item.stem if item.suffix == ".zip" else item.name
-            entries.add(name)
+        for subdir_name in ("corpora", "tokenizers"):
+            subdir = models_nltk / subdir_name
+            if subdir.exists():
+                for item in subdir.iterdir():
+                    name = item.stem if item.suffix == ".zip" else item.name
+                    entries.add(name)
 
-        # Every entry must be one of the 3 required corpora
+        # Every entry must be one of the required resources
         unexpected = entries - self.REQUIRED_CORPORA
         assert not unexpected, (
-            f"Unexpected NLTK corpora in models/nltk_data/corpora/: "
+            f"Unexpected NLTK resources in models/nltk_data/: "
             f"{unexpected}. Only {self.REQUIRED_CORPORA} should be present."
         )
 
-    def test_models_nltk_data_under_50mb(self):
-        """Bundled NLTK data should be well under 50 MB (3 corpora only)."""
+    def test_models_nltk_data_under_75mb(self):
+        """Bundled NLTK data should be well under 75 MB (5 resources only)."""
         models_nltk = Path(__file__).parent.parent / "models" / "nltk_data"
         if not models_nltk.exists():
             pytest.skip("models/nltk_data not present (pre-download step)")
 
         total = sum(f.stat().st_size for f in models_nltk.rglob("*") if f.is_file())
         mb = total / (1024 * 1024)
-        assert mb < 50, (
-            f"models/nltk_data/ is {mb:.1f} MB — expected < 50 MB. "
+        assert mb < 75, (
+            f"models/nltk_data/ is {mb:.1f} MB -- expected < 75 MB. "
             f"Likely contains extra corpora that should be removed."
         )
 
@@ -836,3 +892,6 @@ class TestNoDeadCode:
             "onnxruntime-genai-directml was removed (ONNXModelManager deleted)"
         )
         assert "scikit-image" not in content, "scikit-image was removed (code uses cv2 instead)"
+        assert "llama-index" not in content, (
+            "llama-index was removed (query transformation feature disabled and deleted)"
+        )

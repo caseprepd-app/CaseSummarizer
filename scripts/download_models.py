@@ -14,6 +14,8 @@ Models downloaded:
     models/nltk_data/corpora/words/
     models/nltk_data/corpora/wordnet/
     models/nltk_data/corpora/omw-1.4/
+    models/nltk_data/corpora/stopwords/      (rake-nltk dependency)
+    models/nltk_data/tokenizers/punkt_tab/   (rake-nltk sentence tokenizer)
     models/tinylettuce-ettin-68m-en/      (hallucination detector)
     models/gliner_medium-v2.1/            (zero-shot NER)
     models/embeddings/nomic-embed-text-v1.5/  (FAISS embeddings)
@@ -35,7 +37,7 @@ SPACY_MODELS = ["en_core_web_lg", "en_core_web_sm", "en_ner_bc5cdr_md"]
 SPACY_DIR = MODELS_DIR / "spacy"
 
 # NLTK corpora to bundle
-NLTK_CORPORA = ["words", "wordnet", "omw-1.4"]
+NLTK_CORPORA = ["words", "wordnet", "omw-1.4", "stopwords", "punkt_tab"]
 NLTK_DIR = MODELS_DIR / "nltk_data"
 
 # HuggingFace models: (repo_id, local_subdir, ignore_patterns)
