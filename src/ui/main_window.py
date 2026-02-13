@@ -106,6 +106,9 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         self.prompt_template_manager = ai_service.get_prompt_template_manager()
         self.corpus_registry = VocabularyService().get_corpus_registry()
 
+        # Shutdown guard — prevents after() callbacks on destroyed widgets
+        self._destroying = False
+
         # Workers and queue
         self._processing_worker: ProcessingWorker | None = None
         self._vocabulary_worker: VocabularyWorker | None = None
@@ -1656,6 +1659,8 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
 
     def _poll_vocab_queue(self):
         """Poll the vocabulary worker queue."""
+        if self._destroying:
+            return
         try:
             while True:
                 msg_type, data = self._vocab_queue.get_nowait()
@@ -1847,6 +1852,8 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
 
     def _poll_qa_queue(self):
         """Poll the Q&A worker queue for results."""
+        if self._destroying:
+            return
         try:
             while True:
                 msg_type, data = self._qa_queue.get_nowait()
@@ -2069,6 +2076,8 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
 
     def _poll_followup_result(self):
         """Poll for follow-up result from background thread."""
+        if self._destroying:
+            return
         import queue
 
         try:
@@ -2506,10 +2515,18 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
 
     def destroy(self):
         """Clean up resources before destroying window."""
-        # Stop queue polling
+        self._destroying = True
+
+        # Cancel all tracked after() callbacks
         if self._queue_poll_id:
             self.after_cancel(self._queue_poll_id)
             self._queue_poll_id = None
+        if hasattr(self, "_status_clear_id") and self._status_clear_id:
+            self.after_cancel(self._status_clear_id)
+            self._status_clear_id = None
+        if hasattr(self, "_timer_after_id") and self._timer_after_id:
+            self.after_cancel(self._timer_after_id)
+            self._timer_after_id = None
 
         # Explicitly stop all running workers to prevent resource leaks
         workers_to_stop = [
@@ -2527,6 +2544,11 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
                 if hasattr(worker, "stop"):
                     logger.debug("Stopping %s worker...", name)
                     worker.stop()
+
+        # Join workers briefly to let in-flight file writes finish
+        for name, worker in workers_to_stop:
+            if worker and hasattr(worker, "is_alive") and worker.is_alive():
+                worker.join(timeout=1.0)
 
         # Stop timer
         self._stop_timer()

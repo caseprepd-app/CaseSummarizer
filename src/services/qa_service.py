@@ -52,6 +52,7 @@ class QAService:
                                If None, uses a temp directory.
         """
         self._vector_store_path = vector_store_path
+        self._temp_dir: Path | None = None  # Tracks temp dir we created (for cleanup)
         self._embeddings = None
         self._orchestrator = None
         self._is_ready = False
@@ -100,9 +101,16 @@ class QAService:
             from src.core.vector_store import VectorStoreBuilder
 
             if self._vector_store_path is None:
+                import atexit
+                import shutil
                 import tempfile
 
-                self._vector_store_path = Path(tempfile.mkdtemp()) / "qa_index"
+                self._temp_dir = Path(tempfile.mkdtemp())
+                self._vector_store_path = self._temp_dir / "qa_index"
+
+                # atexit backstop: clean up even if destroy() never runs
+                temp_dir = self._temp_dir  # capture for lambda
+                atexit.register(lambda p=temp_dir: shutil.rmtree(p, ignore_errors=True))
 
             builder = VectorStoreBuilder()
             builder.create_from_unified_chunks(
@@ -232,6 +240,16 @@ class QAService:
         self._is_ready = False
 
         logger.debug("Cleared")
+
+    def cleanup(self) -> None:
+        """Delete temp vector store directory if we created one."""
+        if self._temp_dir and self._temp_dir.exists():
+            import shutil
+
+            shutil.rmtree(self._temp_dir, ignore_errors=True)
+            logger.debug("Cleaned up temp dir: %s", self._temp_dir)
+            self._temp_dir = None
+            self._vector_store_path = None
 
     def get_default_questions_manager(self):
         """

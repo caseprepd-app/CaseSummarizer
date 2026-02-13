@@ -17,7 +17,9 @@ os.environ["HF_HUB_DISABLE_SYMLINKS_WARNING"] = "1"  # Suppress HuggingFace Hub 
 if "--debug" in sys.argv:
     os.environ["DEBUG"] = "true"
 
+import logging
 import multiprocessing
+import threading
 import traceback
 from datetime import datetime
 from pathlib import Path
@@ -118,6 +120,30 @@ def main():
 
     setup_logging()
     purge_old_logs()
+
+    # Install global exception hooks so unhandled errors are logged
+    # (especially important in PyInstaller --noconsole where stdout is None)
+    _logger = logging.getLogger(__name__)
+
+    def _uncaught_exception(exc_type, exc_value, exc_tb):
+        if issubclass(exc_type, KeyboardInterrupt):
+            sys.__excepthook__(exc_type, exc_value, exc_tb)
+            return
+        _logger.critical("Uncaught exception", exc_info=(exc_type, exc_value, exc_tb))
+
+    def _uncaught_thread_exception(args):
+        if args.exc_type is SystemExit:
+            return
+
+        _logger.critical(
+            "Uncaught exception in thread %s",
+            args.thread.name if args.thread else "unknown",
+            exc_info=(args.exc_type, args.exc_value, args.exc_traceback),
+        )
+
+    sys.excepthook = _uncaught_exception
+
+    threading.excepthook = _uncaught_thread_exception
 
     # Enable multiprocessing support for Windows frozen executables
     multiprocessing.freeze_support()
