@@ -164,6 +164,15 @@ excludes = [
     "tkinter.test",
 ]
 
+# ── Prevent PyInstaller's NLTK hook from bundling system-wide data ─────
+# PyInstaller has a built-in hook (hook-nltk.py) that calls nltk.data.path
+# and bundles EVERYTHING it finds (often 3+ GB of corpora from %APPDATA%).
+# We only need words, wordnet, omw-1.4 — already in models/nltk_data/.
+# Clearing nltk.data.path before Analysis prevents the hook from finding
+# the system-wide directory.
+import nltk
+nltk.data.path.clear()
+
 # ── Analysis ───────────────────────────────────────────────────────────
 a = Analysis(
     [os.path.join("src", "main.py")],

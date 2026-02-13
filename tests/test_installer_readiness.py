@@ -652,3 +652,109 @@ class TestOCRPreCheck:
             status = check_ocr_availability()
             assert status == OCRStatus.BOTH_MISSING
             # The snooze check happens in the UI layer, not here
+
+
+# ============================================================================
+# I. NLTK Data Bloat Prevention
+# ============================================================================
+
+
+class TestNLTKBloatPrevention:
+    """Tests that only required NLTK corpora are bundled, not the full 3+ GB."""
+
+    REQUIRED_CORPORA = {"words", "wordnet", "omw-1.4"}
+
+    def test_models_nltk_data_contains_only_required_corpora(self):
+        """models/nltk_data/ has only the 3 needed corpora, no extras."""
+        models_nltk = Path(__file__).parent.parent / "models" / "nltk_data"
+        if not models_nltk.exists():
+            pytest.skip("models/nltk_data not present (pre-download step)")
+
+        # Collect all corpus names (folders and zips in corpora/)
+        corpora_dir = models_nltk / "corpora"
+        assert corpora_dir.exists(), "models/nltk_data/corpora/ missing"
+
+        entries = set()
+        for item in corpora_dir.iterdir():
+            name = item.stem if item.suffix == ".zip" else item.name
+            entries.add(name)
+
+        # Every entry must be one of the 3 required corpora
+        unexpected = entries - self.REQUIRED_CORPORA
+        assert not unexpected, (
+            f"Unexpected NLTK corpora in models/nltk_data/corpora/: "
+            f"{unexpected}. Only {self.REQUIRED_CORPORA} should be present."
+        )
+
+    def test_models_nltk_data_under_50mb(self):
+        """Bundled NLTK data should be well under 50 MB (3 corpora only)."""
+        models_nltk = Path(__file__).parent.parent / "models" / "nltk_data"
+        if not models_nltk.exists():
+            pytest.skip("models/nltk_data not present (pre-download step)")
+
+        total = sum(f.stat().st_size for f in models_nltk.rglob("*") if f.is_file())
+        mb = total / (1024 * 1024)
+        assert mb < 50, (
+            f"models/nltk_data/ is {mb:.1f} MB — expected < 50 MB. "
+            f"Likely contains extra corpora that should be removed."
+        )
+
+    def test_no_system_nltk_data_in_appdata(self):
+        """No bloated NLTK data in %APPDATA% (prevents PyInstaller bundling)."""
+        import os
+
+        appdata_nltk = Path(os.environ.get("APPDATA", "")) / "nltk_data"
+        if not appdata_nltk.exists():
+            return  # Good — nothing there
+
+        total = sum(f.stat().st_size for f in appdata_nltk.rglob("*") if f.is_file())
+        mb = total / (1024 * 1024)
+        assert mb < 100, (
+            f"%APPDATA%/nltk_data/ is {mb:.1f} MB. "
+            f"This will be auto-bundled by PyInstaller's NLTK hook "
+            f"unless the spec file clears nltk.data.path. "
+            f'Delete it with: rmdir /s /q "%APPDATA%\\nltk_data"'
+        )
+
+    def test_spec_file_clears_nltk_data_path(self):
+        """caseprepd.spec must clear nltk.data.path before Analysis."""
+        spec_path = Path(__file__).parent.parent / "caseprepd.spec"
+        assert spec_path.exists(), "caseprepd.spec not found"
+
+        content = spec_path.read_text(encoding="utf-8")
+
+        # The clear() call must appear BEFORE the Analysis() call
+        clear_pos = content.find("nltk.data.path.clear()")
+        analysis_pos = content.find("a = Analysis(")
+
+        assert clear_pos != -1, (
+            "caseprepd.spec must contain 'nltk.data.path.clear()' "
+            "to prevent PyInstaller from bundling system-wide NLTK data."
+        )
+        assert clear_pos < analysis_pos, (
+            "nltk.data.path.clear() must appear BEFORE Analysis() "
+            "in caseprepd.spec, otherwise the hook runs first."
+        )
+
+    def test_spec_file_skips_hf_cache(self):
+        """caseprepd.spec must skip .hf_cache from bundled models."""
+        spec_path = Path(__file__).parent.parent / "caseprepd.spec"
+        content = spec_path.read_text(encoding="utf-8")
+
+        assert '".hf_cache"' in content or "'.hf_cache'" in content, (
+            "caseprepd.spec must explicitly skip .hf_cache directory."
+        )
+
+    def test_download_script_only_downloads_required_corpora(self):
+        """download_models.py NLTK_CORPORA list matches required set."""
+        script_path = Path(__file__).parent.parent / "scripts"
+        sys.path.insert(0, str(script_path))
+        try:
+            import download_models
+
+            actual = set(download_models.NLTK_CORPORA)
+            assert actual == self.REQUIRED_CORPORA, (
+                f"NLTK_CORPORA should be {self.REQUIRED_CORPORA}, got {actual}."
+            )
+        finally:
+            sys.path.pop(0)
