@@ -940,6 +940,17 @@ if NLTK_DATA_DIR.exists():
 
     nltk.data.path.insert(0, str(NLTK_DATA_DIR))
 
+# Bundled Tesseract OCR binary for Windows installer (no system install needed)
+TESSERACT_BUNDLED_DIR = BUNDLED_MODELS_DIR / "tesseract"
+TESSERACT_BUNDLED_EXE = TESSERACT_BUNDLED_DIR / "tesseract.exe"
+
+# Bundled Poppler utilities for PDF-to-image conversion
+POPPLER_BUNDLED_DIR = BUNDLED_MODELS_DIR / "poppler"
+
+# Register bundled Tesseract tessdata path before any OCR consumer
+if TESSERACT_BUNDLED_DIR.exists():
+    os.environ["TESSDATA_PREFIX"] = str(TESSERACT_BUNDLED_DIR / "tessdata")
+
 RERANKER_MAX_LENGTH = 8192
 RERANKER_TOP_K = _d("reranker_top_k")
 

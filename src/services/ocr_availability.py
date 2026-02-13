@@ -39,11 +39,17 @@ class OCRStatus(Enum):
 
 def _find_tesseract() -> bool:
     """
-    Check if Tesseract is available on PATH or in standard install locations.
+    Check if Tesseract is available: bundled, on PATH, or in standard locations.
 
     Returns:
         True if tesseract executable is found.
     """
+    from src.config import TESSERACT_BUNDLED_EXE
+
+    if TESSERACT_BUNDLED_EXE.exists():
+        logger.debug("Tesseract found at bundled path %s", TESSERACT_BUNDLED_EXE)
+        return True
+
     if shutil.which("tesseract") is not None:
         return True
 
@@ -64,18 +70,37 @@ def _find_tesseract() -> bool:
     return False
 
 
+def _find_poppler() -> bool:
+    """
+    Check if Poppler (pdftoppm) is available: bundled or on PATH.
+
+    Returns:
+        True if pdftoppm executable is found.
+    """
+    from src.config import POPPLER_BUNDLED_DIR
+
+    if (POPPLER_BUNDLED_DIR / "pdftoppm.exe").exists():
+        logger.debug("Poppler found at bundled path %s", POPPLER_BUNDLED_DIR)
+        return True
+
+    if shutil.which("pdftoppm") is not None:
+        return True
+
+    return False
+
+
 def check_ocr_availability() -> OCRStatus:
     """
     Check whether OCR executables are installed.
 
-    Looks for 'tesseract' on PATH and standard Windows install locations,
-    and 'pdftoppm' (Poppler) on PATH.
+    Looks for Tesseract and Poppler (pdftoppm) in bundled paths first,
+    then on PATH and standard Windows install locations.
 
     Returns:
         OCRStatus indicating which components are available.
     """
     has_tesseract = _find_tesseract()
-    has_poppler = shutil.which("pdftoppm") is not None
+    has_poppler = _find_poppler()
 
     if has_tesseract and has_poppler:
         logger.debug("OCR available: Tesseract and Poppler found")

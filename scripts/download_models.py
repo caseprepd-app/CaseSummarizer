@@ -21,6 +21,8 @@ Models downloaded:
     models/embeddings/nomic-embed-text-v1.5/  (FAISS embeddings)
     models/gte-reranker-modernbert-base/  (cross-encoder reranker)
     models/coref/f-coref/                 (coreference resolution)
+    models/tesseract/                     (OCR engine + eng.traineddata)
+    models/poppler/                       (PDF-to-image conversion)
 """
 
 import shutil
@@ -212,6 +214,126 @@ def download_huggingface_models() -> dict[str, bool]:
     return results
 
 
+TESSERACT_DIR = MODELS_DIR / "tesseract"
+TESSERACT_SYSTEM_DIR = Path("C:/Program Files/Tesseract-OCR")
+POPPLER_DIR = MODELS_DIR / "poppler"
+POPPLER_GITHUB_API = "https://api.github.com/repos/oschwartz10612/poppler-windows/releases/latest"
+
+
+def download_tesseract() -> dict[str, bool]:
+    """
+    Copy Tesseract binaries from system install to bundled directory.
+
+    Copies tesseract.exe, all DLLs, and tessdata/eng.traineddata from
+    C:\\Program Files\\Tesseract-OCR\\ to models/tesseract/.
+
+    Returns:
+        Dict mapping 'tesseract' to success status.
+    """
+    if (TESSERACT_DIR / "tesseract.exe").exists():
+        print("  [SKIP] tesseract (already exists)")
+        return {"tesseract": True}
+
+    if not TESSERACT_SYSTEM_DIR.exists():
+        print(
+            f"  [FAILED] tesseract: System install not found at {TESSERACT_SYSTEM_DIR}\n"
+            f"           Install Tesseract first: https://github.com/UB-Mannheim/tesseract/wiki"
+        )
+        return {"tesseract": False}
+
+    print("  Copying Tesseract from system install...")
+    try:
+        TESSERACT_DIR.mkdir(parents=True, exist_ok=True)
+        tessdata_dir = TESSERACT_DIR / "tessdata"
+        tessdata_dir.mkdir(exist_ok=True)
+
+        # Copy tesseract.exe and all DLLs
+        for f in TESSERACT_SYSTEM_DIR.iterdir():
+            if f.is_file() and f.suffix.lower() in (".exe", ".dll"):
+                shutil.copy2(f, TESSERACT_DIR / f.name)
+
+        # Copy eng.traineddata
+        src_tessdata = TESSERACT_SYSTEM_DIR / "tessdata" / "eng.traineddata"
+        if src_tessdata.exists():
+            shutil.copy2(src_tessdata, tessdata_dir / "eng.traineddata")
+        else:
+            print("  [WARNING] eng.traineddata not found in system tessdata")
+
+        print(f"  [OK] tesseract -> {TESSERACT_DIR}")
+        return {"tesseract": True}
+    except Exception as e:
+        print(f"  [FAILED] tesseract: {e}")
+        return {"tesseract": False}
+
+
+def download_poppler() -> dict[str, bool]:
+    """
+    Download Poppler Windows binaries from GitHub releases.
+
+    Downloads the latest release zip from oschwartz10612/poppler-windows
+    and extracts Library/bin/ contents to models/poppler/.
+
+    Returns:
+        Dict mapping 'poppler' to success status.
+    """
+    if (POPPLER_DIR / "pdftoppm.exe").exists():
+        print("  [SKIP] poppler (already exists)")
+        return {"poppler": True}
+
+    print("  Downloading Poppler from GitHub...")
+    try:
+        import io
+        import json
+        import zipfile
+        from urllib.request import Request, urlopen
+
+        # Get latest release info
+        req = Request(POPPLER_GITHUB_API, headers={"User-Agent": "CasePrepd-Downloader"})
+        with urlopen(req, timeout=30) as resp:
+            release = json.loads(resp.read())
+
+        # Find the zip asset
+        zip_url = None
+        for asset in release.get("assets", []):
+            if asset["name"].endswith(".zip"):
+                zip_url = asset["browser_download_url"]
+                break
+
+        if not zip_url:
+            print("  [FAILED] poppler: No .zip asset found in latest release")
+            return {"poppler": False}
+
+        print(f"  Downloading {zip_url}...")
+        req = Request(zip_url, headers={"User-Agent": "CasePrepd-Downloader"})
+        with urlopen(req, timeout=120) as resp:
+            zip_data = resp.read()
+
+        POPPLER_DIR.mkdir(parents=True, exist_ok=True)
+
+        # Extract Library/bin/ contents
+        with zipfile.ZipFile(io.BytesIO(zip_data)) as zf:
+            for member in zf.namelist():
+                # Match paths like Release-XX.YY.Z-0/Library/bin/filename.ext
+                parts = member.replace("\\", "/").split("/")
+                if "Library" in parts and "bin" in parts:
+                    bin_idx = parts.index("bin")
+                    if bin_idx + 1 < len(parts) and parts[-1]:
+                        filename = parts[-1]
+                        with zf.open(member) as src:
+                            (POPPLER_DIR / filename).write_bytes(src.read())
+
+        # Verify key files
+        if not (POPPLER_DIR / "pdftoppm.exe").exists():
+            print("  [FAILED] poppler: pdftoppm.exe not found after extraction")
+            return {"poppler": False}
+
+        print(f"  [OK] poppler -> {POPPLER_DIR}")
+        return {"poppler": True}
+    except Exception as e:
+        print(f"  [FAILED] poppler: {e}")
+        return {"poppler": False}
+
+
 def main():
     """Download all models for the Windows installer."""
     print("=" * 60)
@@ -230,12 +352,26 @@ def main():
     print("\n--- HuggingFace Models ---")
     hf_results = download_huggingface_models()
 
+    # 4. Tesseract OCR
+    print("\n--- Tesseract OCR ---")
+    tesseract_results = download_tesseract()
+
+    # 5. Poppler (PDF-to-image)
+    print("\n--- Poppler ---")
+    poppler_results = download_poppler()
+
     # Summary
     print("\n" + "=" * 60)
     print("Summary")
     print("=" * 60)
 
-    all_results = {**spacy_results, **nltk_results, **hf_results}
+    all_results = {
+        **spacy_results,
+        **nltk_results,
+        **hf_results,
+        **tesseract_results,
+        **poppler_results,
+    }
     passed = sum(1 for v in all_results.values() if v)
     failed = sum(1 for v in all_results.values() if not v)
 

@@ -547,6 +547,43 @@ class TestNameDataFiles:
         assert len(rows) >= 2, f"Expected data rows, got {len(rows)} total rows"
 
 
+class TestBundledOCRPaths:
+    """Tests for bundled OCR config constants and runtime detection."""
+
+    def test_config_exports_tesseract_paths(self):
+        """Config exports TESSERACT_BUNDLED_EXE and POPPLER_BUNDLED_DIR."""
+        from src.config import POPPLER_BUNDLED_DIR, TESSERACT_BUNDLED_EXE
+
+        assert TESSERACT_BUNDLED_EXE.name == "tesseract.exe"
+        assert "tesseract" in str(TESSERACT_BUNDLED_EXE)
+        assert POPPLER_BUNDLED_DIR.name == "poppler"
+
+    def test_tessdata_prefix_set(self):
+        """TESSDATA_PREFIX env var should point to bundled tessdata when present."""
+        import os
+
+        from src.config import TESSERACT_BUNDLED_DIR
+
+        if TESSERACT_BUNDLED_DIR.exists():
+            tessdata_prefix = os.environ.get("TESSDATA_PREFIX", "")
+            expected = str(TESSERACT_BUNDLED_DIR / "tessdata")
+            assert tessdata_prefix == expected, (
+                f"TESSDATA_PREFIX={tessdata_prefix!r}, expected {expected!r}"
+            )
+
+    def test_ocr_availability_finds_bundled(self):
+        """check_ocr_availability() returns AVAILABLE when bundled files exist."""
+        from unittest.mock import patch
+
+        from src.services.ocr_availability import OCRStatus, check_ocr_availability
+
+        with (
+            patch("src.services.ocr_availability._find_tesseract", return_value=True),
+            patch("src.services.ocr_availability._find_poppler", return_value=True),
+        ):
+            assert check_ocr_availability() == OCRStatus.AVAILABLE
+
+
 class TestAssetFiles:
     """Verify application asset files exist."""
 

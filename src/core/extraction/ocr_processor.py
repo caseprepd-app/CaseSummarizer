@@ -46,12 +46,19 @@ _TESSERACT_STANDARD_PATHS = [
 
 def _configure_tesseract():
     """
-    Set pytesseract.tesseract_cmd if Tesseract is installed but not on PATH.
+    Set pytesseract.tesseract_cmd to the best available Tesseract binary.
 
-    Checks standard Windows install locations so users don't need to
-    manually add Tesseract to their PATH after installing it.
+    Checks bundled binary first, then PATH, then standard Windows install
+    locations so users don't need to manually install or configure Tesseract.
     """
     import pytesseract
+
+    from src.config import TESSERACT_BUNDLED_EXE
+
+    if TESSERACT_BUNDLED_EXE.exists():
+        pytesseract.tesseract_cmd = str(TESSERACT_BUNDLED_EXE)
+        logger.debug("Using bundled Tesseract at %s", TESSERACT_BUNDLED_EXE)
+        return
 
     if shutil.which("tesseract") is not None:
         return  # Already on PATH
@@ -133,9 +140,15 @@ class OCRProcessor:
 
             _configure_tesseract()
 
-            # Convert PDF to images
+            # Convert PDF to images (use bundled Poppler if available)
+            from src.config import POPPLER_BUNDLED_DIR
+
+            poppler_kwargs = {}
+            if POPPLER_BUNDLED_DIR.exists():
+                poppler_kwargs["poppler_path"] = str(POPPLER_BUNDLED_DIR)
+
             with Timer("PDF to images conversion"):
-                images = convert_from_path(str(file_path), dpi=OCR_DPI)
+                images = convert_from_path(str(file_path), dpi=OCR_DPI, **poppler_kwargs)
 
             # Track preprocessing stats
             total_preprocessing_time = 0.0
@@ -186,8 +199,8 @@ class OCRProcessor:
             error_msg = str(e)
             if "poppler" in error_msg.lower() or "pdftoppm" in error_msg.lower():
                 error_msg = (
-                    "OCR unavailable — install Poppler to process scanned PDFs. "
-                    "Download from: https://github.com/osber/poppler-windows/releases"
+                    "OCR unavailable -- Poppler binaries are missing or damaged. "
+                    "Try reinstalling the application to restore them."
                 )
             else:
                 error_msg = f"OCR processing failed: {error_msg}"

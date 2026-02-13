@@ -1,18 +1,17 @@
 """
-OCR Installation Dialog.
+OCR Installation Dialog (Safety Net).
 
-Shows a modal dialog when Tesseract OCR is needed but not installed.
-Offers three choices: download Tesseract, skip OCR for this session,
-or snooze the prompt for 90 days.
+Shows a modal dialog when bundled OCR files are missing or damaged.
+This should never appear in normal operation -- it's a fallback for
+corrupted installations.
 
 Example:
     >>> dialog = OCRDialog(parent_window)
     >>> dialog.wait_window()
-    >>> print(dialog.result)  # "download", "skip", or "snooze"
+    >>> print(dialog.result)  # "skip" or "snooze"
 """
 
 import logging
-import webbrowser
 
 import customtkinter as ctk
 
@@ -20,18 +19,17 @@ from src.ui.base_dialog import BaseModalDialog
 
 logger = logging.getLogger(__name__)
 
-TESSERACT_DOWNLOAD_URL = "https://github.com/UB-Mannheim/tesseract/wiki"
-
 
 class OCRDialog(BaseModalDialog):
     """
-    Modal dialog prompting the user to install Tesseract OCR.
+    Modal dialog shown when bundled OCR files are missing or damaged.
 
-    Displayed when a scanned document is detected but Tesseract is not
-    installed. The user can choose to download, skip, or snooze.
+    Displayed when a scanned document is detected but the bundled
+    Tesseract/Poppler binaries cannot be found. The user can choose
+    to skip OCR or snooze the prompt.
 
     Attributes:
-        result: User's choice — "download", "skip", or "snooze".
+        result: User's choice -- "skip" or "snooze".
     """
 
     def __init__(self, parent):
@@ -45,9 +43,9 @@ class OCRDialog(BaseModalDialog):
 
         super().__init__(
             parent=parent,
-            title="Tesseract OCR Required",
+            title="OCR Unavailable",
             width=480,
-            height=300,
+            height=280,
             resizable=False,
         )
 
@@ -57,14 +55,14 @@ class OCRDialog(BaseModalDialog):
         self.wait_window()
 
     def _build_ui(self):
-        """Build the dialog UI with explanation and three buttons."""
+        """Build the dialog UI with explanation and two buttons."""
         # Explanation text
         msg_frame = ctk.CTkFrame(self, fg_color="transparent")
         msg_frame.pack(fill="x", padx=20, pady=(20, 10))
 
         ctk.CTkLabel(
             msg_frame,
-            text="Scanned Document Detected",
+            text="OCR Files Missing",
             font=ctk.CTkFont(size=16, weight="bold"),
             anchor="w",
         ).pack(fill="x")
@@ -72,30 +70,17 @@ class OCRDialog(BaseModalDialog):
         ctk.CTkLabel(
             msg_frame,
             text=(
-                "One or more documents appear to be scanned images. "
-                "Tesseract OCR is needed to read scanned text but isn't "
-                "installed on this computer.\n\n"
-                "Without Tesseract, scanned pages will be processed with "
-                "lower accuracy using only digital text extraction."
+                "One or more documents appear to be scanned images, but "
+                "the OCR files needed to read them are missing or damaged.\n\n"
+                "Try reinstalling the application to restore the OCR "
+                "components (Tesseract and Poppler).\n\n"
+                "Without OCR, scanned pages will be processed with lower "
+                "accuracy using only digital text extraction."
             ),
             wraplength=440,
             justify="left",
             anchor="w",
         ).pack(fill="x", pady=(8, 0))
-
-        # Clickable info link
-        info_link = ctk.CTkLabel(
-            msg_frame,
-            text="What is Tesseract OCR? Learn more...",
-            text_color=("#1a73e8", "#8ab4f8"),
-            cursor="hand2",
-            anchor="w",
-        )
-        info_link.pack(fill="x", pady=(4, 0))
-        info_link.bind(
-            "<Button-1>",
-            lambda e: webbrowser.open("https://tesseract-ocr.github.io/"),
-        )
 
         # Buttons
         btn_frame = ctk.CTkFrame(self, fg_color="transparent")
@@ -103,16 +88,8 @@ class OCRDialog(BaseModalDialog):
 
         ctk.CTkButton(
             btn_frame,
-            text="Download Tesseract",
-            command=self._on_download,
-            width=160,
-        ).pack(side="left", padx=(0, 8))
-
-        ctk.CTkButton(
-            btn_frame,
-            text="Not Now",
+            text="Skip OCR",
             command=self._on_skip,
-            fg_color="gray40",
             width=120,
         ).pack(side="left", padx=(0, 8))
 
@@ -123,13 +100,6 @@ class OCRDialog(BaseModalDialog):
             fg_color="gray40",
             width=140,
         ).pack(side="left")
-
-    def _on_download(self):
-        """Open the Tesseract download page and close dialog."""
-        logger.debug("User chose to download Tesseract")
-        webbrowser.open(TESSERACT_DOWNLOAD_URL)
-        self.result = "download"
-        self.close()
 
     def _on_skip(self):
         """Skip OCR for this session."""

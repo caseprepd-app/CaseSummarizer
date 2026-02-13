@@ -31,43 +31,43 @@ class TestOCRAvailability:
     """Tests for src/services/ocr_availability.py."""
 
     def test_both_available(self):
-        """Both tesseract and pdftoppm on PATH → AVAILABLE."""
+        """Both tesseract and poppler found → AVAILABLE."""
         from src.services.ocr_availability import OCRStatus, check_ocr_availability
 
-        with patch("shutil.which", side_effect=lambda cmd: f"/usr/bin/{cmd}"):
+        with (
+            patch("src.services.ocr_availability._find_tesseract", return_value=True),
+            patch("src.services.ocr_availability._find_poppler", return_value=True),
+        ):
             assert check_ocr_availability() == OCRStatus.AVAILABLE
 
     def test_both_missing(self):
-        """Neither on PATH nor standard locations → BOTH_MISSING."""
+        """Neither on PATH nor standard locations nor bundled → BOTH_MISSING."""
         from src.services.ocr_availability import OCRStatus, check_ocr_availability
 
         with (
             patch("src.services.ocr_availability._find_tesseract", return_value=False),
-            patch("shutil.which", return_value=None),
+            patch("src.services.ocr_availability._find_poppler", return_value=False),
         ):
             assert check_ocr_availability() == OCRStatus.BOTH_MISSING
 
     def test_tesseract_missing(self):
-        """Only pdftoppm available → TESSERACT_MISSING."""
+        """Only poppler available → TESSERACT_MISSING."""
         from src.services.ocr_availability import OCRStatus, check_ocr_availability
 
         with (
             patch("src.services.ocr_availability._find_tesseract", return_value=False),
-            patch(
-                "shutil.which",
-                side_effect=lambda cmd: "/usr/bin/pdftoppm" if cmd == "pdftoppm" else None,
-            ),
+            patch("src.services.ocr_availability._find_poppler", return_value=True),
         ):
             assert check_ocr_availability() == OCRStatus.TESSERACT_MISSING
 
     def test_poppler_missing(self):
-        """Only tesseract on PATH → POPPLER_MISSING."""
+        """Only tesseract available → POPPLER_MISSING."""
         from src.services.ocr_availability import OCRStatus, check_ocr_availability
 
-        def which_stub(cmd):
-            return "/usr/bin/tesseract" if cmd == "tesseract" else None
-
-        with patch("shutil.which", side_effect=which_stub):
+        with (
+            patch("src.services.ocr_availability._find_tesseract", return_value=True),
+            patch("src.services.ocr_availability._find_poppler", return_value=False),
+        ):
             assert check_ocr_availability() == OCRStatus.POPPLER_MISSING
 
     def test_ocr_status_enum_values(self):
@@ -504,7 +504,7 @@ class TestProcessingWorkerOCR:
 
 
 # ============================================================================
-# F. OCR Dialog
+# F. OCR Dialog (Safety Net)
 # ============================================================================
 
 
@@ -513,10 +513,9 @@ class TestOCRDialog:
 
     def test_dialog_module_importable(self):
         """ocr_dialog module can be imported without errors."""
-        from src.ui.ocr_dialog import TESSERACT_DOWNLOAD_URL
+        from src.ui.ocr_dialog import OCRDialog
 
-        assert TESSERACT_DOWNLOAD_URL.startswith("https://")
-        assert "tesseract" in TESSERACT_DOWNLOAD_URL.lower()
+        assert OCRDialog is not None
 
     def test_dialog_default_result_is_skip(self):
         """OCRDialog.result defaults to 'skip' before user interaction."""
@@ -527,59 +526,100 @@ class TestOCRDialog:
         dialog.result = "skip"  # Simulating default
         assert dialog.result == "skip"
 
+    def test_dialog_no_download_url(self):
+        """OCR dialog no longer contains a download URL (bundled now)."""
+        from src.ui import ocr_dialog as mod
+
+        source = Path(mod.__file__).read_text(encoding="utf-8")
+        assert "TESSERACT_DOWNLOAD_URL" not in source
+        assert "webbrowser" not in source
+
+    def test_dialog_mentions_reinstall(self):
+        """OCR dialog should mention reinstalling the app."""
+        from src.ui import ocr_dialog as mod
+
+        source = Path(mod.__file__).read_text(encoding="utf-8")
+        assert "reinstall" in source.lower()
+
 
 # ============================================================================
-# G. Settings Registry Tesseract Button
+# G. Bundled OCR Binaries
 # ============================================================================
 
 
-class TestSettingsRegistryTesseract:
-    """Tests for the Install Tesseract OCR button in settings."""
+class TestOCRBundled:
+    """Tests for bundled Tesseract and Poppler binaries in models/."""
 
-    def test_tesseract_setting_registered(self):
-        """Settings registry contains the install_tesseract_ocr button."""
-        from src.ui.settings.settings_registry import SettingsRegistry
+    def test_tesseract_exe_bundled(self):
+        """models/tesseract/tesseract.exe must exist."""
+        path = Path(__file__).parent.parent / "models" / "tesseract" / "tesseract.exe"
+        assert path.is_file(), f"Missing: {path}. Run 'python scripts/download_models.py' to fix."
 
-        setting = SettingsRegistry.get_setting("install_tesseract_ocr")
-        assert setting is not None
-        assert setting.label == "Install Tesseract OCR"
-        assert setting.category == "Performance"
-
-    def test_tesseract_setting_is_button_type(self):
-        """Tesseract setting uses BUTTON type."""
-        from src.ui.settings.settings_registry import (
-            SettingsRegistry,
-            SettingType,
+    def test_tesseract_tessdata_bundled(self):
+        """models/tesseract/tessdata/eng.traineddata must exist."""
+        path = (
+            Path(__file__).parent.parent / "models" / "tesseract" / "tessdata" / "eng.traineddata"
         )
+        assert path.is_file(), f"Missing: {path}. Run 'python scripts/download_models.py' to fix."
 
-        setting = SettingsRegistry.get_setting("install_tesseract_ocr")
-        assert setting.setting_type == SettingType.BUTTON
+    def test_poppler_pdftoppm_bundled(self):
+        """models/poppler/pdftoppm.exe must exist."""
+        path = Path(__file__).parent.parent / "models" / "poppler" / "pdftoppm.exe"
+        assert path.is_file(), f"Missing: {path}. Run 'python scripts/download_models.py' to fix."
 
-    def test_tesseract_setting_has_action(self):
-        """Tesseract setting has a callable action."""
+    def test_poppler_pdfinfo_bundled(self):
+        """models/poppler/pdfinfo.exe must exist."""
+        path = Path(__file__).parent.parent / "models" / "poppler" / "pdfinfo.exe"
+        assert path.is_file(), f"Missing: {path}. Run 'python scripts/download_models.py' to fix."
+
+    def test_bundled_tesseract_runs(self):
+        """Bundled tesseract --version should succeed."""
+        import subprocess
+
+        exe = Path(__file__).parent.parent / "models" / "tesseract" / "tesseract.exe"
+        if not exe.is_file():
+            pytest.skip("Bundled tesseract not present")
+        result = subprocess.run(
+            [str(exe), "--version"],
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+        assert result.returncode == 0, f"tesseract --version failed: {result.stderr}"
+
+    def test_bundled_pdftoppm_runs(self):
+        """Bundled pdftoppm -h should succeed (exit code 0 or 1 with usage)."""
+        import subprocess
+
+        exe = Path(__file__).parent.parent / "models" / "poppler" / "pdftoppm.exe"
+        if not exe.is_file():
+            pytest.skip("Bundled pdftoppm not present")
+        result = subprocess.run(
+            [str(exe), "-h"],
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+        # pdftoppm -h prints usage and exits with 0 or 1
+        assert result.returncode in (0, 1, 99), f"pdftoppm -h failed: {result.stderr}"
+
+
+# ============================================================================
+# G2. Settings Registry — Tesseract Button Removed
+# ============================================================================
+
+
+class TestSettingsRegistryTesseractRemoved:
+    """Verify the Install Tesseract button was removed from settings."""
+
+    def test_tesseract_setting_not_registered(self):
+        """Settings registry should NOT contain install_tesseract_ocr."""
         from src.ui.settings.settings_registry import SettingsRegistry
 
         setting = SettingsRegistry.get_setting("install_tesseract_ocr")
-        assert callable(setting.action)
-
-    def test_tesseract_action_opens_browser_and_clears_snooze(self):
-        """Tesseract action opens browser and resets ocr_dismiss_until."""
-        from src.ui.settings.settings_registry import SettingsRegistry
-
-        setting = SettingsRegistry.get_setting("install_tesseract_ocr")
-
-        with (
-            patch("webbrowser.open") as mock_open,
-            patch("tkinter.messagebox.showinfo"),
-            patch("src.user_preferences.get_user_preferences") as mock_prefs_fn,
-        ):
-            mock_prefs = MagicMock()
-            mock_prefs_fn.return_value = mock_prefs
-
-            setting.action()
-
-            mock_open.assert_called_once()
-            assert "tesseract" in mock_open.call_args[0][0].lower()
+        assert setting is None, (
+            "install_tesseract_ocr should be removed -- Tesseract is now bundled"
+        )
 
 
 # ============================================================================
@@ -600,6 +640,8 @@ class TestDownloadModelsScript:
             assert hasattr(download_models, "download_spacy_models")
             assert hasattr(download_models, "download_nltk_data")
             assert hasattr(download_models, "download_huggingface_models")
+            assert hasattr(download_models, "download_tesseract")
+            assert hasattr(download_models, "download_poppler")
             assert hasattr(download_models, "main")
         finally:
             sys.path.pop(0)
