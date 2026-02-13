@@ -47,7 +47,21 @@ HF_MODELS = [
         "embeddings/nomic-embed-text-v1.5",
         ["onnx/*", "onnx/**"],
     ),  # Skip ONNX variants (~1.6GB)
-    ("sentence-transformers/all-MiniLM-L6-v2", "embeddings/all-MiniLM-L6-v2", None),
+    (
+        "sentence-transformers/all-MiniLM-L6-v2",
+        "embeddings/all-MiniLM-L6-v2",
+        [
+            "onnx/*",
+            "onnx/**",
+            "openvino/*",
+            "openvino/**",
+            "rust_model.ot",
+            "tf_model.h5",
+            "pytorch_model.bin",
+            "train_script.py",
+            "data_config.json",
+        ],
+    ),  # Keep only safetensors + tokenizer (~87MB vs ~932MB)
     ("Alibaba-NLP/gte-reranker-modernbert-base", "gte-reranker-modernbert-base", None),
     ("biu-nlp/f-coref", "coref/f-coref", None),
 ]
