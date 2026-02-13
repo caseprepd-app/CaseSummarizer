@@ -423,13 +423,13 @@ class TestEnsembleMode:
             assert not learner.is_ensemble
 
 
-@pytest.mark.skip(reason="Pending default training data generation")
 class TestDefaultFeedback:
-    """Tests for default feedback CSV (universal negatives).
+    """Tests for default feedback CSV (seed training data).
 
-    The default_feedback.csv ships with the app and contains universal
-    negative examples - terms ALL users would reject regardless of domain.
-    This bootstraps the ML model for immediate noise reduction.
+    The default_feedback.csv ships with the app and contains real-world
+    feedback from transcript analysis — both positive (good terms) and
+    negative (junk/noise) examples. This bootstraps the ML model so it
+    can start filtering immediately.
     """
 
     def test_default_feedback_exists(self):
@@ -452,8 +452,26 @@ class TestDefaultFeedback:
         assert "feedback" in reader.fieldnames
         assert "is_person" in reader.fieldnames
 
-    def test_default_feedback_all_negative(self):
-        """Verify all default feedback entries are thumbs down (-1)."""
+    def test_default_feedback_has_both_classes(self):
+        """Verify default feedback has both positive and negative examples.
+
+        ML training requires both classes to learn meaningful boundaries.
+        """
+        import csv
+
+        from src.config import DEFAULT_FEEDBACK_CSV
+
+        with open(DEFAULT_FEEDBACK_CSV, encoding="utf-8") as f:
+            reader = csv.DictReader(f)
+            feedbacks = [int(row["feedback"]) for row in reader]
+
+        positives = sum(1 for f in feedbacks if f == 1)
+        negatives = sum(1 for f in feedbacks if f == -1)
+        assert positives > 0, "Default feedback has no positive examples"
+        assert negatives > 0, "Default feedback has no negative examples"
+
+    def test_default_feedback_valid_values(self):
+        """Verify all feedback values are +1 or -1 (no zeros or other values)."""
         import csv
 
         from src.config import DEFAULT_FEEDBACK_CSV
@@ -462,38 +480,16 @@ class TestDefaultFeedback:
             reader = csv.DictReader(f)
             for i, row in enumerate(reader):
                 feedback = int(row["feedback"])
-                assert feedback == -1, (
-                    f"Row {i}: Non-negative feedback in default CSV: "
-                    f"term='{row['term']}', feedback={feedback}"
-                )
-
-    def test_default_feedback_no_persons(self):
-        """Verify no person names in default negatives.
-
-        Universal negatives should not include person names because:
-        1. Names are domain-specific (could be legitimate for some users)
-        2. NER person detection is reliable, we don't need to train against it
-        """
-        import csv
-
-        from src.config import DEFAULT_FEEDBACK_CSV
-
-        with open(DEFAULT_FEEDBACK_CSV, encoding="utf-8") as f:
-            reader = csv.DictReader(f)
-            for i, row in enumerate(reader):
-                is_person = row["is_person"]
-                # Handle both string and int representations
-                assert is_person in ("0", "False", 0, False), (
-                    f"Row {i}: Person name in default negatives: "
-                    f"term='{row['term']}', is_person={is_person}"
+                assert feedback in (1, -1), (
+                    f"Row {i}: Invalid feedback value: term='{row['term']}', feedback={feedback}"
                 )
 
     def test_default_feedback_count(self):
         """Verify reasonable number of default feedback entries.
 
-        Should have 50-150 entries:
-        - At least 50: Provides meaningful training data
-        - At most 150: Focused on universal junk, not overfit
+        Should have 20-200 entries:
+        - At least 20: Enough for meaningful ML training with both classes
+        - At most 200: Focused seed data, not overfit to one user's corpus
         """
         import csv
 
@@ -503,27 +499,40 @@ class TestDefaultFeedback:
             reader = csv.DictReader(f)
             count = sum(1 for _ in reader)
 
-        assert 50 <= count <= 150, f"Default feedback has {count} entries, expected 50-150"
+        assert 20 <= count <= 200, f"Default feedback has {count} entries, expected 20-200"
 
-    def test_default_feedback_categories(self):
-        """Verify default feedback covers expected categories."""
+    def test_default_feedback_has_required_columns(self):
+        """Verify all FEEDBACK_COLUMNS are present in the CSV header."""
+        import csv
+
+        from src.config import DEFAULT_FEEDBACK_CSV
+        from src.core.vocabulary.feedback_manager import FEEDBACK_COLUMNS
+
+        with open(DEFAULT_FEEDBACK_CSV, encoding="utf-8") as f:
+            reader = csv.DictReader(f)
+            _ = list(reader)  # consume to populate fieldnames
+
+        for col in FEEDBACK_COLUMNS:
+            assert col in reader.fieldnames, f"Missing column: {col}"
+
+    def test_default_feedback_has_negative_junk(self):
+        """Verify default feedback includes negative examples of common junk.
+
+        Real-world transcripts produce contractions, OCR artifacts, and
+        NER false positives that should be marked negative.
+        """
         import csv
 
         from src.config import DEFAULT_FEEDBACK_CSV
 
         with open(DEFAULT_FEEDBACK_CSV, encoding="utf-8") as f:
             reader = csv.DictReader(f)
-            terms = [row["term"].lower() for row in reader]
+            negative_terms = [row["term"].lower() for row in reader if int(row["feedback"]) == -1]
 
-        # Check for presence of key universal negatives
-        # Common phrases
-        assert any("same" in t for t in terms), "Missing common phrase category"
-        # Transcript artifacts
-        assert any(t in ("q.", "a.", "q", "a") for t in terms), (
-            "Missing transcript artifact category"
+        # Should have at least some common junk patterns
+        assert len(negative_terms) >= 5, (
+            f"Only {len(negative_terms)} negative examples, expected at least 5"
         )
-        # OCR patterns (terms with digit-letter confusion)
-        assert any(t in ("1he", "tbe", "0f") for t in terms), "Missing OCR artifact category"
 
     def test_training_with_default_feedback_only(self, temp_feedback_dir):
         """Test that training succeeds with only default feedback.
@@ -554,18 +563,18 @@ class TestDefaultFeedback:
     def test_user_feedback_overrides_default(self, temp_feedback_dir):
         """Test that user feedback takes precedence over defaults.
 
-        If a term appears in both default (negative) and user feedback,
+        If a term appears in both default and user feedback,
         the user's rating should win.
         """
         # Create manager
         manager = FeedbackManager(feedback_dir=temp_feedback_dir)
 
-        # Record positive feedback for a term that might be in defaults
+        # Record positive feedback for a term that's negative in defaults
         term_data = {
-            "Term": "the same",  # Likely in default negatives
+            "Term": "you'd",  # Negative in default_feedback.csv
             "Quality Score": 50,
         }
         manager.record_feedback(term_data, +1)  # User says thumbs up
 
         # User's rating should be what we get
-        assert manager.get_rating("the same") == 1, "User feedback should override default"
+        assert manager.get_rating("you'd") == 1, "User feedback should override default"

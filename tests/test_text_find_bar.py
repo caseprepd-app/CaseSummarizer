@@ -12,10 +12,16 @@ pytest.importorskip("tkinter")
 
 @pytest.fixture
 def tk_root():
-    """Create a hidden Tk root window for testing."""
+    """Create a hidden Tk root window for testing.
+
+    Skips gracefully if Tk init fails (Anaconda/venv Tcl conflict).
+    """
     import customtkinter as ctk
 
-    root = ctk.CTk()
+    try:
+        root = ctk.CTk()
+    except Exception as e:
+        pytest.skip(f"Tk initialization failed: {e}")
     root.withdraw()
     yield root
     try:

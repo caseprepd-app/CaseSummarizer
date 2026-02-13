@@ -13,7 +13,7 @@ Models downloaded:
     models/spacy/en_ner_bc5cdr_md/        (~100 MB)
     models/nltk_data/corpora/words/
     models/nltk_data/corpora/wordnet/
-    models/nltk_data/corpora/omw-1.4/
+    models/nltk_data/corpora/omw-1.4/     (pruned to English-only metadata)
     models/nltk_data/corpora/stopwords/      (rake-nltk dependency)
     models/nltk_data/tokenizers/punkt_tab/   (rake-nltk sentence tokenizer)
     models/tinylettuce-ettin-68m-en/      (hallucination detector)
@@ -169,6 +169,22 @@ def download_nltk_data() -> dict[str, bool]:
             print(f"  Extracting {zip_path.name}...")
             with zipfile.ZipFile(zip_path, "r") as zf:
                 zf.extractall(zip_path.parent)
+
+    # Delete .zip files after extraction (saves ~42 MB)
+    for zip_path in NLTK_DIR.rglob("*.zip"):
+        zip_path.unlink()
+        print(f"  Deleted {zip_path.name} (extracted dir exists)")
+
+    # Prune omw-1.4 non-English language data (saves ~91 MB).
+    # The app only uses English WordNet — multilingual data is unnecessary.
+    omw_dir = NLTK_DIR / "corpora" / "omw-1.4"
+    if omw_dir.is_dir():
+        import shutil
+
+        for entry in omw_dir.iterdir():
+            if entry.is_dir():
+                shutil.rmtree(entry)
+                print(f"  Pruned omw-1.4/{entry.name} (non-English)")
 
     return results
 
