@@ -291,8 +291,9 @@ def get_gpu_info() -> dict:
         result.update(gpu_info)
         result["has_gpu"] = True
         result["detection_method"] = "wmi"
-        # If WMI couldn't determine VRAM (32-bit overflow), try CLI for VRAM
-        if result["vram_bytes"] == 0:
+        # WMI AdapterRAM is uint32 -- maxes out at 4GB (Microsoft limitation).
+        # For NVIDIA GPUs, always prefer nvidia-smi for accurate VRAM.
+        if result["vendor"] == "nvidia" or result["vram_bytes"] == 0:
             cli_info = _detect_gpu_cli()
             if cli_info and cli_info.get("vram_bytes", 0) > 0:
                 result["vram_bytes"] = cli_info["vram_bytes"]

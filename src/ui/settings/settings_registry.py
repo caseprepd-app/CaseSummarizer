@@ -1195,7 +1195,7 @@ def _register_all_settings():
             from src.services import VocabularyService
 
             learner = VocabularyService().get_meta_learner()
-            learner.train(force=True)
+            learner.train()
             logger.info("Vocabulary model retrained with updated indicator patterns")
         except Exception as e:
             logger.warning("Could not retrain vocabulary model: %s", e)

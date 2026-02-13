@@ -154,6 +154,7 @@ class NERAlgorithm(BaseExtractionAlgorithm):
         # Session 80: Add GIL yield after each chunk to keep GUI responsive
         chunk_num = 0
         last_reported_pct = 0  # Track last reported percentage for throttling
+        last_report_time = start_time  # Time-based progress floor
 
         for doc in self.nlp.pipe(chunks, batch_size=VOCABULARY_BATCH_SIZE):
             chunk_num += 1
@@ -164,14 +165,18 @@ class NERAlgorithm(BaseExtractionAlgorithm):
             chunk_candidates = self._extract_from_doc(doc, term_frequencies)
             candidates.extend(chunk_candidates)
 
-            # Session 85: Throttled progress callback - only fire every 10%
-            # This dramatically reduces overhead vs calling after every chunk
+            # Session 85: Throttled progress callback - fire every 10% OR every 30s
+            # Time-based floor prevents 5+ minute silent gaps on large documents
             if progress_callback is not None:
                 current_pct = int((chunk_num / total_chunks) * 100)
-                if current_pct >= last_reported_pct + 10:  # Fire every 10%
+                now = time.time()
+                time_elapsed = now - last_report_time >= 30
+                pct_elapsed = current_pct >= last_reported_pct + 10
+                if pct_elapsed or time_elapsed:
                     try:
                         progress_callback(chunk_candidates, chunk_num, total_chunks)
                         last_reported_pct = current_pct
+                        last_report_time = now
                     except Exception as e:
                         logger.debug("Progress callback error: %s", e)
 
