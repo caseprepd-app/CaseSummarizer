@@ -98,6 +98,12 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         self._timer_after_id: str | None = None
         self._processing_active: bool = False
 
+        # Resize debounce -- prevents update_idletasks() storm during maximize
+        self._resize_in_progress: bool = False
+        self._resize_debounce_id: str | None = None
+        self._last_idletasks: float = 0.0
+        self.bind("<Configure>", self._on_configure)
+
         # Managers (via service layer for pipeline architecture)
         from src.services import AIService, VocabularyService
 
@@ -649,6 +655,20 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         # Start polling the queue
         self._poll_queue()
 
+    def _on_configure(self, event):
+        """Debounce resize events to prevent update_idletasks() storm."""
+        if event.widget is not self:
+            return
+        self._resize_in_progress = True
+        if self._resize_debounce_id is not None:
+            self.after_cancel(self._resize_debounce_id)
+        self._resize_debounce_id = self.after(150, self._on_resize_complete)
+
+    def _on_resize_complete(self):
+        """Called 150ms after the last resize event -- safe to resume idletasks."""
+        self._resize_in_progress = False
+        self._resize_debounce_id = None
+
     def _poll_queue(self):
         """Poll the UI queue for worker messages."""
         # Process up to 10 messages per poll to avoid blocking UI
@@ -664,7 +684,11 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             pass
 
         # Force GUI refresh to keep animations smooth (activity indicator, etc.)
-        self.update_idletasks()
+        # Skip during resize to prevent redraw storm; throttle to ~10x/sec otherwise
+        now = time.monotonic()
+        if not self._resize_in_progress and (now - self._last_idletasks) >= 0.1:
+            self.update_idletasks()
+            self._last_idletasks = now
 
         # Continue polling if any worker is running OR if we hit the message limit (more messages may be waiting)
         processing_alive = self._processing_worker and self._processing_worker.is_alive()

@@ -1077,12 +1077,13 @@ class DynamicOutputWidget(ctk.CTkFrame):
             self.summary_text_display.insert("0.0", summary)
 
         # Individual document summaries (if any) - append to summary tab
+        # Batch into single .insert() to reduce Tk text widget recalculations
         if self._document_summaries:
-            self.summary_text_display.insert("end", "\n\n" + "=" * 50 + "\n")
-            self.summary_text_display.insert("end", "INDIVIDUAL DOCUMENT SUMMARIES\n")
-            self.summary_text_display.insert("end", "=" * 50 + "\n\n")
+            separator = "=" * 50
+            parts = [f"\n\n{separator}\n", "INDIVIDUAL DOCUMENT SUMMARIES\n", f"{separator}\n\n"]
             for doc_name, doc_summary in sorted(self._document_summaries.items()):
-                self.summary_text_display.insert("end", f"{doc_name}:\n{doc_summary}\n\n")
+                parts.append(f"{doc_name}:\n{doc_summary}\n\n")
+            self.summary_text_display.insert("end", "".join(parts))
 
         # Show summary content if we have any (hide status label)
         if summary or self._document_summaries:
