@@ -30,10 +30,18 @@ from src.core.vocabulary.alternative_reasons import (
 from src.core.vocabulary.canonical_scorer import create_canonical_scorer
 from src.core.vocabulary.name_regularizer import _load_known_words
 from src.core.vocabulary.person_utils import is_person_entry
+from src.core.vocabulary.rarity_filter import is_common_word
 from src.core.vocabulary.string_utils import fuzzy_match
 from src.core.vocabulary.term_sources import TermSources
 
 logger = logging.getLogger(__name__)
+
+# Top ~40% of the 333K Google word frequency list.
+# Words ranked within this threshold are treated as "common English" and
+# blocked from single-word absorption. This prevents court reporter surnames
+# like "Park", "Young", "Rose" from being silently merged into multi-word
+# person names that happen to contain the same word.
+COMMON_WORD_ABSORPTION_GATE = 133000
 
 # Patterns to strip from person names (transcript artifacts)
 TRANSCRIPT_ARTIFACT_PATTERNS = [
@@ -85,6 +93,13 @@ def deduplicate_names(
     if not person_terms:
         return terms
 
+    # Pre-scan: find last names shared by 2+ distinct first names.
+    # Family members in court cases (e.g., "James Jones" suing "Patricia Jones")
+    # make standalone "Jones" and "Mr. Jones" genuinely ambiguous.
+    shared_last_names = _find_shared_last_names(person_terms)
+    if shared_last_names:
+        logger.debug("Shared last names detected: %s", shared_last_names)
+
     logger.debug("Processing %d Person terms for deduplication", len(person_terms))
 
     # Phase 1: Clean transcript artifacts and build canonical mapping
@@ -120,10 +135,10 @@ def deduplicate_names(
 
     # Phase 5: Title synthesis — merge "Dr. Jones" + "James Jones" → "James Jones (Dr.)"
     result = other_terms + deduplicated
-    result = _synthesize_titled_names(result)
+    result = _synthesize_titled_names(result, shared_last_names)
 
     # Phase 6: Absorb single-word Person names into full names containing that word
-    result = _absorb_single_word_names(result)
+    result = _absorb_single_word_names(result, shared_last_names)
 
     return result
 
@@ -391,7 +406,9 @@ def _merge_titled_into_target(
     mod["_alternatives"] = existing_alts
 
 
-def _synthesize_titled_names(terms: list[dict]) -> list[dict]:
+def _synthesize_titled_names(
+    terms: list[dict], shared_last_names: set[str] | None = None
+) -> list[dict]:
     """
     Merge title-prefixed names with full names (Phase 5 of deduplication).
 
@@ -401,6 +418,7 @@ def _synthesize_titled_names(terms: list[dict]) -> list[dict]:
 
     Args:
         terms: Deduplicated vocabulary list (after Phases 1-4)
+        shared_last_names: Last names with 2+ distinct first names (conservative mode)
 
     Returns:
         Terms with title-prefixed entries merged into full-name entries
@@ -417,7 +435,9 @@ def _synthesize_titled_names(terms: list[dict]) -> list[dict]:
         return terms
 
     last_name_index = _build_last_name_index(full_name_entries)
-    merged_titled, modified_entries = _resolve_titled_entries(titled_entries, last_name_index)
+    merged_titled, modified_entries = _resolve_titled_entries(
+        titled_entries, last_name_index, shared_last_names or set()
+    )
 
     # Apply title annotations to modified entries
     _apply_title_annotations(modified_entries)
@@ -433,7 +453,50 @@ def _synthesize_titled_names(terms: list[dict]) -> list[dict]:
     return other_terms + result_persons
 
 
-def _absorb_single_word_names(terms: list[dict]) -> list[dict]:
+def _find_shared_last_names(person_terms: list[dict]) -> set[str]:
+    """
+    Find last names that appear with 2+ distinct first names.
+
+    In court cases, family members often share a last name (e.g., "James Jones"
+    and "Patricia Jones" in a divorce proceeding). When multiple people share a
+    last name, standalone references like "Jones" or "Mr. Jones" are genuinely
+    ambiguous -- we can't tell which person is meant, so we must keep them
+    separate rather than silently merging into one person.
+
+    Scans both plain names ("James Jones") and titled names ("Dr. Jones",
+    "Mr. Jones") using _strip_title_prefix() to see through titles.
+
+    Args:
+        person_terms: List of Person vocabulary entries
+
+    Returns:
+        Set of lowercase last names that have 2+ distinct first names
+    """
+    from collections import defaultdict
+
+    # last_name -> set of first-name parts (lowercase)
+    first_names_by_last: dict[str, set[str]] = defaultdict(set)
+
+    for entry in person_terms:
+        name = entry.get("Term", "").strip()
+        if not name:
+            continue
+
+        # Strip title prefix to see through "Dr. Jones" -> "Jones"
+        stripped, _ = _strip_title_prefix(name)
+        words = stripped.split()
+
+        if len(words) >= 2:
+            last = words[-1].lower()
+            first = " ".join(words[:-1]).lower()
+            first_names_by_last[last].add(first)
+
+    return {last for last, firsts in first_names_by_last.items() if len(firsts) >= 2}
+
+
+def _absorb_single_word_names(
+    terms: list[dict], shared_last_names: set[str] | None = None
+) -> list[dict]:
     """
     Merge single-word Person names into full names containing that word.
 
@@ -441,13 +504,20 @@ def _absorb_single_word_names(terms: list[dict]) -> list[dict]:
     If a single-word Person name matches a word in a multi-word Person name,
     absorb it into the full name (merge frequency).
 
+    Three safety gates prevent false-positive merges:
+    1. Ambiguity gate: word appears in 2+ multi-word Person names
+    2. Common-word gate: word is a common English word (e.g., "Park", "Young")
+    3. Shared-last-name gate: word is a last name shared by multiple people
+
     Args:
         terms: List of vocabulary term dicts
+        shared_last_names: Last names with 2+ distinct first names
 
     Returns:
         Terms with single-word Person names absorbed into matching full names
     """
     freq_key = "Occurrences"
+    shared = shared_last_names or set()
 
     person_terms = [t for t in terms if is_person_entry(t)]
     other_terms = [t for t in terms if not is_person_entry(t)]
@@ -462,38 +532,86 @@ def _absorb_single_word_names(terms: list[dict]) -> list[dict]:
     if not single_word or not multi_word:
         return terms
 
-    # Build word → full_name mapping (first match wins)
-    word_to_fullname: dict[str, dict] = {}
+    # Build word → list of ALL matching multi-word Person names.
+    # We need all matches (not just first) to detect ambiguity -- if "Hiraldo"
+    # appears in both "Emmanuel Hiraldo" and "Giuseppe Hiraldo", we can't tell
+    # which person the standalone "Hiraldo" refers to.
+    word_to_fullnames: dict[str, list[dict]] = {}
     for entry in multi_word:
         for word in entry.get("Term", "").lower().split():
-            if word not in word_to_fullname:
-                word_to_fullname[word] = entry
+            if word not in word_to_fullnames:
+                word_to_fullnames[word] = []
+            word_to_fullnames[word].append(entry)
 
-    # Absorb single-word names
+    # Absorb single-word names (with three safety gates)
     absorbed: set[str] = set()
     for entry in single_word:
         word = entry.get("Term", "").lower()
-        if word in word_to_fullname:
-            target = word_to_fullname[word]
-            # Merge frequency into full name
-            target[freq_key] = target.get(freq_key, 0) + entry.get(freq_key, 1)
-            if "occurrences" in target:
-                target["occurrences"] = target[freq_key]
-            absorbed.add(entry.get("Term", ""))
+        matches = word_to_fullnames.get(word)
+        if not matches:
+            continue
 
-            # Append to alternatives list
-            from src.core.vocabulary.alternative_reasons import build_single_word_alternative
-
-            alt = build_single_word_alternative(entry, target.get("Term", ""))
-            existing_alts = target.get("_alternatives", [])
-            existing_alts.append(alt)
-            target["_alternatives"] = existing_alts
-
+        # --- Gate 1: Ambiguity ---
+        # If the word appears in 2+ multi-word Person names, we don't know
+        # which person this standalone word refers to. Wrong merge is worse
+        # than no merge -- the user can always merge manually.
+        # Example: "Hiraldo" with both "Emmanuel Hiraldo" and "Giuseppe Hiraldo"
+        if len(matches) > 1:
             logger.debug(
-                "Absorbed single-word name '%s' into '%s'",
+                "Skipped absorbing '%s' -- ambiguous, appears in %d names: %s",
                 entry.get("Term"),
-                target.get("Term"),
+                len(matches),
+                [m.get("Term") for m in matches],
             )
+            continue
+
+        # --- Gate 2: Common word ---
+        # Words like "Park", "Young", "Rose" are real surnames but also common
+        # English words. Absorbing "Park" into "North Central Park" would
+        # silently lose a legitimate vocabulary entry (the person named Park).
+        # The Google frequency list covers ~333K words; unknown words are treated
+        # as names (not common), so rare surnames like "Hiraldo" pass through.
+        if is_common_word(word, top_n=COMMON_WORD_ABSORPTION_GATE):
+            logger.debug(
+                "Skipped absorbing '%s' -- common English word (top %d)",
+                entry.get("Term"),
+                COMMON_WORD_ABSORPTION_GATE,
+            )
+            continue
+
+        # --- Gate 3: Shared last name ---
+        # If "Jones" is a last name shared by multiple people (e.g., "James Jones"
+        # and "Patricia Jones"), standalone "Jones" is genuinely ambiguous.
+        # This catches cases that Gate 1 might miss when the word only matches
+        # one multi-word name but other people with that last name exist in
+        # titled form (e.g., "Mr. Jones" was already kept separate in Phase 5).
+        if word in shared:
+            logger.debug(
+                "Skipped absorbing '%s' -- shared last name, multiple people",
+                entry.get("Term"),
+            )
+            continue
+
+        target = matches[0]
+        # Merge frequency into full name
+        target[freq_key] = target.get(freq_key, 0) + entry.get(freq_key, 1)
+        if "occurrences" in target:
+            target["occurrences"] = target[freq_key]
+        absorbed.add(entry.get("Term", ""))
+
+        # Append to alternatives list
+        from src.core.vocabulary.alternative_reasons import build_single_word_alternative
+
+        alt = build_single_word_alternative(entry, target.get("Term", ""))
+        existing_alts = target.get("_alternatives", [])
+        existing_alts.append(alt)
+        target["_alternatives"] = existing_alts
+
+        logger.debug(
+            "Absorbed single-word name '%s' into '%s'",
+            entry.get("Term"),
+            target.get("Term"),
+        )
 
     if absorbed:
         logger.debug("Single-word absorption: merged %d entries", len(absorbed))
@@ -556,6 +674,7 @@ def _build_last_name_index(
 def _resolve_titled_entries(
     titled_entries: list[tuple[dict, str, str]],
     last_name_index: dict[str, list[tuple[dict, str]]],
+    shared_last_names: set[str] | None = None,
 ) -> tuple[set[int], dict[str, dict]]:
     """
     Resolve each titled entry: merge into full name or keep separate.
@@ -563,6 +682,7 @@ def _resolve_titled_entries(
     Args:
         titled_entries: List of (entry, stripped_name, title)
         last_name_index: Last name -> [(entry, first_parts)]
+        shared_last_names: Last names with 2+ distinct first names
 
     Returns:
         Tuple of (merged_indices, modified_entries)
@@ -570,6 +690,7 @@ def _resolve_titled_entries(
     freq_key = "Occurrences"
     merged = set()
     modified = {}
+    shared = shared_last_names or set()
 
     for idx, (titled_entry, stripped_name, title) in enumerate(titled_entries):
         stripped_words = stripped_name.split()
@@ -586,7 +707,21 @@ def _resolve_titled_entries(
             continue  # No full names, keep title entry as-is
 
         if len(distinct_firsts) == 1:
-            # Unambiguous — merge into the full-name entry
+            # Only one first name exists for this last name in the full-name list.
+            # BUT if the last name is shared (detected from the full person list
+            # including titled entries), a generic title-only entry like "Mr. Jones"
+            # is ambiguous -- it could refer to any of the family members.
+            # Example: "James Jones" + "Mr. Jones" + "Mrs. Jones" -- the last name
+            # is shared, so "Mr. Jones" must stay separate.
+            is_generic_title_only = not _is_role_title(title) and not stripped_first
+            if last_name in shared and is_generic_title_only:
+                logger.debug(
+                    "Kept titled '%s' separate -- shared last name '%s' is ambiguous",
+                    titled_entry.get("Term"),
+                    last_name,
+                )
+                continue
+
             target = next(e for e, fp in candidates if fp == list(distinct_firsts)[0])
             _merge_titled_into_target(titled_entry, target, title, modified)
             merged.add(idx)
@@ -601,7 +736,19 @@ def _resolve_titled_entries(
             merged.add(idx)
 
         elif not _is_role_title(title):
-            # Generic title, ambiguous — merge freq into most frequent
+            # Generic title (Mr./Ms./Mrs.), ambiguous -- multiple first names exist.
+            # If this last name is shared, "Mr. Jones" could be any of the Jones
+            # family members. Keep it separate instead of guessing.
+            if last_name in shared:
+                logger.debug(
+                    "Kept generic titled '%s' separate -- shared last name '%s' has "
+                    "multiple people, cannot determine which one",
+                    titled_entry.get("Term"),
+                    last_name,
+                )
+                continue
+
+            # Not a shared last name -- safe to merge into most frequent
             best = max(candidates, key=lambda c: c[0].get(freq_key, 0))
             _merge_titled_into_target(titled_entry, best[0], title, modified)
             merged.add(idx)
