@@ -63,3 +63,33 @@ Type: filesandordirs; Name: "{userappdata}\{#MyAppName}"
 
 [Run]
 Filename: "{app}\{#MyAppExeName}"; Description: "Launch {#MyAppName}"; Flags: nowait postinstall skipifsilent
+
+[Code]
+// Check for Visual C++ Runtime (vcruntime140.dll) before installation.
+// PyInstaller bundles most DLLs but some native extensions (onnxruntime,
+// torch, tokenizers) depend on the VC++ redistributable. Without it,
+// the app crashes with a cryptic "DLL load failed" error.
+function VCRuntimeInstalled: Boolean;
+begin
+  Result := FileExists(ExpandConstant('{sys}\vcruntime140.dll'));
+end;
+
+function InitializeSetup: Boolean;
+begin
+  Result := True;
+  if not VCRuntimeInstalled then
+  begin
+    MsgBox(
+      'Microsoft Visual C++ Runtime (vcruntime140.dll) was not found.' + #13#10 +
+      #13#10 +
+      '{#MyAppName} requires the Visual C++ Redistributable to run.' + #13#10 +
+      #13#10 +
+      'Please download and install it from:' + #13#10 +
+      'https://aka.ms/vs/17/release/vc_redist.x64.exe' + #13#10 +
+      #13#10 +
+      'Then run this installer again.',
+      mbError, MB_OK
+    );
+    Result := False;
+  end;
+end;

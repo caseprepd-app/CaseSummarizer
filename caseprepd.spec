@@ -64,7 +64,7 @@ hidden_imports = [
     # Scikit-learn internals often missed
     "sklearn.utils._typedefs",
     "sklearn.utils._cython_blas",
-    "sklearn.neighbors._typedefs",
+
     "sklearn.neighbors._partition_nodes",
     "sklearn.tree._utils",
     # ONNX Runtime

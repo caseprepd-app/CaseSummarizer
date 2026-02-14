@@ -57,7 +57,7 @@ VOCAB_MODEL_PATH = MODELS_ML_DIR / "vocab_meta_learner.pkl"
 # Two-file feedback system (Session 55)
 # - Default feedback ships with app (developer's training data)
 # - User feedback is collected during normal use
-DEFAULT_FEEDBACK_CSV = Path(__file__).parent.parent / "config" / "default_feedback.csv"
+DEFAULT_FEEDBACK_CSV = BUNDLED_CONFIG_DIR / "default_feedback.csv"
 USER_FEEDBACK_CSV = FEEDBACK_DIR / "user_feedback.csv"
 
 # Legacy path - kept for backward compatibility detection only
@@ -264,7 +264,7 @@ GLINER_DEFAULT_LABELS = [
 ]
 GLINER_MAX_LABELS = 20
 GLINER_LABELS_FILE = CONFIG_DIR / "gliner_labels.txt"
-GLINER_DEFAULT_LABELS_FILE = Path(__file__).parent.parent / "config" / "gliner_labels.txt"
+GLINER_DEFAULT_LABELS_FILE = BUNDLED_CONFIG_DIR / "gliner_labels.txt"
 
 
 def load_gliner_labels() -> list[str]:
@@ -380,7 +380,7 @@ GPU_DETECTION_TIMEOUT = 15  # Seconds for GPU/VRAM detection via WMI
 OLLAMA_CONTEXT_WINDOW = 4000  # Fallback default (conservative, CPU-safe)
 
 # --- New Model Configuration System ---
-MODEL_CONFIG_FILE = Path(__file__).parent.parent / "config" / "models.yaml"
+MODEL_CONFIG_FILE = BUNDLED_CONFIG_DIR / "models.yaml"
 MODEL_CONFIGS = {}
 
 
@@ -482,17 +482,15 @@ SUMMARY_LENGTH_TOLERANCE = _d("summary_length_tolerance")
 SUMMARY_MAX_CONDENSE_ATTEMPTS = 3  # Maximum condensation attempts before returning best effort
 
 # Vocabulary Extractor Data Files
-LEGAL_EXCLUDE_LIST_PATH = Path(__file__).parent.parent / "config" / "legal_exclude.txt"
-MEDICAL_TERMS_LIST_PATH = Path(__file__).parent.parent / "config" / "medical_terms.txt"
+LEGAL_EXCLUDE_LIST_PATH = BUNDLED_CONFIG_DIR / "legal_exclude.txt"
+MEDICAL_TERMS_LIST_PATH = BUNDLED_CONFIG_DIR / "medical_terms.txt"
 # User-specific vocabulary exclusions (stored in AppData, user can add via right-click)
 USER_VOCAB_EXCLUDE_PATH = CONFIG_DIR / "user_vocab_exclude.txt"
 
 # Vocabulary Extraction Rarity Settings
 # Path to Google word frequency dataset (word\tfrequency_count format)
 # Moved to data/frequency/ in Session 34 for better organization
-GOOGLE_WORD_FREQUENCY_FILE = (
-    Path(__file__).parent.parent / "data" / "frequency" / "Word_rarity-count_1w.txt"
-)
+GOOGLE_WORD_FREQUENCY_FILE = BUNDLED_BASE_DIR / "data" / "frequency" / "Word_rarity-count_1w.txt"
 # Words with rank >= threshold are considered rare
 # Higher threshold = more aggressive filtering (fewer terms extracted)
 # 150000 = bottom 55% of vocabulary (original, too permissive)
@@ -716,7 +714,7 @@ _user_workers = max(1, min(8, USER_DEFINED_MAX_WORKER_COUNT))
 PARALLEL_MAX_WORKERS = _user_workers if USER_PICKS_MAX_WORKER_COUNT else min(os.cpu_count() or 4, 4)
 
 # AI Prompt Templates
-PROMPTS_DIR = Path(__file__).parent.parent / "config" / "prompts"
+PROMPTS_DIR = BUNDLED_CONFIG_DIR / "prompts"
 USER_PROMPTS_DIR = APPDATA_DIR / "prompts"  # User-created prompts survive app updates
 
 # Ensure user prompts directory exists
@@ -732,7 +730,7 @@ LOG_FORMAT = "[%(levelname)s %(asctime)s] %(message)s"
 LOG_DATE_FORMAT = "%H:%M:%S"
 
 # Debug Mode Default File (for streamlined testing)
-DEBUG_DEFAULT_FILE = Path(__file__).parent.parent / "tests" / "sample_docs" / "test_complaint.pdf"
+DEBUG_DEFAULT_FILE = BUNDLED_BASE_DIR / "tests" / "sample_docs" / "test_complaint.pdf"
 
 # ============================================================================
 # UI Timing Constants
