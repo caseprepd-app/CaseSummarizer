@@ -155,7 +155,6 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         self._refresh_corpus_dropdown()
         self._update_generate_button_state()
         self._update_default_questions_label()  # Set initial question count
-        self._update_vocab_llm_checkbox_state()  # Set LLM checkbox based on settings/GPU
         self._update_qa_checkbox_state()  # Set Q&A checkbox based on model size
         self._update_summary_checkbox_state()  # Set Summary checkbox based on GPU/settings
         self._restore_task_checkbox_states()  # Restore user's checkbox preferences
@@ -361,7 +360,6 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         self._refresh_corpus_dropdown()
         self._update_model_display()
         self._update_ollama_status()
-        self._update_vocab_llm_checkbox_state()  # Session 63b: Refresh LLM checkbox
         self._update_qa_checkbox_state()  # Session 90: Refresh Q&A checkbox for model size
         self._update_summary_checkbox_state()  # Session 93: Refresh Summary checkbox
 
@@ -762,7 +760,9 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             logger.debug("NER complete: %s terms - displaying immediately", term_count)
             self.output_display.update_outputs(vocab_csv_data=data)
             self.output_display.set_extraction_source("ner")
-            if self.vocab_llm_check.get():
+            from src.user_preferences import get_user_preferences
+
+            if get_user_preferences().is_vocab_llm_enabled():
                 self.set_status(f"Found {term_count} terms. LLM enhancement starting...")
             else:
                 self.set_status(f"Found {term_count} terms. Building search index...")
@@ -995,7 +995,9 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
 
         # Vocabulary task
         if self.vocab_check.get():
-            if self.vocab_llm_check.get() and self.vocab_llm_check.cget("state") == "normal":
+            from src.user_preferences import get_user_preferences
+
+            if get_user_preferences().is_vocab_llm_enabled():
                 parts.append("Vocabulary (NER+LLM)")
             else:
                 parts.append("Vocabulary (NER)")
@@ -1111,7 +1113,6 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         # Refresh dependent states after restoring
         self._update_generate_button_state()
         self._update_default_questions_checkbox_state()
-        self._update_vocab_llm_checkbox_state()
 
     def _on_default_questions_toggled(self):
         """Handle default questions checkbox state change."""
@@ -1152,109 +1153,6 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             # Q&A is disabled - disable and uncheck default questions
             self.ask_default_questions_check.deselect()
             self.ask_default_questions_check.configure(state="disabled")
-
-    # =========================================================================
-    # LLM Enhancement Checkbox State Management (Session 63b)
-    # =========================================================================
-
-    def _update_vocab_llm_checkbox_state(self):
-        """
-        Update LLM Enhancement checkbox state based on GPU availability and settings.
-
-        Called at startup, when settings change, and when vocab checkbox is toggled.
-
-        Greying logic (in order of precedence):
-        - If vocab checkbox is unchecked: disable LLM checkbox
-        - If Ollama is not connected or has no model: disable
-        - If no dedicated GPU detected: disable (requires GPU)
-        - If vocab_use_llm setting is "no": disable and uncheck
-        - Otherwise: enable and set based on is_vocab_llm_enabled()
-        """
-        from src.services import AIService
-        from src.user_preferences import get_user_preferences
-
-        ai_svc = AIService()
-        prefs = get_user_preferences()
-        vocab_mode = prefs.get_vocab_llm_mode()  # "auto", "yes", or "no"
-        has_gpu = ai_svc.has_dedicated_gpu()
-        llm_enabled = prefs.is_vocab_llm_enabled()
-
-        # Case 1: Vocab is unchecked - disable LLM checkbox
-        if not self.vocab_check.get():
-            self.vocab_llm_check.deselect()
-            self.vocab_llm_check.configure(state="disabled")
-            self._set_vocab_llm_tooltip("Enable 'Extract Vocabulary' first")
-            return
-
-        # Case 1.5: Ollama not ready - disable LLM checkbox
-        ollama_ready, ollama_reason = self._is_ollama_ready()
-        if not ollama_ready:
-            self.vocab_llm_check.deselect()
-            self.vocab_llm_check.configure(state="disabled")
-            self._set_vocab_llm_tooltip(ollama_reason)
-            return
-
-        # Case 2: No GPU detected - always disable regardless of settings
-        if not has_gpu:
-            self.vocab_llm_check.deselect()
-            self.vocab_llm_check.configure(state="disabled")
-            gpu_status = ai_svc.get_gpu_status_text()
-            self._set_vocab_llm_tooltip(
-                f"LLM enhancement requires a dedicated GPU.\n\n"
-                f"{gpu_status}\n\n"
-                "NER-only extraction will be used."
-            )
-            return
-
-        # Case 3: User explicitly disabled LLM in settings
-        if vocab_mode == "no":
-            self.vocab_llm_check.deselect()
-            self.vocab_llm_check.configure(state="disabled")
-            self._set_vocab_llm_tooltip(
-                "LLM extraction disabled in Settings.\n\n"
-                "To enable: Settings > Performance > 'LLM vocabulary extraction'"
-            )
-            return
-
-        # Case 4: LLM is available - enable checkbox
-        self.vocab_llm_check.configure(state="normal")
-
-        if llm_enabled:
-            self.vocab_llm_check.select()
-            self._set_vocab_llm_tooltip(
-                "LLM enhancement finds additional terms missed by NER.\n"
-                "Slower but more thorough vocabulary extraction."
-            )
-        else:
-            self.vocab_llm_check.deselect()
-            self._set_vocab_llm_tooltip(
-                "LLM enhancement is available.\n"
-                "Check this box for more thorough vocabulary extraction."
-            )
-
-        logger.debug(
-            "LLM checkbox: mode=%s, has_gpu=%s, enabled=%s", vocab_mode, has_gpu, llm_enabled
-        )
-
-    def _set_vocab_llm_tooltip(self, text: str):
-        """
-        Update the tooltip for the LLM Enhancement checkbox.
-
-        Args:
-            text: New tooltip text to display
-        """
-        from src.ui.tooltip_helper import create_tooltip
-
-        # Remove existing tooltip bindings
-        if hasattr(self, "_vocab_llm_tooltip_hide") and self._vocab_llm_tooltip_hide:
-            try:
-                self.vocab_llm_check.unbind("<Enter>")
-                self.vocab_llm_check.unbind("<Leave>")
-            except Exception as e:
-                logger.debug("Failed to unbind vocab LLM tooltip: %s", e)
-
-        # Create new tooltip
-        self._vocab_llm_tooltip_hide = create_tooltip(self.vocab_llm_check, text)
 
     # =========================================================================
     # Q&A Checkbox State Management (Session 90 - Model Size Requirements)
@@ -1485,7 +1383,6 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
     def _on_vocab_check_changed(self):
         """Handle Vocabulary checkbox state change."""
         self._update_generate_button_state()
-        self._update_vocab_llm_checkbox_state()
         self._save_task_checkbox_states()
 
         # Session 148: Update tab status messages
@@ -1493,14 +1390,6 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
 
         state = "enabled" if self.vocab_check.get() else "disabled"
         logger.debug("Vocabulary extraction %s", state)
-
-    def _on_vocab_llm_check_changed(self):
-        """Handle LLM Enhancement checkbox state change (user manually toggles)."""
-        # Update task preview to reflect LLM change (Session 69)
-        self._update_task_preview()
-
-        state = "enabled" if self.vocab_llm_check.get() else "disabled"
-        logger.debug("LLM enhancement %s", state)
 
     def refresh_default_questions_label(self):
         """Refresh the default questions checkbox label. Called after editing questions."""
@@ -1799,11 +1688,11 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         doc_confidence = self._calculate_aggregate_confidence(self.processing_results)
         logger.debug("Aggregate document confidence: %.1f%%", doc_confidence)
 
-        # Session 63b: Use checkbox state (which already reflects settings + GPU detection)
-        # The checkbox is pre-configured by _update_vocab_llm_checkbox_state() at startup
-        # and when settings change. We read the checkbox to respect user's in-session choice.
-        use_llm = self.vocab_llm_check.get() and self.vocab_llm_check.cget("state") == "normal"
-        logger.debug("LLM extraction from checkbox: %s", use_llm)
+        # Read LLM preference directly from settings (no main-window checkbox)
+        from src.user_preferences import get_user_preferences
+
+        use_llm = get_user_preferences().is_vocab_llm_enabled()
+        logger.debug("LLM extraction from preference: %s", use_llm)
 
         # Start progressive extraction worker (uses shared ui_queue)
         self._progressive_worker = ProgressiveExtractionWorker(
@@ -2276,7 +2165,6 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         self._refresh_corpus_dropdown()
         self._update_model_display()
         self._update_ollama_status()
-        self._update_vocab_llm_checkbox_state()  # Session 63b: Refresh LLM checkbox
         self._update_qa_checkbox_state()  # Session 90: Refresh Q&A checkbox for model size
         self._update_summary_checkbox_state()  # Session 93: Refresh Summary checkbox
         self.refresh_default_questions_label()  # Update question count after settings change

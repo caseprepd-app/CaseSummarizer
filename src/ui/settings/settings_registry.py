@@ -879,6 +879,36 @@ def _register_all_settings():
         )
     )
 
+    # LLM vocabulary extraction setting (moved from Performance to Vocabulary)
+    SettingsRegistry.register(
+        SettingDefinition(
+            key="vocab_use_llm",
+            label="LLM vocabulary extraction",
+            category="Vocabulary",
+            setting_type=SettingType.DROPDOWN,
+            tooltip=lambda: (
+                "Controls whether LLM (Ollama) is used for vocabulary extraction "
+                "in addition to NER (spaCy).\n\n"
+                "• Auto: Enables LLM if a dedicated GPU is detected. Without a "
+                "GPU, LLM extraction is very slow and often not worth the wait.\n"
+                "• Always enable: Force LLM extraction on every run.\n"
+                "• NER only (default): Only NER-based extraction will run. "
+                "Fastest option, finds person names and organizations.\n\n"
+                "Adding LLM extraction also finds medical terms, legal "
+                "terminology, and domain-specific vocabulary.\n\n"
+                f"Current status: {_get_gpu_status_for_tooltip()}"
+            ),
+            default="no",
+            options=[
+                ("NER only (no LLM)", "no"),
+                ("Auto (enable if GPU detected)", "auto"),
+                ("Always enable", "yes"),
+            ],
+            getter=lambda: prefs.get_vocab_llm_mode(),
+            setter=lambda v: prefs.set_vocab_llm_mode(v),
+        )
+    )
+
     # Session 59: Vocabulary filtering thresholds (user-configurable)
     # Session 62b: Moved from Advanced to Vocabulary tab (consolidated)
     SettingsRegistry.register(
@@ -2009,10 +2039,10 @@ def _register_all_settings():
 
     # ===================================================================
     # EXPERIMENTAL TAB (Session 43)
-    # Session 62b: LLM setting moved to Performance
+    # Session 62b: LLM setting moved to Performance, then to Vocabulary
     # ===================================================================
 
-    # Session 62b: GPU-based auto-detection for LLM extraction (moved to Performance)
+    # GPU status helper for tooltips
     def _get_gpu_status_for_tooltip() -> str:
         """Get GPU status text for tooltip display."""
         try:
@@ -2021,37 +2051,6 @@ def _register_all_settings():
             return AIService().get_gpu_status_text()
         except Exception:
             return "GPU detection unavailable"
-
-    SettingsRegistry.register(
-        SettingDefinition(
-            key="vocab_use_llm",
-            label="LLM vocabulary extraction",
-            category="Performance",
-            setting_type=SettingType.DROPDOWN,
-            tooltip=lambda: (
-                "Controls whether LLM (Ollama) is used for vocabulary extraction "
-                "in addition to NER (spaCy).\n\n"
-                "• Auto: Enables LLM if a dedicated GPU is detected. Without a "
-                "GPU, LLM extraction is very slow and often not worth the wait.\n"
-                "• Always enable: Always enable the LLM checkbox (you can still "
-                "uncheck it per-session in the main window).\n"
-                "• NER only: Hide the LLM option entirely. Only NER-based "
-                "extraction will run.\n\n"
-                "NER alone finds person names and organizations. Adding LLM "
-                "extraction also finds medical terms, legal terminology, and "
-                "domain-specific vocabulary.\n\n"
-                f"Current status: {_get_gpu_status_for_tooltip()}"
-            ),
-            default="auto",
-            options=[
-                ("Auto (enable if GPU detected)", "auto"),
-                ("Always enable", "yes"),
-                ("NER only (no LLM)", "no"),
-            ],
-            getter=lambda: prefs.get_vocab_llm_mode(),
-            setter=lambda v: prefs.set_vocab_llm_mode(v),
-        )
-    )
 
     SettingsRegistry.register(
         SettingDefinition(

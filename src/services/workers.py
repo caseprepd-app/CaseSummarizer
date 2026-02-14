@@ -1007,7 +1007,16 @@ class ProgressiveExtractionWorker(BaseWorker):
                     ner_candidates = result.candidates
                     break
 
-            # Create unified chunks
+            # CHUNKING SITE 2 of 3: LLM vocab extraction (combined text, no source attribution)
+            #
+            # Unlike Q&A (Site 1) which chunks per-document, this chunks all documents
+            # concatenated together. The LLM extracts terms/names from each chunk.
+            # Coreference resolution runs on the full combined text inside chunk_text(),
+            # helping the LLM understand pronoun references across document boundaries.
+            #
+            # Note: NER (Phase 1) does NOT use the chunker -- it runs directly on
+            # preprocessed_text with its own internal chunking, so NER sees original
+            # pronouns and identifies entities without coreference interference.
             chunker = create_unified_chunker()
             chunks = chunker.chunk_text(self.combined_text)
             logger.debug("Created %s unified chunks", len(chunks))
@@ -1114,9 +1123,17 @@ class ProgressiveExtractionWorker(BaseWorker):
 
                 self.embeddings = get_embeddings_model()
 
-            # Create unified chunks from each document with source attribution
-            # This ensures each chunk knows which document it came from
-            # Use preprocessed_text (already cleaned by ProcessingWorker) to avoid redundant work
+            # CHUNKING SITE 1 of 3: Q&A vector store (per-document, with source attribution)
+            #
+            # Chunks each document separately so each chunk retains its source_file for
+            # citation in Q&A answers. Coreference resolution (pronoun -> name replacement)
+            # runs inside chunk_text() on the full document text BEFORE splitting, so each
+            # chunk is self-contained (e.g., "He testified" becomes "Dr. Smith testified").
+            #
+            # This same text gets chunked again by the summarizer (Site 3) if summary is
+            # enabled. That duplication is intentional and acceptable -- summary is rarely
+            # enabled, and the bottleneck is LLM calls (minutes), not chunking (seconds).
+            # Sharing chunks across phases would require cross-thread plumbing for minimal gain.
             self.ui_queue.put(
                 QueueMessage.progress(24, "Splitting documents into searchable passages...")
             )

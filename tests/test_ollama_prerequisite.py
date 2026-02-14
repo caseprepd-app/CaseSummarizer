@@ -18,11 +18,9 @@ def _make_window():
     win = MainWindow.__new__(MainWindow)
     win.model_manager = MagicMock()
     win.vocab_check = MagicMock()
-    win.vocab_llm_check = MagicMock()
     win.qa_check = MagicMock()
     win.ask_default_questions_check = MagicMock()
     win.summary_check = MagicMock()
-    win._set_vocab_llm_tooltip = MagicMock()
     win._set_qa_tooltip = MagicMock()
     win._set_summary_tooltip = MagicMock()
     return win
@@ -69,51 +67,6 @@ class TestIsOllamaReady:
         assert ready is False
         assert "No Ollama model" in reason
         assert "Settings" in reason
-
-
-# =========================================================================
-# LLM Enhancement checkbox gating
-# =========================================================================
-
-
-class TestVocabLlmOllamaGate:
-    """Test that LLM Enhancement checkbox is disabled when Ollama is not ready."""
-
-    def test_disabled_when_ollama_not_ready(self):
-        """LLM checkbox disabled with Ollama tooltip when not connected."""
-        win = _make_window()
-        win.vocab_check.get.return_value = True  # Vocab IS checked
-        win.model_manager.is_model_loaded.return_value = False
-        win.model_manager.is_connected = False
-
-        win._update_vocab_llm_checkbox_state()
-
-        win.vocab_llm_check.deselect.assert_called()
-        win.vocab_llm_check.configure.assert_called_with(state="disabled")
-        tooltip_text = win._set_vocab_llm_tooltip.call_args[0][0]
-        assert "not running" in tooltip_text
-
-    @patch("src.user_preferences.get_user_preferences")
-    @patch("src.services.AIService")
-    def test_falls_through_when_ollama_ready(self, mock_ai_cls, mock_prefs_fn):
-        """LLM checkbox proceeds to GPU check when Ollama is connected."""
-        win = _make_window()
-        win.vocab_check.get.return_value = True
-        win.model_manager.is_model_loaded.return_value = True
-
-        # Set up mocks for the existing checks
-        mock_ai = MagicMock()
-        mock_ai.has_dedicated_gpu.return_value = True
-        mock_ai_cls.return_value = mock_ai
-        mock_prefs = MagicMock()
-        mock_prefs.get_vocab_llm_mode.return_value = "auto"
-        mock_prefs.is_vocab_llm_enabled.return_value = True
-        mock_prefs_fn.return_value = mock_prefs
-
-        win._update_vocab_llm_checkbox_state()
-
-        # Should have reached Case 4 (enabled)
-        win.vocab_llm_check.configure.assert_called_with(state="normal")
 
 
 # =========================================================================

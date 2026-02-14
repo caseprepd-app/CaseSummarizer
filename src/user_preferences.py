@@ -41,7 +41,7 @@ class UserPreferencesManager:
             "processing": {"cpu_fraction": 0.5},  # Default: 1/2 cores (0.25, 0.5, or 0.75)
             # Session 62b: vocab_use_llm changed to tri-state: "auto", "yes", "no"
             "experimental": {
-                "vocab_use_llm": "auto",  # LLM extraction: "auto", "yes", or "no"
+                "vocab_use_llm": "no",  # LLM extraction: "auto", "yes", or "no"
             },
         }
 
@@ -182,13 +182,13 @@ class UserPreferencesManager:
         Returns:
             str: "auto", "yes", or "no"
         """
-        value = self._preferences.get("experimental", {}).get("vocab_use_llm", "auto")
+        value = self._preferences.get("experimental", {}).get("vocab_use_llm", "no")
         # Handle legacy boolean values from older preferences
         if value is True:
             return "yes"
         elif value is False:
             return "no"
-        return value if value in ("auto", "yes", "no") else "auto"
+        return value if value in ("auto", "yes", "no") else "no"
 
     def is_vocab_llm_enabled(self) -> bool:
         """

@@ -70,6 +70,20 @@ class ProgressiveSummarizer:
             config_path = CONFIG_FILES_DIR / "chunking_config.yaml"
 
         self.config = self._load_config(config_path)
+
+        # CHUNKING SITE 3 of 3: Summarization (per-document, fresh instance)
+        #
+        # A fresh ProgressiveSummarizer (and thus a fresh UnifiedChunker) is created
+        # for each document by ProgressiveDocumentSummarizer.summarize(). This is
+        # intentional -- each instance tracks its own rolling summary state via the
+        # DataFrame below.
+        #
+        # This re-chunks the same preprocessed_text that Q&A already chunked (Site 1
+        # in workers.py), including re-running coreference resolution. That duplication
+        # is acceptable: summary is rarely enabled, and the bottleneck is LLM calls
+        # (minutes to hours), not chunking (seconds). Sharing chunks across the Q&A
+        # thread and the later summary worker would add cross-thread plumbing for
+        # negligible gain.
         self.unified_chunker = create_unified_chunker()
 
         # DataFrame to track chunks and summaries
@@ -221,6 +235,8 @@ class ProgressiveSummarizer:
         """
         start_time = time.time()
         logger.debug("Starting document chunking...")
+        # use_cache=False: each summarizer instance has independent state (DataFrame,
+        # rolling summary), so cached chunks from another instance would be misleading.
         chunks = self.unified_chunker.chunk_text(text, use_cache=False)
         elapsed = time.time() - start_time
         logger.debug("%s took %.2fs", f"Document chunking ({len(chunks)} chunks)", elapsed)

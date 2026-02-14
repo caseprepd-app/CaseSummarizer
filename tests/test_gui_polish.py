@@ -593,7 +593,6 @@ class TestProgressQueueWiring:
         mixin.followup_btn = MagicMock()
         mixin.followup_entry = MagicMock()
         mixin.ask_default_questions_check = MagicMock()
-        mixin.vocab_llm_check = MagicMock()
         return mixin
 
     def test_progress_message_calls_update_progress(self):
@@ -654,9 +653,6 @@ class TestPipelineIndicatorWiring:
         mixin.followup_btn = MagicMock()
         mixin.followup_entry = MagicMock()
         mixin.ask_default_questions_check = MagicMock()
-        mixin.vocab_llm_check = MagicMock()
-        mixin.vocab_llm_check.get.return_value = True
-        mixin.vocab_llm_check.cget.return_value = "normal"
         return mixin
 
     def test_processing_finished_sets_extract_done(self):

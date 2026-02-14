@@ -189,7 +189,6 @@ class OllamaMixin:
         self._refresh_corpus_dropdown()
         self._update_model_display()
         self._update_ollama_status()
-        self._update_vocab_llm_checkbox_state()  # Session 63b: Refresh LLM checkbox
 
     def _check_ollama_service(self):
         """Check if Ollama service is running on startup."""

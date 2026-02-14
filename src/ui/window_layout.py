@@ -222,13 +222,6 @@ class WindowLayoutMixin:
         self.vocab_check.pack(anchor="w", pady=2)
         self.vocab_check.select()  # ON by default
 
-        # LLM Enhancement sub-checkbox (indented under Vocabulary)
-        self.vocab_llm_check = ctk.CTkCheckBox(
-            task_frame, text="Use LLM Enhancement", command=self._on_vocab_llm_check_changed
-        )
-        self.vocab_llm_check.pack(anchor="w", pady=(0, 2), padx=(20, 0))
-        # Initial state set by _update_vocab_llm_checkbox_state() in MainWindow.__init__
-
         # Q&A checkbox (default ON)
         self.qa_check = ctk.CTkCheckBox(
             task_frame, text="Ask Questions", command=self._on_qa_check_changed

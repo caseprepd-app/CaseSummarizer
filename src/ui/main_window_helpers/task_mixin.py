@@ -31,7 +31,6 @@ class TaskMixin:
     Requires parent class to have:
     - self.processing_results: List of processing result dicts
     - self.qa_check, self.vocab_check, self.summary_check: Checkbox vars
-    - self.vocab_llm_check: LLM checkbox var
     - self.ask_default_questions_check: Default questions checkbox var
     - self.generate_btn: Generate button
     - self.followup_btn: Follow-up button
@@ -84,7 +83,9 @@ class TaskMixin:
 
         # Vocabulary task
         if self.vocab_check.get():
-            if self.vocab_llm_check.get() and self.vocab_llm_check.cget("state") == "normal":
+            from src.user_preferences import get_user_preferences
+
+            if get_user_preferences().is_vocab_llm_enabled():
                 parts.append("Vocabulary (NER+LLM)")
             else:
                 parts.append("Vocabulary (NER)")
@@ -164,7 +165,9 @@ class TaskMixin:
             logger.debug("NER complete: %s terms", term_count)
             self.output_display.update_outputs(vocab_csv_data=data)
             self.output_display.set_extraction_source("ner")
-            if self.vocab_llm_check.get():
+            from src.user_preferences import get_user_preferences
+
+            if get_user_preferences().is_vocab_llm_enabled():
                 self.set_status(f"Found {term_count} terms. LLM enhancement starting...")
             else:
                 self.set_status(f"Found {term_count} terms. Building search index...")
@@ -403,9 +406,11 @@ class TaskMixin:
         doc_confidence = self._calculate_aggregate_confidence(self.processing_results)
         logger.debug("Aggregate document confidence: %.1f%%", doc_confidence)
 
-        # Use checkbox state (which reflects settings + GPU detection)
-        use_llm = self.vocab_llm_check.get() and self.vocab_llm_check.cget("state") == "normal"
-        logger.debug("LLM extraction from checkbox: %s", use_llm)
+        # Read LLM preference directly from settings (no main-window checkbox)
+        from src.user_preferences import get_user_preferences
+
+        use_llm = get_user_preferences().is_vocab_llm_enabled()
+        logger.debug("LLM extraction from preference: %s", use_llm)
 
         # Start progressive extraction worker
         self._progressive_worker = ProgressiveExtractionWorker(
