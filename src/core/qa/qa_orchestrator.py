@@ -27,7 +27,10 @@ from src.config import (
     RETRIEVAL_CONFIDENCE_GATE,
 )
 from src.core.config import load_yaml_with_fallback
-from src.core.qa.qa_constants import UNANSWERED_TEXT
+from src.core.qa.qa_constants import (
+    PENDING_GENERATION_TEXT,
+    UNANSWERED_TEXT,
+)
 from src.core.vector_store.qa_retriever import QARetriever, RetrievalResult
 
 logger = logging.getLogger(__name__)
@@ -405,6 +408,124 @@ class QAOrchestrator:
             is_default_question=is_default,
             verification=verification,
         )
+
+    def retrieve_for_question(self, question: str, is_followup: bool = True) -> QAResult:
+        """
+        Phase 1 of split follow-up flow: retrieve context only.
+
+        Returns a partial QAResult with citation/source/confidence populated
+        but quick_answer set to a placeholder. Stashes raw retrieval context
+        as _retrieval_context for phase 2.
+
+        Args:
+            question: The question to search for
+            is_followup: Whether this is a user follow-up (default True)
+
+        Returns:
+            Partial QAResult with placeholder answer
+        """
+        retrieval_result = self.retriever.retrieve_context(question)
+
+        if retrieval_result.context:
+            logger.debug(
+                "Retrieved %d chunks (%d chars) in %.0fms",
+                retrieval_result.chunks_retrieved,
+                len(retrieval_result.context),
+                retrieval_result.retrieval_time_ms,
+            )
+        else:
+            logger.debug(
+                "No context retrieved for: '%s...'",
+                question[:50],
+            )
+
+        best_score = max((s.relevance_score for s in retrieval_result.sources), default=0.0)
+        has_quality_context = retrieval_result.context and best_score >= RETRIEVAL_CONFIDENCE_GATE
+
+        if has_quality_context:
+            from src.config import QA_CITATION_MAX_CHARS
+            from src.core.qa.citation_excerpt import extract_citation_excerpt
+
+            citation = extract_citation_excerpt(
+                context=retrieval_result.context.strip(),
+                question=question,
+                embeddings=self.embeddings,
+                max_chars=QA_CITATION_MAX_CHARS,
+            )
+            source_summary = self.retriever.get_relevant_sources_summary(retrieval_result)
+            confidence = self._calculate_confidence(retrieval_result)
+
+            result = QAResult(
+                question=question,
+                quick_answer=PENDING_GENERATION_TEXT,
+                citation=citation,
+                include_in_export=True,
+                source_summary=source_summary,
+                confidence=confidence,
+                retrieval_time_ms=retrieval_result.retrieval_time_ms,
+                is_followup=is_followup,
+            )
+            # Stash raw context for phase 2 generation
+            result._retrieval_context = retrieval_result.context
+        else:
+            if retrieval_result.context and best_score < RETRIEVAL_CONFIDENCE_GATE:
+                logger.debug(
+                    "Retrieval quality gate: best_score=%.3f < gate=%s",
+                    best_score,
+                    RETRIEVAL_CONFIDENCE_GATE,
+                )
+            result = QAResult(
+                question=question,
+                quick_answer=UNANSWERED_TEXT,
+                citation="No relevant excerpts found in documents.",
+                source_summary="",
+                confidence=0.0,
+                retrieval_time_ms=retrieval_result.retrieval_time_ms,
+                is_followup=is_followup,
+                include_in_export=False,
+            )
+            result._retrieval_context = None
+
+        return result
+
+    def generate_answer_for_result(self, result: QAResult) -> QAResult:
+        """
+        Phase 2 of split follow-up flow: generate answer for a partial result.
+
+        Takes a QAResult from retrieve_for_question(), calls the answer
+        generator and verification, then fills in quick_answer.
+
+        Args:
+            result: Partial QAResult with _retrieval_context set
+
+        Returns:
+            Updated QAResult with final quick_answer and verification
+        """
+        context = getattr(result, "_retrieval_context", None)
+        if not context:
+            logger.debug("No retrieval context on result, returning as-is")
+            return result
+
+        # Generate answer
+        quick_answer = self._generate_quick_answer(result.question, context)
+
+        # Run hallucination verification if enabled
+        verification = None
+        if HALLUCINATION_VERIFICATION_ENABLED and quick_answer:
+            verification = self._verify_answer(quick_answer, context, result.question)
+            if verification and verification.answer_rejected:
+                from src.core.qa.verification_config import REJECTION_MESSAGE
+
+                quick_answer = REJECTION_MESSAGE
+
+        result.quick_answer = quick_answer
+        result.verification = verification
+
+        # Clean up stashed context
+        if hasattr(result, "_retrieval_context"):
+            del result._retrieval_context
+
+        return result
 
     def _generate_quick_answer(self, question: str, context: str) -> str:
         """

@@ -316,6 +316,62 @@ class QAService:
             answer_mode=answer_mode,
         )
 
+    def retrieve_for_followup(self, orchestrator, question: str):
+        """
+        Phase 1: Retrieve context for a follow-up question.
+
+        Args:
+            orchestrator: QAOrchestrator instance
+            question: The follow-up question
+
+        Returns:
+            Partial QAResult with citation but placeholder answer
+        """
+        return orchestrator.retrieve_for_question(question, is_followup=True)
+
+    def generate_answer_for_followup(self, orchestrator, result):
+        """
+        Phase 2: Generate answer for a partial QAResult.
+
+        Args:
+            orchestrator: QAOrchestrator instance
+            result: Partial QAResult from retrieve_for_followup
+
+        Returns:
+            Updated QAResult with final answer
+        """
+        return orchestrator.generate_answer_for_result(result)
+
+    def is_ollama_connected(self) -> bool:
+        """
+        Check whether Ollama is currently reachable.
+
+        Returns:
+            True if Ollama responds to a connection check
+        """
+        from src.core.ai.ollama_model_manager import OllamaModelManager
+
+        return OllamaModelManager().is_connected
+
+    def get_placeholder_texts(self) -> dict[str, str]:
+        """
+        Get placeholder text constants for progressive display.
+
+        Returns:
+            Dict with keys: retrieval, generation, ollama_unavailable
+        """
+        from src.core.qa.qa_constants import (
+            OLLAMA_UNAVAILABLE_TEXT,
+            PENDING_GENERATION_TEXT,
+            PENDING_RETRIEVAL_TEXT,
+        )
+
+        return {
+            "retrieval": PENDING_RETRIEVAL_TEXT,
+            "generation": PENDING_GENERATION_TEXT,
+            "ollama_unavailable": OLLAMA_UNAVAILABLE_TEXT,
+        }
+
     def get_qa_result_class(self):
         """
         Get the QAResult class for type checking.

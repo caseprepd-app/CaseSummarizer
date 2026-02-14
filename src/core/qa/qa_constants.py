@@ -36,3 +36,12 @@ FULL_QA_PROMPT = (
 
 # Use compact prompt when context window is this small or smaller
 COMPACT_PROMPT_THRESHOLD = 4096
+
+# Progressive follow-up display placeholders (Session 87)
+PENDING_RETRIEVAL_TEXT = "Searching documents..."
+PENDING_GENERATION_TEXT = "Generating answer..."
+OLLAMA_UNAVAILABLE_TEXT = (
+    "Answer unavailable -- Ollama is not connected.\n"
+    "The citation below is the text the answer would have been generated from.\n"
+    "Start Ollama and try again, or check Settings > AI."
+)

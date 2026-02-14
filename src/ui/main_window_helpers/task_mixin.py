@@ -21,7 +21,7 @@ from tkinter import messagebox
 logger = logging.getLogger(__name__)
 
 # Placeholder text shown while waiting for Q&A answer
-PENDING_ANSWER_TEXT = "Answer pending..."
+PENDING_ANSWER_TEXT = "Searching documents..."
 
 
 class TaskMixin:
@@ -659,7 +659,7 @@ class TaskMixin:
     # =========================================================================
 
     def _ask_followup(self):
-        """Ask a follow-up question using the Q&A system (async version)."""
+        """Ask a follow-up question using progressive retrieval then generation."""
         import queue
 
         question = self.followup_entry.get().strip()
@@ -692,10 +692,9 @@ class TaskMixin:
         self.followup_btn.configure(state="disabled", text="Asking...")
         self.followup_entry.configure(state="disabled")
 
-        self.set_status(f"Asking: {question[:40]}...")
+        self.set_status(f"Searching: {question[:40]}...")
 
         # Create pending QAResult and add to display immediately
-        # This gives visual feedback that the question was received
         from src.services import QAService
 
         QAResult = QAService().get_qa_result_class()
@@ -704,13 +703,11 @@ class TaskMixin:
             quick_answer=PENDING_ANSWER_TEXT,
             citation="",
             is_followup=True,
-            include_in_export=False,  # Don't export pending answers
+            include_in_export=False,
         )
         with self._qa_results_lock:
             self._qa_results.append(pending_result)
-            # Track the index of the pending result so we can replace it later
             self._pending_followup_index = len(self._qa_results) - 1
-            # Pass a copy to prevent race conditions
             self.output_display.update_outputs(qa_results=list(self._qa_results))
 
         self._followup_queue = queue.Queue()
@@ -727,8 +724,25 @@ class TaskMixin:
                     embeddings=self._embeddings,
                     answer_mode=prefs.get("qa_answer_mode", "ollama"),
                 )
-                result = orchestrator.ask_followup(question)
-                self._followup_queue.put(("success", result))
+
+                # Phase 1: Retrieve context (fast)
+                partial = qa_service.retrieve_for_followup(orchestrator, question)
+                self._followup_queue.put(("retrieval_done", partial))
+
+                # Phase 2: Generate answer (slow, requires Ollama)
+                if partial._retrieval_context is None:
+                    # Low-quality retrieval -- no generation needed
+                    self._followup_queue.put(("success", partial))
+                    return
+
+                final = qa_service.generate_answer_for_followup(orchestrator, partial)
+                # Check if answer is the Ollama unavailable message
+                ollama_text = qa_service.get_placeholder_texts()["ollama_unavailable"]
+                if final.quick_answer == ollama_text:
+                    self._followup_queue.put(("no_ollama", final))
+                else:
+                    self._followup_queue.put(("success", final))
+
             except Exception as e:
                 self._followup_queue.put(("error", str(e)))
                 logger.debug("Follow-up thread error: %s", e)
@@ -737,8 +751,14 @@ class TaskMixin:
         self._followup_thread.start()
         self._poll_followup_result()
 
+    def _restore_followup_controls(self):
+        """Re-enable follow-up input controls after completion."""
+        self.followup_btn.configure(state="normal", text="Ask")
+        self.followup_entry.configure(state="normal")
+        self.followup_entry.focus()
+
     def _poll_followup_result(self):
-        """Poll for follow-up result from background thread."""
+        """Poll for follow-up results from the progressive background thread."""
         import queue
 
         try:
@@ -747,42 +767,61 @@ class TaskMixin:
             self.after(100, self._poll_followup_result)
             return
 
-        # Re-enable controls
-        self.followup_btn.configure(state="normal", text="Ask")
-        self.followup_entry.configure(state="normal")
-        self.followup_entry.focus()
-
         try:
-            if msg_type == "success" and data is not None:
+            if msg_type == "retrieval_done":
+                # Phase 1 complete: show citation, keep polling for generation
                 with self._qa_results_lock:
-                    # Replace the pending result with the real answer
+                    pending_idx = getattr(self, "_pending_followup_index", None)
+                    if pending_idx is not None and pending_idx < len(self._qa_results):
+                        self._qa_results[pending_idx] = data
+                    self.output_display.update_outputs(qa_results=list(self._qa_results))
+                self.set_status(f"Generating answer for: {data.question[:40]}...")
+                # Keep polling for phase 2
+                self.after(100, self._poll_followup_result)
+                return
+
+            elif msg_type == "success" and data is not None:
+                self._restore_followup_controls()
+                with self._qa_results_lock:
                     pending_idx = getattr(self, "_pending_followup_index", None)
                     if pending_idx is not None and pending_idx < len(self._qa_results):
                         self._qa_results[pending_idx] = data
                         self._pending_followup_index = None
                     else:
-                        # Fallback: append if pending index not found
                         self._qa_results.append(data)
-                    # Pass a copy to prevent race conditions
                     self.output_display.update_outputs(qa_results=list(self._qa_results))
                 answer_len = len(data.quick_answer) if data.quick_answer else 0
                 self.set_status(f"Follow-up answered: {answer_len} chars")
                 logger.debug("Follow-up result displayed successfully")
-            elif msg_type == "error":
-                # Remove the pending result on error
+
+            elif msg_type == "no_ollama":
+                self._restore_followup_controls()
                 with self._qa_results_lock:
                     pending_idx = getattr(self, "_pending_followup_index", None)
                     if pending_idx is not None and pending_idx < len(self._qa_results):
-                        # Check if it's still the pending answer before removing
+                        self._qa_results[pending_idx] = data
+                        self._pending_followup_index = None
+                    else:
+                        self._qa_results.append(data)
+                    self.output_display.update_outputs(qa_results=list(self._qa_results))
+                self.set_status("Answer unavailable -- Ollama is not connected")
+                logger.debug("Follow-up: Ollama not connected, citation shown")
+
+            elif msg_type == "error":
+                self._restore_followup_controls()
+                with self._qa_results_lock:
+                    pending_idx = getattr(self, "_pending_followup_index", None)
+                    if pending_idx is not None and pending_idx < len(self._qa_results):
                         if self._qa_results[pending_idx].quick_answer == PENDING_ANSWER_TEXT:
                             self._qa_results.pop(pending_idx)
-                            # Pass a copy to prevent race conditions
                             self.output_display.update_outputs(qa_results=list(self._qa_results))
                         self._pending_followup_index = None
                 self.set_status("Follow-up failed")
                 messagebox.showerror("Error", f"Failed to process follow-up: {data}")
+
         except Exception as e:
             logger.debug("Error processing follow-up result: %s", e)
+            self._restore_followup_controls()
             self.set_status("Follow-up error - check logs")
             messagebox.showerror("Error", f"Error displaying result: {e!s}")
 

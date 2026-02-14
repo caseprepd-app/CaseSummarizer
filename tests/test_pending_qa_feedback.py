@@ -20,7 +20,9 @@ class TestPendingAnswerConstant:
         """PENDING_ANSWER_TEXT should have expected placeholder text."""
         from src.ui.main_window_helpers.task_mixin import PENDING_ANSWER_TEXT
 
-        assert "pending" in PENDING_ANSWER_TEXT.lower()
+        assert (
+            "searching" in PENDING_ANSWER_TEXT.lower() or "pending" in PENDING_ANSWER_TEXT.lower()
+        )
         assert len(PENDING_ANSWER_TEXT) > 0
 
 

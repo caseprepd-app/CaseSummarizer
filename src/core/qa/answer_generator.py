@@ -174,8 +174,10 @@ class AnswerGenerator:
             AI-generated answer
         """
         if not self.ollama_manager.is_connected:
-            logger.debug("Ollama not connected, falling back to extraction")
-            return self._extract_answer(question, context)
+            from src.core.qa.qa_constants import OLLAMA_UNAVAILABLE_TEXT
+
+            logger.debug("Ollama not connected, returning unavailable message")
+            return OLLAMA_UNAVAILABLE_TEXT
 
         from src.core.qa.token_budget import (
             compute_context_budget,
