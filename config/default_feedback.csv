@@ -47,3 +47,10 @@ timestamp,document_id,term,feedback,is_person,algorithms,NER_detection,RAKE_dete
 2026-02-13T23:01:18.879124,unknown,Van Horn,1,1,"RAKE,NER",True,True,False,2,98.3,11,0,1,1.0,0.94,0.94,0.0,1.0,0,1,22680
 2026-02-13T23:01:26.058315,unknown,Sylvestre - Plaintiff,-1,1,"TextRank,NER",True,False,False,1,95.9,26,0,1,1.0,0.94,0.94,0.0,1.0,0,1,22680
 2026-02-13T23:01:58.561057,unknown,Onto 60Th,-1,0,RAKE,False,True,False,1,91.6,5,0,1,1.0,0.9399999999999998,0.94,0.0,1.0,0,1,22680
+2026-02-14T23:55:16.929464,unknown,117/25,-1,1,NER,True,False,False,1,79.7,2,0,1,1.0,0.93,0.93,0.0,1.0,0,1,37130
+2026-02-14T23:55:22.755530,unknown,108/20,-1,1,NER,True,False,False,1,90.2,4,0,1,1.0,0.93,0.93,0.0,1.0,0,1,37130
+2026-02-14T23:55:40.363115,unknown,Benjamin Verdooren,1,1,"NER,TextRank",True,False,False,1,98.2,3,0,1,1.0,0.93,0.93,0.0,1.0,0,1,37130
+2026-02-14T23:56:03.256065,unknown,Mark,-1,1,NER,True,False,False,1,90.2,13,833,1,1.0,0.9299999999999999,0.93,0.0,1.0,0,1,37130
+2026-02-14T23:56:12.933478,unknown,Gordon,-1,1,NER,True,False,False,1,73.9,1,4633,1,1.0,0.93,0.93,0.0,1.0,0,1,37130
+2026-02-14T23:56:24.335126,unknown,Alex Quintaro,1,1,NER,True,False,False,1,89.2,4,0,1,1.0,0.93,0.93,0.0,1.0,0,1,37130
+2026-02-14T23:56:48.989258,unknown,Jeanfreau,1,1,"NER,TextRank",True,False,False,1,98.4,340,0,1,1.0,0.9299999999999999,0.93,0.0,1.0,0,1,37130

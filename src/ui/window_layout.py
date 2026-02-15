@@ -156,7 +156,7 @@ class WindowLayoutMixin:
         """Create the left panel with session documents and task options."""
         from src.ui.widgets import FileReviewTable
 
-        self.left_panel = ctk.CTkFrame(self.main_frame)
+        self.left_panel = ctk.CTkFrame(self.main_frame, border_width=0)
         self.left_panel.grid(row=0, column=0, sticky="nsew", padx=(0, 5), pady=0)
 
         self.left_panel.grid_columnconfigure(0, weight=1)

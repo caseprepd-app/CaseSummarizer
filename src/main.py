@@ -17,11 +17,11 @@ os.environ["HF_HUB_DISABLE_SYMLINKS_WARNING"] = "1"  # Suppress HuggingFace Hub 
 if "--debug" in sys.argv:
     os.environ["DEBUG"] = "true"
 
+import contextlib
 import logging
 import multiprocessing
-import random
+import subprocess
 import threading
-import tkinter as tk
 import traceback
 from datetime import datetime
 from pathlib import Path
@@ -29,8 +29,6 @@ from pathlib import Path
 # Add project root to Python path (skip in frozen mode — PyInstaller handles it)
 if not getattr(sys, "frozen", False):
     sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-
-import contextlib
 
 # Early crash log for import failures (before Logger redirect is set up).
 # In windowed mode sys.stdout/stderr are None, so errors would be silent.
@@ -47,11 +45,11 @@ with contextlib.suppress(Exception):
     ctypes.windll.shcore.SetProcessDpiAwareness(2)  # Per-monitor DPI aware
 
 
-def _pick_splash_image():
-    """Pick a random image from the assets/splash/ folder.
+def _get_splash_dir():
+    """Return the path to the splash image directory.
 
     Returns:
-        Path or None: Path to the chosen image, or None if none found.
+        Path or None: Path to splash dir, or None if not found.
     """
     if getattr(sys, "frozen", False):
         splash_dir = Path(sys._MEIPASS) / "assets" / "splash"
@@ -59,54 +57,108 @@ def _pick_splash_image():
         splash_dir = Path(__file__).parent.parent / "assets" / "splash"
 
     if not splash_dir.is_dir():
+        print(f"[Splash] Directory not found: {splash_dir}")
+        return None
+    return splash_dir
+
+
+def _launch_splash():
+    """Launch splash screen in a separate process to avoid Tk root conflicts.
+
+    The main process needs ctk.CTk() (which creates tk.Tk() internally).
+    A second tk.Tk() in the same process causes hangs on Windows.
+    Running the splash as a subprocess with pythonw.exe avoids this entirely
+    and also hides the console window from end users.
+
+    Returns:
+        subprocess.Popen or None: The splash process, or None on failure.
+    """
+    splash_dir = _get_splash_dir()
+    if splash_dir is None:
         return None
 
     images = [f for f in splash_dir.iterdir() if f.suffix.lower() in SPLASH_EXTENSIONS]
     if not images:
+        print(f"[Splash] No images found in {splash_dir}")
         return None
 
-    return random.choice(images)
+    # Use pythonw.exe (no console window) for the splash subprocess
+    if getattr(sys, "frozen", False):
+        # In frozen mode, no separate Python available — skip subprocess splash
+        print("[Splash] Frozen mode -- subprocess splash not available")
+        return None
 
+    pythonw = Path(sys.executable).with_name("pythonw.exe")
+    if not pythonw.exists():
+        pythonw = Path(sys.executable)  # Fallback (will show console)
+        print("[Splash] pythonw.exe not found, falling back to python.exe")
 
-def _show_splash():
-    """Show a borderless splash screen while the app loads.
+    # Inline script for the splash subprocess
+    splash_script = f"""
+import tkinter as tk
+import random
+import contextlib
+from pathlib import Path
 
-    Returns:
-        tk.Tk or None: The splash window, or None if it could not be shown.
-    """
+with contextlib.suppress(Exception):
+    import ctypes
+    ctypes.windll.shcore.SetProcessDpiAwareness(2)
+
+splash_dir = Path(r"{splash_dir}")
+exts = {{".png", ".gif"}}
+images = [f for f in splash_dir.iterdir() if f.suffix.lower() in exts]
+if not images:
+    raise SystemExit()
+
+img_path = random.choice(images)
+root = tk.Tk()
+root.overrideredirect(True)
+root.attributes("-topmost", True)
+
+img = tk.PhotoImage(file=str(img_path))
+sw = root.winfo_screenwidth()
+sh = root.winfo_screenheight()
+x = (sw - img.width()) // 2
+y = (sh - img.height()) // 2
+root.geometry(f"{{img.width()}}x{{img.height() + 24}}+{{x}}+{{y}}")
+
+lbl = tk.Label(root, image=img, borderwidth=0)
+lbl.image = img
+lbl.pack()
+
+st = tk.Label(root, text="Loading...", bg="#1a1a2e", fg="#ffffff", font=("Segoe UI", 10))
+st.pack(fill="x")
+
+root.mainloop()
+"""
+
     try:
-        splash_path = _pick_splash_image()
-        if splash_path is None:
-            return None
-
-        root = tk.Tk()
-        root.overrideredirect(True)
-
-        img = tk.PhotoImage(file=str(splash_path))
-
-        # Center the window on screen
-        screen_w = root.winfo_screenwidth()
-        screen_h = root.winfo_screenheight()
-        x = (screen_w - img.width()) // 2
-        y = (screen_h - img.height()) // 2
-        root.geometry(f"{img.width()}x{img.height() + 24}+{x}+{y}")
-
-        label = tk.Label(root, image=img, borderwidth=0)
-        label.image = img  # prevent garbage collection
-        label.pack()
-
-        status = tk.Label(
-            root, text="Loading...", bg="#1a1a2e", fg="#ffffff", font=("Segoe UI", 10)
+        proc = subprocess.Popen(
+            [str(pythonw), "-c", splash_script],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
         )
-        status.pack(fill="x")
-
-        root.update()
-        return root
-    except Exception:
+        print(f"[Splash] Launched subprocess (PID: {proc.pid})")
+        return proc
+    except Exception as e:
+        print(f"[Splash] Failed to launch subprocess: {e}")
         return None
 
 
-_splash = _show_splash()
+def _kill_splash(proc):
+    """Terminate the splash screen subprocess.
+
+    Args:
+        proc: subprocess.Popen or None
+    """
+    if proc is not None:
+        print("[Splash] Terminating splash subprocess")
+        with contextlib.suppress(Exception):
+            proc.terminate()
+            proc.wait(timeout=3)
+
+
+_splash_proc = _launch_splash()
 
 try:
     import customtkinter as ctk
@@ -116,6 +168,7 @@ try:
     from src.config import LOGS_DIR
     from src.ui.main_window import MainWindow
 except Exception:
+    _kill_splash(_splash_proc)
     _CRASH_LOG.parent.mkdir(parents=True, exist_ok=True)
     _CRASH_LOG.write_text(traceback.format_exc(), encoding="utf-8")
     raise
@@ -186,10 +239,12 @@ def main():
     """
     Main entry point for CasePrepd desktop application.
     """
+    global _splash_proc
+
     # Setup stdout/stderr crash log (separate from structured logging)
     setup_file_logging()
 
-    # Configure structured logging (RotatingFileHandler → caseprepd.log)
+    # Configure structured logging (RotatingFileHandler -> caseprepd.log)
     from src.logging_config import purge_old_logs, setup_logging
 
     setup_logging()
@@ -226,13 +281,11 @@ def main():
     ctk.set_appearance_mode("System")  # Options: "System", "Dark", "Light"
     ctk.set_default_color_theme("blue")  # Options: "blue", "green", "dark-blue"
 
-    # Create the application (slow — splash stays visible during this)
     app = MainWindow()
 
-    # Destroy splash now that the main window is ready
-    if _splash is not None:
-        with contextlib.suppress(Exception):
-            _splash.destroy()
+    # Kill splash now that the main window is ready
+    _kill_splash(_splash_proc)
+    _splash_proc = None
 
     app.mainloop()
 
