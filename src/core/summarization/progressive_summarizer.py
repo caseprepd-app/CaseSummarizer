@@ -401,7 +401,7 @@ Summary:"""
         df_display["chunk_summary"] = df_display["chunk_summary"].str[:75] + "..."
         df_display["progressive_summary"] = df_display["progressive_summary"].str[:75] + "..."
 
-        df_display.to_csv(filename, index=False)
+        df_display.to_csv(filename, index=False, encoding="utf-8-sig")
         logger.info("Saved debug DataFrame to %s", filename)
 
         # Clean up old files (keep only recent ones)

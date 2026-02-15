@@ -52,7 +52,9 @@ class CrossEncoderReranker:
         """
         Load cross-encoder model (called once on first use).
 
-        Uses bundled model if available, otherwise downloads from HuggingFace.
+        Uses bundled model if available (with local_files_only=True to prevent
+        network downloads). Falls back to HuggingFace download with clear error
+        messaging if that fails.
         """
         # Set HuggingFace cache to project folder
         os.environ["HF_HOME"] = str(HF_CACHE_DIR)
@@ -61,7 +63,8 @@ class CrossEncoderReranker:
         from sentence_transformers import CrossEncoder
 
         # Check for bundled model first
-        if RERANKER_MODEL_LOCAL_PATH.exists():
+        is_local = RERANKER_MODEL_LOCAL_PATH.exists()
+        if is_local:
             model_path = str(RERANKER_MODEL_LOCAL_PATH)
             logger.debug("Using bundled model: %s", model_path)
         else:
@@ -69,7 +72,13 @@ class CrossEncoderReranker:
             logger.debug("Downloading model: %s", model_path)
             logger.debug("Cache directory: %s", HF_CACHE_DIR)
 
-        self._model = CrossEncoder(model_path, max_length=RERANKER_MAX_LENGTH)
+        model_kwargs = {}
+        if is_local:
+            model_kwargs["local_files_only"] = True
+
+        self._model = CrossEncoder(
+            model_path, max_length=RERANKER_MAX_LENGTH, model_kwargs=model_kwargs
+        )
 
         logger.debug("Cross-encoder model loaded successfully")
 

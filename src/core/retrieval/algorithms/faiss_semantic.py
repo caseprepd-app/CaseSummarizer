@@ -87,26 +87,49 @@ def get_embeddings_model() -> "HuggingFaceEmbeddings":
 
     Lazy-loads the embeddings model on first call and caches it.
     Uses GPU when available for faster embedding.
-    Configures search_document/search_query prompt prefixes for modernbert-embed-large.
+    Configures search_document/search_query prompt prefixes for nomic-embed-text.
+
+    If the bundled model is present, uses local_files_only=True to prevent
+    any network downloads. If not bundled, allows download but wraps in
+    try/except for clear error messaging.
 
     Returns:
         HuggingFaceEmbeddings instance
+
+    Raises:
+        RuntimeError: If model cannot be loaded (missing bundled model + no network)
     """
     global _shared_embeddings
     if _shared_embeddings is None:
         from langchain_huggingface import HuggingFaceEmbeddings
 
         device = _get_embedding_device()
+        is_local = EMBEDDING_MODEL_LOCAL_PATH.exists()
         logger.debug(
-            "Loading shared embeddings model: %s (device=%s)", DEFAULT_EMBEDDING_MODEL, device
+            "Loading shared embeddings model: %s (device=%s, local=%s)",
+            DEFAULT_EMBEDDING_MODEL,
+            device,
+            is_local,
         )
 
-        _shared_embeddings = HuggingFaceEmbeddings(
-            model_name=DEFAULT_EMBEDDING_MODEL,
-            model_kwargs={"device": device, "trust_remote_code": True},
-            encode_kwargs={"normalize_embeddings": True, "prompt": "search_document: "},
-            query_encode_kwargs={"normalize_embeddings": True, "prompt": "search_query: "},
-        )
+        model_kwargs = {"device": device, "trust_remote_code": True}
+        if is_local:
+            model_kwargs["local_files_only"] = True
+
+        try:
+            _shared_embeddings = HuggingFaceEmbeddings(
+                model_name=DEFAULT_EMBEDDING_MODEL,
+                model_kwargs=model_kwargs,
+                encode_kwargs={"normalize_embeddings": True, "prompt": "search_document: "},
+                query_encode_kwargs={"normalize_embeddings": True, "prompt": "search_query: "},
+            )
+        except Exception as e:
+            logger.error("Failed to load embedding model '%s': %s", DEFAULT_EMBEDDING_MODEL, e)
+            raise RuntimeError(
+                f"Embedding model not available: {DEFAULT_EMBEDDING_MODEL}\n"
+                f"Run: python scripts/download_models.py\n"
+                f"Error: {e}"
+            ) from e
     return _shared_embeddings
 
 

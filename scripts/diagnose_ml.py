@@ -43,7 +43,7 @@ def analyze_feedback():
     dfs = []
     if DEFAULT_FEEDBACK.exists():
         try:
-            df_default = pd.read_csv(DEFAULT_FEEDBACK)
+            df_default = pd.read_csv(DEFAULT_FEEDBACK, encoding="utf-8-sig")
             df_default["source"] = "default"
             dfs.append(df_default)
             print(f"\nDefault feedback: {len(df_default)} samples")
@@ -52,7 +52,7 @@ def analyze_feedback():
 
     if USER_FEEDBACK.exists():
         try:
-            df_user = pd.read_csv(USER_FEEDBACK)
+            df_user = pd.read_csv(USER_FEEDBACK, encoding="utf-8-sig")
             df_user["source"] = "user"
             dfs.append(df_user)
             print(f"User feedback: {len(df_user)} samples")

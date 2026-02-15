@@ -390,8 +390,12 @@ class NERAlgorithm(BaseExtractionAlgorithm):
         if self.frequency_dataset and not self._is_word_rare_enough(token.text):
             return False
 
-        # WordNet fallback
-        return not wordnet.synsets(lower_text)
+        # WordNet fallback -- treat missing/corrupt NLTK data as "term is rare"
+        try:
+            return not wordnet.synsets(lower_text)
+        except LookupError:
+            logger.debug("WordNet data unavailable, treating '%s' as rare", lower_text)
+            return True
 
     # ========================================================================
     # SPACY MODEL LOADING - Moved from VocabularyExtractor
