@@ -19,7 +19,9 @@ if "--debug" in sys.argv:
 
 import logging
 import multiprocessing
+import random
 import threading
+import tkinter as tk
 import traceback
 from datetime import datetime
 from pathlib import Path
@@ -33,6 +35,78 @@ import contextlib
 # Early crash log for import failures (before Logger redirect is set up).
 # In windowed mode sys.stdout/stderr are None, so errors would be silent.
 _CRASH_LOG = Path(os.environ.get("APPDATA", ".")) / "CasePrepd" / "crash.log"
+
+# tkinter.PhotoImage supports .png (Tk 8.6+, bundled since Python 3.1) and .gif natively
+SPLASH_EXTENSIONS = {".png", ".gif"}
+
+# Tell Windows we are DPI-aware so winfo_screenwidth/height return real pixels.
+# Must be called before any Tk() window is created.
+with contextlib.suppress(Exception):
+    import ctypes
+
+    ctypes.windll.shcore.SetProcessDpiAwareness(2)  # Per-monitor DPI aware
+
+
+def _pick_splash_image():
+    """Pick a random image from the assets/splash/ folder.
+
+    Returns:
+        Path or None: Path to the chosen image, or None if none found.
+    """
+    if getattr(sys, "frozen", False):
+        splash_dir = Path(sys._MEIPASS) / "assets" / "splash"
+    else:
+        splash_dir = Path(__file__).parent.parent / "assets" / "splash"
+
+    if not splash_dir.is_dir():
+        return None
+
+    images = [f for f in splash_dir.iterdir() if f.suffix.lower() in SPLASH_EXTENSIONS]
+    if not images:
+        return None
+
+    return random.choice(images)
+
+
+def _show_splash():
+    """Show a borderless splash screen while the app loads.
+
+    Returns:
+        tk.Tk or None: The splash window, or None if it could not be shown.
+    """
+    try:
+        splash_path = _pick_splash_image()
+        if splash_path is None:
+            return None
+
+        root = tk.Tk()
+        root.overrideredirect(True)
+
+        img = tk.PhotoImage(file=str(splash_path))
+
+        # Center the window on screen
+        screen_w = root.winfo_screenwidth()
+        screen_h = root.winfo_screenheight()
+        x = (screen_w - img.width()) // 2
+        y = (screen_h - img.height()) // 2
+        root.geometry(f"{img.width()}x{img.height() + 24}+{x}+{y}")
+
+        label = tk.Label(root, image=img, borderwidth=0)
+        label.image = img  # prevent garbage collection
+        label.pack()
+
+        status = tk.Label(
+            root, text="Loading...", bg="#1a1a2e", fg="#ffffff", font=("Segoe UI", 10)
+        )
+        status.pack(fill="x")
+
+        root.update()
+        return root
+    except Exception:
+        return None
+
+
+_splash = _show_splash()
 
 try:
     import customtkinter as ctk
@@ -151,6 +225,11 @@ def main():
     # Set appearance mode (light/dark/system)
     ctk.set_appearance_mode("System")  # Options: "System", "Dark", "Light"
     ctk.set_default_color_theme("blue")  # Options: "blue", "green", "dark-blue"
+
+    # Destroy splash before creating the CTk root window
+    if _splash is not None:
+        with contextlib.suppress(Exception):
+            _splash.destroy()
 
     # Create and run the application
     app = MainWindow()
