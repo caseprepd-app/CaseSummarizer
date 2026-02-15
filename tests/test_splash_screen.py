@@ -1,9 +1,10 @@
-"""Tests for splash screen: random image selection, portability, installer readiness.
+"""Tests for splash screen: subprocess launch, image selection, portability, installer readiness.
 
 Covers:
 - SPLASH_EXTENSIONS constant validation
-- _pick_splash_image() in dev mode, frozen mode, and edge cases
-- _show_splash() graceful error handling
+- _get_splash_dir() in dev mode, frozen mode, and edge cases
+- _launch_splash() subprocess creation and error handling
+- _kill_splash() graceful termination
 - DPI awareness setup (high-DPI display portability)
 - Image file validity (real PNGs, not just correct extensions)
 - Filename safety (no spaces or special chars that break on other machines)
@@ -13,11 +14,12 @@ Covers:
 """
 
 import struct
+import subprocess
 import sys
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
-from src.main import SPLASH_EXTENSIONS, _pick_splash_image, _show_splash
+from src.main import SPLASH_EXTENSIONS, _get_splash_dir, _kill_splash, _launch_splash
 
 PROJECT_ROOT = Path(__file__).parent.parent
 SPLASH_DIR = PROJECT_ROOT / "assets" / "splash"
@@ -61,37 +63,33 @@ class TestSplashExtensions:
 
 
 # ============================================================================
-# B. _pick_splash_image — dev mode (real assets/splash/ folder)
+# B. _get_splash_dir — dev mode (real assets/splash/ folder)
 # ============================================================================
 
 
-class TestPickSplashImageDevMode:
-    """Tests _pick_splash_image against the real project assets."""
+class TestGetSplashDirDevMode:
+    """Tests _get_splash_dir against the real project assets."""
 
     def test_returns_a_path(self):
-        result = _pick_splash_image()
+        result = _get_splash_dir()
         assert isinstance(result, Path)
 
-    def test_returned_file_exists(self):
-        result = _pick_splash_image()
-        assert result.exists(), f"Picked image does not exist: {result}"
+    def test_returned_dir_exists(self):
+        result = _get_splash_dir()
+        assert result.is_dir()
 
-    def test_returned_file_has_valid_extension(self):
-        result = _pick_splash_image()
-        assert result.suffix.lower() in SPLASH_EXTENSIONS
+    def test_returns_assets_splash_folder(self):
+        result = _get_splash_dir()
+        assert result == SPLASH_DIR
 
-    def test_picks_from_splash_folder(self):
-        result = _pick_splash_image()
-        assert result.parent == SPLASH_DIR
-
-    def test_randomness_over_many_calls(self):
-        """With 2+ images, should pick different ones over 50 calls."""
-        picks = {_pick_splash_image().name for _ in range(50)}
-        assert len(picks) > 1, "Always picked the same image -- randomness broken"
+    def test_contains_splash_images(self):
+        result = _get_splash_dir()
+        images = [f for f in result.iterdir() if f.suffix.lower() in SPLASH_EXTENSIONS]
+        assert len(images) >= 2, f"Expected >= 2 images, found {len(images)}"
 
 
 # ============================================================================
-# C. _pick_splash_image — frozen mode (sys._MEIPASS)
+# C. _get_splash_dir — frozen mode (sys._MEIPASS)
 # ============================================================================
 
 
@@ -121,159 +119,158 @@ def _set_frozen(tmp_path):
     return _Ctx()
 
 
-class TestPickSplashImageFrozenMode:
-    """Tests _pick_splash_image with sys.frozen / sys._MEIPASS faked."""
+class TestGetSplashDirFrozenMode:
+    """Tests _get_splash_dir with sys.frozen / sys._MEIPASS faked."""
 
     def test_uses_meipass_path(self, tmp_path):
-        """In frozen mode, should look under sys._MEIPASS/assets/splash/."""
+        """In frozen mode, should return sys._MEIPASS/assets/splash/."""
         splash_dir = tmp_path / "assets" / "splash"
         splash_dir.mkdir(parents=True)
-        (splash_dir / "frozen_img.png").write_bytes(b"fake-png")
 
         with _set_frozen(tmp_path):
-            result = _pick_splash_image()
-            assert result is not None
-            assert result.name == "frozen_img.png"
+            result = _get_splash_dir()
+            assert result == splash_dir
 
     def test_frozen_mode_returns_none_when_dir_missing(self, tmp_path):
         """Frozen mode with no assets/splash/ dir should return None."""
         with _set_frozen(tmp_path):
-            assert _pick_splash_image() is None
+            assert _get_splash_dir() is None
 
 
 # ============================================================================
-# D. _pick_splash_image — edge cases (tmp_path directories)
+# D. _launch_splash — subprocess creation
 # ============================================================================
 
 
-class TestPickSplashImageEdgeCases:
-    """Edge cases using temporary directories to control splash folder contents."""
+class TestLaunchSplash:
+    """Verify _launch_splash creates subprocess correctly or fails gracefully."""
 
-    def _pick_from(self, tmp_path):
-        """Call _pick_splash_image with splash dir redirected via fake frozen mode."""
-        splash_dir = tmp_path / "assets" / "splash"
-        splash_dir.mkdir(parents=True, exist_ok=True)
+    def test_returns_none_when_splash_dir_missing(self, tmp_path):
+        """No splash directory should return None without crashing."""
         with _set_frozen(tmp_path):
-            return _pick_splash_image(), splash_dir
+            result = _launch_splash()
+            assert result is None
 
-    def test_returns_none_when_folder_empty(self, tmp_path):
-        result, _ = self._pick_from(tmp_path)
-        assert result is None
+    def test_returns_none_when_no_images(self, tmp_path):
+        """Empty splash directory should return None."""
+        splash_dir = tmp_path / "assets" / "splash"
+        splash_dir.mkdir(parents=True)
+        with _set_frozen(tmp_path):
+            result = _launch_splash()
+            assert result is None
 
     def test_returns_none_when_only_unsupported_files(self, tmp_path):
+        """Directory with only .jpg/.txt files should return None."""
         splash_dir = tmp_path / "assets" / "splash"
         splash_dir.mkdir(parents=True)
         (splash_dir / "photo.jpg").write_bytes(b"fake")
         (splash_dir / "notes.txt").write_text("notes")
-        (splash_dir / "image.bmp").write_bytes(b"fake")
-        result, _ = self._pick_from(tmp_path)
-        assert result is None
-
-    def test_picks_png(self, tmp_path):
-        splash_dir = tmp_path / "assets" / "splash"
-        splash_dir.mkdir(parents=True)
-        (splash_dir / "a.png").write_bytes(b"fake")
-        result, _ = self._pick_from(tmp_path)
-        assert result.name == "a.png"
-
-    def test_picks_gif(self, tmp_path):
-        splash_dir = tmp_path / "assets" / "splash"
-        splash_dir.mkdir(parents=True)
-        (splash_dir / "anim.gif").write_bytes(b"fake")
-        result, _ = self._pick_from(tmp_path)
-        assert result.name == "anim.gif"
-
-    def test_case_insensitive_extensions(self, tmp_path):
-        """Should match .PNG, .GIF (uppercase) via .lower() check."""
-        splash_dir = tmp_path / "assets" / "splash"
-        splash_dir.mkdir(parents=True)
-        (splash_dir / "a.PNG").write_bytes(b"fake")
-        result, _ = self._pick_from(tmp_path)
-        assert result is not None
-
-    def test_ignores_jpg_alongside_png(self, tmp_path):
-        splash_dir = tmp_path / "assets" / "splash"
-        splash_dir.mkdir(parents=True)
-        (splash_dir / "photo.jpg").write_bytes(b"fake")
-        (splash_dir / "valid.png").write_bytes(b"fake")
-        result, _ = self._pick_from(tmp_path)
-        assert result.name == "valid.png"
-
-    def test_picks_from_multiple(self, tmp_path):
-        splash_dir = tmp_path / "assets" / "splash"
-        splash_dir.mkdir(parents=True)
-        names = ["a.png", "b.png", "c.gif"]
-        for name in names:
-            (splash_dir / name).write_bytes(b"fake")
-        result, _ = self._pick_from(tmp_path)
-        assert result.name in names
-
-    def test_randomness_with_multiple(self, tmp_path):
-        splash_dir = tmp_path / "assets" / "splash"
-        splash_dir.mkdir(parents=True)
-        for i in range(5):
-            (splash_dir / f"img_{i}.png").write_bytes(b"fake")
-        picks = set()
-        for _ in range(50):
-            result, _ = self._pick_from(tmp_path)
-            picks.add(result.name)
-        assert len(picks) > 1
-
-    def test_adding_new_image_is_picked_up(self, tmp_path):
-        """Future-proofing: adding a new file should be automatically included."""
-        splash_dir = tmp_path / "assets" / "splash"
-        splash_dir.mkdir(parents=True)
-        (splash_dir / "old.png").write_bytes(b"fake")
-
-        # First call: only old.png
         with _set_frozen(tmp_path):
-            r1 = _pick_splash_image()
-            assert r1.name == "old.png"
+            result = _launch_splash()
+            assert result is None
 
-        # Add a new image
-        (splash_dir / "new.png").write_bytes(b"fake")
+    def test_returns_none_in_frozen_mode(self, tmp_path):
+        """Frozen mode skips subprocess splash (no separate Python available)."""
+        splash_dir = tmp_path / "assets" / "splash"
+        splash_dir.mkdir(parents=True)
+        (splash_dir / "test.png").write_bytes(b"fake")
+        with _set_frozen(tmp_path):
+            result = _launch_splash()
+            assert result is None
 
-        # Now both should be in the pool
-        names_seen = set()
-        for _ in range(50):
-            with _set_frozen(tmp_path):
-                names_seen.add(_pick_splash_image().name)
-        assert "new.png" in names_seen, "Newly added image was never picked"
+    def test_returns_popen_in_dev_mode(self):
+        """In dev mode with real assets, should return a Popen object."""
+        proc = _launch_splash()
+        try:
+            assert proc is not None
+            assert isinstance(proc, subprocess.Popen)
+            assert proc.pid > 0
+        finally:
+            if proc is not None:
+                proc.terminate()
+                proc.wait(timeout=5)
+
+    def test_uses_pythonw_exe(self):
+        """Should use pythonw.exe (no console) for the subprocess."""
+        with patch("src.main.subprocess.Popen") as mock_popen:
+            mock_popen.return_value = MagicMock(pid=12345)
+            _launch_splash()
+            if mock_popen.called:
+                args = mock_popen.call_args[0][0]
+                exe_name = Path(args[0]).name.lower()
+                assert exe_name == "pythonw.exe", f"Expected pythonw.exe, got {exe_name}"
+
+    def test_graceful_on_popen_failure(self):
+        """If subprocess.Popen raises, should return None."""
+        with patch("src.main.subprocess.Popen", side_effect=OSError("no pythonw")):
+            result = _launch_splash()
+            assert result is None
+
+    def test_subprocess_script_contains_topmost(self):
+        """The inline splash script should set -topmost for visibility."""
+        source = Path(PROJECT_ROOT / "src" / "main.py").read_text(encoding="utf-8")
+        # Find the splash_script string
+        assert '"-topmost", True' in source
+
+    def test_subprocess_script_contains_mainloop(self):
+        """The inline splash script should call mainloop to keep window open."""
+        source = Path(PROJECT_ROOT / "src" / "main.py").read_text(encoding="utf-8")
+        assert "root.mainloop()" in source
+
+    def test_subprocess_script_has_dpi_awareness(self):
+        """The inline splash script should set DPI awareness."""
+        source = Path(PROJECT_ROOT / "src" / "main.py").read_text(encoding="utf-8")
+        # DPI call appears twice: once for main process, once in splash script
+        count = source.count("SetProcessDpiAwareness")
+        assert count >= 2, f"Expected DPI awareness in both main and splash script, found {count}"
 
 
 # ============================================================================
-# E. _show_splash — graceful error handling
+# E. _kill_splash — graceful termination
 # ============================================================================
 
 
-class TestShowSplash:
-    """Verify _show_splash never crashes, always returns None on errors."""
+class TestKillSplash:
+    """Verify _kill_splash terminates subprocesses safely."""
 
-    def test_returns_none_when_no_images(self):
-        with patch("src.main._pick_splash_image", return_value=None):
-            assert _show_splash() is None
+    def test_none_is_safe(self):
+        """Passing None should not raise."""
+        _kill_splash(None)
 
-    def test_returns_none_on_tk_error(self):
-        """Headless server / no display: Tk() raises, should not crash."""
-        with patch("src.main._pick_splash_image", return_value=Path("fake.png")):
-            with patch("src.main.tk.Tk", side_effect=RuntimeError("no display")):
-                assert _show_splash() is None
+    def test_terminates_process(self):
+        """Should call terminate() on the process."""
+        mock_proc = MagicMock()
+        _kill_splash(mock_proc)
+        mock_proc.terminate.assert_called_once()
 
-    def test_returns_none_on_photo_image_error(self):
-        """Corrupt image file: PhotoImage raises, should not crash."""
-        with patch("src.main._pick_splash_image", return_value=Path("bad.png")):
-            with patch("src.main.tk.Tk"):
-                with patch("src.main.tk.PhotoImage", side_effect=RuntimeError("bad image")):
-                    assert _show_splash() is None
+    def test_waits_for_process(self):
+        """Should call wait() after terminate() for clean shutdown."""
+        mock_proc = MagicMock()
+        _kill_splash(mock_proc)
+        mock_proc.wait.assert_called_once_with(timeout=3)
 
-    def test_returns_none_on_geometry_error(self):
-        """winfo_screenwidth() failure should not crash."""
-        with patch("src.main._pick_splash_image", return_value=Path("x.png")):
-            with patch("src.main.tk.Tk") as mock_tk:
-                mock_root = mock_tk.return_value
-                mock_root.winfo_screenwidth.side_effect = RuntimeError("no screen")
-                with patch("src.main.tk.PhotoImage"):
-                    assert _show_splash() is None
+    def test_survives_terminate_error(self):
+        """If terminate() raises, should not crash."""
+        mock_proc = MagicMock()
+        mock_proc.terminate.side_effect = OSError("already dead")
+        _kill_splash(mock_proc)  # Should not raise
+
+    def test_survives_wait_timeout(self):
+        """If wait() times out, should not crash."""
+        mock_proc = MagicMock()
+        mock_proc.wait.side_effect = subprocess.TimeoutExpired("splash", 3)
+        _kill_splash(mock_proc)  # Should not raise
+
+    def test_real_subprocess_termination(self):
+        """Launch and kill a real splash subprocess end-to-end."""
+        proc = _launch_splash()
+        if proc is None:
+            return  # Can't test on systems without pythonw.exe
+        assert proc.poll() is None, "Process should still be running"
+        _kill_splash(proc)
+        # Process should be terminated
+        proc.wait(timeout=5)
+        assert proc.returncode is not None
 
 
 # ============================================================================
@@ -385,23 +382,22 @@ class TestDpiAwareness:
     """Verify DPI awareness is set in main.py source code."""
 
     def test_dpi_awareness_call_exists_in_source(self):
-        """main.py should call SetProcessDpiAwareness before creating Tk()."""
+        """main.py should call SetProcessDpiAwareness before creating windows."""
         source = Path(PROJECT_ROOT / "src" / "main.py").read_text(encoding="utf-8")
         assert "SetProcessDpiAwareness" in source
 
-    def test_dpi_awareness_before_show_splash(self):
-        """DPI awareness must be set BEFORE _show_splash() is called."""
+    def test_dpi_awareness_before_launch_splash(self):
+        """DPI awareness must be set BEFORE _launch_splash() is called."""
         source = Path(PROJECT_ROOT / "src" / "main.py").read_text(encoding="utf-8")
         dpi_pos = source.index("SetProcessDpiAwareness")
-        splash_pos = source.index("def _show_splash")
+        splash_pos = source.index("def _launch_splash")
         assert dpi_pos < splash_pos, (
-            "SetProcessDpiAwareness must appear before _show_splash definition"
+            "SetProcessDpiAwareness must appear before _launch_splash definition"
         )
 
     def test_dpi_awareness_wrapped_in_suppress(self):
         """DPI call must be wrapped in try/except so it doesn't crash on non-Windows."""
         source = Path(PROJECT_ROOT / "src" / "main.py").read_text(encoding="utf-8")
-        # Find the DPI awareness block
         assert "contextlib.suppress" in source or "except" in source
 
 
@@ -440,24 +436,40 @@ class TestSourceCodeSafety:
         source = self._get_source()
         assert "sys._MEIPASS" in source
 
-    def test_splash_destroy_has_exception_guard(self):
-        """Splash destroy in main() must be wrapped in exception suppression."""
+    def test_kill_splash_has_exception_guard(self):
+        """_kill_splash must wrap terminate/wait in exception suppression."""
         source = self._get_source()
-        # Find the destroy section
-        destroy_idx = source.index("_splash.destroy()")
-        # contextlib.suppress should be nearby (within 200 chars before)
-        nearby = source[max(0, destroy_idx - 200) : destroy_idx]
-        assert "suppress" in nearby, "_splash.destroy() should be wrapped in contextlib.suppress"
+        func_start = source.index("def _kill_splash")
+        # Find the next def or end of file
+        next_def = source.index("\ndef ", func_start + 1)
+        func_body = source[func_start:next_def]
+        assert "suppress" in func_body, (
+            "_kill_splash should wrap terminate/wait in contextlib.suppress"
+        )
 
-    def test_show_splash_catches_all_exceptions(self):
-        """_show_splash must have a bare except or Exception catch."""
+    def test_launch_splash_catches_popen_exceptions(self):
+        """_launch_splash must catch exceptions from subprocess.Popen."""
         source = self._get_source()
-        # Find the function body
-        func_start = source.index("def _show_splash")
-        func_end = source.index("\n_splash = _show_splash()")
-        func_body = source[func_start:func_end]
-        assert "except Exception" in func_body, (
-            "_show_splash must catch Exception to prevent startup crashes"
+        func_start = source.index("def _launch_splash")
+        next_def = source.index("\ndef ", func_start + 1)
+        func_body = source[func_start:next_def]
+        assert "except" in func_body, (
+            "_launch_splash must catch exceptions to prevent startup crashes"
+        )
+
+    def test_import_failure_kills_splash(self):
+        """If heavy imports fail, splash subprocess must be terminated."""
+        source = self._get_source()
+        assert "_kill_splash(_splash_proc)" in source
+
+    def test_no_tkinter_import_in_main_process(self):
+        """Main process should not import tkinter -- splash runs in subprocess."""
+        source = self._get_source()
+        # Check top-level imports (not the inline splash script string)
+        # Split at the splash_script string to only check main process code
+        main_code = source.split('splash_script = f"""')[0]
+        assert "import tkinter" not in main_code, (
+            "Main process should not import tkinter -- splash uses subprocess"
         )
 
 
@@ -484,7 +496,6 @@ class TestInstallerBundling:
     def test_spec_splash_dest_preserves_path(self):
         """Destination should maintain assets/splash/ structure."""
         spec = self._get_spec()
-        # Should have both source and dest referencing assets/splash
         lines = spec.split("\n")
         splash_lines = [l for l in lines if "splash" in l]
         assert any('os.path.join("assets", "splash")' in l for l in splash_lines), (
@@ -495,3 +506,68 @@ class TestInstallerBundling:
         """Adding splash must not break existing icon.ico bundling."""
         spec = self._get_spec()
         assert "icon.ico" in spec
+
+
+# ============================================================================
+# K. Subprocess splash script content
+# ============================================================================
+
+
+class TestSplashScriptContent:
+    """Verify the inline splash script passed to the subprocess is correct."""
+
+    def _get_splash_script_section(self):
+        """Extract the splash_script f-string content from main.py."""
+        source = Path(PROJECT_ROOT / "src" / "main.py").read_text(encoding="utf-8")
+        start = source.index('splash_script = f"""') + len('splash_script = f"""')
+        end = source.index('"""', start)
+        return source[start:end]
+
+    def test_script_imports_tkinter(self):
+        script = self._get_splash_script_section()
+        assert "import tkinter as tk" in script
+
+    def test_script_imports_random(self):
+        script = self._get_splash_script_section()
+        assert "import random" in script
+
+    def test_script_uses_overrideredirect(self):
+        """Splash should be borderless (no title bar)."""
+        script = self._get_splash_script_section()
+        assert "overrideredirect(True)" in script
+
+    def test_script_uses_topmost(self):
+        """Splash must appear above other windows."""
+        script = self._get_splash_script_section()
+        assert '"-topmost", True' in script
+
+    def test_script_centers_on_screen(self):
+        """Splash should center itself using screen dimensions."""
+        script = self._get_splash_script_section()
+        assert "winfo_screenwidth" in script
+        assert "winfo_screenheight" in script
+
+    def test_script_shows_loading_text(self):
+        """Splash should display Loading... status text."""
+        script = self._get_splash_script_section()
+        assert "Loading..." in script
+
+    def test_script_calls_mainloop(self):
+        """Subprocess splash must call mainloop to stay visible."""
+        script = self._get_splash_script_section()
+        assert "root.mainloop()" in script
+
+    def test_script_uses_random_choice(self):
+        """Should randomly pick from available images."""
+        script = self._get_splash_script_section()
+        assert "random.choice" in script
+
+    def test_script_has_dpi_awareness(self):
+        """Subprocess should also set DPI awareness for correct centering."""
+        script = self._get_splash_script_section()
+        assert "SetProcessDpiAwareness" in script
+
+    def test_script_prevents_gc_of_image(self):
+        """Must keep reference to PhotoImage to prevent garbage collection."""
+        script = self._get_splash_script_section()
+        assert "lbl.image = img" in script
