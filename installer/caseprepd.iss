@@ -79,17 +79,7 @@ begin
   Result := True;
   if not VCRuntimeInstalled then
   begin
-    MsgBox(
-      'Microsoft Visual C++ Runtime (vcruntime140.dll) was not found.' + #13#10 +
-      #13#10 +
-      '{#MyAppName} requires the Visual C++ Redistributable to run.' + #13#10 +
-      #13#10 +
-      'Please download and install it from:' + #13#10 +
-      'https://aka.ms/vs/17/release/vc_redist.x64.exe' + #13#10 +
-      #13#10 +
-      'Then run this installer again.',
-      mbError, MB_OK
-    );
+    MsgBox('Microsoft Visual C++ Runtime (vcruntime140.dll) was not found.' + #13#10 + #13#10 + '{#MyAppName} requires the Visual C++ Redistributable to run.' + #13#10 + #13#10 + 'Please download and install it from:' + #13#10 + 'https://aka.ms/vs/17/release/vc_redist.x64.exe' + #13#10 + #13#10 + 'Then run this installer again.', mbError, MB_OK);
     Result := False;
   end;
 end;
