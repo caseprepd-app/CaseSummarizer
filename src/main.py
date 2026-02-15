@@ -226,13 +226,14 @@ def main():
     ctk.set_appearance_mode("System")  # Options: "System", "Dark", "Light"
     ctk.set_default_color_theme("blue")  # Options: "blue", "green", "dark-blue"
 
-    # Destroy splash before creating the CTk root window
+    # Create the application (slow — splash stays visible during this)
+    app = MainWindow()
+
+    # Destroy splash now that the main window is ready
     if _splash is not None:
         with contextlib.suppress(Exception):
             _splash.destroy()
 
-    # Create and run the application
-    app = MainWindow()
     app.mainloop()
 
 
