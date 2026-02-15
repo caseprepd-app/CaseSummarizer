@@ -19,7 +19,13 @@ import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-from src.main import SPLASH_EXTENSIONS, _get_splash_dir, _kill_splash, _launch_splash
+from src.main import (
+    SPLASH_EXTENSIONS,
+    _get_splash_dir,
+    _kill_splash,
+    _launch_splash,
+    _splash_log,
+)
 
 PROJECT_ROOT = Path(__file__).parent.parent
 SPLASH_DIR = PROJECT_ROOT / "assets" / "splash"
@@ -169,14 +175,27 @@ class TestLaunchSplash:
             result = _launch_splash()
             assert result is None
 
-    def test_returns_none_in_frozen_mode(self, tmp_path):
-        """Frozen mode skips subprocess splash (no separate Python available)."""
+    def test_frozen_mode_spawns_self_with_splash_only(self, tmp_path):
+        """Frozen mode should spawn sys.executable with --splash-only flag."""
+        splash_dir = tmp_path / "assets" / "splash"
+        splash_dir.mkdir(parents=True)
+        (splash_dir / "test.png").write_bytes(b"fake")
+        with _set_frozen(tmp_path), patch("src.main.subprocess.Popen") as mock_popen:
+            mock_popen.return_value = MagicMock(pid=99999)
+            result = _launch_splash()
+            assert result is not None
+            args = mock_popen.call_args[0][0]
+            assert args == [sys.executable, "--splash-only"]
+
+    def test_frozen_mode_returns_none_on_popen_failure(self, tmp_path):
+        """If frozen Popen fails, should return None gracefully."""
         splash_dir = tmp_path / "assets" / "splash"
         splash_dir.mkdir(parents=True)
         (splash_dir / "test.png").write_bytes(b"fake")
         with _set_frozen(tmp_path):
-            result = _launch_splash()
-            assert result is None
+            with patch("src.main.subprocess.Popen", side_effect=OSError("spawn failed")):
+                result = _launch_splash()
+                assert result is None
 
     def test_returns_popen_in_dev_mode(self):
         """In dev mode with real assets, should return a Popen object."""
@@ -463,11 +482,20 @@ class TestSourceCodeSafety:
         assert "_kill_splash(_splash_proc)" in source
 
     def test_no_tkinter_import_in_main_process(self):
-        """Main process should not import tkinter -- splash runs in subprocess."""
+        """Main process should not import tkinter -- splash runs in subprocess.
+
+        The --splash-only early-exit handler imports tkinter at module level,
+        but that code path calls sys.exit(0) before any heavy imports run.
+        We exclude both the --splash-only block and the inline splash_script.
+        """
         source = self._get_source()
-        # Check top-level imports (not the inline splash script string)
-        # Split at the splash_script string to only check main process code
-        main_code = source.split('splash_script = f"""')[0]
+        # Remove the --splash-only early-exit block (imports tkinter but exits immediately)
+        splash_only_start = source.index('if "--splash-only" in sys.argv:')
+        splash_only_end = source.index("sys.exit(0)", splash_only_start) + len("sys.exit(0)")
+        main_code = source[:splash_only_start] + source[splash_only_end:]
+        # Also remove the inline splash script f-string (dev mode subprocess)
+        if 'splash_script = f"""' in main_code:
+            main_code = main_code.split('splash_script = f"""')[0]
         assert "import tkinter" not in main_code, (
             "Main process should not import tkinter -- splash uses subprocess"
         )
@@ -571,3 +599,168 @@ class TestSplashScriptContent:
         """Must keep reference to PhotoImage to prevent garbage collection."""
         script = self._get_splash_script_section()
         assert "lbl.image = img" in script
+
+    def test_script_has_auto_close_safety_net(self):
+        """Dev-mode splash script should auto-close after timeout."""
+        script = self._get_splash_script_section()
+        assert "root.after(" in script
+        assert "root.quit" in script
+
+
+# ============================================================================
+# L. --splash-only handler (frozen mode self-spawn)
+# ============================================================================
+
+
+class TestSplashOnlyHandler:
+    """Verify the --splash-only early-exit handler in main.py."""
+
+    def _get_source(self):
+        return Path(PROJECT_ROOT / "src" / "main.py").read_text(encoding="utf-8")
+
+    def _get_splash_only_block(self):
+        """Extract the --splash-only handler code block."""
+        source = self._get_source()
+        start = source.index('if "--splash-only" in sys.argv:')
+        end = source.index("sys.exit(0)", start) + len("sys.exit(0)")
+        return source[start:end]
+
+    def test_handler_exists(self):
+        """The --splash-only handler must exist in main.py."""
+        source = self._get_source()
+        assert '"--splash-only" in sys.argv' in source
+
+    def test_handler_before_heavy_imports(self):
+        """--splash-only must run before customtkinter/torch imports."""
+        source = self._get_source()
+        handler_pos = source.index('if "--splash-only" in sys.argv:')
+        ctk_pos = source.index("import customtkinter")
+        assert handler_pos < ctk_pos, "--splash-only handler must appear before heavy imports"
+
+    def test_handler_imports_tkinter(self):
+        """Handler must import tkinter for the splash window."""
+        block = self._get_splash_only_block()
+        assert "import tkinter as tk" in block
+
+    def test_handler_uses_overrideredirect(self):
+        """Splash window should be borderless."""
+        block = self._get_splash_only_block()
+        assert "overrideredirect(True)" in block
+
+    def test_handler_uses_topmost(self):
+        """Splash must appear above other windows."""
+        block = self._get_splash_only_block()
+        assert '"-topmost", True' in block
+
+    def test_handler_shows_loading_text(self):
+        block = self._get_splash_only_block()
+        assert "Loading..." in block
+
+    def test_handler_calls_mainloop(self):
+        block = self._get_splash_only_block()
+        assert "mainloop()" in block
+
+    def test_handler_exits_with_zero(self):
+        """Handler must call sys.exit(0) to prevent heavy imports."""
+        block = self._get_splash_only_block()
+        assert "sys.exit(0)" in block
+
+    def test_handler_has_auto_close_safety_net(self):
+        """Safety net: auto-close after timeout if parent dies."""
+        block = self._get_splash_only_block()
+        assert "_root.after(" in block
+        assert "_root.quit" in block
+
+    def test_handler_supports_frozen_and_dev_splash_dirs(self):
+        """Handler should check both sys._MEIPASS and Path(__file__) paths."""
+        block = self._get_splash_only_block()
+        assert "sys._MEIPASS" in block
+        assert "Path(__file__)" in block
+
+    def test_handler_uses_random_choice(self):
+        block = self._get_splash_only_block()
+        assert "random.choice" in block
+
+    def test_dpi_awareness_set_before_handler(self):
+        """DPI awareness must be set at module level before --splash-only handler."""
+        source = self._get_source()
+        dpi_pos = source.index("SetProcessDpiAwareness")
+        handler_pos = source.index('if "--splash-only" in sys.argv:')
+        assert dpi_pos < handler_pos, "DPI awareness must be set before --splash-only handler"
+
+
+# ============================================================================
+# M. _splash_log helper
+# ============================================================================
+
+
+class TestSplashLog:
+    """Verify _splash_log handles None stdout safely."""
+
+    def test_prints_when_stdout_available(self, capsys):
+        """Should print normally when stdout is not None."""
+        _splash_log("test message")
+        captured = capsys.readouterr()
+        assert "test message" in captured.out
+
+    def test_no_crash_when_stdout_is_none(self):
+        """In windowed/noconsole mode, sys.stdout is None. Must not crash."""
+        with patch("src.main.sys.stdout", None):
+            _splash_log("this should not crash")
+
+    def test_source_uses_splash_log_not_print(self):
+        """Splash functions should use _splash_log() instead of print()."""
+        source = Path(PROJECT_ROOT / "src" / "main.py").read_text(encoding="utf-8")
+        # Extract _launch_splash, _kill_splash, _get_splash_dir function bodies
+        for func_name in ("_launch_splash", "_kill_splash", "_get_splash_dir"):
+            func_start = source.index(f"def {func_name}")
+            next_def = source.index("\ndef ", func_start + 1)
+            func_body = source[func_start:next_def]
+            # Should not have bare print() calls (only _splash_log)
+            import re
+
+            bare_prints = re.findall(r"(?<![_a-zA-Z])print\(", func_body)
+            assert not bare_prints, f"{func_name} uses print() instead of _splash_log()"
+
+
+# ============================================================================
+# N. Auto-close safety net
+# ============================================================================
+
+
+class TestAutoCloseSafetyNet:
+    """Verify both splash modes have auto-close to prevent orphaned windows."""
+
+    def _get_source(self):
+        return Path(PROJECT_ROOT / "src" / "main.py").read_text(encoding="utf-8")
+
+    def test_dev_mode_splash_has_auto_close(self):
+        """The dev-mode inline splash script must have root.after(timeout, quit)."""
+        source = self._get_source()
+        start = source.index('splash_script = f"""')
+        end = source.index('"""', start + len('splash_script = f"""'))
+        script = source[start:end]
+        assert "root.after(" in script
+        assert "root.quit" in script
+
+    def test_frozen_mode_splash_has_auto_close(self):
+        """The --splash-only handler must have auto-close safety net."""
+        source = self._get_source()
+        start = source.index('if "--splash-only" in sys.argv:')
+        end = source.index("sys.exit(0)", start)
+        block = source[start:end]
+        assert "_root.after(" in block
+        assert "_root.quit" in block
+
+    def test_auto_close_timeout_is_reasonable(self):
+        """Auto-close timeout should be 30-120 seconds."""
+        source = self._get_source()
+        import re
+
+        # Find all root.after(N, ...) or _root.after(N, ...) calls
+        timeouts = re.findall(r"_?root\.after\((\d+),", source)
+        for timeout_str in timeouts:
+            timeout_ms = int(timeout_str)
+            assert 30000 <= timeout_ms <= 120000, (
+                f"Auto-close timeout {timeout_ms}ms not in 30-120s range"
+            )

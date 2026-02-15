@@ -44,6 +44,64 @@ with contextlib.suppress(Exception):
 
     ctypes.windll.shcore.SetProcessDpiAwareness(2)  # Per-monitor DPI aware
 
+# ============================================================
+# Splash-only mode: used in frozen builds where the main .exe
+# spawns itself with --splash-only to show a tkinter splash in
+# a separate process (avoiding the dual-Tk-root hang).
+# This block MUST run before any heavy imports.
+# ============================================================
+if "--splash-only" in sys.argv:
+    import random
+    import tkinter as tk
+
+    _splash_exts = {".png", ".gif"}
+
+    if getattr(sys, "frozen", False):
+        _splash_dir = Path(sys._MEIPASS) / "assets" / "splash"
+    else:
+        _splash_dir = Path(__file__).parent.parent / "assets" / "splash"
+
+    if _splash_dir.is_dir():
+        _images = [f for f in _splash_dir.iterdir() if f.suffix.lower() in _splash_exts]
+        if _images:
+            _img_path = random.choice(_images)
+            _root = tk.Tk()
+            _root.overrideredirect(True)
+            _root.attributes("-topmost", True)
+
+            _img = tk.PhotoImage(file=str(_img_path))
+            _sw = _root.winfo_screenwidth()
+            _sh = _root.winfo_screenheight()
+            _x = (_sw - _img.width()) // 2
+            _y = (_sh - _img.height()) // 2
+            _root.geometry(f"{_img.width()}x{_img.height() + 24}+{_x}+{_y}")
+
+            _lbl = tk.Label(_root, image=_img, borderwidth=0)
+            _lbl.image = _img
+            _lbl.pack()
+
+            _st = tk.Label(
+                _root,
+                text="Loading...",
+                bg="#1a1a2e",
+                fg="#ffffff",
+                font=("Segoe UI", 10),
+            )
+            _st.pack(fill="x")
+
+            # Safety net: auto-close after 60s if parent process crashes
+            _root.after(60000, _root.quit)
+
+            _root.mainloop()
+
+    sys.exit(0)
+
+
+def _splash_log(msg):
+    """Log splash messages safely (stdout is None in windowed/noconsole mode)."""
+    if sys.stdout is not None:
+        print(msg)
+
 
 def _get_splash_dir():
     """Return the path to the splash image directory.
@@ -57,7 +115,7 @@ def _get_splash_dir():
         splash_dir = Path(__file__).parent.parent / "assets" / "splash"
 
     if not splash_dir.is_dir():
-        print(f"[Splash] Directory not found: {splash_dir}")
+        _splash_log(f"[Splash] Directory not found: {splash_dir}")
         return None
     return splash_dir
 
@@ -79,19 +137,29 @@ def _launch_splash():
 
     images = [f for f in splash_dir.iterdir() if f.suffix.lower() in SPLASH_EXTENSIONS]
     if not images:
-        print(f"[Splash] No images found in {splash_dir}")
+        _splash_log(f"[Splash] No images found in {splash_dir}")
         return None
 
-    # Use pythonw.exe (no console window) for the splash subprocess
     if getattr(sys, "frozen", False):
-        # In frozen mode, no separate Python available — skip subprocess splash
-        print("[Splash] Frozen mode -- subprocess splash not available")
-        return None
+        # Frozen mode: spawn ourselves with --splash-only flag.
+        # The subprocess only imports tkinter (fast) and shows the splash.
+        try:
+            proc = subprocess.Popen(
+                [sys.executable, "--splash-only"],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+            _splash_log(f"[Splash] Launched frozen splash subprocess (PID: {proc.pid})")
+            return proc
+        except Exception as e:
+            _splash_log(f"[Splash] Failed to launch frozen splash: {e}")
+            return None
 
+    # Dev mode: use pythonw.exe (no console window) with inline script
     pythonw = Path(sys.executable).with_name("pythonw.exe")
     if not pythonw.exists():
         pythonw = Path(sys.executable)  # Fallback (will show console)
-        print("[Splash] pythonw.exe not found, falling back to python.exe")
+        _splash_log("[Splash] pythonw.exe not found, falling back to python.exe")
 
     # Inline script for the splash subprocess
     splash_script = f"""
@@ -129,6 +197,7 @@ lbl.pack()
 st = tk.Label(root, text="Loading...", bg="#1a1a2e", fg="#ffffff", font=("Segoe UI", 10))
 st.pack(fill="x")
 
+root.after(60000, root.quit)
 root.mainloop()
 """
 
@@ -138,10 +207,10 @@ root.mainloop()
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
         )
-        print(f"[Splash] Launched subprocess (PID: {proc.pid})")
+        _splash_log(f"[Splash] Launched subprocess (PID: {proc.pid})")
         return proc
     except Exception as e:
-        print(f"[Splash] Failed to launch subprocess: {e}")
+        _splash_log(f"[Splash] Failed to launch subprocess: {e}")
         return None
 
 
@@ -152,7 +221,7 @@ def _kill_splash(proc):
         proc: subprocess.Popen or None
     """
     if proc is not None:
-        print("[Splash] Terminating splash subprocess")
+        _splash_log("[Splash] Terminating splash subprocess")
         with contextlib.suppress(Exception):
             proc.terminate()
             proc.wait(timeout=3)
