@@ -461,9 +461,13 @@ class QuestionEditDialog(ctk.CTkToplevel):
         self.result = None
         self._question = question or {}
 
+        from src.ui.scaling import scale_value
+
+        _w, _h = scale_value(500), scale_value(300)
+
         # Window configuration
         self.title(title)
-        self.geometry("500x300")
+        self.geometry(f"{_w}x{_h}")
         self.resizable(False, False)
 
         # Make modal
@@ -472,8 +476,8 @@ class QuestionEditDialog(ctk.CTkToplevel):
 
         # Center on parent
         self.update_idletasks()
-        x = parent.winfo_x() + (parent.winfo_width() - 500) // 2
-        y = parent.winfo_y() + (parent.winfo_height() - 300) // 2
+        x = parent.winfo_x() + (parent.winfo_width() - _w) // 2
+        y = parent.winfo_y() + (parent.winfo_height() - _h) // 2
         self.geometry(f"+{x}+{y}")
 
         self._create_ui()

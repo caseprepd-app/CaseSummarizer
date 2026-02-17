@@ -202,25 +202,48 @@ def _register_all_settings():
     # APPEARANCE TAB
     # ===================================================================
 
-    from src.ui.theme import FONT_SIZE_OPTIONS
+    SettingsRegistry.register(
+        SettingDefinition(
+            key="font_size_offset",
+            label="Font Size Adjustment",
+            category="Appearance",
+            setting_type=SettingType.SPINBOX,
+            tooltip=(
+                "Adjust the font size used throughout the application.\n\n"
+                "Enter a point offset (positive = larger, negative = smaller).\n"
+                "Examples: +4 for high-DPI screens, -2 for compact layout.\n\n"
+                "Requires restart to take effect."
+            ),
+            default=0,
+            min_value=-4,
+            max_value=10,
+            getter=lambda: prefs.get("font_size_offset", 0),
+            setter=lambda v: prefs.set("font_size_offset", v),
+        )
+    )
 
     SettingsRegistry.register(
         SettingDefinition(
-            key="font_size",
-            label="Font Size",
+            key="ui_scale_pct",
+            label="UI Scale (%)",
             category="Appearance",
-            setting_type=SettingType.DROPDOWN,
+            setting_type=SettingType.SLIDER,
             tooltip=(
-                "Adjust the font size used throughout the application.\n\n"
-                "• Small: Smaller text, fits more on screen\n"
-                "• Medium: Default size\n"
-                "• Large: Bigger text, easier to read\n\n"
-                "Requires restart to take full effect."
+                "Scale all widget dimensions (buttons, tables, dialogs).\n\n"
+                "Does NOT affect font sizes (use Font Size Adjustment for that).\n"
+                "Useful for 4K monitors where widgets appear cramped.\n\n"
+                "• 75%: Compact layout\n"
+                "• 100%: Default\n"
+                "• 125-150%: Recommended for 4K monitors\n"
+                "• 200%: Maximum\n\n"
+                "Requires restart to take effect."
             ),
-            default="medium",
-            options=FONT_SIZE_OPTIONS,
-            getter=lambda: prefs.get("font_size", "medium"),
-            setter=lambda v: prefs.set("font_size", v),
+            default=100,
+            min_value=75,
+            max_value=200,
+            step=25,
+            getter=lambda: prefs.get("ui_scale_pct", 100),
+            setter=lambda v: prefs.set("ui_scale_pct", int(v)),
         )
     )
 
@@ -1514,19 +1537,22 @@ def _register_all_settings():
 
         import customtkinter as ctk
 
+        from src.ui.scaling import scale_value
         from src.ui.theme import COLORS, FONTS
+
+        _w, _h = scale_value(550), scale_value(580)
 
         # Create modal dialog - larger to fit new content
         dialog = ctk.CTkToplevel()
         dialog.title("Understanding Local LLM Models")
-        dialog.geometry("550x580")
+        dialog.geometry(f"{_w}x{_h}")
         dialog.resizable(False, False)
         dialog.grab_set()  # Modal behavior
 
         # Center on screen
         dialog.update_idletasks()
-        x = (dialog.winfo_screenwidth() - 550) // 2
-        y = (dialog.winfo_screenheight() - 580) // 2
+        x = (dialog.winfo_screenwidth() - _w) // 2
+        y = (dialog.winfo_screenheight() - _h) // 2
         dialog.geometry(f"+{x}+{y}")
 
         # Scrollable content frame

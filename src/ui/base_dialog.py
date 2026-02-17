@@ -81,13 +81,19 @@ class BaseModalDialog(ctk.CTkToplevel):
         super().__init__(parent)
         self.parent = parent
 
+        # Scale dimensions for high-DPI displays
+        from src.ui.scaling import scale_value
+
+        width = scale_value(width)
+        height = scale_value(height)
+
         # Window configuration
         self.title(title)
         self.geometry(f"{width}x{height}")
         self.resizable(resizable, resizable)
 
         if min_width and min_height:
-            self.minsize(min_width, min_height)
+            self.minsize(scale_value(min_width), scale_value(min_height))
 
         # Make modal
         if parent:

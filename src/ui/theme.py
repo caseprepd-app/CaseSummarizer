@@ -57,17 +57,17 @@ FONT_SIZE_OFFSETS = {"small": -2, "medium": 0, "large": 2}
 _BASE_FONTS = {key: val for key, val in FONTS.items()}
 
 
-def scale_fonts(size_key: str) -> None:
+def scale_fonts(offset: int = 0) -> None:
     """
     Rebuild FONTS dict in-place with scaled sizes.
 
     Args:
-        size_key: One of 'small', 'medium', 'large'
+        offset: Integer point offset to apply (e.g. -2, 0, +4).
+                Negative shrinks, positive enlarges. Floor of 8pt enforced.
     """
-    offset = FONT_SIZE_OFFSETS.get(size_key, 0)
     for key, base in _BASE_FONTS.items():
         family = base[0]
-        size = base[1] + offset
+        size = max(8, base[1] + offset)
         if len(base) == 3:
             FONTS[key] = (family, size, base[2])
         else:

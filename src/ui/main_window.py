@@ -85,11 +85,13 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         from src.config import APP_NAME, DEBUG_MODE
 
         self.title(f"{APP_NAME} [DEBUG]" if DEBUG_MODE else APP_NAME)
-        self.geometry("1200x750")
+        from src.ui.scaling import scale_value
+
+        self.geometry(f"{scale_value(1200)}x{scale_value(750)}")
         icon_path = Path(__file__).parent.parent.parent / "assets" / "icon.ico"
         if icon_path.exists():
             self.iconbitmap(str(icon_path))
-        self.minsize(900, 600)
+        self.minsize(scale_value(900), scale_value(600))
 
         # State
         self.selected_files: list[str] = []
@@ -131,15 +133,11 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         self._qa_results_lock = threading.Lock()  # LOG-007: Thread-safe access
         self._qa_ready = False  # Session 45: Q&A becomes available after indexing
 
-        # Apply saved font size preference before building UI
-        from src.ui.theme import scale_fonts
-        from src.user_preferences import get_user_preferences
+        # Initialize ttk styles with UI scale factor.
+        # Must happen AFTER super().__init__() creates the Tk root (ttk.Style needs it).
+        from src.ui.scaling import get_effective_ui_scale
 
-        _prefs = get_user_preferences()
-        scale_fonts(_prefs.get("font_size", "medium"))
-
-        # Initialize all ttk styles once at startup (prevents freeze on first view switch)
-        initialize_all_styles()
+        initialize_all_styles(get_effective_ui_scale())
 
         # Build UI
         self._create_header()

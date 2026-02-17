@@ -695,6 +695,13 @@ class UserPreferencesManager:
             # Block path traversal attempts
             if ".." in value or "/" in value or "\\" in value:
                 raise ValueError(f"active_corpus contains invalid characters: {value}")
+        # Display scaling validation
+        elif key == "font_size_offset":
+            if not isinstance(value, int) or value < -4 or value > 10:
+                raise ValueError(f"font_size_offset must be int -4 to 10, got {value}")
+        elif key == "ui_scale_pct":
+            if not isinstance(value, int) or value < 75 or value > 200:
+                raise ValueError(f"ui_scale_pct must be int 75 to 200, got {value}")
         # Vocabulary indicator pattern validation
         elif key in ("vocab_positive_indicators", "vocab_negative_indicators"):
             if not isinstance(value, list):

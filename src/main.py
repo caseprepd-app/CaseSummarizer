@@ -350,6 +350,11 @@ def main():
     ctk.set_appearance_mode("System")  # Options: "System", "Dark", "Light"
     ctk.set_default_color_theme("blue")  # Options: "blue", "green", "dark-blue"
 
+    # Apply display scaling (font offset + UI scale) before creating any widgets
+    from src.ui.scaling import apply_scaling
+
+    apply_scaling()
+
     app = MainWindow()
 
     # Kill splash now that the main window is ready

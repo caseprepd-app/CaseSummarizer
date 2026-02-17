@@ -1044,6 +1044,44 @@ NUMERIC_COLUMNS = frozenset(c.name for c in COLUMN_DEFINITIONS if c.is_numeric)
 DISPLAY_TO_DATA_KEY = {c.name: c.data_key for c in COLUMN_DEFINITIONS if c.name != c.data_key}
 
 
+def scale_column_widths(factor: float) -> None:
+    """
+    Rebuild COLUMN_DEFINITIONS with scaled widths for UI scaling.
+
+    ColumnDefinition is frozen, so we must rebuild the list.
+    Also rebuilds all derived constants (COLUMN_NAMES, etc.).
+
+    Args:
+        factor: Scale multiplier (e.g. 1.25 for 125%)
+    """
+    global COLUMN_DEFINITIONS, COLUMN_NAMES, PROTECTED_COLUMNS
+    global SORT_WARNING_COLUMNS, NUMERIC_COLUMNS, DISPLAY_TO_DATA_KEY
+
+    if factor == 1.0:
+        return
+
+    COLUMN_DEFINITIONS = [
+        ColumnDefinition(
+            c.name,
+            c.data_key,
+            int(c.width * factor),
+            c.max_chars,
+            c.default_visible,
+            c.can_hide,
+            c.triggers_sort_warning,
+            c.is_numeric,
+        )
+        for c in COLUMN_DEFINITIONS
+    ]
+
+    # Rebuild derived constants
+    COLUMN_NAMES = tuple(c.name for c in COLUMN_DEFINITIONS)
+    PROTECTED_COLUMNS = frozenset(c.name for c in COLUMN_DEFINITIONS if not c.can_hide)
+    SORT_WARNING_COLUMNS = frozenset(c.name for c in COLUMN_DEFINITIONS if c.triggers_sort_warning)
+    NUMERIC_COLUMNS = frozenset(c.name for c in COLUMN_DEFINITIONS if c.is_numeric)
+    DISPLAY_TO_DATA_KEY = {c.name: c.data_key for c in COLUMN_DEFINITIONS if c.name != c.data_key}
+
+
 def get_column_by_name(name: str) -> ColumnDefinition | None:
     """
     Get column definition by display name.

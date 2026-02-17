@@ -54,7 +54,9 @@ class WindowLayoutMixin:
 
     def _create_header(self):
         """Create header row with corpus dropdown and settings button."""
-        self.header_frame = ctk.CTkFrame(self, height=50, corner_radius=0)
+        from src.ui.scaling import scale_value
+
+        self.header_frame = ctk.CTkFrame(self, height=scale_value(50), corner_radius=0)
         self.header_frame.pack(fill="x", padx=0, pady=0)
         self.header_frame.pack_propagate(False)
 
@@ -82,8 +84,8 @@ class WindowLayoutMixin:
         self.model_configure_btn = ctk.CTkButton(
             self.model_display_frame,
             text="Configure",
-            width=75,
-            height=28,
+            width=scale_value(75),
+            height=scale_value(28),
             font=FONTS["small"],
             fg_color=("gray70", "gray30"),
             command=self._open_model_settings,
@@ -94,7 +96,7 @@ class WindowLayoutMixin:
         self.settings_btn = ctk.CTkButton(
             self.header_frame,
             text="Settings",
-            width=100,
+            width=scale_value(100),
             corner_radius=6,
             command=self._open_settings,
         )
@@ -108,7 +110,10 @@ class WindowLayoutMixin:
         corpus_label.pack(side="left", padx=(0, 5))
 
         self.corpus_dropdown = ctk.CTkComboBox(
-            self.corpus_frame, values=["Loading..."], width=150, command=self._on_corpus_changed
+            self.corpus_frame,
+            values=["Loading..."],
+            width=scale_value(150),
+            command=self._on_corpus_changed,
         )
         self.corpus_dropdown.pack(side="left")
 
@@ -122,7 +127,7 @@ class WindowLayoutMixin:
         self.manage_corpus_btn = ctk.CTkButton(
             self.corpus_frame,
             text="Manage",
-            width=70,
+            width=scale_value(70),
             fg_color=("gray70", "gray30"),
             command=self._open_corpus_dialog,
         )
@@ -154,6 +159,7 @@ class WindowLayoutMixin:
 
     def _create_left_panel(self):
         """Create the left panel with session documents and task options."""
+        from src.ui.scaling import scale_value
         from src.ui.widgets import FileReviewTable
 
         self.left_panel = ctk.CTkFrame(self.main_frame, border_width=0)
@@ -177,7 +183,7 @@ class WindowLayoutMixin:
         self.add_files_btn = ctk.CTkButton(
             file_btn_frame,
             text="+ Add Files",
-            width=100,
+            width=scale_value(100),
             corner_radius=6,
             command=self._select_files,
         )
@@ -186,7 +192,7 @@ class WindowLayoutMixin:
         self.clear_files_btn = ctk.CTkButton(
             file_btn_frame,
             text="Clear All",
-            width=80,
+            width=scale_value(80),
             corner_radius=6,
             fg_color=("gray70", "gray30"),
             command=self._clear_files,
@@ -251,7 +257,7 @@ class WindowLayoutMixin:
             self.left_panel,
             text="Perform 2 Tasks",
             font=FONTS["heading"],
-            height=40,
+            height=scale_value(40),
             corner_radius=6,
             command=self._perform_tasks,
         )
@@ -271,6 +277,7 @@ class WindowLayoutMixin:
     def _create_right_panel(self):
         """Create the right panel with results display."""
         from src.ui.dynamic_output import DynamicOutputWidget
+        from src.ui.scaling import scale_value
 
         self.right_panel = ctk.CTkFrame(self.main_frame)
         self.right_panel.grid(row=0, column=1, sticky="nsew", padx=(5, 0), pady=0)
@@ -310,7 +317,7 @@ class WindowLayoutMixin:
         self.followup_entry = ctk.CTkEntry(
             self.followup_frame,
             placeholder_text="Q&A not ready - run tasks first",
-            height=35,
+            height=scale_value(35),
             # state="disabled",  # TEST: Starting enabled to diagnose typing issue
         )
         self.followup_entry.grid(row=1, column=0, sticky="ew", padx=(0, 5))
@@ -319,7 +326,7 @@ class WindowLayoutMixin:
         self.followup_btn = ctk.CTkButton(
             self.followup_frame,
             text="Ask",
-            width=60,
+            width=scale_value(60),
             corner_radius=6,
             command=self._ask_followup,
             state="disabled",  # Enabled after Q&A vector store is built
@@ -328,6 +335,8 @@ class WindowLayoutMixin:
 
     def _create_status_bar(self):
         """Create status bar at bottom of window with accent border."""
+        from src.ui.scaling import scale_value as _sv
+
         # Top border accent (thin blue line separating status bar from content)
         self.status_border = ctk.CTkFrame(
             self, height=2, corner_radius=0, fg_color=COLORS["btn_primary"]
@@ -335,7 +344,7 @@ class WindowLayoutMixin:
         self.status_border.pack(fill="x", side="bottom")
 
         self.status_frame = ctk.CTkFrame(
-            self, height=30, corner_radius=0, fg_color=COLORS["status_bar_bg"]
+            self, height=_sv(30), corner_radius=0, fg_color=COLORS["status_bar_bg"]
         )
         self.status_frame.pack(fill="x", side="bottom")
         self.status_frame.pack_propagate(False)
@@ -401,8 +410,8 @@ class WindowLayoutMixin:
             self.status_frame,
             text="Export All",
             command=self._export_all,
-            width=90,
-            height=24,
+            width=_sv(90),
+            height=_sv(24),
             font=FONTS["small"],
             **BUTTON_STYLES["secondary"],
         )

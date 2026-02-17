@@ -16,9 +16,13 @@ logger = logging.getLogger(__name__)
 _styles_initialized = False
 
 
-def initialize_all_styles() -> None:
+def initialize_all_styles(scale_factor: float = 1.0) -> None:
     """
     Initialize all Treeview styles at app startup.
+
+    Args:
+        scale_factor: UI scale multiplier (1.0 = 100%). Scales rowheight
+                      and font sizes for ttk widgets (not affected by CTk scaling).
 
     Must be called once before any Treeview widgets are created.
     Calling multiple times is safe (no-op after first call).
@@ -27,31 +31,32 @@ def initialize_all_styles() -> None:
     if _styles_initialized:
         return
 
-    logger.debug("Initializing all Treeview styles")
+    logger.debug("Initializing all Treeview styles (scale=%.2f)", scale_factor)
 
     style = ttk.Style()
     # This is the expensive call - do it exactly once at startup
     style.theme_use("default")
 
-    _configure_vocab_treeview_style(style)
-    _configure_qa_table_style(style)
-    _configure_file_review_style(style)
-    _configure_question_list_style(style)
+    _configure_vocab_treeview_style(style, scale_factor)
+    _configure_qa_table_style(style, scale_factor)
+    _configure_file_review_style(style, scale_factor)
+    _configure_question_list_style(style, scale_factor)
 
     _styles_initialized = True
     logger.debug("All Treeview styles initialized")
 
 
-def _configure_vocab_treeview_style(style: ttk.Style) -> None:
+def _configure_vocab_treeview_style(style: ttk.Style, sf: float) -> None:
     """Configure style for vocabulary/NER grid (DynamicOutputWidget)."""
+    font_size = int(10 * sf)
     style.configure(
         "Vocab.Treeview",
         background="#2b2b2b",
         foreground="white",
         fieldbackground="#2b2b2b",
         borderwidth=0,
-        rowheight=25,
-        font=("Segoe UI", 10),
+        rowheight=int(25 * sf),
+        font=("Segoe UI", font_size),
     )
     style.map("Vocab.Treeview", background=[("selected", "#3470b6")])
 
@@ -60,8 +65,8 @@ def _configure_vocab_treeview_style(style: ttk.Style) -> None:
         background="#404040",
         foreground="white",
         relief="flat",
-        font=("Segoe UI", 10, "bold"),
-        padding=(8, 4),
+        font=("Segoe UI", font_size, "bold"),
+        padding=(int(8 * sf), int(4 * sf)),
     )
     style.map("Vocab.Treeview.Heading", background=[("active", "#505050")])
 
@@ -81,16 +86,17 @@ def _configure_vocab_treeview_style(style: ttk.Style) -> None:
     )
 
 
-def _configure_qa_table_style(style: ttk.Style) -> None:
+def _configure_qa_table_style(style: ttk.Style, sf: float) -> None:
     """Configure style for Q&A results table (QAPanel)."""
+    font_size = int(10 * sf)
     style.configure(
         "QATable.Treeview",
         background="#2b2b2b",
         foreground="white",
         fieldbackground="#2b2b2b",
         borderwidth=0,
-        rowheight=28,
-        font=("Segoe UI", 10),
+        rowheight=int(28 * sf),
+        font=("Segoe UI", font_size),
     )
     style.map("QATable.Treeview", background=[("selected", "#3470b6")])
 
@@ -99,8 +105,8 @@ def _configure_qa_table_style(style: ttk.Style) -> None:
         background="#404040",
         foreground="white",
         relief="flat",
-        font=("Segoe UI", 10, "bold"),
-        padding=(8, 4),
+        font=("Segoe UI", font_size, "bold"),
+        padding=(int(8 * sf), int(4 * sf)),
     )
     style.map("QATable.Treeview.Heading", background=[("active", "#505050")])
 
@@ -120,7 +126,7 @@ def _configure_qa_table_style(style: ttk.Style) -> None:
     )
 
 
-def _configure_file_review_style(style: ttk.Style) -> None:
+def _configure_file_review_style(style: ttk.Style, sf: float) -> None:
     """Configure style for file review table (FileReviewTable/widgets.py)."""
     style.configure(
         "Treeview",
@@ -135,16 +141,17 @@ def _configure_file_review_style(style: ttk.Style) -> None:
     style.map("Treeview.Heading", background=[("active", "#6c757d")])
 
 
-def _configure_question_list_style(style: ttk.Style) -> None:
+def _configure_question_list_style(style: ttk.Style, sf: float) -> None:
     """Configure style for question editor list (QAQuestionEditor)."""
+    font_size = int(10 * sf)
     style.configure(
         "QuestionList.Treeview",
         background="#2b2b2b",
         foreground="white",
         fieldbackground="#2b2b2b",
         borderwidth=0,
-        rowheight=28,
-        font=("Segoe UI", 10),
+        rowheight=int(28 * sf),
+        font=("Segoe UI", font_size),
     )
     style.map("QuestionList.Treeview", background=[("selected", "#3470b6")])
 
@@ -153,6 +160,6 @@ def _configure_question_list_style(style: ttk.Style) -> None:
         background="#404040",
         foreground="white",
         relief="flat",
-        font=("Segoe UI", 10, "bold"),
+        font=("Segoe UI", font_size, "bold"),
     )
     style.map("QuestionList.Treeview.Heading", background=[("active", "#505050")])

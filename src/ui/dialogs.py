@@ -20,8 +20,10 @@ class ModelLoadProgressDialog(ctk.CTkToplevel):
         self.start_time = time.time()
         self._finished = False
 
+        from src.ui.scaling import scale_value
+
         self.title("Loading Model")
-        self.geometry("400x200")
+        self.geometry(f"{scale_value(400)}x{scale_value(200)}")
         self.grab_set()  # Make modal
 
         self.grid_columnconfigure(0, weight=1)
@@ -72,8 +74,10 @@ class SimpleProgressDialog(ctk.CTkToplevel):
 
     def __init__(self, title, parent=None):
         super().__init__(parent)
+        from src.ui.scaling import scale_value
+
         self.title(title)
-        self.geometry("400x150")
+        self.geometry(f"{scale_value(400)}x{scale_value(150)}")
         self.grab_set()
 
         self.grid_columnconfigure(0, weight=1)
