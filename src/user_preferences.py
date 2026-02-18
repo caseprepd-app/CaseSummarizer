@@ -749,3 +749,14 @@ def get_user_preferences(preferences_file: Path | None = None) -> UserPreference
         _user_prefs = UserPreferencesManager(preferences_file)
 
     return _user_prefs
+
+
+def reset_singleton() -> None:
+    """
+    Clear the cached UserPreferencesManager instance.
+
+    Next call to get_user_preferences() will create a fresh instance.
+    Intended for test isolation -- not for production use.
+    """
+    global _user_prefs
+    _user_prefs = None

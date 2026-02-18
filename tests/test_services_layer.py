@@ -234,24 +234,13 @@ class TestAIServiceSingleton:
     """AIService is a singleton."""
 
     def test_singleton_returns_same_instance(self):
-        import src.services.ai_service as mod
-
-        mod._ai_service_instance = None  # Reset singleton
-
         from src.services.ai_service import AIService
 
         s1 = AIService()
         s2 = AIService()
         assert s1 is s2
 
-        # Clean up
-        mod._ai_service_instance = None
-
     def test_initialized_flag_prevents_re_init(self):
-        import src.services.ai_service as mod
-
-        mod._ai_service_instance = None
-
         from src.services.ai_service import AIService
 
         svc = AIService()
@@ -261,17 +250,11 @@ class TestAIServiceSingleton:
         svc2 = AIService()
         assert svc2._ollama_manager == "sentinel"  # Not reset
 
-        mod._ai_service_instance = None
-
 
 class TestAIServiceOllama:
     """AIService Ollama integration."""
 
     def test_get_ollama_manager_lazy_loads(self):
-        import src.services.ai_service as mod
-
-        mod._ai_service_instance = None
-
         from src.services.ai_service import AIService
 
         svc = AIService()
@@ -283,13 +266,7 @@ class TestAIServiceOllama:
             assert mgr is not None
             mock_cls.assert_called_once()
 
-        mod._ai_service_instance = None
-
     def test_check_ollama_connection(self):
-        import src.services.ai_service as mod
-
-        mod._ai_service_instance = None
-
         from src.services.ai_service import AIService
 
         svc = AIService()
@@ -299,13 +276,7 @@ class TestAIServiceOllama:
 
         assert svc.check_ollama_connection() is True
 
-        mod._ai_service_instance = None
-
     def test_get_available_models(self):
-        import src.services.ai_service as mod
-
-        mod._ai_service_instance = None
-
         from src.services.ai_service import AIService
 
         svc = AIService()
@@ -317,50 +288,30 @@ class TestAIServiceOllama:
         assert len(models) == 1
         assert models[0]["name"] == "gemma3:1b"
 
-        mod._ai_service_instance = None
-
 
 class TestAIServiceGPU:
     """AIService GPU detection pass-through."""
 
     def test_has_dedicated_gpu_delegates(self):
-        import src.services.ai_service as mod
-
-        mod._ai_service_instance = None
-
         from src.services.ai_service import AIService
 
         svc = AIService()
         with patch("src.core.utils.gpu_detector.has_dedicated_gpu", return_value=False):
             assert svc.has_dedicated_gpu() is False
 
-        mod._ai_service_instance = None
-
     def test_get_gpu_status_text_returns_string(self):
-        import src.services.ai_service as mod
-
-        mod._ai_service_instance = None
-
         from src.services.ai_service import AIService
 
         svc = AIService()
         with patch("src.core.utils.gpu_detector.get_gpu_status_text", return_value="No GPU"):
             assert svc.get_gpu_status_text() == "No GPU"
 
-        mod._ai_service_instance = None
-
     def test_get_optimal_context_size_returns_int(self):
-        import src.services.ai_service as mod
-
-        mod._ai_service_instance = None
-
         from src.services.ai_service import AIService
 
         svc = AIService()
         with patch("src.core.utils.gpu_detector.get_optimal_context_size", return_value=4096):
             assert svc.get_optimal_context_size() == 4096
-
-        mod._ai_service_instance = None
 
 
 # ---------------------------------------------------------------------------

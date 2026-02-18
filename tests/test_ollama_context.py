@@ -123,10 +123,11 @@ class TestOllamaPayload:
 class TestTruncationWarning:
     """Test that truncation warnings are issued appropriately."""
 
+    @patch("src.core.ai.ollama_model_manager._get_context_window", return_value=2048)
     @patch("src.core.ai.ollama_model_manager.logger")
     @patch("ollama.generate")
     @patch("src.core.ai.ollama_model_manager.requests.get")
-    def test_warning_on_large_prompt(self, mock_get, mock_generate, mock_logger):
+    def test_warning_on_large_prompt(self, mock_get, mock_generate, mock_logger, _mock_ctx):
         """Verify warning is issued when prompt approaches context limit."""
         # Mock connection check
         mock_get_response = MagicMock()
@@ -143,11 +144,9 @@ class TestTruncationWarning:
         manager.model_name = "test-model:latest"
         manager.is_connected = True
 
-        # Create a prompt that's close to context limit
-        # Session 64: Context is now dynamic (4000 minimum for no GPU)
-        # 4000 context - 300 output room = 3700 tokens
-        # 3700 tokens * 4 chars = ~14800 chars to trigger warning
-        large_prompt = "word " * 3500  # ~17500 chars
+        # With context window fixed at 2048, threshold is 2048 - 300 = 1748 tokens.
+        # "word " * 3500 ≈ 3500 tokens, well above the threshold.
+        large_prompt = "word " * 3500
 
         manager.generate_text(large_prompt, max_tokens=100)
 

@@ -131,6 +131,17 @@ class AIService:
 
         return PromptTemplateManager(PROMPTS_DIR, USER_PROMPTS_DIR)
 
+    @classmethod
+    def reset_singleton(cls) -> None:
+        """
+        Clear the cached AIService instance.
+
+        Next call to AIService() will create a fresh instance.
+        Intended for test isolation -- not for production use.
+        """
+        global _ai_service_instance
+        _ai_service_instance = None
+
     def check_ollama_connection(self) -> bool:
         """
         Check if Ollama is running and accessible.

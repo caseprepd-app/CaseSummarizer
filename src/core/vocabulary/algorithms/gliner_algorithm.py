@@ -39,6 +39,10 @@ _OVERLAP_WORDS = 50
 # Timeout for waiting on background model warm-up (seconds)
 _WARMUP_TIMEOUT_SEC = 120
 
+# Serialize all GLiNER model loads. The underlying sentencepiece C library
+# is not thread-safe and will segfault if two loads run concurrently.
+_load_lock = threading.Lock()
+
 # Label-to-type mapping keywords
 _TYPE_MAPPING = {
     "Person": ["person"],
@@ -190,12 +194,13 @@ class GLiNERAlgorithm(BaseExtractionAlgorithm):
 
         from src.config import GLINER_MODEL_LOCAL_PATH, GLINER_MODEL_NAME
 
-        if GLINER_MODEL_LOCAL_PATH.exists():
-            self._model = GLiNER.from_pretrained(str(GLINER_MODEL_LOCAL_PATH))
-            logger.debug("Loaded GLiNER model from bundled path: %s", GLINER_MODEL_LOCAL_PATH)
-        else:
-            self._model = GLiNER.from_pretrained(GLINER_MODEL_NAME)
-            logger.debug("Loaded GLiNER model from HuggingFace (bundled not found)")
+        with _load_lock:
+            if GLINER_MODEL_LOCAL_PATH.exists():
+                self._model = GLiNER.from_pretrained(str(GLINER_MODEL_LOCAL_PATH))
+                logger.debug("Loaded GLiNER model from bundled path: %s", GLINER_MODEL_LOCAL_PATH)
+            else:
+                self._model = GLiNER.from_pretrained(GLINER_MODEL_NAME)
+                logger.debug("Loaded GLiNER model from HuggingFace (bundled not found)")
 
     def _wait_for_model(self) -> bool:
         """
