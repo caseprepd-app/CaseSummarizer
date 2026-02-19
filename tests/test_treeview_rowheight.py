@@ -12,13 +12,31 @@ See module docstring in src/ui/styles.py for the full DPI rationale.
 """
 
 import inspect
+import tkinter as tk
 from pathlib import Path
+
+import pytest
 
 
 def _read_source(module_path: str) -> str:
     """Read a source file relative to project root."""
     root = Path(__file__).parent.parent
     return (root / module_path).read_text(encoding="utf-8")
+
+
+@pytest.fixture(scope="module")
+def _tk_root():
+    """Create a Tk root for font metric tests (module-scoped to avoid Tcl crash)."""
+    try:
+        root = tk.Tk()
+        root.withdraw()
+    except tk.TclError:
+        pytest.skip("Tk unavailable in this environment")
+    yield root
+    try:
+        root.destroy()
+    except tk.TclError:
+        pass
 
 
 # ============================================================================
@@ -29,7 +47,7 @@ def _read_source(module_path: str) -> str:
 class TestGetRowheight:
     """Tests for _get_rowheight() DPI-aware row height calculation."""
 
-    def test_returns_positive_int(self):
+    def test_returns_positive_int(self, _tk_root):
         """_get_rowheight returns a positive integer."""
         from src.ui.styles import _get_rowheight
 
@@ -37,7 +55,7 @@ class TestGetRowheight:
         assert isinstance(result, int)
         assert result > 0
 
-    def test_includes_padding(self):
+    def test_includes_padding(self, _tk_root):
         """Result is linespace + padding, not just linespace."""
         from src.ui.styles import _get_rowheight
 
@@ -47,7 +65,7 @@ class TestGetRowheight:
         with_pad = _get_rowheight(("Segoe UI", 10), padding=8)
         assert with_pad == no_pad + 8
 
-    def test_larger_font_gives_larger_rowheight(self):
+    def test_larger_font_gives_larger_rowheight(self, _tk_root):
         """A larger font produces a taller row."""
         from src.ui.styles import _get_rowheight
 
@@ -55,7 +73,7 @@ class TestGetRowheight:
         large = _get_rowheight(("Segoe UI", 18), padding=0)
         assert large > small
 
-    def test_custom_padding(self):
+    def test_custom_padding(self, _tk_root):
         """Custom padding value is respected."""
         from src.ui.styles import _get_rowheight
 
@@ -70,7 +88,7 @@ class TestGetRowheight:
         )
         assert sig.parameters["padding"].default == 8
 
-    def test_zero_padding(self):
+    def test_zero_padding(self, _tk_root):
         """Zero padding returns just the linespace."""
         from src.ui.styles import _get_rowheight
 
@@ -78,7 +96,7 @@ class TestGetRowheight:
         # linespace for a 10pt font should be at least 10px
         assert result >= 10
 
-    def test_different_font_families(self):
+    def test_different_font_families(self, _tk_root):
         """Works with different font families available on the system."""
         from src.ui.styles import _get_rowheight
 

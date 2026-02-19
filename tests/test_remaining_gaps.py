@@ -220,30 +220,53 @@ class TestCorpusInfo:
 class TestCorpusRegistry:
     """CorpusRegistry manages named document corpora."""
 
-    def test_class_exists(self):
+    def test_create_corpus(self, tmp_path, monkeypatch):
         from src.core.vocabulary.corpus_registry import CorpusRegistry
 
-        assert CorpusRegistry is not None
+        monkeypatch.setattr("src.core.vocabulary.corpus_registry.CORPORA_DIR", tmp_path)
+        reg = CorpusRegistry()
+        path = reg.create_corpus("TestCorpus")
+        assert path.exists()
+        assert reg.corpus_exists("TestCorpus")
 
-    def test_has_list_method(self):
+    def test_list_corpora_returns_corpus_info(self, tmp_path, monkeypatch):
         from src.core.vocabulary.corpus_registry import CorpusRegistry
 
-        assert hasattr(CorpusRegistry, "list_corpora")
+        monkeypatch.setattr("src.core.vocabulary.corpus_registry.CORPORA_DIR", tmp_path)
+        reg = CorpusRegistry()
+        # Default corpus "General" should exist
+        corpora = reg.list_corpora()
+        assert len(corpora) >= 1
+        assert any(c.name == "General" for c in corpora)
 
-    def test_has_create_method(self):
+    def test_corpus_exists_false_for_missing(self, tmp_path, monkeypatch):
         from src.core.vocabulary.corpus_registry import CorpusRegistry
 
-        assert hasattr(CorpusRegistry, "create_corpus")
+        monkeypatch.setattr("src.core.vocabulary.corpus_registry.CORPORA_DIR", tmp_path)
+        reg = CorpusRegistry()
+        assert reg.corpus_exists("NonExistent") is False
 
-    def test_has_delete_method(self):
+    def test_delete_corpus_raises_for_last(self, tmp_path, monkeypatch):
+        import pytest
+
         from src.core.vocabulary.corpus_registry import CorpusRegistry
 
-        assert hasattr(CorpusRegistry, "delete_corpus")
+        monkeypatch.setattr("src.core.vocabulary.corpus_registry.CORPORA_DIR", tmp_path)
+        reg = CorpusRegistry()
+        # Only "General" exists -- can't delete the last one
+        with pytest.raises(ValueError, match="Cannot delete the last corpus"):
+            reg.delete_corpus("General")
 
-    def test_has_corpus_exists_method(self):
+    def test_sanitize_name_removes_special_chars(self, tmp_path, monkeypatch):
         from src.core.vocabulary.corpus_registry import CorpusRegistry
 
-        assert hasattr(CorpusRegistry, "corpus_exists")
+        monkeypatch.setattr("src.core.vocabulary.corpus_registry.CORPORA_DIR", tmp_path)
+        reg = CorpusRegistry()
+        safe = reg._sanitize_name('my<corpus>:name"here')
+        assert "<" not in safe
+        assert ">" not in safe
+        assert ":" not in safe
+        assert '"' not in safe
 
 
 # ---------------------------------------------------------------------------
@@ -339,26 +362,32 @@ class TestCombinedHtmlBuilder:
 class TestMultiDocumentOrchestrator:
     """MultiDocumentOrchestrator coordinates multi-doc summarization."""
 
-    def test_class_exists(self):
+    def test_init_with_mocks(self):
         from src.core.summarization.multi_document_orchestrator import (
             MultiDocumentOrchestrator,
         )
 
-        assert MultiDocumentOrchestrator is not None
+        mock_summarizer = MagicMock()
+        mock_model_manager = MagicMock()
+        orch = MultiDocumentOrchestrator(
+            document_summarizer=mock_summarizer,
+            model_manager=mock_model_manager,
+        )
+        assert orch is not None
 
-    def test_has_summarize_method(self):
+    def test_stop_sets_event(self):
         from src.core.summarization.multi_document_orchestrator import (
             MultiDocumentOrchestrator,
         )
 
-        assert hasattr(MultiDocumentOrchestrator, "summarize_documents")
-
-    def test_has_stop_method(self):
-        from src.core.summarization.multi_document_orchestrator import (
-            MultiDocumentOrchestrator,
+        mock_summarizer = MagicMock()
+        mock_model_manager = MagicMock()
+        orch = MultiDocumentOrchestrator(
+            document_summarizer=mock_summarizer,
+            model_manager=mock_model_manager,
         )
-
-        assert hasattr(MultiDocumentOrchestrator, "stop")
+        orch.stop()
+        assert orch._stop_event.is_set()
 
 
 # ---------------------------------------------------------------------------
@@ -369,22 +398,62 @@ class TestMultiDocumentOrchestrator:
 class TestExportServiceCombined:
     """ExportService combined export methods."""
 
-    def test_has_combined_html_method(self):
+    def test_combined_html_export(self, tmp_path):
+        from unittest.mock import patch
+
         from src.services.export_service import ExportService
 
-        assert hasattr(ExportService, "export_combined_html")
+        svc = ExportService()
+        out = tmp_path / "combined.html"
+        with patch("src.services.export_service._auto_open_file"):
+            result = svc.export_combined_html(
+                vocab_data=[{"Term": "test", "Score": "50"}],
+                qa_results=[],
+                summary_text="A summary.",
+                file_path=str(out),
+            )
+        assert result is True
+        assert out.exists()
+        content = out.read_text(encoding="utf-8")
+        assert "test" in content
 
-    def test_has_combined_word_method(self):
+    def test_get_vocabulary_html_content_returns_string(self):
         from src.services.export_service import ExportService
 
-        assert hasattr(ExportService, "export_combined_to_word")
+        svc = ExportService()
+        html = svc.get_vocabulary_html_content(
+            [
+                {
+                    "Term": "plaintiff",
+                    "Score": "80",
+                    "Is Person": "No",
+                    "Found By": "NER",
+                    "Frequency": "1",
+                }
+            ]
+        )
+        assert isinstance(html, str)
+        assert "plaintiff" in html
 
-    def test_has_combined_pdf_method(self):
+    def test_combined_word_export(self, tmp_path):
+        from unittest.mock import patch
+
         from src.services.export_service import ExportService
 
-        assert hasattr(ExportService, "export_combined_to_pdf")
+        svc = ExportService()
+        qa = MagicMock()
+        qa.question = "Q?"
+        qa.quick_answer = "A."
+        qa.citation = "p1"
+        qa.source_summary = "doc.pdf"
+        qa.verification = None
 
-    def test_has_get_vocabulary_html_content(self):
-        from src.services.export_service import ExportService
-
-        assert hasattr(ExportService, "get_vocabulary_html_content")
+        out = tmp_path / "combined.docx"
+        with patch("src.services.export_service._auto_open_file"):
+            result = svc.export_combined_to_word(
+                vocab_data=[{"Term": "test"}],
+                qa_results=[qa],
+                file_path=str(out),
+            )
+        assert result is True
+        assert out.exists()
