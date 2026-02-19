@@ -209,7 +209,8 @@ def _register_all_settings():
             category="Appearance",
             setting_type=SettingType.SPINBOX,
             tooltip=(
-                "Adjust the font size used throughout the application.\n\n"
+                "Adjust the font size used throughout the application,\n"
+                "including table rows (vocabulary, Q&A, documents).\n\n"
                 "Enter a point offset (positive = larger, negative = smaller).\n"
                 "Examples: +4 for high-DPI screens, -2 for compact layout.\n\n"
                 "Requires restart to take effect."

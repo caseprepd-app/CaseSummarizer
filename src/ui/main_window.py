@@ -133,11 +133,11 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         self._qa_results_lock = threading.Lock()  # LOG-007: Thread-safe access
         self._qa_ready = False  # Session 45: Q&A becomes available after indexing
 
-        # Initialize ttk styles with UI scale factor.
+        # Initialize ttk styles with UI scale factor and font offset.
         # Must happen AFTER super().__init__() creates the Tk root (ttk.Style needs it).
-        from src.ui.scaling import get_effective_ui_scale
+        from src.ui.scaling import get_effective_font_offset, get_effective_ui_scale
 
-        initialize_all_styles(get_effective_ui_scale())
+        initialize_all_styles(get_effective_ui_scale(), get_effective_font_offset())
 
         # Build UI
         self._create_header()

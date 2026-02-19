@@ -475,12 +475,12 @@ class TestScaleFonts:
 
 
 # ============================================================================
-# 6. src/ui/styles.py — initialize_all_styles(scale_factor)
+# 6. src/ui/styles.py — initialize_all_styles(scale_factor, font_offset)
 # ============================================================================
 
 
 class TestInitializeAllStyles:
-    """Tests for styles.initialize_all_styles() with scale factor."""
+    """Tests for styles.initialize_all_styles() with scale factor and font offset."""
 
     def test_accepts_scale_factor_kwarg(self):
         """initialize_all_styles accepts scale_factor parameter."""
@@ -494,6 +494,18 @@ class TestInitializeAllStyles:
         finally:
             styles_mod._styles_initialized = False
 
+    def test_accepts_font_offset_kwarg(self):
+        """initialize_all_styles accepts font_offset parameter."""
+        import src.ui.styles as styles_mod
+
+        styles_mod._styles_initialized = False
+        try:
+            styles_mod.initialize_all_styles(scale_factor=1.0, font_offset=4)
+        except Exception:
+            pass  # No Tk root
+        finally:
+            styles_mod._styles_initialized = False
+
     def test_default_scale_factor_is_one(self):
         """Default scale factor is 1.0."""
         from src.ui.styles import initialize_all_styles
@@ -501,8 +513,15 @@ class TestInitializeAllStyles:
         sig = inspect.signature(initialize_all_styles)
         assert sig.parameters["scale_factor"].default == 1.0
 
-    def test_internal_helpers_accept_scale_factor(self):
-        """All _configure_* helpers accept a scale factor parameter."""
+    def test_default_font_offset_is_zero(self):
+        """Default font_offset is 0."""
+        from src.ui.styles import initialize_all_styles
+
+        sig = inspect.signature(initialize_all_styles)
+        assert sig.parameters["font_offset"].default == 0
+
+    def test_internal_helpers_accept_scale_and_offset(self):
+        """All _configure_* helpers accept sf and font_offset parameters."""
         import src.ui.styles as mod
 
         for name in [
@@ -515,6 +534,7 @@ class TestInitializeAllStyles:
             sig = inspect.signature(func)
             params = list(sig.parameters.keys())
             assert "sf" in params, f"{name} missing 'sf' parameter"
+            assert "font_offset" in params, f"{name} missing 'font_offset' parameter"
 
     def test_noop_after_first_call(self):
         """Second call is a no-op (guard flag)."""
@@ -807,15 +827,18 @@ class TestMainWindowChanges:
         assert 'scale_fonts(_prefs.get("font_size"' not in source
         assert "scale_fonts(_prefs.get('font_size'" not in source
 
-    def test_initialize_all_styles_gets_scale_factor(self):
-        """initialize_all_styles is called with get_effective_ui_scale()."""
+    def test_initialize_all_styles_gets_scale_and_offset(self):
+        """initialize_all_styles is called with both scale and font offset."""
         source = _read_source("src/ui/main_window.py")
-        assert "initialize_all_styles(get_effective_ui_scale())" in source
+        assert (
+            "initialize_all_styles(get_effective_ui_scale(), get_effective_font_offset())" in source
+        )
 
-    def test_imports_get_effective_ui_scale(self):
-        """MainWindow imports get_effective_ui_scale from scaling module."""
+    def test_imports_scaling_functions(self):
+        """MainWindow imports both get_effective_ui_scale and get_effective_font_offset."""
         source = _read_source("src/ui/main_window.py")
-        assert "from src.ui.scaling import get_effective_ui_scale" in source
+        assert "get_effective_ui_scale" in source
+        assert "get_effective_font_offset" in source
 
 
 # ============================================================================
@@ -1043,7 +1066,7 @@ class TestSettingsRegistryChanges:
         """font_size_offset range is -4 to 10."""
         source = _read_source("src/ui/settings/settings_registry.py")
         idx = source.index('key="font_size_offset"')
-        nearby = source[idx : idx + 600]
+        nearby = source[idx : idx + 700]
         assert "min_value=-4" in nearby
         assert "max_value=10" in nearby
 
