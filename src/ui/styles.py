@@ -32,6 +32,8 @@ from tkinter import ttk
 logger = logging.getLogger(__name__)
 
 _styles_initialized = False
+_vocab_font_spec = ("Segoe UI", 10)
+_vocab_heading_font_spec = ("Segoe UI", 10, "bold")
 
 
 def _get_rowheight(font_spec: tuple, padding: int = 8) -> int:
@@ -91,11 +93,28 @@ def initialize_all_styles(scale_factor: float = 1.0, font_offset: int = 0) -> No
     logger.debug("All Treeview styles initialized")
 
 
+def get_vocab_font_specs() -> tuple[tuple, tuple]:
+    """
+    Return (content_font_spec, heading_font_spec) for the vocab treeview.
+
+    These are the same font tuples used by _configure_vocab_treeview_style,
+    stored at initialization time so column_config can compute DPI-aware widths.
+
+    Returns:
+        Tuple of (content_font, heading_font) e.g.
+        (("Segoe UI", 10), ("Segoe UI", 10, "bold"))
+    """
+    return _vocab_font_spec, _vocab_heading_font_spec
+
+
 def _configure_vocab_treeview_style(style: ttk.Style, sf: float, font_offset: int) -> None:
     """Configure style for vocabulary/NER grid (DynamicOutputWidget)."""
+    global _vocab_font_spec, _vocab_heading_font_spec
     # 8pt floor matches theme.scale_fonts() -- prevents unreadable text
     font_size = max(8, int(10 * sf) + font_offset)
     font_spec = ("Segoe UI", font_size)
+    _vocab_font_spec = font_spec
+    _vocab_heading_font_spec = ("Segoe UI", font_size, "bold")
     style.configure(
         "Vocab.Treeview",
         background="#2b2b2b",

@@ -58,8 +58,10 @@ from src.ui.vocab_table.column_config import (
     THUMB_DOWN_FILLED,
     THUMB_UP_EMPTY,
     THUMB_UP_FILLED,
+    compute_column_widths,
     truncate_text,
 )
+from src.ui.styles import get_vocab_font_specs
 from src.user_preferences import get_user_preferences
 
 
@@ -588,7 +590,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
             try:
                 # Get actual current width from treeview
                 width = self.csv_treeview.column(col, "width")
-                if isinstance(width, int) and 30 <= width <= 500:
+                if isinstance(width, int) and 30 <= width <= 800:
                     widths[col] = width
             except Exception as e:
                 logger.debug("Could not read column '%s' width: %s", col, e)
@@ -612,6 +614,64 @@ class DynamicOutputWidget(ctk.CTkFrame):
             return saved_widths[col_name]
         # Fall back to COLUMN_CONFIG default
         return COLUMN_CONFIG.get(col_name, {}).get("width", 100)
+
+    def _autosize_columns_to_content(self, data: list):
+        """
+        Auto-size columns to fit actual content using DPI-aware font metrics.
+
+        Scans first 100 rows of data and adjusts column widths to fit.
+        Only runs when user has no saved column widths for this session.
+
+        Args:
+            data: Full vocabulary data list (first 100 rows sampled).
+        """
+        if self.csv_treeview is None:
+            return
+
+        # Skip if user has saved custom widths
+        saved_widths = self._load_column_widths()
+        if saved_widths:
+            return
+
+        content_font, heading_font = get_vocab_font_specs()
+        available_w = self.treeview_frame.winfo_width()
+        if available_w < 100:
+            available_w = 900
+
+        columns = list(self._current_columns)
+        computed = compute_column_widths(
+            columns, content_font, heading_font, available_w, data_sample=data
+        )
+
+        for col in columns:
+            if col in computed:
+                self.csv_treeview.column(col, width=computed[col])
+
+        logger.debug("Auto-sized %d columns to content", len(computed))
+
+    def _reset_column_widths(self):
+        """Clear saved column widths and re-auto-size to content."""
+        prefs = get_user_preferences()
+        prefs.set("vocab_column_widths", {})
+        logger.debug("Cleared saved column widths")
+
+        # Re-auto-size using current data
+        vocab_data = self._outputs.get("Names & Vocabulary", [])
+        if not vocab_data:
+            vocab_data = self._outputs.get("Rare Word List (CSV)", [])
+        if vocab_data and self.csv_treeview is not None:
+            content_font, heading_font = get_vocab_font_specs()
+            available_w = self.treeview_frame.winfo_width()
+            if available_w < 100:
+                available_w = 900
+            columns = list(self._current_columns)
+            computed = compute_column_widths(
+                columns, content_font, heading_font, available_w, data_sample=vocab_data
+            )
+            for col in columns:
+                if col in computed:
+                    self.csv_treeview.column(col, width=computed[col])
+            logger.debug("Re-auto-sized columns after reset")
 
     def _show_column_menu(self, event=None):
         """
@@ -644,7 +704,8 @@ class DynamicOutputWidget(ctk.CTkFrame):
                 )
 
         menu.add_separator()
-        menu.add_command(label="Reset to Defaults", command=self._reset_column_visibility)
+        menu.add_command(label="Reset Column Visibility", command=self._reset_column_visibility)
+        menu.add_command(label="Reset Column Widths", command=self._reset_column_widths)
 
         # Position menu at button or event location
         if event:
@@ -1229,10 +1290,29 @@ class DynamicOutputWidget(ctk.CTkFrame):
             )
 
             # Configure column headings and widths
-            # Session 80: Add click-to-sort functionality and use saved column widths
+            # Session 80: Click-to-sort; saved widths preferred over DPI-aware defaults
+            # stretch=False on ALL columns prevents Tk from recalculating widths
+            # on layout events, which was causing user-dragged widths to snap back.
+            saved_widths = self._load_column_widths()
+            if saved_widths:
+                computed = None  # Use saved widths
+            else:
+                # Compute DPI-aware defaults from font metrics
+                content_font, heading_font = get_vocab_font_specs()
+                available_w = self.treeview_frame.winfo_width()
+                if available_w < 100:
+                    available_w = 900  # Fallback before first layout
+                computed = compute_column_widths(
+                    list(columns), content_font, heading_font, available_w
+                )
+
             for col in columns:
-                # Use saved width if available, else default from COLUMN_CONFIG
-                col_width = self._get_column_width(col)
+                if saved_widths and col in saved_widths:
+                    col_width = saved_widths[col]
+                elif computed and col in computed:
+                    col_width = computed[col]
+                else:
+                    col_width = COLUMN_CONFIG.get(col, {}).get("width", 100)
                 # Lambda capture col by default argument to avoid closure issue
                 self.csv_treeview.heading(
                     col, text=col, anchor="w", command=lambda c=col: self._sort_by_column(c)
@@ -1240,9 +1320,9 @@ class DynamicOutputWidget(ctk.CTkFrame):
                 self.csv_treeview.column(
                     col,
                     width=col_width,
-                    minwidth=60,
+                    minwidth=40,
                     anchor="w",
-                    stretch=col == "Term",  # Term stretches to fill space
+                    stretch=False,
                 )
 
             # Add vertical scrollbar
@@ -1484,6 +1564,9 @@ class DynamicOutputWidget(ctk.CTkFrame):
         Args:
             data: Full vocabulary data list
         """
+        # Auto-size columns to content after first batch of rows loads
+        self._autosize_columns_to_content(data)
+
         total_items = len(data)
         displayed_items = self._vocab_display_offset
 
