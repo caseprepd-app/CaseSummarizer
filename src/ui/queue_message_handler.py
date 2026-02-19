@@ -289,9 +289,7 @@ class QueueMessageHandler:
         # Force garbage collection after heavy processing
         gc.collect()
         logger.debug("Worker references cleared, garbage collected")
-
-        # Force immediate UI update to ensure button disappears
-        self.main_window.update_idletasks()
+        # Tk redraws on next idle pass -- no update_idletasks() needed
         logger.debug("UI reset complete")
 
     # =========================================================================

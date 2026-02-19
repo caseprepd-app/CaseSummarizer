@@ -1,15 +1,17 @@
 """
-Tests for resize debounce and update_idletasks throttling.
+Tests for resize debounce and _poll_queue behavior.
 
 Covers:
 - main_window._on_configure: debounce flag, after_cancel, child-widget filtering
 - main_window._on_resize_complete: clears flag and debounce ID
-- main_window._poll_queue: skips update_idletasks during resize, throttles to 100ms
+- main_window._poll_queue: never calls update_idletasks (removed to prevent
+  feedback loop with <Configure> events during window resize/maximize)
+- dynamic_output._on_window_resize: filters child widget Configure events
 - dynamic_output._refresh_display: batched summary insertion (single .insert call)
 """
 
 import threading
-import time
+from pathlib import Path
 from queue import Queue
 from unittest.mock import MagicMock, call
 
@@ -20,13 +22,18 @@ from src.ui.main_window import MainWindow
 # ---------------------------------------------------------------------------
 
 
+def _read_source(module_path: str) -> str:
+    """Read a source file relative to project root."""
+    root = Path(__file__).parent.parent
+    return (root / module_path).read_text(encoding="utf-8")
+
+
 def _make_mock_window():
     """Create a mock MainWindow with the attributes needed by resize/poll logic."""
     w = MagicMock()
     # Resize debounce state
     w._resize_in_progress = False
     w._resize_debounce_id = None
-    w._last_idletasks = 0.0
     # Poll queue state
     w._destroying = False
     w._ui_queue = Queue()
@@ -161,80 +168,38 @@ class TestOnResizeComplete:
 
 
 # ===========================================================================
-# _poll_queue: update_idletasks throttling
+# _poll_queue: must NEVER call update_idletasks
 # ===========================================================================
 
 
-class TestPollQueueIdletasks:
-    """Test that _poll_queue correctly throttles/skips update_idletasks."""
+class TestPollQueueNoIdletasks:
+    """Verify _poll_queue never calls update_idletasks.
 
-    def test_skips_idletasks_during_resize(self):
-        """update_idletasks should NOT be called when _resize_in_progress is True."""
+    Calling update_idletasks() from the poll loop caused a feedback loop:
+    idletasks -> <Configure> events -> layout thrashing -> "(not responding)"
+    during window resize/maximize. Tk already processes idle tasks between
+    after() callbacks, so the forced call was both redundant and harmful.
+    """
+
+    def test_never_calls_update_idletasks(self):
+        """_poll_queue should never call update_idletasks."""
         w = _make_mock_window()
-        w._resize_in_progress = True
-        w._last_idletasks = 0.0  # Long ago, would normally trigger
 
         MainWindow._poll_queue(w)
 
         w.update_idletasks.assert_not_called()
 
-    def test_calls_idletasks_when_elapsed(self):
-        """update_idletasks should be called when 100ms+ has elapsed."""
+    def test_no_update_idletasks_with_messages(self):
+        """_poll_queue should not call update_idletasks even after processing messages."""
         w = _make_mock_window()
-        w._resize_in_progress = False
-        w._last_idletasks = 0.0  # Long ago
+        w._ui_queue.put(("status", "Processing..."))
 
         MainWindow._poll_queue(w)
 
-        w.update_idletasks.assert_called_once()
-
-    def test_skips_idletasks_when_recent(self):
-        """update_idletasks should be skipped when called less than 100ms ago."""
-        w = _make_mock_window()
-        w._resize_in_progress = False
-        w._last_idletasks = time.monotonic()  # Just now
-
-        MainWindow._poll_queue(w)
-
+        w._handle_queue_message.assert_called_once()
         w.update_idletasks.assert_not_called()
 
-    def test_updates_timestamp_after_call(self):
-        """_last_idletasks should be updated when update_idletasks is called."""
-        w = _make_mock_window()
-        w._resize_in_progress = False
-        w._last_idletasks = 0.0
-        before = time.monotonic()
-
-        MainWindow._poll_queue(w)
-
-        assert w._last_idletasks >= before
-
-    def test_does_not_update_timestamp_when_skipped(self):
-        """_last_idletasks should stay unchanged when idletasks is skipped."""
-        w = _make_mock_window()
-        w._resize_in_progress = True
-        w._last_idletasks = 42.0
-
-        MainWindow._poll_queue(w)
-
-        assert w._last_idletasks == 42.0
-
-    def test_idletasks_called_after_resize_ends(self):
-        """After resize completes, next poll should call update_idletasks."""
-        w = _make_mock_window()
-
-        # Simulate resize in progress
-        w._resize_in_progress = True
-        w._last_idletasks = 0.0
-        MainWindow._poll_queue(w)
-        w.update_idletasks.assert_not_called()
-
-        # Simulate resize complete
-        MainWindow._on_resize_complete(w)
-        MainWindow._poll_queue(w)
-        w.update_idletasks.assert_called_once()
-
-    def test_queue_messages_still_processed_during_resize(self):
+    def test_queue_messages_processed_during_resize(self):
         """Messages in the queue should still be handled even during resize."""
         w = _make_mock_window()
         w._resize_in_progress = True
@@ -243,21 +208,70 @@ class TestPollQueueIdletasks:
         MainWindow._poll_queue(w)
 
         w._handle_queue_message.assert_called_once_with("status", "Processing file 1...")
+        w.update_idletasks.assert_not_called()
 
-    def test_throttle_allows_second_call_after_delay(self):
-        """A second poll 100ms+ later should call update_idletasks again."""
-        w = _make_mock_window()
-        w._resize_in_progress = False
-        w._last_idletasks = 0.0
+    def test_no_update_idletasks_in_source(self):
+        """The _poll_queue method should not call update_idletasks."""
+        source = _read_source("src/ui/main_window.py")
+        start = source.index("def _poll_queue(self)")
+        next_def = source.index("\n    def ", start + 1)
+        body = source[start:next_def]
+        assert ".update_idletasks()" not in body
 
-        MainWindow._poll_queue(w)
-        w.update_idletasks.assert_called_once()
 
-        # Simulate 100ms passing
-        w._last_idletasks = time.monotonic() - 0.15
+# ===========================================================================
+# No update_idletasks in activity indicator or queue handler
+# ===========================================================================
 
-        MainWindow._poll_queue(w)
-        assert w.update_idletasks.call_count == 2
+
+class TestNoIdletasksInHotPaths:
+    """Verify update_idletasks was removed from frequently-called code paths."""
+
+    def test_no_idletasks_in_start_activity_indicator(self):
+        """_start_activity_indicator should not call update_idletasks."""
+        source = _read_source("src/ui/main_window.py")
+        start = source.index("def _start_activity_indicator")
+        next_def = source.index("\n    def ", start + 1)
+        body = source[start:next_def]
+        # Check for actual call, not the word in a comment
+        assert ".update_idletasks()" not in body
+
+    def test_no_idletasks_in_queue_message_handler_reset(self):
+        """Queue message handler UI reset should not call update_idletasks."""
+        source = _read_source("src/ui/queue_message_handler.py")
+        start = source.index("gc.collect()")
+        region = source[start : start + 200]
+        assert ".update_idletasks()" not in region
+
+    def test_no_idletasks_in_timer_mixin_start(self):
+        """Timer mixin _start_activity_indicator should not call update_idletasks."""
+        source = _read_source("src/ui/main_window_helpers/timer_mixin.py")
+        start = source.index("def _start_activity_indicator")
+        next_def = source.index("\n    def ", start + 1)
+        body = source[start:next_def]
+        assert ".update_idletasks()" not in body
+
+
+# ===========================================================================
+# DynamicOutputWidget: Configure event filtering
+# ===========================================================================
+
+
+class TestDynamicOutputConfigureFilter:
+    """Verify DynamicOutputWidget filters child widget Configure events."""
+
+    def test_on_window_resize_filters_child_events(self):
+        """_on_window_resize should check event.widget is self."""
+        source = _read_source("src/ui/dynamic_output.py")
+        start = source.index("def _on_window_resize")
+        next_def = source.index("\n    def ", start + 1)
+        body = source[start:next_def]
+        assert "event.widget is not self" in body
+
+    def test_configure_binding_exists(self):
+        """DynamicOutputWidget should bind <Configure> event."""
+        source = _read_source("src/ui/dynamic_output.py")
+        assert '"<Configure>", self._on_window_resize' in source
 
 
 # ===========================================================================
@@ -276,7 +290,14 @@ class TestResizeInitState:
 
         assert "_resize_in_progress" in source
         assert "_resize_debounce_id" in source
-        assert "_last_idletasks" in source
+
+    def test_init_does_not_have_last_idletasks(self):
+        """MainWindow.__init__ should NOT have _last_idletasks (removed)."""
+        import inspect
+
+        source = inspect.getsource(MainWindow.__init__)
+
+        assert "_last_idletasks" not in source
 
     def test_init_binds_configure(self):
         """MainWindow.__init__ should bind <Configure> event."""

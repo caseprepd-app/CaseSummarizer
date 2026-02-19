@@ -58,8 +58,7 @@ class TimerMixin:
             if not self._progress_bar_visible:
                 self.progress_bar.pack(side="right", padx=(0, 5), pady=5)
                 self._progress_bar_visible = True
-        if hasattr(self, "activity_indicator"):
-            self.update_idletasks()  # Force initial render for smooth animation
+        # Tk redraws on next idle pass -- no update_idletasks() needed
 
     def _stop_activity_indicator(self):
         """Stop and hide the activity indicator and progress bar."""

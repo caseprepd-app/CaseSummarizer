@@ -294,9 +294,18 @@ class DynamicOutputWidget(ctk.CTkFrame):
         When the window is resized/maximized, this pauses batch insertion
         and schedules a callback to resume after resizing stabilizes (100ms).
 
+        Only responds to Configure events on this widget itself, not child
+        widgets. Without this filter, every child label/frame/button that
+        changes geometry during a resize fires this handler, flooding the
+        event loop and creating a feedback loop with update_idletasks().
+
         Args:
             event: Tkinter Configure event
         """
+        # Ignore Configure events from child widgets -- only respond to self
+        if event.widget is not self:
+            return
+
         # Cancel any pending resize callback
         if self._resize_after_id is not None:
             self.after_cancel(self._resize_after_id)

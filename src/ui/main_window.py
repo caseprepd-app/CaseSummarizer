@@ -100,10 +100,9 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         self._timer_after_id: str | None = None
         self._processing_active: bool = False
 
-        # Resize debounce -- prevents update_idletasks() storm during maximize
+        # Resize debounce -- tracks whether the window is mid-resize
         self._resize_in_progress: bool = False
         self._resize_debounce_id: str | None = None
-        self._last_idletasks: float = 0.0
         self.bind("<Configure>", self._on_configure)
 
         # Managers (via service layer for pipeline architecture)
@@ -654,7 +653,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         self._poll_queue()
 
     def _on_configure(self, event):
-        """Debounce resize events to prevent update_idletasks() storm."""
+        """Debounce resize events -- tracks whether window is mid-resize."""
         if event.widget is not self:
             return
         self._resize_in_progress = True
@@ -663,7 +662,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         self._resize_debounce_id = self.after(150, self._on_resize_complete)
 
     def _on_resize_complete(self):
-        """Called 150ms after the last resize event -- safe to resume idletasks."""
+        """Called 150ms after the last resize event -- resize is done."""
         self._resize_in_progress = False
         self._resize_debounce_id = None
 
@@ -681,12 +680,10 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         except Empty:
             pass
 
-        # Force GUI refresh to keep animations smooth (activity indicator, etc.)
-        # Skip during resize to prevent redraw storm; throttle to ~10x/sec otherwise
-        now = time.monotonic()
-        if not self._resize_in_progress and (now - self._last_idletasks) >= 0.1:
-            self.update_idletasks()
-            self._last_idletasks = now
+        # NOTE: No update_idletasks() here. Tk automatically processes idle
+        # tasks (redraws, geometry) between after() callbacks. Forcing it here
+        # caused a feedback loop: idletasks -> <Configure> events -> layout
+        # thrashing -> "(not responding)" during window resize/maximize.
 
         # Continue polling if any worker is running OR if we hit the message limit (more messages may be waiting)
         processing_alive = self._processing_worker and self._processing_worker.is_alive()
@@ -2321,7 +2318,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
                 self.activity_indicator.pack(side="right", padx=(0, 5), pady=5)
                 self._activity_indicator_visible = True
             self.activity_indicator.start()
-            self.update_idletasks()  # Force initial render for smooth animation
+            # Tk redraws on next idle pass -- no update_idletasks() needed
 
     def _stop_activity_indicator(self):
         """Stop and hide the activity indicator."""
