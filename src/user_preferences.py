@@ -450,8 +450,8 @@ class UserPreferencesManager:
         Returns:
             str: "off", "brief", or "comprehensive"
         """
-        value = self._preferences.get("logging_level", "brief")
-        return value if value in ("off", "brief", "comprehensive", "custom") else "brief"
+        value = self._preferences.get("logging_level", "comprehensive")
+        return value if value in ("off", "brief", "comprehensive", "custom") else "comprehensive"
 
     def set_logging_level(self, level: str) -> None:
         """
