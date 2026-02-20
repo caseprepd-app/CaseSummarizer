@@ -16,7 +16,6 @@ Covers:
 
 import tkinter as tk
 from pathlib import Path
-from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -74,7 +73,9 @@ class TestColumnRegistryConsistency:
 
         required = {"width", "max_chars", "default", "can_hide"}
         for col_name, cfg in COLUMN_REGISTRY.items():
-            assert required.issubset(cfg.keys()), f"{col_name} missing keys: {required - cfg.keys()}"
+            assert required.issubset(cfg.keys()), (
+                f"{col_name} missing keys: {required - cfg.keys()}"
+            )
 
     def test_display_to_data_column_maps_score(self):
         """Score display column maps to 'Quality Score' data key."""
@@ -237,11 +238,12 @@ class TestComputeColumnWidths:
         from src.ui.vocab_table.column_config import compute_column_widths
 
         cols = ["Term"]
-        no_data = compute_column_widths(
-            cols, ("Segoe UI", 10), ("Segoe UI", 10, "bold"), 1200
-        )
+        no_data = compute_column_widths(cols, ("Segoe UI", 10), ("Segoe UI", 10, "bold"), 1200)
         with_data = compute_column_widths(
-            cols, ("Segoe UI", 10), ("Segoe UI", 10, "bold"), 1200,
+            cols,
+            ("Segoe UI", 10),
+            ("Segoe UI", 10, "bold"),
+            1200,
             data_sample=[{"Term": "Constitutional Amendment"}] * 5,
         )
         assert with_data["Term"] >= no_data["Term"]
@@ -251,9 +253,7 @@ class TestComputeColumnWidths:
         from src.ui.vocab_table.column_config import compute_column_widths
 
         cols = ["Term", "Score"]
-        no_data = compute_column_widths(
-            cols, ("Segoe UI", 10), ("Segoe UI", 10, "bold"), 1000
-        )
+        no_data = compute_column_widths(cols, ("Segoe UI", 10), ("Segoe UI", 10, "bold"), 1000)
         empty_data = compute_column_widths(
             cols, ("Segoe UI", 10), ("Segoe UI", 10, "bold"), 1000, data_sample=[]
         )
@@ -266,7 +266,10 @@ class TestComputeColumnWidths:
         # Data has 'Quality Score' not 'Score'
         sample = [{"Quality Score": "0.95"}] * 5
         result = compute_column_widths(
-            ["Score"], ("Segoe UI", 10), ("Segoe UI", 10, "bold"), 1000,
+            ["Score"],
+            ("Segoe UI", 10),
+            ("Segoe UI", 10, "bold"),
+            1000,
             data_sample=sample,
         )
         assert result["Score"] >= 40  # At minimum
@@ -275,9 +278,7 @@ class TestComputeColumnWidths:
         """Works with a single column."""
         from src.ui.vocab_table.column_config import compute_column_widths
 
-        result = compute_column_widths(
-            ["Keep"], ("Segoe UI", 10), ("Segoe UI", 10, "bold"), 800
-        )
+        result = compute_column_widths(["Keep"], ("Segoe UI", 10), ("Segoe UI", 10, "bold"), 800)
         assert "Keep" in result
         assert result["Keep"] > 0
 
@@ -460,6 +461,74 @@ class TestSaveCapRaised:
         """Old 500 cap is gone."""
         source = _read_source("src/ui/dynamic_output.py")
         assert "30 <= width <= 500" not in source
+
+    def test_prefs_validation_matches_save_cap(self):
+        """user_preferences.py column width upper limit matches dynamic_output save cap (800)."""
+        source = _read_source("src/user_preferences.py")
+        assert "width > 800" in source
+        assert "width > 500" not in source
+
+    def test_prefs_accepts_width_680(self):
+        """Column width of 680 (common on wide monitors) is accepted by prefs."""
+        import os
+        import tempfile
+
+        from src.user_preferences import UserPreferencesManager
+
+        with tempfile.TemporaryDirectory() as d:
+            prefs = UserPreferencesManager(os.path.join(d, "p.json"))
+            prefs.set("vocab_column_widths", {"Found By": 680})
+            assert prefs.get("vocab_column_widths")["Found By"] == 680
+
+    def test_prefs_accepts_width_800(self):
+        """Column width of 800 (upper limit) is accepted by prefs."""
+        import os
+        import tempfile
+
+        from src.user_preferences import UserPreferencesManager
+
+        with tempfile.TemporaryDirectory() as d:
+            prefs = UserPreferencesManager(os.path.join(d, "p.json"))
+            prefs.set("vocab_column_widths", {"Term": 800})
+            assert prefs.get("vocab_column_widths")["Term"] == 800
+
+    def test_prefs_rejects_width_801(self):
+        """Column width above 800 is rejected by prefs."""
+        import os
+        import tempfile
+
+        from src.user_preferences import UserPreferencesManager
+
+        with tempfile.TemporaryDirectory() as d:
+            prefs = UserPreferencesManager(os.path.join(d, "p.json"))
+            with pytest.raises(ValueError, match="30-800"):
+                prefs.set("vocab_column_widths", {"Term": 801})
+
+    def test_save_column_widths_wraps_prefs_in_try_except(self):
+        """_save_column_widths catches prefs errors instead of propagating."""
+        source = _read_source("src/ui/dynamic_output.py")
+        # Find the _save_column_widths method body
+        start = source.index("def _save_column_widths")
+        next_def = source.index("\n    def ", start + 1)
+        body = source[start:next_def]
+        assert "Could not save column widths" in body
+
+
+class TestOnTabChangedExceptionIsolation:
+    """Verify _on_tab_changed keeps working even if _save_column_widths fails."""
+
+    def test_save_after_ui_updates(self):
+        """_save_column_widths is called AFTER followup_frame and button_frame updates."""
+        source = _read_source("src/ui/dynamic_output.py")
+        start = source.index("def _on_tab_changed")
+        next_def = source.index("\n    def ", start + 1)
+        body = source[start:next_def]
+        # followup_frame update should come before _save_column_widths
+        followup_pos = body.index("followup_frame")
+        save_pos = body.index("_save_column_widths")
+        assert followup_pos < save_pos, (
+            "_save_column_widths should run after followup_frame visibility update"
+        )
 
 
 class TestResetColumnWidthsMenu:

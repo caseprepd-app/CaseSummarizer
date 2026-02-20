@@ -588,6 +588,36 @@ class TestBundledOCRPaths:
             assert check_ocr_availability() == OCRStatus.AVAILABLE
 
 
+class TestCallbackExceptionIsolation:
+    """Verify non-critical preference saves don't crash UI callbacks."""
+
+    def test_save_task_checkbox_states_catches_exceptions(self):
+        """_save_task_checkbox_states wraps prefs.set in try/except."""
+        from pathlib import Path
+
+        source = (Path(__file__).parent.parent / "src" / "ui" / "main_window.py").read_text(
+            encoding="utf-8"
+        )
+        start = source.index("def _save_task_checkbox_states")
+        next_def = source.index("\n    def ", start + 1)
+        body = source[start:next_def]
+        assert "try:" in body
+        assert "except Exception" in body
+        assert "Could not save task checkbox states" in body
+
+    def test_save_column_widths_catches_prefs_error(self):
+        """_save_column_widths wraps prefs.set in try/except."""
+        from pathlib import Path
+
+        source = (Path(__file__).parent.parent / "src" / "ui" / "dynamic_output.py").read_text(
+            encoding="utf-8"
+        )
+        start = source.index("def _save_column_widths")
+        next_def = source.index("\n    def ", start + 1)
+        body = source[start:next_def]
+        assert "Could not save column widths" in body
+
+
 class TestAssetFiles:
     """Verify application asset files exist."""
 

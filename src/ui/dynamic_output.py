@@ -41,6 +41,7 @@ from src.config import SORT_WARNING_COLUMNS, USER_VOCAB_EXCLUDE_PATH
 from src.ui.qa_panel import QAPanel
 
 logger = logging.getLogger(__name__)
+from src.ui.styles import get_vocab_font_specs
 from src.ui.theme import BUTTON_STYLES, COLORS, FONTS, FRAME_STYLES, VOCAB_TABLE_TAGS
 
 # Session 82: Import column configuration from centralized module
@@ -61,7 +62,6 @@ from src.ui.vocab_table.column_config import (
     compute_column_widths,
     truncate_text,
 )
-from src.ui.styles import get_vocab_font_specs
 from src.user_preferences import get_user_preferences
 
 
@@ -417,10 +417,6 @@ class DynamicOutputWidget(ctk.CTkFrame):
         # Brief dim/reveal transition effect
         self._animate_tab_transition()
 
-        # Session 80: Save column widths when leaving Names & Vocab tab
-        # (Widths may have been adjusted by user dragging column separators)
-        self._save_column_widths()
-
         # Session 78: Show/hide main window's follow-up frame based on tab
         main_window = self.winfo_toplevel()
         if hasattr(main_window, "followup_frame"):
@@ -449,6 +445,10 @@ class DynamicOutputWidget(ctk.CTkFrame):
                 # Hide vocab-specific widgets on Summary tab
                 self.column_picker_btn.pack_forget()
                 self.export_dropdown.pack_forget()
+
+        # Session 80: Save column widths when leaving Names & Vocab tab
+        # (Non-critical -- must not block UI updates above)
+        self._save_column_widths()
 
     def _animate_tab_transition(self):
         """Brief dim/reveal effect when switching tabs."""
@@ -605,8 +605,11 @@ class DynamicOutputWidget(ctk.CTkFrame):
                 logger.debug("Could not read column '%s' width: %s", col, e)
 
         if widths:
-            prefs = get_user_preferences()
-            prefs.set("vocab_column_widths", widths)
+            try:
+                prefs = get_user_preferences()
+                prefs.set("vocab_column_widths", widths)
+            except Exception as e:
+                logger.debug("Could not save column widths: %s", e)
 
     def _get_column_width(self, col_name: str) -> int:
         """

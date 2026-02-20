@@ -668,8 +668,8 @@ class UserPreferencesManager:
                 raise ValueError(f"Invalid column names: {invalid}")
             # Validate that all values are positive integers
             for col, width in value.items():
-                if not isinstance(width, int) or width < 30 or width > 500:
-                    raise ValueError(f"Column width must be int 30-500, got {width} for '{col}'")
+                if not isinstance(width, int) or width < 30 or width > 800:
+                    raise ValueError(f"Column width must be int 30-800, got {width} for '{col}'")
         # Logging level validation
         elif key == "logging_level":
             valid_levels = ("off", "brief", "comprehensive", "custom")

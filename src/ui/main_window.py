@@ -1099,13 +1099,16 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
 
     def _save_task_checkbox_states(self):
         """Save task checkbox states to user preferences for persistence."""
-        from src.user_preferences import get_user_preferences
+        try:
+            from src.user_preferences import get_user_preferences
 
-        prefs = get_user_preferences()
-        prefs.set("task_extract_vocab", self.vocab_check.get())
-        prefs.set("task_ask_questions", self.qa_check.get())
-        prefs.set("task_default_questions", self.ask_default_questions_check.get())
-        prefs.set("task_generate_summary", self.summary_check.get())
+            prefs = get_user_preferences()
+            prefs.set("task_extract_vocab", self.vocab_check.get())
+            prefs.set("task_ask_questions", self.qa_check.get())
+            prefs.set("task_default_questions", self.ask_default_questions_check.get())
+            prefs.set("task_generate_summary", self.summary_check.get())
+        except Exception as e:
+            logger.warning("Could not save task checkbox states: %s", e)
 
     def _restore_task_checkbox_states(self):
         """Restore task checkbox states from user preferences."""
