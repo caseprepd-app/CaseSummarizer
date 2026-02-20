@@ -89,6 +89,7 @@ packages_to_collect = [
     "tokenizers",
     "safetensors",
     "gliner",
+    "fastcoref",
     "torch",
     "cymem",
     "murmurhash",

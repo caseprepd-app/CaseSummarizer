@@ -1,5 +1,7 @@
 """Tests for preprocessing modules: cleaners, removers, converters."""
 
+import pytest
+
 
 # ---------------------------------------------------------------------------
 # QAConverter
@@ -377,6 +379,7 @@ class TestCoreferenceResolver:
         assert hasattr(result, "metadata")
 
     def test_metadata_has_resolutions(self):
+        pytest.importorskip("fastcoref")
         result = self._make().process("Test text.")
         assert "resolutions" in result.metadata
 

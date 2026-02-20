@@ -47,5 +47,7 @@ pytextrank>=3.0.0
 scispacy
 # Coreference resolution for pronoun-to-name replacement
 fastcoref
+# Neural sentence tokenizer (fallback: regex splitter)
+nupunkt
 # Zero-shot NER for rare vocabulary extraction (~450MB model)
 gliner

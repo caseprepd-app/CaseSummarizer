@@ -754,3 +754,223 @@ class TestUpgradeSafety:
         """.iss uses {autopf} for install directory."""
         iss = _read_iss()
         assert "{autopf}" in iss
+
+
+# ============================================================================
+# P1 - Optional Package Bundling
+# ============================================================================
+# Four packages (nupunkt, lettucedetect, tkinterdnd2, fastcoref) have graceful
+# fallbacks in production code. Without proper bundling, end users silently
+# lose features. These tests verify all four are correctly configured in
+# requirements.txt, caseprepd.spec, and have proper fallback + bundled paths.
+
+REQUIREMENTS_PATH = PROJECT_ROOT / "requirements.txt"
+DOWNLOAD_SCRIPT_PATH = PROJECT_ROOT / "scripts" / "download_models.py"
+
+
+def _read_requirements():
+    """Read requirements.txt or skip."""
+    if not REQUIREMENTS_PATH.exists():
+        pytest.skip("requirements.txt not found")
+    return REQUIREMENTS_PATH.read_text(encoding="utf-8")
+
+
+def _read_download_script():
+    """Read download_models.py or skip."""
+    if not DOWNLOAD_SCRIPT_PATH.exists():
+        pytest.skip("scripts/download_models.py not found")
+    return DOWNLOAD_SCRIPT_PATH.read_text(encoding="utf-8")
+
+
+class TestOptionalPackageBundling:
+    """Tests that optional packages are properly configured for the installer."""
+
+    # ── 4a. Spec cross-reference ──────────────────────────────────────────
+
+    def test_nupunkt_in_spec_data_packages(self):
+        """nupunkt is in spec data_packages (ships bundled model data)."""
+        spec = _read_spec()
+        data_start = spec.index("data_packages = [")
+        data_end = spec.index("]", data_start)
+        data_section = spec[data_start:data_end]
+        assert '"nupunkt"' in data_section
+
+    def test_lettucedetect_in_spec_data_packages(self):
+        """lettucedetect is in spec data_packages (ships prompt templates)."""
+        spec = _read_spec()
+        data_start = spec.index("data_packages = [")
+        data_end = spec.index("]", data_start)
+        data_section = spec[data_start:data_end]
+        assert '"lettucedetect"' in data_section
+
+    def test_tkinterdnd2_in_spec_data_packages(self):
+        """tkinterdnd2 is in spec data_packages (ships TCL scripts + DLLs)."""
+        spec = _read_spec()
+        data_start = spec.index("data_packages = [")
+        data_end = spec.index("]", data_start)
+        data_section = spec[data_start:data_end]
+        assert '"tkinterdnd2"' in data_section
+
+    def test_tkinterdnd2_in_spec_hidden_imports(self):
+        """tkinterdnd2 is in spec hidden_imports (lazy-loaded by UI)."""
+        spec = _read_spec()
+        hi_start = spec.index("hidden_imports = [")
+        hi_end = spec.index("]", hi_start)
+        hi_section = spec[hi_start:hi_end]
+        assert '"tkinterdnd2"' in hi_section
+
+    def test_fastcoref_in_spec_submodules(self):
+        """fastcoref is in spec packages_to_collect (has nested subpackages)."""
+        spec = _read_spec()
+        pkg_start = spec.index("packages_to_collect = [")
+        pkg_end = spec.index("]", pkg_start)
+        pkg_section = spec[pkg_start:pkg_end]
+        assert '"fastcoref"' in pkg_section
+
+    # ── 4b. Requirements cross-reference ──────────────────────────────────
+
+    def test_nupunkt_in_requirements(self):
+        """nupunkt is listed in requirements.txt."""
+        reqs = _read_requirements()
+        assert re.search(r"^nupunkt", reqs, re.MULTILINE)
+
+    def test_lettucedetect_in_requirements(self):
+        """lettucedetect is listed in requirements.txt."""
+        reqs = _read_requirements()
+        assert re.search(r"^lettucedetect", reqs, re.MULTILINE)
+
+    def test_tkinterdnd2_in_requirements(self):
+        """tkinterdnd2 is listed in requirements.txt."""
+        reqs = _read_requirements()
+        assert re.search(r"^tkinterdnd2", reqs, re.MULTILINE)
+
+    def test_fastcoref_in_requirements(self):
+        """fastcoref is listed in requirements.txt."""
+        reqs = _read_requirements()
+        assert re.search(r"^fastcoref", reqs, re.MULTILINE)
+
+    # ── 4c. Production fallback audit ─────────────────────────────────────
+
+    def test_nupunkt_has_graceful_fallback(self):
+        """sentence_splitter.py has ImportError guard for nupunkt."""
+        source_path = PROJECT_ROOT / "src" / "core" / "utils" / "sentence_splitter.py"
+        source = source_path.read_text(encoding="utf-8")
+        assert "ImportError" in source
+        assert "_nupunkt_available" in source or "nupunkt" in source.lower()
+        assert "warning" in source.lower() or "logger.warning" in source
+
+    def test_lettucedetect_has_graceful_fallback(self):
+        """hallucination_verifier.py handles lettucedetect loading failures."""
+        source_path = PROJECT_ROOT / "src" / "core" / "qa" / "hallucination_verifier.py"
+        source = source_path.read_text(encoding="utf-8")
+        assert "lettucedetect" in source
+        assert "except" in source or "Exception" in source
+
+    def test_tkinterdnd2_has_graceful_fallback(self):
+        """file_mixin.py has HAS_DND pattern for tkinterdnd2."""
+        source_path = PROJECT_ROOT / "src" / "ui" / "main_window_helpers" / "file_mixin.py"
+        source = source_path.read_text(encoding="utf-8")
+        assert "HAS_DND" in source
+        assert "ImportError" in source
+
+    def test_fastcoref_has_graceful_fallback(self):
+        """coreference_resolver.py has ImportError guard for fastcoref."""
+        source_path = PROJECT_ROOT / "src" / "core" / "preprocessing" / "coreference_resolver.py"
+        source = source_path.read_text(encoding="utf-8")
+        assert "ImportError" in source
+        assert "fastcoref" in source
+        assert "warning" in source.lower() or "logger.warning" in source
+
+    # ── 4d. Model/asset availability ──────────────────────────────────────
+
+    def test_nupunkt_bundled_model_in_package(self):
+        """nupunkt package ships its own model data (no separate download)."""
+        import nupunkt
+
+        pkg_dir = Path(nupunkt.__file__).parent
+        # nupunkt bundles models inside its package directory
+        model_files = list(pkg_dir.rglob("*.json.gz")) + list(pkg_dir.rglob("*.bin"))
+        assert model_files, (
+            f"nupunkt package at {pkg_dir} has no model files -- "
+            f"collect_data_files('nupunkt') may be incomplete"
+        )
+
+    def test_lettucedetect_model_path_in_config(self):
+        """HALLUCINATION_MODEL_LOCAL_PATH is defined in config."""
+        from src.config import HALLUCINATION_MODEL_LOCAL_PATH
+
+        assert HALLUCINATION_MODEL_LOCAL_PATH is not None
+        assert "tinylettuce" in str(HALLUCINATION_MODEL_LOCAL_PATH)
+
+    def test_lettucedetect_model_in_download_script(self):
+        """tinylettuce model is in download_models.py HF_MODELS."""
+        script = _read_download_script()
+        assert "tinylettuce" in script
+
+    def test_fastcoref_model_path_in_config(self):
+        """COREF_MODEL_LOCAL_PATH is defined in config."""
+        from src.config import COREF_MODEL_LOCAL_PATH
+
+        assert COREF_MODEL_LOCAL_PATH is not None
+        assert "f-coref" in str(COREF_MODEL_LOCAL_PATH)
+
+    def test_fastcoref_model_in_download_script(self):
+        """f-coref model is in download_models.py HF_MODELS."""
+        script = _read_download_script()
+        assert "f-coref" in script
+
+    def test_fastcoref_spacy_dependency_in_download_script(self):
+        """en_core_web_sm (required by fastcoref) is in SPACY_MODELS."""
+        script = _read_download_script()
+        assert "en_core_web_sm" in script
+
+    # ── 4e. Loading pattern validation ────────────────────────────────────
+
+    def test_hallucination_verifier_prefers_bundled_path(self):
+        """hallucination_verifier checks bundled_path.exists() before HF fallback."""
+        source_path = PROJECT_ROOT / "src" / "core" / "qa" / "hallucination_verifier.py"
+        source = source_path.read_text(encoding="utf-8")
+        assert "bundled_path.exists()" in source or "HALLUCINATION_MODEL_LOCAL_PATH" in source
+        assert ".exists()" in source
+
+    def test_hallucination_verifier_uses_local_files_only(self):
+        """hallucination_verifier passes local_files_only=True when bundled."""
+        source_path = PROJECT_ROOT / "src" / "core" / "qa" / "hallucination_verifier.py"
+        source = source_path.read_text(encoding="utf-8")
+        assert "local_files_only" in source
+
+    def test_coreference_resolver_prefers_bundled_path(self):
+        """coreference_resolver checks COREF_MODEL_LOCAL_PATH.exists()."""
+        source_path = PROJECT_ROOT / "src" / "core" / "preprocessing" / "coreference_resolver.py"
+        source = source_path.read_text(encoding="utf-8")
+        assert "COREF_MODEL_LOCAL_PATH" in source
+        assert ".exists()" in source
+
+    def test_coreference_resolver_prefers_bundled_spacy(self):
+        """coreference_resolver checks SPACY_EN_CORE_WEB_SM_PATH.exists()."""
+        source_path = PROJECT_ROOT / "src" / "core" / "preprocessing" / "coreference_resolver.py"
+        source = source_path.read_text(encoding="utf-8")
+        assert "SPACY_EN_CORE_WEB_SM_PATH" in source
+
+    # ── 4f. Config path structure ─────────────────────────────────────────
+
+    def test_hallucination_model_under_bundled_models(self):
+        """HALLUCINATION_MODEL_LOCAL_PATH is under BUNDLED_MODELS_DIR."""
+        from src.config import BUNDLED_MODELS_DIR, HALLUCINATION_MODEL_LOCAL_PATH
+
+        rel = HALLUCINATION_MODEL_LOCAL_PATH.relative_to(BUNDLED_MODELS_DIR)
+        assert str(rel), "Path should be relative to BUNDLED_MODELS_DIR"
+
+    def test_coref_model_under_bundled_models(self):
+        """COREF_MODEL_LOCAL_PATH is under BUNDLED_MODELS_DIR."""
+        from src.config import BUNDLED_MODELS_DIR, COREF_MODEL_LOCAL_PATH
+
+        rel = COREF_MODEL_LOCAL_PATH.relative_to(BUNDLED_MODELS_DIR)
+        assert str(rel), "Path should be relative to BUNDLED_MODELS_DIR"
+
+    def test_coref_spacy_model_under_bundled_models(self):
+        """SPACY_EN_CORE_WEB_SM_PATH is under BUNDLED_MODELS_DIR."""
+        from src.config import BUNDLED_MODELS_DIR, SPACY_EN_CORE_WEB_SM_PATH
+
+        rel = SPACY_EN_CORE_WEB_SM_PATH.relative_to(BUNDLED_MODELS_DIR)
+        assert str(rel), "Path should be relative to BUNDLED_MODELS_DIR"
