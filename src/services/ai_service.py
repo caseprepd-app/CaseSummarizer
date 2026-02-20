@@ -16,11 +16,13 @@ Usage:
 """
 
 import logging
+import threading
 
 logger = logging.getLogger(__name__)
 
-# Module-level singleton instance
+# Module-level singleton instance with lock for thread safety
 _ai_service_instance = None
+_ai_service_lock = threading.Lock()
 
 
 class AIService:
@@ -34,11 +36,13 @@ class AIService:
     """
 
     def __new__(cls):
-        """Ensure only one instance of AIService exists."""
+        """Ensure only one instance of AIService exists (thread-safe)."""
         global _ai_service_instance
         if _ai_service_instance is None:
-            _ai_service_instance = super().__new__(cls)
-            _ai_service_instance._initialized = False
+            with _ai_service_lock:
+                if _ai_service_instance is None:
+                    _ai_service_instance = super().__new__(cls)
+                    _ai_service_instance._initialized = False
         return _ai_service_instance
 
     def __init__(self):
@@ -140,7 +144,8 @@ class AIService:
         Intended for test isolation -- not for production use.
         """
         global _ai_service_instance
-        _ai_service_instance = None
+        with _ai_service_lock:
+            _ai_service_instance = None
 
     def check_ollama_connection(self) -> bool:
         """

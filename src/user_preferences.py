@@ -5,6 +5,7 @@ Manages user-specific preferences like default prompts per model.
 
 import json
 import logging
+import threading
 from pathlib import Path
 from typing import Any
 
@@ -724,13 +725,14 @@ class UserPreferencesManager:
         self._save_preferences()
 
 
-# Global instance
+# Global instance with lock for thread safety
 _user_prefs = None
+_prefs_lock = threading.Lock()
 
 
 def get_user_preferences(preferences_file: Path | None = None) -> UserPreferencesManager:
     """
-    Get the global UserPreferencesManager instance (singleton pattern).
+    Get the global UserPreferencesManager instance (thread-safe singleton).
 
     Args:
         preferences_file: Optional path to preferences file (only used on first call)
@@ -741,12 +743,14 @@ def get_user_preferences(preferences_file: Path | None = None) -> UserPreference
     global _user_prefs
 
     if _user_prefs is None:
-        if preferences_file is None:
-            from .config import CONFIG_DIR
+        with _prefs_lock:
+            if _user_prefs is None:
+                if preferences_file is None:
+                    from .config import CONFIG_DIR
 
-            preferences_file = CONFIG_DIR / "user_preferences.json"
+                    preferences_file = CONFIG_DIR / "user_preferences.json"
 
-        _user_prefs = UserPreferencesManager(preferences_file)
+                _user_prefs = UserPreferencesManager(preferences_file)
 
     return _user_prefs
 
@@ -759,4 +763,5 @@ def reset_singleton() -> None:
     Intended for test isolation -- not for production use.
     """
     global _user_prefs
-    _user_prefs = None
+    with _prefs_lock:
+        _user_prefs = None

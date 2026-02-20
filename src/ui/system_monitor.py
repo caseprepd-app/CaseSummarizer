@@ -57,11 +57,13 @@ class SystemMonitor(ctk.CTkFrame):
         self.monitoring = False
         self.tooltip_window = None
         self.show_timer = None
+        self._metrics_lock = threading.Lock()
         self._metrics_updated = False
         self.current_cpu = 0
         self.current_ram_used = 0
         self.current_ram_total = 0
         self.current_ram_percent = 0
+        self._monitor_thread = None
 
         # Get CPU info
         try:
@@ -113,14 +115,17 @@ class SystemMonitor(ctk.CTkFrame):
     def start_monitoring(self):
         """Start the monitoring thread and main-thread update scheduler."""
         self.monitoring = True
-        thread = threading.Thread(target=self._monitoring_loop, daemon=True)
-        thread.start()
+        self._monitor_thread = threading.Thread(target=self._monitoring_loop, daemon=True)
+        self._monitor_thread.start()
         # Schedule main-thread update check (non-blocking)
         self._schedule_main_thread_update()
 
     def stop_monitoring(self):
-        """Stop the monitoring thread."""
+        """Stop the monitoring thread and wait for it to finish."""
         self.monitoring = False
+        if self._monitor_thread is not None:
+            self._monitor_thread.join(timeout=5)
+            self._monitor_thread = None
 
     def _monitoring_loop(self):
         """Background thread that collects metrics."""
@@ -158,13 +163,13 @@ class SystemMonitor(ctk.CTkFrame):
             ram_total_gb = memory.total / (1024**3)
             ram_percent = memory.percent  # psutil provides this directly
 
-            # Store metrics in instance variables (thread-safe reads)
-            # Main thread will periodically read these and update display
-            self.current_cpu = cpu_percent
-            self.current_ram_used = ram_used_gb
-            self.current_ram_total = ram_total_gb
-            self.current_ram_percent = ram_percent
-            self._metrics_updated = True
+            # Store metrics under lock so main thread reads consistent values
+            with self._metrics_lock:
+                self.current_cpu = cpu_percent
+                self.current_ram_used = ram_used_gb
+                self.current_ram_total = ram_total_gb
+                self.current_ram_percent = ram_percent
+                self._metrics_updated = True
 
         except Exception as e:
             logger.debug("Failed to collect metrics: %s", e)
@@ -176,9 +181,11 @@ class SystemMonitor(ctk.CTkFrame):
 
         try:
             # Check if background thread has collected new metrics
-            if self._metrics_updated:
-                self._update_display()
+            with self._metrics_lock:
+                updated = self._metrics_updated
                 self._metrics_updated = False
+            if updated:
+                self._update_display()
         except Exception as e:
             logger.debug("Display update error during processing: %s", e)
 

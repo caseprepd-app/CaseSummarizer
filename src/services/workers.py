@@ -584,10 +584,10 @@ class OllamaAIWorkerManager:
 
     @staticmethod
     def _clear_queue(queue):
-        """Safely clear all messages from a queue."""
+        """Safely clear all messages from a queue (no TOCTOU race)."""
         # LOG-010: Track how many items cleared for debugging
         cleared_count = 0
-        while not queue.empty():
+        while True:
             try:
                 queue.get_nowait()
                 cleared_count += 1
@@ -673,9 +673,9 @@ class OllamaAIWorkerManager:
         self.input_queue.put((task_type, payload))
 
     def check_for_messages(self):
-        """Checks the output queue for messages from the worker process."""
+        """Checks the output queue for messages from the worker process (no TOCTOU race)."""
         messages = []
-        while not self.output_queue.empty():
+        while True:
             try:
                 messages.append(self.output_queue.get_nowait())
             except Empty:
@@ -895,6 +895,10 @@ class ProgressiveExtractionWorker(BaseWorker):
         self.user_exclude_path = user_exclude_path
         self.doc_confidence = doc_confidence  # Session 54: OCR quality for ML
         self.use_llm = use_llm  # Session 62b: Whether to run LLM phase
+        # Cross-thread state for Q&A phase (Phase 2)
+        self._qa_succeeded = threading.Event()
+        self._qa_error_lock = threading.Lock()
+        self._qa_error_msg: str | None = None
 
     def execute(self):
         """Execute three-phase progressive extraction."""
@@ -984,10 +988,11 @@ class ProgressiveExtractionWorker(BaseWorker):
 
         # ===== PHASE 2: Q&A Indexing (Fast - ~10-30 seconds) =====
         # Run in parallel thread while Phase 3 starts
-        # Use an event to distinguish successful completion from a crash
-        self._qa_succeeded = threading.Event()
-        self._qa_error_msg: str | None = None
-        qa_thread = threading.Thread(target=self._build_vector_store, daemon=True)
+        # Reset Q&A phase state for this execution
+        self._qa_succeeded.clear()
+        with self._qa_error_lock:
+            self._qa_error_msg = None
+        qa_thread = threading.Thread(target=self._build_vector_store, daemon=False)
         qa_thread.start()
 
         # ===== PHASE 3: LLM Enhancement (Slow - minutes) =====
@@ -1097,8 +1102,9 @@ class ProgressiveExtractionWorker(BaseWorker):
                 )
             )
         elif not self._qa_succeeded.is_set():
-            # Thread exited but didn't signal success — it crashed
-            error_detail = self._qa_error_msg or "unknown error"
+            # Thread exited but didn't signal success -- it crashed
+            with self._qa_error_lock:
+                error_detail = self._qa_error_msg or "unknown error"
             logger.error("Q&A thread failed: %s", error_detail)
             self.send_progress(100, "Q&A indexing failed, vocabulary results still available.")
 
@@ -1212,6 +1218,7 @@ class ProgressiveExtractionWorker(BaseWorker):
 
         except Exception as e:
             logger.error("Q&A indexing failed: %s", e)
-            self._qa_error_msg = str(e)
+            with self._qa_error_lock:
+                self._qa_error_msg = str(e)
             self.ui_queue.put(QueueMessage.status_error("Q&A indexing failed"))
             self.ui_queue.put(QueueMessage.qa_error(str(e)))
