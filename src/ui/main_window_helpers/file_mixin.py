@@ -12,7 +12,6 @@ Contains:
 
 import logging
 from pathlib import Path
-from queue import Empty, Queue
 from tkinter import filedialog
 
 logger = logging.getLogger(__name__)
@@ -36,8 +35,7 @@ class FileMixin:
     - self.file_table: File table widget
     - self.add_files_btn: Add files button
     - self.generate_btn: Generate button
-    - self._ui_queue: Queue for worker communication
-    - self._processing_worker: ProcessingWorker instance
+    - self._worker_manager: WorkerProcessManager for subprocess communication
     """
 
     def _setup_drag_drop(self):
@@ -197,8 +195,6 @@ class FileMixin:
 
     def _start_preprocessing(self):
         """Start preprocessing selected files."""
-        from src.services.workers import ProcessingWorker
-
         if not self.selected_files:
             return
 
@@ -216,49 +212,36 @@ class FileMixin:
         # Start timer
         self._start_timer()
 
-        # Create queue for worker communication
-        self._ui_queue = Queue()
-
-        # Create and start worker
-        self._processing_worker = ProcessingWorker(
-            file_paths=self.selected_files,
-            ui_queue=self._ui_queue,
-            ocr_allowed=ocr_allowed,
+        # Send command to worker subprocess
+        self._worker_manager.send_command(
+            "process_files",
+            {
+                "file_paths": self.selected_files,
+                "ocr_allowed": ocr_allowed,
+            },
         )
-        self._processing_worker.start()
+        self._preprocessing_active = True
 
         # Start polling the queue
         self._poll_queue()
 
     def _poll_queue(self):
-        """Poll the UI queue for worker messages."""
-        # Process up to 10 messages per poll to avoid blocking UI
-        messages_processed = 0
-        max_messages_per_poll = 10
+        """Poll the worker subprocess result queue for messages."""
+        if self._destroying:
+            return
 
-        try:
-            while messages_processed < max_messages_per_poll:
-                msg_type, data = self._ui_queue.get_nowait()
-                self._handle_queue_message(msg_type, data)
-                messages_processed += 1
-        except Empty:
-            pass
-
-        # Continue polling if any worker is running OR if we hit the message limit
-        processing_alive = self._processing_worker and self._processing_worker.is_alive()
-        progressive_alive = self._progressive_worker and self._progressive_worker.is_alive()
-        more_messages_likely = messages_processed >= max_messages_per_poll
-
-        if processing_alive or progressive_alive or more_messages_likely:
-            self._queue_poll_id = self.after(50, self._poll_queue)
-        else:
-            # Final poll to catch any remaining messages
+        messages = self._worker_manager.check_for_messages()
+        for msg in messages:
             try:
-                while True:
-                    msg_type, data = self._ui_queue.get_nowait()
-                    self._handle_queue_message(msg_type, data)
-            except Empty:
-                pass
+                msg_type, data = msg
+                self._handle_queue_message(msg_type, data)
+            except (TypeError, ValueError):
+                logger.warning("Invalid message from worker subprocess: %s", msg)
+
+        if self._processing_active or self._preprocessing_active or messages:
+            self._queue_poll_id = self.after(33, self._poll_queue)
+        else:
+            self._queue_poll_id = None
 
     def _on_preprocessing_complete(self, results: list[dict]):
         """Handle preprocessing completion."""
@@ -269,6 +252,9 @@ class FileMixin:
         if self._queue_poll_id:
             self.after_cancel(self._queue_poll_id)
             self._queue_poll_id = None
+
+        # Clear preprocessing flag so _update_generate_button_state sees correct state
+        self._preprocessing_active = False
 
         # Re-enable controls
         self.add_files_btn.configure(state="normal")

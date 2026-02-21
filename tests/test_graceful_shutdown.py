@@ -46,17 +46,6 @@ class TestDestroyingGuard:
 
         window.after.assert_not_called()
 
-    def test_poll_qa_queue_returns_early_when_destroying(self):
-        """_poll_qa_queue should return immediately if _destroying is True."""
-        from src.ui.main_window import MainWindow
-
-        window = self._make_mock_window()
-        window._destroying = True
-
-        MainWindow._poll_qa_queue(window)
-
-        window.after.assert_not_called()
-
     def test_poll_followup_result_returns_early_when_destroying(self):
         """_poll_followup_result should return immediately if _destroying is True."""
         from src.ui.main_window import MainWindow
@@ -133,17 +122,10 @@ class TestDestroyMethodContract:
         assert "self._status_clear_id = None" in source
         assert "self._timer_after_id = None" in source
 
-    def test_destroy_joins_workers_with_timeout(self):
-        """destroy() should join workers with timeout=1.0."""
+    def test_destroy_shuts_down_worker_manager(self):
+        """destroy() should shut down worker_manager (non-blocking)."""
         source = self._get_destroy_source()
-        assert "worker.join(timeout=1.0)" in source
-
-    def test_destroy_stops_workers_before_joining(self):
-        """destroy() should call worker.stop() before worker.join()."""
-        source = self._get_destroy_source()
-        stop_pos = source.index("worker.stop()")
-        join_pos = source.index("worker.join(timeout=1.0)")
-        assert stop_pos < join_pos, "stop() should come before join()"
+        assert "_worker_manager.shutdown(blocking=False)" in source
 
     def test_destroy_calls_super_destroy(self):
         """destroy() should call super().destroy() at the end."""
@@ -174,6 +156,7 @@ class TestExceptionHooks:
             patch("src.logging_config.purge_old_logs"),
             patch("customtkinter.set_appearance_mode"),
             patch("customtkinter.set_default_color_theme"),
+            patch("src.services.worker_manager.WorkerProcessManager"),
         ):
             mock_app = MagicMock()
             with patch("src.main.MainWindow", return_value=mock_app):

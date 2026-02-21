@@ -788,7 +788,7 @@ class TestMainPyScalingCall:
         """apply_scaling() is called before MainWindow() in main()."""
         source = _read_source("src/main.py")
         apply_pos = source.index("apply_scaling()")
-        mainwindow_pos = source.index("app = MainWindow()")
+        mainwindow_pos = source.index("app = MainWindow(")
         assert apply_pos < mainwindow_pos
 
     def test_apply_scaling_called_after_color_theme(self):

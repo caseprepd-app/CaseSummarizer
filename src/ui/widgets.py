@@ -219,6 +219,12 @@ class FileReviewTable(ctk.CTkFrame):
     def _show_tooltip(self, x, y, text):
         """Display a tooltip at the given screen coordinates."""
         self._hide_tooltip()
+
+        # Close any tooltip from other UI components (e.g. settings, system monitor)
+        from src.ui.tooltip_manager import tooltip_manager
+
+        tooltip_manager.close_active()
+
         try:
             self._tooltip_window = ctk.CTkToplevel(self.winfo_toplevel())
         except Exception:
@@ -243,9 +249,15 @@ class FileReviewTable(ctk.CTkFrame):
         label.pack(padx=8, pady=6)
         self._tooltip_window.wm_geometry(f"+{x}+{y}")
 
+        # Register with global tooltip manager
+        tooltip_manager.register(self._tooltip_window, owner=self)
+
     def _hide_tooltip(self):
         """Destroy the tooltip window if it exists."""
         if self._tooltip_window:
+            from src.ui.tooltip_manager import tooltip_manager
+
+            tooltip_manager.unregister(self._tooltip_window)
             import contextlib
 
             with contextlib.suppress(Exception):

@@ -13,9 +13,7 @@ Contains:
 """
 
 import logging
-import threading
 import time
-from queue import Empty, Queue
 from tkinter import messagebox
 
 logger = logging.getLogger(__name__)
@@ -36,8 +34,7 @@ class TaskMixin:
     - self.followup_btn: Follow-up button
     - self.followup_entry: Follow-up entry widget
     - self.output_display: DynamicOutputWidget
-    - self._ui_queue: Queue for worker communication
-    - Various worker attributes
+    - self._worker_manager: WorkerProcessManager for subprocess communication
     """
 
     # =========================================================================
@@ -178,7 +175,7 @@ class TaskMixin:
             if hasattr(self, "pipeline_indicator"):
                 self.pipeline_indicator.set_step_state("Q&A", "active")
             self._vector_store_path = data.get("vector_store_path")
-            self._embeddings = data.get("embeddings")
+            # Embeddings stay in worker subprocess (not picklable)
             self._qa_ready = True
             if self._pending_tasks.get("qa"):
                 self._completed_tasks.add("qa")
@@ -202,8 +199,9 @@ class TaskMixin:
             display_msg = error_msg[:200] + "..." if len(error_msg) > 200 else error_msg
             self.set_status_error(f"Q&A unavailable: {display_msg}")
 
-        elif msg_type == "trigger_default_qa":
-            self._handle_trigger_default_qa(data)
+        elif msg_type == "trigger_default_qa_started":
+            # QAWorker was auto-spawned in the worker subprocess
+            self._handle_trigger_default_qa_started(data)
 
         elif msg_type == "qa_progress":
             current, total, _question = data
@@ -275,10 +273,10 @@ class TaskMixin:
         else:
             logger.debug("Unhandled message type: %s", msg_type)
 
-    def _handle_trigger_default_qa(self, data):
-        """Handle trigger_default_qa message - spawn QAWorker for default questions."""
+    def _handle_trigger_default_qa_started(self, data):
+        """Handle trigger_default_qa_started - QAWorker already spawned in subprocess."""
         if not self.ask_default_questions_check.get():
-            logger.debug("Default questions disabled, skipping")
+            logger.debug("Default questions disabled, skipping display update")
             # Session 84: Still need to finalize tasks when default questions are disabled
             if "vocab" in self._completed_tasks:
                 if self._pending_tasks.get("summary"):
@@ -287,22 +285,7 @@ class TaskMixin:
                     self._finalize_tasks()
             return
 
-        from src.services.workers import QAWorker
-        from src.user_preferences import get_user_preferences
-
-        logger.debug("Spawning QAWorker for default questions")
-        prefs = get_user_preferences()
-
-        qa_worker = QAWorker(
-            vector_store_path=data["vector_store_path"],
-            embeddings=data["embeddings"],
-            ui_queue=self._ui_queue,
-            answer_mode=prefs.get("qa_answer_mode", "ollama"),
-            questions=None,
-            use_default_questions=True,
-        )
-        qa_worker.start()
-        logger.debug("Default questions worker started")
+        logger.debug("Default questions worker started in subprocess")
 
     # =========================================================================
     # Task Execution
@@ -382,7 +365,6 @@ class TaskMixin:
             USER_VOCAB_EXCLUDE_PATH,
         )
         from src.services import DocumentService
-        from src.services.workers import ProgressiveExtractionWorker
 
         self.set_status("Starting extraction (NER first, then LLM enhancement)...")
 
@@ -412,19 +394,19 @@ class TaskMixin:
         use_llm = get_user_preferences().is_vocab_llm_enabled()
         logger.debug("LLM extraction from preference: %s", use_llm)
 
-        # Start progressive extraction worker
-        self._progressive_worker = ProgressiveExtractionWorker(
-            documents=self.processing_results,
-            combined_text=combined_text,
-            ui_queue=self._ui_queue,
-            embeddings=self._embeddings,
-            exclude_list_path=str(LEGAL_EXCLUDE_LIST_PATH),
-            medical_terms_path=str(MEDICAL_TERMS_LIST_PATH),
-            user_exclude_path=str(USER_VOCAB_EXCLUDE_PATH),
-            doc_confidence=doc_confidence,
-            use_llm=use_llm,
+        # Send extraction command to worker subprocess
+        self._worker_manager.send_command(
+            "extract",
+            {
+                "documents": self.processing_results,
+                "combined_text": combined_text,
+                "exclude_list_path": str(LEGAL_EXCLUDE_LIST_PATH),
+                "medical_terms_path": str(MEDICAL_TERMS_LIST_PATH),
+                "user_exclude_path": str(USER_VOCAB_EXCLUDE_PATH),
+                "doc_confidence": doc_confidence,
+                "use_llm": use_llm,
+            },
         )
-        self._progressive_worker.start()
 
         # Ensure queue polling is running
         if self._queue_poll_id:
@@ -436,112 +418,23 @@ class TaskMixin:
     # =========================================================================
 
     def _start_qa_task(self):
-        """Start Q&A task - build vector store then run questions."""
-        from src.services import QAService
-
+        """Start Q&A task via worker subprocess."""
         self.set_status(
             "Questions and answers: Loading embeddings model (this may take a moment)..."
         )
 
-        def initialize_qa():
-            """Background thread for embeddings + vector store setup."""
-            try:
-                # Lazy-load embeddings model
-                if self._embeddings is None:
-                    logger.debug("Loading embeddings model...")
-                    from src.services.qa_service import get_embeddings_model
-
-                    self._embeddings = get_embeddings_model()
-                    logger.debug("Embeddings model loaded")
-
-                # Build vector store via QAService
-                logger.debug("Building vector store...")
-                qa_service = QAService()
-                builder = qa_service.get_vector_store_builder()
-                result = builder.create_from_documents(
-                    documents=self.processing_results, embeddings=self._embeddings
-                )
-                self._vector_store_path = result.persist_dir
-                logger.debug(
-                    "Vector store created: %s chunks at %s",
-                    result.chunk_count,
-                    result.persist_dir,
-                )
-
-                self.after(0, lambda: self._qa_init_complete(True, None))
-
-            except Exception as e:
-                logger.debug("Q&A initialization error: %s", e)
-                error_msg = str(e)
-                self.after(0, lambda err=error_msg: self._qa_init_complete(False, err))
-
-        init_thread = threading.Thread(target=initialize_qa, daemon=True)
-        init_thread.start()
-
-    def _qa_init_complete(self, success: bool, error: str | None):
-        """Called when Q&A initialization completes."""
-        from src.services.workers import QAWorker
-
-        if not success:
-            self.set_status(f"Questions and answers error: {error[:50] if error else 'Unknown'}...")
-            self._completed_tasks.add("qa")
-            if self._pending_tasks.get("summary"):
-                self._start_summary_task()
-            else:
-                self._finalize_tasks()
-            return
-
-        self.set_status("Questions and answers: Building vector store...")
-
-        # Create Q&A queue and worker
-        from src.user_preferences import get_user_preferences
-
-        prefs = get_user_preferences()
-        self._qa_queue = Queue()
-        self._qa_worker = QAWorker(
-            vector_store_path=self._vector_store_path,
-            embeddings=self._embeddings,
-            ui_queue=self._qa_queue,
-            answer_mode=prefs.get("qa_answer_mode", "ollama"),
+        # Send run_qa command to worker subprocess
+        self._worker_manager.send_command(
+            "run_qa",
+            {
+                "answer_mode": "extraction",
+            },
         )
-        self._qa_worker.start()
 
-        self.set_status("Questions and answers: Processing questions...")
-        self._poll_qa_queue()
-
-    def _poll_qa_queue(self):
-        """Poll the Q&A worker queue for results."""
-        try:
-            while True:
-                msg_type, data = self._qa_queue.get_nowait()
-                if msg_type == "qa_progress":
-                    current, total, _question = data
-                    self.set_status(f"Answered {current + 1}/{total} questions, working on next...")
-                elif msg_type == "qa_result":
-                    pass  # Could update incrementally
-                elif msg_type == "qa_complete":
-                    self._on_qa_complete(data)
-                    return
-                elif msg_type == "error":
-                    self.set_status(f"Questions and answers error: {data}")
-                    self._on_qa_complete([])
-                    return
-        except Empty:
-            pass
-
-        if self._qa_worker and self._qa_worker.is_alive():
-            self.after(50, self._poll_qa_queue)
-        else:
-            # Final poll
-            try:
-                while True:
-                    msg_type, data = self._qa_queue.get_nowait()
-                    if msg_type == "qa_complete":
-                        self._on_qa_complete(data)
-                        return
-            except Empty:
-                pass
-            self._on_qa_complete([])
+        # Ensure queue polling is active
+        if self._queue_poll_id:
+            self.after_cancel(self._queue_poll_id)
+        self._poll_queue()
 
     def _on_qa_complete(self, qa_results: list):
         """Handle Q&A completion."""
@@ -665,13 +558,12 @@ class TaskMixin:
 
     def _ask_followup(self):
         """Ask a follow-up question using progressive retrieval then generation."""
-        import queue
 
         question = self.followup_entry.get().strip()
         if not question:
             return
 
-        if not self._vector_store_path or not self._embeddings:
+        if not self._vector_store_path or not self._qa_ready:
             messagebox.showwarning(
                 "Questions Not Ready",
                 "Question system is not initialized yet.\n\n"
@@ -684,11 +576,7 @@ class TaskMixin:
             return
 
         # Prevent duplicate submissions
-        if (
-            hasattr(self, "_followup_thread")
-            and self._followup_thread is not None
-            and self._followup_thread.is_alive()
-        ):
+        if getattr(self, "_followup_pending", False):
             logger.debug("Follow-up already in progress, ignoring")
             return
 
@@ -715,45 +603,9 @@ class TaskMixin:
             self._pending_followup_index = len(self._qa_results) - 1
             self.output_display.update_outputs(qa_results=list(self._qa_results))
 
-        self._followup_queue = queue.Queue()
-
-        def run_followup():
-            try:
-                from src.services import QAService
-                from src.user_preferences import get_user_preferences
-
-                qa_service = QAService()
-                prefs = get_user_preferences()
-                orchestrator = qa_service.create_orchestrator(
-                    vector_store_path=self._vector_store_path,
-                    embeddings=self._embeddings,
-                    answer_mode=prefs.get("qa_answer_mode", "ollama"),
-                )
-
-                # Phase 1: Retrieve context (fast)
-                partial = qa_service.retrieve_for_followup(orchestrator, question)
-                self._followup_queue.put(("retrieval_done", partial))
-
-                # Phase 2: Generate answer (slow, requires Ollama)
-                if partial._retrieval_context is None:
-                    # Low-quality retrieval -- no generation needed
-                    self._followup_queue.put(("success", partial))
-                    return
-
-                final = qa_service.generate_answer_for_followup(orchestrator, partial)
-                # Check if answer is the Ollama unavailable message
-                ollama_text = qa_service.get_placeholder_texts()["ollama_unavailable"]
-                if final.quick_answer == ollama_text:
-                    self._followup_queue.put(("no_ollama", final))
-                else:
-                    self._followup_queue.put(("success", final))
-
-            except Exception as e:
-                self._followup_queue.put(("error", str(e)))
-                logger.debug("Follow-up thread error: %s", e)
-
-        self._followup_thread = threading.Thread(target=run_followup, daemon=True)
-        self._followup_thread.start()
+        # Send follow-up command to worker subprocess
+        self._followup_pending = True
+        self._worker_manager.send_command("followup", {"question": question})
         self._poll_followup_result()
 
     def _restore_followup_controls(self):
@@ -763,79 +615,63 @@ class TaskMixin:
         self.followup_entry.focus()
 
     def _poll_followup_result(self):
-        """Poll for follow-up results from the progressive background thread."""
-        import queue
+        """Poll for follow-up result from worker subprocess."""
+        if self._destroying:
+            return
 
-        try:
-            msg_type, data = self._followup_queue.get_nowait()
-        except queue.Empty:
+        messages = self._worker_manager.check_for_messages()
+        followup_result = None
+
+        for msg in messages:
+            try:
+                msg_type, data = msg
+                if msg_type == "qa_followup_result":
+                    followup_result = data
+                else:
+                    self._handle_queue_message(msg_type, data)
+            except (TypeError, ValueError):
+                pass
+
+        if followup_result is None:
             self.after(100, self._poll_followup_result)
             return
 
+        self._followup_pending = False
+        self._restore_followup_controls()
+
         try:
-            if msg_type == "retrieval_done":
-                # Phase 1 complete: show citation, keep polling for generation
+            if followup_result is not None and hasattr(followup_result, "quick_answer"):
                 with self._qa_results_lock:
                     pending_idx = getattr(self, "_pending_followup_index", None)
                     if pending_idx is not None and pending_idx < len(self._qa_results):
-                        self._qa_results[pending_idx] = data
-                    self.output_display.update_outputs(qa_results=list(self._qa_results))
-                self.set_status(f"Generating answer for: {data.question[:40]}...")
-                # Keep polling for phase 2
-                self.after(100, self._poll_followup_result)
-                return
-
-            elif msg_type == "success" and data is not None:
-                self._restore_followup_controls()
-                with self._qa_results_lock:
-                    pending_idx = getattr(self, "_pending_followup_index", None)
-                    if pending_idx is not None and pending_idx < len(self._qa_results):
-                        self._qa_results[pending_idx] = data
+                        self._qa_results[pending_idx] = followup_result
                         self._pending_followup_index = None
                     else:
-                        self._qa_results.append(data)
+                        self._qa_results.append(followup_result)
                     self.output_display.update_outputs(qa_results=list(self._qa_results))
-                answer_len = len(data.quick_answer) if data.quick_answer else 0
+                answer_len = (
+                    len(followup_result.quick_answer) if followup_result.quick_answer else 0
+                )
                 self.set_status(f"Follow-up answered: {answer_len} chars")
-                logger.debug("Follow-up result displayed successfully")
-
-            elif msg_type == "no_ollama":
-                self._restore_followup_controls()
-                with self._qa_results_lock:
-                    pending_idx = getattr(self, "_pending_followup_index", None)
-                    if pending_idx is not None and pending_idx < len(self._qa_results):
-                        self._qa_results[pending_idx] = data
-                        self._pending_followup_index = None
-                    else:
-                        self._qa_results.append(data)
-                    self.output_display.update_outputs(qa_results=list(self._qa_results))
-                self.set_status("Answer unavailable -- Ollama is not connected")
-                logger.debug("Follow-up: Ollama not connected, citation shown")
-
-            elif msg_type == "error":
-                self._restore_followup_controls()
+            else:
                 with self._qa_results_lock:
                     pending_idx = getattr(self, "_pending_followup_index", None)
                     if pending_idx is not None and pending_idx < len(self._qa_results):
                         if self._qa_results[pending_idx].quick_answer == PENDING_ANSWER_TEXT:
                             self._qa_results.pop(pending_idx)
-                            self.output_display.update_outputs(qa_results=list(self._qa_results))
-                        self._pending_followup_index = None
+                    self._pending_followup_index = None
+                    self.output_display.update_outputs(qa_results=list(self._qa_results))
                 self.set_status("Follow-up failed")
-                messagebox.showerror("Error", f"Failed to process follow-up: {data}")
-
         except Exception as e:
             logger.debug("Error processing follow-up result: %s", e)
-            self._restore_followup_controls()
             self.set_status("Follow-up error - check logs")
-            messagebox.showerror("Error", f"Error displaying result: {e!s}")
 
     def _ask_followup_for_qa_panel(self, question: str):
         """
         Ask a follow-up question from the QAPanel widget.
 
         This runs in a background thread (from QAPanel._submit_followup).
-        Do NOT call GUI methods here.
+        Sends command to worker subprocess and polls synchronously.
 
         Args:
             question: The follow-up question text
@@ -846,29 +682,36 @@ class TaskMixin:
         if not question:
             return None
 
-        if not self._vector_store_path or not self._embeddings:
-            logger.debug("Follow-up unavailable: no vector store or embeddings")
+        if not self._vector_store_path or not self._qa_ready:
+            logger.debug("Follow-up unavailable: no vector store or Q&A not ready")
             return None
 
         try:
-            from src.services import QAService
-            from src.user_preferences import get_user_preferences
+            import time
 
-            qa_service = QAService()
-            prefs = get_user_preferences()
-            orchestrator = qa_service.create_orchestrator(
-                vector_store_path=self._vector_store_path,
-                embeddings=self._embeddings,
-                answer_mode=prefs.get("qa_answer_mode", "ollama"),
-            )
+            self._worker_manager.send_command("followup", {"question": question})
 
-            result = orchestrator.ask_followup(question)
+            timeout = 120
+            start = time.time()
+            while time.time() - start < timeout:
+                messages = self._worker_manager.check_for_messages()
+                for msg in messages:
+                    try:
+                        msg_type, data = msg
+                        if msg_type == "qa_followup_result":
+                            if data is not None:
+                                with self._qa_results_lock:
+                                    self._qa_results.append(data)
+                                logger.debug("Follow-up answered: %s chars", len(data.answer))
+                                return data
+                            return None
+                        self._worker_manager.result_queue.put(msg)
+                    except (TypeError, ValueError):
+                        pass
+                time.sleep(0.1)
 
-            with self._qa_results_lock:
-                self._qa_results.append(result)
-
-            logger.debug("Follow-up answered: %s chars", len(result.answer))
-            return result
+            logger.warning("Follow-up timed out after %ss", timeout)
+            return None
 
         except Exception as e:
             logger.debug("Follow-up error: %s", e)

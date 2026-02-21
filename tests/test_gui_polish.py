@@ -566,6 +566,243 @@ class TestHoverPreviews:
 
 
 # =========================================================================
+# Feature 6b: Tooltip manager integration in FileReviewTable
+# =========================================================================
+
+
+class TestTooltipManagerIntegration:
+    """Test that FileReviewTable coordinates with global TooltipManager."""
+
+    def _make_table(self):
+        """Create a FileReviewTable with mocked widgets."""
+        from src.ui.widgets import FileReviewTable
+
+        table = FileReviewTable.__new__(FileReviewTable)
+        table._tooltip_window = None
+        table._hovered_row = None
+        table._result_data = {}
+        table.file_item_map = {}
+        table._drop_zone = MagicMock()
+        table._drop_zone.winfo_ismapped.return_value = False
+        table.tree = MagicMock()
+        return table
+
+    def test_show_tooltip_calls_close_active(self):
+        """_show_tooltip should close any existing tooltip from other components."""
+        from unittest.mock import patch
+
+        table = self._make_table()
+        table.winfo_toplevel = MagicMock()
+
+        with (
+            patch("src.ui.tooltip_manager.tooltip_manager") as mock_mgr,
+            patch("src.ui.widgets.ctk.CTkToplevel"),
+            patch("src.ui.widgets.ctk.CTkLabel"),
+        ):
+            table._show_tooltip(100, 200, "test text")
+            mock_mgr.close_active.assert_called_once()
+
+    def test_show_tooltip_registers_with_manager(self):
+        """_show_tooltip should register the new window with tooltip_manager."""
+        from unittest.mock import patch
+
+        import customtkinter as ctk
+
+        table = self._make_table()
+        mock_toplevel = MagicMock(spec=ctk.CTkToplevel)
+
+        with (
+            patch("src.ui.tooltip_manager.tooltip_manager") as mock_mgr,
+            patch("src.ui.widgets.ctk.CTkToplevel", return_value=mock_toplevel),
+            patch("src.ui.widgets.ctk.CTkLabel"),
+        ):
+            table.winfo_toplevel = MagicMock()
+            table._show_tooltip(100, 200, "test text")
+
+            mock_mgr.register.assert_called_once_with(mock_toplevel, owner=table)
+
+    def test_hide_tooltip_unregisters_from_manager(self):
+        """_hide_tooltip should unregister from tooltip_manager before destroying."""
+        from unittest.mock import patch
+
+        table = self._make_table()
+        mock_window = MagicMock()
+        table._tooltip_window = mock_window
+
+        with patch("src.ui.tooltip_manager.tooltip_manager") as mock_mgr:
+            table._hide_tooltip()
+
+            mock_mgr.unregister.assert_called_once_with(mock_window)
+            mock_window.destroy.assert_called_once()
+
+    def test_hide_tooltip_noop_skips_unregister(self):
+        """_hide_tooltip with no tooltip should not call unregister."""
+        from unittest.mock import patch
+
+        table = self._make_table()
+        table._tooltip_window = None
+
+        with patch("src.ui.tooltip_manager.tooltip_manager") as mock_mgr:
+            table._hide_tooltip()
+            mock_mgr.unregister.assert_not_called()
+
+    def test_show_tooltip_source_has_manager_calls(self):
+        """_show_tooltip source should contain tooltip_manager integration."""
+        import inspect
+
+        from src.ui.widgets import FileReviewTable
+
+        source = inspect.getsource(FileReviewTable._show_tooltip)
+        assert "tooltip_manager.close_active()" in source
+        assert "tooltip_manager.register(" in source
+
+    def test_hide_tooltip_source_has_unregister(self):
+        """_hide_tooltip source should call tooltip_manager.unregister."""
+        import inspect
+
+        from src.ui.widgets import FileReviewTable
+
+        source = inspect.getsource(FileReviewTable._hide_tooltip)
+        assert "tooltip_manager.unregister(" in source
+
+
+# =========================================================================
+# Bug fix: _preprocessing_active flag (separate from _processing_active)
+# =========================================================================
+
+
+class TestPreprocessingActiveFlag:
+    """Test that preprocessing uses its own flag, not _processing_active.
+
+    Bug: _start_preprocessing set _processing_active = True, which caused
+    _update_generate_button_state to exit early (button stuck disabled).
+    Fix: Use separate _preprocessing_active flag for preprocessing polling.
+    """
+
+    def test_init_has_preprocessing_active(self):
+        """MainWindow.__init__ should initialize _preprocessing_active."""
+        import inspect
+
+        from src.ui.main_window import MainWindow
+
+        source = inspect.getsource(MainWindow.__init__)
+        assert "_preprocessing_active" in source
+
+    def test_start_preprocessing_sets_preprocessing_flag(self):
+        """_start_preprocessing should set _preprocessing_active, not _processing_active."""
+        import inspect
+
+        from src.ui.main_window_helpers.file_mixin import FileMixin
+
+        source = inspect.getsource(FileMixin._start_preprocessing)
+        assert "self._preprocessing_active = True" in source
+        assert "self._processing_active = True" not in source
+
+    def test_on_preprocessing_complete_clears_flag(self):
+        """_on_preprocessing_complete should clear _preprocessing_active."""
+        import inspect
+
+        from src.ui.main_window_helpers.file_mixin import FileMixin
+
+        source = inspect.getsource(FileMixin._on_preprocessing_complete)
+        assert "self._preprocessing_active = False" in source
+
+    def test_poll_queue_checks_preprocessing_active(self):
+        """_poll_queue should continue polling when _preprocessing_active is True."""
+        import inspect
+
+        from src.ui.main_window_helpers.file_mixin import FileMixin
+
+        source = inspect.getsource(FileMixin._poll_queue)
+        assert "self._preprocessing_active" in source
+
+    def test_poll_queue_continues_during_preprocessing(self):
+        """_poll_queue should schedule another poll when _preprocessing_active."""
+        from src.ui.main_window import MainWindow
+
+        w = MagicMock()
+        w._destroying = False
+        w._worker_manager = MagicMock()
+        w._worker_manager.check_for_messages.return_value = []
+        w._processing_active = False
+        w._preprocessing_active = True
+        w._queue_poll_id = None
+        w._qa_results_lock = MagicMock()
+        w._qa_results = []
+
+        MainWindow._poll_queue(w)
+
+        w.after.assert_called_once_with(33, w._poll_queue)
+
+    def test_poll_queue_stops_when_both_flags_false(self):
+        """_poll_queue should stop polling when both flags are False."""
+        from src.ui.main_window import MainWindow
+
+        w = MagicMock()
+        w._destroying = False
+        w._worker_manager = MagicMock()
+        w._worker_manager.check_for_messages.return_value = []
+        w._processing_active = False
+        w._preprocessing_active = False
+        w._queue_poll_id = None
+        w._qa_results_lock = MagicMock()
+        w._qa_results = []
+
+        MainWindow._poll_queue(w)
+
+        w.after.assert_not_called()
+
+    def test_button_enables_after_preprocessing(self):
+        """_update_generate_button_state should enable button after preprocessing.
+
+        This is the actual bug: _processing_active stayed True after preprocessing,
+        causing the early return at the top of _update_generate_button_state.
+        """
+        from src.ui.main_window import MainWindow
+
+        w = MagicMock()
+        w._processing_active = False
+        w.processing_results = [{"status": "success"}]
+        w._get_task_count = MagicMock(return_value=2)
+
+        MainWindow._update_generate_button_state(w)
+
+        # Button should be enabled with "Perform 2 Tasks"
+        w.generate_btn.configure.assert_called_with(text="Perform 2 Tasks", state="normal")
+
+    def test_button_disabled_during_task_execution(self):
+        """_update_generate_button_state should disable button during _processing_active."""
+        from src.ui.main_window import MainWindow
+
+        w = MagicMock()
+        w._processing_active = True
+        w.processing_results = [{"status": "success"}]
+
+        MainWindow._update_generate_button_state(w)
+
+        w.generate_btn.configure.assert_called_with(state="disabled")
+
+    def test_main_window_start_preprocessing_mirrors_mixin(self):
+        """main_window.py _start_preprocessing should also use _preprocessing_active."""
+        import inspect
+
+        from src.ui.main_window import MainWindow
+
+        source = inspect.getsource(MainWindow._start_preprocessing)
+        assert "self._preprocessing_active = True" in source
+        assert "self._processing_active = True" not in source
+
+    def test_main_window_on_preprocessing_complete_clears_flag(self):
+        """main_window.py _on_preprocessing_complete should clear _preprocessing_active."""
+        import inspect
+
+        from src.ui.main_window import MainWindow
+
+        source = inspect.getsource(MainWindow._on_preprocessing_complete)
+        assert "self._preprocessing_active = False" in source
+
+
+# =========================================================================
 # Feature 3 & Queue Wiring: Progress percentage in queue messages
 # =========================================================================
 

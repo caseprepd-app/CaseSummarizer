@@ -36,12 +36,6 @@ from tkinter import filedialog, messagebox
 
 import customtkinter as ctk
 
-from src.services.workers import (
-    ProcessingWorker,
-    ProgressiveExtractionWorker,
-    QAWorker,
-    VocabularyWorker,
-)
 from src.ui.styles import initialize_all_styles
 from src.ui.tooltip_manager import tooltip_manager
 from src.ui.window_layout import WindowLayoutMixin
@@ -79,8 +73,9 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
     - _create_left_panel, _create_right_panel, _create_status_bar
     """
 
-    def __init__(self):
+    def __init__(self, worker_manager=None):
         super().__init__()
+        self._worker_manager = worker_manager
 
         from src.config import APP_NAME, DEBUG_MODE
 
@@ -99,6 +94,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         self._processing_start_time: float | None = None
         self._timer_after_id: str | None = None
         self._processing_active: bool = False
+        self._preprocessing_active: bool = False
 
         # Resize debounce -- tracks whether the window is mid-resize
         self._resize_in_progress: bool = False
@@ -116,17 +112,11 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         # Shutdown guard — prevents after() callbacks on destroyed widgets
         self._destroying = False
 
-        # Workers and queue
-        self._processing_worker: ProcessingWorker | None = None
-        self._vocabulary_worker: VocabularyWorker | None = None
-        self._qa_worker: QAWorker | None = None
-        self._progressive_worker: ProgressiveExtractionWorker | None = None  # Session 45
-        self._summary_worker = None  # MultiDocSummaryWorker
-        self._ui_queue: Queue | None = None
+        # Worker subprocess manager (replaces individual worker threads)
+        # When worker_manager is provided, all heavy work runs in a subprocess
         self._queue_poll_id: str | None = None
 
-        # Q&A infrastructure
-        self._embeddings = None  # Lazy-loaded HuggingFaceEmbeddings
+        # Q&A infrastructure (vector_store_path still tracked here for UI checks)
         self._vector_store_path = None  # Path to current session's vector store
         self._qa_results: list = []  # Store QAResult objects
         self._qa_results_lock = threading.Lock()  # LOG-007: Thread-safe access
@@ -638,16 +628,15 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         # Start timer
         self._start_timer()
 
-        # Create queue for worker communication
-        self._ui_queue = Queue()
-
-        # Create and start worker
-        self._processing_worker = ProcessingWorker(
-            file_paths=self.selected_files,
-            ui_queue=self._ui_queue,
-            ocr_allowed=ocr_allowed,
+        # Send command to worker subprocess
+        self._worker_manager.send_command(
+            "process_files",
+            {
+                "file_paths": self.selected_files,
+                "ocr_allowed": ocr_allowed,
+            },
         )
-        self._processing_worker.start()
+        self._preprocessing_active = True
 
         # Start polling the queue
         self._poll_queue()
@@ -667,63 +656,24 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         self._resize_debounce_id = None
 
     def _poll_queue(self):
-        """Poll the UI queue for worker messages."""
-        # Process up to 10 messages per poll to avoid blocking UI
-        messages_processed = 0
-        max_messages_per_poll = 10
+        """Poll the worker subprocess result queue for messages."""
+        if self._destroying:
+            return
 
-        try:
-            while messages_processed < max_messages_per_poll:
-                msg_type, data = self._ui_queue.get_nowait()
-                self._handle_queue_message(msg_type, data)
-                messages_processed += 1
-        except Empty:
-            pass
-
-        # NOTE: No update_idletasks() here. Tk automatically processes idle
-        # tasks (redraws, geometry) between after() callbacks. Forcing it here
-        # caused a feedback loop: idletasks -> <Configure> events -> layout
-        # thrashing -> "(not responding)" during window resize/maximize.
-
-        # Continue polling if any worker is running OR if we hit the message limit (more messages may be waiting)
-        processing_alive = self._processing_worker and self._processing_worker.is_alive()
-        progressive_alive = self._progressive_worker and self._progressive_worker.is_alive()
-        # Session 86: Also check default questions worker so Q&A results are received
-        default_qa_alive = (
-            hasattr(self, "_default_qa_worker")
-            and self._default_qa_worker
-            and self._default_qa_worker.is_alive()
-        )
-        summary_alive = self._summary_worker and self._summary_worker.is_alive()
-        more_messages_likely = messages_processed >= max_messages_per_poll
-
-        if (
-            processing_alive
-            or progressive_alive
-            or default_qa_alive
-            or summary_alive
-            or more_messages_likely
-        ):
-            self._queue_poll_id = self.after(33, self._poll_queue)  # ~30fps for smooth animation
-        else:
-            # Final poll to catch any remaining messages
+        # Drain messages from worker subprocess (non-blocking)
+        messages = self._worker_manager.check_for_messages()
+        for msg in messages:
             try:
-                while True:
-                    msg_type, data = self._ui_queue.get_nowait()
-                    self._handle_queue_message(msg_type, data)
-            except Empty:
-                pass
+                msg_type, data = msg
+                self._handle_queue_message(msg_type, data)
+            except (TypeError, ValueError):
+                logger.warning("Invalid message from worker subprocess: %s", msg)
 
-            # Re-check: a handler in the final drain may have spawned a new worker
-            # (e.g., trigger_default_qa spawns QAWorker, summary task starts).
-            new_qa_alive = (
-                hasattr(self, "_default_qa_worker")
-                and self._default_qa_worker
-                and self._default_qa_worker.is_alive()
-            )
-            new_summary_alive = self._summary_worker and self._summary_worker.is_alive()
-            if new_qa_alive or new_summary_alive:
-                self._queue_poll_id = self.after(33, self._poll_queue)
+        # Continue polling while processing is active or we got messages
+        if self._processing_active or self._preprocessing_active or messages:
+            self._queue_poll_id = self.after(33, self._poll_queue)  # ~30fps
+        else:
+            self._queue_poll_id = None
 
     def _handle_queue_message(self, msg_type: str, data):
         """Handle a message from the worker queue."""
@@ -790,7 +740,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             chunk_count = data.get("chunk_count", 0)
             logger.debug("Q&A ready: %s chunks indexed", chunk_count)
             self._vector_store_path = data.get("vector_store_path")
-            self._embeddings = data.get("embeddings")
+            # Embeddings stay in worker subprocess (not picklable)
             self._qa_ready = True
             if self._pending_tasks.get("qa"):
                 self._completed_tasks.add("qa")
@@ -810,10 +760,10 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             self.set_status_error(f"Q&A unavailable: {error_msg[:50]}")
             # Q&A won't be available but vocab extraction can continue
 
-        elif msg_type == "trigger_default_qa":
-            # Check if default questions checkbox is enabled
+        elif msg_type == "trigger_default_qa_started":
+            # QAWorker was auto-spawned in the worker subprocess
             if not self.ask_default_questions_check.get():
-                logger.debug("Default questions disabled, skipping")
+                logger.debug("Default questions disabled, skipping display update")
                 self.status_label.configure(
                     text="Ready. Type a question below to search your documents."
                 )
@@ -822,25 +772,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
                 from src.ui.workflow_status import WorkflowPhase
 
                 self.output_display.set_workflow_phase(WorkflowPhase.QA_ANSWERING)
-
-                # Spawn QAWorker with default questions
-                from src.services.workers import QAWorker
-                from src.user_preferences import get_user_preferences
-
-                logger.debug("Spawning QAWorker for default questions")
-                prefs = get_user_preferences()
-
-                # Session 86: Store as instance variable so _poll_queue() keeps polling
-                self._default_qa_worker = QAWorker(
-                    vector_store_path=data["vector_store_path"],
-                    embeddings=data["embeddings"],
-                    ui_queue=self._ui_queue,
-                    answer_mode=prefs.get("qa_answer_mode", "ollama"),
-                    questions=None,
-                    use_default_questions=True,
-                )
-                self._default_qa_worker.start()
-                logger.debug("Default questions worker started")
+                logger.debug("Default questions worker started in subprocess")
 
         # Q&A result handlers (Session 63c: handle messages from default questions worker)
         elif msg_type == "qa_progress":
@@ -920,7 +852,6 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         )
 
         self._completed_tasks.add("summary")
-        self._summary_worker = None
 
         if result.documents_failed > 0:
             self.set_status(
@@ -950,6 +881,9 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         if results:
             self.processing_results = results
             logger.debug("Updated processing_results with %s preprocessed documents", len(results))
+
+        # Clear preprocessing flag so _update_generate_button_state sees correct state
+        self._preprocessing_active = False
 
         # Re-enable controls
         self.add_files_btn.configure(state="normal")
@@ -1600,7 +1534,9 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
                 if d.get("preprocessed_text") or d.get("extracted_text")
             ]
 
-        # Start vocabulary worker
+        # Start vocabulary worker (legacy path, kept for compatibility)
+        from src.services.workers import VocabularyWorker
+
         self._vocabulary_worker = VocabularyWorker(
             combined_text=combined_text,
             ui_queue=self._vocab_queue,
@@ -1716,19 +1652,19 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         use_llm = get_user_preferences().is_vocab_llm_enabled()
         logger.debug("LLM extraction from preference: %s", use_llm)
 
-        # Start progressive extraction worker (uses shared ui_queue)
-        self._progressive_worker = ProgressiveExtractionWorker(
-            documents=self.processing_results,
-            combined_text=combined_text,
-            ui_queue=self._ui_queue,  # Use shared queue for unified message routing
-            embeddings=self._embeddings,  # Pass existing if available
-            exclude_list_path=str(LEGAL_EXCLUDE_LIST_PATH),
-            medical_terms_path=str(MEDICAL_TERMS_LIST_PATH),
-            user_exclude_path=str(USER_VOCAB_EXCLUDE_PATH),
-            doc_confidence=doc_confidence,  # Session 54: OCR quality for ML
-            use_llm=use_llm,  # Session 62b: Respect GPU auto-detect preference
+        # Send extraction command to worker subprocess
+        self._worker_manager.send_command(
+            "extract",
+            {
+                "documents": self.processing_results,
+                "combined_text": combined_text,
+                "exclude_list_path": str(LEGAL_EXCLUDE_LIST_PATH),
+                "medical_terms_path": str(MEDICAL_TERMS_LIST_PATH),
+                "user_exclude_path": str(USER_VOCAB_EXCLUDE_PATH),
+                "doc_confidence": doc_confidence,
+                "use_llm": use_llm,
+            },
         )
-        self._progressive_worker.start()
 
         # Restart timer for extraction phase (was stopped after preprocessing)
         self._start_timer()
@@ -1739,115 +1675,24 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         self._poll_queue()
 
     def _start_qa_task(self):
-        """Start Q&A task - build vector store then run questions."""
-        import threading
-
+        """Start Q&A task via worker subprocess."""
         self.set_status(
             "Questions and answers: Loading embeddings model (this may take a moment)..."
         )
 
-        # Run the heavy initialization in a background thread
-        def initialize_qa():
-            """Background thread for embeddings + vector store setup."""
-            try:
-                # Lazy-load embeddings model (slow first time, reused after)
-                if self._embeddings is None:
-                    logger.debug("Loading embeddings model...")
-                    from src.services.qa_service import get_embeddings_model
-
-                    self._embeddings = get_embeddings_model()
-                    logger.debug("Embeddings model loaded")
-
-                # Build vector store from documents
-                logger.debug("Building vector store...")
-                from src.services import QAService
-
-                builder = QAService().get_vector_store_builder()
-                result = builder.create_from_documents(
-                    documents=self.processing_results, embeddings=self._embeddings
-                )
-                self._vector_store_path = result.persist_dir
-                logger.debug(
-                    "Vector store created: %s chunks at %s", result.chunk_count, result.persist_dir
-                )
-
-                # Signal main thread that initialization is complete
-                self.after(0, lambda: self._qa_init_complete(True, None))
-
-            except Exception as e:
-                logger.debug("Q&A initialization error: %s", e)
-                error_msg = str(e)
-                self.after(0, lambda err=error_msg: self._qa_init_complete(False, err))
-
-        # Start background thread
-        init_thread = threading.Thread(target=initialize_qa, daemon=True)
-        init_thread.start()
-
-    def _qa_init_complete(self, success: bool, error: str | None):
-        """Called when Q&A initialization (embeddings + vector store) completes."""
-        if not success:
-            self.set_status(f"Questions and answers error: {error[:50] if error else 'Unknown'}...")
-            self._completed_tasks.add("qa")
-            if self._pending_tasks.get("summary"):
-                self._start_summary_task()
-            else:
-                self._finalize_tasks()
-            return
-
-        self.set_status("Questions and answers: Building vector store...")
-
-        # Create Q&A queue and worker
-        self._qa_queue = Queue()
-        self._qa_worker = QAWorker(
-            vector_store_path=self._vector_store_path,
-            embeddings=self._embeddings,
-            ui_queue=self._qa_queue,
-            answer_mode="extraction",  # Fast extraction mode
+        # Send run_qa command to worker subprocess
+        # The subprocess handles embeddings loading and vector store creation
+        self._worker_manager.send_command(
+            "run_qa",
+            {
+                "answer_mode": "extraction",
+            },
         )
-        self._qa_worker.start()
 
-        # Start polling Q&A queue
-        self.set_status("Questions and answers: Processing questions...")
-        self._poll_qa_queue()
-
-    def _poll_qa_queue(self):
-        """Poll the Q&A worker queue for results."""
-        if self._destroying:
-            return
-        try:
-            while True:
-                msg_type, data = self._qa_queue.get_nowait()
-                if msg_type == "qa_progress":
-                    current, total, _question = data
-                    self.set_status(f"Answered {current + 1}/{total} questions, working on next...")
-                elif msg_type == "qa_result":
-                    # Individual result - could update incrementally
-                    pass
-                elif msg_type == "qa_complete":
-                    self._on_qa_complete(data)
-                    return
-                elif msg_type == "error":
-                    self.set_status(f"Questions and answers error: {data}")
-                    self._on_qa_complete([])
-                    return
-        except Empty:
-            pass
-
-        # Continue polling if worker is alive
-        if self._qa_worker and self._qa_worker.is_alive():
-            self.after(50, self._poll_qa_queue)
-        else:
-            # Worker finished - do final poll
-            try:
-                while True:
-                    msg_type, data = self._qa_queue.get_nowait()
-                    if msg_type == "qa_complete":
-                        self._on_qa_complete(data)
-                        return
-            except Empty:
-                pass
-            # Worker finished without sending results
-            self._on_qa_complete([])
+        # Ensure queue polling is active
+        if self._queue_poll_id:
+            self.after_cancel(self._queue_poll_id)
+        self._poll_queue()
 
     def _on_qa_complete(self, qa_results: list):
         """Handle Q&A completion."""
@@ -1873,7 +1718,6 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
 
     def _start_summary_task(self):
         """Start summary generation using MultiDocSummaryWorker."""
-        from src.services.workers import MultiDocSummaryWorker
         from src.ui.workflow_status import WorkflowPhase
         from src.user_preferences import get_user_preferences
 
@@ -1908,11 +1752,14 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         self.set_status(f"Generating summary for {doc_count} document(s)...")
         logger.debug("Starting summary worker for %s documents", doc_count)
 
-        # Launch worker (daemon thread via BaseWorker)
-        self._summary_worker = MultiDocSummaryWorker(
-            documents=valid_docs, ui_queue=self._ui_queue, ai_params=ai_params
+        # Send summary command to worker subprocess
+        self._worker_manager.send_command(
+            "summary",
+            {
+                "documents": valid_docs,
+                "ai_params": ai_params,
+            },
         )
-        self._summary_worker.start()
 
         # Ensure polling is active to receive worker messages
         if not self._queue_poll_id:
@@ -1986,8 +1833,8 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         if not question:
             return
 
-        # Check prerequisites
-        if not self._vector_store_path or not self._embeddings:
+        # Check prerequisites (vector_store_path tracked locally, embeddings in subprocess)
+        if not self._vector_store_path or not self._qa_ready:
             messagebox.showwarning(
                 "Questions Not Ready",
                 "Question system is not initialized yet.\n\n"
@@ -2001,11 +1848,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             return
 
         # Prevent duplicate submissions
-        if (
-            hasattr(self, "_followup_thread")
-            and self._followup_thread is not None
-            and self._followup_thread.is_alive()
-        ):
+        if getattr(self, "_followup_pending", False):
             logger.debug("Follow-up already in progress, ignoring")
             return
 
@@ -2033,72 +1876,79 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         # Switch to Q&A tab so user sees the pending question
         self.output_display.tabview.set("Ask Questions")
 
-        # Run Q&A in background thread to keep GUI responsive
-        import queue
-        import threading
+        # Send follow-up command to worker subprocess
+        self._followup_pending = True
+        self._worker_manager.send_command("followup", {"question": question})
 
-        self._followup_queue = queue.Queue()
-
-        def run_followup():
-            try:
-                from src.services import QAService
-                from src.user_preferences import get_user_preferences
-
-                prefs = get_user_preferences()
-                orchestrator = QAService().create_orchestrator(
-                    vector_store_path=self._vector_store_path,
-                    embeddings=self._embeddings,
-                    answer_mode=prefs.get("qa_answer_mode", "ollama"),
-                )
-                result = orchestrator.ask_followup(question)
-                self._followup_queue.put(("success", result))
-            except Exception as e:
-                self._followup_queue.put(("error", str(e)))
-                logger.debug("Follow-up thread error: %s", e)
-
-        self._followup_thread = threading.Thread(target=run_followup, daemon=True)
-        self._followup_thread.start()
-
-        # Start polling for results
+        # Start polling for followup result (comes via qa_followup_result message)
         self._poll_followup_result()
 
     def _poll_followup_result(self):
-        """Poll for follow-up result from background thread."""
+        """Poll for follow-up result from worker subprocess."""
         if self._destroying:
             return
-        import queue
 
-        try:
-            msg_type, data = self._followup_queue.get_nowait()
-        except queue.Empty:
+        # Check for qa_followup_result in subprocess messages
+        messages = self._worker_manager.check_for_messages()
+        followup_result = None
+        other_messages = []
+
+        for msg in messages:
+            try:
+                msg_type, data = msg
+                if msg_type == "qa_followup_result":
+                    followup_result = data
+                else:
+                    # Re-handle non-followup messages normally
+                    other_messages.append(msg)
+            except (TypeError, ValueError):
+                pass
+
+        # Process any non-followup messages that arrived
+        for msg in other_messages:
+            try:
+                msg_type, data = msg
+                self._handle_queue_message(msg_type, data)
+            except (TypeError, ValueError):
+                pass
+
+        if followup_result is None and not messages:
             # No result yet, keep polling
             self.after(100, self._poll_followup_result)
             return
 
+        if followup_result is None:
+            # Got messages but no followup result yet
+            self.after(100, self._poll_followup_result)
+            return
+
         # Got a result - re-enable controls
+        self._followup_pending = False
         self.followup_btn.configure(state="normal", text="Ask")
         self.followup_entry.configure(state="normal")
         self.followup_entry.focus()
 
         try:
-            if msg_type == "success" and data is not None:
+            if followup_result is not None and hasattr(followup_result, "quick_answer"):
                 # Replace pending result with actual answer
                 with self._qa_results_lock:
                     pending_idx = getattr(self, "_pending_followup_index", None)
                     if pending_idx is not None and pending_idx < len(self._qa_results):
                         if self._qa_results[pending_idx].quick_answer == "Answer pending...":
-                            self._qa_results[pending_idx] = data
+                            self._qa_results[pending_idx] = followup_result
                         else:
-                            self._qa_results.append(data)
+                            self._qa_results.append(followup_result)
                     else:
-                        self._qa_results.append(data)
+                        self._qa_results.append(followup_result)
                     self._pending_followup_index = None
                     self.output_display.update_outputs(qa_results=list(self._qa_results))
-                answer_len = len(data.quick_answer) if data.quick_answer else 0
+                answer_len = (
+                    len(followup_result.quick_answer) if followup_result.quick_answer else 0
+                )
                 self.set_status(f"Follow-up answered: {answer_len} chars")
                 logger.debug("Follow-up result displayed successfully")
-            elif msg_type == "error":
-                # Remove pending result on error
+            else:
+                # None result = error in subprocess
                 with self._qa_results_lock:
                     pending_idx = getattr(self, "_pending_followup_index", None)
                     if pending_idx is not None and pending_idx < len(self._qa_results):
@@ -2107,9 +1957,8 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
                     self._pending_followup_index = None
                     self.output_display.update_outputs(qa_results=list(self._qa_results))
                 self.set_status("Follow-up failed")
-                messagebox.showerror("Error", f"Failed to process follow-up: {data}")
+                messagebox.showerror("Error", "Failed to process follow-up question")
         except Exception as e:
-            # Catch any errors during result processing
             logger.debug("Error processing follow-up result: %s", e)
             self.set_status("Follow-up error - check logs")
             messagebox.showerror("Error", f"Error displaying result: {e!s}")
@@ -2120,6 +1969,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
 
         This method is called by QAPanel's built-in follow-up input.
         It returns a QAResult directly (unlike _ask_followup which updates UI).
+        Sends command to worker subprocess and polls synchronously (runs in thread).
 
         Args:
             question: The follow-up question text
@@ -2131,35 +1981,42 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             return None
 
         # Check prerequisites
-        if not self._vector_store_path or not self._embeddings:
-            logger.debug("Follow-up unavailable: no vector store or embeddings")
+        if not self._vector_store_path or not self._qa_ready:
+            logger.debug("Follow-up unavailable: no vector store or Q&A not ready")
             return None
 
         # NOTE: This method runs in a background thread (from QAPanel._submit_followup)
         # Do NOT call GUI methods like set_status() here - it causes freezes!
 
         try:
-            # Import and use QAOrchestrator for follow-up (via service layer)
-            from src.services import QAService
-            from src.user_preferences import get_user_preferences
+            import time
 
-            prefs = get_user_preferences()
-            orchestrator = QAService().create_orchestrator(
-                vector_store_path=self._vector_store_path,
-                embeddings=self._embeddings,
-                answer_mode=prefs.get("qa_answer_mode", "ollama"),
-            )
+            # Send followup command to worker subprocess
+            self._worker_manager.send_command("followup", {"question": question})
 
-            # Ask the follow-up question
-            result = orchestrator.ask_followup(question)
+            # Poll for result (blocking, since we're in a background thread)
+            timeout = 120  # seconds
+            start = time.time()
+            while time.time() - start < timeout:
+                messages = self._worker_manager.check_for_messages()
+                for msg in messages:
+                    try:
+                        msg_type, data = msg
+                        if msg_type == "qa_followup_result":
+                            if data is not None:
+                                with self._qa_results_lock:
+                                    self._qa_results.append(data)
+                                logger.debug("Follow-up answered: %s chars", len(data.answer))
+                                return data
+                            return None
+                        # Re-queue non-followup messages for main thread
+                        self._worker_manager.result_queue.put(msg)
+                    except (TypeError, ValueError):
+                        pass
+                time.sleep(0.1)
 
-            # Add to internal results list (so it persists across view changes)
-            # LOG-007: Use lock for thread-safe access
-            with self._qa_results_lock:
-                self._qa_results.append(result)
-
-            logger.debug("Follow-up answered: %s chars", len(result.answer))
-            return result
+            logger.warning("Follow-up timed out after %ss", timeout)
+            return None
 
         except Exception as e:
             logger.debug("Follow-up error: %s", e)
@@ -2515,28 +2372,10 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             self.after_cancel(self._timer_after_id)
             self._timer_after_id = None
 
-        # Explicitly stop all running workers to prevent resource leaks
-        workers_to_stop = [
-            ("processing", self._processing_worker),
-            ("vocabulary", self._vocabulary_worker),
-            ("qa", self._qa_worker),
-            ("progressive", self._progressive_worker),
-            ("summary", self._summary_worker),
-        ]
-        # Also check for _default_qa_worker if it exists
-        if hasattr(self, "_default_qa_worker") and self._default_qa_worker:
-            workers_to_stop.append(("default_qa", self._default_qa_worker))
-
-        for name, worker in workers_to_stop:
-            if worker and hasattr(worker, "is_alive") and worker.is_alive():
-                if hasattr(worker, "stop"):
-                    logger.debug("Stopping %s worker...", name)
-                    worker.stop()
-
-        # Join workers briefly to let in-flight file writes finish
-        for name, worker in workers_to_stop:
-            if worker and hasattr(worker, "is_alive") and worker.is_alive():
-                worker.join(timeout=1.0)
+        # Shut down the worker subprocess (non-blocking to avoid GUI hang)
+        if self._worker_manager:
+            logger.debug("Shutting down worker subprocess...")
+            self._worker_manager.shutdown(blocking=False)
 
         # Stop timer
         self._stop_timer()

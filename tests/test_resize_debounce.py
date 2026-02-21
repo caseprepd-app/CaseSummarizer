@@ -12,7 +12,6 @@ Covers:
 
 import threading
 from pathlib import Path
-from queue import Queue
 from unittest.mock import MagicMock, call
 
 from src.ui.main_window import MainWindow
@@ -36,10 +35,10 @@ def _make_mock_window():
     w._resize_debounce_id = None
     # Poll queue state
     w._destroying = False
-    w._ui_queue = Queue()
-    w._processing_worker = None
-    w._progressive_worker = None
-    w._summary_worker = None
+    w._worker_manager = MagicMock()
+    w._worker_manager.check_for_messages.return_value = []
+    w._processing_active = False
+    w._preprocessing_active = False
     w._queue_poll_id = None
     w._qa_results_lock = threading.Lock()
     w._qa_results = []
@@ -192,7 +191,8 @@ class TestPollQueueNoIdletasks:
     def test_no_update_idletasks_with_messages(self):
         """_poll_queue should not call update_idletasks even after processing messages."""
         w = _make_mock_window()
-        w._ui_queue.put(("status", "Processing..."))
+        w._worker_manager.check_for_messages.return_value = [("status", "Processing...")]
+        w._processing_active = True
 
         MainWindow._poll_queue(w)
 
@@ -203,7 +203,8 @@ class TestPollQueueNoIdletasks:
         """Messages in the queue should still be handled even during resize."""
         w = _make_mock_window()
         w._resize_in_progress = True
-        w._ui_queue.put(("status", "Processing file 1..."))
+        w._worker_manager.check_for_messages.return_value = [("status", "Processing file 1...")]
+        w._processing_active = True
 
         MainWindow._poll_queue(w)
 

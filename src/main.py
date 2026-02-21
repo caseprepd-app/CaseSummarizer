@@ -355,13 +355,22 @@ def main():
 
     apply_scaling()
 
-    app = MainWindow()
+    # Start persistent worker subprocess for pipeline tasks (GIL-free)
+    from src.services.worker_manager import WorkerProcessManager
+
+    worker_manager = WorkerProcessManager()
+    worker_manager.start()
+
+    app = MainWindow(worker_manager=worker_manager)
 
     # Kill splash now that the main window is ready
     _kill_splash(_splash_proc)
     _splash_proc = None
 
     app.mainloop()
+
+    # Clean up worker subprocess after GUI closes
+    worker_manager.shutdown(blocking=True)
 
 
 if __name__ == "__main__":
