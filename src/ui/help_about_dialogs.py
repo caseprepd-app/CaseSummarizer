@@ -9,6 +9,7 @@ import webbrowser
 
 import customtkinter as ctk
 
+from src import __version__
 from src.config import APP_NAME
 from src.ui.base_dialog import BaseModalDialog
 from src.ui.theme import COLORS, FONTS
@@ -398,7 +399,7 @@ class AboutDialog(BaseModalDialog):
 
         version = ctk.CTkLabel(
             self,
-            text="Version 1.0.0",
+            text=f"Version {__version__}",
             font=FONTS["body"],
             text_color=COLORS["text_secondary"],
         )

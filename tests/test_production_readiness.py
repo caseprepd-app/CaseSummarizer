@@ -527,6 +527,15 @@ class TestVersionConsistency:
             f"Version mismatch: src={src.__version__}, iss={iss_version}"
         )
 
+    def test_about_dialog_uses_dynamic_version(self):
+        """About dialog must use __version__ not a hardcoded string."""
+        about_path = BUNDLED_BASE_DIR / "src" / "ui" / "help_about_dialogs.py"
+        content = about_path.read_text(encoding="utf-8")
+        assert "__version__" in content, "help_about_dialogs.py must import and use __version__"
+        assert 'text="Version 1.' not in content, (
+            "About dialog has a hardcoded version string -- use f'Version {__version__}'"
+        )
+
 
 class TestNameDataFiles:
     """Verify name data CSV files exist and have rows."""
