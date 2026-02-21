@@ -72,13 +72,11 @@ class CrossEncoderReranker:
             logger.debug("Downloading model: %s", model_path)
             logger.debug("Cache directory: %s", HF_CACHE_DIR)
 
-        model_kwargs = {}
+        init_kwargs = {"max_length": RERANKER_MAX_LENGTH}
         if is_local:
-            model_kwargs["local_files_only"] = True
+            init_kwargs["local_files_only"] = True
 
-        self._model = CrossEncoder(
-            model_path, max_length=RERANKER_MAX_LENGTH, model_kwargs=model_kwargs
-        )
+        self._model = CrossEncoder(model_path, **init_kwargs)
 
         logger.debug("Cross-encoder model loaded successfully")
 

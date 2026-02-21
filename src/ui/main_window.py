@@ -121,6 +121,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         self._qa_results: list = []  # Store QAResult objects
         self._qa_results_lock = threading.Lock()  # LOG-007: Thread-safe access
         self._qa_ready = False  # Session 45: Q&A becomes available after indexing
+        self._qa_answering_active = False  # True while default Q&A questions are being answered
 
         # Initialize ttk styles with UI scale factor and font offset.
         # Must happen AFTER super().__init__() creates the Tk root (ttk.Style needs it).
@@ -566,6 +567,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         self.file_table.clear()
         # Reset Q&A state so old answers don't persist
         self._qa_ready = False
+        self._qa_answering_active = False
         self._qa_results.clear()
         self._vector_store_path = None
         if hasattr(self, "followup_btn"):
@@ -670,7 +672,12 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
                 logger.warning("Invalid message from worker subprocess: %s", msg)
 
         # Continue polling while processing is active or we got messages
-        if self._processing_active or self._preprocessing_active or messages:
+        if (
+            self._processing_active
+            or self._preprocessing_active
+            or self._qa_answering_active
+            or messages
+        ):
             self._queue_poll_id = self.after(33, self._poll_queue)  # ~30fps
         else:
             self._queue_poll_id = None
@@ -742,8 +749,6 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             self._vector_store_path = data.get("vector_store_path")
             # Embeddings stay in worker subprocess (not picklable)
             self._qa_ready = True
-            if self._pending_tasks.get("qa"):
-                self._completed_tasks.add("qa")
             # Enable question input whenever Q&A index is ready
             self.followup_btn.configure(state="normal")
             self.followup_entry.configure(state="normal")
@@ -759,9 +764,15 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             logger.warning("Q&A indexing error: %s", error_msg)
             self.set_status_error(f"Q&A unavailable: {error_msg[:50]}")
             # Q&A won't be available but vocab extraction can continue
+            self._qa_answering_active = False
+            if self._pending_tasks.get("qa"):
+                self._completed_tasks.add("qa")
+            if self._all_tasks_complete():
+                self._finalize_tasks()
 
         elif msg_type == "trigger_default_qa_started":
             # QAWorker was auto-spawned in the worker subprocess
+            self._qa_answering_active = True
             if not self.ask_default_questions_check.get():
                 logger.debug("Default questions disabled, skipping display update")
                 self.status_label.configure(
@@ -797,6 +808,11 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
                 self.output_display.update_outputs(qa_results=qa_results)
                 self.set_status(f"Default questions answered: {len(qa_results)} responses")
             self.followup_btn.configure(state="normal")
+            self._qa_answering_active = False
+            if self._pending_tasks.get("qa"):
+                self._completed_tasks.add("qa")
+            if self._all_tasks_complete():
+                self._finalize_tasks()
 
         elif msg_type == "llm_progress":
             current, total = data
@@ -1449,6 +1465,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         self._pending_tasks = {"vocab": do_vocab, "qa": do_qa, "summary": do_summary}
         self._completed_tasks = set()
         self._qa_ready = False
+        self._qa_answering_active = False
 
         # Session 148: Set initial workflow phase for tab status messages
         from src.ui.workflow_status import WorkflowPhase
@@ -1765,8 +1782,18 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         if not self._queue_poll_id:
             self._queue_poll_id = self.after(33, self._poll_queue)
 
+    def _all_tasks_complete(self) -> bool:
+        """Check if all pending tasks are truly complete."""
+        for task_name, is_pending in self._pending_tasks.items():
+            if is_pending and task_name not in self._completed_tasks:
+                return False
+        return not self._qa_answering_active
+
     def _finalize_tasks(self):
         """Finalize all tasks and update UI."""
+        if self._qa_answering_active:
+            logger.debug("Deferring finalization: Q&A answering still active")
+            return
         completed = len(self._completed_tasks)
         self._on_tasks_complete(True, f"Completed {completed} task(s)")
 

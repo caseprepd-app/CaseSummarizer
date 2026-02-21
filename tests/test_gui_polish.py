@@ -734,8 +734,8 @@ class TestPreprocessingActiveFlag:
 
         w.after.assert_called_once_with(33, w._poll_queue)
 
-    def test_poll_queue_stops_when_both_flags_false(self):
-        """_poll_queue should stop polling when both flags are False."""
+    def test_poll_queue_stops_when_all_flags_false(self):
+        """_poll_queue should stop polling when all activity flags are False."""
         from src.ui.main_window import MainWindow
 
         w = MagicMock()
@@ -744,6 +744,7 @@ class TestPreprocessingActiveFlag:
         w._worker_manager.check_for_messages.return_value = []
         w._processing_active = False
         w._preprocessing_active = False
+        w._qa_answering_active = False
         w._queue_poll_id = None
         w._qa_results_lock = MagicMock()
         w._qa_results = []

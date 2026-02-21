@@ -184,7 +184,7 @@ class TestCrossEncoderGuard:
     """Verify cross-encoder reranker prevents silent downloads."""
 
     def test_local_files_only_when_bundled(self):
-        """Bundled model path -> model_kwargs includes local_files_only=True."""
+        """Bundled model path -> local_files_only=True as direct kwarg."""
         from src.core.retrieval.cross_encoder_reranker import CrossEncoderReranker
 
         reranker = CrossEncoderReranker()
@@ -201,10 +201,10 @@ class TestCrossEncoderGuard:
             reranker._load_model()
 
         call_kwargs = mock_cls.call_args[1]
-        assert call_kwargs["model_kwargs"]["local_files_only"] is True
+        assert call_kwargs["local_files_only"] is True
 
     def test_no_local_files_only_when_not_bundled(self):
-        """Non-bundled path -> model_kwargs should not restrict to local."""
+        """Non-bundled path -> local_files_only should not be passed."""
         from src.core.retrieval.cross_encoder_reranker import CrossEncoderReranker
 
         reranker = CrossEncoderReranker()
@@ -220,7 +220,7 @@ class TestCrossEncoderGuard:
             reranker._load_model()
 
         call_kwargs = mock_cls.call_args[1]
-        assert call_kwargs.get("model_kwargs", {}).get("local_files_only") is None
+        assert "local_files_only" not in call_kwargs
 
     def test_rerank_fallback_on_load_failure(self):
         """If model fails to load, rerank() returns original chunks (graceful degradation)."""
@@ -256,8 +256,8 @@ class TestCrossEncoderGuard:
         assert "HF_HOME" in os.environ
         assert "TRANSFORMERS_CACHE" in os.environ
 
-    def test_model_kwargs_empty_when_not_bundled(self):
-        """When not bundled, model_kwargs should be empty (no local_files_only key)."""
+    def test_no_local_files_only_kwarg_when_not_bundled(self):
+        """When not bundled, local_files_only should not be in kwargs."""
         from src.core.retrieval.cross_encoder_reranker import CrossEncoderReranker
 
         reranker = CrossEncoderReranker()
@@ -272,7 +272,7 @@ class TestCrossEncoderGuard:
             reranker._load_model()
 
         call_kwargs = mock_cls.call_args[1]
-        assert call_kwargs["model_kwargs"] == {}
+        assert "local_files_only" not in call_kwargs
 
     def test_is_available_returns_false_on_failure(self):
         """is_available() returns False when model cannot load."""
@@ -676,12 +676,12 @@ class TestModelLoadingGuards:
         assert ".exists()" in source
 
     def test_cross_encoder_load_model_has_local_files_only_in_source(self):
-        """_load_model source code contains local_files_only logic."""
+        """_load_model source code contains local_files_only as direct kwarg."""
         from src.core.retrieval.cross_encoder_reranker import CrossEncoderReranker
 
         source = inspect.getsource(CrossEncoderReranker._load_model)
         assert "local_files_only" in source
-        assert "model_kwargs" in source
+        assert "init_kwargs" in source
 
     def test_faiss_source_checks_embedding_path_exists(self):
         """get_embeddings_model() source checks EMBEDDING_MODEL_LOCAL_PATH.exists()."""
