@@ -22,7 +22,6 @@ import logging
 import multiprocessing
 import subprocess
 import threading
-import traceback
 from datetime import datetime
 from pathlib import Path
 
@@ -227,29 +226,17 @@ def _kill_splash(proc):
             proc.wait(timeout=3)
 
 
-_splash_proc = _launch_splash()
+def setup_file_logging(logs_dir):
+    """Redirects stdout and stderr to a log file.
 
-try:
-    import customtkinter as ctk
-
-    # CRITICAL: Import src.core.ai BEFORE UI framework to avoid DLL load order conflicts
-    import src.core.ai  # noqa: F401
-    from src.config import LOGS_DIR
-    from src.ui.main_window import MainWindow
-except Exception:
-    _kill_splash(_splash_proc)
-    _CRASH_LOG.parent.mkdir(parents=True, exist_ok=True)
-    _CRASH_LOG.write_text(traceback.format_exc(), encoding="utf-8")
-    raise
-
-
-def setup_file_logging():
-    """Redirects stdout and stderr to a log file."""
-    if not os.path.exists(LOGS_DIR):
-        os.makedirs(LOGS_DIR)
+    Args:
+        logs_dir: Path to the log output directory.
+    """
+    if not os.path.exists(logs_dir):
+        os.makedirs(logs_dir)
 
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    log_filename = LOGS_DIR / f"main_log_{timestamp}.txt"
+    log_filename = logs_dir / f"main_log_{timestamp}.txt"
 
     class Logger:
         """LOG-002, LOG-003: Added error handling and close method."""
@@ -307,19 +294,39 @@ def setup_file_logging():
 def main():
     """
     Main entry point for CasePrepd desktop application.
+
+    All heavy imports (customtkinter, torch/AI libs, MainWindow) live here
+    rather than at module level.  This prevents the worker subprocess — which
+    re-imports __main__ as __mp_main__ on Windows "spawn" — from launching a
+    second splash screen or wasting 20-30 s on imports it never uses.
     """
-    global _splash_proc
+    # 1. Show splash while heavy imports load
+    splash_proc = _launch_splash()
 
-    # Setup stdout/stderr crash log (separate from structured logging)
-    setup_file_logging()
+    # 2. Heavy imports (wrapped so crash log is written on failure)
+    try:
+        import customtkinter as ctk
 
-    # Configure structured logging (RotatingFileHandler -> caseprepd.log)
+        # CRITICAL: Import src.core.ai BEFORE UI framework to avoid DLL load order conflicts
+        import src.core.ai  # noqa: F401
+        from src.config import LOGS_DIR
+        from src.ui.main_window import MainWindow
+    except Exception:
+        _kill_splash(splash_proc)
+        _CRASH_LOG.parent.mkdir(parents=True, exist_ok=True)
+        _CRASH_LOG.write_text(traceback.format_exc(), encoding="utf-8")
+        raise
+
+    # 3. Setup stdout/stderr crash log (separate from structured logging)
+    setup_file_logging(LOGS_DIR)
+
+    # 4. Configure structured logging (RotatingFileHandler -> caseprepd.log)
     from src.logging_config import purge_old_logs, setup_logging
 
     setup_logging()
     purge_old_logs()
 
-    # Install global exception hooks so unhandled errors are logged
+    # 5. Install global exception hooks so unhandled errors are logged
     # (especially important in PyInstaller --noconsole where stdout is None)
     _logger = logging.getLogger(__name__)
 
@@ -343,10 +350,10 @@ def main():
 
     threading.excepthook = _uncaught_thread_exception
 
-    # Enable multiprocessing support for Windows frozen executables
+    # 6. Enable multiprocessing support for Windows frozen executables
     multiprocessing.freeze_support()
 
-    # Set appearance mode (light/dark/system)
+    # 7. Set appearance mode (light/dark/system)
     ctk.set_appearance_mode("System")  # Options: "System", "Dark", "Light"
     ctk.set_default_color_theme("blue")  # Options: "blue", "green", "dark-blue"
 
@@ -355,21 +362,21 @@ def main():
 
     apply_scaling()
 
-    # Start persistent worker subprocess for pipeline tasks (GIL-free)
+    # 8. Start persistent worker subprocess for pipeline tasks (GIL-free)
     from src.services.worker_manager import WorkerProcessManager
 
     worker_manager = WorkerProcessManager()
     worker_manager.start()
 
+    # 9. Create main window
     app = MainWindow(worker_manager=worker_manager)
 
-    # Kill splash now that the main window is ready
-    _kill_splash(_splash_proc)
-    _splash_proc = None
+    # 10. Kill splash now that the main window is ready
+    _kill_splash(splash_proc)
 
     app.mainloop()
 
-    # Clean up worker subprocess after GUI closes
+    # 11. Clean up worker subprocess after GUI closes
     worker_manager.shutdown(blocking=True)
 
 

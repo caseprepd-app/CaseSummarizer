@@ -42,6 +42,7 @@ class WorkerProcessManager:
         self.result_queue = multiprocessing.Queue()
         self.process = None
         self._started = False
+        self._worker_ready = False
 
     def start(self):
         """
@@ -90,15 +91,31 @@ class WorkerProcessManager:
         """
         Drain all available messages from the result queue (non-blocking).
 
+        Intercepts internal messages (worker_ready) and does not forward them.
+
         Returns:
             List of (msg_type, data) tuples
         """
         messages = []
         while True:
             try:
-                messages.append(self.result_queue.get_nowait())
+                msg = self.result_queue.get_nowait()
             except Empty:
                 break
+
+            # Intercept worker_ready — set flag, don't forward to GUI
+            try:
+                msg_type, _data = msg
+            except (TypeError, ValueError):
+                messages.append(msg)
+                continue
+
+            if msg_type == "worker_ready":
+                self._worker_ready = True
+                logger.info("Worker subprocess is ready")
+            else:
+                messages.append(msg)
+
         return messages
 
     def cancel(self):
@@ -115,6 +132,15 @@ class WorkerProcessManager:
             bool: True if process exists and is alive
         """
         return self.process is not None and self.process.is_alive()
+
+    def is_ready(self):
+        """
+        Check if the worker subprocess is alive and ready to accept commands.
+
+        Returns:
+            bool: True if process is alive and has sent the worker_ready signal
+        """
+        return self._worker_ready and self.is_alive()
 
     def restart_if_dead(self):
         """Restart the subprocess if it has crashed or exited."""
@@ -163,6 +189,7 @@ class WorkerProcessManager:
         self._clear_queue(self.result_queue)
         self.process = None
         self._started = False
+        self._worker_ready = False
         gc.collect()
 
     @staticmethod

@@ -63,6 +63,10 @@ def worker_process_main(command_queue, result_queue):
     )
     forwarder.start()
 
+    # Signal GUI that the worker is ready to accept commands
+    result_queue.put(("worker_ready", None))
+    logger.info("Worker ready signal sent")
+
     # Run command loop in main thread (blocks until shutdown)
     _command_loop(command_queue, internal_queue, result_queue, state)
 
@@ -107,6 +111,7 @@ def _command_loop(command_queue, internal_queue, result_queue, state):
             continue
 
         logger.debug("Dispatching command: %s", cmd_type)
+        result_queue.put(("command_ack", {"cmd": cmd_type}))
 
         try:
             _dispatch_command(cmd_type, args, internal_queue, state)

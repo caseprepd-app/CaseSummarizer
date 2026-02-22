@@ -479,7 +479,7 @@ class TestSourceCodeSafety:
     def test_import_failure_kills_splash(self):
         """If heavy imports fail, splash subprocess must be terminated."""
         source = self._get_source()
-        assert "_kill_splash(_splash_proc)" in source
+        assert "_kill_splash(splash_proc)" in source
 
     def test_no_tkinter_import_in_main_process(self):
         """Main process should not import tkinter -- splash runs in subprocess.

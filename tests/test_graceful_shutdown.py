@@ -123,19 +123,22 @@ class TestExceptionHooks:
 
     def _run_main(self):
         """Run main() with all UI/logging mocked out."""
+        mock_app = MagicMock()
         with (
+            patch("src.main._launch_splash", return_value=None),
+            patch("src.main._kill_splash"),
             patch("src.main.setup_file_logging"),
             patch("src.logging_config.setup_logging"),
             patch("src.logging_config.purge_old_logs"),
             patch("customtkinter.set_appearance_mode"),
             patch("customtkinter.set_default_color_theme"),
+            patch("src.ui.scaling.apply_scaling"),
             patch("src.services.worker_manager.WorkerProcessManager"),
+            patch("src.ui.main_window.MainWindow", return_value=mock_app),
         ):
-            mock_app = MagicMock()
-            with patch("src.main.MainWindow", return_value=mock_app):
-                from src.main import main
+            from src.main import main
 
-                main()
+            main()
 
     def test_main_installs_sys_excepthook(self):
         """main() should install a custom sys.excepthook."""

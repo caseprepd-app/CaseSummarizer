@@ -626,6 +626,16 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         self.file_table.clear()
         self.processing_results.clear()
 
+        # Ensure worker subprocess is ready before sending work
+        if not self._worker_manager.is_ready():
+            messagebox.showinfo(
+                "Please Wait",
+                "The processing engine is still starting. Please try again in a moment.",
+            )
+            self.add_files_btn.configure(state="normal")
+            self.generate_btn.configure(state="normal")
+            return
+
         # Start timer
         self._start_timer()
 
@@ -839,6 +849,10 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
 
         elif msg_type == "multi_doc_result":
             self._on_summary_complete(data)
+
+        elif msg_type == "command_ack":
+            cmd = data.get("cmd", "unknown") if isinstance(data, dict) else data
+            logger.debug("Worker acknowledged command: %s", cmd)
 
         else:
             # Log unhandled messages for debugging
@@ -1533,6 +1547,14 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
 
         use_llm = get_user_preferences().is_vocab_llm_enabled()
         logger.debug("LLM extraction from preference: %s", use_llm)
+
+        # Ensure worker subprocess is ready before sending work
+        if not self._worker_manager.is_ready():
+            messagebox.showinfo(
+                "Please Wait",
+                "The processing engine is still starting. Please try again in a moment.",
+            )
+            return
 
         # Send extraction command to worker subprocess
         self._worker_manager.send_command(
