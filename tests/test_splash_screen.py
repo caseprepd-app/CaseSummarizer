@@ -280,6 +280,27 @@ class TestKillSplash:
         mock_proc.wait.side_effect = subprocess.TimeoutExpired("splash", 3)
         _kill_splash(mock_proc)  # Should not raise
 
+    def test_escalates_to_kill_on_timeout(self):
+        """If terminate+wait times out, should escalate to kill()."""
+        mock_proc = MagicMock()
+        # First wait() call (after terminate) times out;
+        # second wait() call (after kill) succeeds.
+        mock_proc.wait.side_effect = [
+            subprocess.TimeoutExpired("splash", 3),
+            None,
+        ]
+        _kill_splash(mock_proc)
+        mock_proc.terminate.assert_called_once()
+        mock_proc.kill.assert_called_once()
+        assert mock_proc.wait.call_count == 2
+
+    def test_survives_kill_failure(self):
+        """If both terminate-wait and kill fail, should not crash."""
+        mock_proc = MagicMock()
+        mock_proc.wait.side_effect = subprocess.TimeoutExpired("splash", 3)
+        mock_proc.kill.side_effect = OSError("access denied")
+        _kill_splash(mock_proc)  # Should not raise
+
     def test_real_subprocess_termination(self):
         """Launch and kill a real splash subprocess end-to-end."""
         proc = _launch_splash()
@@ -456,14 +477,14 @@ class TestSourceCodeSafety:
         assert "sys._MEIPASS" in source
 
     def test_kill_splash_has_exception_guard(self):
-        """_kill_splash must wrap terminate/wait in exception suppression."""
+        """_kill_splash must handle terminate/wait failures gracefully."""
         source = self._get_source()
         func_start = source.index("def _kill_splash")
         # Find the next def or end of file
         next_def = source.index("\ndef ", func_start + 1)
         func_body = source[func_start:next_def]
-        assert "suppress" in func_body, (
-            "_kill_splash should wrap terminate/wait in contextlib.suppress"
+        assert "except" in func_body, (
+            "_kill_splash should handle exceptions from terminate/wait/kill"
         )
 
     def test_launch_splash_catches_popen_exceptions(self):
@@ -476,10 +497,47 @@ class TestSourceCodeSafety:
             "_launch_splash must catch exceptions to prevent startup crashes"
         )
 
+    def test_kill_splash_escalates_to_kill(self):
+        """_kill_splash must call proc.kill() when terminate times out."""
+        source = self._get_source()
+        func_start = source.index("def _kill_splash")
+        next_def = source.index("\ndef ", func_start + 1)
+        func_body = source[func_start:next_def]
+        assert "proc.kill()" in func_body, (
+            "_kill_splash should escalate to kill() on TimeoutExpired"
+        )
+        assert "TimeoutExpired" in func_body, (
+            "_kill_splash should catch TimeoutExpired to trigger kill() escalation"
+        )
+
     def test_import_failure_kills_splash(self):
         """If heavy imports fail, splash subprocess must be terminated."""
         source = self._get_source()
         assert "_kill_splash(splash_proc)" in source
+
+    def test_window_focus_after_splash_kill(self):
+        """After killing splash, main window must be raised to front."""
+        source = self._get_source()
+        # All three calls must appear after _kill_splash in main()
+        kill_pos = source.index("_kill_splash(splash_proc)")
+        mainloop_pos = source.index("app.mainloop()")
+        between = source[kill_pos:mainloop_pos]
+        assert "app.lift()" in between, "app.lift() must be called after splash kill"
+        assert "app.focus_force()" in between, "app.focus_force() must be called after splash kill"
+        assert '"-topmost"' in between, "Window must temporarily set -topmost after splash kill"
+
+    def test_traceback_import_for_crash_log(self):
+        """traceback must be imported so crash-log code doesn't NameError."""
+        source = self._get_source()
+        assert "import traceback" in source, (
+            "main.py must import traceback for crash-log formatting"
+        )
+        # Verify traceback is imported BEFORE the crash-log code uses it
+        import_pos = source.index("import traceback")
+        usage_pos = source.index("traceback.format_exc()")
+        assert import_pos < usage_pos, (
+            "import traceback must appear before traceback.format_exc() usage"
+        )
 
     def test_no_tkinter_import_in_main_process(self):
         """Main process should not import tkinter -- splash runs in subprocess.

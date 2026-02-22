@@ -163,7 +163,7 @@ class TextRankAlgorithm(BaseExtractionAlgorithm):
 
             candidates.append(
                 CandidateTerm(
-                    term=phrase_text.title(),
+                    term=phrase_text,
                     source_algorithm=self.name,
                     confidence=confidence,
                     suggested_type="Technical",

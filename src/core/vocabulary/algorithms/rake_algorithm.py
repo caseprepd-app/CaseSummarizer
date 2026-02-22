@@ -308,12 +308,6 @@ class RAKEAlgorithm(BaseExtractionAlgorithm):
         if " " not in cleaned and lower_cleaned in STOPWORDS:
             return ""
 
-        # Session 78: Use title case for proper noun consistency
-        # Previously only capitalized first letter, causing "Luigi napolitano"
-        # instead of "Luigi Napolitano"
-        if cleaned:
-            cleaned = cleaned.title()
-
         return cleaned.strip()
 
     def get_config(self) -> dict[str, Any]:

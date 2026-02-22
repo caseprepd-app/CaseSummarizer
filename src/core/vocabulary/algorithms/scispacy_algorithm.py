@@ -124,10 +124,10 @@ class ScispaCyAlgorithm(BaseExtractionAlgorithm):
                 continue
             seen_terms.add(lower_text)
 
-            # Use title case for consistency with other algorithms
+            # Preserve original casing from source document
             candidates.append(
                 CandidateTerm(
-                    term=ent_text.title(),
+                    term=ent_text,
                     source_algorithm=self.name,
                     confidence=0.7,
                     suggested_type="Medical",

@@ -99,8 +99,8 @@ class TestRAKEAlgorithm:
         from src.core.vocabulary.algorithms.rake_algorithm import RAKEAlgorithm
 
         algo = RAKEAlgorithm()
-        assert algo._clean_phrase("the motion") == "Motion"
-        assert algo._clean_phrase("a hearing") == "Hearing"
+        assert algo._clean_phrase("the motion") == "motion"
+        assert algo._clean_phrase("a hearing") == "hearing"
 
     def test_clean_phrase_rejects_short(self):
         from src.core.vocabulary.algorithms.rake_algorithm import RAKEAlgorithm
@@ -143,6 +143,28 @@ class TestRAKEAlgorithm:
         assert algo._rake is None
         _ = algo.rake
         assert algo._rake is not None
+
+    def test_clean_phrase_preserves_original_casing(self):
+        """_clean_phrase should NOT title-case — preserve original document casing."""
+        from src.core.vocabulary.algorithms.rake_algorithm import RAKEAlgorithm
+
+        algo = RAKEAlgorithm()
+        # Lowercase input stays lowercase
+        assert algo._clean_phrase("motion in limine") == "motion in limine"
+        # Uppercase input stays uppercase
+        assert algo._clean_phrase("SUMMARY JUDGMENT") == "SUMMARY JUDGMENT"
+        # Mixed case stays mixed
+        assert algo._clean_phrase("DNA evidence") == "DNA evidence"
+
+    def test_clean_phrase_does_not_title_case(self):
+        """Explicitly verify .title() is not applied."""
+        from src.core.vocabulary.algorithms.rake_algorithm import RAKEAlgorithm
+
+        algo = RAKEAlgorithm()
+        # "ibuprofen" should NOT become "Ibuprofen"
+        assert algo._clean_phrase("ibuprofen") == "ibuprofen"
+        # "MRI scan" should NOT become "Mri Scan"
+        assert algo._clean_phrase("MRI scan") == "MRI scan"
 
     def test_stopwords_used(self):
         """RAKE should use app's STOPWORDS, not NLTK corpus."""
@@ -207,9 +229,9 @@ class TestScispaCyAlgorithm:
         result = algo.extract("The patient was given aspirin for myocardial infarction.")
         assert isinstance(result, AlgorithmResult)
         assert len(result.candidates) == 2
-        assert result.candidates[0].term == "Aspirin"
+        assert result.candidates[0].term == "aspirin"
         assert result.candidates[0].suggested_type == "Medical"
-        assert result.candidates[1].term == "Myocardial Infarction"
+        assert result.candidates[1].term == "myocardial infarction"
 
     def test_deduplicates_entities(self):
         from src.core.vocabulary.algorithms.scispacy_algorithm import ScispaCyAlgorithm
@@ -278,6 +300,31 @@ class TestScispaCyAlgorithm:
         call_args = algo._nlp.call_args[0][0]
         assert len(call_args) <= 1_024 * 1_024
         assert result.metadata.get("text_truncated") is True
+
+    def test_preserves_original_entity_casing(self):
+        """Entities should keep their original casing, not be title-cased."""
+        from src.core.vocabulary.algorithms.scispacy_algorithm import ScispaCyAlgorithm
+
+        algo = ScispaCyAlgorithm()
+
+        # Mixed-case entities from model output
+        mock_ent1 = MagicMock(text="Ibuprofen", label_="CHEMICAL", start_char=0)
+        mock_ent2 = MagicMock(text="type 2 diabetes", label_="DISEASE", start_char=20)
+        mock_ent3 = MagicMock(text="NSAID", label_="CHEMICAL", start_char=40)
+
+        mock_doc = MagicMock()
+        mock_doc.ents = [mock_ent1, mock_ent2, mock_ent3]
+        algo._nlp = MagicMock(return_value=mock_doc)
+
+        result = algo.extract("Ibuprofen for type 2 diabetes. NSAID treatment.")
+        terms = [c.term for c in result.candidates]
+        # Each should be preserved exactly as the model returned it
+        assert "Ibuprofen" in terms, "Title-case from model preserved"
+        assert "type 2 diabetes" in terms, "Lowercase from model preserved"
+        assert "NSAID" in terms, "Uppercase acronym from model preserved"
+        # Verify none got title-cased by our code
+        assert "Type 2 Diabetes" not in terms, "Should NOT title-case"
+        assert "Nsaid" not in terms, "Should NOT title-case acronyms"
 
     def test_get_config(self):
         from src.core.vocabulary.algorithms.scispacy_algorithm import ScispaCyAlgorithm

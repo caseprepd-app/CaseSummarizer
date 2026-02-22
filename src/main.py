@@ -22,6 +22,7 @@ import logging
 import multiprocessing
 import subprocess
 import threading
+import traceback
 from datetime import datetime
 from pathlib import Path
 
@@ -221,9 +222,18 @@ def _kill_splash(proc):
     """
     if proc is not None:
         _splash_log("[Splash] Terminating splash subprocess")
-        with contextlib.suppress(Exception):
+        try:
             proc.terminate()
             proc.wait(timeout=3)
+        except subprocess.TimeoutExpired:
+            _splash_log("[Splash] terminate() timed out, escalating to kill()")
+            try:
+                proc.kill()
+                proc.wait(timeout=2)
+            except Exception as e:
+                _splash_log(f"[Splash] kill() failed: {e}")
+        except Exception as e:
+            _splash_log(f"[Splash] terminate() failed: {e}")
 
 
 def setup_file_logging(logs_dir):
@@ -373,6 +383,12 @@ def main():
 
     # 10. Kill splash now that the main window is ready
     _kill_splash(splash_proc)
+
+    # Force main window to front (splash had -topmost, so GUI may be behind it)
+    app.lift()
+    app.focus_force()
+    app.attributes("-topmost", True)
+    app.after(200, lambda: app.attributes("-topmost", False))
 
     app.mainloop()
 
