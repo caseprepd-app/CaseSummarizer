@@ -61,12 +61,27 @@ The developer dataset is never deleted — it just gets increasingly outweighed 
 
 ## Tests
 
+**Important:** Always activate the virtual environment before running tests.
+The project uses Python 3.11 in `.venv`, but your system PATH may point to a
+different Python (e.g. 3.13). Running tests with the wrong Python causes
+misleading failures — packages like `nupunkt`, `lettucedetect`, and
+`tkinterdnd2` will appear missing even though they're installed in the venv.
+
 ```bash
+# Activate first (Windows)
+.venv\Scripts\activate
+
+# Verify you're using the venv Python
+python --version   # Should show 3.11.x
+
 # Quick tests (skip slow integration tests)
 python -m pytest tests/ -v -m "not slow"
 
 # All tests
 python -m pytest tests/ -v
+
+# Always exclude (hangs on Windows due to GUI/spaCy timeouts)
+# tests/test_gui_workflow.py
 ```
 
 ## Documentation

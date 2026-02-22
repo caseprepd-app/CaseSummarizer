@@ -3,6 +3,11 @@ Shared test fixtures for the CasePrepd test suite.
 
 Resets module-level singletons before every test so that no test
 inherits leftover state from a previous test.
+
+IMPORTANT: Tests must be run with the project venv activated (.venv\\Scripts\\activate).
+The system Python (3.13) differs from the venv Python (3.11) and is missing project
+dependencies. Running with the wrong interpreter causes ModuleNotFoundError for
+packages like nupunkt, lettucedetect, and tkinterdnd2.
 """
 
 import pytest
