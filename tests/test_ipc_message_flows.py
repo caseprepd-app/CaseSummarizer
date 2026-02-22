@@ -651,6 +651,7 @@ class TestSubprocessRoundTrip:
         manager = WorkerProcessManager()
         manager.start()
         try:
+            self._wait_for_ready(manager)
             manager.send_command("bogus_command", {})
             # Wait for subprocess to process and respond
             messages = self._wait_for_messages(manager, expected_type="error")
@@ -667,6 +668,7 @@ class TestSubprocessRoundTrip:
         manager = WorkerProcessManager()
         manager.start()
         try:
+            self._wait_for_ready(manager)
             manager.send_command("run_qa", {"answer_mode": "extraction"})
             # Error goes internal_queue -> forwarder -> result_queue, needs extra time
             messages = self._wait_for_messages(manager, expected_type="error", timeout=10.0)
@@ -683,6 +685,7 @@ class TestSubprocessRoundTrip:
         manager = WorkerProcessManager()
         manager.start()
         try:
+            self._wait_for_ready(manager)
             manager.send_command("followup", {"question": "test?"})
             messages = self._wait_for_messages(manager, expected_type="qa_followup_result")
             followup_msgs = [m for m in messages if m[0] == "qa_followup_result"]
@@ -698,10 +701,17 @@ class TestSubprocessRoundTrip:
         manager = WorkerProcessManager()
         manager.start()
         try:
+            self._wait_for_ready(manager)
             manager.send_command("bogus_1", {})
             manager.send_command("bogus_2", {})
-            time.sleep(2.0)
-            messages = manager.check_for_messages()
+            # Errors travel internal_queue -> forwarder -> result_queue; poll repeatedly
+            messages = []
+            deadline = time.monotonic() + 10.0
+            while time.monotonic() < deadline:
+                messages.extend(manager.check_for_messages())
+                if len([m for m in messages if m[0] == "error"]) >= 2:
+                    break
+                time.sleep(0.2)
             error_msgs = [m for m in messages if m[0] == "error"]
             # Should have at least 2 error messages
             assert len(error_msgs) >= 2
@@ -715,6 +725,7 @@ class TestSubprocessRoundTrip:
         manager = WorkerProcessManager()
         manager.start()
         try:
+            self._wait_for_ready(manager)
             manager.cancel()
             time.sleep(0.5)
             assert manager.is_alive()
@@ -728,15 +739,32 @@ class TestSubprocessRoundTrip:
         manager = WorkerProcessManager()
         manager.start()
         try:
+            self._wait_for_ready(manager)
             for i in range(10):
                 manager.send_command(f"rapid_test_{i}", {})
-            time.sleep(3.0)
+            # Errors travel internal_queue -> forwarder -> result_queue; poll repeatedly
+            messages = []
+            deadline = time.monotonic() + 15.0
+            while time.monotonic() < deadline:
+                messages.extend(manager.check_for_messages())
+                if len([m for m in messages if m[0] == "error"]) >= 10:
+                    break
+                time.sleep(0.2)
             assert manager.is_alive()
-            messages = manager.check_for_messages()
             error_msgs = [m for m in messages if m[0] == "error"]
             assert len(error_msgs) == 10
         finally:
             manager.shutdown(blocking=True)
+
+    @staticmethod
+    def _wait_for_ready(manager, timeout=10.0):
+        """Poll until the worker subprocess signals it is ready."""
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            manager.check_for_messages()  # drains worker_ready
+            if manager._worker_ready:
+                return
+            time.sleep(0.2)
 
     @staticmethod
     def _wait_for_messages(manager, expected_type, timeout=5.0):

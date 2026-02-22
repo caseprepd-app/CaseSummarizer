@@ -555,11 +555,23 @@ class TestSubprocessIntegration:
         manager = WorkerProcessManager()
         manager.start()
         try:
+            # Wait for subprocess to be fully ready before sending commands
+            deadline = time.monotonic() + 10.0
+            while time.monotonic() < deadline:
+                manager.check_for_messages()
+                if manager._worker_ready:
+                    break
+                time.sleep(0.2)
             manager.send_command("nonexistent_command", {})
-            time.sleep(1.0)  # Give subprocess time to process
-
-            messages = manager.check_for_messages()
-            # Should have received an error message
+            # Error travels: internal_queue -> forwarder (0.5s poll) -> result_queue
+            # Must poll repeatedly rather than single sleep+check
+            messages = []
+            deadline = time.monotonic() + 10.0
+            while time.monotonic() < deadline:
+                messages.extend(manager.check_for_messages())
+                if any(m[0] == "error" for m in messages):
+                    break
+                time.sleep(0.2)
             error_msgs = [m for m in messages if m[0] == "error"]
             assert len(error_msgs) > 0
             assert "Unknown command" in error_msgs[0][1]

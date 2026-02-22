@@ -182,14 +182,14 @@ def _run_extraction(args, internal_queue, state):
 
 def _run_qa(args, internal_queue, state):
     """Spawn QAWorker for default questions."""
-    from src.services.workers import QAWorker
-
     vector_store_path = state.get("vector_store_path")
     embeddings = state.get("embeddings")
 
     if not vector_store_path or not embeddings:
         internal_queue.put(("error", "Q&A not ready: no vector store or embeddings"))
         return
+
+    from src.services.workers import QAWorker
 
     worker = QAWorker(
         vector_store_path=vector_store_path,
