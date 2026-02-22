@@ -15,7 +15,7 @@ Session 45 Update:
 - Single chunking pass serves both Q&A indexing and vocabulary extraction
 
 Integration:
-- Called from WorkflowOrchestrator after document extraction completes
+- Called from worker subprocess after document extraction completes
 - Runs in background thread to avoid UI blocking
 - Signals UI via queue when vector store is ready for Q&A
 """

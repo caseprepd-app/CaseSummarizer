@@ -246,27 +246,9 @@ class TestIntegrationImports:
 
         assert MultiDocSummaryWorker is not None
 
-    def test_queue_handler_handles_multi_doc_result(self):
-        """QueueMessageHandler has multi_doc_result handler registered."""
-        from src.ui.queue_message_handler import QueueMessageHandler
+    def test_multi_doc_result_message_type_exists(self):
+        """multi_doc_result message type is defined in QueueMessage."""
+        from src.ui.queue_messages import QueueMessage
 
-        # Create mock main_window
-        mock_main_window = Mock()
-        mock_main_window.summary_results = Mock()
-        mock_main_window.progress_bar = Mock()
-        mock_main_window.status_label = Mock()
-        mock_main_window.select_files_btn = Mock()
-        mock_main_window.generate_outputs_btn = Mock()
-        mock_main_window.output_options = Mock()
-        mock_main_window.cancel_btn = Mock()
-        mock_main_window.pending_ai_generation = None
-
-        handler = QueueMessageHandler(mock_main_window)
-
-        # Check handler exists in handlers dict
-        handlers = {
-            "progress": handler.handle_progress,
-            "multi_doc_result": handler.handle_multi_doc_result,
-        }
-
-        assert "multi_doc_result" in handlers
+        # Verify the message factory method exists
+        assert hasattr(QueueMessage, "multi_doc_result")

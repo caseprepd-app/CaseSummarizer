@@ -3,7 +3,6 @@ Background Workers Module
 
 Contains threading and multiprocessing workers for document processing:
 - ProcessingWorker: Document extraction thread (with parallel processing)
-- VocabularyWorker: Vocabulary extraction thread
 - OllamaAIWorkerManager: AI generation process manager
 
 Performance Optimizations:
@@ -22,7 +21,7 @@ import threading
 from pathlib import Path
 from queue import Empty, Queue
 
-from src.config import LEGAL_EXCLUDE_LIST_PATH, MEDICAL_TERMS_LIST_PATH, PARALLEL_MAX_WORKERS
+from src.config import PARALLEL_MAX_WORKERS
 from src.core.extraction import RawTextExtractor
 from src.core.parallel import (
     ExecutorStrategy,
@@ -225,115 +224,6 @@ class ProcessingWorker(BaseWorker):
         """Clean up strategy on exit."""
         # Note: shutdown already called in stop() - no action needed here
         pass
-
-
-class VocabularyWorker(BaseWorker):
-    """
-    Background worker for vocabulary extraction (Step 2.5).
-    Extracts unusual terms from combined document text asynchronously.
-
-    Session 43: Added use_llm parameter for NER+LLM reconciled extraction.
-    Session 49: Refactored to use BaseWorker.
-    Session 54: Added doc_confidence for ML feature (OCR quality signal).
-    Session 78: Added documents parameter for per-document extraction with TermSources.
-    """
-
-    def __init__(
-        self,
-        combined_text,
-        ui_queue,
-        exclude_list_path=None,
-        medical_terms_path=None,
-        user_exclude_path=None,
-        doc_count=1,
-        use_llm=True,
-        doc_confidence=100.0,
-        documents=None,  # Session 78: Per-document extraction
-    ):
-        super().__init__(ui_queue)
-        self.combined_text = combined_text
-        self.exclude_list_path = exclude_list_path or LEGAL_EXCLUDE_LIST_PATH
-        self.medical_terms_path = medical_terms_path or MEDICAL_TERMS_LIST_PATH
-        self.user_exclude_path = user_exclude_path  # User's personal exclusion list
-        self.doc_count = doc_count  # Number of documents (for frequency filtering)
-        self.use_llm = use_llm  # Whether to use LLM extraction (Session 43)
-        self.doc_confidence = doc_confidence  # Session 54: Aggregate OCR confidence for ML
-        # Session 78: Per-document extraction with TermSources tracking
-        # documents is a list of dicts with 'text', 'doc_id', 'confidence' keys
-        self.documents = documents
-
-    def execute(self):
-        """Execute vocabulary extraction in background thread."""
-        self.check_cancelled("Vocabulary extraction cancelled.")
-
-        # Show text size to set user expectations
-        text_len = len(self.combined_text)
-        text_kb = text_len // 1024
-        self.send_progress(30, f"Analyzing {text_kb}KB of text...")
-
-        # Create extractor with graceful fallback for missing files
-        try:
-            extractor = VocabularyExtractor(
-                exclude_list_path=self.exclude_list_path,
-                medical_terms_path=self.medical_terms_path,
-                user_exclude_path=self.user_exclude_path,
-            )
-        except FileNotFoundError as e:
-            # Graceful fallback: create extractor with empty exclude lists
-            logger.debug("Config file missing: %s. Using empty exclude lists.", e)
-            extractor = VocabularyExtractor(
-                exclude_list_path=None,  # Will use empty list
-                medical_terms_path=None,  # Will use empty list
-                user_exclude_path=self.user_exclude_path,  # Still try user list
-            )
-
-        # Check for cancellation before heavy processing
-        self.check_cancelled()
-
-        # Session 131: Per-document extraction with parallel processing
-        if self.documents:
-            self.send_progress(40, f"Extracting vocabulary from {len(self.documents)} documents...")
-
-            def doc_progress(current, total, doc_id):
-                pct = 40 + int((current / total) * 25)  # 40-65% range
-                self.send_progress(pct, f"Document {current}/{total} complete ({doc_id})")
-
-            vocab_data = extractor.extract_documents(
-                self.documents,
-                use_llm=self.use_llm,
-                progress_callback=doc_progress,
-            )
-        elif self.use_llm:
-            # Update progress - NLP/LLM processing is the slow part
-            self.send_progress(40, "Running local + LLM extraction (this may take a while)...")
-
-            # Progress callback for LLM chunk processing
-            def llm_progress(current, total):
-                pct = 40 + int((current / total) * 25)  # 40-65% range
-                self.send_progress(pct, f"LLM analyzing chunk {current}/{total}...")
-
-            vocab_data = extractor.extract_with_llm(
-                self.combined_text,
-                doc_count=self.doc_count,
-                include_llm=True,
-                progress_callback=llm_progress,
-            )
-        else:
-            # Legacy NER-only extraction (combined text mode)
-            self.send_progress(40, "Running local extraction...")
-            vocab_data = extractor.extract(
-                self.combined_text, doc_count=self.doc_count, doc_confidence=self.doc_confidence
-            )
-
-        # Check for cancellation after extraction
-        self.check_cancelled()
-
-        term_count = len(vocab_data) if vocab_data else 0
-        self.send_progress(70, f"Found {term_count} vocabulary terms")
-
-        # Send results to GUI
-        self.ui_queue.put(QueueMessage.vocab_csv_generated(vocab_data))
-        logger.info("Vocabulary extraction completed: %s terms.", term_count)
 
 
 class QAWorker(BaseWorker):
@@ -910,8 +800,6 @@ class ProgressiveExtractionWorker(BaseWorker):
         # ===== PHASE 1: Local Algorithms (Progressive - Session 85) =====
         # Runs BM25 + RAKE first (fast), then NER with chunk progress
         logger.debug("Phase 1: Local algorithm extraction starting...")
-
-        from src.core.vocabulary import VocabularyExtractor
 
         extractor = VocabularyExtractor(
             exclude_list_path=self.exclude_list_path,

@@ -4,7 +4,7 @@ Tests for HTML export builders and background worker classes.
 Covers:
 - html_builder.py: _escape, build_vocabulary_html, export_vocabulary_html,
   export_qa_html (with verification coloring)
-- workers.py: ProcessingWorker, VocabularyWorker, QAWorker,
+- workers.py: ProcessingWorker, QAWorker,
   OllamaAIWorkerManager structure and initialization
 """
 
@@ -336,36 +336,6 @@ class TestProcessingWorker:
 
 
 # ============================================================================
-# VocabularyWorker init
-# ============================================================================
-
-
-class TestVocabularyWorker:
-    """Tests for VocabularyWorker initialization."""
-
-    def test_init_with_defaults(self):
-        from src.services.workers import VocabularyWorker
-
-        worker = VocabularyWorker("some text", Queue())
-        assert worker.combined_text == "some text"
-        assert worker.doc_count == 1
-        assert worker.use_llm is True
-
-    def test_custom_parameters(self):
-        from src.services.workers import VocabularyWorker
-
-        worker = VocabularyWorker(
-            "text",
-            Queue(),
-            doc_count=5,
-            use_llm=False,
-            doc_confidence=95.5,
-        )
-        assert worker.doc_count == 5
-        assert worker.use_llm is False
-        assert worker.doc_confidence == 95.5
-
-
 # ============================================================================
 # OllamaAIWorkerManager
 # ============================================================================

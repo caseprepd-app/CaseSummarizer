@@ -35,17 +35,6 @@ class TestDestroyingGuard:
         window._qa_results = []
         return window
 
-    def test_poll_vocab_queue_returns_early_when_destroying(self):
-        """_poll_vocab_queue should return immediately if _destroying is True."""
-        from src.ui.main_window import MainWindow
-
-        window = self._make_mock_window()
-        window._destroying = True
-
-        MainWindow._poll_vocab_queue(window)
-
-        window.after.assert_not_called()
-
     def test_poll_followup_result_returns_early_when_destroying(self):
         """_poll_followup_result should return immediately if _destroying is True."""
         from src.ui.main_window import MainWindow
@@ -56,22 +45,6 @@ class TestDestroyingGuard:
         MainWindow._poll_followup_result(window)
 
         window.after.assert_not_called()
-
-    def test_poll_vocab_queue_runs_normally_when_not_destroying(self):
-        """_poll_vocab_queue should poll when _destroying is False."""
-        from queue import Queue
-
-        from src.ui.main_window import MainWindow
-
-        window = self._make_mock_window()
-        window._destroying = False
-        window._vocab_queue = Queue()  # Empty queue
-        window._vocabulary_worker = None  # No worker running
-
-        MainWindow._poll_vocab_queue(window)
-
-        # With empty queue and no worker, it should call _on_vocab_complete
-        window._on_vocab_complete.assert_called_once()
 
 
 class TestDestroyMethodContract:

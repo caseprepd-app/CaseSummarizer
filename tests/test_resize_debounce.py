@@ -237,13 +237,6 @@ class TestNoIdletasksInHotPaths:
         # Check for actual call, not the word in a comment
         assert ".update_idletasks()" not in body
 
-    def test_no_idletasks_in_queue_message_handler_reset(self):
-        """Queue message handler UI reset should not call update_idletasks."""
-        source = _read_source("src/ui/queue_message_handler.py")
-        start = source.index("gc.collect()")
-        region = source[start : start + 200]
-        assert ".update_idletasks()" not in region
-
     def test_no_idletasks_in_timer_mixin_start(self):
         """Timer mixin _start_activity_indicator should not call update_idletasks."""
         source = _read_source("src/ui/main_window_helpers/timer_mixin.py")

@@ -22,7 +22,7 @@ class MessageType:
     """
     Constants for all queue message types.
 
-    Use these constants in queue_message_handler.py dispatch dictionary
+    Use these constants in _handle_queue_message() dispatch logic
     to ensure consistency between senders and receivers.
     """
 

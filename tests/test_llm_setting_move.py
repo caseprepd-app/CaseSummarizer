@@ -127,50 +127,49 @@ class TestTaskPreviewUsesPreference:
 class TestNerCompleteStatusUsesPreference:
     """ner_complete handler shows correct status based on preference."""
 
-    def _make_mixin(self):
-        from src.ui.main_window_helpers.task_mixin import TaskMixin
+    def _make_stub(self):
+        """Create a MainWindow stub for _handle_queue_message."""
+        import threading
 
-        mixin = TaskMixin.__new__(TaskMixin)
-        mixin.set_status = MagicMock()
-        mixin._update_progress = MagicMock()
-        mixin.processing_results = []
-        mixin.file_table = MagicMock()
-        mixin.output_display = MagicMock()
-        mixin._qa_results = []
-        mixin._qa_results_lock = MagicMock()
-        mixin._completed_tasks = set()
-        mixin._pending_tasks = {}
-        mixin.pipeline_indicator = MagicMock()
-        mixin.pipeline_indicator._step_states = {}
-        mixin.followup_btn = MagicMock()
-        mixin.followup_entry = MagicMock()
-        mixin.ask_default_questions_check = MagicMock()
-        return mixin
+        stub = MagicMock()
+        stub._qa_ready = False
+        stub._qa_answering_active = False
+        stub._qa_results = []
+        stub._qa_results_lock = threading.Lock()
+        stub._pending_tasks = {}
+        stub._completed_tasks = set()
+        stub._vector_store_path = None
+        stub.processing_results = []
+        return stub
 
     @patch("src.user_preferences.get_user_preferences")
     def test_ner_complete_shows_llm_starting_when_enabled(self, mock_prefs_fn):
         """When LLM enabled, ner_complete status says 'LLM enhancement starting'."""
+        from src.ui.main_window import MainWindow
+
         mock_prefs = MagicMock()
         mock_prefs.is_vocab_llm_enabled.return_value = True
         mock_prefs_fn.return_value = mock_prefs
 
-        mixin = self._make_mixin()
-        mixin._handle_queue_message("ner_complete", [{"term": "test"}])
+        stub = self._make_stub()
+        MainWindow._handle_queue_message(stub, "ner_complete", [{"term": "test"}])
 
-        status_text = mixin.set_status.call_args[0][0]
+        status_text = stub.set_status.call_args[0][0]
         assert "LLM enhancement starting" in status_text
 
     @patch("src.user_preferences.get_user_preferences")
     def test_ner_complete_shows_index_when_disabled(self, mock_prefs_fn):
         """When LLM disabled, ner_complete status says 'Building search index'."""
+        from src.ui.main_window import MainWindow
+
         mock_prefs = MagicMock()
         mock_prefs.is_vocab_llm_enabled.return_value = False
         mock_prefs_fn.return_value = mock_prefs
 
-        mixin = self._make_mixin()
-        mixin._handle_queue_message("ner_complete", [{"term": "test"}])
+        stub = self._make_stub()
+        MainWindow._handle_queue_message(stub, "ner_complete", [{"term": "test"}])
 
-        status_text = mixin.set_status.call_args[0][0]
+        status_text = stub.set_status.call_args[0][0]
         assert "Building search index" in status_text
 
 
