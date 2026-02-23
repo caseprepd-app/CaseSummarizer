@@ -13,11 +13,14 @@ Covers:
 - Source code safety checks (no hardcoded paths, proper frozen-mode guards)
 """
 
+import os
 import struct
 import subprocess
 import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
+
+import pytest
 
 from src.splash import (
     SPLASH_EXTENSIONS,
@@ -859,3 +862,185 @@ class TestAutoCloseSafetyNet:
             assert 30000 <= timeout_ms <= 120000, (
                 f"Auto-close timeout {timeout_ms}ms not in 30-120s range"
             )
+
+
+# ============================================================================
+# O. run_splash_window — behavioral tests (mock-based)
+# ============================================================================
+
+
+class TestRunSplashWindowBehavior:
+    """Verify run_splash_window() early-exit paths and sys.exit calls."""
+
+    def test_exits_when_splash_dir_missing(self, tmp_path):
+        """Should call sys.exit(0) when get_splash_dir() returns None."""
+        with _set_frozen(tmp_path), pytest.raises(SystemExit) as exc_info:
+            from src.splash import run_splash_window
+
+            run_splash_window()
+        assert exc_info.value.code == 0
+
+    def test_exits_when_no_images(self, tmp_path):
+        """Should call sys.exit(0) when splash dir has no supported images."""
+        splash_dir = tmp_path / "assets" / "splash"
+        splash_dir.mkdir(parents=True)
+        (splash_dir / "readme.txt").write_text("no images here")
+        with _set_frozen(tmp_path), pytest.raises(SystemExit) as exc_info:
+            from src.splash import run_splash_window
+
+            run_splash_window()
+        assert exc_info.value.code == 0
+
+
+# ============================================================================
+# P. launch — frozen mode subprocess environment details
+# ============================================================================
+
+
+class TestLaunchFrozenEnvDetails:
+    """Verify launch() frozen mode env handling in detail."""
+
+    def _setup_frozen(self, tmp_path):
+        """Create a fake frozen env with one splash image."""
+        splash_dir = tmp_path / "assets" / "splash"
+        splash_dir.mkdir(parents=True)
+        (splash_dir / "test.png").write_bytes(b"fake")
+        return splash_dir
+
+    def test_frozen_suppresses_stdout_stderr(self, tmp_path):
+        """Frozen subprocess should redirect stdout/stderr to DEVNULL."""
+        self._setup_frozen(tmp_path)
+        with _set_frozen(tmp_path), patch("src.splash.subprocess.Popen") as mock_popen:
+            mock_popen.return_value = MagicMock(pid=99999)
+            launch()
+            call_kwargs = mock_popen.call_args[1]
+            assert call_kwargs["stdout"] == subprocess.DEVNULL
+            assert call_kwargs["stderr"] == subprocess.DEVNULL
+
+    def test_frozen_env_preserves_existing_vars(self, tmp_path):
+        """Subprocess env should contain all parent env vars plus _CASEPREPD_SPLASH."""
+        self._setup_frozen(tmp_path)
+        with _set_frozen(tmp_path), patch("src.splash.subprocess.Popen") as mock_popen:
+            mock_popen.return_value = MagicMock(pid=99999)
+            launch()
+            call_kwargs = mock_popen.call_args[1]
+            env = call_kwargs["env"]
+            # Must preserve existing env vars (PATH is always present)
+            assert "PATH" in env or "Path" in env
+            # Must add the splash flag
+            assert env["_CASEPREPD_SPLASH"] == "1"
+
+    def test_frozen_env_does_not_mutate_parent_env(self, tmp_path):
+        """launch() must not set _CASEPREPD_SPLASH in the parent process env."""
+        self._setup_frozen(tmp_path)
+        # Clean up in case it's already set from a previous test
+        os.environ.pop("_CASEPREPD_SPLASH", None)
+        with _set_frozen(tmp_path), patch("src.splash.subprocess.Popen") as mock_popen:
+            mock_popen.return_value = MagicMock(pid=99999)
+            launch()
+            assert "_CASEPREPD_SPLASH" not in os.environ
+
+    def test_dev_mode_suppresses_stdout_stderr(self):
+        """Dev mode subprocess should also redirect stdout/stderr to DEVNULL."""
+        with patch("src.splash.subprocess.Popen") as mock_popen:
+            mock_popen.return_value = MagicMock(pid=12345)
+            launch()
+            if mock_popen.called:
+                call_kwargs = mock_popen.call_args[1]
+                assert call_kwargs["stdout"] == subprocess.DEVNULL
+                assert call_kwargs["stderr"] == subprocess.DEVNULL
+
+
+# ============================================================================
+# Q. Module architecture — splash.py standalone, no src.* imports
+# ============================================================================
+
+
+class TestSplashModuleArchitecture:
+    """Verify splash.py is a standalone module with no src.* dependencies."""
+
+    def _get_splash_source(self):
+        return Path(PROJECT_ROOT / "src" / "splash.py").read_text(encoding="utf-8")
+
+    def test_no_src_imports(self):
+        """splash.py must not import from src.* — it's a standalone startup utility."""
+        source = self._get_splash_source()
+        import re
+
+        src_imports = re.findall(r"^\s*(?:from|import)\s+src\.", source, re.MULTILINE)
+        assert not src_imports, f"splash.py must not have src.* imports, found: {src_imports}"
+
+    def test_no_splash_only_argv_usage(self):
+        """splash.py must not use --splash-only in sys.argv (the old broken mechanism).
+
+        Comments explaining the rationale are fine — we only forbid actual usage.
+        """
+        source = self._get_splash_source()
+
+        # Match actual argv usage like: "--splash-only" in sys.argv, or
+        # Popen([..., "--splash-only"]) — but not inside comments
+        code_lines = [
+            line
+            for line in source.splitlines()
+            if line.strip() and not line.strip().startswith("#")
+        ]
+        code_only = "\n".join(code_lines)
+        assert '"--splash-only"' not in code_only, (
+            "splash.py must not use --splash-only in executable code"
+        )
+
+    def test_only_stdlib_imports(self):
+        """splash.py should only import from the standard library."""
+        source = self._get_splash_source()
+        import re
+
+        # Find all top-level imports (not inside functions)
+        top_level_imports = re.findall(r"^(?:from|import)\s+(\S+)", source, re.MULTILINE)
+        stdlib_allowed = {"os", "subprocess", "sys", "pathlib", "random", "tkinter", "contextlib"}
+        for module in top_level_imports:
+            root_module = module.split(".")[0]
+            assert root_module in stdlib_allowed, f"splash.py imports non-stdlib module: {module}"
+
+
+# ============================================================================
+# R. main.py ordering constraints
+# ============================================================================
+
+
+class TestMainModuleOrdering:
+    """Verify critical ordering constraints in main.py."""
+
+    def _get_source(self):
+        return Path(PROJECT_ROOT / "src" / "main.py").read_text(encoding="utf-8")
+
+    def test_freeze_support_before_splash_check(self):
+        """multiprocessing.freeze_support() must run before the splash env var check."""
+        source = self._get_source()
+        freeze_pos = source.index("freeze_support()")
+        splash_pos = source.index("_CASEPREPD_SPLASH")
+        assert freeze_pos < splash_pos, "freeze_support() must come before _CASEPREPD_SPLASH check"
+
+    def test_splash_check_before_heavy_imports(self):
+        """The env var splash check must run before threading/traceback imports."""
+        source = self._get_source()
+        splash_pos = source.index("_CASEPREPD_SPLASH")
+        # These imports come after the splash check in normal flow
+        threading_pos = source.index("import threading")
+        assert splash_pos < threading_pos, "Splash check must come before heavy stdlib imports"
+
+    def test_main_imports_launch_and_kill_from_splash(self):
+        """main() must import launch and kill from src.splash, not define them locally."""
+        source = self._get_source()
+        assert "from src.splash import kill, launch" in source
+
+    def test_no_splash_only_argv_in_main(self):
+        """main.py must not reference --splash-only (the old broken mechanism)."""
+        source = self._get_source()
+        assert "--splash-only" not in source
+
+    def test_worker_shutdown_after_mainloop(self):
+        """Worker subprocess must be shut down after app.mainloop() returns."""
+        source = self._get_source()
+        mainloop_pos = source.index("app.mainloop()")
+        shutdown_pos = source.index("worker_manager.shutdown")
+        assert mainloop_pos < shutdown_pos, "worker_manager.shutdown must come after app.mainloop()"
