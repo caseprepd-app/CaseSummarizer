@@ -121,6 +121,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         self._qa_results_lock = threading.Lock()  # LOG-007: Thread-safe access
         self._qa_ready = False  # Session 45: Q&A becomes available after indexing
         self._qa_answering_active = False  # True while default Q&A questions are being answered
+        self._worker_ready_retries = 0  # Auto-retry counter for worker startup
 
         # Initialize ttk styles with UI scale factor and font offset.
         # Must happen AFTER super().__init__() creates the Tk root (ttk.Style needs it).
@@ -628,13 +629,18 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
 
         # Ensure worker subprocess is ready before sending work
         if not self._worker_manager.is_ready():
-            messagebox.showinfo(
-                "Please Wait",
-                "The processing engine is still starting. Please try again in a moment.",
-            )
-            self.add_files_btn.configure(state="normal")
-            self.generate_btn.configure(state="normal")
+            self._worker_ready_retries += 1
+            if self._worker_ready_retries > 20:  # ~60s of retries
+                self.set_status_error("Processing engine failed to start. Please restart the app.")
+                self.add_files_btn.configure(state="normal")
+                self.generate_btn.configure(state="normal")
+                self._worker_ready_retries = 0
+                return
+            self.set_status("Processing engine starting up, please wait...")
+            self.after(3000, self._start_preprocessing)
             return
+
+        self._worker_ready_retries = 0  # Reset retry counter on success
 
         # Start timer
         self._start_timer()
@@ -1550,11 +1556,16 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
 
         # Ensure worker subprocess is ready before sending work
         if not self._worker_manager.is_ready():
-            messagebox.showinfo(
-                "Please Wait",
-                "The processing engine is still starting. Please try again in a moment.",
-            )
+            self._worker_ready_retries += 1
+            if self._worker_ready_retries > 20:  # ~60s of retries
+                self.set_status_error("Processing engine failed to start. Please restart the app.")
+                self._worker_ready_retries = 0
+                return
+            self.set_status("Processing engine starting up, please wait...")
+            self.after(3000, self._start_progressive_extraction)
             return
+
+        self._worker_ready_retries = 0  # Reset retry counter on success
 
         # Send extraction command to worker subprocess
         self._worker_manager.send_command(

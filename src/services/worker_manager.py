@@ -137,10 +137,41 @@ class WorkerProcessManager:
         """
         Check if the worker subprocess is alive and ready to accept commands.
 
+        Drains the queue for the worker_ready signal if not yet received,
+        so callers don't need an active polling loop to detect readiness.
+
         Returns:
             bool: True if process is alive and has sent the worker_ready signal
         """
+        if not self._worker_ready and self.is_alive():
+            self._drain_ready_signal()
         return self._worker_ready and self.is_alive()
+
+    def _drain_ready_signal(self):
+        """Peek at the result queue for the worker_ready signal.
+
+        Intercepts worker_ready and re-queues all other messages so they
+        are not lost.  Called lazily from is_ready() when the flag has not
+        been set yet.
+        """
+        requeue = []
+        while True:
+            try:
+                msg = self.result_queue.get_nowait()
+            except Empty:
+                break
+            try:
+                msg_type, _data = msg
+            except (TypeError, ValueError):
+                requeue.append(msg)
+                continue
+            if msg_type == "worker_ready":
+                self._worker_ready = True
+                logger.info("Worker subprocess is ready")
+            else:
+                requeue.append(msg)
+        for msg in requeue:
+            self.result_queue.put(msg)
 
     def restart_if_dead(self):
         """Restart the subprocess if it has crashed or exited."""

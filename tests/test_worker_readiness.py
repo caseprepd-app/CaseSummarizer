@@ -8,8 +8,8 @@ Covers:
 - worker_process_main() sends worker_ready as first message
 - _command_loop sends command_ack before dispatching
 - _handle_queue_message handles command_ack without error
-- Readiness guard in _start_preprocessing blocks when worker not ready
-- Readiness guard in _start_progressive_extraction blocks when worker not ready
+- Readiness guard in _start_preprocessing auto-retries when worker not ready
+- Readiness guard in _start_progressive_extraction auto-retries when worker not ready
 """
 
 import threading
@@ -99,6 +99,43 @@ class TestWorkerReadyInterception:
         time.sleep(0.1)  # mp.Queue needs time to flush
         manager.check_for_messages()
         assert manager.is_ready() is True
+
+    def test_is_ready_drains_queue_without_check_for_messages(self):
+        """is_ready() should find worker_ready even without check_for_messages().
+
+        This covers the real-world scenario where the GUI never polls the
+        queue before the user clicks 'Generate'. is_ready() must drain
+        the worker_ready signal itself via _drain_ready_signal().
+        """
+        from src.services.worker_manager import WorkerProcessManager
+
+        manager = WorkerProcessManager()
+        manager._started = True
+        manager.process = MagicMock(is_alive=MagicMock(return_value=True))
+        manager.result_queue.put(("worker_ready", None))
+        time.sleep(0.1)  # mp.Queue needs time to flush
+        # Do NOT call check_for_messages() — this is the bug scenario
+        assert manager.is_ready() is True
+
+    def test_is_ready_preserves_other_messages_in_queue(self):
+        """is_ready() should re-queue non-worker_ready messages."""
+        from src.services.worker_manager import WorkerProcessManager
+
+        manager = WorkerProcessManager()
+        manager._started = True
+        manager.process = MagicMock(is_alive=MagicMock(return_value=True))
+        manager.result_queue.put(("progress", (50, "Working...")))
+        manager.result_queue.put(("worker_ready", None))
+        manager.result_queue.put(("error", "something"))
+        time.sleep(0.1)
+        assert manager.is_ready() is True
+        # Other messages should still be retrievable
+        time.sleep(0.1)  # mp.Queue needs time to flush re-queued messages
+        messages = manager.check_for_messages()
+        assert len(messages) == 2
+        msg_types = [m[0] for m in messages]
+        assert "progress" in msg_types
+        assert "error" in msg_types
 
     def test_is_ready_false_when_ready_but_not_alive(self):
         """is_ready() returns False if flag is set but process is dead."""
@@ -441,12 +478,12 @@ class TestCommandAckHandler:
 
 
 # ===========================================================================
-# 5. Readiness guard in _start_preprocessing
+# 5. Readiness guard in _start_preprocessing (non-modal auto-retry)
 # ===========================================================================
 
 
 class TestPreprocessingReadinessGuard:
-    """Test that _start_preprocessing blocks when worker is not ready."""
+    """Test that _start_preprocessing auto-retries when worker is not ready."""
 
     def _make_window_stub(self, worker_ready):
         """Create a MainWindow-like stub for _start_preprocessing."""
@@ -460,55 +497,91 @@ class TestPreprocessingReadinessGuard:
         stub._worker_manager = MagicMock()
         stub._worker_manager.is_ready.return_value = worker_ready
         stub._preprocessing_active = False
+        stub._worker_ready_retries = 0
         return stub
 
-    def test_blocks_when_not_ready(self):
-        """When is_ready() is False, should show dialog and NOT send_command."""
+    def test_auto_retries_when_not_ready(self):
+        """When is_ready() is False, should set status and schedule retry."""
         stub = self._make_window_stub(worker_ready=False)
 
-        with patch("src.ui.main_window.messagebox") as mock_mb:
-            from src.ui.main_window import MainWindow
+        from src.ui.main_window import MainWindow
 
-            MainWindow._start_preprocessing(stub)
+        MainWindow._start_preprocessing(stub)
 
-            mock_mb.showinfo.assert_called_once()
-            title, msg = mock_mb.showinfo.call_args[0]
-            assert "wait" in title.lower() or "wait" in msg.lower()
-            stub._worker_manager.send_command.assert_not_called()
+        stub.set_status.assert_called_once()
+        msg = stub.set_status.call_args[0][0]
+        assert "starting up" in msg.lower() or "please wait" in msg.lower()
+        stub.after.assert_called_once()
+        assert stub.after.call_args[0][0] == 3000
+        stub._worker_manager.send_command.assert_not_called()
 
-    def test_re_enables_buttons_when_not_ready(self):
-        """When blocked, buttons should be re-enabled so user can try again."""
+    def test_retry_counter_increments(self):
+        """Each retry should increment _worker_ready_retries."""
         stub = self._make_window_stub(worker_ready=False)
 
-        with patch("src.ui.main_window.messagebox"):
-            from src.ui.main_window import MainWindow
+        from src.ui.main_window import MainWindow
 
-            MainWindow._start_preprocessing(stub)
+        MainWindow._start_preprocessing(stub)
+        assert stub._worker_ready_retries == 1
 
-            stub.add_files_btn.configure.assert_any_call(state="normal")
-            stub.generate_btn.configure.assert_any_call(state="normal")
+    def test_gives_up_after_max_retries(self):
+        """After 20+ retries, should show error and re-enable buttons."""
+        stub = self._make_window_stub(worker_ready=False)
+        stub._worker_ready_retries = 20  # Already at limit
+
+        from src.ui.main_window import MainWindow
+
+        MainWindow._start_preprocessing(stub)
+
+        stub.set_status_error.assert_called_once()
+        msg = stub.set_status_error.call_args[0][0]
+        assert "failed" in msg.lower() or "restart" in msg.lower()
+        stub.add_files_btn.configure.assert_any_call(state="normal")
+        stub.generate_btn.configure.assert_any_call(state="normal")
+        stub.after.assert_not_called()
+
+    def test_buttons_not_re_enabled_during_retry(self):
+        """During normal retries (not max), buttons stay disabled."""
+        stub = self._make_window_stub(worker_ready=False)
+
+        from src.ui.main_window import MainWindow
+
+        MainWindow._start_preprocessing(stub)
+
+        # Buttons should NOT be re-enabled (no configure(state="normal") call
+        # after the initial disable at the top of the method)
+        stub._worker_manager.send_command.assert_not_called()
 
     def test_proceeds_when_ready(self):
         """When is_ready() is True, should send_command normally."""
         stub = self._make_window_stub(worker_ready=True)
 
-        with patch("src.ui.main_window.messagebox") as mock_mb:
-            from src.ui.main_window import MainWindow
+        from src.ui.main_window import MainWindow
 
-            MainWindow._start_preprocessing(stub)
+        MainWindow._start_preprocessing(stub)
 
-            mock_mb.showinfo.assert_not_called()
-            stub._worker_manager.send_command.assert_called_once()
-            assert stub._worker_manager.send_command.call_args[0][0] == "process_files"
+        stub._worker_manager.send_command.assert_called_once()
+        assert stub._worker_manager.send_command.call_args[0][0] == "process_files"
+
+    def test_retry_counter_resets_on_success(self):
+        """When worker is ready, _worker_ready_retries should reset to 0."""
+        stub = self._make_window_stub(worker_ready=True)
+        stub._worker_ready_retries = 5  # Had some retries before
+
+        from src.ui.main_window import MainWindow
+
+        MainWindow._start_preprocessing(stub)
+
+        assert stub._worker_ready_retries == 0
 
 
 # ===========================================================================
-# 6. Readiness guard in _start_progressive_extraction
+# 6. Readiness guard in _start_progressive_extraction (non-modal auto-retry)
 # ===========================================================================
 
 
 class TestExtractionReadinessGuard:
-    """Test that _start_progressive_extraction blocks when worker not ready."""
+    """Test that _start_progressive_extraction auto-retries when not ready."""
 
     def _make_extraction_stub(self, worker_ready):
         """Create a MainWindow-like stub for _start_progressive_extraction."""
@@ -519,14 +592,14 @@ class TestExtractionReadinessGuard:
         stub._worker_manager = MagicMock()
         stub._worker_manager.is_ready.return_value = worker_ready
         stub._queue_poll_id = None
+        stub._worker_ready_retries = 0
         return stub
 
-    def test_blocks_when_not_ready(self):
-        """When is_ready() is False, should show dialog and NOT send_command."""
+    def test_auto_retries_when_not_ready(self):
+        """When is_ready() is False, should set status and schedule retry."""
         stub = self._make_extraction_stub(worker_ready=False)
 
         with (
-            patch("src.ui.main_window.messagebox") as mock_mb,
             patch("src.services.DocumentService") as mock_doc_svc,
             patch("src.user_preferences.get_user_preferences") as mock_prefs,
         ):
@@ -537,15 +610,41 @@ class TestExtractionReadinessGuard:
 
             MainWindow._start_progressive_extraction(stub)
 
-            mock_mb.showinfo.assert_called_once()
+            # set_status is called once for "Starting extraction..." and once for retry
+            retry_calls = [
+                c
+                for c in stub.set_status.call_args_list
+                if "starting up" in c[0][0].lower() or "please wait" in c[0][0].lower()
+            ]
+            assert len(retry_calls) == 1
+            stub.after.assert_called_once()
+            assert stub.after.call_args[0][0] == 3000
             stub._worker_manager.send_command.assert_not_called()
+
+    def test_gives_up_after_max_retries(self):
+        """After 20+ retries, should show error."""
+        stub = self._make_extraction_stub(worker_ready=False)
+        stub._worker_ready_retries = 20
+
+        with (
+            patch("src.services.DocumentService") as mock_doc_svc,
+            patch("src.user_preferences.get_user_preferences") as mock_prefs,
+        ):
+            mock_doc_svc.return_value.combine_document_texts.return_value = "Some text"
+            mock_prefs.return_value.is_vocab_llm_enabled.return_value = False
+
+            from src.ui.main_window import MainWindow
+
+            MainWindow._start_progressive_extraction(stub)
+
+            stub.set_status_error.assert_called_once()
+            stub.after.assert_not_called()
 
     def test_proceeds_when_ready(self):
         """When is_ready() is True, should send extract command."""
         stub = self._make_extraction_stub(worker_ready=True)
 
         with (
-            patch("src.ui.main_window.messagebox") as mock_mb,
             patch("src.services.DocumentService") as mock_doc_svc,
             patch("src.user_preferences.get_user_preferences") as mock_prefs,
         ):
@@ -556,6 +655,23 @@ class TestExtractionReadinessGuard:
 
             MainWindow._start_progressive_extraction(stub)
 
-            mock_mb.showinfo.assert_not_called()
             stub._worker_manager.send_command.assert_called_once()
             assert stub._worker_manager.send_command.call_args[0][0] == "extract"
+
+    def test_retry_counter_resets_on_success(self):
+        """When worker is ready, _worker_ready_retries should reset to 0."""
+        stub = self._make_extraction_stub(worker_ready=True)
+        stub._worker_ready_retries = 3
+
+        with (
+            patch("src.services.DocumentService") as mock_doc_svc,
+            patch("src.user_preferences.get_user_preferences") as mock_prefs,
+        ):
+            mock_doc_svc.return_value.combine_document_texts.return_value = "Some text"
+            mock_prefs.return_value.is_vocab_llm_enabled.return_value = False
+
+            from src.ui.main_window import MainWindow
+
+            MainWindow._start_progressive_extraction(stub)
+
+            assert stub._worker_ready_retries == 0

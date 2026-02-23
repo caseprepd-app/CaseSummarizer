@@ -548,7 +548,9 @@ class TestSourceCodeSafety:
         """
         source = self._get_source()
         # Remove the --splash-only early-exit block (imports tkinter but exits immediately)
-        splash_only_start = source.index('if "--splash-only" in sys.argv:')
+        splash_only_start = source.index(
+            'if "--splash-only" in sys.argv and "__mp_main__" not in sys.modules:'
+        )
         splash_only_end = source.index("sys.exit(0)", splash_only_start) + len("sys.exit(0)")
         main_code = source[:splash_only_start] + source[splash_only_end:]
         # Also remove the inline splash script f-string (dev mode subprocess)
@@ -679,7 +681,7 @@ class TestSplashOnlyHandler:
     def _get_splash_only_block(self):
         """Extract the --splash-only handler code block."""
         source = self._get_source()
-        start = source.index('if "--splash-only" in sys.argv:')
+        start = source.index('if "--splash-only" in sys.argv and "__mp_main__" not in sys.modules:')
         end = source.index("sys.exit(0)", start) + len("sys.exit(0)")
         return source[start:end]
 
@@ -691,7 +693,9 @@ class TestSplashOnlyHandler:
     def test_handler_before_heavy_imports(self):
         """--splash-only must run before customtkinter/torch imports."""
         source = self._get_source()
-        handler_pos = source.index('if "--splash-only" in sys.argv:')
+        handler_pos = source.index(
+            'if "--splash-only" in sys.argv and "__mp_main__" not in sys.modules:'
+        )
         ctk_pos = source.index("import customtkinter")
         assert handler_pos < ctk_pos, "--splash-only handler must appear before heavy imports"
 
@@ -743,7 +747,9 @@ class TestSplashOnlyHandler:
         """DPI awareness must be set at module level before --splash-only handler."""
         source = self._get_source()
         dpi_pos = source.index("SetProcessDpiAwareness")
-        handler_pos = source.index('if "--splash-only" in sys.argv:')
+        handler_pos = source.index(
+            'if "--splash-only" in sys.argv and "__mp_main__" not in sys.modules:'
+        )
         assert dpi_pos < handler_pos, "DPI awareness must be set before --splash-only handler"
 
 
@@ -804,7 +810,7 @@ class TestAutoCloseSafetyNet:
     def test_frozen_mode_splash_has_auto_close(self):
         """The --splash-only handler must have auto-close safety net."""
         source = self._get_source()
-        start = source.index('if "--splash-only" in sys.argv:')
+        start = source.index('if "--splash-only" in sys.argv and "__mp_main__" not in sys.modules:')
         end = source.index("sys.exit(0)", start)
         block = source[start:end]
         assert "_root.after(" in block

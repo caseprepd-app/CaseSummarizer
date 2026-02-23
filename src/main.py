@@ -20,6 +20,9 @@ if "--debug" in sys.argv:
 import contextlib
 import logging
 import multiprocessing
+
+multiprocessing.freeze_support()  # Must run before ANY subprocess code in frozen builds
+
 import subprocess
 import threading
 import traceback
@@ -50,7 +53,7 @@ with contextlib.suppress(Exception):
 # a separate process (avoiding the dual-Tk-root hang).
 # This block MUST run before any heavy imports.
 # ============================================================
-if "--splash-only" in sys.argv:
+if "--splash-only" in sys.argv and "__mp_main__" not in sys.modules:
     import random
     import tkinter as tk
 
@@ -360,10 +363,7 @@ def main():
 
     threading.excepthook = _uncaught_thread_exception
 
-    # 6. Enable multiprocessing support for Windows frozen executables
-    multiprocessing.freeze_support()
-
-    # 7. Set appearance mode (light/dark/system)
+    # 6. Set appearance mode (light/dark/system)
     ctk.set_appearance_mode("System")  # Options: "System", "Dark", "Light"
     ctk.set_default_color_theme("blue")  # Options: "blue", "green", "dark-blue"
 
