@@ -646,6 +646,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         self._start_timer()
 
         # Send command to worker subprocess
+        logger.debug("Sending process_files: %d file(s)", len(self.selected_files))
         self._worker_manager.send_command(
             "process_files",
             {
@@ -656,6 +657,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         self._preprocessing_active = True
 
         # Start polling the queue
+        logger.debug("Polling started (preprocessing)")
         self._poll_queue()
 
     def _on_configure(self, event):
@@ -696,6 +698,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             self._queue_poll_id = self.after(33, self._poll_queue)  # ~30fps
         else:
             self._queue_poll_id = None
+            logger.debug("Polling stopped (all flags inactive, no pending messages)")
 
     def _handle_queue_message(self, msg_type: str, data):
         """Handle a message from the worker queue."""
@@ -776,7 +779,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             error_msg = (
                 data.get("error", "Unknown Q&A error") if isinstance(data, dict) else str(data)
             )
-            logger.warning("Q&A indexing error: %s", error_msg)
+            logger.warning("Q&A indexing error (full): %s", error_msg)
             self.set_status_error(f"Q&A unavailable: {error_msg[:50]}")
             # Q&A won't be available but vocab extraction can continue
             self._qa_answering_active = False
@@ -1568,6 +1571,12 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         self._worker_ready_retries = 0  # Reset retry counter on success
 
         # Send extraction command to worker subprocess
+        logger.debug(
+            "Sending extract: %d doc(s), llm=%s, confidence=%.0f%%",
+            len(self.processing_results),
+            use_llm,
+            doc_confidence,
+        )
         self._worker_manager.send_command(
             "extract",
             {
@@ -1587,6 +1596,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         # Ensure queue polling is running (may have stopped after preprocessing)
         if self._queue_poll_id:
             self.after_cancel(self._queue_poll_id)
+        logger.debug("Polling started (extraction)")
         self._poll_queue()
 
     def _start_qa_task(self):
@@ -1597,6 +1607,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
 
         # Send run_qa command to worker subprocess
         # The subprocess handles embeddings loading and vector store creation
+        logger.debug("Sending run_qa: mode=extraction")
         self._worker_manager.send_command(
             "run_qa",
             {
@@ -1607,6 +1618,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         # Ensure queue polling is active
         if self._queue_poll_id:
             self.after_cancel(self._queue_poll_id)
+        logger.debug("Polling started (Q&A)")
         self._poll_queue()
 
     def _on_qa_complete(self, qa_results: list):
@@ -1668,6 +1680,11 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         logger.debug("Starting summary worker for %s documents", doc_count)
 
         # Send summary command to worker subprocess
+        logger.debug(
+            "Sending summary: %d doc(s), model=%s",
+            doc_count,
+            ai_params.get("model_name", "?"),
+        )
         self._worker_manager.send_command(
             "summary",
             {
@@ -1802,6 +1819,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         self.output_display.tabview.set("Ask Questions")
 
         # Send follow-up command to worker subprocess
+        logger.debug("Sending followup: %.80s", question)
         self._followup_pending = True
         self._worker_manager.send_command("followup", {"question": question})
 
@@ -1917,6 +1935,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             import time
 
             # Send followup command to worker subprocess
+            logger.debug("Sending followup (panel): %.80s", question)
             self._worker_manager.send_command("followup", {"question": question})
 
             # Poll for result (blocking, since we're in a background thread)
@@ -1940,7 +1959,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
                         pass
                 time.sleep(0.1)
 
-            logger.warning("Follow-up timed out after %ss", timeout)
+            logger.warning("Follow-up timed out after %ss for question: %.80s", timeout, question)
             return None
 
         except Exception as e:

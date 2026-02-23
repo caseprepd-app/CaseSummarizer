@@ -67,6 +67,10 @@ LOG_CATEGORIES: dict[str, tuple[str, ...]] = {
         "src.logging_config",
         "src.system_resources",
     ),
+    "IPC & Worker": (
+        "src.services.worker_manager",
+        "src.worker_process",
+    ),
     "UI Events": ("src.ui",),
     "Corpus": (
         "src.core.vocabulary.corpus_manager",

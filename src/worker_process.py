@@ -15,6 +15,7 @@ State dict (shared by reference within the subprocess):
 """
 
 import logging
+import os
 import threading
 import traceback
 from queue import Empty, Queue
@@ -24,6 +25,37 @@ logger = logging.getLogger(__name__)
 # Sentinel for shutdown
 _SHUTDOWN = "shutdown"
 _CANCEL = "cancel"
+
+
+def _summarize_command_args(cmd_type, args):
+    """Summarize command args for logging without full document text."""
+    if not args or not isinstance(args, dict):
+        return str(args)
+    parts = []
+    if cmd_type == "process_files":
+        paths = args.get("file_paths", [])
+        names = [os.path.basename(p) for p in paths] if paths else []
+        parts.append(f"files={len(names)}{names}")
+        if "ocr_allowed" in args:
+            parts.append(f"ocr_allowed={args['ocr_allowed']}")
+    elif cmd_type == "extract":
+        parts.append(f"docs={len(args.get('documents', []))}")
+        parts.append(f"use_llm={args.get('use_llm', '?')}")
+        parts.append(f"doc_confidence={args.get('doc_confidence', '?')}")
+    elif cmd_type == "run_qa":
+        parts.append(f"answer_mode={args.get('answer_mode', '?')}")
+        qs = args.get("questions")
+        parts.append(f"questions={len(qs) if qs else 'default'}")
+    elif cmd_type == "followup":
+        q = args.get("question", "")
+        parts.append(f"question='{q[:80]}'")
+    elif cmd_type == "summary":
+        parts.append(f"docs={len(args.get('documents', []))}")
+        ai = args.get("ai_params", {})
+        parts.append(f"model={ai.get('model_name', '?')}")
+    else:
+        parts.append(f"keys={list(args.keys())}")
+    return ", ".join(parts)
 
 
 def worker_process_main(command_queue, result_queue):
@@ -111,6 +143,7 @@ def _command_loop(command_queue, internal_queue, result_queue, state):
             continue
 
         logger.debug("Dispatching command: %s", cmd_type)
+        logger.debug("  args: %s", _summarize_command_args(cmd_type, args))
         result_queue.put(("command_ack", {"cmd": cmd_type}))
 
         try:
@@ -159,6 +192,7 @@ def _run_process_files(args, internal_queue, state):
     )
     state["active_worker"] = worker
     worker.start()
+    logger.debug("Worker thread started: %s (thread: %s)", type(worker).__name__, worker.name)
 
 
 def _run_extraction(args, internal_queue, state):
@@ -178,6 +212,7 @@ def _run_extraction(args, internal_queue, state):
     )
     state["active_worker"] = worker
     worker.start()
+    logger.debug("Worker thread started: %s (thread: %s)", type(worker).__name__, worker.name)
 
 
 def _run_qa(args, internal_queue, state):
@@ -201,11 +236,13 @@ def _run_qa(args, internal_queue, state):
     )
     state["active_worker"] = worker
     worker.start()
+    logger.debug("Worker thread started: %s (thread: %s)", type(worker).__name__, worker.name)
 
 
 def _run_followup(args, internal_queue, state):
     """Run a follow-up question in a background thread."""
     question = args.get("question", "")
+    logger.debug("Follow-up question: %.80s", question)
     vector_store_path = state.get("vector_store_path")
     embeddings = state.get("embeddings")
 
@@ -225,6 +262,7 @@ def _run_followup(args, internal_queue, state):
                 answer_mode=prefs.get("qa_answer_mode", "ollama"),
             )
             result = orchestrator.ask_followup(question)
+            logger.debug("Follow-up answered: %d chars", len(result.answer) if result else 0)
             internal_queue.put(("qa_followup_result", result))
         except Exception as e:
             logger.error("Follow-up error: %s", e)
@@ -246,6 +284,7 @@ def _run_summary(args, internal_queue, state):
     )
     state["active_worker"] = worker
     worker.start()
+    logger.debug("Worker thread started: %s (thread: %s)", type(worker).__name__, worker.name)
 
 
 def _stop_active_worker(state):
@@ -294,7 +333,11 @@ def _forwarder_loop(internal_queue, result_queue, command_queue, state):
             state["embeddings"] = data.get("embeddings")
             state["vector_store_path"] = data.get("vector_store_path")
             state["chunk_scores"] = data.get("chunk_scores")
-            logger.debug("Saved embeddings and vector_store_path in subprocess state")
+            logger.debug(
+                "Saved embeddings and vector_store_path in subprocess state (path=%s, chunks=%s)",
+                data.get("vector_store_path"),
+                data.get("chunk_count", "?"),
+            )
 
             # Forward qa_ready WITHOUT embeddings (not picklable)
             forwarded_data = {
@@ -340,6 +383,7 @@ def _forwarder_loop(internal_queue, result_queue, command_queue, state):
 
         else:
             # Forward all other messages as-is
+            logger.debug("Forwarding message: %s", msg_type)
             try:
                 result_queue.put((msg_type, data))
             except Exception as e:

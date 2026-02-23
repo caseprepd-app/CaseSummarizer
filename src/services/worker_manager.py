@@ -18,9 +18,36 @@ Usage:
 import gc
 import logging
 import multiprocessing
+import os
 from queue import Empty
 
 logger = logging.getLogger(__name__)
+
+
+def _summarize_args(args):
+    """Summarize command args for logging without full document text."""
+    if not args or not isinstance(args, dict):
+        return str(args)
+    parts = []
+    for key, val in args.items():
+        if key == "file_paths":
+            names = [os.path.basename(p) for p in val] if val else []
+            parts.append(f"files={len(names)}{names}")
+        elif key == "documents":
+            parts.append(f"docs={len(val) if val else 0}")
+        elif key == "combined_text":
+            parts.append(f"text_chars={len(val) if val else 0}")
+        elif key == "question":
+            parts.append(f"question='{val[:80]}'")
+        elif key == "questions":
+            parts.append(f"questions={len(val) if val else 0}")
+        elif key == "ai_params" and isinstance(val, dict):
+            parts.append(f"model={val.get('model_name', '?')}")
+        elif key in ("ocr_allowed", "use_llm", "answer_mode", "doc_confidence"):
+            parts.append(f"{key}={val}")
+        else:
+            parts.append(f"{key}=<present>")
+    return ", ".join(parts)
 
 
 class WorkerProcessManager:
@@ -85,6 +112,8 @@ class WorkerProcessManager:
             self.restart_if_dead()
 
         logger.debug("Sending command: %s", cmd_type)
+        if args:
+            logger.debug("  args: %s", _summarize_args(args))
         self.command_queue.put((cmd_type, args or {}))
 
     def check_for_messages(self):
@@ -115,6 +144,10 @@ class WorkerProcessManager:
                 logger.info("Worker subprocess is ready")
             else:
                 messages.append(msg)
+
+        if messages:
+            types = [m[0] for m in messages if isinstance(m, tuple) and len(m) == 2]
+            logger.debug("Received %d message(s): %s", len(messages), types)
 
         return messages
 
@@ -155,9 +188,11 @@ class WorkerProcessManager:
         been set yet.
         """
         requeue = []
+        checked_count = 0
         while True:
             try:
                 msg = self.result_queue.get_nowait()
+                checked_count += 1
             except Empty:
                 break
             try:
@@ -170,6 +205,12 @@ class WorkerProcessManager:
                 logger.info("Worker subprocess is ready")
             else:
                 requeue.append(msg)
+        if checked_count:
+            logger.debug(
+                "Draining queue for ready signal: checked %d msg(s), requeued %d",
+                checked_count,
+                len(requeue),
+            )
         for msg in requeue:
             self.result_queue.put(msg)
 
@@ -211,6 +252,8 @@ class WorkerProcessManager:
                 except Exception as e:
                     logger.debug("Error during force terminate: %s", e)
 
+        if self.process and self.process.exitcode is not None:
+            logger.debug("Worker exit code: %s", self.process.exitcode)
         self._cleanup_dead_process()
         logger.info("Worker subprocess shut down")
 
