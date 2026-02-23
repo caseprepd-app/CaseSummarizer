@@ -125,8 +125,8 @@ class TestExceptionHooks:
         """Run main() with all UI/logging mocked out."""
         mock_app = MagicMock()
         with (
-            patch("src.main._launch_splash", return_value=None),
-            patch("src.main._kill_splash"),
+            patch("src.splash.launch", return_value=None),
+            patch("src.splash.kill"),
             patch("src.main.setup_file_logging"),
             patch("src.logging_config.setup_logging"),
             patch("src.logging_config.purge_old_logs"),

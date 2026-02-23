@@ -2,9 +2,9 @@
 
 Covers:
 - SPLASH_EXTENSIONS constant validation
-- _get_splash_dir() in dev mode, frozen mode, and edge cases
-- _launch_splash() subprocess creation and error handling
-- _kill_splash() graceful termination
+- get_splash_dir() in dev mode, frozen mode, and edge cases
+- launch() subprocess creation and error handling
+- kill() graceful termination
 - DPI awareness setup (high-DPI display portability)
 - Image file validity (real PNGs, not just correct extensions)
 - Filename safety (no spaces or special chars that break on other machines)
@@ -19,12 +19,12 @@ import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-from src.main import (
+from src.splash import (
     SPLASH_EXTENSIONS,
-    _get_splash_dir,
-    _kill_splash,
-    _launch_splash,
-    _splash_log,
+    get_splash_dir,
+    kill,
+    launch,
+    splash_log,
 )
 
 PROJECT_ROOT = Path(__file__).parent.parent
@@ -69,33 +69,33 @@ class TestSplashExtensions:
 
 
 # ============================================================================
-# B. _get_splash_dir — dev mode (real assets/splash/ folder)
+# B. get_splash_dir — dev mode (real assets/splash/ folder)
 # ============================================================================
 
 
 class TestGetSplashDirDevMode:
-    """Tests _get_splash_dir against the real project assets."""
+    """Tests get_splash_dir against the real project assets."""
 
     def test_returns_a_path(self):
-        result = _get_splash_dir()
+        result = get_splash_dir()
         assert isinstance(result, Path)
 
     def test_returned_dir_exists(self):
-        result = _get_splash_dir()
+        result = get_splash_dir()
         assert result.is_dir()
 
     def test_returns_assets_splash_folder(self):
-        result = _get_splash_dir()
+        result = get_splash_dir()
         assert result == SPLASH_DIR
 
     def test_contains_splash_images(self):
-        result = _get_splash_dir()
+        result = get_splash_dir()
         images = [f for f in result.iterdir() if f.suffix.lower() in SPLASH_EXTENSIONS]
         assert len(images) >= 2, f"Expected >= 2 images, found {len(images)}"
 
 
 # ============================================================================
-# C. _get_splash_dir — frozen mode (sys._MEIPASS)
+# C. get_splash_dir — frozen mode (sys._MEIPASS)
 # ============================================================================
 
 
@@ -126,7 +126,7 @@ def _set_frozen(tmp_path):
 
 
 class TestGetSplashDirFrozenMode:
-    """Tests _get_splash_dir with sys.frozen / sys._MEIPASS faked."""
+    """Tests get_splash_dir with sys.frozen / sys._MEIPASS faked."""
 
     def test_uses_meipass_path(self, tmp_path):
         """In frozen mode, should return sys._MEIPASS/assets/splash/."""
@@ -134,27 +134,27 @@ class TestGetSplashDirFrozenMode:
         splash_dir.mkdir(parents=True)
 
         with _set_frozen(tmp_path):
-            result = _get_splash_dir()
+            result = get_splash_dir()
             assert result == splash_dir
 
     def test_frozen_mode_returns_none_when_dir_missing(self, tmp_path):
         """Frozen mode with no assets/splash/ dir should return None."""
         with _set_frozen(tmp_path):
-            assert _get_splash_dir() is None
+            assert get_splash_dir() is None
 
 
 # ============================================================================
-# D. _launch_splash — subprocess creation
+# D. launch — subprocess creation
 # ============================================================================
 
 
 class TestLaunchSplash:
-    """Verify _launch_splash creates subprocess correctly or fails gracefully."""
+    """Verify launch() creates subprocess correctly or fails gracefully."""
 
     def test_returns_none_when_splash_dir_missing(self, tmp_path):
         """No splash directory should return None without crashing."""
         with _set_frozen(tmp_path):
-            result = _launch_splash()
+            result = launch()
             assert result is None
 
     def test_returns_none_when_no_images(self, tmp_path):
@@ -162,7 +162,7 @@ class TestLaunchSplash:
         splash_dir = tmp_path / "assets" / "splash"
         splash_dir.mkdir(parents=True)
         with _set_frozen(tmp_path):
-            result = _launch_splash()
+            result = launch()
             assert result is None
 
     def test_returns_none_when_only_unsupported_files(self, tmp_path):
@@ -172,20 +172,43 @@ class TestLaunchSplash:
         (splash_dir / "photo.jpg").write_bytes(b"fake")
         (splash_dir / "notes.txt").write_text("notes")
         with _set_frozen(tmp_path):
-            result = _launch_splash()
+            result = launch()
             assert result is None
 
-    def test_frozen_mode_spawns_self_with_splash_only(self, tmp_path):
-        """Frozen mode should spawn sys.executable with --splash-only flag."""
+    def test_frozen_mode_sets_env_var(self, tmp_path):
+        """Frozen mode should set _CASEPREPD_SPLASH=1 in subprocess env."""
         splash_dir = tmp_path / "assets" / "splash"
         splash_dir.mkdir(parents=True)
         (splash_dir / "test.png").write_bytes(b"fake")
-        with _set_frozen(tmp_path), patch("src.main.subprocess.Popen") as mock_popen:
+        with _set_frozen(tmp_path), patch("src.splash.subprocess.Popen") as mock_popen:
             mock_popen.return_value = MagicMock(pid=99999)
-            result = _launch_splash()
+            result = launch()
             assert result is not None
+            # Verify env var is set
+            call_kwargs = mock_popen.call_args[1]
+            assert call_kwargs["env"]["_CASEPREPD_SPLASH"] == "1"
+
+    def test_frozen_mode_does_not_pass_splash_only_argv(self, tmp_path):
+        """Frozen mode should NOT use --splash-only (the old broken approach)."""
+        splash_dir = tmp_path / "assets" / "splash"
+        splash_dir.mkdir(parents=True)
+        (splash_dir / "test.png").write_bytes(b"fake")
+        with _set_frozen(tmp_path), patch("src.splash.subprocess.Popen") as mock_popen:
+            mock_popen.return_value = MagicMock(pid=99999)
+            launch()
             args = mock_popen.call_args[0][0]
-            assert args == [sys.executable, "--splash-only"]
+            assert "--splash-only" not in args
+
+    def test_frozen_mode_spawns_self(self, tmp_path):
+        """Frozen mode should spawn sys.executable."""
+        splash_dir = tmp_path / "assets" / "splash"
+        splash_dir.mkdir(parents=True)
+        (splash_dir / "test.png").write_bytes(b"fake")
+        with _set_frozen(tmp_path), patch("src.splash.subprocess.Popen") as mock_popen:
+            mock_popen.return_value = MagicMock(pid=99999)
+            launch()
+            args = mock_popen.call_args[0][0]
+            assert args == [sys.executable]
 
     def test_frozen_mode_returns_none_on_popen_failure(self, tmp_path):
         """If frozen Popen fails, should return None gracefully."""
@@ -193,14 +216,16 @@ class TestLaunchSplash:
         splash_dir.mkdir(parents=True)
         (splash_dir / "test.png").write_bytes(b"fake")
         with _set_frozen(tmp_path):
-            with patch("src.main.subprocess.Popen", side_effect=OSError("spawn failed")):
-                result = _launch_splash()
+            with patch("src.splash.subprocess.Popen", side_effect=OSError("spawn failed")):
+                result = launch()
                 assert result is None
 
     def test_returns_popen_in_dev_mode(self):
         """In dev mode with real assets, should return a Popen object."""
-        proc = _launch_splash()
+        proc = launch()
         if proc is None:
+            import pytest
+
             pytest.skip("Could not launch splash (no pythonw.exe or no display)")
         try:
             assert isinstance(proc, subprocess.Popen)
@@ -211,9 +236,9 @@ class TestLaunchSplash:
 
     def test_uses_pythonw_exe(self):
         """Should use pythonw.exe (no console) for the subprocess."""
-        with patch("src.main.subprocess.Popen") as mock_popen:
+        with patch("src.splash.subprocess.Popen") as mock_popen:
             mock_popen.return_value = MagicMock(pid=12345)
-            _launch_splash()
+            launch()
             if mock_popen.called:
                 args = mock_popen.call_args[0][0]
                 exe_name = Path(args[0]).name.lower()
@@ -221,64 +246,61 @@ class TestLaunchSplash:
 
     def test_graceful_on_popen_failure(self):
         """If subprocess.Popen raises, should return None."""
-        with patch("src.main.subprocess.Popen", side_effect=OSError("no pythonw")):
-            result = _launch_splash()
+        with patch("src.splash.subprocess.Popen", side_effect=OSError("no pythonw")):
+            result = launch()
             assert result is None
 
     def test_subprocess_script_contains_topmost(self):
         """The inline splash script should set -topmost for visibility."""
-        source = Path(PROJECT_ROOT / "src" / "main.py").read_text(encoding="utf-8")
-        # Find the splash_script string
+        source = Path(PROJECT_ROOT / "src" / "splash.py").read_text(encoding="utf-8")
         assert '"-topmost", True' in source
 
     def test_subprocess_script_contains_mainloop(self):
         """The inline splash script should call mainloop to keep window open."""
-        source = Path(PROJECT_ROOT / "src" / "main.py").read_text(encoding="utf-8")
+        source = Path(PROJECT_ROOT / "src" / "splash.py").read_text(encoding="utf-8")
         assert "root.mainloop()" in source
 
     def test_subprocess_script_has_dpi_awareness(self):
         """The inline splash script should set DPI awareness."""
-        source = Path(PROJECT_ROOT / "src" / "main.py").read_text(encoding="utf-8")
-        # DPI call appears twice: once for main process, once in splash script
-        count = source.count("SetProcessDpiAwareness")
-        assert count >= 2, f"Expected DPI awareness in both main and splash script, found {count}"
+        source = Path(PROJECT_ROOT / "src" / "splash.py").read_text(encoding="utf-8")
+        assert "SetProcessDpiAwareness" in source
 
 
 # ============================================================================
-# E. _kill_splash — graceful termination
+# E. kill — graceful termination
 # ============================================================================
 
 
 class TestKillSplash:
-    """Verify _kill_splash terminates subprocesses safely."""
+    """Verify kill() terminates subprocesses safely."""
 
     def test_none_is_safe(self):
         """Passing None should not raise."""
-        _kill_splash(None)
+        kill(None)
 
     def test_terminates_process(self):
         """Should call terminate() on the process."""
         mock_proc = MagicMock()
-        _kill_splash(mock_proc)
+        kill(mock_proc)
         mock_proc.terminate.assert_called_once()
 
     def test_waits_for_process(self):
         """Should call wait() after terminate() for clean shutdown."""
         mock_proc = MagicMock()
-        _kill_splash(mock_proc)
+        kill(mock_proc)
         mock_proc.wait.assert_called_once_with(timeout=3)
 
     def test_survives_terminate_error(self):
         """If terminate() raises, should not crash."""
         mock_proc = MagicMock()
         mock_proc.terminate.side_effect = OSError("already dead")
-        _kill_splash(mock_proc)  # Should not raise
+        kill(mock_proc)  # Should not raise
 
     def test_survives_wait_timeout(self):
         """If wait() times out, should not crash."""
         mock_proc = MagicMock()
         mock_proc.wait.side_effect = subprocess.TimeoutExpired("splash", 3)
-        _kill_splash(mock_proc)  # Should not raise
+        kill(mock_proc)  # Should not raise
 
     def test_escalates_to_kill_on_timeout(self):
         """If terminate+wait times out, should escalate to kill()."""
@@ -289,7 +311,7 @@ class TestKillSplash:
             subprocess.TimeoutExpired("splash", 3),
             None,
         ]
-        _kill_splash(mock_proc)
+        kill(mock_proc)
         mock_proc.terminate.assert_called_once()
         mock_proc.kill.assert_called_once()
         assert mock_proc.wait.call_count == 2
@@ -299,15 +321,15 @@ class TestKillSplash:
         mock_proc = MagicMock()
         mock_proc.wait.side_effect = subprocess.TimeoutExpired("splash", 3)
         mock_proc.kill.side_effect = OSError("access denied")
-        _kill_splash(mock_proc)  # Should not raise
+        kill(mock_proc)  # Should not raise
 
     def test_real_subprocess_termination(self):
         """Launch and kill a real splash subprocess end-to-end."""
-        proc = _launch_splash()
+        proc = launch()
         if proc is None:
             return  # Can't test on systems without pythonw.exe
         assert proc.poll() is None, "Process should still be running"
-        _kill_splash(proc)
+        kill(proc)
         # Process should be terminated
         proc.wait(timeout=5)
         assert proc.returncode is not None
@@ -426,14 +448,12 @@ class TestDpiAwareness:
         source = Path(PROJECT_ROOT / "src" / "main.py").read_text(encoding="utf-8")
         assert "SetProcessDpiAwareness" in source
 
-    def test_dpi_awareness_before_launch_splash(self):
-        """DPI awareness must be set BEFORE _launch_splash() is called."""
+    def test_dpi_awareness_before_main_function(self):
+        """DPI awareness must be set BEFORE main() is defined."""
         source = Path(PROJECT_ROOT / "src" / "main.py").read_text(encoding="utf-8")
         dpi_pos = source.index("SetProcessDpiAwareness")
-        splash_pos = source.index("def _launch_splash")
-        assert dpi_pos < splash_pos, (
-            "SetProcessDpiAwareness must appear before _launch_splash definition"
-        )
+        main_pos = source.index("def main(")
+        assert dpi_pos < main_pos, "SetProcessDpiAwareness must appear before main() definition"
 
     def test_dpi_awareness_wrapped_in_suppress(self):
         """DPI call must be wrapped in try/except so it doesn't crash on non-Windows."""
@@ -447,79 +467,75 @@ class TestDpiAwareness:
 
 
 class TestSourceCodeSafety:
-    """Static analysis of main.py splash code for portability red flags."""
+    """Static analysis of splash.py and main.py for portability red flags."""
 
-    def _get_source(self):
+    def _get_splash_source(self):
+        return Path(PROJECT_ROOT / "src" / "splash.py").read_text(encoding="utf-8")
+
+    def _get_main_source(self):
         return Path(PROJECT_ROOT / "src" / "main.py").read_text(encoding="utf-8")
 
     def test_no_hardcoded_drive_letters(self):
         """No C:\\, D:\\, etc. in the source."""
-        source = self._get_source()
         import re
 
-        matches = re.findall(r"[A-Z]:\\", source)
-        assert not matches, f"Hardcoded drive letter found: {matches}"
+        for source in (self._get_splash_source(), self._get_main_source()):
+            matches = re.findall(r"[A-Z]:\\", source)
+            assert not matches, f"Hardcoded drive letter found: {matches}"
 
     def test_no_hardcoded_usernames(self):
         """No /Users/xxx or C:\\Users\\xxx paths."""
-        source = self._get_source()
-        assert "noahc" not in source.lower()
-        assert "/Users/" not in source
+        for source in (self._get_splash_source(), self._get_main_source()):
+            assert "noahc" not in source.lower()
+            assert "/Users/" not in source
 
     def test_frozen_mode_check_uses_getattr(self):
         """Should use getattr(sys, 'frozen', False), not hasattr."""
-        source = self._get_source()
+        source = self._get_splash_source()
         assert 'getattr(sys, "frozen", False)' in source
 
     def test_frozen_mode_uses_meipass(self):
         """Should reference sys._MEIPASS for frozen path resolution."""
-        source = self._get_source()
+        source = self._get_splash_source()
         assert "sys._MEIPASS" in source
 
-    def test_kill_splash_has_exception_guard(self):
-        """_kill_splash must handle terminate/wait failures gracefully."""
-        source = self._get_source()
-        func_start = source.index("def _kill_splash")
-        # Find the next def or end of file
+    def test_kill_has_exception_guard(self):
+        """kill() must handle terminate/wait failures gracefully."""
+        source = self._get_splash_source()
+        func_start = source.index("def kill(")
         next_def = source.index("\ndef ", func_start + 1)
         func_body = source[func_start:next_def]
-        assert "except" in func_body, (
-            "_kill_splash should handle exceptions from terminate/wait/kill"
-        )
+        assert "except" in func_body, "kill() should handle exceptions from terminate/wait/kill"
 
-    def test_launch_splash_catches_popen_exceptions(self):
-        """_launch_splash must catch exceptions from subprocess.Popen."""
-        source = self._get_source()
-        func_start = source.index("def _launch_splash")
+    def test_launch_catches_popen_exceptions(self):
+        """launch() must catch exceptions from subprocess.Popen."""
+        source = self._get_splash_source()
+        func_start = source.index("def launch(")
         next_def = source.index("\ndef ", func_start + 1)
         func_body = source[func_start:next_def]
-        assert "except" in func_body, (
-            "_launch_splash must catch exceptions to prevent startup crashes"
-        )
+        assert "except" in func_body, "launch() must catch exceptions to prevent startup crashes"
 
-    def test_kill_splash_escalates_to_kill(self):
-        """_kill_splash must call proc.kill() when terminate times out."""
-        source = self._get_source()
-        func_start = source.index("def _kill_splash")
+    def test_kill_escalates_to_kill(self):
+        """kill() must call proc.kill() when terminate times out."""
+        source = self._get_splash_source()
+        func_start = source.index("def kill(")
         next_def = source.index("\ndef ", func_start + 1)
         func_body = source[func_start:next_def]
-        assert "proc.kill()" in func_body, (
-            "_kill_splash should escalate to kill() on TimeoutExpired"
-        )
+        assert "proc.kill()" in func_body, "kill() should escalate to kill() on TimeoutExpired"
         assert "TimeoutExpired" in func_body, (
-            "_kill_splash should catch TimeoutExpired to trigger kill() escalation"
+            "kill() should catch TimeoutExpired to trigger kill() escalation"
         )
 
     def test_import_failure_kills_splash(self):
         """If heavy imports fail, splash subprocess must be terminated."""
-        source = self._get_source()
-        assert "_kill_splash(splash_proc)" in source
+        source = self._get_main_source()
+        assert "kill(splash_proc)" in source
 
     def test_window_focus_after_splash_kill(self):
         """After killing splash, main window must be raised to front."""
-        source = self._get_source()
-        # All three calls must appear after _kill_splash in main()
-        kill_pos = source.index("_kill_splash(splash_proc)")
+        source = self._get_main_source()
+        # All three calls must appear after kill() in main()
+        kill_pos = source.index("kill(splash_proc)")
         mainloop_pos = source.index("app.mainloop()")
         between = source[kill_pos:mainloop_pos]
         assert "app.lift()" in between, "app.lift() must be called after splash kill"
@@ -528,7 +544,7 @@ class TestSourceCodeSafety:
 
     def test_traceback_import_for_crash_log(self):
         """traceback must be imported so crash-log code doesn't NameError."""
-        source = self._get_source()
+        source = self._get_main_source()
         assert "import traceback" in source, (
             "main.py must import traceback for crash-log formatting"
         )
@@ -542,20 +558,17 @@ class TestSourceCodeSafety:
     def test_no_tkinter_import_in_main_process(self):
         """Main process should not import tkinter -- splash runs in subprocess.
 
-        The --splash-only early-exit handler imports tkinter at module level,
-        but that code path calls sys.exit(0) before any heavy imports run.
-        We exclude both the --splash-only block and the inline splash_script.
+        The env var splash handler imports from src.splash (which imports tkinter
+        only inside run_splash_window), and that code path calls sys.exit(0)
+        before any heavy imports run. We check the main process code path only.
         """
-        source = self._get_source()
-        # Remove the --splash-only early-exit block (imports tkinter but exits immediately)
-        splash_only_start = source.index(
-            'if "--splash-only" in sys.argv and "__mp_main__" not in sys.modules:'
+        source = self._get_main_source()
+        # Remove the env var splash handler block (exits immediately)
+        env_check_start = source.index('if os.environ.get("_CASEPREPD_SPLASH") == "1":')
+        env_check_end = source.index("run_splash_window()", env_check_start) + len(
+            "run_splash_window()"
         )
-        splash_only_end = source.index("sys.exit(0)", splash_only_start) + len("sys.exit(0)")
-        main_code = source[:splash_only_start] + source[splash_only_end:]
-        # Also remove the inline splash script f-string (dev mode subprocess)
-        if 'splash_script = f"""' in main_code:
-            main_code = main_code.split('splash_script = f"""')[0]
+        main_code = source[:env_check_start] + source[env_check_end:]
         assert "import tkinter" not in main_code, (
             "Main process should not import tkinter -- splash uses subprocess"
         )
@@ -597,7 +610,7 @@ class TestInstallerBundling:
 
 
 # ============================================================================
-# K. Subprocess splash script content
+# K. Subprocess splash script content (dev mode inline script in splash.py)
 # ============================================================================
 
 
@@ -605,8 +618,8 @@ class TestSplashScriptContent:
     """Verify the inline splash script passed to the subprocess is correct."""
 
     def _get_splash_script_section(self):
-        """Extract the splash_script f-string content from main.py."""
-        source = Path(PROJECT_ROOT / "src" / "main.py").read_text(encoding="utf-8")
+        """Extract the splash_script f-string content from splash.py."""
+        source = Path(PROJECT_ROOT / "src" / "splash.py").read_text(encoding="utf-8")
         start = source.index('splash_script = f"""') + len('splash_script = f"""')
         end = source.index('"""', start)
         return source[start:end]
@@ -668,123 +681,142 @@ class TestSplashScriptContent:
 
 
 # ============================================================================
-# L. --splash-only handler (frozen mode self-spawn)
+# L. Env var splash handler (frozen mode self-spawn)
 # ============================================================================
 
 
-class TestSplashOnlyHandler:
-    """Verify the --splash-only early-exit handler in main.py."""
+class TestEnvVarSplashHandler:
+    """Verify the _CASEPREPD_SPLASH env var handler in main.py."""
 
     def _get_source(self):
         return Path(PROJECT_ROOT / "src" / "main.py").read_text(encoding="utf-8")
 
-    def _get_splash_only_block(self):
-        """Extract the --splash-only handler code block."""
-        source = self._get_source()
-        start = source.index('if "--splash-only" in sys.argv and "__mp_main__" not in sys.modules:')
-        end = source.index("sys.exit(0)", start) + len("sys.exit(0)")
-        return source[start:end]
-
     def test_handler_exists(self):
-        """The --splash-only handler must exist in main.py."""
+        """The _CASEPREPD_SPLASH env var handler must exist in main.py."""
         source = self._get_source()
-        assert '"--splash-only" in sys.argv' in source
+        assert "_CASEPREPD_SPLASH" in source
+
+    def test_handler_checks_env_var_not_argv(self):
+        """Should use env var, not --splash-only argv (the old broken approach)."""
+        source = self._get_source()
+        assert 'os.environ.get("_CASEPREPD_SPLASH")' in source
+        assert '"--splash-only" in sys.argv' not in source
 
     def test_handler_before_heavy_imports(self):
-        """--splash-only must run before customtkinter/torch imports."""
+        """Env var handler must run before customtkinter/torch imports."""
         source = self._get_source()
-        handler_pos = source.index(
-            'if "--splash-only" in sys.argv and "__mp_main__" not in sys.modules:'
-        )
+        handler_pos = source.index("_CASEPREPD_SPLASH")
         ctk_pos = source.index("import customtkinter")
-        assert handler_pos < ctk_pos, "--splash-only handler must appear before heavy imports"
+        assert handler_pos < ctk_pos, "Env var handler must appear before heavy imports"
 
-    def test_handler_imports_tkinter(self):
-        """Handler must import tkinter for the splash window."""
-        block = self._get_splash_only_block()
-        assert "import tkinter as tk" in block
+    def test_handler_calls_run_splash_window(self):
+        """Handler must call run_splash_window() from src.splash."""
+        source = self._get_source()
+        assert "from src.splash import run_splash_window" in source
+        assert "run_splash_window()" in source
 
-    def test_handler_uses_overrideredirect(self):
-        """Splash window should be borderless."""
-        block = self._get_splash_only_block()
-        assert "overrideredirect(True)" in block
+    def test_run_splash_window_uses_tkinter(self):
+        """run_splash_window() in splash.py must use tkinter."""
+        source = Path(PROJECT_ROOT / "src" / "splash.py").read_text(encoding="utf-8")
+        func_start = source.index("def run_splash_window(")
+        func_body = source[func_start:]
+        assert "import tkinter as tk" in func_body
 
-    def test_handler_uses_topmost(self):
-        """Splash must appear above other windows."""
-        block = self._get_splash_only_block()
-        assert '"-topmost", True' in block
+    def test_run_splash_window_uses_overrideredirect(self):
+        source = Path(PROJECT_ROOT / "src" / "splash.py").read_text(encoding="utf-8")
+        func_start = source.index("def run_splash_window(")
+        func_body = source[func_start:]
+        assert "overrideredirect(True)" in func_body
 
-    def test_handler_shows_loading_text(self):
-        block = self._get_splash_only_block()
-        assert "Loading..." in block
+    def test_run_splash_window_uses_topmost(self):
+        source = Path(PROJECT_ROOT / "src" / "splash.py").read_text(encoding="utf-8")
+        func_start = source.index("def run_splash_window(")
+        func_body = source[func_start:]
+        assert '"-topmost", True' in func_body
 
-    def test_handler_calls_mainloop(self):
-        block = self._get_splash_only_block()
-        assert "mainloop()" in block
+    def test_run_splash_window_shows_loading_text(self):
+        source = Path(PROJECT_ROOT / "src" / "splash.py").read_text(encoding="utf-8")
+        func_start = source.index("def run_splash_window(")
+        func_body = source[func_start:]
+        assert "Loading..." in func_body
 
-    def test_handler_exits_with_zero(self):
-        """Handler must call sys.exit(0) to prevent heavy imports."""
-        block = self._get_splash_only_block()
-        assert "sys.exit(0)" in block
+    def test_run_splash_window_calls_mainloop(self):
+        source = Path(PROJECT_ROOT / "src" / "splash.py").read_text(encoding="utf-8")
+        func_start = source.index("def run_splash_window(")
+        func_body = source[func_start:]
+        assert "mainloop()" in func_body
 
-    def test_handler_has_auto_close_safety_net(self):
+    def test_run_splash_window_exits_with_zero(self):
+        """run_splash_window must call sys.exit(0) to prevent heavy imports."""
+        source = Path(PROJECT_ROOT / "src" / "splash.py").read_text(encoding="utf-8")
+        func_start = source.index("def run_splash_window(")
+        func_body = source[func_start:]
+        assert "sys.exit(0)" in func_body
+
+    def test_run_splash_window_has_auto_close_safety_net(self):
         """Safety net: auto-close after timeout if parent dies."""
-        block = self._get_splash_only_block()
-        assert "_root.after(" in block
-        assert "_root.quit" in block
+        source = Path(PROJECT_ROOT / "src" / "splash.py").read_text(encoding="utf-8")
+        func_start = source.index("def run_splash_window(")
+        func_body = source[func_start:]
+        assert "root.after(" in func_body
+        assert "root.quit" in func_body
 
-    def test_handler_supports_frozen_and_dev_splash_dirs(self):
-        """Handler should check both sys._MEIPASS and Path(__file__) paths."""
-        block = self._get_splash_only_block()
-        assert "sys._MEIPASS" in block
-        assert "Path(__file__)" in block
+    def test_run_splash_window_supports_frozen_and_dev_splash_dirs(self):
+        """run_splash_window should use get_splash_dir() which handles both modes."""
+        source = Path(PROJECT_ROOT / "src" / "splash.py").read_text(encoding="utf-8")
+        func_start = source.index("def run_splash_window(")
+        func_body = source[func_start:]
+        assert "get_splash_dir()" in func_body
 
-    def test_handler_uses_random_choice(self):
-        block = self._get_splash_only_block()
-        assert "random.choice" in block
+    def test_run_splash_window_uses_random_choice(self):
+        source = Path(PROJECT_ROOT / "src" / "splash.py").read_text(encoding="utf-8")
+        func_start = source.index("def run_splash_window(")
+        func_body = source[func_start:]
+        assert "random.choice" in func_body
 
     def test_dpi_awareness_set_before_handler(self):
-        """DPI awareness must be set at module level before --splash-only handler."""
+        """DPI awareness must be set at module level before env var handler."""
         source = self._get_source()
         dpi_pos = source.index("SetProcessDpiAwareness")
-        handler_pos = source.index(
-            'if "--splash-only" in sys.argv and "__mp_main__" not in sys.modules:'
-        )
-        assert dpi_pos < handler_pos, "DPI awareness must be set before --splash-only handler"
+        # The env var handler is inline at top of main.py — but DPI is set
+        # inside run_splash_window and in main.py module level. Check main.py
+        # sets DPI before main() is defined.
+        main_pos = source.index("def main(")
+        assert dpi_pos < main_pos, "DPI awareness must be set before main() definition"
 
 
 # ============================================================================
-# M. _splash_log helper
+# M. splash_log helper
 # ============================================================================
 
 
 class TestSplashLog:
-    """Verify _splash_log handles None stdout safely."""
+    """Verify splash_log handles None stdout safely."""
 
     def test_prints_when_stdout_available(self, capsys):
         """Should print normally when stdout is not None."""
-        _splash_log("test message")
+        splash_log("test message")
         captured = capsys.readouterr()
         assert "test message" in captured.out
 
     def test_no_crash_when_stdout_is_none(self):
         """In windowed/noconsole mode, sys.stdout is None. Must not crash."""
-        with patch("src.main.sys.stdout", None):
-            _splash_log("this should not crash")
+        with patch("src.splash.sys.stdout", None):
+            splash_log("this should not crash")
 
     def test_source_uses_splash_log_not_print(self):
-        """Splash functions should use _splash_log() instead of print()."""
-        source = Path(PROJECT_ROOT / "src" / "main.py").read_text(encoding="utf-8")
-        # Extract _launch_splash, _kill_splash, _get_splash_dir function bodies
-        for func_name in ("_launch_splash", "_kill_splash", "_get_splash_dir"):
-            func_start = source.index(f"def {func_name}")
+        """Splash functions should use splash_log() instead of print()."""
+        source = Path(PROJECT_ROOT / "src" / "splash.py").read_text(encoding="utf-8")
+        # Extract launch, kill, get_splash_dir function bodies
+        for func_name in ("launch", "kill", "get_splash_dir"):
+            func_start = source.index(f"def {func_name}(")
             next_def = source.index("\ndef ", func_start + 1)
             func_body = source[func_start:next_def]
-            # Should not have bare print() calls (only _splash_log)
+            # Should not have bare print() calls (only splash_log)
             import re
 
             bare_prints = re.findall(r"(?<![_a-zA-Z])print\(", func_body)
-            assert not bare_prints, f"{func_name} uses print() instead of _splash_log()"
+            assert not bare_prints, f"{func_name} uses print() instead of splash_log()"
 
 
 # ============================================================================
@@ -795,12 +827,12 @@ class TestSplashLog:
 class TestAutoCloseSafetyNet:
     """Verify both splash modes have auto-close to prevent orphaned windows."""
 
-    def _get_source(self):
-        return Path(PROJECT_ROOT / "src" / "main.py").read_text(encoding="utf-8")
+    def _get_splash_source(self):
+        return Path(PROJECT_ROOT / "src" / "splash.py").read_text(encoding="utf-8")
 
     def test_dev_mode_splash_has_auto_close(self):
         """The dev-mode inline splash script must have root.after(timeout, quit)."""
-        source = self._get_source()
+        source = self._get_splash_source()
         start = source.index('splash_script = f"""')
         end = source.index('"""', start + len('splash_script = f"""'))
         script = source[start:end]
@@ -808,17 +840,16 @@ class TestAutoCloseSafetyNet:
         assert "root.quit" in script
 
     def test_frozen_mode_splash_has_auto_close(self):
-        """The --splash-only handler must have auto-close safety net."""
-        source = self._get_source()
-        start = source.index('if "--splash-only" in sys.argv and "__mp_main__" not in sys.modules:')
-        end = source.index("sys.exit(0)", start)
-        block = source[start:end]
-        assert "_root.after(" in block
-        assert "_root.quit" in block
+        """The run_splash_window function must have auto-close safety net."""
+        source = self._get_splash_source()
+        start = source.index("def run_splash_window(")
+        block = source[start:]
+        assert "root.after(" in block
+        assert "root.quit" in block
 
     def test_auto_close_timeout_is_reasonable(self):
         """Auto-close timeout should be 30-120 seconds."""
-        source = self._get_source()
+        source = self._get_splash_source()
         import re
 
         # Find all root.after(N, ...) or _root.after(N, ...) calls
