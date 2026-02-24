@@ -205,6 +205,7 @@ class TestForwarderLoop:
             "vector_store_path": None,
             "chunk_scores": None,
             "active_worker": None,
+            "worker_lock": threading.Lock(),
         }
 
         # Put a regular message
@@ -233,6 +234,7 @@ class TestForwarderLoop:
             "vector_store_path": None,
             "chunk_scores": None,
             "active_worker": None,
+            "worker_lock": threading.Lock(),
         }
 
         internal_q.put(
@@ -277,6 +279,7 @@ class TestForwarderLoop:
             "vector_store_path": None,
             "chunk_scores": None,
             "active_worker": None,
+            "worker_lock": threading.Lock(),
         }
 
         internal_q.put(
@@ -307,7 +310,7 @@ class TestCommandDispatch:
         from src.worker_process import _dispatch_command
 
         internal_q = Queue()
-        state = {"active_worker": None}
+        state = {"active_worker": None, "worker_lock": threading.Lock()}
 
         _dispatch_command("unknown_cmd", {}, internal_q, state)
 
@@ -320,7 +323,12 @@ class TestCommandDispatch:
         from src.worker_process import _dispatch_command
 
         internal_q = Queue()
-        state = {"active_worker": None, "embeddings": None, "vector_store_path": None}
+        state = {
+            "active_worker": None,
+            "embeddings": None,
+            "vector_store_path": None,
+            "worker_lock": threading.Lock(),
+        }
 
         _dispatch_command("run_qa", {"answer_mode": "extraction"}, internal_q, state)
 
@@ -333,7 +341,12 @@ class TestCommandDispatch:
         from src.worker_process import _dispatch_command
 
         internal_q = Queue()
-        state = {"active_worker": None, "embeddings": None, "vector_store_path": None}
+        state = {
+            "active_worker": None,
+            "embeddings": None,
+            "vector_store_path": None,
+            "worker_lock": threading.Lock(),
+        }
 
         _dispatch_command("followup", {"question": "test?"}, internal_q, state)
 
@@ -348,7 +361,7 @@ class TestStopActiveWorker:
         """Stopping when no worker is active should be a no-op."""
         from src.worker_process import _stop_active_worker
 
-        state = {"active_worker": None}
+        state = {"active_worker": None, "worker_lock": threading.Lock()}
         _stop_active_worker(state)  # Should not crash
         assert state["active_worker"] is None
 
@@ -358,7 +371,7 @@ class TestStopActiveWorker:
 
         mock_worker = MagicMock()
         mock_worker.is_alive.return_value = True
-        state = {"active_worker": mock_worker}
+        state = {"active_worker": mock_worker, "worker_lock": threading.Lock()}
 
         _stop_active_worker(state)
 
@@ -372,7 +385,7 @@ class TestStopActiveWorker:
 
         mock_worker = MagicMock()
         mock_worker.is_alive.return_value = False
-        state = {"active_worker": mock_worker}
+        state = {"active_worker": mock_worker, "worker_lock": threading.Lock()}
 
         _stop_active_worker(state)
 

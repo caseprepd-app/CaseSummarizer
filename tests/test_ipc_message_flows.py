@@ -28,6 +28,7 @@ def _make_forwarder_state():
         "chunk_scores": None,
         "active_worker": None,
         "shutdown": threading.Event(),
+        "worker_lock": threading.Lock(),
     }
 
 
@@ -854,6 +855,7 @@ class TestCommandDispatchIntegration:
             "active_worker": None,
             "embeddings": mock_embeddings,
             "vector_store_path": "/tmp/vs",
+            "worker_lock": threading.Lock(),
         }
 
         with patch("src.services.workers.QAWorker") as MockQAWorker:
@@ -876,7 +878,7 @@ class TestCommandDispatchIntegration:
         from src.worker_process import _dispatch_command
 
         internal_q = Queue()
-        state = {"active_worker": None}
+        state = {"active_worker": None, "worker_lock": threading.Lock()}
 
         with patch("src.services.workers.MultiDocSummaryWorker") as MockWorker:
             mock_instance = MagicMock()
@@ -899,7 +901,7 @@ class TestCommandDispatchIntegration:
         internal_q = Queue()
         old_worker = MagicMock()
         old_worker.is_alive.return_value = True
-        state = {"active_worker": old_worker}
+        state = {"active_worker": old_worker, "worker_lock": threading.Lock()}
 
         _dispatch_command("unknown_cmd", {}, internal_q, state)
 

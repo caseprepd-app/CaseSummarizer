@@ -22,9 +22,10 @@ from queue import Empty, Queue
 
 logger = logging.getLogger(__name__)
 
-# Sentinel for shutdown
-_SHUTDOWN = "shutdown"
-_CANCEL = "cancel"
+# Sentinels: plain strings placed on command_queue to signal control events.
+# Checked by identity comparison in _command_loop().
+_SHUTDOWN_SENTINEL = "shutdown"
+_CANCEL_SENTINEL = "cancel"
 
 
 def _summarize_command_args(cmd_type, args):
@@ -84,6 +85,7 @@ def worker_process_main(command_queue, result_queue):
         "chunk_scores": None,
         "active_worker": None,
         "shutdown": threading.Event(),
+        "worker_lock": threading.Lock(),
     }
 
     # Start forwarder thread
@@ -125,13 +127,13 @@ def _command_loop(command_queue, internal_queue, result_queue, state):
             # Timeout or empty -- loop back and check shutdown
             continue
 
-        if msg == _SHUTDOWN:
+        if msg == _SHUTDOWN_SENTINEL:
             logger.info("Shutdown command received")
             _stop_active_worker(state)
             state["shutdown"].set()
             break
 
-        if msg == _CANCEL:
+        if msg == _CANCEL_SENTINEL:
             logger.info("Cancel command received")
             _stop_active_worker(state)
             continue
@@ -190,7 +192,8 @@ def _run_process_files(args, internal_queue, state):
         ui_queue=internal_queue,
         ocr_allowed=args.get("ocr_allowed", True),
     )
-    state["active_worker"] = worker
+    with state["worker_lock"]:
+        state["active_worker"] = worker
     worker.start()
     logger.debug("Worker thread started: %s (thread: %s)", type(worker).__name__, worker.name)
 
@@ -210,7 +213,8 @@ def _run_extraction(args, internal_queue, state):
         doc_confidence=args.get("doc_confidence", 100.0),
         use_llm=args.get("use_llm", True),
     )
-    state["active_worker"] = worker
+    with state["worker_lock"]:
+        state["active_worker"] = worker
     worker.start()
     logger.debug("Worker thread started: %s (thread: %s)", type(worker).__name__, worker.name)
 
@@ -234,7 +238,8 @@ def _run_qa(args, internal_queue, state):
         questions=args.get("questions"),
         use_default_questions=args.get("use_default_questions", True),
     )
-    state["active_worker"] = worker
+    with state["worker_lock"]:
+        state["active_worker"] = worker
     worker.start()
     logger.debug("Worker thread started: %s (thread: %s)", type(worker).__name__, worker.name)
 
@@ -282,20 +287,23 @@ def _run_summary(args, internal_queue, state):
         ui_queue=internal_queue,
         ai_params=args.get("ai_params", {}),
     )
-    state["active_worker"] = worker
+    with state["worker_lock"]:
+        state["active_worker"] = worker
     worker.start()
     logger.debug("Worker thread started: %s (thread: %s)", type(worker).__name__, worker.name)
 
 
 def _stop_active_worker(state):
     """Stop the currently active worker, if any."""
-    worker = state.get("active_worker")
+    with state["worker_lock"]:
+        worker = state.get("active_worker")
     if worker and hasattr(worker, "is_alive") and worker.is_alive():
         logger.debug("Stopping active worker: %s", type(worker).__name__)
         if hasattr(worker, "stop"):
             worker.stop()
         worker.join(timeout=2.0)
-    state["active_worker"] = None
+    with state["worker_lock"]:
+        state["active_worker"] = None
 
 
 def _forwarder_loop(internal_queue, result_queue, command_queue, state):
@@ -370,7 +378,8 @@ def _forwarder_loop(internal_queue, result_queue, command_queue, state):
                         questions=None,
                         use_default_questions=True,
                     )
-                    state["active_worker"] = qa_worker
+                    with state["worker_lock"]:
+                        state["active_worker"] = qa_worker
                     qa_worker.start()
                     logger.debug("Default QAWorker started in subprocess")
                 else:

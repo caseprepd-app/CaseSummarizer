@@ -72,6 +72,8 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
     - _create_left_panel, _create_right_panel, _create_status_bar
     """
 
+    _FOLLOWUP_TIMEOUT_POLLS = 300  # 30 seconds at 100 ms per poll
+
     def __init__(self, worker_manager=None):
         super().__init__()
         self._worker_manager = worker_manager
@@ -122,6 +124,14 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         self._qa_ready = False  # Session 45: Q&A becomes available after indexing
         self._qa_answering_active = False  # True while default Q&A questions are being answered
         self._worker_ready_retries = 0  # Auto-retry counter for worker startup
+
+        # Task tracking defaults (normally set in _perform_tasks, but init here
+        # so _all_tasks_complete / _finalize_tasks never hit AttributeError)
+        self._pending_tasks: dict = {}
+        self._completed_tasks: set = set()
+
+        # Follow-up polling timeout counter (BUG 1 fix)
+        self._followup_poll_count: int = 0
 
         # Initialize ttk styles with UI scale factor and font offset.
         # Must happen AFTER super().__init__() creates the Tk root (ttk.Style needs it).
@@ -1827,6 +1837,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         # Send follow-up command to worker subprocess
         logger.debug("Sending followup: %.80s", question)
         self._followup_pending = True
+        self._followup_poll_count = 0
         self._worker_manager.send_command("followup", {"question": question})
 
         # Start polling for followup result (comes via qa_followup_result message)
@@ -1835,6 +1846,17 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
     def _poll_followup_result(self):
         """Poll for follow-up result from worker subprocess."""
         if self._destroying:
+            return
+
+        # Timeout guard: if subprocess crashed, stop polling after 30 s
+        self._followup_poll_count += 1
+        if self._followup_poll_count >= self._FOLLOWUP_TIMEOUT_POLLS:
+            logger.warning("Follow-up polling timed out after %d polls", self._followup_poll_count)
+            self._followup_pending = False
+            self._followup_poll_count = 0
+            self.followup_btn.configure(state="normal", text="Ask")
+            self.followup_entry.configure(state="normal")
+            self.set_status("Follow-up timed out — worker may have crashed")
             return
 
         # Check for qa_followup_result in subprocess messages
@@ -1873,6 +1895,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
 
         # Got a result - re-enable controls
         self._followup_pending = False
+        self._followup_poll_count = 0
         self.followup_btn.configure(state="normal", text="Ask")
         self.followup_entry.configure(state="normal")
         self.followup_entry.focus()
