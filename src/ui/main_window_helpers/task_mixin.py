@@ -232,6 +232,7 @@ class TaskMixin:
         logger.debug("LLM extraction from preference: %s", use_llm)
 
         # Send extraction command to worker subprocess
+        ask_defaults = bool(self.qa_check.get() and self.ask_default_questions_check.get())
         self._worker_manager.send_command(
             "extract",
             {
@@ -242,6 +243,7 @@ class TaskMixin:
                 "user_exclude_path": str(USER_VOCAB_EXCLUDE_PATH),
                 "doc_confidence": doc_confidence,
                 "use_llm": use_llm,
+                "ask_default_questions": ask_defaults,
             },
         )
 

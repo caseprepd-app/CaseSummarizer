@@ -202,6 +202,9 @@ def _run_extraction(args, internal_queue, state):
     """Spawn ProgressiveExtractionWorker for vocabulary extraction."""
     from src.services.workers import ProgressiveExtractionWorker
 
+    # Save checkbox state so trigger_default_qa can check it later
+    state["ask_default_questions"] = args.get("ask_default_questions", True)
+
     worker = ProgressiveExtractionWorker(
         documents=args["documents"],
         combined_text=args["combined_text"],
@@ -356,6 +359,12 @@ def _forwarder_loop(internal_queue, result_queue, command_queue, state):
             result_queue.put(("qa_ready", forwarded_data))
 
         elif msg_type == "trigger_default_qa":
+            # Skip if user unchecked the default questions checkbox
+            if not state.get("ask_default_questions", True):
+                logger.debug("Default questions disabled by user, skipping QAWorker")
+                result_queue.put(("qa_complete", []))
+                continue
+
             # Auto-spawn QAWorker in subprocess instead of forwarding
             logger.debug("Intercepted trigger_default_qa, auto-spawning QAWorker")
             result_queue.put(("trigger_default_qa_started", None))
