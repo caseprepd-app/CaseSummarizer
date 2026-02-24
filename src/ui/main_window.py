@@ -1709,6 +1709,12 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         if self._qa_answering_active:
             logger.debug("Deferring finalization: Q&A answering still active")
             return
+        # Guard against race: Q&A is pending but trigger_default_qa_started
+        # hasn't arrived yet (subprocess is still building the index).
+        qa_pending_not_started = self._pending_tasks.get("qa") and "qa" not in self._completed_tasks
+        if qa_pending_not_started:
+            logger.debug("Deferring finalization: Q&A pending but not yet started")
+            return
         completed = len(self._completed_tasks)
         self._on_tasks_complete(True, f"Completed {completed} task(s)")
 

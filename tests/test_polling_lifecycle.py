@@ -83,11 +83,14 @@ class TestAllTasksComplete:
 
 
 class TestFinalizeTasksGuard:
-    """Tests for the _finalize_tasks deferral when Q&A is active."""
+    """Tests for the _finalize_tasks deferral guards."""
 
     def _finalize(self, stub):
-        """Simulate _finalize_tasks logic."""
+        """Simulate _finalize_tasks logic (matches production code)."""
         if stub._qa_answering_active:
+            return "deferred"
+        qa_pending_not_started = stub._pending_tasks.get("qa") and "qa" not in stub._completed_tasks
+        if qa_pending_not_started:
             return "deferred"
         return "finalized"
 
@@ -100,6 +103,31 @@ class TestFinalizeTasksGuard:
     def test_proceeds_when_qa_answering_inactive(self):
         """_finalize_tasks should proceed when Q&A is not running."""
         stub = _make_window_stub()
+        stub._qa_answering_active = False
+        stub._completed_tasks = {"vocab", "qa"}
+        assert self._finalize(stub) == "finalized"
+
+    def test_defers_when_qa_pending_not_started(self):
+        """_finalize_tasks defers when Q&A is pending but not yet started."""
+        stub = _make_window_stub()
+        stub._pending_tasks = {"vocab": True, "qa": True, "summary": False}
+        stub._completed_tasks = {"vocab"}
+        stub._qa_answering_active = False
+        assert self._finalize(stub) == "deferred"
+
+    def test_proceeds_when_qa_pending_and_completed(self):
+        """_finalize_tasks proceeds when Q&A is pending and already completed."""
+        stub = _make_window_stub()
+        stub._pending_tasks = {"vocab": True, "qa": True, "summary": False}
+        stub._completed_tasks = {"vocab", "qa"}
+        stub._qa_answering_active = False
+        assert self._finalize(stub) == "finalized"
+
+    def test_proceeds_when_qa_not_pending(self):
+        """_finalize_tasks proceeds when Q&A was not a pending task."""
+        stub = _make_window_stub()
+        stub._pending_tasks = {"vocab": True, "qa": False, "summary": False}
+        stub._completed_tasks = {"vocab"}
         stub._qa_answering_active = False
         assert self._finalize(stub) == "finalized"
 
@@ -422,3 +450,78 @@ class TestTaskCombinationFlows:
         stub._completed_tasks = {"vocab", "qa", "summary"}
         stub._qa_answering_active = False
         assert self._all_tasks_complete(stub) is True
+
+
+# ---------------------------------------------------------------------------
+# Race condition: llm_complete arrives before trigger_default_qa_started
+# ---------------------------------------------------------------------------
+
+
+class TestLlmCompleteQARace:
+    """Tests for the race between llm_complete and Q&A startup."""
+
+    def _finalize(self, stub):
+        """Simulate _finalize_tasks logic (matches production code)."""
+        if stub._qa_answering_active:
+            return "deferred"
+        qa_pending_not_started = stub._pending_tasks.get("qa") and "qa" not in stub._completed_tasks
+        if qa_pending_not_started:
+            return "deferred"
+        stub._on_tasks_complete(True, f"Completed {len(stub._completed_tasks)} task(s)")
+        return "finalized"
+
+    def _simulate_llm_complete(self, stub):
+        """Simulate the llm_complete handler's finalization path."""
+        stub._completed_tasks.add("vocab")
+        if stub._pending_tasks.get("summary"):
+            return "started_summary"
+        else:
+            return self._finalize(stub)
+
+    def test_llm_complete_does_not_finalize_when_qa_pending(self):
+        """llm_complete should not finalize when Q&A is pending but not started."""
+        stub = _make_window_stub()
+        stub._pending_tasks = {"vocab": True, "qa": True, "summary": False}
+        stub._completed_tasks = set()
+        stub._qa_answering_active = False
+        result = self._simulate_llm_complete(stub)
+        assert result == "deferred"
+        assert stub._on_tasks_complete.call_count == 0
+
+    def test_full_sequence_vocab_then_qa(self):
+        """Integration: llm_complete defers, then Q&A starts, then Q&A completes."""
+        stub = _make_window_stub()
+        stub._pending_tasks = {"vocab": True, "qa": True, "summary": False}
+        stub._completed_tasks = set()
+        stub._qa_answering_active = False
+
+        # Step 1: llm_complete arrives — should defer
+        result = self._simulate_llm_complete(stub)
+        assert result == "deferred"
+        assert stub._on_tasks_complete.call_count == 0
+
+        # Step 2: trigger_default_qa_started arrives
+        stub._qa_answering_active = True
+
+        # Step 3: Finalize attempted mid-Q&A — should still defer
+        result2 = self._finalize(stub)
+        assert result2 == "deferred"
+
+        # Step 4: qa_complete arrives
+        stub._qa_answering_active = False
+        stub._completed_tasks.add("qa")
+
+        # Step 5: Now finalization should proceed
+        result3 = self._finalize(stub)
+        assert result3 == "finalized"
+        stub._on_tasks_complete.assert_called_once()
+
+    def test_llm_complete_finalizes_when_qa_not_pending(self):
+        """llm_complete should finalize normally when Q&A is not pending."""
+        stub = _make_window_stub()
+        stub._pending_tasks = {"vocab": True, "qa": False, "summary": False}
+        stub._completed_tasks = set()
+        stub._qa_answering_active = False
+        result = self._simulate_llm_complete(stub)
+        assert result == "finalized"
+        stub._on_tasks_complete.assert_called_once()
