@@ -186,12 +186,6 @@ def _register_all_settings():
     from src.config import (
         BM25_ENABLED,
         CORPUS_DIR,
-        DEFAULT_SUMMARY_WORDS,
-        MAX_SUMMARY_WORDS,
-        MIN_SUMMARY_WORDS,
-        USER_DEFINED_MAX_WORKER_COUNT,
-        VOCABULARY_DISPLAY_LIMIT,
-        VOCABULARY_DISPLAY_MAX,
         VOCABULARY_SORT_METHOD,
     )
     from src.user_preferences import get_user_preferences
@@ -245,104 +239,6 @@ def _register_all_settings():
             step=25,
             getter=lambda: prefs.get("ui_scale_pct", 100),
             setter=lambda v: prefs.set("ui_scale_pct", int(v)),
-        )
-    )
-
-    # ===================================================================
-    # PERFORMANCE TAB
-    # ===================================================================
-
-    SettingsRegistry.register(
-        SettingDefinition(
-            key="parallel_workers_auto",
-            label="Auto-detect worker count",
-            category="Performance",
-            setting_type=SettingType.CHECKBOX,
-            tooltip=(
-                "When enabled, the number of parallel document processing workers "
-                "is set to your CPU core count (max 4).\n\n"
-                "Disable this to manually choose a worker count below. You might "
-                "want fewer workers if processing causes your system to slow down, "
-                "or more if you have RAM to spare and want faster throughput.\n\n"
-                "Note: This controls document-level parallelism (how many documents "
-                "are processed simultaneously). Algorithm-level parallelism within "
-                "each document is controlled by the slider above."
-            ),
-            default=True,
-            getter=lambda: not prefs.get("user_picks_max_workers", False),
-            setter=lambda v: prefs.set("user_picks_max_workers", not v),
-        )
-    )
-
-    SettingsRegistry.register(
-        SettingDefinition(
-            key="parallel_workers_count",
-            label="Manual worker count",
-            category="Performance",
-            setting_type=SettingType.SPINBOX,
-            tooltip=(
-                "Number of documents to process simultaneously when auto-detect "
-                "is disabled. Each worker holds one document in memory.\n\n"
-                "• 1-2: Safe for 8GB RAM systems\n"
-                "• 3-4: Good for 16GB RAM systems\n"
-                "• 5-8: Only if you have 32GB+ RAM\n\n"
-                'This setting is ignored when "Auto-detect worker count" is enabled.'
-            ),
-            default=USER_DEFINED_MAX_WORKER_COUNT,
-            min_value=1,
-            max_value=8,
-            getter=lambda: prefs.get("user_defined_max_workers", 2),
-            setter=lambda v: prefs.set("user_defined_max_workers", v),
-        )
-    )
-
-    SettingsRegistry.register(
-        SettingDefinition(
-            key="resource_usage_pct",
-            label="Parallel processing limit",
-            category="Performance",
-            setting_type=SettingType.SLIDER,
-            tooltip=(
-                "How many parallel workers to allow during processing, expressed "
-                "as a percentage of your CPU cores.\n\n"
-                "Example: On an 8-core machine at 75%, up to 6 workers can run "
-                "simultaneously. RAM is also checked — each LLM worker needs "
-                "~2GB, so low-RAM systems will be capped regardless.\n\n"
-                "Affects:\n"
-                "• Vocabulary extraction: Up to 4 algorithms run in parallel\n"
-                "• LLM extraction: Up to 3 document chunks processed at once\n"
-                "• Q&A: Up to 4 questions answered simultaneously\n\n"
-                "Lower values keep your computer responsive during processing. "
-                "Higher values finish faster but may cause slowdowns."
-            ),
-            default=75,
-            min_value=25,
-            max_value=100,
-            step=5,
-            getter=lambda: prefs.get("resource_usage_pct", 75),
-            setter=lambda v: prefs.set("resource_usage_pct", int(v)),
-        )
-    )
-
-    # Session 62b: Summary setting moved to Performance tab (consolidated)
-
-    SettingsRegistry.register(
-        SettingDefinition(
-            key="default_summary_words",
-            label="Default summary length (words)",
-            category="Performance",
-            setting_type=SettingType.SLIDER,
-            tooltip=(
-                "Default target word count for generated summaries.\n\n"
-                "The actual summary length depends on the LLM and document "
-                "complexity. Treat this as a guideline, not a hard limit."
-            ),
-            default=DEFAULT_SUMMARY_WORDS,
-            min_value=MIN_SUMMARY_WORDS,
-            max_value=MAX_SUMMARY_WORDS,
-            step=50,
-            getter=lambda: prefs.get("summary_words", DEFAULT_SUMMARY_WORDS),
-            setter=lambda v: prefs.set("summary_words", int(v)),
         )
     )
 
@@ -406,26 +302,6 @@ def _register_all_settings():
             tooltip="",
             default=None,
             widget_factory=_create_corpus_warning_widget,
-        )
-    )
-
-    SettingsRegistry.register(
-        SettingDefinition(
-            key="vocab_display_limit",
-            label="Vocabulary display limit",
-            category="Vocabulary",
-            setting_type=SettingType.SLIDER,
-            tooltip=(
-                f"Maximum terms shown in the vocabulary table. Higher values "
-                f"may slow the GUI on large documents. Range: 10-{VOCABULARY_DISPLAY_MAX}. "
-                f"The full vocabulary is always saved to CSV."
-            ),
-            default=VOCABULARY_DISPLAY_LIMIT,
-            min_value=10,
-            max_value=VOCABULARY_DISPLAY_MAX,
-            step=10,
-            getter=lambda: prefs.get("vocab_display_limit", VOCABULARY_DISPLAY_LIMIT),
-            setter=lambda v: prefs.set("vocab_display_limit", int(v)),
         )
     )
 
@@ -1148,70 +1024,6 @@ def _register_all_settings():
             step=0.05,
             getter=lambda: prefs.get("non_ner_unknown_word_rarity", 0.85),
             setter=lambda v: prefs.set("non_ner_unknown_word_rarity", float(v)),
-        )
-    )
-
-    # Session 68: Corpus Familiarity Filtering
-    SettingsRegistry.register(
-        SettingDefinition(
-            key="corpus_familiarity_threshold",
-            label="Corpus familiarity threshold",
-            category="Vocabulary",
-            setting_type=SettingType.SLIDER,
-            tooltip=(
-                "Filter terms appearing in this percentage or more of your corpus "
-                "documents. Terms above this threshold are removed (you likely "
-                "already know them).\n\n"
-                "Example: 0.75 removes terms appearing in 75%+ of your past "
-                "transcripts.\n\n"
-                "Lower values = more aggressive filtering.\n"
-                "Higher values = keep more terms.\n"
-                "Set to 1.0 to disable percentage-based filtering."
-            ),
-            default=0.75,
-            min_value=0.25,
-            max_value=1.0,
-            step=0.05,
-            getter=lambda: prefs.get("corpus_familiarity_threshold", 0.75),
-            setter=lambda v: prefs.set("corpus_familiarity_threshold", float(v)),
-        )
-    )
-
-    SettingsRegistry.register(
-        SettingDefinition(
-            key="corpus_familiarity_min_docs",
-            label="Corpus familiarity min docs",
-            category="Vocabulary",
-            setting_type=SettingType.SPINBOX,
-            tooltip=(
-                "Alternative threshold: Filter terms appearing in N or more "
-                "documents. This provides a hard floor regardless of corpus size.\n\n"
-                "Example: 10 removes terms appearing in 10+ documents.\n\n"
-                "Set to 0 to use only percentage-based filtering."
-            ),
-            default=10,
-            min_value=0,
-            max_value=50,
-            getter=lambda: prefs.get("corpus_familiarity_min_docs", 10),
-            setter=lambda v: prefs.set("corpus_familiarity_min_docs", int(v)),
-        )
-    )
-
-    SettingsRegistry.register(
-        SettingDefinition(
-            key="corpus_familiarity_exempt_persons",
-            label="Exempt person names from corpus filter",
-            category="Vocabulary",
-            setting_type=SettingType.CHECKBOX,
-            tooltip=(
-                "When enabled, person names are never filtered by corpus familiarity. "
-                "Recommended: Names in legal documents are always case-specific, "
-                "even common names like 'John Smith'.\n\n"
-                "Disable if you want to filter frequently-appearing party names."
-            ),
-            default=True,
-            getter=lambda: prefs.get("corpus_familiarity_exempt_persons", True),
-            setter=lambda v: prefs.set("corpus_familiarity_exempt_persons", v),
         )
     )
 
@@ -2065,8 +1877,40 @@ def _register_all_settings():
     )
 
     # ===================================================================
-    # EXPERIMENTAL TAB (Session 43)
-    # Session 62b: LLM setting moved to Performance, then to Vocabulary
+    # ADVANCED TAB — Processing section (relocated from Performance)
+    # ===================================================================
+
+    SettingsRegistry.register(
+        SettingDefinition(
+            key="resource_usage_pct",
+            label="Parallel processing limit",
+            category="Advanced",
+            section="Processing",
+            setting_type=SettingType.SLIDER,
+            tooltip=(
+                "How many parallel workers to allow during processing, expressed "
+                "as a percentage of your CPU cores.\n\n"
+                "Example: On an 8-core machine at 75%, up to 6 workers can run "
+                "simultaneously. RAM is also checked — each LLM worker needs "
+                "~2GB, so low-RAM systems will be capped regardless.\n\n"
+                "Affects:\n"
+                "• Vocabulary extraction: Up to 4 algorithms run in parallel\n"
+                "• LLM extraction: Up to 3 document chunks processed at once\n"
+                "• Q&A: Up to 4 questions answered simultaneously\n\n"
+                "Lower values keep your computer responsive during processing. "
+                "Higher values finish faster but may cause slowdowns."
+            ),
+            default=75,
+            min_value=25,
+            max_value=100,
+            step=5,
+            getter=lambda: prefs.get("resource_usage_pct", 75),
+            setter=lambda v: prefs.set("resource_usage_pct", int(v)),
+        )
+    )
+
+    # ===================================================================
+    # AI MODEL TAB — Summary settings (relocated from Performance)
     # ===================================================================
 
     # GPU status helper for tooltips
@@ -2083,7 +1927,7 @@ def _register_all_settings():
         SettingDefinition(
             key="summary_enhanced_mode",
             label="Enhanced summary mode (two-pass)",
-            category="Performance",
+            category="AI Model",
             setting_type=SettingType.DROPDOWN,
             tooltip=lambda: (
                 "When enabled, summarization uses a two-pass approach:\n"
@@ -2111,7 +1955,7 @@ def _register_all_settings():
         SettingDefinition(
             key="summary_gpu_override",
             label="Summary generation",
-            category="Performance",
+            category="AI Model",
             setting_type=SettingType.DROPDOWN,
             tooltip=lambda: (
                 "Summary generation is a long-running task that processes all "

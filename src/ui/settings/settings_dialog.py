@@ -402,33 +402,6 @@ class SettingsDialog(BaseModalDialog):
         For example, the manual worker count should be disabled
         when auto-detect CPU cores is enabled.
         """
-        # Link auto-detect checkbox to worker count spinbox
-        auto_detect_widget = self.widgets.get("parallel_workers_auto")
-        worker_count_widget = self.widgets.get("parallel_workers_count")
-
-        if (
-            auto_detect_widget
-            and worker_count_widget
-            and hasattr(worker_count_widget, "set_enabled")
-        ):
-            # Set initial state based on current auto-detect value
-            auto_enabled = auto_detect_widget.get_value()
-            worker_count_widget.set_enabled(not auto_enabled)
-
-            # Update when checkbox changes
-            original_on_change = auto_detect_widget.on_change
-
-            def on_auto_detect_change(value):
-                worker_count_widget.set_enabled(not value)
-                if original_on_change:
-                    original_on_change(value)
-
-            auto_detect_widget.on_change = on_auto_detect_change
-            # Also update the checkbox command
-            auto_detect_widget.checkbox.configure(
-                command=lambda: on_auto_detect_change(auto_detect_widget.get_value())
-            )
-
         # Link logging level dropdown to customize button visibility
         logging_widget = self.widgets.get("logging_level")
         customize_widget = self.widgets.get("customize_logging")

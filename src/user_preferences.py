@@ -391,7 +391,7 @@ class UserPreferencesManager:
                 f"a dedicated GPU.\n\n"
                 f"{gpu_status}\n\n"
                 "Without a GPU, summary generation can take several hours.\n\n"
-                "To enable: Settings > Performance > 'Summary generation'"
+                "To enable: Settings > AI Model > 'Summary generation'"
             )
 
     # =========================================================================
@@ -527,13 +527,7 @@ class UserPreferencesManager:
             ValueError: If value fails validation for the given key.
         """
         # Validate known keys to prevent invalid configurations
-        if key == "vocab_display_limit":
-            if not isinstance(value, int) or value < 1 or value > 500:
-                raise ValueError(f"vocab_display_limit must be 1-500, got {value}")
-        elif key == "user_defined_max_workers":
-            if not isinstance(value, int) or value < 1 or value > 8:
-                raise ValueError(f"user_defined_max_workers must be 1-8, got {value}")
-        elif key == "default_model_id":
+        if key == "default_model_id":
             if not value or not isinstance(value, str):
                 raise ValueError("default_model_id cannot be empty")
         elif key == "summary_words":
@@ -581,16 +575,6 @@ class UserPreferencesManager:
         elif key == "non_ner_phrase_common_word_floor":
             if not isinstance(value, (int, float)) or value < 0.05 or value > 0.30:
                 raise ValueError(f"non_ner_phrase_common_word_floor must be 0.05-0.30, got {value}")
-        # Session 68: Corpus familiarity threshold validation
-        elif key == "corpus_familiarity_threshold":
-            if not isinstance(value, (int, float)) or value < 0.25 or value > 1.0:
-                raise ValueError(f"corpus_familiarity_threshold must be 0.25-1.0, got {value}")
-        elif key == "corpus_familiarity_min_docs":
-            if not isinstance(value, int) or value < 0 or value > 50:
-                raise ValueError(f"corpus_familiarity_min_docs must be 0-50, got {value}")
-        elif key == "corpus_familiarity_exempt_persons":
-            if not isinstance(value, bool):
-                raise ValueError(f"corpus_familiarity_exempt_persons must be boolean, got {value}")
         # Session 68: Corpus ready transition flag
         elif key == "corpus_was_ever_ready":
             if not isinstance(value, bool):

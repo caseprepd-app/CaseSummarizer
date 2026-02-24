@@ -185,12 +185,7 @@ class TestQAPanelCoherence:
 class TestSettingsTooltipCoherence:
     """Settings tooltips reference actual UI elements."""
 
-    def test_summary_length_no_slider_reference(self):
-        """Summary length tooltip doesn't reference removed slider."""
+    def test_summary_gpu_tooltip_exists(self):
+        """Summary GPU override tooltip describes GPU requirement."""
         text = _read("src/ui/settings/settings_registry.py")
-        assert "summary length slider in the main window" not in text
-
-    def test_summary_length_tooltip_exists(self):
-        """Summary length tooltip describes word count."""
-        text = _read("src/ui/settings/settings_registry.py")
-        assert "Default target word count for generated summaries" in text
+        assert "Summary generation is a long-running task" in text
