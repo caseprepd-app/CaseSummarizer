@@ -356,13 +356,13 @@ class TestNLTKBundledData:
 
     def test_dictionary_utils_raises_on_missing_words(self):
         """dictionary_utils raises RuntimeError instead of downloading."""
-        from src.core.extraction.dictionary_utils import TermExtractionHelpers
+        from src.core.extraction.dictionary_utils import DictionaryTextValidator
 
         with patch("src.core.extraction.dictionary_utils.words") as mock_words:
             mock_words.words.side_effect = LookupError("Resource words not found")
 
             with pytest.raises(RuntimeError, match="download_models"):
-                helpers = TermExtractionHelpers.__new__(TermExtractionHelpers)
+                helpers = DictionaryTextValidator.__new__(DictionaryTextValidator)
                 helpers._load_dictionary()
 
     def test_vocabulary_extractor_raises_on_missing_wordnet(self):

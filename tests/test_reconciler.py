@@ -25,9 +25,9 @@ class MockLLMPerson:
 
 class TestReconcile:
     def test_both_sources_find_same_term(self):
-        from src.core.vocabulary.reconciler import VocabularyDeduplicator
+        from src.core.vocabulary.reconciler import VocabularyReconciler
 
-        dedup = VocabularyDeduplicator(similarity_threshold=0.85)
+        dedup = VocabularyReconciler(similarity_threshold=0.85)
         ner = [MockCandidateTerm("John Smith", "Person")]
         llm = [MockLLMTerm("John Smith", "Person")]
         result = dedup.reconcile(ner, llm)
@@ -37,9 +37,9 @@ class TestReconcile:
         assert "LLM" in matched[0].found_by
 
     def test_only_ner_finds_term(self):
-        from src.core.vocabulary.reconciler import VocabularyDeduplicator
+        from src.core.vocabulary.reconciler import VocabularyReconciler
 
-        dedup = VocabularyDeduplicator(similarity_threshold=0.85)
+        dedup = VocabularyReconciler(similarity_threshold=0.85)
         ner = [MockCandidateTerm("Radiculopathy", "Medical")]
         llm = []
         result = dedup.reconcile(ner, llm)
@@ -47,9 +47,9 @@ class TestReconcile:
         assert "NER" in result[0].found_by
 
     def test_type_conflict_ner_wins_for_person(self):
-        from src.core.vocabulary.reconciler import VocabularyDeduplicator
+        from src.core.vocabulary.reconciler import VocabularyReconciler
 
-        dedup = VocabularyDeduplicator(similarity_threshold=0.85)
+        dedup = VocabularyReconciler(similarity_threshold=0.85)
         ner = [MockCandidateTerm("John Smith", "Person")]
         llm = [MockLLMTerm("John Smith", "Medical")]
         result = dedup.reconcile(ner, llm)
@@ -58,9 +58,9 @@ class TestReconcile:
         assert matched[0].type == "Person"
 
     def test_type_conflict_llm_wins_for_medical(self):
-        from src.core.vocabulary.reconciler import VocabularyDeduplicator
+        from src.core.vocabulary.reconciler import VocabularyReconciler
 
-        dedup = VocabularyDeduplicator(similarity_threshold=0.85)
+        dedup = VocabularyReconciler(similarity_threshold=0.85)
         ner = [MockCandidateTerm("Radiculopathy", "Unknown")]
         llm = [MockLLMTerm("Radiculopathy", "Medical")]
         result = dedup.reconcile(ner, llm)
@@ -69,16 +69,16 @@ class TestReconcile:
         assert matched[0].type == "Medical"
 
     def test_empty_inputs(self):
-        from src.core.vocabulary.reconciler import VocabularyDeduplicator
+        from src.core.vocabulary.reconciler import VocabularyReconciler
 
-        dedup = VocabularyDeduplicator(similarity_threshold=0.85)
+        dedup = VocabularyReconciler(similarity_threshold=0.85)
         result = dedup.reconcile([], [])
         assert result == []
 
     def test_fuzzy_matching(self):
-        from src.core.vocabulary.reconciler import VocabularyDeduplicator
+        from src.core.vocabulary.reconciler import VocabularyReconciler
 
-        dedup = VocabularyDeduplicator(similarity_threshold=0.85)
+        dedup = VocabularyReconciler(similarity_threshold=0.85)
         ner = [MockCandidateTerm("Dr. Smith", "Person")]
         llm = [MockLLMTerm("Dr Smith", "Person")]
         result = dedup.reconcile(ner, llm)
@@ -88,9 +88,9 @@ class TestReconcile:
 
 class TestReconcilePeople:
     def test_merges_same_person(self):
-        from src.core.vocabulary.reconciler import VocabularyDeduplicator
+        from src.core.vocabulary.reconciler import VocabularyReconciler
 
-        dedup = VocabularyDeduplicator(similarity_threshold=0.85)
+        dedup = VocabularyReconciler(similarity_threshold=0.85)
         ner_people = [MockCandidateTerm("James Wilson", "Person")]
         llm_people = [MockLLMPerson("James Wilson", role="plaintiff")]
         result = dedup.reconcile_people(ner_people, llm_people)
@@ -99,8 +99,8 @@ class TestReconcilePeople:
         assert len(matched) >= 1
 
     def test_empty_inputs(self):
-        from src.core.vocabulary.reconciler import VocabularyDeduplicator
+        from src.core.vocabulary.reconciler import VocabularyReconciler
 
-        dedup = VocabularyDeduplicator(similarity_threshold=0.85)
+        dedup = VocabularyReconciler(similarity_threshold=0.85)
         result = dedup.reconcile_people([], [])
         assert result == []

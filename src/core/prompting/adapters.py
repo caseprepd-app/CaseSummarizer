@@ -195,7 +195,7 @@ class MultiDocStagePromptBuilder(StagePromptBuilder):
         focus = self.get_focus_for_preset(preset_id, model_name)
 
         return f"""<|system|>
-You are a legal case summarizer analyzing sections of a long document. Your summaries will be combined with others to create a comprehensive case overview.
+You are a legal document summarizer analyzing sections of a long document. Your summaries will be combined with others to create a comprehensive case overview.
 <|end|>
 <|user|>
 DOCUMENT CONTEXT:

@@ -1,7 +1,7 @@
 """
-Vocabulary Deduplicator: Merges NER and LLM extraction results.
+Vocabulary Reconciler: Merges NER and LLM extraction results.
 
-This module combines results from multiple extraction methods (NER and LLM)
+This module reconciles results from multiple extraction methods (NER and LLM)
 into a unified output with a "Found By" column indicating which methods
 found each term.
 
@@ -16,9 +16,9 @@ Output formats:
     Vocabulary: Term | Type | Found By | Frequency | Definition
 
 Usage:
-    from src.core.vocabulary.reconciler import VocabularyDeduplicator
+    from src.core.vocabulary.reconciler import VocabularyReconciler
 
-    reconciler = VocabularyDeduplicator()
+    reconciler = VocabularyReconciler()
 
     # Reconcile people (names with roles)
     people = reconciler.reconcile_people(ner_people, llm_people)
@@ -113,7 +113,7 @@ class ReconciledTerm:
             return self.llm_confidence
 
 
-class VocabularyDeduplicator:
+class VocabularyReconciler:
     """
     Reconciles NER and LLM extraction results into unified output.
 
@@ -125,7 +125,7 @@ class VocabularyDeduplicator:
     5. Sort results: "Both" first, then alphabetically by term
 
     Example:
-        reconciler = VocabularyDeduplicator()
+        reconciler = VocabularyReconciler()
 
         # ner_terms: list of CandidateTerm from NER
         # llm_terms: list of LLMTerm from LLM extractor

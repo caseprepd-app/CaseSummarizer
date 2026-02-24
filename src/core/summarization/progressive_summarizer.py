@@ -27,8 +27,8 @@ logger = logging.getLogger(__name__)
 class SummarizationContext:
     """Context information passed to summarization function."""
 
-    global_context: str  # Summary of all previous chunks (1-2 sentences)
-    local_context: str  # Summary of immediately previous chunk (1-2 sentences)
+    global_context: str  # Rolling summary of ALL preceding chunks (1-2 sentences)
+    local_context: str  # Summary of the immediately preceding chunk only (1-2 sentences)
     chunk_text: str  # Current chunk text
     chunk_num: int  # Current chunk number
     total_chunks: int  # Total number of chunks

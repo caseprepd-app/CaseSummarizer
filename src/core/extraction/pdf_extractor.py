@@ -11,8 +11,8 @@ voting to maximize accuracy:
 If text quality is below threshold (60%), falls back to OCR.
 
 Example usage:
-    >>> from src.core.extraction.dictionary_utils import TermExtractionHelpers
-    >>> dictionary = TermExtractionHelpers()
+    >>> from src.core.extraction.dictionary_utils import DictionaryTextValidator
+    >>> dictionary = DictionaryTextValidator()
     >>> extractor = PDFExtractor(dictionary)
     >>> result = extractor.extract(Path("document.pdf"))
     >>> print(f"Method: {result['method']}, Confidence: {result['confidence']}%")
@@ -29,7 +29,7 @@ import pdfplumber
 from src.config import MIN_DICTIONARY_CONFIDENCE
 from src.logging_config import Timer
 
-from .dictionary_utils import TermExtractionHelpers
+from .dictionary_utils import DictionaryTextValidator
 from .layout_analyzer import LayoutAnalyzer
 
 logger = logging.getLogger(__name__)
@@ -92,15 +92,15 @@ class PDFExtractor:
     words over OCR errors.
 
     Attributes:
-        dictionary: TermExtractionHelpers instance for word validation
+        dictionary: DictionaryTextValidator instance for word validation
     """
 
-    def __init__(self, dictionary: TermExtractionHelpers):
+    def __init__(self, dictionary: DictionaryTextValidator):
         """
         Initialize the PDF extractor.
 
         Args:
-            dictionary: TermExtractionHelpers instance for word validation during voting
+            dictionary: DictionaryTextValidator instance for word validation during voting
         """
         self.dictionary = dictionary
         self._layout_analyzer = LayoutAnalyzer()
@@ -128,7 +128,7 @@ class PDFExtractor:
                 - error: Error type if extraction failed
 
         Example:
-            >>> extractor = PDFExtractor(TermExtractionHelpers())
+            >>> extractor = PDFExtractor(DictionaryTextValidator())
             >>> result = extractor.extract(Path("scan.pdf"))
             >>> if result['needs_ocr']:
             ...     print("Falling back to OCR")
@@ -415,7 +415,7 @@ class PDFExtractor:
             Reconciled text with best words from each extractor
 
         Example:
-            >>> extractor = PDFExtractor(TermExtractionHelpers())
+            >>> extractor = PDFExtractor(DictionaryTextValidator())
             >>> # PyMuPDF got "tbe", pdfplumber got "the"
             >>> extractor.reconcile_extractions("tbe quick fox", "the quick fox")
             'the quick fox'

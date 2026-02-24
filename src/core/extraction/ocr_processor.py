@@ -15,8 +15,8 @@ documents by:
     - Deskewing (fixing slight rotation)
 
 Example usage:
-    >>> from src.core.extraction.dictionary_utils import TermExtractionHelpers
-    >>> processor = OCRProcessor(TermExtractionHelpers())
+    >>> from src.core.extraction.dictionary_utils import DictionaryTextValidator
+    >>> processor = OCRProcessor(DictionaryTextValidator())
     >>> result = processor.process_pdf(Path("scanned.pdf"), page_count=10)
     >>> print(f"OCR confidence: {result['confidence']}%")
 """
@@ -70,7 +70,7 @@ def _configure_tesseract():
             return
 
 
-from .dictionary_utils import TermExtractionHelpers
+from .dictionary_utils import DictionaryTextValidator
 from .image_preprocessor import ImagePreprocessor
 
 
@@ -82,16 +82,16 @@ class OCRProcessor:
     to improve accuracy on poor-quality scans.
 
     Attributes:
-        dictionary: TermExtractionHelpers for confidence calculation
+        dictionary: DictionaryTextValidator for confidence calculation
         preprocessor: Optional ImagePreprocessor for image enhancement
     """
 
-    def __init__(self, dictionary: TermExtractionHelpers):
+    def __init__(self, dictionary: DictionaryTextValidator):
         """
         Initialize the OCR processor.
 
         Args:
-            dictionary: TermExtractionHelpers instance for confidence calculation
+            dictionary: DictionaryTextValidator instance for confidence calculation
         """
         self.dictionary = dictionary
         self.preprocessor = None
@@ -128,7 +128,7 @@ class OCRProcessor:
                 - error_message: Error description if failed
 
         Example:
-            >>> processor = OCRProcessor(TermExtractionHelpers())
+            >>> processor = OCRProcessor(DictionaryTextValidator())
             >>> result = processor.process_pdf(Path("scan.pdf"))
             >>> print(result['method'])  # 'ocr_enhanced' if preprocessing enabled
         """
@@ -231,7 +231,7 @@ class OCRProcessor:
 
         Example:
             >>> from PIL import Image
-            >>> processor = OCRProcessor(TermExtractionHelpers())
+            >>> processor = OCRProcessor(DictionaryTextValidator())
             >>> img = Image.open("document.png")
             >>> result = processor.process_image(img)
         """

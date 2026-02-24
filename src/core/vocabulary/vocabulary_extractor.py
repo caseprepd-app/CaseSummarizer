@@ -48,7 +48,7 @@ from src.config import (
 from src.core.utils.tokenizer import STOPWORDS
 from src.core.vocabulary.algorithms.base import BaseExtractionAlgorithm
 from src.core.vocabulary.preference_learner import get_meta_learner
-from src.core.vocabulary.reconciler import VocabularyDeduplicator
+from src.core.vocabulary.reconciler import VocabularyReconciler
 from src.core.vocabulary.result_merger import AlgorithmScoreMerger, MergedTerm
 from src.core.vocabulary.role_profiles import RoleDetectionProfile, StenographerProfile
 from src.core.vocabulary.term_sources import TermSources
@@ -563,7 +563,7 @@ class VocabularyExtractor:
 
         # 3. Reconcile results
         logger.debug("Phase 3: Reconciling NER and LLM results...")
-        reconciler = VocabularyDeduplicator()
+        reconciler = VocabularyReconciler()
         reconciled = reconciler.reconcile(ner_candidates, llm_terms)
         logger.debug("Reconciled to %s unique terms", len(reconciled))
 

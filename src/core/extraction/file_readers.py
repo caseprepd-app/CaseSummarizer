@@ -11,9 +11,9 @@ Supported formats:
     - PNG/JPG: OCR via Tesseract (delegates to OCRProcessor)
 
 Example usage:
-    >>> from src.core.extraction.dictionary_utils import TermExtractionHelpers
+    >>> from src.core.extraction.dictionary_utils import DictionaryTextValidator
     >>> from src.core.extraction.ocr_processor import OCRProcessor
-    >>> readers = FileReaders(TermExtractionHelpers(), OCRProcessor(TermExtractionHelpers()))
+    >>> readers = FileReaders(DictionaryTextValidator(), OCRProcessor(DictionaryTextValidator()))
     >>> result = readers.read_text_file(Path("document.txt"))
     >>> print(result['method'])  # 'direct_read'
 """
@@ -25,7 +25,7 @@ from PIL import Image
 
 logger = logging.getLogger(__name__)
 
-from .dictionary_utils import TermExtractionHelpers
+from .dictionary_utils import DictionaryTextValidator
 
 
 class FileReaders:
@@ -36,16 +36,16 @@ class FileReaders:
     and image files. Each method returns a standardized result dict.
 
     Attributes:
-        dictionary: TermExtractionHelpers for confidence calculation
+        dictionary: DictionaryTextValidator for confidence calculation
         ocr_processor: Optional OCRProcessor for image files
     """
 
-    def __init__(self, dictionary: TermExtractionHelpers, ocr_processor=None):
+    def __init__(self, dictionary: DictionaryTextValidator, ocr_processor=None):
         """
         Initialize the file readers.
 
         Args:
-            dictionary: TermExtractionHelpers instance for confidence calculation
+            dictionary: DictionaryTextValidator instance for confidence calculation
             ocr_processor: Optional OCRProcessor for image files
         """
         self.dictionary = dictionary
@@ -67,7 +67,7 @@ class FileReaders:
                 - error_message: Error description if failed
 
         Example:
-            >>> readers = FileReaders(TermExtractionHelpers())
+            >>> readers = FileReaders(DictionaryTextValidator())
             >>> result = readers.read_text_file(Path("notes.txt"))
             >>> print(f"Read {len(result['text'])} characters")
         """
@@ -115,7 +115,7 @@ class FileReaders:
                 - error_message: Error description if failed
 
         Example:
-            >>> readers = FileReaders(TermExtractionHelpers())
+            >>> readers = FileReaders(DictionaryTextValidator())
             >>> result = readers.read_rtf_file(Path("document.rtf"))
         """
         logger.debug("Reading RTF file: %s", file_path.name)
@@ -168,7 +168,7 @@ class FileReaders:
                 - error_message: Error description if failed
 
         Example:
-            >>> readers = FileReaders(TermExtractionHelpers())
+            >>> readers = FileReaders(DictionaryTextValidator())
             >>> result = readers.read_docx_file(Path("report.docx"))
             >>> print(f"Pages: ~{result['page_count']}")
         """
@@ -241,7 +241,7 @@ class FileReaders:
                 - error_message: Error description if failed
 
         Example:
-            >>> readers = FileReaders(TermExtractionHelpers(), OCRProcessor(TermExtractionHelpers()))
+            >>> readers = FileReaders(DictionaryTextValidator(), OCRProcessor(DictionaryTextValidator()))
             >>> result = readers.read_image_file(Path("scan.png"))
         """
         logger.debug("Reading image file: %s", file_path.name)

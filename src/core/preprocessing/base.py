@@ -66,7 +66,11 @@ class BasePreprocessor(ABC):
     @abstractmethod
     def process(self, text: str) -> PreprocessingResult:
         """
-        Process the input text and return cleaned version.
+        Apply this preprocessor's specific cleaning step to the input text.
+
+        Each subclass implements one stage of the preprocessing pipeline
+        (e.g., removing headers, cleaning page boundaries, resolving
+        coreferences).
 
         Args:
             text: Raw input text to process

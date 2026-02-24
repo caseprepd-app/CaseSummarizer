@@ -1,19 +1,19 @@
 """
-Dictionary Utilities for Text Extraction.
+Dictionary-Based Text Validator for Document Extraction.
 
 Provides dictionary-based text validation and confidence scoring for the
 document extraction pipeline. Used to assess extraction quality and decide
 whether OCR fallback is needed.
 
 Example usage:
-    >>> utils = TermExtractionHelpers()
-    >>> confidence = utils.calculate_confidence("The plaintiff filed a motion.")
+    >>> validator = DictionaryTextValidator()
+    >>> confidence = validator.calculate_confidence("The plaintiff filed a motion.")
     >>> print(f"Text quality: {confidence:.1f}%")
     Text quality: 85.0%
 
-    >>> utils.is_valid_word("plaintiff")
+    >>> validator.is_valid_word("plaintiff")
     True
-    >>> utils.is_valid_word("xyzabc")
+    >>> validator.is_valid_word("xyzabc")
     False
 """
 
@@ -25,7 +25,7 @@ from nltk.corpus import words
 logger = logging.getLogger(__name__)
 
 
-class TermExtractionHelpers:
+class DictionaryTextValidator:
     """
     Dictionary-based utilities for text validation and quality assessment.
 
@@ -44,7 +44,7 @@ class TermExtractionHelpers:
 
     def __init__(self):
         """
-        Initialize TermExtractionHelpers by loading the NLTK words corpus.
+        Initialize DictionaryTextValidator by loading the NLTK words corpus.
 
         Downloads the corpus if not already available.
         """
@@ -123,7 +123,7 @@ class TermExtractionHelpers:
             Confidence percentage (0-100). Higher = more valid English words.
 
         Example:
-            >>> utils = TermExtractionHelpers()
+            >>> utils = DictionaryTextValidator()
             >>> utils.calculate_confidence("The quick brown fox")
             100.0
             >>> utils.calculate_confidence("xkcd asdf qwerty")
@@ -172,7 +172,7 @@ class TermExtractionHelpers:
             True if word is in dictionary, False otherwise
 
         Example:
-            >>> utils = TermExtractionHelpers()
+            >>> utils = DictionaryTextValidator()
             >>> utils.is_valid_word("plaintiff")
             True
             >>> utils.is_valid_word("Plaintiff")  # case-insensitive
@@ -198,7 +198,7 @@ class TermExtractionHelpers:
             List of tokens (words with attached punctuation)
 
         Example:
-            >>> utils = TermExtractionHelpers()
+            >>> utils = DictionaryTextValidator()
             >>> utils.tokenize_for_voting("Hello, world!")
             ['Hello,', 'world!']
         """

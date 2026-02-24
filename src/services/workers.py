@@ -931,12 +931,12 @@ class ProgressiveExtractionWorker(BaseWorker):
             self.check_cancelled()
 
             # Deduplicate NER + LLM results
-            from src.core.vocabulary.reconciler import VocabularyDeduplicator
+            from src.core.vocabulary.reconciler import VocabularyReconciler
             from src.ui.silly_messages import get_silly_message
 
             self.send_progress(92, get_silly_message())
             logger.debug("Deduplicating NER + LLM results...")
-            reconciler = VocabularyDeduplicator()
+            reconciler = VocabularyReconciler()
 
             # Reconcile people
             ner_people = [c for c in ner_candidates if getattr(c, "suggested_type", "") == "Person"]

@@ -156,10 +156,10 @@ class TestPDFExtractorInit:
     """PDFExtractor initialization."""
 
     def _make(self):
-        from src.core.extraction.dictionary_utils import TermExtractionHelpers
+        from src.core.extraction.dictionary_utils import DictionaryTextValidator
         from src.core.extraction.pdf_extractor import PDFExtractor
 
-        return PDFExtractor(dictionary=TermExtractionHelpers())
+        return PDFExtractor(dictionary=DictionaryTextValidator())
 
     def test_creates_with_dictionary(self):
         ext = self._make()
@@ -175,10 +175,10 @@ class TestPDFExtractorExtract:
     """PDFExtractor.extract processes PDF files."""
 
     def _make(self):
-        from src.core.extraction.dictionary_utils import TermExtractionHelpers
+        from src.core.extraction.dictionary_utils import DictionaryTextValidator
         from src.core.extraction.pdf_extractor import PDFExtractor
 
-        return PDFExtractor(dictionary=TermExtractionHelpers())
+        return PDFExtractor(dictionary=DictionaryTextValidator())
 
     def test_nonexistent_pdf_returns_error(self, tmp_path):
         ext = self._make()
@@ -198,23 +198,23 @@ class TestPDFExtractorExtract:
 
 
 # ---------------------------------------------------------------------------
-# DictionaryUtils / TermExtractionHelpers
+# DictionaryUtils / DictionaryTextValidator
 # ---------------------------------------------------------------------------
 
 
-class TestTermExtractionHelpers:
-    """TermExtractionHelpers provides text analysis utilities."""
+class TestDictionaryTextValidator:
+    """DictionaryTextValidator provides dictionary-based text validation."""
 
     def test_creates_instance(self):
-        from src.core.extraction.dictionary_utils import TermExtractionHelpers
+        from src.core.extraction.dictionary_utils import DictionaryTextValidator
 
-        helpers = TermExtractionHelpers()
+        helpers = DictionaryTextValidator()
         assert helpers is not None
 
     def test_calculate_confidence(self):
-        from src.core.extraction.dictionary_utils import TermExtractionHelpers
+        from src.core.extraction.dictionary_utils import DictionaryTextValidator
 
-        helpers = TermExtractionHelpers()
+        helpers = DictionaryTextValidator()
 
         # Real English text should have decent confidence
         confidence = helpers.calculate_confidence(
@@ -224,17 +224,17 @@ class TestTermExtractionHelpers:
         assert confidence >= 0
 
     def test_confidence_empty_text(self):
-        from src.core.extraction.dictionary_utils import TermExtractionHelpers
+        from src.core.extraction.dictionary_utils import DictionaryTextValidator
 
-        helpers = TermExtractionHelpers()
+        helpers = DictionaryTextValidator()
         confidence = helpers.calculate_confidence("")
         assert isinstance(confidence, (int, float))
         assert confidence >= 0
 
     def test_confidence_gibberish(self):
-        from src.core.extraction.dictionary_utils import TermExtractionHelpers
+        from src.core.extraction.dictionary_utils import DictionaryTextValidator
 
-        helpers = TermExtractionHelpers()
+        helpers = DictionaryTextValidator()
         confidence = helpers.calculate_confidence("xkjw qrmn tplz zzqx")
         assert isinstance(confidence, (int, float))
         # Gibberish should have lower confidence than real text
