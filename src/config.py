@@ -351,10 +351,6 @@ OLLAMA_MODEL_FALLBACK = ""  # No fallback — user must select a model
 OLLAMA_TIMEOUT_SECONDS = _d("ollama_timeout_seconds")
 QUEUE_TIMEOUT_SECONDS = 2.0  # Timeout for multiprocessing queue operations
 
-# Network/API Timeout Constants
-# Generous timeouts for low-power hardware (65W business laptops running local AI)
-OLLAMA_CONNECTION_TIMEOUT = 15  # Seconds for initial connection check
-OLLAMA_API_TIMEOUT = 30  # Seconds for API calls (model list, status)
 GPU_DETECTION_TIMEOUT = 15  # Seconds for GPU/VRAM detection via WMI
 
 # Ollama Streaming Heartbeat Timeouts
