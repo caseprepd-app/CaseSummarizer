@@ -49,8 +49,8 @@ class SystemMonitor(ctk.CTkFrame):
 
         Args:
             parent: Parent widget
-            update_interval_ms: Update frequency in milliseconds (default 2000)
-                               Increased from 1000ms to reduce main thread load
+            update_interval_ms: Update frequency in milliseconds (default 2000).
+                               2000ms reduces main thread load while staying responsive.
         """
         super().__init__(parent, fg_color="transparent")
         self.update_interval_ms = update_interval_ms
@@ -272,7 +272,7 @@ class SystemMonitor(ctk.CTkFrame):
             if self.tooltip_window:
                 return
 
-            # Session 62b: Close any existing tooltip first via global manager
+            # Close any existing tooltip first via global manager
             tooltip_manager.close_active()
 
             # Get current mouse position (dynamic positioning)
@@ -372,7 +372,7 @@ class SystemMonitor(ctk.CTkFrame):
             self.tooltip_window.wm_geometry(f"+{int(x)}+{int(y)}")
             self.tooltip_window.lift()
 
-            # Session 62b: Register with global manager
+            # Register with global manager
             tooltip_manager.register(self.tooltip_window, owner=self)
 
         except Exception as e:
@@ -381,7 +381,7 @@ class SystemMonitor(ctk.CTkFrame):
     def _hide_tooltip(self):
         """Hide the tooltip."""
         if self.tooltip_window:
-            # Session 62b: Unregister from global manager
+            # Unregister from global manager
             tooltip_manager.unregister(self.tooltip_window)
             with contextlib.suppress(Exception):
                 self.tooltip_window.destroy()

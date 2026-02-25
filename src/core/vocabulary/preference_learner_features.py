@@ -34,7 +34,7 @@ from src.core.vocabulary.rarity_filter import _load_scaled_frequencies
 from src.core.vocabulary.term_sources import TermSources
 from src.user_preferences import get_user_preferences
 
-# Medical suffixes for domain-specific feature (Session 76)
+# Medical suffixes for domain-specific feature
 MEDICAL_SUFFIXES = (
     "itis",
     "osis",
@@ -56,7 +56,7 @@ MEDICAL_SUFFIXES = (
     "plegia",
 )
 
-# Legal suffixes for domain-specific feature (Session 83)
+# Legal suffixes for domain-specific feature
 LEGAL_SUFFIXES = (
     "ant",  # defendant, complainant, claimant
     "ent",  # respondent, decedent
@@ -64,7 +64,7 @@ LEGAL_SUFFIXES = (
     "or",  # mortgagor, payor, lessor (when legal context)
 )
 
-# Title prefixes indicating person names (Session 83)
+# Title prefixes indicating person names
 TITLE_PREFIXES = (
     "dr.",
     "dr ",
@@ -83,7 +83,7 @@ TITLE_PREFIXES = (
     "rep ",
 )
 
-# Professional suffixes indicating person names (Session 83)
+# Professional suffixes indicating person names
 PROFESSIONAL_SUFFIXES = (
     "m.d.",
     "md",
@@ -106,15 +106,14 @@ PROFESSIONAL_SUFFIXES = (
 )
 
 # Feature indices for interpretability
-# Session 52: Removed unreliable type features (is_medical, is_technical, is_place, is_unknown)
-# Only is_person is reliable (NER person detection)
-# Session 54: Added source_doc_confidence to weight terms by OCR quality
-# Session 68: Added corpus feature and is_title_case (Session 147: simplified to binary)
-# Session 78: Added 7 TermSources features for per-document confidence tracking
+# Only is_person is reliable among type features (NER person detection).
+# source_doc_confidence weights terms by OCR quality.
+# corpus feature and is_title_case are simplified to binary.
+# TermSources features provide per-document confidence tracking.
 FEATURE_NAMES = [
-    # Count bin features (Session 84, expanded Session 130) - one-hot encoded
+    # Count bin features - one-hot encoded
     # Rationale: count=1 could be OCR error, higher counts progressively more reliable
-    # Session 130: Added granularity above 7 to distinguish frequent names (119 occ)
+    # Granularity above 7 distinguishes frequent names (119 occ)
     "count_bin_1",  # Exactly 1 occurrence (possible OCR error)
     "count_bin_2",  # Exactly 2 occurrences
     "count_bin_3",  # Exactly 3 occurrences
@@ -122,12 +121,12 @@ FEATURE_NAMES = [
     "count_bin_7_20",  # 7-20 occurrences (mentioned multiple times)
     "count_bin_21_50",  # 21-50 occurrences (appears throughout document)
     "count_bin_51_plus",  # 51+ occurrences (major figure in transcript)
-    "log_count",  # Session 131: Log-scaled count preserving magnitude (log10(count+1))
+    "log_count",  # Log-scaled count preserving magnitude (log10(count+1))
     "freq_per_1k_words",  # Scale-independent density (count / (total_words / 1000))
     # Algorithm features
     "has_ner",
     "has_rake",
-    "has_bm25",  # Added in Session 47 for per-algorithm tracking
+    "has_bm25",  # Per-algorithm tracking
     "has_textrank",  # Binary: TextRank found this term
     "has_medical_ner",  # Binary: MedicalNER (medspacy) found this term
     "has_gliner",  # Binary: GLiNER found this term
@@ -140,13 +139,13 @@ FEATURE_NAMES = [
     "word_count",  # 1-3 words = good, 4+ = suspicious over-extraction
     "is_all_caps",  # "PLAINTIFF'S EXHIBIT" - headers, not vocabulary
     "is_title_case",  # 1.0 if term.istitle() (proper nouns), 0.0 otherwise
-    # Document quality feature (Session 54)
+    # Document quality feature
     "source_doc_confidence",  # OCR/extraction confidence (0-100) - lower = more OCR errors
-    # Corpus familiarity feature (Session 68, simplified Session 147)
+    # Corpus familiarity feature (simplified to binary)
     "corpus_common_term",  # Binary: True if term in >=64% of corpus docs AND >=5 occurrences
-    # Session 76 features (9 total) + Session 130 rarity score
+    # Word-level features (9 total) + rarity score
     "freq_dict_word_ratio",
-    "word_log_rarity_score",  # Session 130: Mean log-scaled rarity (0=common, 1=rare)
+    "word_log_rarity_score",  # Mean log-scaled rarity (0=common, 1=rare)
     "term_length",
     "vowel_ratio",
     "is_single_letter",
@@ -154,7 +153,7 @@ FEATURE_NAMES = [
     "has_medical_suffix",
     "has_repeated_chars",
     "contains_hyphen",
-    # Session 78: TermSources-based per-document confidence features (7 total)
+    # TermSources-based per-document confidence features (7 total)
     # These provide richer signals about term reliability across source documents
     "mean_count_per_doc",  # Average occurrences per source doc (occurrences / num_docs)
     "doc_diversity_ratio",  # num_docs / total_docs (0-1, spread across corpus)
@@ -162,7 +161,7 @@ FEATURE_NAMES = [
     "confidence_std_dev",  # Consistency of confidence across docs (0-0.5)
     "high_conf_doc_ratio",  # % of source docs with confidence > 0.80 (0-1)
     "all_low_conf",  # 1 if ALL source docs have conf < 0.60 (red flag)
-    # Session 83: Name validation and domain-specific features (5 total)
+    # Name validation and domain-specific features (5 total)
     "is_in_names_dataset",  # Any word in international forenames/surnames datasets
     "names_word_ratio",  # Proportion of term's words found in names dataset (0-1)
     "has_forename_and_surname",  # Term has both a forename and surname match (0/1)
@@ -171,7 +170,7 @@ FEATURE_NAMES = [
     "has_title_prefix",  # Dr., Mr., Ms., Hon., Judge, etc.
     "has_professional_suffix",  # M.D., Esq., Ph.D., R.N., etc.
     "max_consonant_run",  # Longest consonant streak (gibberish detector)
-    # Stop word boundary features (Session 141)
+    # Stop word boundary features
     "starts_with_stop_word",  # First word is top-1000 common (e.g., "the same")
     "ends_with_stop_word",  # Last word is top-1000 common (e.g., "Smith the")
     # User-defined indicator pattern features
@@ -184,15 +183,10 @@ def extract_features(term_data: dict[str, Any]) -> np.ndarray:
     """
     Extract feature vector from term data.
 
-    Session 76: Major feature overhaul
-    - Removed: quality_score (circular), num_algorithms (redundant), rarity_rank_normalized
-    - Added: 9 new features including word-level frequency, vowel ratio, medical suffix
-
-    Session 78: Added 7 TermSources-based per-document features:
-    - num_source_documents, doc_diversity_ratio, mean_doc_confidence,
-      median_doc_confidence, confidence_std_dev, high_conf_doc_ratio, all_low_conf
-    - These provide richer signals about term reliability across source documents
-    - Falls back to sensible defaults when TermSources not available (legacy data)
+    Includes 9 word-level features (frequency, vowel ratio, medical suffix, etc.)
+    and 7 TermSources-based per-document features (doc_diversity_ratio,
+    median_doc_confidence, confidence_std_dev, high_conf_doc_ratio, all_low_conf).
+    Falls back to sensible defaults when TermSources is not available (legacy data).
 
     Args:
         term_data: Dictionary with term information (from feedback CSV or extractor)
@@ -219,9 +213,8 @@ def extract_features(term_data: dict[str, Any]) -> np.ndarray:
     occurrences = float(term_data.get("occurrences") or 1)
     count = int(occurrences)
 
-    # Count bins (Session 84/85, expanded Session 130) - one-hot encoded via config
+    # Count bins - one-hot encoded via config
     # Rationale: count=1 could be OCR error, higher counts more reliable
-    # Session 130: Added granularity above 7 (bin_7_20, bin_21_50, bin_51_plus)
     (
         count_bin_1,
         count_bin_2,
@@ -232,7 +225,7 @@ def extract_features(term_data: dict[str, Any]) -> np.ndarray:
         count_bin_51_plus,
     ) = get_count_bin_features(count)
 
-    # Session 131: Log-scaled count to preserve magnitude within bins
+    # Log-scaled count to preserve magnitude within bins
     # bin_51_plus covers 51-∞ with no distinction; log_count provides continuous signal
     # Examples: 1→0, 10→1.0, 100→2.0, 301→2.48
     log_count = np.log10(count + 1)
@@ -288,19 +281,19 @@ def extract_features(term_data: dict[str, Any]) -> np.ndarray:
     alpha_chars = [c for c in term if c.isalpha()]
     is_all_caps = 1.0 if alpha_chars and all(c.isupper() for c in alpha_chars) else 0.0
 
-    # Source document confidence (Session 54)
+    # Source document confidence
     source_doc_confidence_raw = float(term_data.get("source_doc_confidence") or 100)
     source_doc_confidence = source_doc_confidence_raw / 100.0
 
-    # Corpus common term feature (Session 68, simplified Session 147)
+    # Corpus common term feature (simplified to binary)
     # Binary feature: 1.0 if term is common in corpus (>=64% docs AND >=5 occurrences)
     corpus_common_raw = term_data.get("corpus_common_term", False)
     corpus_common_term = 1.0 if corpus_common_raw else 0.0
 
-    # Title case detection (Session 68)
+    # Title case detection
     is_title_case = 1.0 if term and term.istitle() else 0.0
 
-    # === NEW SESSION 76 FEATURES ===
+    # === WORD-LEVEL FEATURES ===
 
     # Word-level frequency dictionary features
     freq_dict = _load_scaled_frequencies()
@@ -309,7 +302,7 @@ def extract_features(term_data: dict[str, Any]) -> np.ndarray:
         words_in_dict = [1.0 if w in freq_dict else 0.0 for w in words_lower]
         freq_dict_word_ratio = sum(words_in_dict) / len(words_in_dict)
 
-        # Session 130: Log-scaled rarity score (adjusted mean across words)
+        # Log-scaled rarity score (adjusted mean across words)
         # Distinguishes "Comiskey" (rank 96755, rare) from "Clerk" (rank 5435, common)
         # Uses adjusted mean: filters by linear scores, averages log scores
         prefs = get_user_preferences()
@@ -363,7 +356,7 @@ def extract_features(term_data: dict[str, Any]) -> np.ndarray:
     # Contains hyphen - often legitimate compound terms
     contains_hyphen = 1.0 if "-" in term else 0.0
 
-    # === SESSION 83: Name validation and domain-specific features ===
+    # === Name validation and domain-specific features ===
 
     # Check if any word is in the names dataset
     forenames, surnames = _load_names_datasets()
@@ -415,7 +408,7 @@ def extract_features(term_data: dict[str, Any]) -> np.ndarray:
     # Maximum consonant run (gibberish detector)
     max_consonant_run_val = float(_max_consonant_run(term))
 
-    # === SESSION 141: Stop word boundary features ===
+    # === Stop word boundary features ===
     # Catches truncation artifacts where extraction grabbed too much or too little
     from src.config import STOP_WORD_THRESHOLD
     from src.core.vocabulary.rarity_filter import is_common_word
@@ -433,7 +426,7 @@ def extract_features(term_data: dict[str, Any]) -> np.ndarray:
     matches_positive_indicator = 1.0 if matches_positive(term) else 0.0
     matches_negative_indicator = 1.0 if matches_negative(term) else 0.0
 
-    # === SESSION 78: TermSources-based per-document features ===
+    # === TermSources-based per-document features ===
     # These features provide richer signals about term reliability by
     # tracking which source documents contributed each occurrence.
     #
@@ -472,7 +465,7 @@ def extract_features(term_data: dict[str, Any]) -> np.ndarray:
 
     return np.array(
         [
-            # Count bin features (7 - expanded Session 130) + log_count (1) + freq_per_1k_words (1)
+            # Count bin features (7) + log_count (1) + freq_per_1k_words (1)
             count_bin_1,
             count_bin_2,
             count_bin_3,
@@ -480,7 +473,7 @@ def extract_features(term_data: dict[str, Any]) -> np.ndarray:
             count_bin_7_20,
             count_bin_21_50,
             count_bin_51_plus,
-            log_count,  # Session 131: Log-scaled count for magnitude within bins
+            log_count,  # Log-scaled count for magnitude within bins
             freq_per_1k_words,  # Scale-independent density
             # Algorithm features (3)
             has_ner,
@@ -502,9 +495,9 @@ def extract_features(term_data: dict[str, Any]) -> np.ndarray:
             # Quality features (2)
             source_doc_confidence,
             corpus_common_term,
-            # Session 76 features (8) + Session 130 rarity score (1)
+            # Word-level features (8) + rarity score (1)
             freq_dict_word_ratio,
-            word_log_rarity_score,  # Session 130: log-scaled word rarity
+            word_log_rarity_score,  # Log-scaled word rarity
             term_length,
             vowel_ratio,
             is_single_letter,
@@ -512,14 +505,14 @@ def extract_features(term_data: dict[str, Any]) -> np.ndarray:
             has_medical_suffix,
             has_repeated_chars,
             contains_hyphen,
-            # Session 78: TermSources features (6)
+            # TermSources features (6)
             mean_count_per_doc,
             doc_diversity_ratio,
             median_doc_confidence,
             confidence_std_dev,
             high_conf_doc_ratio,
             all_low_conf,
-            # Session 83: Name validation and domain features (8)
+            # Name validation and domain features (8)
             is_in_names_dataset,
             names_word_ratio,
             has_forename_and_surname,
@@ -528,7 +521,7 @@ def extract_features(term_data: dict[str, Any]) -> np.ndarray:
             has_title_prefix,
             has_professional_suffix,
             max_consonant_run_val,
-            # Session 141: Stop word boundary features (2)
+            # Stop word boundary features (2)
             starts_with_stop_word,
             ends_with_stop_word,
             # User-defined indicator pattern features (2)

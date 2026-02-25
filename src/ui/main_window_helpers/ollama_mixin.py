@@ -1,8 +1,6 @@
 """
 Ollama Status and Model Management Mixin.
 
-Session 82: Extracted from main_window.py for modularity.
-
 Contains:
 - Ollama status indicator (connected/disconnected)
 - Ollama tooltips with troubleshooting info
@@ -19,7 +17,7 @@ from src.ui.tooltip_manager import tooltip_manager
 
 logger = logging.getLogger(__name__)
 
-# PERF-001: Pre-compile regex at module level
+# Pre-compile regex at module level
 _MODEL_PARAM_PATTERN = re.compile(r":(\d+\.?\d*)b")
 
 
@@ -69,7 +67,7 @@ class OllamaMixin:
         )
 
         def show_tooltip(event):
-            # Session 62b: Close any existing tooltip first via global manager
+            # Close any existing tooltip first via global manager
             tooltip_manager.close_active()
 
             # Create tooltip window
@@ -89,12 +87,12 @@ class OllamaMixin:
             )
             label.pack()
 
-            # Session 62b: Register with global manager
+            # Register with global manager
             tooltip_manager.register(tooltip, owner=self.ollama_status_dot)
 
         def hide_tooltip(event):
             if hasattr(self, "_ollama_tooltip") and self._ollama_tooltip:
-                # Session 62b: Unregister from global manager
+                # Unregister from global manager
                 tooltip_manager.unregister(self._ollama_tooltip)
                 self._ollama_tooltip.destroy()
                 self._ollama_tooltip = None
@@ -115,7 +113,7 @@ class OllamaMixin:
 
         # Destroy any existing tooltip
         if hasattr(self, "_ollama_tooltip") and self._ollama_tooltip:
-            # Session 62b: Unregister from global manager
+            # Unregister from global manager
             tooltip_manager.unregister(self._ollama_tooltip)
             self._ollama_tooltip.destroy()
             self._ollama_tooltip = None
@@ -152,7 +150,7 @@ class OllamaMixin:
         param_info = ""
         name_lower = model_name.lower()
 
-        # PERF-001: Look for parameter patterns using pre-compiled regex
+        # Look for parameter patterns using pre-compiled regex
         param_match = _MODEL_PARAM_PATTERN.search(name_lower)
         if param_match:
             param_size = param_match.group(1)
@@ -165,7 +163,7 @@ class OllamaMixin:
         from src.ui.settings.settings_dialog import SettingsDialog
         from src.user_preferences import get_user_preferences
 
-        # Session 62: Capture current model to detect changes
+        # Capture current model to detect changes
         prefs = get_user_preferences()
         old_model = prefs.get("ollama_model", self.model_manager.model_name)
 
@@ -173,10 +171,9 @@ class OllamaMixin:
             dialog = SettingsDialog(parent=self, initial_tab="AI Model")
             dialog.wait_window()
         except Exception as e:
-            # LOG-006: Use logger instead of traceback.print_exc()
             logger.debug("Failed to open settings dialog: %s", e)
 
-        # Session 62: Check if model changed and reload if needed
+        # Check if model changed and reload if needed
         new_model = prefs.get("ollama_model", self.model_manager.model_name)
         if new_model and new_model != old_model:
             try:

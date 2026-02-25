@@ -1,5 +1,5 @@
 """
-Vector Store Builder for CasePrepd Q&A System (Session 45 Update).
+Vector Store Builder for CasePrepd Q&A System.
 
 Creates FAISS-based vector stores from processed document chunks.
 Uses file-based persistence for standalone Windows distribution.
@@ -8,9 +8,7 @@ Architecture:
 - Converts document chunks to LangChain Documents with metadata
 - Creates FAISS index using HuggingFaceEmbeddings (reuses existing)
 - Saves index as files (index.faiss + index.pkl) - no database required
-
-Session 45 Update:
-- Added create_from_unified_chunks() for UnifiedChunk objects
+- Supports create_from_unified_chunks() for UnifiedChunk objects
 - Unified chunks are shared with LLM extraction for efficiency
 - Single chunking pass serves both Q&A indexing and vocabulary extraction
 
@@ -227,7 +225,7 @@ class VectorStoreBuilder:
                         "chunk_num": chunk_num,
                         "section_name": section_name,
                         "word_count": word_count,
-                        "token_count": token_count,  # Session 45: include token count
+                        "token_count": token_count,
                     },
                 )
             )
@@ -312,7 +310,7 @@ class VectorStoreBuilder:
 
         from src.config import RETRIEVAL_CHUNK_OVERLAP, RETRIEVAL_CHUNK_SIZE
 
-        # PERF-006: Cache text splitter as class attribute
+        # Cache text splitter as class attribute
         if not hasattr(self, "_text_splitter"):
             self._text_splitter = RecursiveCharacterTextSplitter(
                 chunk_size=RETRIEVAL_CHUNK_SIZE,

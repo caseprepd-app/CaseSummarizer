@@ -1,5 +1,5 @@
 """
-CasePrepd - Custom Dialogs (CustomTkinter Refactor)
+CasePrepd - Custom Dialogs
 """
 
 import time
@@ -11,7 +11,7 @@ from src.ui.theme import FONTS
 
 class ModelLoadProgressDialog(ctk.CTkToplevel):
     """
-    Progress dialog for model loading, refactored for CustomTkinter.
+    Progress dialog for model loading.
     """
 
     def __init__(self, model_name, parent=None):

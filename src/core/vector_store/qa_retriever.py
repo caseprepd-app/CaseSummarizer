@@ -4,7 +4,7 @@ Q&A Retriever for CasePrepd.
 Retrieves relevant document context for user questions using hybrid search
 combining BM25+ (lexical) and FAISS (semantic) algorithms.
 
-Architecture (Session 31 - Hybrid Retrieval):
+Architecture (Hybrid Retrieval):
 - Loads documents from FAISS index on disk (backward compatible)
 - Builds BM25+ index on-the-fly for lexical search
 - Combines results from both algorithms using weighted merging
@@ -35,9 +35,9 @@ logger = logging.getLogger(__name__)
 
 def _get_effective_qa_context_window() -> int:
     """
-    Get effective QA context window from user preferences (Session 67).
+    Get effective QA context window from user preferences.
 
-    QA context window now scales with LLM context window based on GPU VRAM.
+    QA context window scales with LLM context window based on GPU VRAM.
     Falls back to config constant if preferences unavailable.
 
     Returns:
@@ -380,7 +380,7 @@ class QARetriever:
         context_parts = []
         sources = []
         estimated_tokens = 0
-        # Session 67: QA context now scales with LLM context based on GPU VRAM
+        # QA context scales with LLM context based on GPU VRAM
         qa_context_window = _get_effective_qa_context_window()
         # Reserve tokens for: system prompt (~200 tokens), question (~30 tokens),
         # formatting (~70 tokens), and LLM output (qa_max_tokens from config).

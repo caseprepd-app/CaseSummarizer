@@ -4,11 +4,10 @@ GPU Detection Utility for CasePrepd.
 Detects whether the machine has a dedicated NVIDIA or AMD GPU.
 Used to automatically enable/disable LLM vocabulary extraction.
 
-Session 62b: Initial implementation with gpu-tracker and CLI tools.
-Session 64: Switched to PyTorch + WMI for reliable cross-vendor detection.
-            - PyTorch CUDA for NVIDIA (fast, no CLI needed)
-            - WMI for Windows (detects all GPUs including AMD)
-            - CLI fallback for edge cases
+Uses PyTorch + WMI for reliable cross-vendor detection:
+- PyTorch CUDA for NVIDIA (fast, no CLI needed)
+- WMI for Windows (detects all GPUs including AMD)
+- CLI fallback for edge cases
 """
 
 import logging
@@ -355,7 +354,7 @@ def get_optimal_context_size() -> int:
         Values are conservative (1.5% below theoretical max) to ensure
         stability. VRAM overflow causes 5-20x performance degradation.
 
-    Session 64: Added for dynamic LLM configuration based on hardware.
+    Enables dynamic LLM configuration based on hardware.
     """
     info = get_gpu_info()
     vram_bytes = info.get("vram_bytes", 0)
@@ -428,7 +427,7 @@ def get_optimal_chunk_sizes(context_size: int | None = None) -> dict:
         - max_tokens: Maximum tokens per chunk (1000)
         - context_window: The context window (for reference)
 
-    Session 67: Fixed sizes based on RAG research. Chunk size does NOT scale
+    Chunk size is fixed based on RAG research. Chunk size does NOT scale
     with context window - only the number of retrieved chunks scales.
     """
     if context_size is None:

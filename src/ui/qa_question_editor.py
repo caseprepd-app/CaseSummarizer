@@ -10,10 +10,6 @@ Features:
 - Save/Cancel with confirmation
 - Reset to defaults button
 - Accessible from Settings dialog and Q&A panel
-
-The editor modifies a simplified flat list of questions for the MVP.
-The full branching question tree in qa_questions.yaml is preserved
-but not exposed in this UI.
 """
 
 import logging

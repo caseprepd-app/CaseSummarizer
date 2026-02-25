@@ -344,7 +344,7 @@ class CorpusRegistry:
         prefs.set("active_corpus", name)
 
         # Reset CorpusManager singleton so it picks up the new path
-        # Session 64: Ensures BM25 uses the newly selected corpus
+        # Ensures BM25 uses the newly selected corpus
         from src.core.vocabulary.corpus_manager import reset_corpus_manager
 
         reset_corpus_manager()

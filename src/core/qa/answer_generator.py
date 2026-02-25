@@ -26,7 +26,7 @@ from src.core.utils.sentence_splitter import split_sentences
 
 logger = logging.getLogger(__name__)
 
-# Pre-compiled regex patterns (Session 70 optimization)
+# Pre-compiled regex patterns
 _RE_SOURCE_CITATIONS = re.compile(r"\[[^\]]+\]:")
 _RE_WORD_EXTRACT = re.compile(r"\b[a-zA-Z]+\b")
 _RE_WHITESPACE = re.compile(r"\s+")
@@ -465,7 +465,7 @@ class AnswerGenerator:
         # Remove excessive whitespace (using pre-compiled regex)
         cleaned = _RE_WHITESPACE.sub(" ", sentence).strip()
 
-        # LOG-023: Ensure ends with period
+        # Ensure ends with period
         if cleaned and cleaned[-1] not in ".!?":
             cleaned += "."
 

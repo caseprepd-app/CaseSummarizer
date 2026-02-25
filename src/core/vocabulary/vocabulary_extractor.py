@@ -131,7 +131,7 @@ class VocabularyExtractor:
         self.user_exclude_list = self._load_word_list(user_exclude_path)
         self.medical_terms = self._load_word_list(medical_terms_path)
 
-        # Session 80: Log user exclusions for debugging
+        # Log user exclusions for debugging
         if self.user_exclude_list:
             logger.debug("User exclusion list has %s terms", len(self.user_exclude_list))
 
@@ -436,7 +436,7 @@ class VocabularyExtractor:
                 logger.debug("Sending partial results (BM25+RAKE)...")
                 partial_merged = self.merger.merge(all_results)
                 partial_vocab = self._post_process(partial_merged, text, doc_count, doc_confidence)
-                # Apply lightweight filter chain (Session 85: skip rarity filter for partial results)
+                # Apply lightweight filter chain (skip rarity filter for partial results)
                 # BM25 and RAKE find common keyphrases that rarity filter removes
                 from src.core.vocabulary.filters import create_partial_results_filter_chain
 
@@ -748,7 +748,7 @@ class VocabularyExtractor:
         # Total unique terms for ML occurrence_ratio feature
         total_unique_terms = len(merged_terms)
 
-        # Session 80: Track iteration count for periodic GIL yield
+        # Track iteration count for periodic GIL yield
         iteration_count = 0
         for merged in merged_terms:
             term = merged.term
@@ -767,7 +767,7 @@ class VocabularyExtractor:
                 continue
 
             # Minimum occurrence filtering (Person names exempt)
-            # Session 62: Read from user preferences with config fallback
+            # Read from user preferences with config fallback
             min_occurrences = get_user_preferences().get(
                 "vocab_min_occurrences", VOCABULARY_MIN_OCCURRENCES
             )
@@ -797,14 +797,14 @@ class VocabularyExtractor:
             # Build "Found By" display string from sources
             found_by = ", ".join(merged.sources)  # e.g., "NER, RAKE" or "NER, RAKE, BM25"
 
-            # Session 80: Create legacy TermSources for single-doc extraction path
+            # Create legacy TermSources for single-doc extraction path
             # This enables consistent display columns across both extraction methods
             sources_obj = TermSources.create_legacy(merged.frequency, doc_confidence / 100.0)
 
             term_data = {
                 "Term": term,
-                "Is Person": "Yes" if is_person else "No",  # Session 52: Replaced Type
-                "Found By": found_by,  # Session 52: Show which algorithms found this term
+                "Is Person": "Yes" if is_person else "No",
+                "Found By": found_by,  # Which algorithms found this term
                 "Role/Relevance": role_relevance,
                 "Quality Score": base_quality_score,
                 "Occurrences": merged.frequency,
@@ -819,10 +819,10 @@ class VocabularyExtractor:
                 "MedicalNER": "Yes" if "MEDICALNER" in sources_upper else "No",
                 "GLiNER": "Yes" if "GLINER" in sources_upper else "No",
                 "Algo Count": algo_count,  # Sum of algorithms that found term
-                # Session 80: Display columns from TermSources
+                # Display columns from TermSources
                 "# Docs": sources_obj.num_documents,
                 "OCR Confidence": f"{sources_obj.median_confidence:.0%}",
-                # Session 78: TermSources object for ML/filters
+                # TermSources object for ML/filters
                 "sources": sources_obj,
                 "total_docs_in_session": doc_count,
                 # ML feature fields (from feedback CSV schema)
@@ -830,9 +830,9 @@ class VocabularyExtractor:
                 "occurrences": merged.frequency,
                 "rarity_rank": frequency_rank,
                 "algorithms": ",".join(merged.sources),
-                "is_person": 1 if is_person else 0,  # Session 52: Binary flag for ML
+                "is_person": 1 if is_person else 0,  # Binary flag for ML
                 "total_unique_terms": total_unique_terms,  # For ML occurrence_ratio
-                "source_doc_confidence": doc_confidence,  # Session 54: OCR quality for ML
+                "source_doc_confidence": doc_confidence,  # OCR quality for ML
                 "textrank_score": float(merged.metadata.get("textrank_score", 0.0)),
                 "total_word_count": len(full_text.split()),  # For freq_per_1k_words feature
             }
@@ -844,7 +844,7 @@ class VocabularyExtractor:
             vocabulary.append(term_data)
             seen_terms.add(lower_term)
 
-            # Session 80: Yield GIL every 50 terms to keep GUI responsive
+            # Yield GIL every 50 terms to keep GUI responsive
             iteration_count += 1
             if iteration_count % 50 == 0:
                 time.sleep(0)
@@ -917,7 +917,7 @@ class VocabularyExtractor:
                     logger.debug("Skipping common word: %s (rank=%s)", term, rank)
                     continue
 
-            # Session 62: Apply rarity filter to catch common words not in frequency dataset
+            # Apply rarity filter to catch common words not in frequency dataset
             # This uses the scaled frequency database which has better coverage for LLM terms
             from src.core.vocabulary.rarity_filter import should_filter_phrase
 
@@ -936,7 +936,7 @@ class VocabularyExtractor:
                 continue
 
             # Minimum occurrence filtering (PERSON exempt) - skip if too rare
-            # Session 62: Read from user preferences with config fallback
+            # Read from user preferences with config fallback
             min_occurrences = get_user_preferences().get(
                 "vocab_min_occurrences", VOCABULARY_MIN_OCCURRENCES
             )
@@ -1005,9 +1005,8 @@ class VocabularyExtractor:
         score = 50.0  # Base score
 
         # Boost for multiple occurrences (max +30)
-        # Session 131: Log-scaled to better reward high-frequency names (301 occ vs 4 occ)
-        # Old: min(term_count * 5, 20) capped at 4 occurrences
-        # New: log-scaled to distinguish 10, 100, 300+ occurrences
+        # Log-scaled to better reward high-frequency names (301 occ vs 4 occ)
+        # Distinguishes 10, 100, 300+ occurrences
         # Examples: 1→8, 4→17, 10→25, 100→30, 300→30
 
         occurrence_boost = min(math.log10(term_count + 1) * 25, 30)
@@ -1084,7 +1083,7 @@ class VocabularyExtractor:
         """
         Apply graduated ML-based scoring if meta-learner is trained.
 
-        Session 55: Uses graduated weight based on user sample count.
+        Uses graduated weight based on user sample count.
         Formula: score = base_score * (1 - ml_weight) + ml_prob * 100 * ml_weight
 
         The ml_weight increases with training corpus size:
@@ -1625,7 +1624,7 @@ class VocabularyExtractor:
         """
         Extract vocabulary from a single document.
 
-        Session 78: Per-document extraction for TermSources tracking.
+        Per-document extraction for TermSources tracking.
         This method extracts terms from ONE document only. Call this
         for each document, then use merge_document_results() to combine.
 
@@ -1667,7 +1666,7 @@ class VocabularyExtractor:
         """
         Merge per-document extractions into final vocabulary with TermSources.
 
-        Session 78: Combines results from multiple documents while tracking
+        Combines results from multiple documents while tracking
         which documents contributed each term occurrence. This enables
         confidence-weighted canonical selection.
 
@@ -1733,7 +1732,7 @@ class VocabularyExtractor:
             # Determine if this is a person (will be refined in _post_process)
             is_person = False  # Default, will be updated below
 
-            # Calculate base quality score (Session 79: pass TermSources for quality adjustments)
+            # Calculate base quality score (pass TermSources for quality adjustments)
             frequency_rank = self._get_term_frequency_rank(term_lower)
             base_quality_score = self._calculate_quality_score(
                 is_person,
@@ -1759,10 +1758,10 @@ class VocabularyExtractor:
                 "RAKE": "No",
                 "BM25": "No",
                 "Algo Count": 0,
-                # Session 80: Display columns from TermSources
+                # Display columns from TermSources
                 "# Docs": sources.num_documents,
                 "OCR Confidence": f"{sources.median_confidence:.0%}",
-                # Session 78: TermSources tracking
+                # TermSources tracking
                 "sources": sources,
                 "total_docs_in_session": total_docs,
                 # ML feature fields
@@ -1794,13 +1793,12 @@ class VocabularyExtractor:
         """
         High-level per-document extraction with TermSources tracking.
 
-        Session 78: Convenience method that handles the full per-document
-        extraction workflow. Extracts from each document individually,
-        then merges with TermSources for canonical selection.
+        Convenience method that handles the full per-document extraction
+        workflow. Extracts from each document individually, then merges
+        with TermSources for canonical selection.
 
-        Session 86: Now applies preprocessing pipeline to each document
-        before extraction (fixes transcript artifact bug where Q./A. notation
-        and headers were appearing in vocabulary results).
+        Applies preprocessing pipeline to each document before extraction
+        to remove transcript artifacts (Q./A. notation, headers, etc.).
 
         Args:
             documents: List of dicts with keys:
@@ -1818,7 +1816,7 @@ class VocabularyExtractor:
         total_docs = len(documents)
         logger.debug("Starting per-document extraction for %s documents", total_docs)
 
-        # Session 86: Create preprocessing pipeline to clean transcript artifacts
+        # Create preprocessing pipeline to clean transcript artifacts
         # (headers, Q./A. notation, line numbers, etc.) before NER extraction
         from src.core.preprocessing import create_default_pipeline
 
@@ -1836,7 +1834,7 @@ class VocabularyExtractor:
             if not text.strip():
                 continue
 
-            # Session 86: Preprocess text before extraction
+            # Preprocess text before extraction
             # This removes headers, Q./A. notation, line numbers, etc.
             text = preprocessing_pipeline.process(text)
 

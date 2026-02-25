@@ -9,7 +9,7 @@ Full-featured dialog for managing multiple corpora. Allows users to:
 
 Educational content explains what a corpus is and why it matters.
 
-Privacy: All data is stored locally in %APPDATA%/CasePrepd/corpora/
+Privacy: All data is stored locally in the user's app data directory (corpora/).
 """
 
 import logging

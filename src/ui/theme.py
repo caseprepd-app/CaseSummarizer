@@ -112,7 +112,7 @@ COLORS = {
     "success_light": "#90EE90",  # Light green (system monitor)
     "warning": "#ffc107",  # Warning (yellow)
     "danger": "#dc3545",  # Error/rejected/skip (red)
-    "danger_light": "#f5a9b0",  # Light red (loaded feedback) - Session 84
+    "danger_light": "#f5a9b0",  # Light red (loaded feedback)
     "info": "#17a2b8",  # Info/LLM (blue)
     # Q&A Panel text tags
     "qa_question": "#5dade2",  # Question text (light blue)
@@ -123,18 +123,18 @@ COLORS = {
     "qa_label": "#85929e",  # Labels (gray)
     "qa_separator": "#566573",  # Section separators
     # Algorithm detection colors (vocabulary table)
-    # Updated Session 61: Brighter colors for dark mode visibility
+    # Brighter colors for dark mode visibility
     "algo_multi": "#5dde77",  # Multiple algorithms (bright green)
     "algo_ner": "#7ec8e3",  # NER only (light blue) - was dark slate, invisible
     "algo_rake": "#c792ea",  # RAKE only (light purple)
     "algo_bm25": "#ffb347",  # BM25 only (light orange)
     "algo_llm": "#4dd0e1",  # LLM only (cyan)
-    # Table rows - Session 61: Dark mode colors (light mode values caused invisible text)
+    # Table rows - dark mode colors (light mode values caused invisible text)
     "row_odd": "#2b2b2b",  # Odd row (same as treeview bg)
     "row_even": "#353535",  # Even row (slightly lighter for alternation)
     "row_selected": "#3470b6",  # Selected row
     "row_text": "#e0e0e0",  # Default row text (light gray for dark mode)
-    # Output pane (Session 45)
+    # Output pane
     "output_pane": ("#e8e8e8", "#1a1a2e"),  # Light/dark mode pair
     # Progress/status
     "progress_partial": ("orange", "#ffaa00"),  # NER only
@@ -152,7 +152,7 @@ COLORS = {
     "drop_zone_idle_bg": "#2b2b2b",  # Slightly lighter than panel background
     # System monitor
     "monitor_bg": "#1a3a1a",  # System monitor frame bg
-    # Hallucination verification colors (Session 60)
+    # Hallucination verification colors
     # Used for color-coding Q&A answer reliability
     "verify_verified": "#28a745",  # Green - verified (< 0.30 prob)
     "verify_uncertain": "#ffc107",  # Yellow - uncertain (0.30-0.50)
@@ -275,7 +275,7 @@ QA_TEXT_TAGS = {
     "citation": {"foreground": COLORS["qa_citation"]},
     "source": {"foreground": COLORS["qa_source"], "font": FONTS["qa_source"]},
     "separator": {"foreground": COLORS["qa_separator"]},
-    # Hallucination verification span tags (Session 60)
+    # Hallucination verification span tags
     "verify_verified": {"foreground": COLORS["verify_verified"]},
     "verify_uncertain": {"foreground": COLORS["verify_uncertain"]},
     "verify_suspicious": {"foreground": COLORS["verify_suspicious"]},
@@ -298,7 +298,7 @@ QA_TEXT_TAGS = {
 # Used with ttk.Treeview.tag_configure()
 
 VOCAB_TABLE_TAGS = {
-    # Session 84: Distinguish session (user clicked) vs loaded (from dataset) feedback
+    # Distinguish session (user clicked) vs loaded (from dataset) feedback
     "rated_up_session": {"foreground": COLORS["success"]},  # User clicked Keep (darker green)
     "rated_up_loaded": {"foreground": COLORS["success_light"]},  # From dataset (lighter green)
     "rated_down_session": {"foreground": COLORS["danger"]},  # User clicked Skip (darker red)
@@ -308,7 +308,7 @@ VOCAB_TABLE_TAGS = {
     "found_rake": {"foreground": COLORS["algo_rake"]},
     "found_bm25": {"foreground": COLORS["algo_bm25"]},
     "found_llm": {"foreground": COLORS["algo_llm"]},
-    # Session 61: Added foreground to ensure text visibility in dark mode
+    # Foreground set explicitly to ensure text visibility in dark mode
     "oddrow": {"background": COLORS["row_odd"], "foreground": COLORS["row_text"]},
     "evenrow": {"background": COLORS["row_even"], "foreground": COLORS["row_text"]},
 }

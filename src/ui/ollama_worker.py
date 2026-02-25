@@ -62,7 +62,7 @@ def ollama_generation_worker_process(
                     # However, we can track if a terminate signal comes *before* or *after* the call.
                     # The requests.post call does have a timeout, which is the primary control.
 
-                    # LOG-012: Check for termination right before the blocking call
+                    # Check for termination right before the blocking call
                     # Use try/except to avoid TOCTOU race with empty() + get_nowait()
                     try:
                         if input_queue.get_nowait() == "TERMINATE":
@@ -78,7 +78,7 @@ def ollama_generation_worker_process(
                         case_text=case_text, max_words=max_words, preset_id=preset_id
                     )
 
-                    # LOG-012: After generation, check again for termination
+                    # After generation, check again for termination
                     # Use try/except to avoid TOCTOU race with empty() + get_nowait()
                     try:
                         if input_queue.get_nowait() == "TERMINATE":

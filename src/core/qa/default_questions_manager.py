@@ -4,7 +4,7 @@ Default Questions Manager
 Manages the list of default Q&A questions with enable/disable state.
 Questions are stored in a JSON file with their enabled status.
 
-Session 63c: Created to support checkbox-based question management in Settings UI.
+Supports checkbox-based question management in Settings UI.
 """
 
 import json

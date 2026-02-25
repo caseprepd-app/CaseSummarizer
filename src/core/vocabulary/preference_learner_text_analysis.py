@@ -161,9 +161,8 @@ def _log_rarity_score(linear_score: float, total_words: int = 333000) -> float:
     0 = most common word). Logarithmic scaling compresses the common end,
     making differences between rare words more meaningful.
 
-    Session 130: Added to distinguish "Comiskey" (rank 96755, rare) from
-    "Clerk" (rank 5435, common) - both previously got binary 1.0 for
-    "all_words_in_freq_dict" which lost rarity information.
+    Distinguishes "Comiskey" (rank 96755, rare) from "Clerk" (rank 5435,
+    common) -- a binary "in frequency dict" flag loses this information.
 
     Args:
         linear_score: rank / total_words (0.0 = most common)

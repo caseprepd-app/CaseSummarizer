@@ -11,7 +11,7 @@ Architecture:
     internal_queue (Queue)    --> _forwarder_loop --> result_queue (mp.Queue)
 
 State dict (shared by reference within the subprocess):
-    embeddings, vector_store_path, chunk_scores, active_worker, shutdown
+    embeddings, vector_store_path, chunk_scores, active_worker, worker_lock, shutdown
 """
 
 import logging

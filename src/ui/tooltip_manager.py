@@ -1,8 +1,8 @@
 """
 Global Tooltip Manager for CasePrepd.
 
-Session 62b: Centralized tooltip management to ensure only ONE tooltip
-is visible at any time across the entire application.
+Centralized tooltip management ensures only one tooltip is visible at any
+time across the entire application.
 
 All tooltip implementations should use this manager to coordinate:
 - TooltipIcon (settings widgets)

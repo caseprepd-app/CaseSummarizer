@@ -3,8 +3,8 @@ Export Service
 
 Provides high-level API for exporting vocabulary and Q&A to Word/PDF/TXT/HTML.
 
-Session 73: Added auto-open exported files feature (configurable).
-Session 75: Refactored with _run_export() helper to reduce duplication (REF-002).
+Supports auto-open of exported files (configurable).
+Uses _run_export() helper to reduce duplication.
 """
 
 import logging
@@ -30,7 +30,7 @@ def _auto_open_file(file_path: str) -> None:
     """
     Open a file with the system's default application if auto-open is enabled.
 
-    Session 73: Respects user preference 'auto_open_exports'.
+    Respects user preference 'auto_open_exports'.
 
     Args:
         file_path: Path to the file to open
@@ -63,7 +63,7 @@ def _run_export(
     """
     Helper to run export with standard logging and error handling.
 
-    REF-002: Centralizes the try/except/log pattern used by all export methods.
+    Centralizes the try/except/log pattern used by all export methods.
 
     Args:
         description: What's being exported (e.g., "10 terms to Word")
@@ -222,7 +222,6 @@ class ExportService:
         """
         Export vocabulary to interactive HTML.
 
-        Session 80: Updated to pass visible columns from GUI to HTML export.
         All columns are included but only visible_columns are shown initially.
 
         Args:
@@ -246,7 +245,7 @@ class ExportService:
         """
         Get vocabulary as HTML content string (without saving to file).
 
-        Session 83: Added for UI components that write the file themselves.
+        Returns HTML content for UI components that write the file themselves.
 
         Args:
             vocab_data: List of vocabulary dicts
@@ -337,8 +336,6 @@ class ExportService:
         """
         Export vocabulary and Q&A together to a single Word document.
 
-        Session 73: Combined export feature.
-
         Args:
             vocab_data: List of vocabulary dicts
             qa_results: List of QAResult objects
@@ -374,8 +371,6 @@ class ExportService:
     ) -> bool:
         """
         Export vocabulary and Q&A together to a single PDF document.
-
-        Session 73: Combined export feature.
 
         Args:
             vocab_data: List of vocabulary dicts

@@ -69,7 +69,7 @@ class VocabularyService:
         self, documents: list[dict], progress_callback: Callable[[int, int], None] | None = None
     ) -> list[dict]:
         """
-        Extract vocabulary with per-document tracking (Session 78).
+        Extract vocabulary with per-document tracking.
 
         This method processes each document individually and tracks which
         documents contributed each term occurrence. This enables confidence-

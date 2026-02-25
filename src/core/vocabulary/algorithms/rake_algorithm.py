@@ -303,7 +303,7 @@ class RAKEAlgorithm(BaseExtractionAlgorithm):
                     lower_cleaned = cleaned.lower()
                     break
 
-        # Session 53: Filter single-word results that are common stopwords
+        # Filter single-word results that are common stopwords
         # RAKE sometimes returns single common words like "same", "left", "also"
         if " " not in cleaned and lower_cleaned in STOPWORDS:
             return ""

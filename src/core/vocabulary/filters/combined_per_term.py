@@ -9,7 +9,7 @@ This replaces multiple separate filters that each iterated the full list.
 Also includes Person validity check to catch garbage terms that spaCy
 NER incorrectly marks as Person (e.g., "ModMess Quanny Desortpdon").
 
-Session 147: Corpus familiarity is no longer used as a hard filter.
+Corpus familiarity is no longer used as a hard filter.
 Instead, corpus_common_term is added as an ML feature for the model to
 learn from.
 """
@@ -69,7 +69,7 @@ class UnifiedPerTermFilter(BaseVocabularyFilter):
         removed_by_gibberish = 0
         removed_terms = []
 
-        # Session 80: Track iteration for periodic GIL yield
+        # Track iteration for periodic GIL yield
         iteration_count = 0
         for term_data in vocabulary:
             term = term_data.get("Term", "")
@@ -86,7 +86,7 @@ class UnifiedPerTermFilter(BaseVocabularyFilter):
                 removed_terms.append(term)
                 continue
 
-            # Add corpus_common_term ML feature (Session 147: simplified binary feature)
+            # Add corpus_common_term ML feature (simplified binary feature)
             # True if term appears in >= 64% of corpus docs AND >= 5 occurrences
             # No filtering here - let the ML model learn to deprioritize common terms
             term_data["corpus_common_term"] = is_corpus_common_term(term)
@@ -99,7 +99,7 @@ class UnifiedPerTermFilter(BaseVocabularyFilter):
                 logger.debug("Filtered gibberish: '%s'", term)
                 continue
 
-            # === CHECK 4: Person Validity Filter (Session 79) ===
+            # === CHECK 4: Person Validity Filter ===
             # Person names are exempt from gibberish filter, but we catch
             # complete garbage that spaCy NER incorrectly marks as Person.
             # If NONE of the words are in the known dictionary, it's garbage.
@@ -115,7 +115,7 @@ class UnifiedPerTermFilter(BaseVocabularyFilter):
             # Term passed all checks
             filtered.append(term_data)
 
-            # Session 80: Yield GIL every 50 terms to keep GUI responsive
+            # Yield GIL every 50 terms to keep GUI responsive
             iteration_count += 1
             if iteration_count % 50 == 0:
                 time.sleep(0)

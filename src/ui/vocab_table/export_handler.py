@@ -1,8 +1,6 @@
 """
 Vocabulary Export Handler Mixin.
 
-Session 82: Extracted from dynamic_output.py for modularity.
-
 Contains all export methods for vocabulary data:
 - CSV export (with visible columns support)
 - TXT export
@@ -48,7 +46,7 @@ class VocabExportMixin:
         """
         output = io.StringIO()
 
-        # Session 80: Export only visible columns, preserving GUI column names
+        # Export only visible columns, preserving GUI column names
         columns = visible_columns or list(ALL_EXPORT_COLUMNS)
 
         writer = csv.DictWriter(
@@ -74,7 +72,7 @@ class VocabExportMixin:
         """
         Export visible vocabulary data to CSV file.
 
-        Session 80: Respects current column visibility settings.
+        Respects current column visibility settings.
         Prompts user to choose filename and exports CSV.
         """
         if not hasattr(self, "_vocab_csv_data") or not self._vocab_csv_data:
@@ -284,8 +282,7 @@ class VocabExportMixin:
         """
         Export vocabulary to HTML file.
 
-        Session 80: Uses shared HTML builder with visible columns.
-        Session 83: Updated to use ExportService.
+        Uses shared HTML builder with visible columns via ExportService.
         Creates a styled HTML table with sortable columns.
         """
         if not hasattr(self, "_vocab_csv_data") or not self._vocab_csv_data:

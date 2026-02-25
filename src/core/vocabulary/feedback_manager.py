@@ -4,7 +4,7 @@ Vocabulary Feedback Manager
 Manages user feedback (thumbs up/down) on vocabulary terms.
 Stores feedback in CSV format for ML training.
 
-Two-File System (Session 55):
+Two-File System:
 - Default feedback: Ships with app (developer's training data)
 - User feedback: Collected during normal use
 
@@ -17,7 +17,7 @@ CSV Schema:
 - document_id: Hash/ID of the document being processed
 - term: The vocabulary term
 - feedback: +1 (thumbs up) or -1 (thumbs down)
-- is_person: 1 if NER detected as person name, 0 otherwise (Session 52)
+- is_person: 1 if NER detected as person name, 0 otherwise
 - algorithms: Comma-separated list of algorithms that detected the term
 - NER_detection: Boolean - whether NER algorithm detected this term
 - RAKE_detection: Boolean - whether RAKE algorithm detected this term
@@ -27,7 +27,7 @@ CSV Schema:
 - occurrences: Term occurrence count
 - rarity_rank: Google frequency rank
 
-Session 78: Added TermSources-based per-document features:
+TermSources-based per-document features:
 - num_source_documents: How many docs contain this term
 - doc_diversity_ratio: num_docs / total_docs (0-1)
 - mean_doc_confidence: Count-weighted mean OCR confidence (0-1)
@@ -80,8 +80,8 @@ def _validate_record(record: dict) -> bool:
 
 
 # CSV columns
-# Session 52: Replaced "type" with "is_person" (binary flag, more reliable)
-# Session 78: Added TermSources-based per-document features (8 columns)
+# Uses "is_person" binary flag instead of unreliable "type" string.
+# Includes TermSources-based per-document features (8 columns).
 FEEDBACK_COLUMNS = [
     "timestamp",
     "document_id",
@@ -96,7 +96,7 @@ FEEDBACK_COLUMNS = [
     "quality_score",
     "occurrences",
     "rarity_rank",
-    # Session 78: TermSources-based features
+    # TermSources-based per-document features
     "num_source_documents",  # How many docs contain this term
     "doc_diversity_ratio",  # num_docs / total_docs (0-1)
     "mean_doc_confidence",  # Count-weighted mean OCR confidence (0-1)
@@ -113,13 +113,13 @@ class FeedbackManager:
     """
     Manages user feedback on vocabulary terms.
 
-    Two-File System (Session 55, updated Session 76):
+    Two-File System:
     - Default feedback: Ships with app (developer's training data)
       Location: config/default_feedback.csv
     - User feedback: Collected during normal use
       Location: %APPDATA%/CasePrepd/feedback/user_feedback.csv
 
-    Routing (Session 76):
+    Routing:
     - DEBUG_MODE=True: Feedback writes to default_feedback.csv (for development)
     - DEBUG_MODE=False: Feedback writes to user_feedback.csv (for end users)
 
@@ -162,7 +162,7 @@ class FeedbackManager:
         # Only tracks USER feedback for display purposes
         self._cache: dict[str, int] = {}
 
-        # Session 84: Track terms rated in current GUI session (vs loaded from file)
+        # Track terms rated in current GUI session (vs loaded from file)
         # Used to distinguish user clicks (darker green) from dataset entries (lighter green)
         self._session_rated: set[str] = set()
 
@@ -189,7 +189,7 @@ class FeedbackManager:
         """
         Load existing feedback from CSV into cache.
 
-        Routing (Session 78):
+        Routing:
         - DEBUG_MODE=True: Load from default_feedback.csv (developer data)
         - DEBUG_MODE=False: Load from user_feedback.csv (user data)
 
@@ -256,7 +256,7 @@ class FeedbackManager:
         """
         Delete a feedback entry from CSV when user clears their rating.
 
-        Session 85: Instead of recording feedback=0, we delete the row entirely.
+        Instead of recording feedback=0, deletes the row entirely.
         Matches by (term, count_bin) key.
 
         Args:
@@ -357,11 +357,11 @@ class FeedbackManager:
         if feedback == 0:
             self._cache.pop(lower_term, None)
             self._session_rated.discard(lower_term)
-            # Session 85: Delete from CSV instead of recording feedback=0
+            # Delete from CSV instead of recording feedback=0
             return self._delete_feedback_from_csv(lower_term, term_data)
         else:
             self._cache[lower_term] = feedback
-            # Session 84: Mark as session-rated (user clicked in GUI)
+            # Mark as session-rated (user clicked in GUI)
             self._session_rated.add(lower_term)
 
         # Build feedback record
@@ -375,11 +375,11 @@ class FeedbackManager:
         bm25_detected = "BM25" in algorithms_upper
         algo_count = sum([ner_detected, rake_detected, bm25_detected])
 
-        # Session 52: Use is_person (binary) instead of unreliable type
+        # Use is_person (binary) instead of unreliable type string
         is_person_val = term_data.get("Is Person", "No")
         is_person = 1 if str(is_person_val).lower() in ("yes", "1", "true") else 0
 
-        # Session 78: Extract TermSources-based features if available
+        # Extract TermSources-based features if available
         sources = term_data.get("sources")
         total_docs_in_session = term_data.get("total_docs_in_session", 1)
 
@@ -416,7 +416,7 @@ class FeedbackManager:
             "quality_score": term_data.get("Quality Score", 0),
             "occurrences": term_data.get("Occurrences", 1),
             "rarity_rank": term_data.get("Google Rarity Rank", 0),
-            # Session 78: TermSources-based features
+            # TermSources-based per-document features
             "num_source_documents": num_source_documents,
             "doc_diversity_ratio": doc_diversity_ratio,
             "mean_doc_confidence": mean_doc_confidence,
@@ -428,7 +428,7 @@ class FeedbackManager:
             "total_word_count": term_data.get("total_word_count", 0),
         }
 
-        # Session 76: Route feedback based on DEBUG_MODE
+        # Route feedback based on DEBUG_MODE
         # - DEBUG_MODE=True: Write to default_feedback.csv (development data)
         # - DEBUG_MODE=False: Write to user_feedback.csv (user data)
         target_file = self.default_feedback_file if DEBUG_MODE else self.user_feedback_file
@@ -439,7 +439,7 @@ class FeedbackManager:
                 # Ensure parent directory exists (needed for default_feedback.csv in config/)
                 target_file.parent.mkdir(parents=True, exist_ok=True)
 
-                # Session 85: Deduplicate by (term, count_bin) at write time
+                # Deduplicate by (term, count_bin) at write time
                 # If same (term, count_bin) exists, replace it; otherwise append
                 new_count_bin = get_count_bin(int(record.get("occurrences") or 1))
                 new_key = (lower_term, new_count_bin)
@@ -526,7 +526,7 @@ class FeedbackManager:
         """
         Get the source of a term's rating.
 
-        Session 84: Used to distinguish colors in GUI:
+        Distinguishes colors in GUI:
         - "session": User clicked Keep/Skip in current session (darker green/red)
         - "loaded": Rating from loaded dataset file (lighter green/red)
         - None: No rating exists
@@ -548,9 +548,8 @@ class FeedbackManager:
         """
         Clear ALL ratings for a term (all count bins).
 
-        Session 85: Deletes all entries for this term from CSV,
-        regardless of count bin. Use record_feedback(term_data, 0)
-        to clear a specific (term, count_bin) entry.
+        Deletes all entries for this term from CSV, regardless of count bin.
+        Use record_feedback(term_data, 0) to clear a specific (term, count_bin) entry.
 
         Args:
             term: The vocabulary term
@@ -740,7 +739,7 @@ class FeedbackManager:
         Combines default (shipped) and user feedback with source tags.
         Deduplicates by (term, count_bin) - keeps most recent feedback.
 
-        Session 85: Changed from term-only to (term, count_bin) deduplication.
+        Deduplicates by (term, count_bin) rather than term alone.
         Rationale: Same term at count=1 (possible OCR error) is semantically
         different from count=50 (definitely real). But same term+bin with
         multiple entries is a duplicate that would over-weight that observation.

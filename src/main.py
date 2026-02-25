@@ -68,7 +68,7 @@ def setup_file_logging(logs_dir):
     log_filename = logs_dir / f"main_log_{timestamp}.txt"
 
     class Logger:
-        """LOG-002, LOG-003: Added error handling and close method."""
+        """Tee stdout/stderr to a log file with error handling."""
 
         def __init__(self, filepath):
             # In PyInstaller windowed mode (--noconsole), sys.stdout is None

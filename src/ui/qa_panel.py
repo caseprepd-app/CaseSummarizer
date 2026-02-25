@@ -17,7 +17,7 @@ Features:
 import csv
 import io
 import logging
-import os  # LOG-014: Move to module level
+import os
 import queue
 import threading
 from collections.abc import Callable
@@ -88,7 +88,7 @@ class QAPanel(ctk.CTkFrame):
         self._create_header()
         self._create_text_display()
         self._create_button_bar()
-        # Session 80: Removed _create_followup_pane() - follow-up input is in main window
+        # Follow-up input is in the main window, not here
 
         logger.debug("QAPanel initialized with plain text layout")
 
@@ -153,9 +153,7 @@ class QAPanel(ctk.CTkFrame):
         )
         self.edit_btn.pack(side="left", padx=(0, 5))
 
-        # Session 80: Removed "Ask More Questions" button - redundant with
-        # the follow-up input at bottom of main window. Users can type questions
-        # directly in the input field below the Q&A results.
+        # "Ask More Questions" is handled by the follow-up input at bottom of main window
 
         # Copy to Clipboard button
         self.copy_btn = ctk.CTkButton(
@@ -167,8 +165,7 @@ class QAPanel(ctk.CTkFrame):
         )
         self.copy_btn.pack(side="left", padx=5)
 
-        # Session 72: Export dropdown (replaces separate TXT/CSV/Word/PDF buttons)
-        # Note: CTkOptionMenu doesn't support hover_color, so only use fg_color
+        # Export dropdown (CTkOptionMenu doesn't support hover_color, so only use fg_color)
         self.export_dropdown = ctk.CTkOptionMenu(
             button_frame,
             values=["Export...", "TXT", "CSV", "Word (.docx)", "PDF", "HTML"],
@@ -495,7 +492,7 @@ class QAPanel(ctk.CTkFrame):
             )
             return
 
-        # Session 73: Use last export folder or Documents
+        # Use last export folder or Documents
         prefs = get_user_preferences()
         initial_dir = (
             prefs.get("last_export_path") or DocumentService().get_default_documents_folder()
@@ -517,11 +514,10 @@ class QAPanel(ctk.CTkFrame):
             with open(filepath, "w", encoding="utf-8-sig", newline="") as f:
                 f.write(content)
 
-            # Session 73: Remember export folder
+            # Remember export folder
             prefs.set("last_export_path", str(Path(filepath).parent))
 
-            # Status bar confirmation (Session 69)
-            # LOG-014: Using module-level os import
+            # Status bar confirmation
             main_window = self.winfo_toplevel()
             if hasattr(main_window, "set_status"):
                 filename = os.path.basename(filepath)
@@ -553,7 +549,7 @@ class QAPanel(ctk.CTkFrame):
             )
             return
 
-        # Session 73: Use last export folder or Documents
+        # Use last export folder or Documents
         prefs = get_user_preferences()
         initial_dir = (
             prefs.get("last_export_path") or DocumentService().get_default_documents_folder()
@@ -575,11 +571,10 @@ class QAPanel(ctk.CTkFrame):
             with open(filepath, "w", encoding="utf-8") as f:
                 f.write(content)
 
-            # Session 73: Remember export folder
+            # Remember export folder
             prefs.set("last_export_path", str(Path(filepath).parent))
 
-            # Status bar confirmation (Session 69)
-            # LOG-014: Using module-level os import
+            # Status bar confirmation
             main_window = self.winfo_toplevel()
             if hasattr(main_window, "set_status"):
                 filename = os.path.basename(filepath)
@@ -595,7 +590,7 @@ class QAPanel(ctk.CTkFrame):
             logger.debug("Export error: %s", e)
 
     def _export_to_word(self):
-        """Export selected Q&A results to Word document (Session 71, updated Session 73)."""
+        """Export selected Q&A results to Word document."""
         from pathlib import Path
 
         from src.services import DocumentService, get_export_service
@@ -611,7 +606,7 @@ class QAPanel(ctk.CTkFrame):
             )
             return
 
-        # Session 73: Use last export folder or Documents
+        # Use last export folder or Documents
         prefs = get_user_preferences()
         initial_dir = (
             prefs.get("last_export_path") or DocumentService().get_default_documents_folder()
@@ -633,11 +628,10 @@ class QAPanel(ctk.CTkFrame):
             success = export_service.export_qa_to_word(exportable, filepath)
 
             if success:
-                # Session 73: Remember export folder
+                # Remember export folder
                 prefs.set("last_export_path", str(Path(filepath).parent))
 
                 # Status bar confirmation
-                # LOG-014: Using module-level os import
                 main_window = self.winfo_toplevel()
                 if hasattr(main_window, "set_status"):
                     filename = os.path.basename(filepath)
@@ -656,7 +650,7 @@ class QAPanel(ctk.CTkFrame):
             logger.debug("Export error: %s", e)
 
     def _export_to_pdf(self):
-        """Export selected Q&A results to PDF document (Session 71, updated Session 73)."""
+        """Export selected Q&A results to PDF document."""
         from pathlib import Path
 
         from src.services import DocumentService, get_export_service
@@ -672,7 +666,7 @@ class QAPanel(ctk.CTkFrame):
             )
             return
 
-        # Session 73: Use last export folder or Documents
+        # Use last export folder or Documents
         prefs = get_user_preferences()
         initial_dir = (
             prefs.get("last_export_path") or DocumentService().get_default_documents_folder()
@@ -694,11 +688,10 @@ class QAPanel(ctk.CTkFrame):
             success = export_service.export_qa_to_pdf(exportable, filepath)
 
             if success:
-                # Session 73: Remember export folder
+                # Remember export folder
                 prefs.set("last_export_path", str(Path(filepath).parent))
 
                 # Status bar confirmation
-                # LOG-014: Using module-level os import
                 main_window = self.winfo_toplevel()
                 if hasattr(main_window, "set_status"):
                     filename = os.path.basename(filepath)
@@ -717,7 +710,7 @@ class QAPanel(ctk.CTkFrame):
             logger.debug("Export error: %s", e)
 
     def _export_to_html(self):
-        """Export selected Q&A results to interactive HTML file (Session 72, updated Session 73)."""
+        """Export selected Q&A results to interactive HTML file."""
         from pathlib import Path
 
         from src.services import DocumentService, get_export_service
@@ -733,7 +726,7 @@ class QAPanel(ctk.CTkFrame):
             )
             return
 
-        # Session 73: Use last export folder or Documents
+        # Use last export folder or Documents
         prefs = get_user_preferences()
         initial_dir = (
             prefs.get("last_export_path") or DocumentService().get_default_documents_folder()
@@ -755,11 +748,10 @@ class QAPanel(ctk.CTkFrame):
             success = export_service.export_qa_to_html(exportable, filepath)
 
             if success:
-                # Session 73: Remember export folder
+                # Remember export folder
                 prefs.set("last_export_path", str(Path(filepath).parent))
 
                 # Status bar confirmation
-                # LOG-014: Using module-level os import
                 main_window = self.winfo_toplevel()
                 if hasattr(main_window, "set_status"):
                     filename = os.path.basename(filepath)
@@ -779,7 +771,7 @@ class QAPanel(ctk.CTkFrame):
 
     def _on_export_format_selected(self, choice: str):
         """
-        Handle export format selection from dropdown (Session 72).
+        Handle export format selection from dropdown.
 
         Args:
             choice: Selected format ("Export...", "TXT", "CSV", "Word (.docx)", "PDF", "HTML")
@@ -852,7 +844,7 @@ class QAPanel(ctk.CTkFrame):
 
     def _copy_to_clipboard(self):
         """
-        Copy selected Q&A results to clipboard (Session 65, updated Session 69).
+        Copy selected Q&A results to clipboard.
 
         Copies in a readable text format suitable for pasting into documents.
         Uses brief button flash + status bar confirmation for better UX.
@@ -887,7 +879,7 @@ class QAPanel(ctk.CTkFrame):
             self.copy_btn.configure(text=f"Copied {len(exportable)}!")
             self.after(1500, lambda: self.copy_btn.configure(text=original_text))
 
-            # Status bar confirmation (Session 69)
+            # Status bar confirmation
             main_window = self.winfo_toplevel()
             if hasattr(main_window, "set_status"):
                 pair_word = "pair" if len(exportable) == 1 else "pairs"

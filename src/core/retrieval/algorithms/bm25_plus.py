@@ -25,7 +25,7 @@ import logging
 import time
 from typing import Any
 
-import numpy as np  # PERF-004: Move to module level
+import numpy as np
 from rank_bm25 import BM25Plus
 
 from src.config import BM25_B, BM25_DELTA, BM25_K1
@@ -133,7 +133,7 @@ class BM25PlusRetriever(BaseRetrievalAlgorithm):
         raw_scores = self._index.get_scores(query_tokens)
 
         # Get top-k indices (sorted by score descending)
-        # PERF-004: Use module-level numpy import
+        # Use module-level numpy import
         top_k_indices = np.argsort(raw_scores)[::-1][:k]
 
         # Build result chunks

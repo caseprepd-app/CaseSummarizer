@@ -86,7 +86,7 @@ def deduplicate_names(
     if not terms:
         return terms
 
-    # Separate Person terms from others (Session 70: use centralized check)
+    # Separate Person terms from others (uses centralized is_person_entry check)
     person_terms = [t for t in terms if is_person_entry(t)]
     other_terms = [t for t in terms if not is_person_entry(t)]
 
@@ -228,9 +228,9 @@ def _fuzzy_merge_groups(groups: dict[str, list], threshold: float) -> list[list[
     Handles OCR variants like "Arthur Jenkins" vs "Anhur Jenkins" that
     survived artifact stripping but are still different keys.
 
-    Session 70 Optimization: Uses first-letter blocking to reduce O(n²) to ~O(n²/26).
-    Only compares names that share the same first letter, since OCR rarely
-    corrupts the first character. This gives 5-10x speedup for large name lists.
+    Uses first-letter blocking to reduce O(n²) to ~O(n²/26). Only compares
+    names that share the same first letter, since OCR rarely corrupts the
+    first character. This gives 5-10x speedup for large name lists.
 
     Args:
         groups: Dict mapping normalized name to entries
@@ -241,7 +241,7 @@ def _fuzzy_merge_groups(groups: dict[str, list], threshold: float) -> list[list[
     """
     keys = list(groups.keys())
 
-    # Build candidate pairs using first-letter blocking (Session 70)
+    # Build candidate pairs using first-letter blocking
     # Only compare names that start with the same letter
     candidate_pairs = _build_candidate_pairs(keys)
 
@@ -286,7 +286,7 @@ def _build_candidate_pairs(keys: list[str]) -> set[tuple[int, int]]:
     Only names starting with the same letter are compared.
     This reduces O(n²) comparisons to ~O(n²/26) for uniformly distributed names.
 
-    Session 70 optimization for large vocabularies (500+ names).
+    Optimized for large vocabularies (500+ names).
 
     Args:
         keys: List of normalized name strings
@@ -814,7 +814,7 @@ def _word_validity_score(name: str) -> float:
     """
     Score a name based on how many of its words are in the known word lists.
 
-    Session 78: Used by _select_canonical to prefer valid dictionary words
+    Used by _select_canonical to prefer valid dictionary words
     over OCR typos when merging similar names.
 
     Example:
@@ -854,7 +854,7 @@ def _select_canonical(group: list[dict]) -> dict:
     """
     Select the canonical entry from a group of similar names.
 
-    Session 78: Now uses CanonicalScorer with branching logic:
+    Uses CanonicalScorer with branching logic:
     - If exactly ONE variant is fully known (in dictionary) → it wins
     - If ZERO variants are known → weighted score decides (exotic name)
     - If MULTIPLE variants are known → weighted score tiebreaker
@@ -882,7 +882,7 @@ def _select_canonical(group: list[dict]) -> dict:
 
     freq_key = "Occurrences"
 
-    # Check if any entry has TermSources (Session 78 infrastructure)
+    # Check if any entry has TermSources
     has_sources = any(
         "sources" in e["original"] and isinstance(e["original"].get("sources"), TermSources)
         for e in group
@@ -898,7 +898,7 @@ def _select_canonical(group: list[dict]) -> dict:
 
 def _select_canonical_with_scorer(group: list[dict], freq_key: str) -> dict:
     """
-    Select canonical using CanonicalScorer (Session 78).
+    Select canonical using CanonicalScorer.
 
     Uses dictionary presence and confidence-weighted scoring to select
     the most likely correct spelling from a group of similar variants.
@@ -983,8 +983,8 @@ def _select_canonical_legacy(group: list[dict], freq_key: str) -> dict:
     Kept for backward compatibility when TermSources aren't available.
     Uses word validity, casing, length, and frequency to score candidates.
 
-    Session 78: This will be phased out once per-document tracking is
-    fully integrated into the pipeline.
+    This will be phased out once per-document tracking is fully integrated
+    into the pipeline.
 
     Args:
         group: List of similar name entries

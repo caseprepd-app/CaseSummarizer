@@ -1,8 +1,6 @@
 """
 File Management Mixin.
 
-Session 82: Extracted from main_window.py for modularity.
-
 Contains:
 - File selection dialog
 - Drag-and-drop support
@@ -16,7 +14,7 @@ from tkinter import filedialog
 
 logger = logging.getLogger(__name__)
 
-# Try to import tkinterdnd2 for drag-and-drop support (Session 73)
+# Try to import tkinterdnd2 for drag-and-drop support
 try:
     from tkinterdnd2 import DND_FILES, TkinterDnD
 

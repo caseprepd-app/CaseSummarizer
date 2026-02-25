@@ -1,5 +1,5 @@
 """
-LLM-based Vocabulary Extractor (Session 45 Update)
+LLM-based Vocabulary Extractor
 
 Uses Ollama to extract names and technical vocabulary from document chunks
 with a single prompt per chunk for efficiency. This replaces the previous
@@ -13,11 +13,6 @@ intentionally uses UnifiedChunks (400-1000 tokens each). This is BY DESIGN:
 - Results are reconciled with NER output for comprehensive coverage
 This is documented as intentional architecture, not a text flow inconsistency.
 
-Session 45 Update:
-- Added support for UnifiedChunk objects from unified_chunker
-- New combined extraction format with separate "people" and "vocabulary" keys
-- Better structure for reconciliation with NER results
-
 Design philosophy:
 - One focused prompt that extracts NAMES and TECHNICAL VOCABULARY
 - Results stored in Python lists (no truncation like "and 70 more...")
@@ -28,7 +23,6 @@ Usage:
     from src.core.extraction.llm_extractor import LLMVocabExtractor
     from src.core.chunking import UnifiedChunker
 
-    # With unified chunks (Session 45)
     chunker = UnifiedChunker()
     chunks = chunker.chunk_text(document_text)
 
@@ -55,7 +49,7 @@ from src.core.ai.ollama_model_manager import OllamaModelManager
 
 logger = logging.getLogger(__name__)
 
-# Default prompt file path (Session 45: combined extraction)
+# Default prompt file path (combined extraction)
 PROMPT_FILE = (
     Path(__file__).parent.parent.parent.parent
     / "config"
@@ -69,7 +63,7 @@ DEFAULT_MAX_TOKENS = LLM_EXTRACTOR_MAX_TOKENS  # Fallback: 1000
 
 @dataclass
 class LLMPerson:
-    """A person/organization extracted by the LLM (Session 45).
+    """A person/organization extracted by the LLM.
 
     Attributes:
         name: Full name of the person or organization
@@ -137,7 +131,7 @@ class LLMTerm:
 
 @dataclass
 class LLMExtractionResult:
-    """Result from LLM extraction of a document (Session 45 Update).
+    """Result from LLM extraction of a document.
 
     Attributes:
         people: List of extracted people/organizations with roles
@@ -277,7 +271,7 @@ DOCUMENT CHUNK:
 
     def _extract_chunk(self, chunk: str, chunk_id: int) -> tuple[list[LLMPerson], list[LLMTerm]]:
         """
-        Extract people and terms from a single chunk (Session 45 combined format).
+        Extract people and terms from a single chunk using combined format.
 
         Args:
             chunk: Text chunk to process
@@ -310,7 +304,7 @@ DOCUMENT CHUNK:
         self, response: dict | str, chunk_id: int
     ) -> tuple[list[LLMPerson], list[LLMTerm]]:
         """
-        Parse LLM JSON response into LLMPerson and LLMTerm objects (Session 45).
+        Parse LLM JSON response into LLMPerson and LLMTerm objects.
 
         Handles combined format: {"people": [...], "vocabulary": [...]}
 
@@ -401,7 +395,7 @@ DOCUMENT CHUNK:
         Extract people and vocabulary from pre-chunked text.
 
         Use this when you already have document chunks as plain strings.
-        Session 69: Uses parallel processing when beneficial.
+        Uses parallel processing when beneficial.
 
         Args:
             chunks: List of text chunks
@@ -418,7 +412,6 @@ DOCUMENT CHUNK:
         # Convert to (chunk_text, chunk_id) tuples for parallel processing
         chunk_items = [(chunk, i) for i, chunk in enumerate(chunks)]
 
-        # Use parallel extraction (Session 69)
         all_people, all_terms = self._extract_chunks_parallel(chunk_items, progress_callback)
 
         processing_time = (time.time() - start_time) * 1000
@@ -437,11 +430,10 @@ DOCUMENT CHUNK:
         progress_callback: Callable[[int, int], None] | None = None,
     ) -> LLMExtractionResult:
         """
-        Extract people and vocabulary from UnifiedChunk objects (Session 45).
+        Extract people and vocabulary from UnifiedChunk objects.
 
         Use this when you have chunks from UnifiedChunker for integrated
-        processing with Q&A indexing. Session 69: Uses parallel processing
-        when beneficial.
+        processing with Q&A indexing. Uses parallel processing when beneficial.
 
         Args:
             chunks: List of UnifiedChunk objects from unified_chunker
@@ -462,7 +454,6 @@ DOCUMENT CHUNK:
             chunk_id = chunk.chunk_num if hasattr(chunk, "chunk_num") else i
             chunk_items.append((chunk_text, chunk_id))
 
-        # Use parallel extraction (Session 69)
         all_people, all_terms = self._extract_chunks_parallel(chunk_items, progress_callback)
 
         processing_time = (time.time() - start_time) * 1000
@@ -489,7 +480,7 @@ DOCUMENT CHUNK:
         progress_callback: Callable[[int, int], None] | None = None,
     ) -> tuple[list[LLMPerson], list[LLMTerm]]:
         """
-        Process chunks in parallel when beneficial (Session 69).
+        Process chunks in parallel when beneficial.
 
         Uses ThreadPoolStrategy to process 2-3 chunks concurrently.
         Falls back to sequential execution when:

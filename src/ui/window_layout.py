@@ -2,7 +2,7 @@
 Window Layout Mixin for MainWindow
 
 Provides UI layout creation methods for the MainWindow class.
-Extracted from main_window.py in Session 33 to improve code organization.
+Extracted from main_window.py to improve code organization.
 
 This module contains all widget creation and layout code, separating
 visual structure from business logic in the main window.
@@ -117,7 +117,7 @@ class WindowLayoutMixin:
         )
         self.corpus_dropdown.pack(side="left")
 
-        # Corpus document count badge (Session 67)
+        # Corpus document count badge
         self.corpus_doc_count_label = ctk.CTkLabel(
             self.corpus_frame, text="", font=FONTS["small"], text_color=COLORS["text_secondary"]
         )
@@ -199,7 +199,7 @@ class WindowLayoutMixin:
         )
         self.clear_files_btn.pack(side="left")
 
-        # Session Stats section (Session 73)
+        # Session Stats section
         self.stats_label = ctk.CTkLabel(
             self.left_panel,
             text="",
@@ -263,7 +263,7 @@ class WindowLayoutMixin:
         )
         self.generate_btn.grid(row=7, column=0, sticky="ew", padx=10, pady=(15, 5))
 
-        # Task preview label (Session 69) - shows what will run
+        # Task preview label - shows what will run
         self.task_preview_label = ctk.CTkLabel(
             self.left_panel,
             text="",
@@ -297,7 +297,7 @@ class WindowLayoutMixin:
         self.output_display.grid(row=1, column=0, sticky="nsew", padx=10, pady=5)
 
         # Follow-up question input (for Q&A mode)
-        # Session 78: Store as class attribute so it can be shown/hidden based on active tab
+        # Store as class attribute so it can be shown/hidden based on active tab
         self.followup_frame = ctk.CTkFrame(self.right_panel, fg_color="transparent")
         self.followup_frame.grid(row=2, column=0, sticky="ew", padx=10, pady=(0, 10))
         self.followup_frame.grid_columnconfigure(0, weight=1)

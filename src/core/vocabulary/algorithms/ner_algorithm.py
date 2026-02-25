@@ -141,7 +141,7 @@ class NERAlgorithm(BaseExtractionAlgorithm):
         if chunks is None:
             chunks = self._chunk_text(text, chunk_size_kb=50)
 
-        # Session 85: Progress callback for progressive vocabulary loading
+        # Progress callback for progressive vocabulary loading
         progress_callback = kwargs.get("progress_callback")
         total_chunks = len(chunks)
 
@@ -151,7 +151,7 @@ class NERAlgorithm(BaseExtractionAlgorithm):
         total_entities = 0
 
         # Process chunks using nlp.pipe() for efficiency
-        # Session 80: Add GIL yield after each chunk to keep GUI responsive
+        # Add GIL yield after each chunk to keep GUI responsive
         chunk_num = 0
         last_reported_pct = 0  # Track last reported percentage for throttling
         last_report_time = start_time  # Time-based progress floor
@@ -165,7 +165,7 @@ class NERAlgorithm(BaseExtractionAlgorithm):
             chunk_candidates = self._extract_from_doc(doc, term_frequencies)
             candidates.extend(chunk_candidates)
 
-            # Session 85: Throttled progress callback - fire every 10% OR every 30s
+            # Throttled progress callback - fire every 10% OR every 30s
             # Time-based floor prevents 5+ minute silent gaps on large documents
             if progress_callback is not None:
                 current_pct = int((chunk_num / total_chunks) * 100)
@@ -223,7 +223,7 @@ class NERAlgorithm(BaseExtractionAlgorithm):
                 # Single-word entities need additional filtering
                 words = term_text.split()
                 if len(words) == 1:
-                    # Session 53: Filter stopwords for ALL single-word entities
+                    # Filter stopwords for ALL single-word entities
                     # (spaCy sometimes tags common words like "bill" as PERSON)
                     if term_text.lower() in STOPWORDS:
                         continue
@@ -354,7 +354,7 @@ class NERAlgorithm(BaseExtractionAlgorithm):
 
         lower_text = token.text.lower()
 
-        # Session 53: Filter common stopwords early
+        # Filter common stopwords early
         if lower_text in STOPWORDS:
             return False
 

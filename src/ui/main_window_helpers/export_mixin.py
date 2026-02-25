@@ -1,8 +1,6 @@
 """
 Export Functions Mixin.
 
-Session 82: Extracted from main_window.py for modularity.
-
 Contains:
 - Export All functionality (tabbed HTML export)
 """

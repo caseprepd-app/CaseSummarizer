@@ -5,7 +5,7 @@ Detects nonsense/random character sequences that pass pattern-based filters.
 Uses spell checking combined with edit distance and sequence similarity
 to distinguish true gibberish from typos.
 
-Session 79: Improved algorithm using dual metrics:
+Uses dual metrics:
 - Edit distance ratio: How many characters changed relative to word length
 - Sequence similarity: How similar the word is to its best correction
 - BOTH must pass thresholds, otherwise it's gibberish (strict when they disagree)
@@ -40,8 +40,8 @@ class GibberishFilter:
     """
     Wrapper for gibberish detection using spell checking with dual metrics.
 
-    Session 79: Improved algorithm that uses BOTH edit distance ratio AND
-    sequence similarity to distinguish gibberish from typos.
+    Uses BOTH edit distance ratio AND sequence similarity to distinguish
+    gibberish from typos.
 
     A word is considered gibberish if:
     1. It's not in the dictionary, AND
@@ -103,7 +103,7 @@ class GibberishFilter:
         """
         Check if a single word is gibberish using dual metrics.
 
-        Session 79: Uses edit distance ratio AND sequence similarity.
+        Uses edit distance ratio AND sequence similarity.
         Both must pass for a word to be considered a valid typo.
 
         Args:

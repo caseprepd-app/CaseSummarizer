@@ -1,7 +1,8 @@
 """
-Task Execution Mixin.
+Task Execution Helpers.
 
-Session 82: Extracted from main_window.py for modularity.
+Standalone utility methods extracted from main_window.py.
+These are called directly by MainWindow, not inherited as a mixin.
 
 Contains:
 - Task state management (task count, button state)

@@ -6,11 +6,11 @@ Contains threading and multiprocessing workers for document processing:
 - OllamaAIWorkerManager: AI generation process manager
 
 Performance Optimizations:
-- Session 14: Non-blocking termination for AI worker
-- Session 18: Parallel document extraction via Strategy Pattern
-- Session 49: DRY refactor - BaseWorker eliminates boilerplate
+- Non-blocking termination for AI worker
+- Parallel document extraction via Strategy Pattern
+- BaseWorker base class eliminates boilerplate
 
-Moved to services layer in Session 83 to enforce pipeline architecture.
+Lives in services layer to enforce pipeline architecture.
 Workers are orchestration, not UI display.
 """
 
@@ -47,8 +47,6 @@ class ProcessingWorker(BaseWorker):
 
     The worker processes multiple documents concurrently (up to PARALLEL_MAX_WORKERS)
     while maintaining responsive UI updates via ProgressAggregator.
-
-    Session 49: Refactored to use BaseWorker.
 
     Attributes:
         file_paths: List of document paths to process.
@@ -239,8 +237,6 @@ class QAWorker(BaseWorker):
     - ('qa_complete', list[QAResult]) - All questions processed
     - ('error', str) - Error occurred
 
-    Session 49: Refactored to use BaseWorker.
-
     Example:
         worker = QAWorker(
             vector_store_path=Path("./vector_stores/case_123"),
@@ -312,7 +308,7 @@ class QAWorker(BaseWorker):
 
         logger.debug("Processing %s questions", total)
 
-        # Process questions (parallel when beneficial - Session 69)
+        # Process questions (parallel when beneficial)
         self.results = self._process_questions_parallel(orchestrator, questions, is_default, total)
 
         # Send completion signal with all results
@@ -323,7 +319,7 @@ class QAWorker(BaseWorker):
         self, orchestrator, questions: list[str], is_default: bool, total: int
     ) -> list:
         """
-        Process Q&A questions, using parallelization when beneficial (Session 69).
+        Process Q&A questions, using parallelization when beneficial.
 
         Uses ThreadPoolStrategy to process 2-4 questions concurrently.
         Falls back to sequential execution when:
@@ -388,7 +384,7 @@ class QAWorker(BaseWorker):
         completed_count = [0]  # Using list for mutable in closure
         count_lock = threading.Lock()
         results_dict = {}  # Store results by index for ordering
-        results_lock = threading.Lock()  # Session 70: Thread-safe dict access
+        results_lock = threading.Lock()  # Thread-safe dict access
 
         def ask_question(args):
             """Worker function to ask a single question."""
@@ -420,7 +416,7 @@ class QAWorker(BaseWorker):
                     completed_count[0] += 1
                     count = completed_count[0]
 
-                # Store result for ordered return (Session 70: thread-safe)
+                # Store result for ordered return (thread-safe)
                 with results_lock:
                     results_dict[idx] = qa_result
 
@@ -443,12 +439,12 @@ class QAWorker(BaseWorker):
                 if not task_result.success:
                     logger.debug("Question %s failed: %s", task_result.task_id, task_result.error)
 
-            # Return results in original order (Session 70: thread-safe read)
+            # Return results in original order (thread-safe read)
             with results_lock:
                 ordered_results = [results_dict.get(i) for i in range(len(questions))]
             final_results = [r for r in ordered_results if r is not None]
 
-            # LOG-009: Log if any questions failed/were cancelled
+            # Log if any questions failed/were cancelled
             failed_count = len(ordered_results) - len(final_results)
             if failed_count > 0:
                 logger.debug("%s/%s questions returned no result", failed_count, len(questions))
@@ -475,7 +471,7 @@ class OllamaAIWorkerManager:
     @staticmethod
     def _clear_queue(queue):
         """Safely clear all messages from a queue (no TOCTOU race)."""
-        # LOG-010: Track how many items cleared for debugging
+        # Track how many items cleared for debugging
         cleared_count = 0
         while True:
             try:
@@ -587,8 +583,6 @@ class MultiDocSummaryWorker(CleanupWorker):
 
     This worker runs in a background thread to keep the UI responsive
     during potentially long summarization operations.
-
-    Session 49: Refactored to use CleanupWorker (BaseWorker with gc.collect).
 
     Attributes:
         documents: List of document dicts with 'filename' and 'extracted_text'.
@@ -713,7 +707,7 @@ class MultiDocSummaryWorker(CleanupWorker):
                 result.total_processing_time_seconds,
             )
         else:
-            logger.debug("Processing cancelled by user.")
+            logger.debug("Processing cancelled by user")
             self.ui_queue.put(QueueMessage.error("Multi-document summarization cancelled."))
 
     def _cleanup(self):
@@ -724,14 +718,12 @@ class MultiDocSummaryWorker(CleanupWorker):
 
 class ProgressiveExtractionWorker(BaseWorker):
     """
-    Progressive three-phase extraction worker (Session 45).
+    Progressive three-phase extraction worker.
 
     Implements the vocabulary-first architecture with progressive output:
     - Phase 1 (NER): Fast extraction, returns results in ~5 seconds
     - Phase 2 (Q&A): Builds vector store for Q&A (parallel with Phase 3)
     - Phase 3 (LLM): Slow LLM extraction, updates progressively
-
-    Session 49: Refactored to use BaseWorker.
 
     Signals sent to ui_queue:
     - ('ner_complete', vocab_data) - Phase 1 complete, display immediately
@@ -760,7 +752,7 @@ class ProgressiveExtractionWorker(BaseWorker):
         medical_terms_path: str | None = None,
         user_exclude_path: str | None = None,
         doc_confidence: float = 100.0,
-        use_llm: bool = True,  # Session 62b: Respect LLM preference
+        use_llm: bool = True,
     ):
         """
         Initialize progressive extraction worker.
@@ -773,8 +765,8 @@ class ProgressiveExtractionWorker(BaseWorker):
             exclude_list_path: Path to legal exclusion list
             medical_terms_path: Path to medical terms list
             user_exclude_path: Path to user exclusion list
-            doc_confidence: Aggregate OCR confidence (0-100) for ML feature (Session 54)
-            use_llm: Whether to run Phase 3 LLM extraction (Session 62b)
+            doc_confidence: Aggregate OCR confidence (0-100) for ML feature
+            use_llm: Whether to run Phase 3 LLM extraction
         """
         super().__init__(ui_queue)
         self.documents = documents
@@ -783,8 +775,8 @@ class ProgressiveExtractionWorker(BaseWorker):
         self.exclude_list_path = exclude_list_path
         self.medical_terms_path = medical_terms_path
         self.user_exclude_path = user_exclude_path
-        self.doc_confidence = doc_confidence  # Session 54: OCR quality for ML
-        self.use_llm = use_llm  # Session 62b: Whether to run LLM phase
+        self.doc_confidence = doc_confidence  # OCR quality for ML feature
+        self.use_llm = use_llm  # Whether to run LLM phase
         # Cross-thread state for Q&A phase (Phase 2)
         self._qa_succeeded = threading.Event()
         self._qa_error_lock = threading.Lock()
@@ -794,10 +786,10 @@ class ProgressiveExtractionWorker(BaseWorker):
         """Execute three-phase progressive extraction."""
         logger.debug("Starting progressive extraction")
 
-        # Session 85: Signal extraction started (dims feedback buttons)
+        # Signal extraction started (dims feedback buttons)
         self.ui_queue.put(QueueMessage.extraction_started())
 
-        # ===== PHASE 1: Local Algorithms (Progressive - Session 85) =====
+        # ===== PHASE 1: Local Algorithms (Progressive) =====
         # Runs BM25 + RAKE first (fast), then NER with chunk progress
         logger.debug("Phase 1: Local algorithm extraction starting...")
 
@@ -812,9 +804,9 @@ class ProgressiveExtractionWorker(BaseWorker):
         self.send_progress(5, "Scanning for names and entities...")
         self.send_progress(10, f"Phase 1: Running local extraction ({algo_list})...")
 
-        # Session 131: Per-document parallel extraction when 2+ documents
+        # Per-document parallel extraction when 2+ documents.
         # Each doc runs the full pipeline independently, then results are merged
-        # with real TermSources (fixes # Docs always showing 1)
+        # with real TermSources so # Docs reflects actual document counts.
         if len(self.documents) > 1:
             doc_list = [
                 {
@@ -869,7 +861,7 @@ class ProgressiveExtractionWorker(BaseWorker):
         logger.info("Phase 1 complete: %s terms from local algorithms", len(ner_results))
         self.ui_queue.put(QueueMessage.ner_complete(ner_results))
 
-        # Session 85: Signal extraction complete (re-enables feedback buttons)
+        # Signal extraction complete (re-enables feedback buttons)
         self.ui_queue.put(QueueMessage.extraction_complete())
 
         self.check_cancelled()
@@ -884,7 +876,7 @@ class ProgressiveExtractionWorker(BaseWorker):
         qa_thread.start()
 
         # ===== PHASE 3: LLM Enhancement (Slow - minutes) =====
-        # Session 62b: Only run LLM phase if enabled (GPU auto-detect or user override)
+        # Only runs if enabled (GPU auto-detect or user override)
         if self.use_llm:
             logger.debug("Phase 3: LLM extraction starting...")
             self.send_progress(30, "Phase 3: Starting LLM enhancement...")
@@ -952,7 +944,7 @@ class ProgressiveExtractionWorker(BaseWorker):
             self.ui_queue.put(QueueMessage.llm_complete(final_data))
             self.send_progress(100, f"Complete: {len(final_data)} names & terms found")
         else:
-            # Session 62b: Skip LLM phase - NER results are already sent in Phase 1
+            # Skip LLM phase - NER results are already sent in Phase 1
             logger.debug("Phase 3: Skipped (LLM disabled by user preference or no GPU)")
             self.send_progress(90, "Phase 3: Skipped (LLM disabled)")
             # Signal LLM complete with empty list - UI will show NER-only results

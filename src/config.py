@@ -46,12 +46,12 @@ DATA_DIR = APPDATA_DIR / "data"
 for directory in [APPDATA_DIR, MODELS_DIR, CACHE_DIR, LOGS_DIR, CONFIG_DIR, DATA_DIR]:
     directory.mkdir(parents=True, exist_ok=True)
 
-# Feedback and ML Configuration (Session 25, updated Session 55)
+# Feedback and ML Configuration
 FEEDBACK_DIR = DATA_DIR / "feedback"
 MODELS_ML_DIR = DATA_DIR / "models"  # ML models (separate from Ollama models)
 VOCAB_MODEL_PATH = MODELS_ML_DIR / "vocab_meta_learner.pkl"
 
-# Two-file feedback system (Session 55)
+# Two-file feedback system:
 # - Default feedback ships with app (developer's training data)
 # - User feedback is collected during normal use
 DEFAULT_FEEDBACK_CSV = BUNDLED_CONFIG_DIR / "default_feedback.csv"
@@ -60,13 +60,13 @@ USER_FEEDBACK_CSV = FEEDBACK_DIR / "user_feedback.csv"
 # Legacy path - kept for backward compatibility detection only
 VOCAB_FEEDBACK_CSV = FEEDBACK_DIR / "vocab_feedback.csv"
 
-# ML Training Thresholds (Session 84)
+# ML Training Thresholds
 # Don't train until we have enough samples to matter.
 ML_MIN_SAMPLES = _d("ml_min_samples")  # Minimum samples before ML training starts
 ML_ENSEMBLE_MIN_SAMPLES = _d("ml_ensemble_min_samples")  # Minimum samples to enable ensemble
 ML_RETRAIN_THRESHOLD = 1  # Retrain on ANY new user feedback (was 10)
 
-# Graduated RF Weight in Ensemble (Session 84)
+# Graduated RF Weight in Ensemble
 # RF starts with low weight and increases as samples grow.
 # Below 200 samples: fixed weight blend. At 200+: confidence-weighted blend.
 # Thresholds: (min_samples, rf_weight) - finds first threshold where count < min
@@ -79,7 +79,7 @@ ML_RF_WEIGHT_THRESHOLDS = [
     # 200+: confidence_weighted_blend (dynamic based on model confidence)
 ]
 
-# ML Time Decay Configuration (Session 47)
+# ML Time Decay Configuration
 # Older feedback is weighted less to adapt to changing user preferences
 # - Half-life: Tuned so weight reaches floor at 3 years
 # - Floor: Minimum weight (old feedback still matters, just less)
@@ -91,7 +91,7 @@ ML_RF_WEIGHT_THRESHOLDS = [
 ML_DECAY_HALF_LIFE_DAYS = _d("ml_decay_half_life_days")  # ~3.5 years
 ML_DECAY_WEIGHT_FLOOR = _d("ml_decay_weight_floor")  # Old feedback retains 55% weight minimum
 
-# Graduated ML Weight (Session 84)
+# Graduated ML Weight
 # ML influence on final score increases with user's training corpus size.
 # Formula: score = base_score * (1 - ml_weight) + ml_probability * 100 * ml_weight
 # Thresholds: (min_samples, ml_weight) - finds first threshold where count < min
@@ -106,7 +106,7 @@ ML_WEIGHT_THRESHOLDS = [
     (float("inf"), 0.80),  # 100+ samples: 80% ML (cap)
 ]
 
-# Source-Based Training Weights (Session 76)
+# Source-Based Training Weights
 # User feedback is weighted higher than shipped default data from the FIRST observation.
 # This personalizes the model immediately while keeping defaults as a stable baseline.
 # Default data is never deleted, just gradually de-emphasized as user adds more data.
@@ -124,12 +124,11 @@ ML_SOURCE_WEIGHTS = [
     (float("inf"), 0.6, 5.0),  # 200+ samples: user 5x, default 0.6x
 ]
 
-# Count Bin Configuration (Session 85, expanded Session 130)
+# Count Bin Configuration
 # Centralized definition of occurrence count bins for ML features and deduplication.
 # Rationale: count=1 could be OCR error, higher counts are progressively more reliable.
-# Session 130: Added more granularity above 7 occurrences because high-frequency
-# legitimate names (like "Comiskey" at 119 occurrences) were being scored the same
-# as names with only 7 occurrences.
+# Extra granularity above 7 occurrences ensures high-frequency legitimate names
+# are scored differently from names with only 7 occurrences.
 #
 # Used by:
 # - feedback_manager.py: Deduplication key (term, count_bin)
@@ -370,7 +369,7 @@ OLLAMA_API_TIMEOUT = 30  # Seconds for API calls (model list, status)
 GPU_DETECTION_TIMEOUT = 15  # Seconds for GPU/VRAM detection via WMI
 
 # Context Window Configuration
-# Session 64: Now dynamically set based on GPU VRAM via user preferences.
+# Dynamically set based on GPU VRAM via user preferences.
 # This constant is only used as a fallback if user preferences are unavailable.
 # Actual context size is determined by: user_preferences.get_effective_context_size()
 # which auto-detects optimal size based on VRAM (4K-64K range).
@@ -757,7 +756,7 @@ QA_TEMPERATURE = _d("qa_temperature")
 QA_SIMILARITY_THRESHOLD = _d("qa_similarity_threshold")
 
 # Q&A Context Window
-# Session 67: Now dynamically set to match LLM context window based on GPU VRAM.
+# Dynamically set to match LLM context window based on GPU VRAM.
 # See qa_retriever._get_effective_qa_context_window() for the dynamic logic.
 # This constant is a FALLBACK value used if user preferences are unavailable.
 QA_CONTEXT_WINDOW = 4096  # Fallback tokens for RAG context
@@ -816,7 +815,7 @@ QA_CITATION_MAX_CHARS = _d("qa_citation_max_chars")
 # Single chunking pass for all downstream consumers (LLM extraction + Q&A indexing)
 # Uses semantic chunking with token enforcement via tiktoken
 #
-# Session 67: Based on RAG research (2024-2025), chunk sizes are FIXED and do NOT
+# Based on RAG research (2024-2025), chunk sizes are FIXED and do NOT
 # scale with context window. What scales is how many chunks fit in the context.
 #
 # Research findings:
@@ -877,7 +876,7 @@ HALLUCINATION_REJECTION_MESSAGE = (
 # Bundled model configuration for Windows installer
 # Models are stored in PROJECT_ROOT/models/ and shipped with the installer
 # This prevents network calls at runtime for privacy and offline use
-# LOG-001: Renamed to avoid conflict with MODELS_DIR defined earlier
+# Renamed to avoid conflict with MODELS_DIR defined earlier
 BUNDLED_MODELS_DIR = BUNDLED_BASE_DIR / "models"
 HALLUCINATION_MODEL_LOCAL_PATH = BUNDLED_MODELS_DIR / "tinylettuce-ettin-68m-en"
 

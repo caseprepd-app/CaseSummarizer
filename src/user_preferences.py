@@ -40,7 +40,7 @@ class UserPreferencesManager:
             "model_defaults": {},
             "last_used_model": None,
             "processing": {"cpu_fraction": 0.5},  # Default: 1/2 cores (0.25, 0.5, or 0.75)
-            # Session 62b: vocab_use_llm changed to tri-state: "auto", "yes", "no"
+            # vocab_use_llm is tri-state: "auto", "yes", "no"
             "experimental": {
                 "vocab_use_llm": "no",  # LLM extraction: "auto", "yes", or "no"
             },
@@ -173,12 +173,12 @@ class UserPreferencesManager:
         self._save_preferences()
 
     # =========================================================================
-    # LLM Extraction Settings (Session 62b)
+    # LLM Extraction Settings
     # =========================================================================
 
     def get_vocab_llm_mode(self) -> str:
         """
-        Get LLM extraction mode (Session 62b).
+        Get LLM extraction mode.
 
         Returns:
             str: "auto", "yes", or "no"
@@ -193,7 +193,7 @@ class UserPreferencesManager:
 
     def is_vocab_llm_enabled(self) -> bool:
         """
-        Check if LLM extraction is enabled for vocabulary (Session 62b).
+        Check if LLM extraction is enabled for vocabulary.
 
         Resolves "auto" mode using GPU detection.
 
@@ -212,7 +212,7 @@ class UserPreferencesManager:
 
     def set_vocab_llm_mode(self, mode: str) -> None:
         """
-        Set LLM extraction mode (Session 62b).
+        Set LLM extraction mode.
 
         Args:
             mode: "auto", "yes", or "no"
@@ -237,12 +237,12 @@ class UserPreferencesManager:
         self.set_vocab_llm_mode("yes" if enabled else "no")
 
     # =========================================================================
-    # LLM Context Window Settings (Session 64)
+    # LLM Context Window Settings
     # =========================================================================
 
     def get_context_size_mode(self) -> str | int:
         """
-        Get context window size mode (Session 64).
+        Get context window size mode.
 
         Returns:
             "auto" for automatic detection based on VRAM, or
@@ -259,7 +259,7 @@ class UserPreferencesManager:
 
     def set_context_size_mode(self, value: str | int) -> None:
         """
-        Set context window size mode (Session 64).
+        Set context window size mode.
 
         Args:
             value: "auto" or int (4000, 8000, 16000, 32000, 48000, 64000)
@@ -272,7 +272,7 @@ class UserPreferencesManager:
 
     def get_effective_context_size(self) -> int:
         """
-        Get the actual context window size to use (Session 64).
+        Get the actual context window size to use.
 
         Resolves "auto" mode using GPU VRAM detection.
 
@@ -289,7 +289,7 @@ class UserPreferencesManager:
 
     def get_effective_chunk_sizes(self) -> dict:
         """
-        Get chunk sizes scaled to effective context window (Session 67).
+        Get chunk sizes scaled to effective context window.
 
         Chunk sizes scale proportionally with context window to utilize
         available VRAM more efficiently on high-memory GPUs.
@@ -307,7 +307,7 @@ class UserPreferencesManager:
         return get_optimal_chunk_sizes(context_size)
 
     # =========================================================================
-    # Small Model Warning (Session 90 -> simplified)
+    # Small Model Warning
     # =========================================================================
 
     def get_model_param_count(self, model_name: str):
@@ -337,7 +337,7 @@ class UserPreferencesManager:
         self._save_preferences()
 
     # =========================================================================
-    # Summary GPU Requirements (Session 93)
+    # Summary GPU Requirements
     # =========================================================================
 
     def get_summary_gpu_override_mode(self) -> str:
@@ -536,14 +536,13 @@ class UserPreferencesManager:
         elif key == "resource_usage_pct":
             if not isinstance(value, int) or value < 25 or value > 100:
                 raise ValueError(f"resource_usage_pct must be 25-100, got {value}")
-        # Session 59: Vocabulary filtering threshold validation
+        # Vocabulary filtering threshold validation
         elif key == "single_word_rarity_threshold":
             if not isinstance(value, (int, float)) or value < 0.1 or value > 0.9:
                 raise ValueError(f"single_word_rarity_threshold must be 0.1-0.9, got {value}")
         elif key == "phrase_rarity_threshold":
             if not isinstance(value, (int, float)) or value < 0.1 or value > 0.9:
                 raise ValueError(f"phrase_rarity_threshold must be 0.1-0.9, got {value}")
-        # Session 62: New settings validation
         elif key == "ollama_model":
             if not isinstance(value, str) or not value:
                 raise ValueError("ollama_model must be a non-empty string")
@@ -553,7 +552,7 @@ class UserPreferencesManager:
         elif key == "phrase_mean_rarity_threshold":
             if not isinstance(value, (int, float)) or value < 0.1 or value > 0.9:
                 raise ValueError(f"phrase_mean_rarity_threshold must be 0.1-0.9, got {value}")
-        # Session 131: Non-NER Rarity Passthrough threshold validation
+        # Non-NER Rarity Passthrough threshold validation
         elif key == "non_ner_single_passthrough_threshold":
             if not isinstance(value, (int, float)) or value < 0.50 or value > 0.95:
                 raise ValueError(
@@ -575,23 +574,23 @@ class UserPreferencesManager:
         elif key == "non_ner_phrase_common_word_floor":
             if not isinstance(value, (int, float)) or value < 0.05 or value > 0.30:
                 raise ValueError(f"non_ner_phrase_common_word_floor must be 0.05-0.30, got {value}")
-        # Session 68: Corpus ready transition flag
+        # Corpus ready transition flag
         elif key == "corpus_was_ever_ready":
             if not isinstance(value, bool):
                 raise ValueError(f"corpus_was_ever_ready must be boolean, got {value}")
-        # Session 62b: LLM extraction mode validation
+        # LLM extraction mode validation
         elif key == "vocab_use_llm":
             # Accept both legacy boolean and new tri-state string
             if value not in ("auto", "yes", "no") and not isinstance(value, bool):
                 raise ValueError(f"vocab_use_llm must be 'auto', 'yes', or 'no', got {value}")
-        # Session 64: LLM context window size validation
+        # LLM context window size validation
         elif key == "llm_context_size":
             valid_sizes = [2048, 4000, 8000, 16000, 32000, 48000, 64000]
             if value != "auto" and value not in valid_sizes:
                 raise ValueError(
                     f"llm_context_size must be 'auto' or one of {valid_sizes}, got {value}"
                 )
-        # Session 80: Column visibility validation
+        # Column visibility validation
         elif key == "vocab_column_visibility":
             if not isinstance(value, dict):
                 raise ValueError(
@@ -626,7 +625,7 @@ class UserPreferencesManager:
             # Term column cannot be hidden
             if value.get("Term") is False:
                 raise ValueError("'Term' column cannot be hidden")
-        # Session 80: Column widths validation
+        # Column widths validation
         elif key == "vocab_column_widths":
             if not isinstance(value, dict):
                 raise ValueError(f"vocab_column_widths must be a dict, got {type(value).__name__}")

@@ -13,7 +13,6 @@ NOTE: An ML model trained on user feedback could potentially leverage these
 signals more effectively than the rules-based canonical scorer. This
 infrastructure provides the foundation for future ML enhancements.
 
-Session 78: Initial implementation for canonical spelling improvement.
 """
 
 from dataclasses import dataclass, field

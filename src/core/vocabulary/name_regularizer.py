@@ -11,7 +11,7 @@ Two main filters:
    - Handles spaCy splitting multi-word names into separate entities
 
 2. Typo Filter (1-2 character edit distance):
-   - Session 78: Uses CanonicalScorer with branching logic:
+   - Uses CanonicalScorer with branching logic:
      - Exactly ONE variant in dictionary → it wins (100% confidence)
      - ZERO variants known → confidence-weighted score decides
      - MULTIPLE variants known → weighted score as tiebreaker
@@ -51,7 +51,7 @@ def _load_known_words() -> set[str]:
     """
     Load known words for typo resolution from multiple sources.
 
-    Session 78: Used to decide which of two similar terms (1 char apart) is the typo.
+    Used to decide which of two similar terms (1 char apart) is the typo.
     Logic:
     - One in list, one not → keep the known word, filter the typo
     - Both in list → keep both (user decides)
@@ -237,7 +237,7 @@ def filter_typo_variants(
     """
     Remove terms that are 1-character typos of high-frequency canonical terms.
 
-    DEPRECATED (Session 78): This function uses the old "top 25% frequency"
+    DEPRECATED: This function uses the old "top 25% frequency"
     approach. Use regularize_names() instead, which uses CanonicalScorer with
     dictionary lookup and confidence-weighted scoring.
 
@@ -335,7 +335,7 @@ def _single_pass_regularize(
     """
     Single pass of name regularization.
 
-    Session 78: Uses CanonicalScorer with branching logic for typo detection:
+    Uses CanonicalScorer with branching logic for typo detection:
     - Exactly ONE variant in dictionary → it wins (100% confidence)
     - ZERO variants known → confidence-weighted score decides
     - MULTIPLE variants known → weighted score as tiebreaker
@@ -410,7 +410,7 @@ def _single_pass_regularize(
     # Combine top + filtered bottom for typo detection
     all_terms = top_terms + filtered_after_fragments
 
-    # TYPO FILTER: Session 78 - Use CanonicalScorer for typo pair resolution
+    # TYPO FILTER: Use CanonicalScorer for typo pair resolution
     # Groups similar terms (1-2 edit distance) and picks the canonical variant
     typo_removed = 0
     terms_to_remove: set[str] = set()
@@ -536,9 +536,9 @@ def regularize_names(
 
     This function applies fragment and typo filtering multiple times. Each pass:
     1. Removes fragments (e.g., "Di" when "Di Leo" exists in top quartile)
-    2. Removes typos using CanonicalScorer (Session 78)
+    2. Removes typos using CanonicalScorer
 
-    Session 78: Typo detection uses CanonicalScorer with branching logic:
+    Typo detection uses CanonicalScorer with branching logic:
     - Exactly ONE variant in dictionary → it wins (keeps the known word)
     - ZERO variants known → confidence-weighted score decides (exotic names)
     - MULTIPLE variants known → weighted score as tiebreaker

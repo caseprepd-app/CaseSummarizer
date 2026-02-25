@@ -20,7 +20,6 @@ rules-based approach by learning patterns specific to the user's document types
 a reasonable baseline that works without training data. Future enhancement could
 replace this with a learned model once sufficient feedback is collected.
 
-Session 78: Initial implementation for canonical spelling improvement.
 """
 
 import logging

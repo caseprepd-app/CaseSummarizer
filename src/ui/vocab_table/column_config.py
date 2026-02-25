@@ -1,8 +1,6 @@
 """
 Vocabulary Table Column Configuration.
 
-Session 82: Extracted from dynamic_output.py for modularity.
-
 Contains:
 - COLUMN_REGISTRY: Unified column configuration (width, visibility, etc.)
 - COLUMN_ORDER: Display order for columns
@@ -32,7 +30,7 @@ BATCH_INSERT_SIZE = VOCABULARY_BATCH_INSERT_SIZE
 BATCH_INSERT_DELAY_MS = VOCABULARY_BATCH_INSERT_DELAY_MS
 
 
-# Session 80: Unified column registry for configurable visibility
+# Unified column registry for configurable visibility
 # Each column specifies: width, max_chars, default visibility, and whether it can be hidden
 # User preferences override defaults; "Term" cannot be hidden
 COLUMN_REGISTRY = {
@@ -41,7 +39,7 @@ COLUMN_REGISTRY = {
     "Score": {"width": 55, "max_chars": 5, "default": True, "can_hide": True},
     "Is Person": {"width": 65, "max_chars": 4, "default": True, "can_hide": True},
     "Found By": {"width": 120, "max_chars": 20, "default": True, "can_hide": True},
-    # TermSources columns (Session 80 - default visible)
+    # TermSources columns (default visible)
     "Occurrences": {"width": 65, "max_chars": 6, "default": True, "can_hide": True},
     "# Docs": {"width": 55, "max_chars": 4, "default": True, "can_hide": True},
     "OCR Confidence": {"width": 80, "max_chars": 5, "default": True, "can_hide": True},

@@ -6,9 +6,6 @@ Provides a base class for modal dialogs with common boilerplate:
 - Window centering on parent
 - Configurable size and minimum size
 
-Session 82: Extracted from repeated patterns in corpus_dialog.py,
-qa_question_editor.py, and settings_dialog.py to eliminate duplication.
-
 Usage:
     class MyDialog(BaseModalDialog):
         def __init__(self, parent):

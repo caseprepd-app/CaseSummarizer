@@ -12,7 +12,7 @@ Widget Types:
 - DropdownSetting: Selection from options
 - SpinboxSetting: Integer with +/- buttons
 
-Layout Standard (Session 62b):
+Layout Standard:
 ─────────────────────────────────────────────────────────────────────────
 All settings follow a consistent 2/3 - 1/3 layout:
 
@@ -69,8 +69,8 @@ class TooltipIcon(ctk.CTkLabel):
     other widgets. The tooltip appears near the icon and disappears
     when the mouse leaves.
 
-    Session 62b Fix: Uses global TooltipManager to ensure only ONE tooltip
-    is visible at a time across the ENTIRE application (not just TooltipIcon).
+    Uses global TooltipManager to ensure only ONE tooltip is visible at a time
+    across the ENTIRE application (not just TooltipIcon).
 
     Attributes:
         tooltip_text: The help text to display on hover.
@@ -102,7 +102,7 @@ class TooltipIcon(ctk.CTkLabel):
 
     def _show_tooltip(self, event=None):
         """Display tooltip popup near the icon."""
-        # Session 62b: Close any existing tooltip from ANYWHERE in the app
+        # Close any existing tooltip from ANYWHERE in the app
         tooltip_manager.close_active()
 
         if self.tooltip_window:
@@ -129,7 +129,7 @@ class TooltipIcon(ctk.CTkLabel):
         )
         label.pack(padx=10, pady=8)
 
-        # Session 62b: Register with global manager
+        # Register with global manager
         tooltip_manager.register(self.tooltip_window, owner=self)
 
         # Also bind leave event to the tooltip window itself
@@ -181,7 +181,7 @@ class TooltipIcon(ctk.CTkLabel):
     def _force_hide_tooltip(self):
         """Unconditionally hide the tooltip."""
         if self.tooltip_window:
-            # Session 62b: Unregister from global manager
+            # Unregister from global manager
             tooltip_manager.unregister(self.tooltip_window)
             import contextlib
 
@@ -197,7 +197,7 @@ class SettingRow(ctk.CTkFrame):
     Provides consistent layout and tooltip handling for all setting types.
     Subclasses implement get_value() and set_value() for their widget.
 
-    Layout (Session 62b - Standardized):
+    Layout (Standardized):
     ┌────────────────────────────────┬──────────────────────┬──────┐
     │  Label + Tooltip               │   Control            │ Value│
     │  (LABEL_AREA_WIDTH)            │   (CONTROL_WIDTH)    │      │
@@ -229,7 +229,7 @@ class SettingRow(ctk.CTkFrame):
         super().__init__(parent, fg_color="transparent", **kwargs)
         self.on_change = on_change
 
-        # Session 62b: Standardized layout with fixed column widths
+        # Standardized layout with fixed column widths
         # Column 0: Label area (fixed width)
         # Column 1: Control area (fixed width, controls right-aligned within)
         # Column 2: Value display (fixed width, for sliders)
@@ -268,7 +268,7 @@ class SliderSetting(SettingRow):
     Displays a horizontal slider with a value label showing the current
     value. Supports integer steps for clean display.
 
-    Session 62b: Slider uses CONTROL_WIDTH for consistent positioning.
+    Slider uses CONTROL_WIDTH for consistent positioning.
     """
 
     def __init__(
@@ -305,7 +305,7 @@ class SliderSetting(SettingRow):
         # Calculate number of steps
         num_steps = int((max_value - min_value) / step) if step else None
 
-        # Session 62b: Slider with fixed width for consistent positioning
+        # Slider with fixed width for consistent positioning
         self.slider = ctk.CTkSlider(
             self,
             from_=min_value,
@@ -358,7 +358,7 @@ class CheckboxSetting(SettingRow):
 
     Simple toggle with no additional text (label is in the row).
 
-    Session 62b: Checkbox positioned at start of control area for consistency.
+    Checkbox is positioned at start of control area for consistency.
     """
 
     def __init__(
@@ -392,7 +392,7 @@ class CheckboxSetting(SettingRow):
             checkbox_width=20,
             checkbox_height=20,
         )
-        # Session 62b: Left-align checkbox within the control column
+        # Left-align checkbox within the control column
         # Checkboxes don't need the full CONTROL_WIDTH but should start at same position
         self.checkbox.grid(row=0, column=2, sticky="w", padx=(CONTROL_PADDING_X, 0))
 
@@ -417,7 +417,7 @@ class DropdownSetting(SettingRow):
     Displays options as text labels but stores/returns actual values.
     Options are provided as (display_text, value) tuples.
 
-    Session 62b: Dropdown uses CONTROL_WIDTH for consistent positioning.
+    Dropdown uses CONTROL_WIDTH for consistent positioning.
     """
 
     def __init__(
@@ -451,7 +451,7 @@ class DropdownSetting(SettingRow):
         display_values = [text for text, _ in options]
         initial_text = self.text_map.get(initial_value, display_values[0] if display_values else "")
 
-        # Session 62b: Use CONTROL_WIDTH for consistent positioning
+        # Use CONTROL_WIDTH for consistent positioning
         self.dropdown = ctk.CTkComboBox(
             self,
             values=display_values,
@@ -485,7 +485,7 @@ class SpinboxSetting(SettingRow):
     Provides a compact control for integer values within a range.
     Uses buttons instead of a slider for precise control.
 
-    Session 62b: Spinbox positioned consistently with other controls.
+    Spinbox is positioned consistently with other controls.
     """
 
     def __init__(
@@ -517,7 +517,7 @@ class SpinboxSetting(SettingRow):
         self.max_value = max_value
         self.value = initial_value if initial_value is not None else min_value
 
-        # Session 62b: Container with fixed width for consistent positioning
+        # Container with fixed width for consistent positioning
         spinbox_frame = ctk.CTkFrame(self, fg_color="transparent", width=CONTROL_WIDTH)
         spinbox_frame.grid(row=0, column=2, sticky="w", padx=(CONTROL_PADDING_X, 0))
         spinbox_frame.grid_propagate(False)  # Maintain fixed width
@@ -595,7 +595,7 @@ class ButtonSetting(SettingRow):
     Displays a button that triggers an action when clicked.
     Useful for opening folders, running calibrations, etc.
 
-    Session 62b: Button uses CONTROL_WIDTH for consistent positioning.
+    Button uses CONTROL_WIDTH for consistent positioning.
     """
 
     def __init__(
@@ -621,7 +621,7 @@ class ButtonSetting(SettingRow):
 
         self.action = action
 
-        # Session 62b: Use CONTROL_WIDTH for consistent positioning
+        # Use CONTROL_WIDTH for consistent positioning
         self.button = ctk.CTkButton(
             self,
             text=button_text or label,
@@ -646,7 +646,7 @@ class ButtonSetting(SettingRow):
         pass
 
 
-# Session 82: Specialized widgets moved to separate files for modularity:
+# Specialized widgets live in separate files for modularity:
 # - DefaultQuestionsWidget → questions_widget.py
 # - CorpusSettingsWidget → corpus_widget.py
 # - ColumnVisibilityWidget → columns_widget.py

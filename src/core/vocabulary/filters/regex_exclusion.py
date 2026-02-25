@@ -1,7 +1,7 @@
 """
 Regex Exclusion Filter
 
-Session 86: User-configurable regex patterns for filtering transcript artifacts.
+User-configurable regex patterns for filtering transcript artifacts.
 Reads patterns from config/vocab_exclude_patterns.txt and removes matching terms.
 
 This allows users to add domain-specific patterns without code changes.

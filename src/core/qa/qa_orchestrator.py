@@ -76,9 +76,7 @@ class QAResult:
     retrieval_time_ms: float = 0.0
     is_followup: bool = False
     is_default_question: bool = False  # Marks questions from default list
-    verification: "VerificationResult | None" = (
-        None  # Hallucination verification result (Session 60)
-    )
+    verification: "VerificationResult | None" = None  # Hallucination verification result
 
     @property
     def answer(self) -> str:

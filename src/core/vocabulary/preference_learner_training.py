@@ -75,7 +75,7 @@ def calculate_sample_weight(
     """
     Calculate combined weight for a feedback sample.
 
-    Combines time-decay with source-based weighting (Session 55).
+    Combines time-decay with source-based weighting.
     User feedback is weighted higher than default feedback once
     the user has enough samples.
 
@@ -142,7 +142,7 @@ def train_models(
         logger.debug("Insufficient training data: %d < %d", len(labeled_records), ML_MIN_SAMPLES)
         return None, None, None, False, 0, 0
 
-    # Count user samples for source weighting (Session 55)
+    # Count user samples for source weighting
     user_sample_count = sum(1 for r in labeled_records if r.get("source") == "user")
     default_sample_count = len(labeled_records) - user_sample_count
     total_sample_count = len(labeled_records)
@@ -281,7 +281,7 @@ def save_model(
             "scaler": scaler,
             "ensemble_enabled": ensemble_enabled,
             "feature_names": FEATURE_NAMES,
-            # Session 55: Sample counts for graduated ML weight
+            # Sample counts for graduated ML weight
             "user_sample_count": user_sample_count,
             "total_sample_count": total_sample_count,
         }
@@ -341,7 +341,7 @@ def load_model(
         scaler = model_data.get("scaler")
         saved_feature_names = model_data.get("feature_names", [])
 
-        # Session 55: Load sample counts (default to 0 for old models)
+        # Load sample counts (default to 0 for old models)
         user_sample_count = model_data.get("user_sample_count", 0)
         total_sample_count = model_data.get("total_sample_count", 0)
 

@@ -11,7 +11,7 @@ Example:
     - "Ms. Di Leo:" (count=2) contains canonical → removed
     - "4 Ms. Di Leo" (count=1) contains canonical → removed
 
-Session 80b: Added common-word prefix/suffix detection for Person entities.
+Also detects common-word prefix/suffix on Person entities.
 Removes terms like "Luigi Napolitano Patient" when "Luigi Napolitano" exists,
 by detecting that "Patient" is a common English word (top 200K in Google dataset).
 
@@ -163,7 +163,7 @@ def _remove_component_names(
     "Arthur" or "Jenkins" appearing as separate entries since they're just parts
     of the full name, not standalone entities.
 
-    Session 84: Only applies to Person entities, not vocabulary terms.
+    Only applies to Person entities, not vocabulary terms.
 
     Args:
         vocabulary: List of term dictionaries
@@ -355,7 +355,7 @@ def filter_substring_artifacts(
     Lower-count terms that contain these canonical forms are likely artifacts
     from OCR errors, formatting, or extraction noise.
 
-    Session 80b: Also removes Person terms that are canonical + common word(s).
+    Also removes Person terms that are canonical + common word(s).
     Example: "Luigi Napolitano Patient" removed when "Luigi Napolitano" exists.
 
     Args:
@@ -377,7 +377,7 @@ def filter_substring_artifacts(
     # Only use multi-word canonical terms to avoid false positives where
     # single-word terms like "john" would incorrectly filter "John Smith"
     canonical_terms = []
-    canonical_person_terms = []  # Session 80b: Also track Person terms separately
+    canonical_person_terms = []  # Track Person terms separately for common-word detection
 
     for term_dict in sorted_vocab[:canonical_count]:
         term = term_dict.get(term_key, "")
@@ -389,8 +389,8 @@ def filter_substring_artifacts(
             if is_person_entry(term_dict):
                 canonical_person_terms.append(term.lower())
 
-    # Session 80b: Also collect ALL Person terms (not just top N) for
-    # common-word variant detection, since we want to catch cases where
+    # Also collect ALL Person terms (not just top N) for common-word
+    # variant detection, since we want to catch cases where
     # "Luigi Napolitano" exists anywhere in the list
     all_person_terms = set()
     for term_dict in vocabulary:
@@ -434,7 +434,7 @@ def filter_substring_artifacts(
                 removed_count += 1
                 break
 
-        # Session 80b: Check for common-word variants (Person entities only)
+        # Check for common-word variants (Person entities only)
         if not is_artifact and term_is_person and " " in term:
             for canonical in all_person_terms:
                 # Skip if this IS the canonical term
@@ -471,10 +471,10 @@ def filter_substring_artifacts(
         len(filtered),
     )
 
-    # Session 84: Remove single-word Person names that are components of full names
+    # Remove single-word Person names that are components of full names
     filtered = _remove_component_names(filtered, term_key=term_key)
 
-    # Session 140: Remove transcript header artifacts like "Smith - Direct"
+    # Remove transcript header artifacts like "Smith - Direct"
     filtered = _remove_header_artifacts(filtered, term_key=term_key)
 
     return filtered

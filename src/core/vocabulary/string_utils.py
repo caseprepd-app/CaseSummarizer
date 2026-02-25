@@ -9,7 +9,7 @@ Functions:
     normalize_term: Lowercase and strip whitespace from a term
     get_term_words: Split a normalized term into words
 
-Session 82: Extracted from artifact_filter.py, name_regularizer.py, and
+Extracted from artifact_filter.py, name_regularizer.py, and
 gibberish_filter.py to eliminate duplicate implementations.
 """
 

@@ -42,14 +42,14 @@ from src.core.vocabulary.string_utils import fuzzy_match
 logger = logging.getLogger(__name__)
 
 # Type alias for found_by values
-# Session 61: Changed from Literal to str to support comma-separated algorithms
-FoundBy = str  # e.g., "NER", "LLM", "NER, LLM", "NER, RAKE, BM25"
+# str to support comma-separated source methods
+FoundBy = str  # e.g., "NER", "LLM", "NER, LLM"
 
 
 @dataclass
 class ReconciledPerson:
     """
-    A person/organization after reconciling NER and LLM results (Session 45).
+    A person/organization after reconciling NER and LLM results.
 
     Attributes:
         name: Full name of the person or organization
@@ -68,7 +68,7 @@ class ReconciledPerson:
     @property
     def combined_confidence(self) -> float:
         """Calculate combined confidence from methods that found this item."""
-        # Session 61: Check for multiple algorithms via comma
+        # Check for multiple algorithms via comma
         if "," in self.found_by:
             # Average of both, with bonus for agreement
             return min(1.0, (self.ner_confidence + self.llm_confidence) / 2 + 0.1)
@@ -103,7 +103,7 @@ class ReconciledTerm:
     @property
     def combined_confidence(self) -> float:
         """Calculate combined confidence from methods that found this item."""
-        # Session 61: Check for multiple algorithms via comma
+        # Check for multiple algorithms via comma
         if "," in self.found_by:
             # Average of both, with bonus for agreement
             return min(1.0, (self.ner_confidence + self.llm_confidence) / 2 + 0.1)
@@ -158,7 +158,7 @@ class VocabularyReconciler:
         llm_people: list,  # list[LLMPerson] from LLM extractor
     ) -> list[ReconciledPerson]:
         """
-        Reconcile NER and LLM people extraction results (Session 45).
+        Reconcile NER and LLM people extraction results.
 
         Args:
             ner_people: PERSON entities from NER (CandidateTerm with suggested_type="Person")
@@ -199,7 +199,7 @@ class VocabularyReconciler:
                     ReconciledPerson(
                         name=ner_data["name"],  # Use NER's canonical form
                         role=role,
-                        found_by="NER, LLM",  # Session 61: List algorithms instead of "Both"
+                        found_by="NER, LLM",  # List algorithms instead of "Both"
                         ner_confidence=ner_data["confidence"],
                         llm_confidence=llm_data["confidence"],
                     )
@@ -230,10 +230,10 @@ class VocabularyReconciler:
                 )
 
         # Sort results: multiple algorithms first, then alphabetically by name
-        # Session 61: Sort by comma count (more commas = more algorithms = higher priority)
+        # Sort by comma count (more commas = more algorithms = higher priority)
         sorted_results = sorted(results, key=lambda p: (-p.found_by.count(","), p.name.lower()))
 
-        # Log summary - Session 61: Updated to handle comma-separated found_by
+        # Log summary (handles comma-separated found_by)
         multi_count = sum(1 for r in sorted_results if "," in r.found_by)
         ner_only = sum(1 for r in sorted_results if r.found_by == "NER")
         llm_only = sum(1 for r in sorted_results if r.found_by == "LLM")
@@ -250,7 +250,7 @@ class VocabularyReconciler:
 
     def _build_people_dict(self, people: list, source: str) -> dict[str, dict]:
         """
-        Build lookup dictionary from people list (Session 45).
+        Build lookup dictionary from people list.
 
         Args:
             people: List of person objects (CandidateTerm or LLMPerson)
@@ -338,7 +338,7 @@ class VocabularyReconciler:
                     ReconciledTerm(
                         term=ner_data["term"],  # Use NER's canonical form
                         type=self._resolve_type(ner_data["type"], llm_data["type"]),
-                        found_by="NER, LLM",  # Session 61: List algorithms instead of "Both"
+                        found_by="NER, LLM",  # List algorithms instead of "Both"
                         frequency=ner_data["frequency"] + llm_data["frequency"],
                         ner_confidence=ner_data["confidence"],
                         llm_confidence=llm_data["confidence"],
@@ -374,7 +374,7 @@ class VocabularyReconciler:
         # Sort results
         sorted_results = self._sort_results(results)
 
-        # Log summary - Session 61: Updated to handle comma-separated found_by
+        # Log summary (handles comma-separated found_by)
         multi_count = sum(1 for r in sorted_results if "," in r.found_by)
         ner_only = sum(1 for r in sorted_results if r.found_by == "NER")
         llm_only = sum(1 for r in sorted_results if r.found_by == "LLM")
@@ -529,8 +529,8 @@ class VocabularyReconciler:
         """
         Sort results by algorithm count (most first), then Term alphabetically.
 
-        Session 61: Updated to sort by comma count - more commas means more
-        algorithms found the term, indicating higher confidence.
+        Sorts by comma count - more commas means more algorithms found
+        the term, indicating higher confidence.
 
         Args:
             terms: Unsorted list of reconciled terms
@@ -576,7 +576,7 @@ class VocabularyReconciler:
 
     def people_to_csv_data(self, people: list[ReconciledPerson]) -> list[dict]:
         """
-        Convert reconciled people to format expected by DynamicOutputWidget (Session 45).
+        Convert reconciled people to format expected by DynamicOutputWidget.
 
         Args:
             people: List of ReconciledPerson objects
@@ -603,13 +603,13 @@ class VocabularyReconciler:
         terms: list[ReconciledTerm],
     ) -> list[dict]:
         """
-        Combine people and vocabulary into unified table format (Session 45).
+        Combine people and vocabulary into unified table format.
 
-        Session 61: Updated to match GUI_DISPLAY_COLUMNS expected keys:
-        - "Term" (was "Name/Term")
-        - "Is Person" Yes/No (was "Type"/"Category")
-        - "Quality Score" (was "Confidence")
-        - "Found By" (unchanged)
+        Uses GUI_DISPLAY_COLUMNS expected keys:
+        - "Term"
+        - "Is Person" Yes/No
+        - "Quality Score"
+        - "Found By"
 
         Args:
             people: List of ReconciledPerson objects

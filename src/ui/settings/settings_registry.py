@@ -52,7 +52,7 @@ class SettingType(Enum):
     PATH = "path"
     SPINBOX = "spinbox"
     BUTTON = "button"
-    CUSTOM = "custom"  # Session 63c: For complex widgets like question list
+    CUSTOM = "custom"  # For complex widgets like question list
 
 
 @dataclass
@@ -327,7 +327,7 @@ def _register_all_settings():
         )
     )
 
-    # Session 23: CSV export column format setting
+    # CSV export column format setting
     SettingsRegistry.register(
         SettingDefinition(
             key="vocab_export_format",
@@ -351,7 +351,7 @@ def _register_all_settings():
         )
     )
 
-    # Session 80: Column visibility configuration
+    # Column visibility configuration
     def _create_column_visibility_widget(parent):
         """Factory function to create the ColumnVisibilityWidget."""
         from src.ui.settings.columns_widget import ColumnVisibilityWidget
@@ -443,7 +443,7 @@ def _register_all_settings():
         )
     )
 
-    # Session 26: BM25 Corpus-based term extraction
+    # BM25 Corpus-based term extraction
     SettingsRegistry.register(
         SettingDefinition(
             key="bm25_enabled",
@@ -500,7 +500,7 @@ def _register_all_settings():
         )
     )
 
-    # Session 47: ML Model Reset buttons
+    # ML Model Reset buttons
     def _reset_vocab_model():
         """Reset vocabulary ML model to default (keep feedback history)."""
         from tkinter import messagebox
@@ -612,7 +612,7 @@ def _register_all_settings():
         )
     )
 
-    # Session 142: Model & Feedback Export/Import buttons
+    # Model & Feedback Export/Import buttons
     def _export_vocab_model():
         """Export user vocabulary model from settings."""
         from tkinter import filedialog, messagebox
@@ -809,8 +809,7 @@ def _register_all_settings():
         )
     )
 
-    # Session 59: Vocabulary filtering thresholds (user-configurable)
-    # Session 62b: Moved from Advanced to Vocabulary tab (consolidated)
+    # Vocabulary filtering thresholds (user-configurable)
     SettingsRegistry.register(
         SettingDefinition(
             key="single_word_rarity_threshold",
@@ -851,7 +850,7 @@ def _register_all_settings():
         )
     )
 
-    # Session 62: Additional vocabulary filtering controls
+    # Additional vocabulary filtering controls
     SettingsRegistry.register(
         SettingDefinition(
             key="vocab_min_occurrences",
@@ -916,7 +915,7 @@ def _register_all_settings():
         )
     )
 
-    # Session 131: Non-NER Rarity Passthrough Thresholds
+    # Non-NER Rarity Passthrough Thresholds
     # These settings control when RAKE/BM25-found terms pass through rarity filtering
     SettingsRegistry.register(
         SettingDefinition(
@@ -1254,10 +1253,10 @@ def _register_all_settings():
     )
 
     # ===================================================================
-    # CORPUS TAB (Session 64)
+    # CORPUS TAB
     # ===================================================================
 
-    # Session 64: Custom widget for corpus management
+    # Custom widget for corpus management
     def _create_corpus_settings_widget(parent):
         """Factory function to create the CorpusSettingsWidget."""
         from src.ui.settings.corpus_widget import CorpusSettingsWidget
@@ -1284,7 +1283,7 @@ def _register_all_settings():
     # Q&A TAB
     # ===================================================================
 
-    # Session 62: Ollama Model Selector
+    # Ollama Model Selector
     def _get_ollama_model_options() -> list[tuple[str, str]]:
         """Fetch available models from Ollama for dropdown options."""
         try:
@@ -1320,7 +1319,7 @@ def _register_all_settings():
             manager = AIService().get_ollama_manager()
             manager.load_model(model_name)
         except Exception as e:
-            # LOG-017: Log exception instead of silent pass
+            # Log exception instead of silent pass
             logger.debug("Model load deferred: %s", e)
 
     SettingsRegistry.register(
@@ -1343,7 +1342,7 @@ def _register_all_settings():
         )
     )
 
-    # Session 85: "Learn more about LLMs" educational link
+    # "Learn more about LLMs" educational link
     def _show_ollama_education_dialog():
         """Show educational popup about Ollama and local LLMs."""
         import webbrowser
@@ -1524,7 +1523,7 @@ def _register_all_settings():
         )
     )
 
-    # Session 64: Context window size based on VRAM
+    # Context window size based on VRAM
     def _get_context_size_options() -> list[tuple[str, str]]:
         """Generate context size options with auto-detected recommendation."""
         from src.services import AIService
@@ -1659,7 +1658,7 @@ def _register_all_settings():
         )
     )
 
-    # Session 63c: Custom widget for default questions management
+    # Custom widget for default questions management
     # (Replaces the old "Edit Default Questions" YAML editor button)
     def _create_default_questions_widget(parent):
         """Factory function to create the DefaultQuestionsWidget."""
@@ -1699,7 +1698,7 @@ def _register_all_settings():
     )
 
     # ===================================================================
-    # EXPORT TAB (Session 73)
+    # EXPORT TAB
     # ===================================================================
 
     SettingsRegistry.register(

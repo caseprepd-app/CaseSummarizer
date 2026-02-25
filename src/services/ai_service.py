@@ -4,7 +4,7 @@ AI Service for CasePrepd.
 Provides a clean interface for AI/Ollama operations and GPU detection.
 Wraps OllamaModelManager, GPU detector, and prompt template components.
 
-Session 83: Created to provide services layer access to AI operations,
+Provides services layer access to AI operations,
 enforcing the pipeline architecture (UI -> Services -> Core).
 
 Usage:

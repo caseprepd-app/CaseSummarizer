@@ -4,8 +4,8 @@ Tooltip Helper for CustomTkinter Widgets
 Provides stable tooltips that appear near the mouse cursor without flickering.
 Uses delayed display (500ms) and intelligent boundary detection for proper positioning.
 
-Session 62b: Now uses TooltipManager to ensure only ONE tooltip is visible
-at a time across the entire application.
+Uses TooltipManager to ensure only one tooltip is visible at a time across
+the entire application.
 
 Best practices implemented:
 - Tooltip appears near mouse cursor (not directly under to avoid enter/leave loops)
@@ -67,7 +67,7 @@ def create_tooltip(widget, text, delay_ms=500, offset_x=15, offset_y=10):
         if tooltip_window:
             return
 
-        # Session 62b: Close any existing tooltip from anywhere in the app
+        # Close any existing tooltip from anywhere in the app
         tooltip_manager.close_active()
 
         # Get current mouse position (dynamic - calculated at show time)
@@ -92,7 +92,7 @@ def create_tooltip(widget, text, delay_ms=500, offset_x=15, offset_y=10):
         with contextlib.suppress(_TK_ERRORS):
             tooltip_window.wm_attributes("-toolwindow", True)  # Windows-specific
 
-        # Session 62b: Register with global manager
+        # Register with global manager
         tooltip_manager.register(tooltip_window, owner=widget)
 
         # Create tooltip label
@@ -163,7 +163,7 @@ def create_tooltip(widget, text, delay_ms=500, offset_x=15, offset_y=10):
         nonlocal tooltip_window
         cancel_show()
         if tooltip_window:
-            # Session 62b: Unregister from global manager
+            # Unregister from global manager
             tooltip_manager.unregister(tooltip_window)
             import contextlib
 

@@ -1,8 +1,6 @@
 """
 Timer Management Mixin.
 
-Session 82: Extracted from main_window.py for modularity.
-
 Contains:
 - Processing timer display
 - Activity indicator management
@@ -97,7 +95,7 @@ class TimerMixin:
 
     def _calculate_aggregate_confidence(self, documents: list[dict]) -> float:
         """
-        Calculate aggregate confidence from processed documents (Session 54).
+        Calculate aggregate confidence from processed documents.
 
         Uses minimum confidence across all documents because terms extracted
         from any document could be affected by that document's OCR quality.

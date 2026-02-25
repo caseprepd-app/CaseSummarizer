@@ -2,8 +2,6 @@
 Prompt Parameters Configuration Loader
 Loads and manages user-configurable AI prompt settings.
 
-Moved from src/prompt_config.py to src/prompting/config.py in Session 33.
-
 Note: Default values are imported from src/config.py as the single source of truth.
 The JSON file allows user customization that overrides these defaults.
 """

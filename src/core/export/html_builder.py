@@ -4,9 +4,8 @@ Interactive HTML Export Builder
 Generates self-contained HTML files with embedded CSS and JavaScript
 for filtering, sorting, and interactive features.
 
-Session 80: Updated to support configurable columns matching GUI settings.
-Session 80b: Import shared column_config for consistency with GUI; add sort
-             warnings and Term column protection.
+Supports configurable columns matching GUI settings, shared column_config
+for consistency with GUI, sort warnings, and Term column protection.
 """
 
 import html
@@ -31,7 +30,7 @@ def _escape(text: str) -> str:
 
 
 # ============================================================================
-# Vocabulary HTML Builder (Session 80: Configurable columns)
+# Vocabulary HTML Builder (configurable columns)
 # ============================================================================
 
 # Build column list from shared config (name, data_key tuples)
@@ -292,7 +291,7 @@ VOCAB_HTML_TEMPLATE = """<!DOCTYPE html>
             const colName = columnOrder[colIndex];
             const isNumeric = numericColumns.includes(colName);
 
-            // Session 80b: Show warning for non-Score columns
+            // Show warning when sorting by columns where low values appear first
             if (sortWarningColumns.includes(colName)) {{
                 if (!confirm("Sorting by '" + colName + "' will show lower-quality results first.\\n\\nContinue?")) {{
                     return;  // User cancelled
@@ -370,7 +369,7 @@ def build_vocabulary_html(
     summary = f"{len(vocab_data)} entries ({person_count} persons, {term_count} terms) — Generated {timestamp}"
 
     # Build column toggle checkboxes
-    # Session 80b: Protected columns (like Term) have disabled checkbox
+    # Protected columns (like Term) have disabled checkbox
     toggle_parts = []
     for col_name, _ in VOCAB_HTML_COLUMNS:
         col_id = col_name.replace(" ", "").replace("#", "").replace("/", "")
@@ -417,7 +416,7 @@ def build_vocabulary_html(
     table_rows = "\n".join(rows)
 
     # Generate HTML with JSON data for JavaScript
-    # Session 80b: Include sort warning columns for confirm dialog
+    # Include sort warning columns for confirm dialog
     return VOCAB_HTML_TEMPLATE.format(
         summary=_escape(summary),
         column_toggles=column_toggles,

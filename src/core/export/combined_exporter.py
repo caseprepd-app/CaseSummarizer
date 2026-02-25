@@ -1,7 +1,7 @@
 """
 Combined Export Module
 
-Session 73: Exports both vocabulary and Q&A results in a single document.
+Exports both vocabulary and Q&A results in a single document.
 
 This creates a unified report with:
 1. Names & Vocabulary table

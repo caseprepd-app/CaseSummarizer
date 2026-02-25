@@ -4,7 +4,7 @@ Corpus Familiarity Feature Adder
 Wraps the add_corpus_common_feature() function for FilterChain integration.
 Adds the corpus_common_term ML feature to terms.
 
-Session 147: This no longer filters terms - it just adds the binary feature
+This no longer filters terms - it just adds the binary feature
 for the ML model to learn from.
 """
 
@@ -15,7 +15,7 @@ class CorpusFamiliarityFilter(BaseVocabularyFilter):
     """
     Adds corpus_common_term feature to vocabulary terms.
 
-    Session 147: No longer filters terms. Instead, adds a binary ML feature:
+    No longer filters terms. Instead, adds a binary ML feature:
     - corpus_common_term = True if term in >= 64% of corpus docs AND >= 5 occurrences
     - corpus_common_term = False otherwise
 

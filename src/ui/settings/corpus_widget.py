@@ -2,7 +2,6 @@
 Corpus Settings Widget for Settings Dialog.
 
 Widget for corpus management within Settings dialog.
-Session 82: Extracted from settings_widgets.py for modularity.
 
 Layout:
     ┌─────────────────────────────────────────────────────────────┐
@@ -37,9 +36,8 @@ class CorpusSettingsWidget(ctk.CTkFrame):
     """
     Widget for corpus management within Settings dialog.
 
-    Session 64: Provides corpus status overview and quick access to full
-    corpus management dialog. Shows active corpus, document count, and
-    BM25 algorithm status.
+    Provides corpus status overview and quick access to full corpus management
+    dialog. Shows active corpus, document count, and BM25 algorithm status.
     """
 
     def __init__(self, parent, **kwargs):

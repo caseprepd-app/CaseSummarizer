@@ -1,13 +1,10 @@
 """
 CasePrepd - Main Window (CustomTkinter)
-Session 29: Two-Panel Q&A-First Layout
-Session 33: Refactored - Layout extracted to WindowLayoutMixin
-Session 82: Related mixin modules created for reference (not inherited)
 
 Main application window with:
 - Header: Corpus dropdown + Settings button
 - No-corpus warning banner
-- Two-panel layout: Left (Session Documents + Tasks), Right (Results)
+- Two-panel layout: Left (Documents + Tasks), Right (Results)
 - Status bar with processing timer
 
 Architecture:
@@ -18,7 +15,7 @@ Architecture:
     Layout code is in: src/ui/window_layout.py
     Business logic is in: This file (main_window.py)
 
-    Related helper modules (for reference/future refactoring):
+    Helper modules (standalone utilities, not inherited as mixins):
     - src/ui/main_window_helpers/ollama_mixin.py - Ollama status helpers
     - src/ui/main_window_helpers/file_mixin.py - File management helpers
     - src/ui/main_window_helpers/task_mixin.py - Task execution helpers
@@ -41,7 +38,7 @@ from src.ui.window_layout import WindowLayoutMixin
 
 logger = logging.getLogger(__name__)
 
-# Try to import tkinterdnd2 for drag-and-drop support (Session 73)
+# Try to import tkinterdnd2 for drag-and-drop support
 try:
     from tkinterdnd2 import DND_FILES, TkinterDnD
 
@@ -49,16 +46,13 @@ try:
 except ImportError:
     HAS_DND = False
 
-# PERF-001: Pre-compile regex at module level (after all imports)
+# Pre-compile regex at module level (after all imports)
 _MODEL_PARAM_PATTERN = re.compile(r":(\d+\.?\d*)b")
 
 
 class MainWindow(WindowLayoutMixin, ctk.CTk):
     """
     Main application window for CasePrepd.
-
-    Session 29: Q&A-first two-panel layout with corpus management.
-    Session 33: Layout methods moved to WindowLayoutMixin for better code organization.
 
     Layout:
     - Header row: App title, corpus dropdown, settings button
@@ -120,8 +114,8 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         # Q&A infrastructure (vector_store_path still tracked here for UI checks)
         self._vector_store_path = None  # Path to current session's vector store
         self._qa_results: list = []  # Store QAResult objects
-        self._qa_results_lock = threading.Lock()  # LOG-007: Thread-safe access
-        self._qa_ready = False  # Session 45: Q&A becomes available after indexing
+        self._qa_results_lock = threading.Lock()  # Thread-safe access
+        self._qa_ready = False  # Q&A becomes available after indexing
         self._qa_answering_active = False  # True while default Q&A questions are being answered
         self._worker_ready_retries = 0  # Auto-retry counter for worker startup
 
@@ -163,14 +157,14 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         self._update_summary_checkbox_state()  # Set Summary checkbox based on GPU/settings
         self._restore_task_checkbox_states()  # Restore user's checkbox preferences
 
-        # Session 148: Initialize tab status config to match checkbox states
+        # Initialize tab status config to match checkbox states
         self.output_display.set_tab_status_config(
             vocab_enabled=self.vocab_check.get(),
             qa_enabled=self.qa_check.get(),
             summary_enabled=self.summary_check.get(),
         )
 
-        # Initialize drag-and-drop support (Session 73)
+        # Initialize drag-and-drop support
         self._setup_drag_drop()
 
         # Startup checks and status updates
@@ -245,7 +239,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         )
 
         def show_tooltip(event):
-            # Session 62b: Close any existing tooltip first via global manager
+            # Close any existing tooltip first via global manager
             tooltip_manager.close_active()
 
             # Create tooltip window
@@ -265,12 +259,12 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             )
             label.pack()
 
-            # Session 62b: Register with global manager
+            # Register with global manager
             tooltip_manager.register(tooltip, owner=self.ollama_status_dot)
 
         def hide_tooltip(event):
             if hasattr(self, "_ollama_tooltip") and self._ollama_tooltip:
-                # Session 62b: Unregister from global manager
+                # Unregister from global manager
                 tooltip_manager.unregister(self._ollama_tooltip)
                 self._ollama_tooltip.destroy()
                 self._ollama_tooltip = None
@@ -291,7 +285,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
 
         # Destroy any existing tooltip
         if hasattr(self, "_ollama_tooltip") and self._ollama_tooltip:
-            # Session 62b: Unregister from global manager
+            # Unregister from global manager
             tooltip_manager.unregister(self._ollama_tooltip)
             self._ollama_tooltip.destroy()
             self._ollama_tooltip = None
@@ -328,7 +322,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         param_info = ""
         name_lower = model_name.lower()
 
-        # PERF-001: Look for parameter patterns using pre-compiled regex
+        # Look for parameter patterns using pre-compiled regex
         param_match = _MODEL_PARAM_PATTERN.search(name_lower)
         if param_match:
             param_size = param_match.group(1)
@@ -341,7 +335,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         from src.ui.settings.settings_dialog import SettingsDialog
         from src.user_preferences import get_user_preferences
 
-        # Session 62: Capture current model to detect changes
+        # Capture current model to detect changes
         prefs = get_user_preferences()
         old_model = prefs.get("ollama_model", self.model_manager.model_name)
 
@@ -351,7 +345,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         except Exception as e:
             logger.debug("Failed to open settings dialog: %s", e)
 
-        # Session 62: Check if model changed and reload if needed
+        # Check if model changed and reload if needed
         new_model = prefs.get("ollama_model", self.model_manager.model_name)
         if new_model and new_model != old_model:
             try:
@@ -364,8 +358,8 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         self._refresh_corpus_dropdown()
         self._update_model_display()
         self._update_ollama_status()
-        self._update_qa_checkbox_state()  # Session 90: Refresh Q&A checkbox for model size
-        self._update_summary_checkbox_state()  # Session 93: Refresh Summary checkbox
+        self._update_qa_checkbox_state()  # Refresh Q&A checkbox for model size
+        self._update_summary_checkbox_state()  # Refresh Summary checkbox
 
     # =========================================================================
     # Corpus Management
@@ -382,7 +376,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
                 active = self.corpus_registry.get_active_corpus()
                 self.corpus_dropdown.set(active)
 
-                # Update corpus document count badge (Session 67)
+                # Update corpus document count badge
                 active_info = next((c for c in corpora if c.name == active), None)
                 if active_info and active_info.doc_count > 0:
                     doc_text = "doc" if active_info.doc_count == 1 else "docs"
@@ -412,7 +406,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             messagebox.showerror("Error", f"Failed to switch corpus: {e}")
 
     def _open_corpus_dialog(self):
-        """Open Settings dialog to the Corpus tab (Session 64)."""
+        """Open Settings dialog to the Corpus tab."""
         from src.ui.settings import SettingsDialog
 
         try:
@@ -430,7 +424,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
 
     def _setup_drag_drop(self):
         """
-        Initialize drag-and-drop file support (Session 73).
+        Initialize drag-and-drop file support.
 
         Registers the file table area as a drop target for files.
         Requires tkinterdnd2 library to be installed.
@@ -461,7 +455,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
 
     def _on_file_drop(self, event):
         """
-        Handle files dropped onto the file table area (Session 73).
+        Handle files dropped onto the file table area.
 
         Args:
             event: Drop event containing file paths
@@ -731,19 +725,19 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             messagebox.showerror("Processing Error", str(data))
             self._on_preprocessing_complete([])
 
-        # Progressive Extraction handlers (Session 48, Session 85)
+        # Progressive Extraction handlers
         elif msg_type == "extraction_started":
-            # Session 85: Dim feedback buttons while extraction is in progress
+            # Dim feedback buttons while extraction is in progress
             logger.debug("Extraction started - dimming feedback buttons")
             self.output_display.set_extraction_in_progress(True)
 
         elif msg_type == "extraction_complete":
-            # Session 85: Re-enable feedback buttons after extraction completes
+            # Re-enable feedback buttons after extraction completes
             logger.debug("Extraction complete - enabling feedback buttons")
             self.output_display.set_extraction_in_progress(False)
 
         elif msg_type == "partial_vocab_complete":
-            # Session 85: Show BM25 + RAKE results before NER completes
+            # Show BM25 + RAKE results before NER completes
             term_count = len(data) if data else 0
             logger.debug("Partial results: %s terms from BM25+RAKE", term_count)
             self.output_display.update_outputs(vocab_csv_data=data)
@@ -751,7 +745,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             self.set_status(f"Found {term_count} terms (BM25+RAKE). Running NER...")
 
         elif msg_type == "ner_progress":
-            # Session 85: Update status bar with NER chunk progress
+            # Update status bar with NER chunk progress
             chunk_num = data.get("chunk_num", 0)
             total_chunks = data.get("total_chunks", 1)
             pct = int((chunk_num / total_chunks) * 100)
@@ -807,13 +801,13 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
                     text="Ready. Type a question below to search your documents."
                 )
             else:
-                # Session 148: Update workflow phase for tab status
+                # Update workflow phase for tab status
                 from src.ui.workflow_status import WorkflowPhase
 
                 self.output_display.set_workflow_phase(WorkflowPhase.QA_ANSWERING)
                 logger.debug("Default questions worker started in subprocess")
 
-        # Q&A result handlers (Session 63c: handle messages from default questions worker)
+        # Q&A result handlers (messages from default questions worker)
         elif msg_type == "qa_progress":
             current, total, _question = data
             logger.debug("Q&A progress: %s/%s", current + 1, total)
@@ -822,7 +816,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         elif msg_type == "qa_result":
             # Individual Q&A result - add to results and update display
             logger.debug("Q&A result received")
-            with self._qa_results_lock:  # LOG-007: Thread-safe access
+            with self._qa_results_lock:  # Thread-safe access
                 self._qa_results.append(data)
                 self.output_display.update_outputs(qa_results=self._qa_results)
 
@@ -830,7 +824,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             # All Q&A questions answered
             qa_results = data if data else []
             logger.debug("Q&A complete: %s answers", len(qa_results))
-            with self._qa_results_lock:  # LOG-007: Thread-safe access
+            with self._qa_results_lock:  # Thread-safe access
                 self._qa_results = qa_results
             if qa_results:
                 self.output_display.update_outputs(qa_results=qa_results)
@@ -850,7 +844,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             term_count = len(data) if data else 0
             logger.debug("LLM complete: %s reconciled terms", term_count)
 
-            # Session 78: Only update vocab and show "Enhanced" if LLM actually returned results
+            # Only update vocab and show "Enhanced" if LLM actually returned results
             # When LLM is skipped/disabled, data is empty [] - keep NER-only results
             if data:
                 self.output_display.update_outputs(vocab_csv_data=data)
@@ -982,12 +976,12 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         else:
             self.generate_btn.configure(text=f"Perform {task_count} Tasks", state="normal")
 
-        # Update task preview label (Session 69)
+        # Update task preview label
         self._update_task_preview()
 
     def _update_task_preview(self):
         """
-        Update the task preview label to show what will run (Session 69).
+        Update the task preview label to show what will run.
 
         Shows a concise preview like:
         "Will run: Vocabulary (NER+LLM), Q&A (6 questions)"
@@ -1038,7 +1032,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             if not result:
                 self.summary_check.deselect()
 
-        # Session 148: Update tab status messages
+        # Update tab status messages
         self.output_display.set_tab_status_config(summary_enabled=self.summary_check.get())
 
         self._update_generate_button_state()
@@ -1048,7 +1042,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         """
         Get count of enabled and total default questions.
 
-        Session 63c: Now uses DefaultQuestionsManager for enable/disable support.
+        Uses DefaultQuestionsManager for enable/disable support.
 
         Returns:
             Tuple of (enabled_count, total_count)
@@ -1133,7 +1127,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         self._update_default_questions_checkbox_state()
         self._save_task_checkbox_states()
 
-        # Session 148: Update tab status messages
+        # Update tab status messages
         self.output_display.set_tab_status_config(qa_enabled=self.qa_check.get())
 
         state = "enabled" if self.qa_check.get() else "disabled"
@@ -1159,7 +1153,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             self.ask_default_questions_check.configure(state="disabled")
 
     # =========================================================================
-    # Q&A Checkbox State Management (Session 90 - Model Size Requirements)
+    # Q&A Checkbox State Management (Model Size Requirements)
     # =========================================================================
 
     def _update_qa_checkbox_state(self):
@@ -1389,7 +1383,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         self._update_generate_button_state()
         self._save_task_checkbox_states()
 
-        # Session 148: Update tab status messages
+        # Update tab status messages
         self.output_display.set_tab_status_config(vocab_enabled=self.vocab_check.get())
 
         state = "enabled" if self.vocab_check.get() else "disabled"
@@ -1401,7 +1395,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
 
     def _update_session_stats(self, extraction_stats: dict | None = None):
         """
-        Update the session stats display (Session 73).
+        Update the session stats display.
 
         Shows document stats (file count, pages, size) and extraction stats
         (term count, person count, Q&A count) after processing.
@@ -1463,7 +1457,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         logger.debug("Session stats: %s", stats_text.replace(chr(10), " | "))
 
     def _perform_tasks(self):
-        """Execute the selected tasks using progressive three-phase architecture (Session 45)."""
+        """Execute the selected tasks using progressive three-phase architecture."""
         if not self.processing_results:
             messagebox.showwarning("No Files", "Please add files first.")
             return
@@ -1482,7 +1476,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         self.generate_btn.configure(state="disabled", text=f"Processing {task_count} tasks...")
         self.add_files_btn.configure(state="disabled")
 
-        # Hide task preview - status bar now shows progress (Session 77)
+        # Hide task preview - status bar now shows progress
         self.task_preview_label.configure(text="")
 
         # Start timer
@@ -1499,7 +1493,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         self._qa_ready = False
         self._qa_answering_active = False
 
-        # Session 148: Set initial workflow phase for tab status messages
+        # Set initial workflow phase for tab status messages
         from src.ui.workflow_status import WorkflowPhase
 
         if do_vocab:
@@ -1509,7 +1503,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         elif do_summary:
             self.output_display.set_workflow_phase(WorkflowPhase.SUMMARY_RUNNING)
 
-        # Session 45: Use progressive extraction for vocabulary (includes Q&A indexing)
+        # Use progressive extraction for vocabulary (includes Q&A indexing)
         if do_vocab:
             self._start_progressive_extraction()
         elif do_qa:
@@ -1521,12 +1515,12 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             self._on_tasks_complete(True, "No tasks selected")
 
     # =========================================================================
-    # Progressive Extraction (Session 45)
+    # Progressive Extraction
     # =========================================================================
 
     def _start_progressive_extraction(self):
         """
-        Start progressive three-phase extraction (Session 45).
+        Start progressive three-phase extraction.
 
         Phase 1 (NER): Fast, displays results in ~5 seconds
         Phase 2 (Q&A): Builds vector store, enables Q&A panel
@@ -1557,7 +1551,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             self._on_tasks_complete(False, "No text to analyze")
             return
 
-        # Calculate aggregate document confidence (Session 54)
+        # Calculate aggregate document confidence
         doc_confidence = self._calculate_aggregate_confidence(self.processing_results)
         logger.debug("Aggregate document confidence: %.1f%%", doc_confidence)
 
@@ -1733,7 +1727,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         self._stop_timer()
         self._processing_active = False
 
-        # Session 148: Update workflow phase for tab status
+        # Update workflow phase for tab status
         from src.ui.workflow_status import WorkflowPhase
 
         self.output_display.set_workflow_phase(WorkflowPhase.COMPLETE)
@@ -1751,7 +1745,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             self.export_all_btn.pack(side="right", padx=10, pady=3)
             self._export_all_visible = True
 
-        # Update session stats with extraction results (Session 73)
+        # Update session stats with extraction results
         if success:
             extraction_stats = self._gather_extraction_stats()
             self._update_session_stats(extraction_stats)
@@ -1760,7 +1754,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
 
     def _gather_extraction_stats(self) -> dict:
         """
-        Gather extraction statistics after task completion (Session 73).
+        Gather extraction statistics after task completion.
 
         Returns:
             Dict with vocab_count, person_count, qa_count, processing_time
@@ -2017,8 +2011,8 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         self._refresh_corpus_dropdown()
         self._update_model_display()
         self._update_ollama_status()
-        self._update_qa_checkbox_state()  # Session 90: Refresh Q&A checkbox for model size
-        self._update_summary_checkbox_state()  # Session 93: Refresh Summary checkbox
+        self._update_qa_checkbox_state()  # Refresh Q&A checkbox for model size
+        self._update_summary_checkbox_state()  # Refresh Summary checkbox
         self.refresh_default_questions_label()  # Update question count after settings change
 
         # Prompt restart if font size changed
@@ -2176,7 +2170,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
 
     def _calculate_aggregate_confidence(self, documents: list[dict]) -> float:
         """
-        Calculate aggregate confidence from processed documents (Session 54).
+        Calculate aggregate confidence from processed documents.
 
         Uses minimum confidence across all documents because terms extracted
         from any document could be affected by that document's OCR quality.

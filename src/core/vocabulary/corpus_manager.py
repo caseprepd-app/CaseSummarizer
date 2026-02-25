@@ -84,7 +84,7 @@ class CorpusManager:
 
         # IDF index: {term: idf_score}
         self._idf_index: dict[str, float] = {}
-        # Document frequency: {term: num_docs_containing_term} (Session 68)
+        # Document frequency: {term: num_docs_containing_term}
         self._doc_freq: dict[str, int] = {}
         self._doc_count: int = 0
         self._vocab_size: int = 0
@@ -226,7 +226,7 @@ class CorpusManager:
 
     def get_doc_freq(self, term: str) -> int:
         """
-        Get document frequency for a term (Session 68).
+        Get document frequency for a term.
 
         Returns the number of corpus documents that contain this term.
         Used for corpus familiarity filtering.
@@ -246,7 +246,7 @@ class CorpusManager:
 
     def get_total_docs_indexed(self) -> int:
         """
-        Get total number of documents used to build the index (Session 68).
+        Get total number of documents used to build the index.
 
         This may differ from get_document_count() if corpus has changed
         since the index was last built.
@@ -369,7 +369,7 @@ class CorpusManager:
             idf = math.log((total_docs - df + 0.5) / (df + 0.5) + 1)
             self._idf_index[term] = round(idf, 4)
 
-        # Session 68: Store doc_freq for corpus familiarity filtering
+        # Store doc_freq for corpus familiarity filtering
         self._doc_freq = dict(doc_freq)
         self._doc_count = total_docs
         self._vocab_size = len(self._idf_index)
@@ -387,14 +387,14 @@ class CorpusManager:
         # Save to cache
         self._save_cache()
 
-        # Session 68: Check if corpus just became ready and auto-reset ML model
+        # Check if corpus just became ready and auto-reset ML model
         self._check_corpus_ready_transition()
 
         return True
 
     def _check_corpus_ready_transition(self) -> None:
         """
-        Check if corpus just became ready (Session 68).
+        Check if corpus just became ready.
 
         If this is the first time the corpus has 5+ documents and an ML model
         exists, reset the model so it can retrain with corpus familiarity features.
@@ -528,13 +528,13 @@ class CorpusManager:
         """
         try:
             cache_data = {
-                "version": 2,  # Session 68: Added doc_freq
+                "version": 2,  # v2 added doc_freq
                 "corpus_hash": self._corpus_hash,
                 "doc_count": self._doc_count,
                 "vocab_size": self._vocab_size,
                 "last_build_time": self._last_build_time,
                 "idf_index": self._idf_index,
-                "doc_freq": self._doc_freq,  # Session 68: For corpus familiarity
+                "doc_freq": self._doc_freq,  # For corpus familiarity filtering
             }
 
             with open(self._cache_file, "w", encoding="utf-8") as f:
@@ -561,7 +561,7 @@ class CorpusManager:
             with open(self._cache_file, encoding="utf-8") as f:
                 cache_data = json.load(f)
 
-            # Validate cache version (Session 68: Accept v1 or v2, rebuild for older)
+            # Validate cache version (accept v1 or v2, rebuild for older)
             cache_version = cache_data.get("version", 0)
             if cache_version < 1:
                 logger.debug("Cache version too old, will rebuild")
@@ -581,7 +581,7 @@ class CorpusManager:
             self._vocab_size = cache_data.get("vocab_size", 0)
             self._last_build_time = cache_data.get("last_build_time")
             self._idf_index = cache_data.get("idf_index", {})
-            # Session 68: Load doc_freq (may be empty for v1 caches)
+            # Load doc_freq (may be empty for v1 caches)
             self._doc_freq = cache_data.get("doc_freq", {})
 
             logger.debug(
@@ -614,7 +614,7 @@ class CorpusManager:
         return 5000
 
     # =========================================================================
-    # Preprocessing Methods (Session 29 - Multi-Corpus Support)
+    # Preprocessing Methods (Multi-Corpus Support)
     # =========================================================================
 
     def get_corpus_files_with_status(self) -> list[CorpusFile]:
@@ -825,8 +825,7 @@ def get_corpus_manager() -> CorpusManager:
     with _corpus_lock:
         # Double-check after acquiring lock
         if _corpus_manager is None:
-            # Get active corpus path from registry (avoids path mismatch bug)
-            # Session 64: Fixed - was using old CORPUS_DIR instead of registry path
+            # Get active corpus path from registry (avoids path mismatch with CORPUS_DIR)
             try:
                 from src.core.vocabulary.corpus_registry import get_corpus_registry
 

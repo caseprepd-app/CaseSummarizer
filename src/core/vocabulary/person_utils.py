@@ -1,7 +1,7 @@
 """
 Person Detection Utilities for Vocabulary Extraction.
 
-Session 70: Centralized person detection to handle inconsistent formats.
+Centralized person detection to handle inconsistent formats.
 
 The vocabulary pipeline has two sources that mark person names:
 1. VocabularyExtractor.extract(): Sets {"Is Person": "Yes"}

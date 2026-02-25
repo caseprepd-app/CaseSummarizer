@@ -28,7 +28,7 @@ TOKEN_PATTERN = re.compile(r"\b[a-zA-Z][a-zA-Z0-9'-]*[a-zA-Z0-9]\b|\b[a-zA-Z]\b"
 
 # Unified stopwords (merged from all BM25 implementations)
 # These are common words that don't carry meaning for search/extraction
-# Session 58: Expanded with body parts, transcript fillers, and more common nouns
+# Expanded with body parts, transcript fillers, and more common nouns
 STOPWORDS: frozenset[str] = frozenset(
     {
         # Articles

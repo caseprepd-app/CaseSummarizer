@@ -48,7 +48,7 @@ def get_qa_tab_status(phase: WorkflowPhase, config: TabStatusConfig) -> str:
     if not config.qa_enabled:
         return (
             "Q&A is disabled.\n\n"
-            "Enable 'Enable Q&A' in the options panel to ask questions about your documents."
+            "Check 'Enable Q&A' in the options panel to ask questions about your documents."
         )
 
     if phase == WorkflowPhase.IDLE:

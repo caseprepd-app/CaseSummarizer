@@ -91,12 +91,12 @@ class ImagePreprocessor:
 
     def __init__(
         self,
-        # New: Orientation and document detection
+        # Orientation and document detection
         enable_orientation_correction: bool = True,
         orientation_confidence_threshold: float = 2.0,
         enable_document_detection: bool = True,
         min_document_area_ratio: float = 0.1,
-        # Existing parameters
+        # Denoising and thresholding
         denoise_strength: int = 10,
         adaptive_block_size: int = 11,
         adaptive_constant: int = 2,
@@ -123,12 +123,12 @@ class ImagePreprocessor:
             clahe_clip_limit: Contrast limit for CLAHE (2.0 is typical)
             clahe_grid_size: Grid size for CLAHE histogram equalization
         """
-        # New features
+        # Orientation and document detection
         self.enable_orientation_correction = enable_orientation_correction
         self.orientation_confidence_threshold = orientation_confidence_threshold
         self.enable_document_detection = enable_document_detection
         self.min_document_area_ratio = min_document_area_ratio
-        # Existing
+        # Denoising and thresholding
         self.denoise_strength = denoise_strength
         self.adaptive_block_size = adaptive_block_size
         self.adaptive_constant = adaptive_constant

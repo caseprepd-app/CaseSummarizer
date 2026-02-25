@@ -18,7 +18,7 @@ NOTE: This is a heuristic approach. An ML model trained on OCR error patterns
 could potentially achieve higher accuracy by learning corpus-specific patterns.
 This rules-based implementation provides a reasonable baseline.
 
-Session 78: Initial implementation for canonical spelling improvement.
+Improves canonical spelling selection by penalizing OCR-like patterns.
 """
 
 import re

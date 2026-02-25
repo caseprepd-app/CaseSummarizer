@@ -1,8 +1,6 @@
 """
 Vocabulary Feedback Handler Mixin.
 
-Session 82: Extracted from dynamic_output.py for modularity.
-
 Contains:
 - Feedback UI (Keep/Skip buttons in table)
 - Term exclusion list management

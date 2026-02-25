@@ -2,7 +2,6 @@
 Column Visibility Widget for Settings Dialog.
 
 Widget for configuring default column visibility in vocabulary table.
-Session 82: Extracted from settings_widgets.py for modularity.
 
 Layout:
     ┌─────────────────────────────────────────────────────────────┐
@@ -36,9 +35,9 @@ class ColumnVisibilityWidget(ctk.CTkFrame):
     """
     Widget for configuring default column visibility in vocabulary table.
 
-    Session 80: Provides grouped checkboxes for selecting which columns
-    appear by default. Users can also toggle columns via right-click on
-    the table header in the main UI.
+    Provides grouped checkboxes for selecting which columns appear by default.
+    Users can also toggle columns via right-click on the table header in the
+    main UI.
     """
 
     # Column groups for organized display

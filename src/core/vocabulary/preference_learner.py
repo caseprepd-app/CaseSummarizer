@@ -95,14 +95,14 @@ class VocabularyPreferenceLearner:
         self._is_trained = False
         self._ensemble_enabled = False
 
-        # Sample counts for graduated ML weight (Session 55)
+        # Sample counts for graduated ML weight
         self._user_sample_count = 0
         self._total_sample_count = 0
 
         # Load existing model if available
         self._load_model()
 
-        # Session 86: Auto-train if model doesn't exist but sufficient data is available
+        # Auto-train if model doesn't exist but sufficient data is available
         # This ensures ML kicks in as soon as we have enough feedback, without needing
         # a manual retrain trigger
         if not self._is_trained:
@@ -138,7 +138,7 @@ class VocabularyPreferenceLearner:
             return 0.0
 
         # Find the appropriate weight based on total sample count
-        # Session 86: Changed from _user_sample_count to _total_sample_count
+        # Uses _total_sample_count (not _user_sample_count)
         # so default samples contribute to ML weight (user feedback is upweighted anyway)
         for threshold, weight in ML_WEIGHT_THRESHOLDS:
             if self._total_sample_count < threshold:

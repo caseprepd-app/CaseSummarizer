@@ -1,12 +1,12 @@
 """
-Unified Semantic Chunker with Token Enforcement (Session 45, Session 67)
+Unified Semantic Chunker with Token Enforcement
 
 This module provides a single chunking service that:
 1. Uses semantic chunking (LangChain SemanticChunker with gradient breakpoints)
 2. Enforces token limits using tiktoken for accurate counting
 3. Caches chunks in memory for reuse by all downstream consumers
 
-Session 67: Based on RAG research (2024-2025), chunk sizes are FIXED at 400-1000
+Based on RAG research (2024-2025), chunk sizes are FIXED at 400-1000
 tokens regardless of context window. Larger context = more chunks retrieved,
 not bigger chunks. Research sources:
 - Chroma: 200-400 tokens for best precision
@@ -260,7 +260,7 @@ class UnifiedChunker:
             List of UnifiedChunk objects
         """
         start_time = time.time()
-        # PERF-010: Use deterministic hash instead of non-deterministic hash()
+        # Use deterministic hash instead of non-deterministic hash()
         text_hash = hashlib.sha256(text.encode()).hexdigest()[:16]
         cache_key = f"{source_file or 'unknown'}_{text_hash}"
 
@@ -547,7 +547,7 @@ def create_unified_chunker(
     Factory function to create a UnifiedChunker instance.
 
     If token sizes are not provided, uses optimal fixed sizes based on RAG research.
-    Session 67: Chunk sizes are FIXED at 400-1000 tokens (research-based optimal range).
+    Chunk sizes are FIXED at 400-1000 tokens (research-based optimal range).
 
     Args:
         min_tokens: Minimum tokens per chunk (auto-scaled if None)

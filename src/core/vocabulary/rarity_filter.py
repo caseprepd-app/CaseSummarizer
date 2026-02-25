@@ -18,8 +18,8 @@ RAKE and other algorithms sometimes extract terms that aren't valuable vocabular
 The solution: Examine each word's rarity in general English usage. If words are
 too common (in the top X% of English vocabulary), filter them out.
 
-RANK-BASED SCORING (Session 58):
---------------------------------
+RANK-BASED SCORING:
+-------------------
 Score = rank / total_words (percentile position in vocabulary)
 - 0.0 = most common word ("the", rank 1)
 - 0.5 = median word (top 50%)
@@ -93,8 +93,7 @@ def _load_scaled_frequencies() -> dict[str, float]:
         - 0.0 = most common word ("the", rank 1)
         - 1.0 = rarest word in dataset
 
-    RANK-BASED SCORING (Session 58):
-    This is more intuitive than log scaling because:
+    Rank-based scoring is more intuitive than log scaling because:
     - "age" at rank 579 = 0.0017 (top 0.17% of English words)
     - Threshold of 0.50 means "filter the most common half of English"
     - Court reporters know common English; they need only specialized terms
@@ -228,7 +227,7 @@ def calculate_phrase_component_scores(phrase: str, floor: float = 0.0) -> tuple[
     KEY INSIGHT: A phrase with even ONE rare word might be worth keeping.
     We only want to filter phrases where ALL words are common.
 
-    Session 70: Added LRU cache since same phrases are often checked multiple times
+    Uses LRU cache since same phrases are often checked multiple times
     during vocabulary extraction.
 
     Args:
@@ -376,9 +375,8 @@ def should_filter_phrase(phrase: str, is_person: bool = False) -> bool:
     """
     Determine if a term should be filtered out due to common component words.
 
-    RANK-BASED SCORING (Session 58):
-    Score = rank / total_words (0.0 = most common, 1.0 = rarest)
-    Lower score = more common word = should be filtered
+    Score = rank / total_words (0.0 = most common, 1.0 = rarest).
+    Lower score = more common word = should be filtered.
 
     For SINGLE words:
         - Filter if score < threshold (word is too common)
@@ -402,14 +400,13 @@ def should_filter_phrase(phrase: str, is_person: bool = False) -> bool:
         - Single words: Filter if score < threshold (in top X% of vocabulary)
         - Multi-word phrases: Filter if even the rarest word is in top X%
 
-    Session 59: Thresholds now read from user preferences for GUI configurability.
+    Thresholds are read from user preferences for GUI configurability.
     """
     # Person names are exempt - "John Smith" or "Lee" uses common words but is valuable
     if is_person:
         return False
 
-    # Get thresholds from user preferences (Session 59)
-    # Fall back to config.py values if not set
+    # Get thresholds from user preferences, fall back to config.py values if not set
     prefs = get_user_preferences()
     single_threshold = prefs.get("single_word_rarity_threshold", SINGLE_WORD_COMMONALITY_THRESHOLD)
     phrase_threshold = prefs.get("phrase_rarity_threshold", PHRASE_MAX_COMMONALITY_THRESHOLD)
@@ -424,7 +421,7 @@ def should_filter_phrase(phrase: str, is_person: bool = False) -> bool:
     if word_count == 0:
         return False
 
-    # === SINGLE WORD FILTERING (Session 58 - rank-based) ===
+    # === SINGLE WORD FILTERING (rank-based) ===
     # Filter common single words that aren't valuable vocabulary
     # Lower score = more common (rank-based: 0.0 = most common)
     # Filter if word is in the top X% (score < threshold)
@@ -488,7 +485,7 @@ def filter_common_phrases(
     2. Consistent behavior across NER, RAKE, BM25, and LLM sources
     3. Catches common single words that individual algorithms miss (like RAKE)
 
-    Session 70: Now uses centralized is_person_entry() for consistent person detection.
+    Uses centralized is_person_entry() for consistent person detection.
 
     Args:
         vocabulary: List of term dictionaries from vocabulary extraction
@@ -509,7 +506,7 @@ def filter_common_phrases(
 
     for term_data in vocabulary:
         term = term_data.get(term_key, "")
-        # Session 70: Use centralized person detection
+        # Use centralized person detection
         is_person = is_person_entry(term_data)
 
         if should_filter_phrase(term, is_person) and not should_passthrough_non_ner_term(

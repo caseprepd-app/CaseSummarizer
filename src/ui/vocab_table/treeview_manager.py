@@ -1,8 +1,6 @@
 """
 Vocabulary Treeview Manager Mixin.
 
-Session 82: Extracted from dynamic_output.py for modularity.
-
 Contains:
 - Column visibility management (load/save, menu, toggle)
 - Column width persistence
@@ -41,14 +39,14 @@ class TreeviewManagerMixin:
     """
 
     # =========================================================================
-    # Column Visibility Management (Session 80)
+    # Column Visibility Management
     # =========================================================================
 
     def _load_column_visibility(self):
         """
         Load column visibility settings from user preferences.
 
-        Session 80: Loads saved visibility or uses COLUMN_REGISTRY defaults.
+        Loads saved visibility or uses COLUMN_REGISTRY defaults.
         """
         from src.user_preferences import get_user_preferences
 
@@ -81,7 +79,7 @@ class TreeviewManagerMixin:
         """
         Show column visibility popup menu.
 
-        Session 80: Right-click or button click shows checkable column list.
+        Right-click or button click shows checkable column list.
         """
         menu = tk.Menu(self, tearoff=0)
 
@@ -168,7 +166,7 @@ class TreeviewManagerMixin:
         self._redisplay_sorted_data()
 
     # =========================================================================
-    # Column Width Persistence (Session 80b)
+    # Column Width Persistence
     # =========================================================================
 
     def _load_column_widths(self):
@@ -219,14 +217,14 @@ class TreeviewManagerMixin:
         return config.get("width", 80)
 
     # =========================================================================
-    # Sorting (Session 80)
+    # Sorting
     # =========================================================================
 
     def _sort_by_column(self, col_name: str):
         """
         Sort vocabulary data by the specified column.
 
-        Session 80: Click column header to sort. Click again to reverse.
+        Click column header to sort. Click again to reverse.
 
         Args:
             col_name: Column name to sort by
@@ -309,14 +307,14 @@ class TreeviewManagerMixin:
             self._async_insert_rows(self._vocab_csv_data, 0)
 
     # =========================================================================
-    # Text Filtering (Session 80b)
+    # Text Filtering
     # =========================================================================
 
     def _apply_filter(self, filter_text: str):
         """
         Filter vocabulary rows by text match.
 
-        Session 80b: Filters Term column, hides non-matching rows.
+        Filters Term column, hides non-matching rows.
 
         Args:
             filter_text: Text to search for (case-insensitive)
@@ -346,14 +344,14 @@ class TreeviewManagerMixin:
         self._apply_filter("")
 
     # =========================================================================
-    # Async Row Insertion (Session 33)
+    # Async Row Insertion
     # =========================================================================
 
     def _async_insert_rows(self, data: list[dict], start_index: int):
         """
         Insert rows asynchronously to keep GUI responsive.
 
-        Session 33: Batch inserts with delays to prevent UI freeze.
+        Batch inserts with delays to prevent UI freeze.
 
         Args:
             data: Full vocabulary data list
