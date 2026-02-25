@@ -174,7 +174,7 @@ def ollama_generation_worker_process(
         logger.debug("Critical setup error: %s", error_msg)
         output_queue.put(("error", error_msg))
     finally:
-        # Ensure model_manager is cleaned up if necessary, though Ollama handles this
+        # Free VRAM by sending keep_alive=0 (counterpart to keep_alive=-1 during generation)
         if model_manager and model_initialized:
             model_manager.unload_model()
         logger.info("Worker process finished")
