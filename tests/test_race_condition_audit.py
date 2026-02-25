@@ -24,7 +24,7 @@ def _make_window_stub():
     stub._destroying = False
     stub._followup_pending = False
     stub._followup_poll_count = 0
-    stub._FOLLOWUP_TIMEOUT_POLLS = 300
+    stub._FOLLOWUP_TIMEOUT_POLLS = 540_000
     stub._pending_tasks = {}
     stub._completed_tasks = set()
     stub._qa_answering_active = False

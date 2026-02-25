@@ -335,10 +335,9 @@ DESCRIPTIONS = {
         "tooltip": (
             "Maximum time to wait for the LLM to generate a response.\n"
             "Long documents or complex prompts may need more time.\n\n"
-            "Default: 600 seconds (10 minutes)\n\n"
-            "Increase: Allow more time for long documents or slow hardware.\n"
-            "Decrease: Fail faster if LLM is stuck (retry sooner).\n\n"
-            "CPU-only systems may need 900+ seconds for large documents."
+            "Default: 54000 seconds (15 hours)\n\n"
+            "Large models on CPU-only systems can take hours.\n"
+            "Decrease only if you want to fail faster when LLM is stuck."
         ),
     },
     "summary_length_tolerance": {

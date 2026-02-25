@@ -66,7 +66,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
     - _create_left_panel, _create_right_panel, _create_status_bar
     """
 
-    _FOLLOWUP_TIMEOUT_POLLS = 300  # 30 seconds at 100 ms per poll
+    _FOLLOWUP_TIMEOUT_POLLS = 540_000  # 15 hours at 100 ms per poll
 
     def __init__(self, worker_manager=None):
         super().__init__()
@@ -1842,7 +1842,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         if self._destroying:
             return
 
-        # Timeout guard: if subprocess crashed, stop polling after 30 s
+        # Timeout guard: stop polling after 15 hours (safety net for crashed subprocess)
         self._followup_poll_count += 1
         if self._followup_poll_count >= self._FOLLOWUP_TIMEOUT_POLLS:
             logger.warning("Follow-up polling timed out after %d polls", self._followup_poll_count)
@@ -1962,7 +1962,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             self._worker_manager.send_command("followup", {"question": question})
 
             # Poll for result (blocking, since we're in a background thread)
-            timeout = 120  # seconds
+            timeout = 54000  # 15 hours — CPU-only Ollama can take hours
             start = time.time()
             while time.time() - start < timeout:
                 messages = self._worker_manager.check_for_messages()

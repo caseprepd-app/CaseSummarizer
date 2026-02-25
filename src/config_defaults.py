@@ -267,9 +267,9 @@ DEFAULTS = {
         "category": "LLM Generation",
     },
     "ollama_timeout_seconds": {
-        "value": 1800,
+        "value": 54000,
         "min": 60,
-        "max": 36000,
+        "max": 54000,
         "step": 60,
         "type": "int",
         "category": "LLM Generation",
