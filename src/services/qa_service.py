@@ -349,9 +349,9 @@ class QAService:
         Returns:
             True if Ollama responds to a connection check
         """
-        from src.core.ai.ollama_model_manager import OllamaModelManager
+        from src.services import AIService
 
-        return OllamaModelManager().is_connected
+        return AIService().get_ollama_manager().is_connected
 
     def get_placeholder_texts(self) -> dict[str, str]:
         """

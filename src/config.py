@@ -363,6 +363,11 @@ GPU_DETECTION_TIMEOUT = 15  # Seconds for GPU/VRAM detection via WMI
 OLLAMA_STREAM_READ_TIMEOUT_GPU = 300  # 5 min max silence between chunks (GPU)
 OLLAMA_STREAM_READ_TIMEOUT_CPU = 900  # 15 min max silence between chunks (CPU-only)
 
+# Ollama Model Keep-Alive
+# Controls how long Ollama keeps a model loaded in VRAM after the last request.
+OLLAMA_KEEP_ALIVE_ACTIVE = "-1"  # Keep model in VRAM indefinitely during processing
+OLLAMA_KEEP_ALIVE_UNLOAD = 0  # Unload immediately when processing complete
+
 # Context Window Configuration
 # Dynamically set based on GPU VRAM via user preferences.
 # This constant is only used as a fallback if user preferences are unavailable.

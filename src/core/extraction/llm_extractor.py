@@ -49,6 +49,37 @@ from src.core.ai.ollama_model_manager import OllamaModelManager
 
 logger = logging.getLogger(__name__)
 
+# JSON schema for structured extraction (Ollama v0.5+)
+# Guarantees the model produces the exact required structure.
+_VOCAB_JSON_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "people": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "name": {"type": "string"},
+                    "role": {"type": "string"},
+                },
+                "required": ["name", "role"],
+            },
+        },
+        "vocabulary": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "term": {"type": "string"},
+                    "type": {"type": "string"},
+                },
+                "required": ["term", "type"],
+            },
+        },
+    },
+    "required": ["vocabulary"],
+}
+
 # Default prompt file path (combined extraction)
 PROMPT_FILE = (
     Path(__file__).parent.parent.parent.parent
@@ -288,6 +319,7 @@ DOCUMENT CHUNK:
                 prompt=prompt,
                 max_tokens=self.max_tokens,
                 temperature=0.0,  # Deterministic for extraction
+                schema=_VOCAB_JSON_SCHEMA,
             )
 
             if response is None:

@@ -20,11 +20,11 @@ import re
 import time
 from typing import Any
 
-import requests
-
 from src.config import (
     OLLAMA_API_BASE,
     OLLAMA_CONTEXT_WINDOW,
+    OLLAMA_KEEP_ALIVE_ACTIVE,
+    OLLAMA_KEEP_ALIVE_UNLOAD,
     OLLAMA_MODEL_NAME,
     OLLAMA_TIMEOUT_SECONDS,
     PROMPTS_DIR,
@@ -32,7 +32,6 @@ from src.config import (
 )
 from src.core.prompting import PromptTemplateManager, get_prompt_config
 
-from .prompt_formatter import wrap_prompt_for_model
 from .summary_post_processor import SummaryPostProcessor
 
 logger = logging.getLogger(__name__)
@@ -151,17 +150,14 @@ class OllamaModelManager:
         Returns:
             bool: True if Ollama is accessible, False otherwise
         """
-        from src.config import OLLAMA_CONNECTION_TIMEOUT
+        import ollama
 
         try:
-            response = requests.get(f"{self.api_base}/api/tags", timeout=OLLAMA_CONNECTION_TIMEOUT)
-            self.is_connected = response.status_code == 200
-            if self.is_connected:
-                logger.debug("Successfully connected to Ollama")
-            else:
-                logger.debug("Ollama returned status %s", response.status_code)
-        except requests.exceptions.ConnectionError:
-            logger.debug("Could not connect to Ollama at %s", self.api_base)
+            self._client.list()
+            self.is_connected = True
+            logger.debug("Successfully connected to Ollama")
+        except ollama.ResponseError as e:
+            logger.debug("Ollama connection error: %s", e)
             self.is_connected = False
         except Exception as e:
             logger.debug("Connection check failed: %s", e)
@@ -176,7 +172,7 @@ class OllamaModelManager:
         Returns:
             dict: Model names mapped to availability and metadata
         """
-        from src.config import OLLAMA_API_TIMEOUT
+        import ollama
 
         if not self.is_connected:
             self._check_connection()
@@ -185,21 +181,21 @@ class OllamaModelManager:
 
         if self.is_connected:
             try:
-                response = requests.get(f"{self.api_base}/api/tags", timeout=OLLAMA_API_TIMEOUT)
-                if response.status_code == 200:
-                    data = response.json()
-                    for model in data.get("models", []):
-                        model_name = model["name"]
-                        models[model_name] = {
-                            "name": model_name,
-                            "available": True,
-                            "size": model.get("size", 0),
-                            "modified": model.get("modified_at", ""),
-                            "description": f"Size: {self._format_size(model.get('size', 0))}",
-                        }
-                    logger.debug("Found %s available models: %s", len(models), list(models.keys()))
-                else:
-                    logger.debug("Failed to get models: %s", response.status_code)
+                result = self._client.list()
+                for model in result.models:
+                    model_name = model.model or ""
+                    if not model_name:
+                        continue
+                    models[model_name] = {
+                        "name": model_name,
+                        "available": True,
+                        "size": model.size or 0,
+                        "modified": str(model.modified_at or ""),
+                        "description": f"Size: {self._format_size(model.size or 0)}",
+                    }
+                logger.debug("Found %s available models: %s", len(models), list(models.keys()))
+            except ollama.ResponseError as e:
+                logger.debug("Failed to get models: %s", e)
             except Exception as e:
                 logger.debug("Error fetching available models: %s", e)
         else:
@@ -319,16 +315,13 @@ class OllamaModelManager:
 
         try:
             import httpx
-
-            # Wrap prompt for model-specific format compatibility (Phase 2.7)
-            wrapped_prompt = wrap_prompt_for_model(self.model_name, prompt)
-            logger.debug("Wrapped prompt length: %s chars", len(wrapped_prompt))
+            import ollama
 
             # Check if prompt may exceed context window
             # Use dynamic context size based on GPU/VRAM
             from src.core.qa.token_budget import count_tokens
 
-            estimated_tokens = count_tokens(wrapped_prompt)
+            estimated_tokens = count_tokens(prompt)
             context_window = _get_context_window()
             if estimated_tokens > context_window - 300:  # Leave room for output
                 logger.warning(
@@ -340,12 +333,9 @@ class OllamaModelManager:
 
             logger.debug("Using context window: %s tokens", context_window)
 
-            logger.debug("===== ORIGINAL PROMPT START =====")
+            logger.debug("===== PROMPT START =====")
             logger.debug("%s", prompt)
-            logger.debug("===== ORIGINAL PROMPT END =====")
-            logger.debug("===== WRAPPED PROMPT START =====")
-            logger.debug("%s", wrapped_prompt)
-            logger.debug("===== WRAPPED PROMPT END =====")
+            logger.debug("===== PROMPT END =====")
 
             # Use ollama client with streaming for reliability
             start_time = time.time()
@@ -354,13 +344,14 @@ class OllamaModelManager:
             # Stream the response - this prevents hanging on long generations
             stream = self._client.generate(
                 model=self.model_name,
-                prompt=wrapped_prompt,
+                prompt=prompt,
                 options={
                     "temperature": temperature,
                     "top_p": top_p,
                     "num_predict": max_tokens,
                     "num_ctx": context_window,
                 },
+                keep_alive=OLLAMA_KEEP_ALIVE_ACTIVE,
                 stream=True,
             )
 
@@ -386,6 +377,9 @@ class OllamaModelManager:
                 f"Ollama stopped responding after {minutes} minutes. "
                 "The model may have crashed or run out of memory."
             )
+        except ollama.ResponseError as e:
+            logger.error("Ollama API error (status %s): %s", e.status_code, e.error)
+            raise RuntimeError(f"Ollama error (status {e.status_code}): {e.error}") from e
         except Exception as e:
             logger.debug("Text generation failed: %s", e)
             raise RuntimeError(f"Text generation failed: {e!s}") from e
@@ -448,10 +442,17 @@ class OllamaModelManager:
         return summary
 
     def unload_model(self):
-        """Unload the current model (Ollama keeps models in memory)."""
-        logger.debug("Unloading model: %s", self.model_name)
-        # Ollama handles unloading automatically
-        # This is just for API compatibility
+        """Unload model from Ollama VRAM by sending keep_alive=0."""
+        if not self.model_name or not self.is_connected:
+            logger.debug("Skipping unload: no model or not connected")
+            return
+        try:
+            self._client.generate(
+                model=self.model_name, prompt="", keep_alive=OLLAMA_KEEP_ALIVE_UNLOAD
+            )
+            logger.info("[Ollama] Unloaded model from VRAM: %s", self.model_name)
+        except Exception as e:
+            logger.debug("Model unload failed (non-critical): %s", e)
 
     def health_check(self) -> dict:
         """
@@ -478,12 +479,14 @@ class OllamaModelManager:
         prompt: str,
         max_tokens: int = 1000,
         temperature: float = 0.0,
+        schema: dict | None = None,
     ) -> dict[str, Any] | None:
         """
         Generate structured JSON output using Ollama's format mode.
 
-        Uses the official ollama library with format="json" for reliable
-        JSON output. Falls back to regex JSON extraction if needed.
+        Uses the official ollama library with format="json" (or a JSON schema dict
+        for Ollama v0.5+) for reliable JSON output. Falls back to regex JSON
+        extraction if needed.
 
         This is the primary method for LLM-based extraction.
 
@@ -491,6 +494,8 @@ class OllamaModelManager:
             prompt: The prompt including JSON schema instructions
             max_tokens: Maximum tokens to generate (default 1000)
             temperature: Sampling temperature (default 0.0 for deterministic)
+            schema: Optional JSON schema dict for structured output (Ollama v0.5+).
+                    If None, falls back to format="json".
 
         Returns:
             Parsed JSON as dict, or None if parsing fails
@@ -512,6 +517,7 @@ class OllamaModelManager:
 
         try:
             import httpx
+            import ollama
 
             # Use dynamic context size based on GPU/VRAM
             context_window = _get_context_window()
@@ -521,18 +527,22 @@ class OllamaModelManager:
             logger.debug("%s", prompt[:500] + "..." if len(prompt) > 500 else prompt)
             logger.debug("===== PROMPT END =====")
 
+            # Use schema dict for constrained output (Ollama v0.5+), else generic JSON mode
+            format_param = schema if schema is not None else "json"
+
             # Use ollama client with JSON format
             start_time = time.time()
 
             response = self._client.generate(
                 model=self.model_name,
                 prompt=prompt,
-                format="json",  # Ollama structured output mode
+                format=format_param,
                 options={
                     "temperature": temperature,
                     "num_predict": max_tokens,
                     "num_ctx": context_window,
                 },
+                keep_alive=OLLAMA_KEEP_ALIVE_ACTIVE,
                 stream=False,  # JSON format works better without streaming
             )
 
@@ -561,6 +571,9 @@ class OllamaModelManager:
                 f"Ollama stopped responding after {minutes} minutes. "
                 "The model may have crashed or run out of memory."
             )
+        except ollama.ResponseError as e:
+            logger.error("Ollama API error (status %s): %s", e.status_code, e.error)
+            raise RuntimeError(f"Ollama error (status {e.status_code}): {e.error}") from e
         except Exception as e:
             logger.debug("Error: %s", e)
             return None

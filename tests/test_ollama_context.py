@@ -89,18 +89,12 @@ class TestOllamaPayload:
     """Test that Ollama API payload includes context window."""
 
     @patch("src.core.ai.ollama_model_manager._create_ollama_client")
-    @patch("src.core.ai.ollama_model_manager.requests.get")
-    def test_num_ctx_in_payload(self, mock_get, mock_create_client):
+    def test_num_ctx_in_payload(self, mock_create_client):
         """Verify num_ctx is included in Ollama API calls."""
-        # Mock connection check
-        mock_get_response = MagicMock()
-        mock_get_response.status_code = 200
-        mock_get_response.json.return_value = {"models": []}
-        mock_get.return_value = mock_get_response
-
         # Mock ollama client with generate returning a streaming iterator
         mock_client = MagicMock()
         mock_client.generate.return_value = iter([{"response": "Test summary"}])
+        mock_client.list.return_value = MagicMock(models=[])
         mock_create_client.return_value = mock_client
 
         from src.core.ai.ollama_model_manager import OllamaModelManager
@@ -131,18 +125,12 @@ class TestTruncationWarning:
     @patch("src.core.ai.ollama_model_manager._get_context_window", return_value=2048)
     @patch("src.core.ai.ollama_model_manager.logger")
     @patch("src.core.ai.ollama_model_manager._create_ollama_client")
-    @patch("src.core.ai.ollama_model_manager.requests.get")
-    def test_warning_on_large_prompt(self, mock_get, mock_create_client, mock_logger, _mock_ctx):
+    def test_warning_on_large_prompt(self, mock_create_client, mock_logger, _mock_ctx):
         """Verify warning is issued when prompt approaches context limit."""
-        # Mock connection check
-        mock_get_response = MagicMock()
-        mock_get_response.status_code = 200
-        mock_get_response.json.return_value = {"models": []}
-        mock_get.return_value = mock_get_response
-
         # Mock ollama client with generate returning a streaming iterator
         mock_client = MagicMock()
         mock_client.generate.return_value = iter([{"response": "Summary"}])
+        mock_client.list.return_value = MagicMock(models=[])
         mock_create_client.return_value = mock_client
 
         from src.core.ai.ollama_model_manager import OllamaModelManager
@@ -166,18 +154,12 @@ class TestTruncationWarning:
 
     @patch("src.core.ai.ollama_model_manager.logger")
     @patch("src.core.ai.ollama_model_manager._create_ollama_client")
-    @patch("src.core.ai.ollama_model_manager.requests.get")
-    def test_no_warning_on_small_prompt(self, mock_get, mock_create_client, mock_logger):
+    def test_no_warning_on_small_prompt(self, mock_create_client, mock_logger):
         """Verify no warning for prompts well under context limit."""
-        # Mock connection check
-        mock_get_response = MagicMock()
-        mock_get_response.status_code = 200
-        mock_get_response.json.return_value = {"models": []}
-        mock_get.return_value = mock_get_response
-
         # Mock ollama client with generate returning a streaming iterator
         mock_client = MagicMock()
         mock_client.generate.return_value = iter([{"response": "Summary"}])
+        mock_client.list.return_value = MagicMock(models=[])
         mock_create_client.return_value = mock_client
 
         from src.core.ai.ollama_model_manager import OllamaModelManager
@@ -246,20 +228,15 @@ class TestReadTimeoutHandling:
     """Test that httpx.ReadTimeout is caught and re-raised as RuntimeError."""
 
     @patch("src.core.ai.ollama_model_manager._create_ollama_client")
-    @patch("src.core.ai.ollama_model_manager.requests.get")
-    def test_generate_text_catches_read_timeout(self, mock_get, mock_create_client):
+    def test_generate_text_catches_read_timeout(self, mock_create_client):
         """generate_text raises RuntimeError with clear message on ReadTimeout."""
         import httpx
-
-        mock_get_response = MagicMock()
-        mock_get_response.status_code = 200
-        mock_get_response.json.return_value = {"models": []}
-        mock_get.return_value = mock_get_response
 
         # Mock client that raises ReadTimeout on generate
         mock_client = MagicMock()
         mock_client.generate.side_effect = httpx.ReadTimeout("read timed out")
         mock_client._client.timeout.read = 300.0
+        mock_client.list.return_value = MagicMock(models=[])
         mock_create_client.return_value = mock_client
 
         from src.core.ai.ollama_model_manager import OllamaModelManager
@@ -272,20 +249,15 @@ class TestReadTimeoutHandling:
             manager.generate_text("Test prompt", max_tokens=100)
 
     @patch("src.core.ai.ollama_model_manager._create_ollama_client")
-    @patch("src.core.ai.ollama_model_manager.requests.get")
-    def test_generate_structured_catches_read_timeout(self, mock_get, mock_create_client):
+    def test_generate_structured_catches_read_timeout(self, mock_create_client):
         """generate_structured raises RuntimeError with clear message on ReadTimeout."""
         import httpx
-
-        mock_get_response = MagicMock()
-        mock_get_response.status_code = 200
-        mock_get_response.json.return_value = {"models": []}
-        mock_get.return_value = mock_get_response
 
         # Mock client that raises ReadTimeout on generate
         mock_client = MagicMock()
         mock_client.generate.side_effect = httpx.ReadTimeout("read timed out")
         mock_client._client.timeout.read = 900.0
+        mock_client.list.return_value = MagicMock(models=[])
         mock_create_client.return_value = mock_client
 
         from src.core.ai.ollama_model_manager import OllamaModelManager
@@ -298,19 +270,14 @@ class TestReadTimeoutHandling:
             manager.generate_structured("Return JSON", max_tokens=100)
 
     @patch("src.core.ai.ollama_model_manager._create_ollama_client")
-    @patch("src.core.ai.ollama_model_manager.requests.get")
-    def test_timeout_message_includes_crash_hint(self, mock_get, mock_create_client):
+    def test_timeout_message_includes_crash_hint(self, mock_create_client):
         """Error message should suggest crash or OOM as possible cause."""
         import httpx
-
-        mock_get_response = MagicMock()
-        mock_get_response.status_code = 200
-        mock_get_response.json.return_value = {"models": []}
-        mock_get.return_value = mock_get_response
 
         mock_client = MagicMock()
         mock_client.generate.side_effect = httpx.ReadTimeout("read timed out")
         mock_client._client.timeout.read = 300.0
+        mock_client.list.return_value = MagicMock(models=[])
         mock_create_client.return_value = mock_client
 
         from src.core.ai.ollama_model_manager import OllamaModelManager
@@ -326,13 +293,12 @@ class TestReadTimeoutHandling:
 class TestEmptyModelHandling:
     """Test that empty OLLAMA_MODEL_NAME is handled gracefully."""
 
-    @patch("src.core.ai.ollama_model_manager.requests.get")
-    def test_has_model_false_when_empty(self, mock_get):
+    @patch("src.core.ai.ollama_model_manager._create_ollama_client")
+    def test_has_model_false_when_empty(self, mock_create_client):
         """has_model returns False when no model is configured."""
-        mock_get_response = MagicMock()
-        mock_get_response.status_code = 200
-        mock_get_response.json.return_value = {"models": []}
-        mock_get.return_value = mock_get_response
+        mock_client = MagicMock()
+        mock_client.list.return_value = MagicMock(models=[])
+        mock_create_client.return_value = mock_client
 
         from src.core.ai.ollama_model_manager import OllamaModelManager
 
@@ -342,35 +308,33 @@ class TestEmptyModelHandling:
 
         assert manager.has_model is False
 
-    @patch("src.core.ai.ollama_model_manager.requests.get")
-    def test_is_model_loaded_false_when_no_model(self, mock_get):
+    @patch("src.core.ai.ollama_model_manager._create_ollama_client")
+    def test_is_model_loaded_false_when_no_model(self, mock_create_client):
         """is_model_loaded returns False without attempting connection when no model."""
-        mock_get_response = MagicMock()
-        mock_get_response.status_code = 200
-        mock_get_response.json.return_value = {"models": []}
-        mock_get.return_value = mock_get_response
+        mock_client = MagicMock()
+        mock_client.list.return_value = MagicMock(models=[])
+        mock_create_client.return_value = mock_client
 
         from src.core.ai.ollama_model_manager import OllamaModelManager
 
         manager = OllamaModelManager()
         manager.model_name = ""
 
-        # Reset connection check count after __init__
-        mock_get.reset_mock()
+        # Reset list call count after __init__
+        mock_client.list.reset_mock()
 
         result = manager.is_model_loaded()
 
         assert result is False
         # Should not have tried to connect — early return before connection check
-        mock_get.assert_not_called()
+        mock_client.list.assert_not_called()
 
-    @patch("src.core.ai.ollama_model_manager.requests.get")
-    def test_has_model_true_when_set(self, mock_get):
+    @patch("src.core.ai.ollama_model_manager._create_ollama_client")
+    def test_has_model_true_when_set(self, mock_create_client):
         """has_model returns True when a model name is set."""
-        mock_get_response = MagicMock()
-        mock_get_response.status_code = 200
-        mock_get_response.json.return_value = {"models": []}
-        mock_get.return_value = mock_get_response
+        mock_client = MagicMock()
+        mock_client.list.return_value = MagicMock(models=[])
+        mock_create_client.return_value = mock_client
 
         from src.core.ai.ollama_model_manager import OllamaModelManager
 

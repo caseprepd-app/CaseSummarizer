@@ -146,47 +146,6 @@ class TestPromptTemplateManager:
 
 
 # ---------------------------------------------------------------------------
-# prompt_formatter (wrap_prompt_for_model)
-# ---------------------------------------------------------------------------
-
-
-class TestPromptFormatter:
-    """wrap_prompt_for_model wraps prompts for model-specific formats."""
-
-    def _wrap(self, model_name, prompt):
-        from src.core.ai.prompt_formatter import wrap_prompt_for_model
-
-        return wrap_prompt_for_model(model_name, prompt)
-
-    def test_llama_format(self):
-        result = self._wrap("llama2:7b", "Hello")
-        assert "[INST]" in result
-        assert "[/INST]" in result
-        assert "Hello" in result
-
-    def test_mistral_format(self):
-        result = self._wrap("mistral:7b", "Hello")
-        assert "[INST]" in result
-
-    def test_gemma_raw(self):
-        result = self._wrap("gemma:7b", "Hello")
-        assert result == "Hello"
-
-    def test_neural_chat_format(self):
-        result = self._wrap("neural-chat:7b", "Hello")
-        assert "### User:" in result
-        assert "### Assistant:" in result
-
-    def test_unknown_model_passthrough(self):
-        result = self._wrap("some-unknown-model:latest", "Hello")
-        assert "Hello" in result
-
-    def test_case_insensitive(self):
-        result = self._wrap("Llama2:7B", "Hello")
-        assert "[INST]" in result
-
-
-# ---------------------------------------------------------------------------
 # SummaryPostProcessor
 # ---------------------------------------------------------------------------
 

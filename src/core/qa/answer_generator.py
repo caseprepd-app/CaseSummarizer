@@ -55,15 +55,17 @@ class AnswerGenerator:
         )
     """
 
-    def __init__(self, mode: str = "extraction"):
+    def __init__(self, mode: str = "extraction", ollama_manager=None):
         """
         Initialize answer generator.
 
         Args:
             mode: "extraction" or "ollama"
+            ollama_manager: Optional OllamaModelManager instance.
+                            If None, lazy-loaded on first use.
         """
         self.mode = AnswerMode(mode) if isinstance(mode, str) else mode
-        self._ollama_manager = None
+        self._ollama_manager = ollama_manager
 
         logger.debug("Initialized with mode: %s", self.mode.value)
 

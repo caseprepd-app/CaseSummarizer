@@ -262,8 +262,9 @@ class TestQAServicePassthrough:
         from src.services.qa_service import QAService
 
         svc = QAService()
-        with patch("src.core.ai.ollama_model_manager.OllamaModelManager") as MockMgr:
-            MockMgr.return_value.is_connected = False
+        mock_mgr = MagicMock()
+        mock_mgr.is_connected = False
+        with patch("src.services.ai_service.AIService.get_ollama_manager", return_value=mock_mgr):
             assert svc.is_ollama_connected() is False
 
 
