@@ -46,9 +46,6 @@ DATA_DIR = APPDATA_DIR / "data"
 for directory in [APPDATA_DIR, MODELS_DIR, CACHE_DIR, LOGS_DIR, CONFIG_DIR, DATA_DIR]:
     directory.mkdir(parents=True, exist_ok=True)
 
-# Processing Metrics CSV (for future ML prediction of processing time)
-PROCESSING_METRICS_CSV = DATA_DIR / "processing_metrics.csv"
-
 # Feedback and ML Configuration (Session 25, updated Session 55)
 FEEDBACK_DIR = DATA_DIR / "feedback"
 MODELS_ML_DIR = DATA_DIR / "models"  # ML models (separate from Ollama models)
@@ -1096,19 +1093,6 @@ def get_column_by_name(name: str) -> ColumnDefinition | None:
         if col.name == name:
             return col
     return None
-
-
-def get_data_key(display_name: str) -> str:
-    """
-    Get the data dictionary key for a column.
-
-    Args:
-        display_name: Column display name (e.g., "Score")
-
-    Returns:
-        Data key (e.g., "Quality Score" for "Score", or same as input)
-    """
-    return DISPLAY_TO_DATA_KEY.get(display_name, display_name)
 
 
 def build_column_registry() -> dict[str, dict]:

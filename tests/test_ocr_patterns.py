@@ -4,12 +4,7 @@ Unit tests for OCR artifact pattern detection.
 Tests the heuristics used to identify likely OCR errors in vocabulary terms.
 """
 
-from src.core.utils.ocr_patterns import (
-    analyze_ocr_patterns,
-    compare_variants_for_ocr,
-    get_ocr_penalty,
-    has_ocr_artifacts,
-)
+from src.core.utils.ocr_patterns import has_ocr_artifacts
 
 
 class TestHasOcrArtifacts:
@@ -119,78 +114,6 @@ class TestHasOcrArtifacts:
         assert has_ocr_artifacts("Jenidns") is False  # Jenkins typo
         assert has_ocr_artifacts("Smtih") is False  # Smith typo (transposition)
         assert has_ocr_artifacts("Jonhson") is False  # Johnson typo
-
-
-class TestAnalyzeOcrPatterns:
-    """Test the detailed analysis function."""
-
-    def test_analysis_clean_term(self):
-        """Clean term should have empty analysis."""
-        result = analyze_ocr_patterns("Smith")
-        assert result["has_artifacts"] is False
-        assert result["patterns_found"] == []
-        assert result["suspicious_chars"] == []
-
-    def test_analysis_rn_pattern(self):
-        """Analysis should identify rn→m pattern."""
-        result = analyze_ocr_patterns("Srnith")
-        assert result["has_artifacts"] is True
-        assert len(result["patterns_found"]) > 0
-        assert "rn" in str(result["patterns_found"]).lower()
-
-    def test_analysis_digit_confusion(self):
-        """Analysis should identify digit confusion."""
-        result = analyze_ocr_patterns("J0hn")
-        assert result["has_artifacts"] is True
-        assert len(result["suspicious_chars"]) > 0
-        # Should identify position 1 (the '0')
-        char_info = result["suspicious_chars"][0]
-        assert char_info["char"] == "0"
-        assert char_info["likely_correct"] == "O"
-
-
-class TestGetOcrPenalty:
-    """Test the penalty calculation function."""
-
-    def test_penalty_for_artifact(self):
-        """Terms with artifacts should get penalty."""
-        penalty = get_ocr_penalty("Srnith")
-        assert penalty == 0.10  # Default 10%
-
-    def test_no_penalty_for_clean(self):
-        """Clean terms should get no penalty."""
-        penalty = get_ocr_penalty("Smith")
-        assert penalty == 0.0
-
-    def test_custom_penalty(self):
-        """Custom penalty value should be respected."""
-        penalty = get_ocr_penalty("Srnith", base_penalty=0.15)
-        assert penalty == 0.15
-
-
-class TestCompareVariants:
-    """Test the variant comparison function."""
-
-    def test_identify_ocr_variant(self):
-        """Should identify which variant has OCR artifacts."""
-        # Smith (clean) vs Srnith (OCR error)
-        result = compare_variants_for_ocr("Smith", "Srnith")
-        assert result == "Srnith"  # Srnith is the OCR error
-
-    def test_identify_ocr_variant_reversed(self):
-        """Order shouldn't matter."""
-        result = compare_variants_for_ocr("Srnith", "Smith")
-        assert result == "Srnith"
-
-    def test_both_clean(self):
-        """Both clean should return None."""
-        result = compare_variants_for_ocr("Smith", "Jones")
-        assert result is None
-
-    def test_both_have_artifacts(self):
-        """Both with artifacts should return None."""
-        result = compare_variants_for_ocr("Srnith", "5mith")
-        assert result is None
 
 
 class TestRealWorldScenarios:

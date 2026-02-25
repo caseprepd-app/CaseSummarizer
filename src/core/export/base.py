@@ -25,15 +25,6 @@ class TextSpan:
     strikethrough: bool = False
 
 
-@dataclass
-class TableCell:
-    """Table cell with optional styling."""
-
-    text: str
-    bold: bool = False
-    align: str = "left"  # left, center, right
-
-
 class DocumentBuilder(ABC):
     """
     Abstract base for document generation.

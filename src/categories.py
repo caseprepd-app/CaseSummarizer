@@ -92,17 +92,6 @@ def get_category_list() -> list[str]:
     return [cat["id"] for cat in config["categories"]]
 
 
-def get_category_descriptions() -> dict[str, str]:
-    """
-    Return mapping of category IDs to their descriptions.
-
-    Returns:
-        dict[str, str]: Mapping like {'Person': 'Named individuals', ...}
-    """
-    config = load_categories()
-    return {cat["id"]: cat["description"] for cat in config["categories"]}
-
-
 def get_ner_mapping() -> dict[str, str]:
     """
     Return mapping from spaCy entity types to categories.
