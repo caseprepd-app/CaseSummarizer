@@ -357,6 +357,12 @@ OLLAMA_CONNECTION_TIMEOUT = 15  # Seconds for initial connection check
 OLLAMA_API_TIMEOUT = 30  # Seconds for API calls (model list, status)
 GPU_DETECTION_TIMEOUT = 15  # Seconds for GPU/VRAM detection via WMI
 
+# Ollama Streaming Heartbeat Timeouts
+# Max silence (seconds) between streaming chunks before assuming Ollama crashed.
+# The longest legitimate gap is time-to-first-token (prompt eval + cold model load).
+OLLAMA_STREAM_READ_TIMEOUT_GPU = 300  # 5 min max silence between chunks (GPU)
+OLLAMA_STREAM_READ_TIMEOUT_CPU = 900  # 15 min max silence between chunks (CPU-only)
+
 # Context Window Configuration
 # Dynamically set based on GPU VRAM via user preferences.
 # This constant is only used as a fallback if user preferences are unavailable.

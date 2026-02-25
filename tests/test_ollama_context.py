@@ -88,9 +88,9 @@ class TestChunkingConfig:
 class TestOllamaPayload:
     """Test that Ollama API payload includes context window."""
 
-    @patch("ollama.generate")
+    @patch("src.core.ai.ollama_model_manager._create_ollama_client")
     @patch("src.core.ai.ollama_model_manager.requests.get")
-    def test_num_ctx_in_payload(self, mock_get, mock_generate):
+    def test_num_ctx_in_payload(self, mock_get, mock_create_client):
         """Verify num_ctx is included in Ollama API calls."""
         # Mock connection check
         mock_get_response = MagicMock()
@@ -98,8 +98,10 @@ class TestOllamaPayload:
         mock_get_response.json.return_value = {"models": []}
         mock_get.return_value = mock_get_response
 
-        # Mock ollama.generate to return a streaming iterator
-        mock_generate.return_value = iter([{"response": "Test summary"}])
+        # Mock ollama client with generate returning a streaming iterator
+        mock_client = MagicMock()
+        mock_client.generate.return_value = iter([{"response": "Test summary"}])
+        mock_create_client.return_value = mock_client
 
         from src.core.ai.ollama_model_manager import OllamaModelManager
 
@@ -109,12 +111,12 @@ class TestOllamaPayload:
 
         manager.generate_text("Test prompt", max_tokens=100)
 
-        # Check that ollama.generate was called with num_ctx in options
-        assert mock_generate.called, "ollama.generate should have been called"
-        call_kwargs = mock_generate.call_args.kwargs
+        # Check that client.generate was called with num_ctx in options
+        assert mock_client.generate.called, "client.generate should have been called"
+        call_kwargs = mock_client.generate.call_args.kwargs
         assert "options" in call_kwargs, "Call should include 'options'"
         assert "num_ctx" in call_kwargs["options"], "Options should include 'num_ctx'"
-        # Session 64: Context is dynamic based on GPU VRAM
+        # Context is dynamic based on GPU VRAM
         # 2048 (no GPU) through 64000 (24GB+ VRAM) are valid
         num_ctx = call_kwargs["options"]["num_ctx"]
         assert 2048 <= num_ctx <= 64000, (
@@ -128,9 +130,9 @@ class TestTruncationWarning:
     @pytest.mark.xfail(reason="Singleton state leakage can cause false failures", strict=False)
     @patch("src.core.ai.ollama_model_manager._get_context_window", return_value=2048)
     @patch("src.core.ai.ollama_model_manager.logger")
-    @patch("ollama.generate")
+    @patch("src.core.ai.ollama_model_manager._create_ollama_client")
     @patch("src.core.ai.ollama_model_manager.requests.get")
-    def test_warning_on_large_prompt(self, mock_get, mock_generate, mock_logger, _mock_ctx):
+    def test_warning_on_large_prompt(self, mock_get, mock_create_client, mock_logger, _mock_ctx):
         """Verify warning is issued when prompt approaches context limit."""
         # Mock connection check
         mock_get_response = MagicMock()
@@ -138,8 +140,10 @@ class TestTruncationWarning:
         mock_get_response.json.return_value = {"models": []}
         mock_get.return_value = mock_get_response
 
-        # Mock ollama.generate to return a streaming iterator
-        mock_generate.return_value = iter([{"response": "Summary"}])
+        # Mock ollama client with generate returning a streaming iterator
+        mock_client = MagicMock()
+        mock_client.generate.return_value = iter([{"response": "Summary"}])
+        mock_create_client.return_value = mock_client
 
         from src.core.ai.ollama_model_manager import OllamaModelManager
 
@@ -161,9 +165,9 @@ class TestTruncationWarning:
         )
 
     @patch("src.core.ai.ollama_model_manager.logger")
-    @patch("ollama.generate")
+    @patch("src.core.ai.ollama_model_manager._create_ollama_client")
     @patch("src.core.ai.ollama_model_manager.requests.get")
-    def test_no_warning_on_small_prompt(self, mock_get, mock_generate, mock_logger):
+    def test_no_warning_on_small_prompt(self, mock_get, mock_create_client, mock_logger):
         """Verify no warning for prompts well under context limit."""
         # Mock connection check
         mock_get_response = MagicMock()
@@ -171,8 +175,10 @@ class TestTruncationWarning:
         mock_get_response.json.return_value = {"models": []}
         mock_get.return_value = mock_get_response
 
-        # Mock ollama.generate to return a streaming iterator
-        mock_generate.return_value = iter([{"response": "Summary"}])
+        # Mock ollama client with generate returning a streaming iterator
+        mock_client = MagicMock()
+        mock_client.generate.return_value = iter([{"response": "Summary"}])
+        mock_create_client.return_value = mock_client
 
         from src.core.ai.ollama_model_manager import OllamaModelManager
 
@@ -187,6 +193,134 @@ class TestTruncationWarning:
 
         # Verify logger.warning was NOT called
         assert not mock_logger.warning.called, "No warning should be issued for small prompts"
+
+
+class TestStreamReadTimeoutConstants:
+    """Test that heartbeat timeout constants are defined correctly."""
+
+    def test_gpu_timeout_is_300(self):
+        """GPU read timeout should be 300 seconds (5 minutes)."""
+        from src.config import OLLAMA_STREAM_READ_TIMEOUT_GPU
+
+        assert OLLAMA_STREAM_READ_TIMEOUT_GPU == 300
+
+    def test_cpu_timeout_is_900(self):
+        """CPU read timeout should be 900 seconds (15 minutes)."""
+        from src.config import OLLAMA_STREAM_READ_TIMEOUT_CPU
+
+        assert OLLAMA_STREAM_READ_TIMEOUT_CPU == 900
+
+
+class TestCreateOllamaClient:
+    """Test GPU-aware client creation with correct httpx timeouts."""
+
+    @patch("src.core.utils.gpu_detector.has_dedicated_gpu", return_value=True)
+    def test_gpu_detected_uses_gpu_timeout(self, _mock_gpu):
+        """When GPU is detected, read timeout should be 300s (5 min)."""
+        from src.core.ai.ollama_model_manager import _create_ollama_client
+
+        client = _create_ollama_client()
+        assert client._client.timeout.read == 300.0
+
+    @patch("src.core.utils.gpu_detector.has_dedicated_gpu", return_value=False)
+    def test_no_gpu_uses_cpu_timeout(self, _mock_gpu):
+        """When no GPU detected, read timeout should be 900s (15 min)."""
+        from src.core.ai.ollama_model_manager import _create_ollama_client
+
+        client = _create_ollama_client()
+        assert client._client.timeout.read == 900.0
+
+    @patch("src.core.utils.gpu_detector.has_dedicated_gpu", return_value=True)
+    def test_connect_write_pool_timeouts(self, _mock_gpu):
+        """Connect, write, and pool timeouts should all be 15 seconds."""
+        from src.core.ai.ollama_model_manager import _create_ollama_client
+
+        client = _create_ollama_client()
+        timeout = client._client.timeout
+        assert timeout.connect == 15.0
+        assert timeout.write == 15.0
+        assert timeout.pool == 15.0
+
+
+class TestReadTimeoutHandling:
+    """Test that httpx.ReadTimeout is caught and re-raised as RuntimeError."""
+
+    @patch("src.core.ai.ollama_model_manager._create_ollama_client")
+    @patch("src.core.ai.ollama_model_manager.requests.get")
+    def test_generate_text_catches_read_timeout(self, mock_get, mock_create_client):
+        """generate_text raises RuntimeError with clear message on ReadTimeout."""
+        import httpx
+
+        mock_get_response = MagicMock()
+        mock_get_response.status_code = 200
+        mock_get_response.json.return_value = {"models": []}
+        mock_get.return_value = mock_get_response
+
+        # Mock client that raises ReadTimeout on generate
+        mock_client = MagicMock()
+        mock_client.generate.side_effect = httpx.ReadTimeout("read timed out")
+        mock_client._client.timeout.read = 300.0
+        mock_create_client.return_value = mock_client
+
+        from src.core.ai.ollama_model_manager import OllamaModelManager
+
+        manager = OllamaModelManager()
+        manager.model_name = "test-model:latest"
+        manager.is_connected = True
+
+        with pytest.raises(RuntimeError, match="Ollama stopped responding after 5 minutes"):
+            manager.generate_text("Test prompt", max_tokens=100)
+
+    @patch("src.core.ai.ollama_model_manager._create_ollama_client")
+    @patch("src.core.ai.ollama_model_manager.requests.get")
+    def test_generate_structured_catches_read_timeout(self, mock_get, mock_create_client):
+        """generate_structured raises RuntimeError with clear message on ReadTimeout."""
+        import httpx
+
+        mock_get_response = MagicMock()
+        mock_get_response.status_code = 200
+        mock_get_response.json.return_value = {"models": []}
+        mock_get.return_value = mock_get_response
+
+        # Mock client that raises ReadTimeout on generate
+        mock_client = MagicMock()
+        mock_client.generate.side_effect = httpx.ReadTimeout("read timed out")
+        mock_client._client.timeout.read = 900.0
+        mock_create_client.return_value = mock_client
+
+        from src.core.ai.ollama_model_manager import OllamaModelManager
+
+        manager = OllamaModelManager()
+        manager.model_name = "test-model:latest"
+        manager.is_connected = True
+
+        with pytest.raises(RuntimeError, match="Ollama stopped responding after 15 minutes"):
+            manager.generate_structured("Return JSON", max_tokens=100)
+
+    @patch("src.core.ai.ollama_model_manager._create_ollama_client")
+    @patch("src.core.ai.ollama_model_manager.requests.get")
+    def test_timeout_message_includes_crash_hint(self, mock_get, mock_create_client):
+        """Error message should suggest crash or OOM as possible cause."""
+        import httpx
+
+        mock_get_response = MagicMock()
+        mock_get_response.status_code = 200
+        mock_get_response.json.return_value = {"models": []}
+        mock_get.return_value = mock_get_response
+
+        mock_client = MagicMock()
+        mock_client.generate.side_effect = httpx.ReadTimeout("read timed out")
+        mock_client._client.timeout.read = 300.0
+        mock_create_client.return_value = mock_client
+
+        from src.core.ai.ollama_model_manager import OllamaModelManager
+
+        manager = OllamaModelManager()
+        manager.model_name = "test-model:latest"
+        manager.is_connected = True
+
+        with pytest.raises(RuntimeError, match="crashed or run out of memory"):
+            manager.generate_text("Test prompt", max_tokens=100)
 
 
 class TestEmptyModelHandling:

@@ -38,6 +38,36 @@ from .summary_post_processor import SummaryPostProcessor
 logger = logging.getLogger(__name__)
 
 
+def _create_ollama_client():
+    """
+    Create an Ollama client with GPU-aware streaming read timeout.
+
+    Uses httpx.Timeout with a per-chunk read timeout that acts as a heartbeat:
+    - GPU detected: 5 min max silence between chunks
+    - CPU-only: 15 min max silence between chunks (covers cold model load)
+
+    Returns:
+        ollama.Client: Configured client with appropriate timeouts.
+    """
+    import httpx
+    import ollama
+
+    from src.config import OLLAMA_STREAM_READ_TIMEOUT_CPU, OLLAMA_STREAM_READ_TIMEOUT_GPU
+    from src.core.utils.gpu_detector import has_dedicated_gpu
+
+    if has_dedicated_gpu():
+        read_timeout = OLLAMA_STREAM_READ_TIMEOUT_GPU
+        tier = "GPU"
+    else:
+        read_timeout = OLLAMA_STREAM_READ_TIMEOUT_CPU
+        tier = "CPU"
+
+    logger.info("[Ollama] Heartbeat timeout: %s seconds (%s tier)", read_timeout, tier)
+
+    timeout = httpx.Timeout(connect=15.0, read=float(read_timeout), write=15.0, pool=15.0)
+    return ollama.Client(host=OLLAMA_API_BASE, timeout=timeout)
+
+
 def _get_context_window() -> int:
     """
     Get the effective context window size from user preferences.
@@ -85,6 +115,7 @@ class OllamaModelManager:
         self.timeout = OLLAMA_TIMEOUT_SECONDS
 
         self.is_connected = False
+        self._client = _create_ollama_client()
         self.prompt_config = get_prompt_config()
         self.prompt_template_manager = PromptTemplateManager(PROMPTS_DIR, USER_PROMPTS_DIR)
 
@@ -265,7 +296,6 @@ class OllamaModelManager:
         Raises:
             RuntimeError: If Ollama is not available
         """
-        import ollama
 
         if not self.is_model_loaded():
             raise RuntimeError(
@@ -288,6 +318,8 @@ class OllamaModelManager:
         logger.debug("Temperature: %s, Top P: %s", temperature, top_p)
 
         try:
+            import httpx
+
             # Wrap prompt for model-specific format compatibility (Phase 2.7)
             wrapped_prompt = wrap_prompt_for_model(self.model_name, prompt)
             logger.debug("Wrapped prompt length: %s chars", len(wrapped_prompt))
@@ -315,12 +347,12 @@ class OllamaModelManager:
             logger.debug("%s", wrapped_prompt)
             logger.debug("===== WRAPPED PROMPT END =====")
 
-            # Use official ollama library with streaming for reliability
+            # Use ollama client with streaming for reliability
             start_time = time.time()
             generated_chunks = []
 
             # Stream the response - this prevents hanging on long generations
-            stream = ollama.generate(
+            stream = self._client.generate(
                 model=self.model_name,
                 prompt=wrapped_prompt,
                 options={
@@ -346,9 +378,14 @@ class OllamaModelManager:
 
             return generated_text.strip()
 
-        except ollama.ResponseError as e:
-            logger.debug("Response error: %s", e)
-            raise RuntimeError(f"Ollama error: {e!s}") from e
+        except httpx.ReadTimeout:
+            read_timeout = self._client._client.timeout.read
+            minutes = int(read_timeout // 60)
+            logger.error("Ollama stopped responding after %s minutes", minutes)
+            raise RuntimeError(
+                f"Ollama stopped responding after {minutes} minutes. "
+                "The model may have crashed or run out of memory."
+            )
         except Exception as e:
             logger.debug("Text generation failed: %s", e)
             raise RuntimeError(f"Text generation failed: {e!s}") from e
@@ -461,7 +498,6 @@ class OllamaModelManager:
         Raises:
             RuntimeError: If Ollama is not available
         """
-        import ollama
 
         if not self.is_model_loaded():
             raise RuntimeError(
@@ -475,6 +511,8 @@ class OllamaModelManager:
         logger.debug("Prompt length: %s chars", len(prompt))
 
         try:
+            import httpx
+
             # Use dynamic context size based on GPU/VRAM
             context_window = _get_context_window()
             logger.debug("Using context window: %s tokens", context_window)
@@ -483,10 +521,10 @@ class OllamaModelManager:
             logger.debug("%s", prompt[:500] + "..." if len(prompt) > 500 else prompt)
             logger.debug("===== PROMPT END =====")
 
-            # Use official ollama library with JSON format
+            # Use ollama client with JSON format
             start_time = time.time()
 
-            response = ollama.generate(
+            response = self._client.generate(
                 model=self.model_name,
                 prompt=prompt,
                 format="json",  # Ollama structured output mode
@@ -515,9 +553,14 @@ class OllamaModelManager:
 
             return parsed
 
-        except ollama.ResponseError as e:
-            logger.debug("Ollama error: %s", e)
-            return None
+        except httpx.ReadTimeout:
+            read_timeout = self._client._client.timeout.read
+            minutes = int(read_timeout // 60)
+            logger.error("Ollama stopped responding after %s minutes", minutes)
+            raise RuntimeError(
+                f"Ollama stopped responding after {minutes} minutes. "
+                "The model may have crashed or run out of memory."
+            )
         except Exception as e:
             logger.debug("Error: %s", e)
             return None
