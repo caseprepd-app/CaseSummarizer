@@ -87,8 +87,12 @@ class TestWorkerProcessManagerLifecycle:
         manager = WorkerProcessManager()
         manager.start()
         manager.shutdown(blocking=False)
-        # Give it a moment to shut down
-        time.sleep(1.0)
+        # Poll until shutdown completes (avoids flaky hard-coded sleep)
+        deadline = time.monotonic() + 5.0
+        while time.monotonic() < deadline:
+            if not manager.is_alive():
+                break
+            time.sleep(0.1)
         assert not manager.is_alive()
 
     def test_shutdown_without_start(self):
@@ -150,8 +154,14 @@ class TestWorkerProcessManagerMessages:
         try:
             # Put a message directly into result_queue (simulating subprocess output)
             manager.result_queue.put(("test_msg", {"key": "value"}))
-            time.sleep(0.1)
-            messages = manager.check_for_messages()
+            # Poll until message arrives (avoids flaky hard-coded sleep)
+            messages = []
+            deadline = time.monotonic() + 2.0
+            while time.monotonic() < deadline:
+                messages = manager.check_for_messages()
+                if messages:
+                    break
+                time.sleep(0.05)
             assert len(messages) == 1
             assert messages[0] == ("test_msg", {"key": "value"})
         finally:
@@ -165,8 +175,14 @@ class TestWorkerProcessManagerMessages:
         try:
             for i in range(5):
                 manager.result_queue.put(("msg", i))
-            time.sleep(0.1)
-            messages = manager.check_for_messages()
+            # Poll until all 5 messages arrive (avoids flaky hard-coded sleep)
+            messages = []
+            deadline = time.monotonic() + 2.0
+            while time.monotonic() < deadline:
+                messages.extend(manager.check_for_messages())
+                if len(messages) >= 5:
+                    break
+                time.sleep(0.05)
             assert len(messages) == 5
         finally:
             manager.shutdown(blocking=True)

@@ -65,22 +65,19 @@ def _run_forwarder_with_messages(messages, state=None, timeout=5):
     t.start()
 
     # Collect output messages (wait for expected count with timeout)
+    # Use consecutive-empty-reads pattern instead of .empty() check (TOCTOU race)
     output = []
     deadline = time.monotonic() + timeout
+    consecutive_empties = 0
     while time.monotonic() < deadline:
         try:
-            msg = result_q.get(timeout=0.2)
+            msg = result_q.get(timeout=0.3)
             output.append(msg)
+            consecutive_empties = 0
         except Empty:
-            # If we've waited a bit and got nothing new, check if we have enough
-            if not internal_q.empty():
-                continue
-            # Give a small grace period for the last message
-            time.sleep(0.3)
-            try:
-                msg = result_q.get_nowait()
-                output.append(msg)
-            except Empty:
+            consecutive_empties += 1
+            # After 2 consecutive empty reads (0.6s with no messages), stop
+            if consecutive_empties >= 2:
                 break
 
     state["shutdown"].set()

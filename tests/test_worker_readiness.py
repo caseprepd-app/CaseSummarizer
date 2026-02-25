@@ -14,8 +14,33 @@ Covers:
 
 import threading
 import time
-from queue import Queue
+from queue import Empty, Queue
 from unittest.mock import MagicMock, patch
+
+
+def _drain_queue(q, timeout=2.0):
+    """Drain all messages from a queue using timeout-based reads (no .empty() race)."""
+    messages = []
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        try:
+            messages.append(q.get(timeout=0.1))
+        except Empty:
+            break
+    return messages
+
+
+def _poll_check(manager, min_msgs=0, timeout=2.0):
+    """Poll check_for_messages() until at least min_msgs arrive (avoids mp.Queue sleep)."""
+    all_msgs = []
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        all_msgs.extend(manager.check_for_messages())
+        if len(all_msgs) >= min_msgs:
+            return all_msgs
+        time.sleep(0.05)
+    return all_msgs
+
 
 # ===========================================================================
 # 1. WorkerProcessManager: is_ready() and worker_ready interception
@@ -60,8 +85,13 @@ class TestWorkerReadyInterception:
 
         manager = WorkerProcessManager()
         manager.result_queue.put(("worker_ready", None))
-        time.sleep(0.1)  # mp.Queue needs time to flush
-        manager.check_for_messages()
+        # Poll until worker_ready is intercepted (sets flag but returns 0 msgs)
+        deadline = time.monotonic() + 2.0
+        while time.monotonic() < deadline:
+            manager.check_for_messages()
+            if manager._worker_ready:
+                break
+            time.sleep(0.05)
         assert manager._worker_ready is True
 
     def test_worker_ready_not_forwarded(self):
@@ -70,9 +100,16 @@ class TestWorkerReadyInterception:
 
         manager = WorkerProcessManager()
         manager.result_queue.put(("worker_ready", None))
-        time.sleep(0.1)  # mp.Queue needs time to flush
-        messages = manager.check_for_messages()
-        assert len(messages) == 0
+        # Poll until worker_ready is intercepted
+        deadline = time.monotonic() + 2.0
+        all_messages = []
+        while time.monotonic() < deadline:
+            msgs = manager.check_for_messages()
+            all_messages.extend(msgs)
+            if manager._worker_ready:
+                break
+            time.sleep(0.05)
+        assert len(all_messages) == 0
 
     def test_other_messages_still_forwarded(self):
         """Non-worker_ready messages should pass through normally."""
@@ -82,8 +119,7 @@ class TestWorkerReadyInterception:
         manager.result_queue.put(("worker_ready", None))
         manager.result_queue.put(("progress", (50, "Working...")))
         manager.result_queue.put(("error", "something broke"))
-        time.sleep(0.1)  # mp.Queue needs time to flush
-        messages = manager.check_for_messages()
+        messages = _poll_check(manager, min_msgs=2)
         assert len(messages) == 2
         assert messages[0] == ("progress", (50, "Working..."))
         assert messages[1] == ("error", "something broke")
@@ -96,8 +132,13 @@ class TestWorkerReadyInterception:
         manager._started = True
         manager.process = MagicMock(is_alive=MagicMock(return_value=True))
         manager.result_queue.put(("worker_ready", None))
-        time.sleep(0.1)  # mp.Queue needs time to flush
-        manager.check_for_messages()
+        # Poll until worker_ready is intercepted
+        deadline = time.monotonic() + 2.0
+        while time.monotonic() < deadline:
+            manager.check_for_messages()
+            if manager._worker_ready:
+                break
+            time.sleep(0.05)
         assert manager.is_ready() is True
 
     def test_is_ready_drains_queue_without_check_for_messages(self):
@@ -113,8 +154,12 @@ class TestWorkerReadyInterception:
         manager._started = True
         manager.process = MagicMock(is_alive=MagicMock(return_value=True))
         manager.result_queue.put(("worker_ready", None))
-        time.sleep(0.1)  # mp.Queue needs time to flush
-        # Do NOT call check_for_messages() — this is the bug scenario
+        # Poll is_ready() until mp.Queue flushes (no check_for_messages)
+        deadline = time.monotonic() + 2.0
+        while time.monotonic() < deadline:
+            if manager.is_ready():
+                break
+            time.sleep(0.05)
         assert manager.is_ready() is True
 
     def test_is_ready_preserves_other_messages_in_queue(self):
@@ -127,11 +172,15 @@ class TestWorkerReadyInterception:
         manager.result_queue.put(("progress", (50, "Working...")))
         manager.result_queue.put(("worker_ready", None))
         manager.result_queue.put(("error", "something"))
-        time.sleep(0.1)
+        # Poll is_ready() until mp.Queue flushes
+        deadline = time.monotonic() + 2.0
+        while time.monotonic() < deadline:
+            if manager.is_ready():
+                break
+            time.sleep(0.05)
         assert manager.is_ready() is True
-        # Other messages should still be retrievable
-        time.sleep(0.1)  # mp.Queue needs time to flush re-queued messages
-        messages = manager.check_for_messages()
+        # Other messages should still be retrievable (poll for re-queued msgs)
+        messages = _poll_check(manager, min_msgs=2)
         assert len(messages) == 2
         msg_types = [m[0] for m in messages]
         assert "progress" in msg_types
@@ -152,8 +201,7 @@ class TestWorkerReadyInterception:
 
         manager = WorkerProcessManager()
         manager.result_queue.put("plain_string")
-        time.sleep(0.1)  # mp.Queue needs time to flush
-        messages = manager.check_for_messages()
+        messages = _poll_check(manager, min_msgs=1)
         assert len(messages) == 1
         assert messages[0] == "plain_string"
 
@@ -266,10 +314,8 @@ class TestWorkerReadyInProcessMain:
         thread.start()
         thread.join(timeout=5.0)
 
-        # Collect all messages
-        messages = []
-        while not result_queue.empty():
-            messages.append(result_queue.get_nowait())
+        # Collect all messages (timeout-based to avoid .empty() race)
+        messages = _drain_queue(result_queue)
 
         ready_msgs = [m for m in messages if m[0] == "worker_ready"]
         assert len(ready_msgs) == 1
@@ -298,9 +344,7 @@ class TestCommandAck:
         thread.start()
         thread.join(timeout=5.0)
 
-        messages = []
-        while not result_queue.empty():
-            messages.append(result_queue.get_nowait())
+        messages = _drain_queue(result_queue)
 
         ack_msgs = [m for m in messages if m[0] == "command_ack"]
         assert len(ack_msgs) == 1
@@ -324,9 +368,7 @@ class TestCommandAck:
         thread.start()
         thread.join(timeout=5.0)
 
-        messages = []
-        while not result_queue.empty():
-            messages.append(result_queue.get_nowait())
+        messages = _drain_queue(result_queue)
 
         # Find positions — ack should come before error
         ack_idx = next(i for i, m in enumerate(messages) if m[0] == "command_ack")
@@ -354,9 +396,7 @@ class TestCommandAck:
         thread.start()
         thread.join(timeout=5.0)
 
-        messages = []
-        while not result_queue.empty():
-            messages.append(result_queue.get_nowait())
+        messages = _drain_queue(result_queue)
 
         ack_msgs = [m for m in messages if m[0] == "command_ack"]
         assert len(ack_msgs) == 0
@@ -379,9 +419,7 @@ class TestCommandAck:
         thread.start()
         thread.join(timeout=5.0)
 
-        messages = []
-        while not result_queue.empty():
-            messages.append(result_queue.get_nowait())
+        messages = _drain_queue(result_queue)
 
         ack_msgs = [m for m in messages if m[0] == "command_ack"]
         assert len(ack_msgs) == 0
@@ -405,9 +443,7 @@ class TestCommandAck:
         thread.start()
         thread.join(timeout=5.0)
 
-        messages = []
-        while not result_queue.empty():
-            messages.append(result_queue.get_nowait())
+        messages = _drain_queue(result_queue)
 
         ack_msgs = [m for m in messages if m[0] == "command_ack"]
         assert len(ack_msgs) == 2

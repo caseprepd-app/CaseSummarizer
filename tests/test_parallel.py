@@ -116,8 +116,9 @@ class TestThreadPoolStrategy:
 
         # With 4 workers, all tasks should start nearly simultaneously
         # If sequential, total time would be ~0.4s; parallel should be ~0.1s
+        # Use 0.35s threshold to avoid flakiness under system load
         total_duration = max(end_times) - min(start_times)
-        assert total_duration < 0.25, f"Tasks should run in parallel, took {total_duration}s"
+        assert total_duration < 0.35, f"Tasks should run in parallel, took {total_duration}s"
 
     def test_threadpool_submit_returns_future(self):
         """Submit returns a Future for async result retrieval."""

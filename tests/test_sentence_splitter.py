@@ -1,7 +1,5 @@
 """Tests for the NUPunkt-powered sentence splitter utility."""
 
-import pytest
-
 from src.core.utils.sentence_splitter import split_sentence_spans, split_sentences
 
 
@@ -23,7 +21,6 @@ class TestSplitSentences:
         result = split_sentences("First sentence. Second sentence.")
         assert len(result) == 2
 
-    @pytest.mark.xfail(reason="NUPunkt does not handle legal abbreviation 'v.'", strict=False)
     def test_legal_abbreviation_v(self):
         """'v.' in case names should NOT cause a split."""
         text = "The ruling in Smith v. Jones was unanimous. The appeal was denied."
@@ -32,7 +29,6 @@ class TestSplitSentences:
         assert len(result) == 2
         assert "Smith v. Jones" in result[0]
 
-    @pytest.mark.xfail(reason="NUPunkt does not handle 'U.S.C.' abbreviation", strict=False)
     def test_legal_abbreviation_usc(self):
         """'U.S.C.' should NOT cause a split."""
         text = "Under 42 U.S.C. § 1983, the claim was valid. The court agreed."
@@ -40,7 +36,6 @@ class TestSplitSentences:
         assert len(result) == 2
         assert "U.S.C." in result[0]
 
-    @pytest.mark.xfail(reason="NUPunkt does not handle 'Dr.', 'Mr.' abbreviations", strict=False)
     def test_title_abbreviations(self):
         """'Dr.', 'Mr.', etc. should NOT cause splits."""
         text = "Dr. Smith testified on Monday. Mr. Jones disagreed."
@@ -49,7 +44,6 @@ class TestSplitSentences:
         assert "Dr. Smith" in result[0]
         assert "Mr. Jones" in result[1]
 
-    @pytest.mark.xfail(reason="NUPunkt does not handle 'Inc.', 'Corp.' abbreviations", strict=False)
     def test_corporate_abbreviations(self):
         """'Inc.', 'Corp.' should NOT cause splits."""
         text = "Acme Inc. filed the motion. BigCo Corp. responded."

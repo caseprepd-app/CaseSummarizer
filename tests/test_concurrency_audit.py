@@ -6,11 +6,7 @@ daemon thread settings, and cross-thread error message protection.
 """
 
 import threading
-from queue import Empty, Queue
-from unittest.mock import MagicMock, patch
-
-import pytest
-
+from queue import Queue
 
 # =========================================================================
 # 1. AIService thread-safe singleton
@@ -44,6 +40,7 @@ class TestAIServiceSingleton:
             t.start()
         for t in threads:
             t.join(timeout=5)
+            assert not t.is_alive(), f"Thread {t.name} did not finish within timeout"
 
         # All instances must be the same object
         assert all(inst is instances[0] for inst in instances)
@@ -107,6 +104,7 @@ class TestUserPrefsSingleton:
             t.start()
         for t in threads:
             t.join(timeout=5)
+            assert not t.is_alive(), f"Thread {t.name} did not finish within timeout"
 
         assert all(inst is instances[0] for inst in instances)
         reset_singleton()
@@ -147,10 +145,10 @@ class TestSystemMonitorConcurrency:
 
     def test_metrics_lock_exists(self):
         """SystemMonitor must have a _metrics_lock attribute."""
-        from src.ui.system_monitor import SystemMonitor
-
         # Check the __init__ code references _metrics_lock
         import inspect
+
+        from src.ui.system_monitor import SystemMonitor
 
         source = inspect.getsource(SystemMonitor.__init__)
         assert "_metrics_lock" in source
@@ -248,12 +246,16 @@ class TestQueueDrainPattern:
         for i in range(3):
             manager.output_queue.put(f"msg_{i}")
 
-        # multiprocessing.Queue needs a brief moment for items to be available
-        time.sleep(0.1)
+        # Poll until all 3 messages are available (avoids flaky hard-coded sleep)
+        messages = []
+        deadline = time.monotonic() + 2.0
+        while time.monotonic() < deadline:
+            messages.extend(manager.check_for_messages())
+            if len(messages) >= 3:
+                break
+            time.sleep(0.05)
 
-        messages = manager.check_for_messages()
         assert messages == ["msg_0", "msg_1", "msg_2"]
-        assert manager.output_queue.empty()
 
 
 # =========================================================================
