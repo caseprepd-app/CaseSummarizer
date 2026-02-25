@@ -342,3 +342,178 @@ class TestEmptyModelHandling:
         manager.model_name = "gemma3:12b"
 
         assert manager.has_model is True
+
+
+# ---------------------------------------------------------------------------
+# unload_model — actual VRAM release via keep_alive=0
+# ---------------------------------------------------------------------------
+
+
+class TestUnloadModel:
+    """unload_model() sends keep_alive=0 to free VRAM."""
+
+    def _make_manager(self, mock_create_client):
+        mock_client = MagicMock()
+        mock_client.list.return_value = MagicMock(models=[])
+        mock_create_client.return_value = mock_client
+
+        from src.core.ai.ollama_model_manager import OllamaModelManager
+
+        manager = OllamaModelManager()
+        manager.model_name = "gemma3:12b"
+        manager.is_connected = True
+        return manager, mock_client
+
+    @patch("src.core.ai.ollama_model_manager._create_ollama_client")
+    def test_unload_calls_generate_with_keep_alive_zero(self, mock_create_client):
+        """unload_model sends keep_alive=0 to Ollama to free VRAM."""
+        manager, mock_client = self._make_manager(mock_create_client)
+
+        manager.unload_model()
+
+        mock_client.generate.assert_called_once()
+        call_kwargs = mock_client.generate.call_args.kwargs
+        assert call_kwargs.get("keep_alive") == 0
+        assert call_kwargs.get("model") == "gemma3:12b"
+
+    @patch("src.core.ai.ollama_model_manager._create_ollama_client")
+    def test_unload_skips_when_no_model(self, mock_create_client):
+        """unload_model does nothing when model_name is empty."""
+        manager, mock_client = self._make_manager(mock_create_client)
+        manager.model_name = ""
+        mock_client.generate.reset_mock()
+
+        manager.unload_model()
+
+        mock_client.generate.assert_not_called()
+
+    @patch("src.core.ai.ollama_model_manager._create_ollama_client")
+    def test_unload_skips_when_not_connected(self, mock_create_client):
+        """unload_model does nothing when Ollama is not connected."""
+        manager, mock_client = self._make_manager(mock_create_client)
+        manager.is_connected = False
+        mock_client.generate.reset_mock()
+
+        manager.unload_model()
+
+        mock_client.generate.assert_not_called()
+
+    @patch("src.core.ai.ollama_model_manager._create_ollama_client")
+    def test_unload_swallows_exceptions(self, mock_create_client):
+        """unload_model does not raise if generate fails (non-critical)."""
+        manager, mock_client = self._make_manager(mock_create_client)
+        mock_client.generate.side_effect = Exception("connection reset")
+
+        # Should not raise
+        manager.unload_model()
+
+
+# ---------------------------------------------------------------------------
+# ollama.ResponseError handling in generate_text / generate_structured
+# ---------------------------------------------------------------------------
+
+
+class TestResponseErrorHandling:
+    """ollama.ResponseError is caught and re-raised as RuntimeError."""
+
+    def _make_manager(self, mock_create_client):
+        mock_client = MagicMock()
+        mock_client.list.return_value = MagicMock(models=[])
+        mock_create_client.return_value = mock_client
+
+        from src.core.ai.ollama_model_manager import OllamaModelManager
+
+        manager = OllamaModelManager()
+        manager.model_name = "gemma3:12b"
+        manager.is_connected = True
+        return manager, mock_client
+
+    @patch("src.core.ai.ollama_model_manager._create_ollama_client")
+    def test_generate_text_converts_response_error(self, mock_create_client):
+        """generate_text wraps ollama.ResponseError as RuntimeError."""
+        import ollama
+
+        manager, mock_client = self._make_manager(mock_create_client)
+        mock_client.generate.side_effect = ollama.ResponseError("model not found", status_code=404)
+
+        with pytest.raises(RuntimeError, match="404"):
+            manager.generate_text("Test prompt", max_tokens=50)
+
+    @patch("src.core.ai.ollama_model_manager._create_ollama_client")
+    def test_generate_text_response_error_message_includes_error_text(self, mock_create_client):
+        """RuntimeError message includes the original error text from Ollama."""
+        import ollama
+
+        manager, mock_client = self._make_manager(mock_create_client)
+        mock_client.generate.side_effect = ollama.ResponseError("model not found", status_code=404)
+
+        with pytest.raises(RuntimeError, match="model not found"):
+            manager.generate_text("Test prompt", max_tokens=50)
+
+    @patch("src.core.ai.ollama_model_manager._create_ollama_client")
+    def test_generate_structured_converts_response_error(self, mock_create_client):
+        """generate_structured wraps ollama.ResponseError as RuntimeError."""
+        import ollama
+
+        manager, mock_client = self._make_manager(mock_create_client)
+        mock_client.generate.side_effect = ollama.ResponseError("model overloaded", status_code=503)
+
+        with pytest.raises(RuntimeError, match="503"):
+            manager.generate_structured("Return JSON", max_tokens=100)
+
+    @patch("src.core.ai.ollama_model_manager._create_ollama_client")
+    def test_generate_structured_response_error_not_swallowed(self, mock_create_client):
+        """generate_structured raises (not returns None) on ResponseError."""
+        import ollama
+
+        manager, mock_client = self._make_manager(mock_create_client)
+        mock_client.generate.side_effect = ollama.ResponseError("model overloaded", status_code=503)
+
+        # Must raise, not silently return None like generic exceptions
+        with pytest.raises(RuntimeError):
+            manager.generate_structured("Return JSON", max_tokens=100)
+
+
+# ---------------------------------------------------------------------------
+# generate_structured schema param
+# ---------------------------------------------------------------------------
+
+
+class TestGenerateStructuredSchema:
+    """generate_structured() passes schema dict as format when provided."""
+
+    def _make_manager(self, mock_create_client):
+        mock_client = MagicMock()
+        mock_client.list.return_value = MagicMock(models=[])
+        mock_client.generate.return_value = MagicMock(
+            get=lambda k, d="": '{"vocabulary": []}' if k == "response" else d
+        )
+        mock_create_client.return_value = mock_client
+
+        from src.core.ai.ollama_model_manager import OllamaModelManager
+
+        manager = OllamaModelManager()
+        manager.model_name = "gemma3:12b"
+        manager.is_connected = True
+        return manager, mock_client
+
+    @patch("src.core.ai.ollama_model_manager._create_ollama_client")
+    def test_schema_passed_as_format_when_provided(self, mock_create_client):
+        """When schema is given, it is passed as format= to generate()."""
+        manager, mock_client = self._make_manager(mock_create_client)
+
+        schema = {"type": "object", "properties": {"terms": {"type": "array"}}}
+        manager.generate_structured("Extract terms", schema=schema)
+
+        call_kwargs = mock_client.generate.call_args.kwargs
+        assert call_kwargs.get("format") == schema
+
+    @patch("src.core.ai.ollama_model_manager._create_ollama_client")
+    def test_format_json_used_when_no_schema(self, mock_create_client):
+        """When schema is None, format='json' is used as fallback."""
+        manager, mock_client = self._make_manager(mock_create_client)
+
+        manager.generate_structured("Extract terms", schema=None)
+
+        call_kwargs = mock_client.generate.call_args.kwargs
+        assert call_kwargs.get("format") == "json"
