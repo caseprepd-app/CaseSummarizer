@@ -173,7 +173,7 @@ class VocabularyExtractor:
 
             self.algorithms = [ner, rake]
 
-            # Conditionally add BM25 if enabled and corpus is ready (Session 26)
+            # Conditionally add BM25 if enabled and corpus is ready
             if self._should_enable_bm25():
                 try:
                     from src.core.vocabulary.algorithms.bm25_algorithm import BM25Algorithm
@@ -239,7 +239,7 @@ class VocabularyExtractor:
         self._nlp = None
         self._nlp_lock = threading.Lock()
 
-        # Initialize meta-learner for ML-boosted quality scores (Session 25)
+        # Initialize meta-learner for ML-boosted quality scores
         self._meta_learner = get_meta_learner()
 
     @property
@@ -315,7 +315,7 @@ class VocabularyExtractor:
                 original_kb,
             )
 
-        # 1. Run all enabled algorithms (parallel when possible - Session 69)
+        # 1. Run all enabled algorithms (parallel when possible)
         all_results = self._run_algorithms_parallel(text)
 
         # 2. Merge results from all algorithms
@@ -332,7 +332,7 @@ class VocabularyExtractor:
         vocabulary = self._post_process(merged_terms, text, doc_count, doc_confidence)
         logger.debug("After post-process: %s terms", len(vocabulary))
 
-        # 4. Run vocabulary filter chain (Session 71)
+        # 4. Run vocabulary filter chain
         # Consolidates: name dedup, artifact filter, name regularizer,
         # rarity filter, corpus familiarity, and gibberish filter
         logger.debug("Running filter chain...")
@@ -362,7 +362,7 @@ class VocabularyExtractor:
         status_callback=None,
     ) -> list[dict[str, str]]:
         """
-        Extract vocabulary with progressive updates for better UX (Session 85).
+        Extract vocabulary with progressive updates for better UX.
 
         Runs BM25 and RAKE first, sends partial results, then runs NER with
         progress updates for each chunk. This allows the GUI to show results
@@ -567,7 +567,7 @@ class VocabularyExtractor:
         reconciled = reconciler.reconcile(ner_candidates, llm_terms)
         logger.debug("Reconciled to %s unique terms", len(reconciled))
 
-        # 3.5 Filter out common words and apply frequency thresholds (Session 45)
+        # 3.5 Filter out common words and apply frequency thresholds
         logger.debug("Phase 3.5: Filtering common words...")
         filtered_reconciled = self._filter_reconciled_terms(reconciled, doc_count, len(text))
         logger.debug(
@@ -596,7 +596,7 @@ class VocabularyExtractor:
             role = self._get_role_relevance(term, category == "Person", text)
             row["Role/Relevance"] = role
 
-        # 7. Run vocabulary filter chain (Session 71)
+        # 7. Run vocabulary filter chain
         # Consolidates: name dedup, artifact filter, name regularizer,
         # rarity filter, corpus familiarity, and gibberish filter
         logger.debug("Phase 7: Running filter chain...")
@@ -618,7 +618,7 @@ class VocabularyExtractor:
 
     def _run_algorithms_parallel(self, text: str) -> list:
         """
-        Run extraction algorithms in parallel when beneficial (Session 69).
+        Run extraction algorithms in parallel when beneficial.
 
         Uses ThreadPoolStrategy to run NER, RAKE, and BM25 concurrently.
         Falls back to sequential execution when:
@@ -642,7 +642,7 @@ class VocabularyExtractor:
             logger.debug("No algorithms enabled")
             return []
 
-        # Log text hash for consistency verification (Session 87)
+        # Log text hash for consistency verification
         # All algorithms receive IDENTICAL text - this hash verifies that guarantee
         import hashlib
 
@@ -811,7 +811,7 @@ class VocabularyExtractor:
                 "Google Rarity Rank": frequency_rank,
                 # "Definition": self._get_definition(term, is_person),  # Removed: see Phase 4 comment
                 "Sources": ",".join(merged.sources),  # Keep for backward compatibility
-                # Per-algorithm detection flags (Session 47)
+                # Per-algorithm detection flags
                 "NER": "Yes" if "NER" in sources_upper else "No",
                 "RAKE": "Yes" if "RAKE" in sources_upper else "No",
                 "BM25": "Yes" if "BM25" in sources_upper else "No",
@@ -837,7 +837,7 @@ class VocabularyExtractor:
                 "total_word_count": len(full_text.split()),  # For freq_per_1k_words feature
             }
 
-            # Apply ML boost if meta-learner is trained (Session 25)
+            # Apply ML boost if meta-learner is trained
             final_quality_score = self._apply_ml_boost(term_data, base_quality_score)
             term_data["Quality Score"] = final_quality_score
 
@@ -863,7 +863,7 @@ class VocabularyExtractor:
         self, reconciled: list, doc_count: int, text_length: int = 0
     ) -> list:
         """
-        Filter reconciled terms for single-word noise (Session 45).
+        Filter reconciled terms for single-word noise.
 
         This handles SINGLE-WORD filtering only:
         - Exclude lists (legal/user)
@@ -1034,7 +1034,7 @@ class VocabularyExtractor:
         if textrank_score > 0:
             score += min(textrank_score * 10, SCORE_TEXTRANK_CENTRALITY_BOOST)
 
-        # === TermSources-based adjustments (Session 79) ===
+        # === TermSources-based adjustments ===
         if term_sources is not None and term_sources.num_documents > 0:
             # Boost for terms found in multiple documents
             if term_sources.num_documents >= 2:
@@ -1387,7 +1387,7 @@ class VocabularyExtractor:
             return False
 
     # ========================================================================
-    # PER-DOCUMENT PARALLEL EXTRACTION (Session 131)
+    # PER-DOCUMENT PARALLEL EXTRACTION
     # ========================================================================
 
     def extract_documents(self, documents, use_llm=False, progress_callback=None):
@@ -1615,7 +1615,7 @@ class VocabularyExtractor:
         }
 
     # ========================================================================
-    # PER-DOCUMENT EXTRACTION (Session 78) — Legacy
+    # PER-DOCUMENT EXTRACTION — Legacy
     # ========================================================================
 
     def extract_from_document(

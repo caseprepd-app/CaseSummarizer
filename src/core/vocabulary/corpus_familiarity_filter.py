@@ -1,9 +1,9 @@
 """
-Corpus Familiarity Filtering for Vocabulary Extraction (Session 68)
+Corpus Familiarity Filtering for Vocabulary Extraction
 
 Provides a binary ML feature indicating if a term is common in the user's corpus.
 
-SIMPLIFIED DESIGN (Session 147):
+SIMPLIFIED DESIGN:
 - Single binary feature: corpus_common_term (True/False)
 - True if term appears in >= 64% of corpus docs AND >= 5 total occurrences
 - False otherwise (including when no corpus is available)

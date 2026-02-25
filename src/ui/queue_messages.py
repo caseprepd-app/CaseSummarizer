@@ -43,11 +43,11 @@ class MessageType:
     MULTI_DOC_RESULT = "multi_doc_result"
     META_SUMMARY_GENERATED = "meta_summary_generated"
 
-    # Vector Store (Session 24)
+    # Vector Store
     VECTOR_STORE_READY = "vector_store_ready"
     VECTOR_STORE_ERROR = "vector_store_error"
 
-    # Q&A (Session 28)
+    # Q&A
     QA_PROGRESS = "qa_progress"
     QA_RESULT = "qa_result"
     QA_COMPLETE = "qa_complete"
@@ -55,13 +55,13 @@ class MessageType:
     QA_ERROR = "qa_error"
     TRIGGER_DEFAULT_QA = "trigger_default_qa"
 
-    # Progressive Extraction (Session 48)
+    # Progressive Extraction
     NER_COMPLETE = "ner_complete"
     QA_READY = "qa_ready"
     LLM_PROGRESS = "llm_progress"
     LLM_COMPLETE = "llm_complete"
 
-    # Progressive Vocabulary Loading (Session 85)
+    # Progressive Vocabulary Loading
     PARTIAL_VOCAB_COMPLETE = "partial_vocab_complete"  # BM25 + RAKE results before NER
     NER_PROGRESS = "ner_progress"  # NER chunk progress update
     EXTRACTION_STARTED = "extraction_started"  # Signals extraction has begun (dim buttons)
@@ -191,7 +191,7 @@ class QueueMessage:
         return (MessageType.META_SUMMARY_GENERATED, summary)
 
     # =========================================================================
-    # Vector Store (Session 24)
+    # Vector Store
     # =========================================================================
 
     @staticmethod
@@ -228,7 +228,7 @@ class QueueMessage:
         return (MessageType.VECTOR_STORE_ERROR, {"error": error})
 
     # =========================================================================
-    # Q&A (Session 28)
+    # Q&A
     # =========================================================================
 
     @staticmethod
@@ -301,7 +301,7 @@ class QueueMessage:
         )
 
     # =========================================================================
-    # Progressive Extraction (Session 48)
+    # Progressive Extraction
     # =========================================================================
 
     @staticmethod
@@ -365,7 +365,7 @@ class QueueMessage:
         return (MessageType.LLM_COMPLETE, vocab_data)
 
     # =========================================================================
-    # Progressive Vocabulary Loading (Session 85)
+    # Progressive Vocabulary Loading
     # =========================================================================
 
     @staticmethod

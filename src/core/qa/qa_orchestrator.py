@@ -221,7 +221,7 @@ class QAOrchestrator:
         """
         Load enabled default questions from the DefaultQuestionsManager.
 
-        Session 63c: Now uses JSON-based manager with enable/disable support.
+        Now uses JSON-based manager with enable/disable support.
         Falls back to legacy txt file if manager fails.
 
         Returns:
@@ -370,7 +370,7 @@ class QAOrchestrator:
                 max_chars=QA_CITATION_MAX_CHARS,
             )
 
-            # Run hallucination verification if enabled (Session 60)
+            # Run hallucination verification if enabled
             if HALLUCINATION_VERIFICATION_ENABLED and quick_answer:
                 verification = self._verify_answer(quick_answer, retrieval_result.context, question)
                 # If answer is rejected, replace with rejection message

@@ -67,12 +67,12 @@ class TaskMixin:
         else:
             self.generate_btn.configure(text=f"Perform {task_count} Tasks", state="normal")
 
-        # Update task preview label (Session 69)
+        # Update task preview label
         self._update_task_preview()
 
     def _update_task_preview(self):
         """
-        Update the task preview label to show what will run (Session 69).
+        Update the task preview label to show what will run.
 
         Shows a concise preview like:
         "Will run: Vocabulary (NER+LLM), Q&A (6 questions)"
@@ -186,12 +186,12 @@ class TaskMixin:
             self._on_tasks_complete(True, "No tasks selected")
 
     # =========================================================================
-    # Progressive Extraction (Session 45)
+    # Progressive Extraction
     # =========================================================================
 
     def _start_progressive_extraction(self):
         """
-        Start progressive three-phase extraction (Session 45).
+        Start progressive three-phase extraction.
 
         Phase 1 (NER): Fast, displays results in ~5 seconds
         Phase 2 (Q&A): Builds vector store, enables Q&A panel
@@ -222,7 +222,7 @@ class TaskMixin:
             self._on_tasks_complete(False, "No text to analyze")
             return
 
-        # Calculate aggregate document confidence (Session 54)
+        # Calculate aggregate document confidence
         doc_confidence = self._calculate_aggregate_confidence(self.processing_results)
         logger.debug("Aggregate document confidence: %.1f%%", doc_confidence)
 

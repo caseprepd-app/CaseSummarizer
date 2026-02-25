@@ -194,7 +194,7 @@ def get_count_bin_features(count: int) -> tuple[float, float, float, float, floa
     )
 
 
-# Rule-Based Quality Score: TermSources Adjustments (Session 79)
+# Rule-Based Quality Score: TermSources Adjustments
 # These adjustments are applied BEFORE ML blending, based on document source quality.
 # All values are additive to the base score (50 points).
 SCORE_MULTI_DOC_BOOST = _d("score_multi_doc_boost")
@@ -209,7 +209,7 @@ SCORE_SINGLE_SOURCE_CONF_THRESHOLD = 0.70  # Confidence threshold for single-sou
 for ml_dir in [FEEDBACK_DIR, MODELS_ML_DIR]:
     ml_dir.mkdir(parents=True, exist_ok=True)
 
-# BM25 Corpus Configuration (Session 26)
+# BM25 Corpus Configuration
 # User's corpus of previous transcripts for BM25-based term importance
 CORPUS_DIR = APPDATA_DIR / "corpus"
 CORPUS_MIN_DOCUMENTS = 5  # Minimum docs before BM25 activates
@@ -224,18 +224,7 @@ BM25_K1 = _d("bm25_k1")  # Term frequency saturation
 BM25_B = _d("bm25_b")  # Length normalization
 BM25_DELTA = _d("bm25_delta")  # BM25+ improvement factor
 
-# Corpus Familiarity Configuration (Session 68, simplified Session 147)
-# NOTE: These are DEPRECATED - corpus no longer filters terms.
-# Corpus now uses a binary ML feature (corpus_common_term) defined in corpus_manager.py:
-# - MAX_CORPUS_DOCS = 25 (hard limit)
-# - CORPUS_COMMON_THRESHOLD = 0.64 (64% of docs)
-# - CORPUS_COMMON_MIN_OCCURRENCES = 5 (minimum doc frequency)
-# These old constants are kept for backwards compatibility with user preferences.
-CORPUS_FAMILIARITY_THRESHOLD = 0.75  # DEPRECATED - no longer filters
-CORPUS_FAMILIARITY_MIN_DOCS = 10  # DEPRECATED - no longer filters
-CORPUS_FAMILIARITY_EXEMPT_PERSONS = True  # DEPRECATED - no filtering to exempt from
-
-# Vocabulary Extraction Algorithm Weights (Session 47)
+# Vocabulary Extraction Algorithm Weights
 # Centralized weights for multi-algorithm vocabulary extraction
 # Higher weight = more influence on final confidence score
 # These weights are used by AlgorithmScoreMerger to combine algorithm results
@@ -339,7 +328,7 @@ LARGE_FILE_WARNING_MB = 100
 MIN_LINE_LENGTH = 15
 MIN_DICTIONARY_CONFIDENCE = 60  # Percentage
 
-# PDF Extraction Configuration (Session 79)
+# PDF Extraction Configuration
 # Hybrid extraction uses both PyMuPDF and pdfplumber, reconciling with word-level voting
 PDF_EXTRACTION_MODE = _d("pdf_extraction_mode")
 PDF_VOTING_ENABLED = _d("pdf_voting_enabled")
@@ -485,7 +474,7 @@ USER_VOCAB_EXCLUDE_PATH = CONFIG_DIR / "user_vocab_exclude.txt"
 
 # Vocabulary Extraction Rarity Settings
 # Path to Google word frequency dataset (word\tfrequency_count format)
-# Moved to data/frequency/ in Session 34 for better organization
+# Moved to data/frequency/ for better organization
 GOOGLE_WORD_FREQUENCY_FILE = BUNDLED_BASE_DIR / "data" / "frequency" / "Word_rarity-count_1w.txt"
 # Words with rank >= threshold are considered rare
 # Higher threshold = more aggressive filtering (fewer terms extracted)
@@ -510,7 +499,7 @@ VOCABULARY_SORT_BY_RARITY = VOCABULARY_SORT_METHOD == "rarity"
 # Note: PERSON entities are exempt (party names may appear once but are important)
 VOCABULARY_MIN_OCCURRENCES = 2
 
-# Phrase Component Rarity Filtering (Session 53)
+# Phrase Component Rarity Filtering
 # Filters multi-word phrases where ALL component words are too common.
 # Example: "the same", "left side" - high RAKE scores but no vocabulary value.
 #
@@ -518,7 +507,7 @@ VOCABULARY_MIN_OCCURRENCES = 2
 # We only filter when ALL words are common.
 #
 # Commonality scores are 0.0-1.0 (log-scaled from Google word frequency):
-# RANK-BASED SCORING (Session 58):
+# RANK-BASED SCORING:
 # Score = rank / total_words (percentile position)
 #   0.0 = most common word ("the", rank 1)
 #   0.5 = median word (top 50%)
@@ -542,7 +531,7 @@ VOCABULARY_MIN_OCCURRENCES = 2
 PHRASE_MAX_COMMONALITY_THRESHOLD = 0.50  # Filter if rarest word in top 50%
 PHRASE_MEAN_COMMONALITY_THRESHOLD = 0.40  # Filter if average word in top 40%
 
-# Single-word rarity threshold (Session 58 - rank-based)
+# Single-word rarity threshold (rank-based)
 # Filter words in the top X% as "too common for vocabulary prep"
 # Examples with 0.50 threshold:
 #   "age" (rank 579, score 0.0017) < 0.50 -> FILTERED (top 0.17%)
@@ -550,7 +539,7 @@ PHRASE_MEAN_COMMONALITY_THRESHOLD = 0.40  # Filter if average word in top 40%
 #   "radiculopathy" (rank ~250000, score 0.75) > 0.50 -> KEPT (bottom 25%)
 SINGLE_WORD_COMMONALITY_THRESHOLD = 0.50  # Filter top 50% of vocabulary
 
-# Non-NER Rarity Passthrough Thresholds (Session 131)
+# Non-NER Rarity Passthrough Thresholds
 # Passes RAKE/BM25-found terms through rarity filtering when they're sufficiently rare.
 # Words not in the Google frequency dataset get this score instead of 0.0:
 NON_NER_UNKNOWN_WORD_RARITY = 0.85  # Treat unknown words as rare (0.85 out of 1.0)
@@ -560,14 +549,14 @@ NON_NER_SINGLE_PASSTHROUGH_THRESHOLD = 0.80
 NON_NER_PHRASE_MAX_PASSTHROUGH_THRESHOLD = 0.85
 NON_NER_PHRASE_MEAN_PASSTHROUGH_THRESHOLD = 0.65
 
-# Floor for adjusted mean rarity calculation (Session 131)
+# Floor for adjusted mean rarity calculation
 # Words with rarity score below this are excluded from the mean calculation.
 # This prevents common filler words ("of", "the", "and") from dragging down
 # the mean rarity of phrases that contain genuinely rare words.
 # 0.10 = exclude words in the top 10% most common English words
 NON_NER_PHRASE_COMMON_WORD_FLOOR = 0.10
 
-# Person Title Prefixes (Session 140 - title-aware name synthesis)
+# Person Title Prefixes (title-aware name synthesis)
 # Used by name_deduplicator.py to merge "Dr. Jones" + "James Jones" → "James Jones (Dr.)"
 # Split into generic (discardable in conflict) and role (kept as separate entries)
 PERSON_TITLE_PREFIXES_GENERIC = ["mr.", "ms.", "mrs."]
@@ -585,7 +574,7 @@ PERSON_TITLE_PREFIXES_ROLE = [
 ]
 PERSON_TITLE_PREFIXES = PERSON_TITLE_PREFIXES_GENERIC + PERSON_TITLE_PREFIXES_ROLE
 
-# Transcript Section Keywords (Session 140 - header artifact removal)
+# Transcript Section Keywords (header artifact removal)
 # Used by artifact_filter.py to detect "Smith - Direct" style artifacts
 TRANSCRIPT_SECTION_KEYWORDS = {
     "direct",
@@ -640,7 +629,7 @@ SEMANTIC_CHUNKER_EMBEDDING_MODEL = "all-MiniLM-L6-v2"
 VOCABULARY_DISPLAY_LIMIT = 50  # User-configurable default (conservative)
 VOCABULARY_DISPLAY_MAX = 200  # Hard ceiling - cannot exceed this
 
-# Vocabulary Display Pagination (Session 16 - GUI responsiveness)
+# Vocabulary Display Pagination (GUI responsiveness)
 # Controls async batch insertion to prevent GUI freezing during large loads
 VOCABULARY_ROWS_PER_PAGE = 50  # Initial rows shown; "Load More" adds more
 VOCABULARY_BATCH_INSERT_SIZE = 20  # Rows inserted per async batch
@@ -652,13 +641,13 @@ VOCABULARY_BATCH_INSERT_DELAY_MS = 10  # Delay between batches (ms)
 DEFAULT_NEGATIVE_INDICATORS = ["proceedings", "Direct", "Cross", "Redirect", "Recross"]
 DEFAULT_POSITIVE_INDICATORS: list[str] = []
 
-# spaCy Model Download Timeouts (Session 15)
+# spaCy Model Download Timeouts
 # Controls timeout behavior during automatic spaCy model downloads
 SPACY_DOWNLOAD_TIMEOUT_SEC = 3600  # Overall timeout: 1 hour (slow connections)
 SPACY_SOCKET_TIMEOUT_SEC = 10  # Socket timeout per request
 SPACY_THREAD_TIMEOUT_SEC = 15  # Thread termination timeout
 
-# Document Chunking (Session 20 - hierarchical summarization)
+# Document Chunking (hierarchical summarization)
 # Overlap fraction prevents context loss at chunk boundaries
 CHUNK_OVERLAP_FRACTION = 0.1  # 10% overlap between chunks
 
@@ -739,7 +728,7 @@ RESIZE_DEBOUNCE_MS = 100
 ERROR_DISPLAY_MAX_CHARS = 200
 
 # ============================================================================
-# Q&A / Vector Search Configuration (Session 24 - RAG-based Q&A)
+# Q&A / Vector Search Configuration (RAG-based Q&A)
 # ============================================================================
 
 # Vector Store Settings
@@ -765,7 +754,7 @@ QA_CONTEXT_WINDOW = 4096  # Fallback tokens for RAG context
 QA_CONVERSATION_CONTEXT_PAIRS = 3  # Include last N Q&A pairs in follow-up questions
 
 # ============================================================================
-# Hybrid Retrieval Configuration (Session 31 - BM25+ Integration)
+# Hybrid Retrieval Configuration (BM25+ Integration)
 # ============================================================================
 # Multi-algorithm retrieval for Q&A - mirrors vocabulary extraction architecture
 
@@ -810,7 +799,7 @@ FAISS_RELEVANCE_FLOOR = _d("faiss_relevance_floor")
 QA_CITATION_MAX_CHARS = _d("qa_citation_max_chars")
 
 # ============================================================================
-# Unified Semantic Chunking Configuration (Session 45, Session 67)
+# Unified Semantic Chunking Configuration
 # ============================================================================
 # Single chunking pass for all downstream consumers (LLM extraction + Q&A indexing)
 # Uses semantic chunking with token enforcement via tiktoken
@@ -836,7 +825,7 @@ UNIFIED_CHUNK_MAX_TOKENS = _d("unified_chunk_max_tokens")
 UNIFIED_CHUNK_ENCODING = "cl100k_base"
 
 # ============================================================================
-# Hallucination Verification Configuration (Session 60)
+# Hallucination Verification Configuration
 # ============================================================================
 # Uses LettuceDetect to verify Q&A answers against source documents
 # Identifies potentially hallucinated spans with color-coded reliability
@@ -954,7 +943,7 @@ RERANKER_TOP_K = _d("reranker_top_k")
 
 
 # ============================================================================
-# Vocabulary Table Column Configuration (Session 83 - moved from core)
+# Vocabulary Table Column Configuration (moved from core)
 # ============================================================================
 # Single source of truth for column definitions used by both
 # GUI (dynamic_output.py) and HTML export (html_builder.py).

@@ -35,7 +35,7 @@ from .corpus_manager import CorpusFile, CorpusManager, get_corpus_manager
 from .corpus_registry import CorpusInfo, CorpusRegistry, get_corpus_registry
 from .feedback_manager import FeedbackManager, get_feedback_manager
 from .name_deduplicator import deduplicate_names
-from .name_regularizer import filter_name_fragments, filter_typo_variants, regularize_names
+from .name_regularizer import filter_name_fragments, regularize_names
 from .preference_learner import VocabularyPreferenceLearner, get_meta_learner
 from .vocabulary_extractor import VocabularyExtractor
 

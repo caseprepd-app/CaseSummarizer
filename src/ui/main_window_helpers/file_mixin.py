@@ -38,7 +38,7 @@ class FileMixin:
 
     def _setup_drag_drop(self):
         """
-        Initialize drag-and-drop file support (Session 73).
+        Initialize drag-and-drop file support.
 
         Registers the file table area as a drop target for files.
         Requires tkinterdnd2 library to be installed.
@@ -63,7 +63,7 @@ class FileMixin:
 
     def _on_file_drop(self, event):
         """
-        Handle files dropped onto the file table area (Session 73).
+        Handle files dropped onto the file table area.
 
         Args:
             event: Drop event containing file paths

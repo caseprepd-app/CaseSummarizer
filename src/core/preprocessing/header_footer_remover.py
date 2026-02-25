@@ -237,7 +237,7 @@ class HeaderFooterRemover(BasePreprocessor):
 
         lines = text.split("\n")
 
-        # Pre-compute all normalizations ONCE (Session 70 optimization)
+        # Pre-compute all normalizations ONCE (optimization)
         # Previously _normalize_line() was called 3x per line
         line_to_normalized: dict[int, str] = {}
         for i, line in enumerate(lines):

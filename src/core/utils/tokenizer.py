@@ -428,7 +428,7 @@ STOPWORDS: frozenset[str] = frozenset(
         "exhibits",
         "document",
         "documents",
-        # === Session 58 additions ===
+        # === Additional common words ===
         # Basic body parts (not medical terms - those are valuable)
         "age",
         "body",

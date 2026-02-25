@@ -1,15 +1,12 @@
 """
 Tests for the Name Regularizer module.
 
-Tests the two filtering strategies:
-1. Fragment filter - removes word fragments of canonical terms
-2. Typo filter - removes 1-character edit distance variants
+Tests fragment filtering and combined regularization.
 """
 
 from src.core.vocabulary.name_regularizer import (
     _is_fragment_of,
     filter_name_fragments,
-    filter_typo_variants,
     regularize_names,
 )
 from src.core.vocabulary.string_utils import edit_distance as _edit_distance
@@ -173,82 +170,6 @@ class TestFilterNameFragments:
 
         result = filter_name_fragments(vocab)
         assert len(result) == 5
-
-
-class TestFilterTypoVariants:
-    """Tests for the typo filter function."""
-
-    def _make_vocab(self, terms_and_counts: list[tuple[str, int]]) -> list[dict]:
-        """Helper to create vocabulary list from (term, count) tuples."""
-        return [{"Term": term, "Occurrences": count} for term, count in terms_and_counts]
-
-    def test_removes_one_char_typos(self):
-        """Typos with 1-character difference are removed."""
-        vocab = self._make_vocab(
-            [
-                ("Barbra Jenkins", 50),  # Canonical
-                ("Memorial Hospital", 40),  # Canonical
-                ("Another Name", 30),  # Canonical
-                ("Fourth Term", 25),  # Canonical
-                ("Barbr Jenkins", 5),  # Typo - missing 'a'
-                ("Barbra Jenkinss", 3),  # Typo - extra 's'
-                ("Something Else", 10),  # Not a typo
-            ]
-        )
-
-        result = filter_typo_variants(vocab, top_fraction=0.25)
-
-        terms = [r["Term"] for r in result]
-        assert "Barbra Jenkins" in terms
-        assert "Barbr Jenkins" not in terms
-        assert "Barbra Jenkinss" not in terms
-        assert "Something Else" in terms
-
-    def test_preserves_two_char_difference(self):
-        """Terms with 2+ character difference are preserved (not typos)."""
-        vocab = self._make_vocab(
-            [
-                ("Barbra Jenkins", 50),
-                ("Second Term", 40),
-                ("Third Term", 30),
-                ("Fourth Term", 25),
-                ("Barb Jenkins", 5),  # 2-char diff (ra -> _), preserved
-            ]
-        )
-
-        result = filter_typo_variants(vocab, top_fraction=0.25)
-
-        terms = [r["Term"] for r in result]
-        assert "Barb Jenkins" in terms  # 2-char diff, not filtered
-
-    def test_skips_short_terms(self):
-        """Short terms (< min_length) are not typo-checked."""
-        vocab = self._make_vocab(
-            [
-                ("Long Canonical Term", 50),
-                ("Another Term", 40),
-                ("Third Term", 30),
-                ("Fourth", 25),
-                ("Di", 5),  # Too short for typo check
-                ("Do", 3),  # 1-char diff from "Di" but both too short
-            ]
-        )
-
-        result = filter_typo_variants(vocab, top_fraction=0.25, min_term_length=5)
-
-        terms = [r["Term"] for r in result]
-        assert "Di" in terms  # Too short, preserved
-        assert "Do" in terms  # Too short, preserved
-
-    def test_empty_vocabulary(self):
-        """Empty vocabulary returns empty."""
-        assert filter_typo_variants([]) == []
-
-    def test_small_vocabulary(self):
-        """Small vocabulary (< 4 items) returns unchanged."""
-        vocab = self._make_vocab([("ABC", 10), ("DEF", 5), ("GHI", 3)])
-        result = filter_typo_variants(vocab)
-        assert len(result) == 3
 
 
 class TestRegularizeNames:

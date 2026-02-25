@@ -384,7 +384,7 @@ def get_vram_gb() -> float:
     return vram_bytes / (1024**3) if vram_bytes > 0 else 0.0
 
 
-# Fixed chunk sizes based on RAG research (Session 67 revised)
+# Fixed chunk sizes based on RAG research
 #
 # Research findings (2024-2025):
 # - Optimal chunk size is 400-1024 tokens regardless of context window

@@ -155,7 +155,7 @@ class VectorStoreBuilder:
         progress_callback=None,
     ) -> VectorStoreResult:
         """
-        Build vector store from UnifiedChunk objects (Session 45).
+        Build vector store from UnifiedChunk objects.
 
         This method uses the same chunks that LLM extraction uses,
         enabling efficient single-pass chunking for the entire pipeline.
