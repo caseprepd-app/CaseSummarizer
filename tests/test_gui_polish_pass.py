@@ -22,18 +22,18 @@ def _read(relative_path: str) -> str:
 # =========================================================================
 
 
-class TestClearAllDangerStyling:
-    """Clear All button uses danger (red) styling, not gray."""
+class TestClearAllCautionStyling:
+    """Clear All button uses caution (purple) styling, not gray."""
 
     @pytest.fixture(autouse=True)
     def _load(self):
         self.text = _read("src/ui/window_layout.py")
 
-    def test_clear_all_uses_danger_style(self):
-        """Clear All button uses BUTTON_STYLES['danger']."""
+    def test_clear_all_uses_caution_style(self):
+        """Clear All button uses BUTTON_STYLES['caution'] (purple)."""
         idx = self.text.index("self.clear_files_btn = ctk.CTkButton")
         block = self.text[idx : idx + 400]
-        assert '**BUTTON_STYLES["danger"]' in block
+        assert '**BUTTON_STYLES["caution"]' in block
 
     def test_clear_all_no_gray_fg_color(self):
         """Clear All button no longer uses gray fg_color."""

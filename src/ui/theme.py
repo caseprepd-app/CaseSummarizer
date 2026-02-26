@@ -188,6 +188,10 @@ BUTTON_STYLES = {
         "fg_color": COLORS["btn_danger"],
         "hover_color": COLORS["btn_danger_hover"],
     },
+    "caution": {
+        "fg_color": "#7744aa",
+        "hover_color": "#9955cc",
+    },
     "disabled": {
         "fg_color": COLORS["btn_disabled"],
         "hover_color": COLORS["btn_disabled_hover"],

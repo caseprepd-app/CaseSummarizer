@@ -194,7 +194,7 @@ class WindowLayoutMixin:
             text="Clear All",
             width=scale_value(80),
             corner_radius=6,
-            **BUTTON_STYLES["danger"],
+            **BUTTON_STYLES["caution"],
             command=self._clear_files,
         )
         self.clear_files_btn.pack(side="left")
