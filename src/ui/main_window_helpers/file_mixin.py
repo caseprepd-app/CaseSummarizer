@@ -251,7 +251,12 @@ class FileMixin:
             except (TypeError, ValueError):
                 logger.warning("Invalid message from worker subprocess: %s", msg)
 
-        if self._processing_active or self._preprocessing_active or messages:
+        if (
+            self._processing_active
+            or self._preprocessing_active
+            or self._qa_answering_active
+            or messages
+        ):
             self._queue_poll_id = self.after(33, self._poll_queue)
         else:
             self._queue_poll_id = None

@@ -658,7 +658,7 @@ class TestExtractionReadinessGuard:
             stub._worker_manager.send_command.assert_not_called()
 
     def test_gives_up_after_max_retries(self):
-        """After 20+ retries, should show error."""
+        """After 20+ retries, should call _on_tasks_complete with failure."""
         stub = self._make_extraction_stub(worker_ready=False)
         stub._worker_ready_retries = 20
 
@@ -673,7 +673,10 @@ class TestExtractionReadinessGuard:
 
             MainWindow._start_progressive_extraction(stub)
 
-            stub.set_status_error.assert_called_once()
+            stub._on_tasks_complete.assert_called_once()
+            args = stub._on_tasks_complete.call_args[0]
+            assert args[0] is False  # success=False
+            assert "failed" in args[1].lower() or "restart" in args[1].lower()
             stub.after.assert_not_called()
 
     def test_proceeds_when_ready(self):

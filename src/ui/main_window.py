@@ -760,7 +760,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             self._on_preprocessing_complete(data)
 
         elif msg_type == "error":
-            self.set_status(f"Error: {data}")
+            self.set_status_error(f"Error: {data}")
             messagebox.showerror("Processing Error", str(data))
             self._on_preprocessing_complete([])
 
@@ -836,9 +836,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             self._qa_answering_active = True
             if not self.ask_default_questions_check.get():
                 logger.debug("Default questions disabled, skipping display update")
-                self.status_label.configure(
-                    text="Ready. Type a question below to search your documents."
-                )
+                self.set_status("Ready. Type a question below to search your documents.")
             else:
                 # Update workflow phase for tab status
                 from src.ui.workflow_status import WorkflowPhase
@@ -935,7 +933,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         self._completed_tasks.add("summary")
 
         if result.documents_failed > 0:
-            self.set_status(
+            self.set_status_error(
                 f"Summary complete: {result.documents_processed} succeeded, "
                 f"{result.documents_failed} failed"
             )
@@ -992,8 +990,9 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         status = f"Processed {len(results)} file(s): {success_count} ready"
         if failed_count > 0:
             status += f", {failed_count} failed"
-
-        self.set_status(status)
+            self.set_status_error(status)
+        else:
+            self.set_status(status)
         self._update_session_stats()  # Show document stats
 
     # =========================================================================
@@ -1600,7 +1599,6 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         )
 
         if not combined_text.strip():
-            self.set_status("No text to analyze")
             logger.debug("WARNING: No text after combining documents!")
             self._on_tasks_complete(False, "No text to analyze")
             return
@@ -1619,8 +1617,10 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         if not self._worker_manager.is_ready():
             self._worker_ready_retries += 1
             if self._worker_ready_retries > 20:  # ~60s of retries
-                self.set_status_error("Processing engine failed to start. Please restart the app.")
                 self._worker_ready_retries = 0
+                self._on_tasks_complete(
+                    False, "Processing engine failed to start. Please restart the app."
+                )
                 return
             self.set_status("Processing engine starting up, please wait...")
             self.after(3000, self._start_progressive_extraction)
@@ -1804,7 +1804,10 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             extraction_stats = self._gather_extraction_stats()
             self._update_session_stats(extraction_stats)
 
-        self.set_status(message)
+        if success:
+            self.set_status(message)
+        else:
+            self.set_status_error(message)
 
     def _gather_extraction_stats(self) -> dict:
         """
@@ -1904,7 +1907,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             self._followup_poll_count = 0
             self.followup_btn.configure(state="normal", text="Ask")
             self.followup_entry.configure(state="normal")
-            self.set_status("Follow-up timed out — worker may have crashed")
+            self.set_status_error("Follow-up timed out — worker may have crashed")
             return
 
         # Check for qa_followup_result in subprocess messages
@@ -1976,11 +1979,11 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
                             self._qa_results.pop(pending_idx)
                     self._pending_followup_index = None
                     self.output_display.update_outputs(qa_results=list(self._qa_results))
-                self.set_status("Follow-up failed")
+                self.set_status_error("Follow-up failed")
                 messagebox.showerror("Error", "Failed to process follow-up question")
         except Exception as e:
             logger.debug("Error processing follow-up result: %s", e)
-            self.set_status("Follow-up error - check logs")
+            self.set_status_error("Follow-up error - check logs")
             messagebox.showerror("Error", f"Error displaying result: {e!s}")
 
     def _ask_followup_for_qa_panel(self, question: str):

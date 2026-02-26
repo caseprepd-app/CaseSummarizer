@@ -990,3 +990,57 @@ class TestDropZoneStructure:
             }
         )
         table._drop_zone.place_forget.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# Status bar enforcement — no direct status_label.configure(text=...)
+# ---------------------------------------------------------------------------
+
+
+class TestStatusBarEnforcement:
+    """Ensure all status updates go through set_status / set_status_error."""
+
+    def test_no_direct_status_label_configure_in_main_window(self):
+        """main_window.py must not call status_label.configure(text=...) directly.
+
+        The only methods allowed to touch status_label are set_status,
+        set_status_error, and _clear_status_to_default.
+        """
+        import ast
+        import inspect
+
+        from src.ui.main_window import MainWindow
+
+        # Allowed methods that legitimately call status_label.configure
+        allowed = {"set_status", "set_status_error", "_clear_status_to_default"}
+
+        violations = []
+        for method_name in dir(MainWindow):
+            if method_name in allowed:
+                continue
+            method = getattr(MainWindow, method_name, None)
+            if not callable(method):
+                continue
+            try:
+                import textwrap
+
+                source = textwrap.dedent(inspect.getsource(method))
+                tree = ast.parse(source)
+            except (TypeError, OSError, SyntaxError):
+                continue
+
+            for node in ast.walk(tree):
+                if not isinstance(node, ast.Call):
+                    continue
+                func = node.func
+                if not isinstance(func, ast.Attribute) or func.attr != "configure":
+                    continue
+                if not isinstance(func.value, ast.Attribute) or func.value.attr != "status_label":
+                    continue
+                if any(kw.arg == "text" for kw in node.keywords):
+                    violations.append(f"{method_name} (line {node.lineno})")
+
+        assert violations == [], (
+            f"Direct status_label.configure(text=...) found in: {violations}. "
+            f"Use set_status() or set_status_error() instead."
+        )

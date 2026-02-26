@@ -149,7 +149,7 @@ class TestErrorHandler:
         """Error handler updates status with error prefix."""
         stub = _make_stub()
         _call_handler(stub, "error", "Something went wrong")
-        stub.set_status.assert_called_once_with("Error: Something went wrong")
+        stub.set_status_error.assert_called_once_with("Error: Something went wrong")
 
     @patch("src.ui.main_window.messagebox")
     def test_calls_preprocessing_complete_with_empty(self, mock_msgbox):
@@ -403,13 +403,13 @@ class TestTriggerDefaultQAStartedHandler:
         stub.output_display.set_workflow_phase.assert_called_once()
 
     def test_shows_ready_message_when_defaults_disabled(self):
-        """When default questions disabled, shows ready-to-search message."""
+        """When default questions disabled, shows ready-to-search message via set_status."""
         stub = _make_stub()
         stub.ask_default_questions_check.get.return_value = False
         _call_handler(stub, "trigger_default_qa_started", {})
-        stub.status_label.configure.assert_called_once()
-        call_kwargs = stub.status_label.configure.call_args[1]
-        assert "question" in call_kwargs["text"].lower()
+        stub.set_status.assert_called_once()
+        msg = stub.set_status.call_args[0][0]
+        assert "question" in msg.lower()
 
 
 # ---------------------------------------------------------------------------

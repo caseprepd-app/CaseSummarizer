@@ -319,7 +319,7 @@ class TestOnSummaryComplete:
 
         MainWindow._on_summary_complete(window, result)
 
-        status = window.set_status.call_args[0][0]
+        status = window.set_status_error.call_args[0][0]
         assert "2" in status and "succeeded" in status
         assert "1" in status and "failed" in status
 
