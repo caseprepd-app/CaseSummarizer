@@ -3,6 +3,22 @@
 All notable changes to CasePrepd are documented here.
 Format: user-facing changes first, internal/dev changes in a separate section.
 
+## [1.0.12] - 2026-02-26
+
+### Improved
+- Tab labels renamed for clarity: "Vocabulary", "Questions", "Summary"
+- "Clear All" button uses purple (caution) styling instead of plain gray
+- Follow-up question input starts disabled until Q&A is ready
+- Default questions checkbox shows generic label until count is loaded
+- Export warning messages now reference "Select All" instead of stale "checkboxes"
+
+### Internal
+- Deleted 4 dead follow-up methods from qa_panel.py (~120 lines)
+- Fixed 2 stale comments referencing deleted QAPanel._submit_followup
+- Added "caution" button style (purple) to theme.py
+- Added test_gui_polish_pass.py (25 tests) covering all polish changes
+- Updated test_ui_coherence.py for new tab names
+
 ## [1.0.11] - 2026-02-26
 
 ### Added
