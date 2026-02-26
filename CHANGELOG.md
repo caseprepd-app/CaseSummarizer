@@ -3,6 +3,24 @@
 All notable changes to CasePrepd are documented here.
 Format: user-facing changes first, internal/dev changes in a separate section.
 
+## [1.0.11] - 2026-02-26
+
+### Added
+- Cumulative file input: add files from multiple folders without replacing previous selections
+- Per-file remove button (✕) in the file table
+
+### Improved
+- Status bar now shows errors in orange text with 5-second hold
+- All error/failure paths consistently use orange status bar styling
+- Timer and controls now properly reset when extraction worker fails to start
+
+### Internal
+- Status bar audit: routed all updates through set_status/set_status_error
+- Fixed timer running forever if worker subprocess failed during extraction
+- Added AST-based enforcement test to prevent direct status_label.configure() calls
+- Added Status Bar Rule to CLAUDE.md
+- Synced file_mixin.py _poll_queue with _qa_answering_active flag
+
 ## [1.0.10] - 2026-02-25
 
 ### Improved
