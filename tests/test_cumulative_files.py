@@ -27,7 +27,6 @@ def _make_table(on_remove=None):
     table = FileReviewTable.__new__(FileReviewTable)
     table._on_remove = on_remove
     table.column_map = {
-        "remove": ("", 36),
         "filename": ("Filename", 300),
         "status": ("Status", 100),
         "method": ("Method", 100),
@@ -39,6 +38,7 @@ def _make_table(on_remove=None):
     table._result_data = {}
     table._hovered_row = None
     table._tooltip_window = None
+    table._remove_icon = MagicMock()
     table._drop_zone = MagicMock()
     table._drop_zone.winfo_ismapped.return_value = False
     table.tree = MagicMock()
@@ -150,12 +150,12 @@ class TestOnClick:
     """Tests for the ✕ column click handler."""
 
     def test_click_on_remove_column_calls_callback(self):
-        """Clicking column #1 on a valid row invokes on_remove(filename)."""
+        """Clicking tree column #0 on a valid row invokes on_remove(filename)."""
         callback = MagicMock()
         table = _make_table(on_remove=callback)
-        table.tree.identify_column.return_value = "#1"
+        table.tree.identify_column.return_value = "#0"
         table.tree.identify_row.return_value = "row1"
-        table.tree.item.return_value = ("✕", "report.pdf", "✓ Ready")
+        table.tree.item.return_value = ("report.pdf", "✓ Ready")
 
         event = MagicMock()
         event.x = 10
@@ -168,7 +168,7 @@ class TestOnClick:
         """Clicking a non-remove column should not call on_remove."""
         callback = MagicMock()
         table = _make_table(on_remove=callback)
-        table.tree.identify_column.return_value = "#2"
+        table.tree.identify_column.return_value = "#1"
 
         event = MagicMock()
         table._on_click(event)
@@ -179,7 +179,7 @@ class TestOnClick:
         """Clicking empty space (no row) should not call on_remove."""
         callback = MagicMock()
         table = _make_table(on_remove=callback)
-        table.tree.identify_column.return_value = "#1"
+        table.tree.identify_column.return_value = "#0"
         table.tree.identify_row.return_value = ""
 
         event = MagicMock()
@@ -200,34 +200,31 @@ class TestOnClick:
 
 
 class TestColumnMapStructure:
-    """Verify column_map uses 'remove' instead of 'include'."""
+    """Verify column_map does not contain 'remove' or 'include' (icon is in tree column)."""
 
-    def test_column_map_has_remove(self):
-        """column_map should contain 'remove' key."""
+    def test_column_map_has_no_remove_or_include(self):
+        """column_map should not contain 'remove' or 'include' — icon uses tree column."""
         from src.ui.widgets import FileReviewTable
 
-        table = FileReviewTable.__new__(FileReviewTable)
-        table._on_remove = None
-        table.column_map = {}
-        # Re-read the class default by checking source
         source = inspect.getsource(FileReviewTable.__init__)
-        assert '"remove"' in source
         assert '"include"' not in source
+        assert '"remove"' not in source
 
-    def test_remove_column_is_narrow(self):
-        """The remove column should be narrow (<=40px)."""
+    def test_tree_column_configured_narrow(self):
+        """_create_treeview should configure tree column #0 to 36px."""
         source = inspect.getsource(
-            __import__("src.ui.widgets", fromlist=["FileReviewTable"]).FileReviewTable.__init__
+            __import__(
+                "src.ui.widgets", fromlist=["FileReviewTable"]
+            ).FileReviewTable._create_treeview
         )
-        # The column definition: "remove": ("", 36)
-        assert '"remove": ("", 36)' in source
+        assert "width=36" in source
 
-    def test_prepare_result_uses_x_mark(self):
-        """_prepare_result_for_display should put ✕ in first column."""
+    def test_prepare_result_filename_is_first(self):
+        """_prepare_result_for_display should put filename in first value."""
         table = _make_table()
         result = _sample_result("test.pdf")
         values, _tag = table._prepare_result_for_display(result)
-        assert values[0] == "✕"
+        assert values[0] == "test.pdf"
 
 
 # ===========================================================================

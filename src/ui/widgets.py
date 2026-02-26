@@ -31,7 +31,6 @@ class FileReviewTable(ctk.CTkFrame):
         self._on_remove = on_remove
 
         self.column_map = {
-            "remove": ("", 36),
             "filename": ("Filename", 300),
             "status": ("Status", 100),
             "method": ("Method", 100),
@@ -70,10 +69,35 @@ class FileReviewTable(ctk.CTkFrame):
         self._drop_zone_hint.pack()
         self._drop_zone.place(relx=0.5, rely=0.5, anchor="center", relwidth=0.85, relheight=0.7)
 
+    def _create_remove_icon(self):
+        """Create an orange ✕ icon as a PhotoImage for the remove column."""
+        import tkinter as tk
+
+        # 9x9 XBM bitmap for ✕ shape
+        xbm_data = (
+            "#define x_width 9\n"
+            "#define x_height 9\n"
+            "static unsigned char x_bits[] = {\n"
+            "   0x01, 0x01, 0x82, 0x00, 0x44, 0x00, 0x28, 0x00,\n"
+            "   0x10, 0x00, 0x28, 0x00, 0x44, 0x00, 0x82, 0x00,\n"
+            "   0x01, 0x01};"
+        )
+        # Use orange foreground on transparent background
+        icon = tk.BitmapImage(data=xbm_data, foreground="#e67e22", background="")
+        return icon
+
     def _create_treeview(self):
         """Create the Treeview widget."""
+        # Create orange ✕ icon (must keep reference to prevent GC)
+        self._remove_icon = self._create_remove_icon()
+
         # Style configured centrally in src/ui/styles.py at app startup
-        self.tree = ttk.Treeview(self, columns=list(self.column_map.keys()), show="headings")
+        # show="tree headings" enables tree column (#0) for the ✕ icon
+        self.tree = ttk.Treeview(self, columns=list(self.column_map.keys()), show="tree headings")
+
+        # Tree column (#0) — narrow, holds the orange ✕ icon
+        self.tree.heading("#0", text="", anchor="w")
+        self.tree.column("#0", width=36, minwidth=36, stretch=False)
 
         for col_id, (text, width) in self.column_map.items():
             self.tree.heading(col_id, text=text, anchor="w")
@@ -104,10 +128,14 @@ class FileReviewTable(ctk.CTkFrame):
         if filename in self.file_item_map:
             # Update existing item
             item_id = self.file_item_map[filename]
-            self.tree.item(item_id, values=values, tags=(status_color_tag,))
+            self.tree.item(
+                item_id, values=values, image=self._remove_icon, tags=(status_color_tag,)
+            )
         else:
-            # Insert new item
-            item_id = self.tree.insert("", "end", values=values, tags=(status_color_tag,))
+            # Insert new item with orange ✕ icon in tree column
+            item_id = self.tree.insert(
+                "", "end", values=values, image=self._remove_icon, tags=(status_color_tag,)
+            )
             self.file_item_map[filename] = item_id
 
         # Configure colors for tags
@@ -128,7 +156,6 @@ class FileReviewTable(ctk.CTkFrame):
         )
 
         values = (
-            "✕",
             result.get("filename", "Unknown"),
             status_text,
             method_display,
@@ -182,7 +209,7 @@ class FileReviewTable(ctk.CTkFrame):
             return
 
         col = self.tree.identify_column(event.x)
-        if col != "#1":  # First column is the remove column
+        if col != "#0":  # Tree column holds the orange ✕ icon
             return
 
         row_id = self.tree.identify_row(event.y)
@@ -191,7 +218,7 @@ class FileReviewTable(ctk.CTkFrame):
 
         try:
             values = self.tree.item(row_id, "values")
-            filename = values[1] if values and len(values) > 1 else None
+            filename = values[0] if values else None
         except Exception:
             return
 
@@ -226,10 +253,10 @@ class FileReviewTable(ctk.CTkFrame):
             return
 
         self._hovered_row = row_id
-        # Get filename from the row values (column index 1)
+        # Get filename from the row values (column index 0)
         try:
             values = self.tree.item(row_id, "values")
-            filename = values[1] if values and len(values) > 1 else None
+            filename = values[0] if values else None
         except Exception:
             return
 
@@ -302,8 +329,23 @@ class FileReviewTable(ctk.CTkFrame):
         # Register with global tooltip manager
         tooltip_manager.register(self._tooltip_window, owner=self)
 
+        # Auto-dismiss after 15 seconds (handles minimized window, etc.)
+        try:
+            self._tooltip_dismiss_id = self.after(15000, self._hide_tooltip)
+        except Exception:
+            self._tooltip_dismiss_id = None
+
     def _hide_tooltip(self):
         """Destroy the tooltip window if it exists."""
+        # Cancel auto-dismiss timer
+        dismiss_id = getattr(self, "_tooltip_dismiss_id", None)
+        if dismiss_id:
+            import contextlib
+
+            with contextlib.suppress(Exception):
+                self.after_cancel(dismiss_id)
+            self._tooltip_dismiss_id = None
+
         if self._tooltip_window:
             from src.ui.tooltip_manager import tooltip_manager
 

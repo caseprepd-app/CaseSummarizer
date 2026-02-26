@@ -27,7 +27,6 @@ class TestFileReviewTableEmptyState:
 
         table = FileReviewTable.__new__(FileReviewTable)
         table.column_map = {
-            "remove": ("", 36),
             "filename": ("Filename", 300),
             "status": ("Status", 100),
             "method": ("Method", 100),
@@ -39,6 +38,7 @@ class TestFileReviewTableEmptyState:
         table._result_data = {}
         table._hovered_row = None
         table._tooltip_window = None
+        table._remove_icon = MagicMock()
         table._drop_zone = MagicMock()
         table._drop_zone.winfo_ismapped.return_value = True
         table.tree = MagicMock()
@@ -414,7 +414,6 @@ class TestHoverPreviews:
 
         table = FileReviewTable.__new__(FileReviewTable)
         table.column_map = {
-            "remove": ("", 36),
             "filename": ("Filename", 300),
             "status": ("Status", 100),
             "method": ("Method", 100),
@@ -426,6 +425,7 @@ class TestHoverPreviews:
         table._result_data = {}
         table._hovered_row = None
         table._tooltip_window = None
+        table._remove_icon = MagicMock()
         table._drop_zone = MagicMock()
         table._drop_zone.winfo_ismapped.return_value = False
         table.tree = MagicMock()
@@ -491,7 +491,7 @@ class TestHoverPreviews:
         table._hovered_row = None
         table.tree.identify_row.return_value = "row1"
         # tree.item(row_id, "values") returns the values tuple directly
-        table.tree.item.return_value = ("✓", "test.pdf", "Ready")
+        table.tree.item.return_value = ("test.pdf", "Ready")
         table._result_data["test.pdf"] = {
             "filename": "test.pdf",
             "file_path": "C:\\Cases\\test.pdf",
@@ -520,7 +520,7 @@ class TestHoverPreviews:
         """Tooltip should show case numbers if available."""
         table = self._make_table()
         table.tree.identify_row.return_value = "row1"
-        table.tree.item.return_value = ("✓", "motion.pdf", "Ready")
+        table.tree.item.return_value = ("motion.pdf", "Ready")
         table._result_data["motion.pdf"] = {
             "filename": "motion.pdf",
             "case_numbers": ["21-CV-1234", "22-CV-5678"],
@@ -664,6 +664,144 @@ class TestTooltipManagerIntegration:
 
         source = inspect.getsource(FileReviewTable._hide_tooltip)
         assert "tooltip_manager.unregister(" in source
+
+
+# =========================================================================
+# Tooltip auto-dismiss timer
+# =========================================================================
+
+
+class TestTooltipAutoDismiss:
+    """Test that tooltips auto-dismiss after 15 seconds."""
+
+    def test_show_tooltip_source_schedules_dismiss(self):
+        """_show_tooltip should schedule auto-dismiss via self.after."""
+        import inspect
+
+        from src.ui.widgets import FileReviewTable
+
+        source = inspect.getsource(FileReviewTable._show_tooltip)
+        assert "15000" in source
+        assert "_hide_tooltip" in source
+        assert "_tooltip_dismiss_id" in source
+
+    def test_hide_tooltip_source_cancels_dismiss(self):
+        """_hide_tooltip should cancel pending auto-dismiss timer."""
+        import inspect
+
+        from src.ui.widgets import FileReviewTable
+
+        source = inspect.getsource(FileReviewTable._hide_tooltip)
+        assert "_tooltip_dismiss_id" in source
+        assert "after_cancel" in source
+
+    def test_hide_tooltip_clears_dismiss_id(self):
+        """_hide_tooltip should set _tooltip_dismiss_id to None."""
+        from src.ui.widgets import FileReviewTable
+
+        table = FileReviewTable.__new__(FileReviewTable)
+        table._tooltip_window = None
+        table._tooltip_dismiss_id = "some_timer_id"
+
+        table._hide_tooltip()
+
+        assert table._tooltip_dismiss_id is None
+
+    def test_hide_tooltip_without_dismiss_id(self):
+        """_hide_tooltip should be safe when no dismiss timer is set."""
+        from src.ui.widgets import FileReviewTable
+
+        table = FileReviewTable.__new__(FileReviewTable)
+        table._tooltip_window = None
+        table._tooltip_dismiss_id = None
+
+        table._hide_tooltip()  # Should not raise
+
+
+# =========================================================================
+# Orange ✕ icon in tree column
+# =========================================================================
+
+
+class TestOrangeRemoveIcon:
+    """Test that the remove icon is an orange bitmap in the tree column."""
+
+    def test_create_remove_icon_source_uses_orange(self):
+        """_create_remove_icon should use orange foreground color."""
+        import inspect
+
+        from src.ui.widgets import FileReviewTable
+
+        source = inspect.getsource(FileReviewTable._create_remove_icon)
+        assert "#e67e22" in source
+        assert "BitmapImage" in source
+
+    def test_treeview_shows_tree_column(self):
+        """_create_treeview should use show='tree headings' for icon column."""
+        import inspect
+
+        from src.ui.widgets import FileReviewTable
+
+        source = inspect.getsource(FileReviewTable._create_treeview)
+        assert '"tree headings"' in source
+
+    def test_on_click_checks_tree_column(self):
+        """_on_click should detect clicks on #0 (tree column), not #1."""
+        import inspect
+
+        from src.ui.widgets import FileReviewTable
+
+        source = inspect.getsource(FileReviewTable._on_click)
+        assert '"#0"' in source
+        assert '"#1"' not in source
+
+
+# =========================================================================
+# MainWindow._on_tasks_complete failure path
+# =========================================================================
+
+
+class TestOnTasksCompleteFailurePath:
+    """Test that _on_tasks_complete uses set_status_error for failures."""
+
+    def _make_stub(self):
+        from unittest.mock import MagicMock
+
+        stub = MagicMock()
+        stub._export_all_visible = False
+        stub.qa_check = MagicMock()
+        stub.qa_check.get.return_value = False
+        stub.output_display = MagicMock()
+        return stub
+
+    def test_failure_calls_set_status_error(self):
+        """On failure, should call set_status_error (orange text)."""
+        from src.ui.main_window import MainWindow
+
+        stub = self._make_stub()
+        MainWindow._on_tasks_complete(stub, False, "No text to analyze")
+
+        stub.set_status_error.assert_called_once_with("No text to analyze")
+        stub.set_status.assert_not_called()
+
+    def test_success_calls_set_status(self):
+        """On success, should call set_status (normal text)."""
+        from src.ui.main_window import MainWindow
+
+        stub = self._make_stub()
+        MainWindow._on_tasks_complete(stub, True, "Completed 2 task(s)")
+
+        stub.set_status.assert_called_once_with("Completed 2 task(s)")
+        stub.set_status_error.assert_not_called()
+
+    def test_failure_does_not_show_export_button(self):
+        """On failure, Export All button should not appear."""
+        from src.ui.main_window import MainWindow
+
+        stub = self._make_stub()
+        MainWindow._on_tasks_complete(stub, False, "Processing failed")
+
+        assert stub._export_all_visible is False
 
 
 # =========================================================================
@@ -868,7 +1006,6 @@ class TestDropZoneStructure:
 
         table = FileReviewTable.__new__(FileReviewTable)
         table.column_map = {
-            "remove": ("", 36),
             "filename": ("Filename", 300),
             "status": ("Status", 100),
             "method": ("Method", 100),
@@ -880,6 +1017,7 @@ class TestDropZoneStructure:
         table._result_data = {}
         table._hovered_row = None
         table._tooltip_window = None
+        table._remove_icon = MagicMock()
         table._drop_zone = MagicMock()
         table._drop_zone.winfo_ismapped.return_value = True
         table._drop_zone_label = MagicMock()
