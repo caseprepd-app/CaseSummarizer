@@ -115,10 +115,16 @@ class FileMixin:
             self.export_all_btn.pack_forget()
             self._export_all_visible = False
 
-        # Process the dropped files
-        self.selected_files = valid_files
-        self.set_status(f"Processing {len(valid_files)} dropped file(s)...")
-        self._start_preprocessing()
+        # Deduplicate: only add files not already in the session
+        existing = set(self.selected_files)
+        new_files = [f for f in valid_files if f not in existing]
+        if not new_files:
+            self.set_status("All dropped files are already in the session")
+            return
+
+        self.selected_files.extend(new_files)
+        self.set_status(f"Processing {len(new_files)} dropped file(s)...")
+        self._start_preprocessing(new_files)
 
     def _select_files(self):
         """Open file dialog to select documents for this session."""
@@ -143,9 +149,16 @@ class FileMixin:
             self.export_all_btn.pack_forget()
             self._export_all_visible = False
 
-        self.selected_files = list(files)
-        self.set_status(f"Processing {len(files)} file(s)...")
-        self._start_preprocessing()
+        # Deduplicate: only add files not already in the session
+        existing = set(self.selected_files)
+        new_files = [f for f in files if f not in existing]
+        if not new_files:
+            self.set_status("All selected files are already in the session")
+            return
+
+        self.selected_files.extend(new_files)
+        self.set_status(f"Processing {len(new_files)} new file(s)...")
+        self._start_preprocessing(new_files)
 
     def _clear_files(self):
         """Clear all files from the session."""
@@ -191,9 +204,15 @@ class FileMixin:
         # "download" and "skip" both skip OCR for this session
         return False
 
-    def _start_preprocessing(self):
-        """Start preprocessing selected files."""
-        if not self.selected_files:
+    def _start_preprocessing(self, file_paths=None):
+        """
+        Start preprocessing files.
+
+        Args:
+            file_paths: List of new file paths to process. If None, uses self.selected_files.
+        """
+        paths_to_process = file_paths or self.selected_files
+        if not paths_to_process:
             return
 
         # Check OCR availability before starting (runs once per batch)
@@ -203,18 +222,14 @@ class FileMixin:
         self.add_files_btn.configure(state="disabled")
         self.generate_btn.configure(state="disabled")
 
-        # Clear previous results
-        self.file_table.clear()
-        self.processing_results.clear()
-
         # Start timer
         self._start_timer()
 
-        # Send command to worker subprocess
+        # Send only the new batch to the worker subprocess
         self._worker_manager.send_command(
             "process_files",
             {
-                "file_paths": self.selected_files,
+                "file_paths": paths_to_process,
                 "ocr_allowed": ocr_allowed,
             },
         )

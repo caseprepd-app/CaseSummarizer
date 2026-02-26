@@ -173,7 +173,7 @@ class WindowLayoutMixin:
         docs_header.grid(row=0, column=0, sticky="w", padx=10, pady=(10, 5))
 
         # File Review Table
-        self.file_table = FileReviewTable(self.left_panel)
+        self.file_table = FileReviewTable(self.left_panel, on_remove=self._remove_file)
         self.file_table.grid(row=1, column=0, sticky="nsew", padx=10, pady=5)
 
         # File buttons

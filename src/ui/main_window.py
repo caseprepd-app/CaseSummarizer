@@ -513,10 +513,16 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         # Reset drop zone highlight
         self._reset_drop_zone_border()
 
-        # Process the dropped files
-        self.selected_files = valid_files
-        self.set_status(f"Processing {len(valid_files)} dropped file(s)...")
-        self._start_preprocessing()
+        # Deduplicate: only add files not already in the session
+        existing = set(self.selected_files)
+        new_files = [f for f in valid_files if f not in existing]
+        if not new_files:
+            self.set_status("All dropped files are already in the session")
+            return
+
+        self.selected_files.extend(new_files)
+        self.set_status(f"Processing {len(new_files)} dropped file(s)...")
+        self._start_preprocessing(new_files)
 
     def _on_drag_enter(self, _event):
         """Highlight the file table area when files are dragged over it."""
@@ -560,9 +566,16 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             self.export_all_btn.pack_forget()
             self._export_all_visible = False
 
-        self.selected_files = list(files)
-        self.set_status(f"Processing {len(files)} file(s)...")
-        self._start_preprocessing()
+        # Deduplicate: only add files not already in the session
+        existing = set(self.selected_files)
+        new_files = [f for f in files if f not in existing]
+        if not new_files:
+            self.set_status("All selected files are already in the session")
+            return
+
+        self.selected_files.extend(new_files)
+        self.set_status(f"Processing {len(new_files)} new file(s)...")
+        self._start_preprocessing(new_files)
 
     def _clear_files(self):
         """Clear all files from the session."""
@@ -579,6 +592,30 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         self._update_generate_button_state()
         self._update_session_stats()  # Clear stats display
         self.set_status("Files cleared")
+
+    def _remove_file(self, filename):
+        """
+        Remove a single file from the session by filename.
+
+        Args:
+            filename: The display filename to remove.
+        """
+        # Remove from selected_files (match by basename)
+        self.selected_files = [f for f in self.selected_files if Path(f).name != filename]
+
+        # Remove from processing_results
+        self.processing_results = [
+            r for r in self.processing_results if r.get("filename") != filename
+        ]
+
+        # Remove from file table widget
+        self.file_table.remove_result(filename)
+
+        # Update UI state
+        self._update_generate_button_state()
+        self._update_session_stats()
+        self.set_status(f"Removed {filename}")
+        logger.debug("Removed file: %s (%d files remain)", filename, len(self.selected_files))
 
     def _check_ocr_availability(self) -> bool:
         """
@@ -615,9 +652,15 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         # "download" and "skip" both skip OCR for this session
         return False
 
-    def _start_preprocessing(self):
-        """Start preprocessing selected files."""
-        if not self.selected_files:
+    def _start_preprocessing(self, file_paths=None):
+        """
+        Start preprocessing files.
+
+        Args:
+            file_paths: List of new file paths to process. If None, uses self.selected_files.
+        """
+        paths_to_process = file_paths or self.selected_files
+        if not paths_to_process:
             return
 
         # Check OCR availability before starting (runs once per batch)
@@ -626,10 +669,6 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         # Disable controls during preprocessing
         self.add_files_btn.configure(state="disabled")
         self.generate_btn.configure(state="disabled")
-
-        # Clear previous results
-        self.file_table.clear()
-        self.processing_results.clear()
 
         # Ensure worker subprocess is ready before sending work
         if not self._worker_manager.is_ready():
@@ -641,7 +680,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
                 self._worker_ready_retries = 0
                 return
             self.set_status("Processing engine starting up, please wait...")
-            self.after(3000, self._start_preprocessing)
+            self.after(3000, lambda: self._start_preprocessing(paths_to_process))
             return
 
         self._worker_ready_retries = 0  # Reset retry counter on success
@@ -649,12 +688,12 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         # Start timer
         self._start_timer()
 
-        # Send command to worker subprocess
-        logger.debug("Sending process_files: %d file(s)", len(self.selected_files))
+        # Send only the new batch to the worker subprocess
+        logger.debug("Sending process_files: %d file(s)", len(paths_to_process))
         self._worker_manager.send_command(
             "process_files",
             {
-                "file_paths": self.selected_files,
+                "file_paths": paths_to_process,
                 "ocr_allowed": ocr_allowed,
             },
         )
@@ -917,12 +956,27 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             self.after_cancel(self._queue_poll_id)
             self._queue_poll_id = None
 
-        # Update processing_results with final preprocessed data
+        # Merge new results into processing_results (cumulative)
         # The results contain 'preprocessed_text' added by ProcessingWorker
         # which wasn't present in the individual 'file_processed' messages
         if results:
-            self.processing_results = results
-            logger.debug("Updated processing_results with %s preprocessed documents", len(results))
+            # Build set of filenames already in processing_results
+            existing_filenames = {r.get("filename") for r in self.processing_results}
+            for r in results:
+                fname = r.get("filename")
+                if fname and fname not in existing_filenames:
+                    self.processing_results.append(r)
+                elif fname in existing_filenames:
+                    # Update existing entry with new preprocessed data
+                    for i, existing in enumerate(self.processing_results):
+                        if existing.get("filename") == fname:
+                            self.processing_results[i] = r
+                            break
+            logger.debug(
+                "Merged batch (%d new) → %d total documents",
+                len(results),
+                len(self.processing_results),
+            )
 
         # Clear preprocessing flag so _update_generate_button_state sees correct state
         self._preprocessing_active = False

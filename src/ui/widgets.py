@@ -20,11 +20,18 @@ class FileReviewTable(ctk.CTkFrame):
     refactored with CustomTkinter using a tkinter.ttk.Treeview.
     """
 
-    def __init__(self, master, **kwargs):
+    def __init__(self, master, on_remove=None, **kwargs):
+        """
+        Args:
+            master: Parent widget.
+            on_remove: Optional callback(filename) invoked when the ✕ button is clicked.
+        """
         super().__init__(master, **kwargs)
 
+        self._on_remove = on_remove
+
         self.column_map = {
-            "include": ("Include", 50),
+            "remove": ("", 36),
             "filename": ("Filename", 300),
             "status": ("Status", 100),
             "method": ("Method", 100),
@@ -74,6 +81,9 @@ class FileReviewTable(ctk.CTkFrame):
 
         self.tree.pack(expand=True, fill="both")
 
+        # Click handler for remove column
+        self.tree.bind("<ButtonRelease-1>", self._on_click)
+
         # Hover preview bindings
         self.tree.bind("<Motion>", self._on_hover)
         self.tree.bind("<Leave>", self._on_leave)
@@ -117,11 +127,8 @@ class FileReviewTable(ctk.CTkFrame):
             self._format_file_size(result.get("file_size", 0)) if status != "error" else "—"
         )
 
-        # Using a placeholder for the "Include" checkbox for now
-        include_display = "✓" if status == "success" and confidence >= 70 else " "
-
         values = (
-            include_display,
+            "✕",
             result.get("filename", "Unknown"),
             status_text,
             method_display,
@@ -168,6 +175,49 @@ class FileReviewTable(ctk.CTkFrame):
             self.tree.delete(item)
         # Show empty state overlay again
         self._drop_zone.place(relx=0.5, rely=0.5, anchor="center", relwidth=0.85, relheight=0.7)
+
+    def _on_click(self, event):
+        """Handle click on the treeview — remove file if ✕ column clicked."""
+        if not self._on_remove:
+            return
+
+        col = self.tree.identify_column(event.x)
+        if col != "#1":  # First column is the remove column
+            return
+
+        row_id = self.tree.identify_row(event.y)
+        if not row_id:
+            return
+
+        try:
+            values = self.tree.item(row_id, "values")
+            filename = values[1] if values and len(values) > 1 else None
+        except Exception:
+            return
+
+        if filename:
+            self._on_remove(filename)
+
+    def remove_result(self, filename):
+        """
+        Remove a single file from the table by filename.
+
+        Args:
+            filename: The filename to remove.
+        """
+        item_id = self.file_item_map.pop(filename, None)
+        self._result_data.pop(filename, None)
+
+        if item_id:
+            self._hide_tooltip()
+            try:
+                self.tree.delete(item_id)
+            except Exception:
+                pass
+
+        # Show drop zone if table is now empty
+        if not self.file_item_map and not self._drop_zone.winfo_ismapped():
+            self._drop_zone.place(relx=0.5, rely=0.5, anchor="center", relwidth=0.85, relheight=0.7)
 
     def _on_hover(self, event):
         """Show a tooltip with file details when hovering over a row."""

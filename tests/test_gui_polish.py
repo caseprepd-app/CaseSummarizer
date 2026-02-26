@@ -27,7 +27,7 @@ class TestFileReviewTableEmptyState:
 
         table = FileReviewTable.__new__(FileReviewTable)
         table.column_map = {
-            "include": ("Include", 50),
+            "remove": ("", 36),
             "filename": ("Filename", 300),
             "status": ("Status", 100),
             "method": ("Method", 100),
@@ -414,7 +414,7 @@ class TestHoverPreviews:
 
         table = FileReviewTable.__new__(FileReviewTable)
         table.column_map = {
-            "include": ("Include", 50),
+            "remove": ("", 36),
             "filename": ("Filename", 300),
             "status": ("Status", 100),
             "method": ("Method", 100),
@@ -868,7 +868,7 @@ class TestDropZoneStructure:
 
         table = FileReviewTable.__new__(FileReviewTable)
         table.column_map = {
-            "include": ("Include", 50),
+            "remove": ("", 36),
             "filename": ("Filename", 300),
             "status": ("Status", 100),
             "method": ("Method", 100),
