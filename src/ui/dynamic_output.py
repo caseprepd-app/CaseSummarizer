@@ -1,13 +1,13 @@
 """
 Dynamic Output Display Widget for CasePrepd
 
-Displays Names & Vocabulary tables, Q&A results, and summaries using tab navigation.
+Displays Vocabulary tables, Q&A results, and summaries using tab navigation.
 Provides copy/save functionality for export.
 The vocabulary display uses an Excel-like Treeview with frozen headers
 and right-click context menu for excluding terms from future extractions.
 
 Tab navigation uses CTkTabview with three persistent tabs:
-"Names & Vocab" | "Ask Questions" | "Summary". Tab switching uses frame
+"Vocabulary" | "Questions" | "Summary". Tab switching uses frame
 stacking (tkraise) with no widget recreation; all content is preserved
 across tab switches (scroll position, state).
 
@@ -59,7 +59,7 @@ from src.user_preferences import get_user_preferences
 
 
 class DynamicOutputWidget(ctk.CTkFrame):
-    """Widget to dynamically display Names & Vocabulary, Q&A, or Summary outputs."""
+    """Widget to dynamically display Vocabulary, Q&A, or Summary outputs."""
 
     def __init__(self, master, **kwargs):
         # Distinct background color for output pane (slightly different to distinguish)
@@ -69,29 +69,29 @@ class DynamicOutputWidget(ctk.CTkFrame):
         self.grid_columnconfigure(0, weight=1)
         self.grid_rowconfigure(0, weight=1)  # Tab view gets all space
 
-        # Create tabview with three tabs: Names & Vocab, Q&A, Summary
+        # Create tabview with three tabs: Vocabulary, Questions, Summary
         self.tabview = ctk.CTkTabview(self)
         self.tabview.grid(row=0, column=0, sticky="nsew", padx=5, pady=5)
 
         # Create tabs
-        self.tabview.add("Names & Vocab")
-        self.tabview.add("Ask Questions")
+        self.tabview.add("Vocabulary")
+        self.tabview.add("Questions")
         self.tabview.add("Summary")
 
         # Bind tab change to show/hide appropriate button bar
         self.tabview.configure(command=self._on_tab_changed)
 
         # Configure tab grids
-        self.tabview.tab("Names & Vocab").grid_columnconfigure(0, weight=1)
-        self.tabview.tab("Names & Vocab").grid_rowconfigure(0, weight=1)
-        self.tabview.tab("Ask Questions").grid_columnconfigure(0, weight=1)
-        self.tabview.tab("Ask Questions").grid_rowconfigure(0, weight=1)
+        self.tabview.tab("Vocabulary").grid_columnconfigure(0, weight=1)
+        self.tabview.tab("Vocabulary").grid_rowconfigure(0, weight=1)
+        self.tabview.tab("Questions").grid_columnconfigure(0, weight=1)
+        self.tabview.tab("Questions").grid_rowconfigure(0, weight=1)
         self.tabview.tab("Summary").grid_columnconfigure(0, weight=1)
         self.tabview.tab("Summary").grid_rowconfigure(0, weight=1)
 
         # Progress Badge - shows data source status for Names & Vocab tab
         self._progress_badge = ctk.CTkLabel(
-            self.tabview.tab("Names & Vocab"),
+            self.tabview.tab("Vocabulary"),
             text="",
             font=FONTS["small"],
             text_color=("gray50", "gray70"),
@@ -100,7 +100,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
 
         # Feedback balance hint - nudges users toward balanced keep/skip voting
         self._balance_hint = ctk.CTkLabel(
-            self.tabview.tab("Names & Vocab"),
+            self.tabview.tab("Vocabulary"),
             text="",
             font=FONTS["small"],
             text_color=("gray50", "gray70"),
@@ -136,7 +136,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
         # Q&A Tab: Status placeholder (shown when no results) + Q&A panel
         # See: https://github.com/TomSchimansky/CustomTkinter/issues/1508
         self._qa_status_label = ctk.CTkLabel(
-            self.tabview.tab("Ask Questions"),
+            self.tabview.tab("Questions"),
             text="",
             font=FONTS["body"],
             text_color=COLORS["text_secondary"],
@@ -145,7 +145,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
         )
         self._qa_status_label.grid(row=0, column=0, sticky="nsew", padx=20, pady=50)
 
-        self._qa_panel = QAPanel(self.tabview.tab("Ask Questions"))
+        self._qa_panel = QAPanel(self.tabview.tab("Questions"))
         self._qa_panel.grid(row=0, column=0, sticky="nsew")
         self._qa_panel.grid_remove()  # Hidden initially, shown when results arrive
 
@@ -219,7 +219,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
         # Internal storage for outputs
         self._outputs = {
             "Names & Vocabulary": [],  # Primary output - people + terms
-            "Ask Questions": [],  # Q&A results (replaces "Q&A Results")
+            "Questions": [],  # Q&A results (replaces "Q&A Results")
             "Summary": "",  # Combined summary (replaces "Meta-Summary")
             # Backward compatibility keys
             "Meta-Summary": "",
@@ -268,7 +268,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
 
         def _on_ctrl_f(event):
             active_tab = self.tabview.get()
-            if active_tab == "Ask Questions":
+            if active_tab == "Questions":
                 self._qa_panel.show_find_bar()
             elif active_tab == "Summary":
                 self._summary_find_bar.show()
@@ -408,12 +408,12 @@ class DynamicOutputWidget(ctk.CTkFrame):
         # Show/hide main window's follow-up frame based on tab
         main_window = self.winfo_toplevel()
         if hasattr(main_window, "followup_frame"):
-            if current_tab == "Ask Questions":
+            if current_tab == "Questions":
                 main_window.followup_frame.grid(row=2, column=0, sticky="ew", padx=10, pady=(0, 10))
             else:
                 main_window.followup_frame.grid_remove()
 
-        if current_tab == "Ask Questions":
+        if current_tab == "Questions":
             # Hide shared button bar - QAPanel has its own buttons
             self.button_frame.grid_remove()
         else:
@@ -421,7 +421,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
             self.button_frame.grid(row=1, column=0, sticky="ew", padx=5, pady=5)
 
             # Show/hide vocab-specific widgets based on tab
-            if current_tab == "Names & Vocab":
+            if current_tab == "Vocabulary":
                 # Update progress badge when switching to this tab
                 self._update_progress_badge(self._extraction_source)
                 # Show vocab widgets - use after= to maintain correct order
@@ -497,7 +497,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
         self._extraction_source = source
         # Update badge if Names & Vocabulary tab is currently active
         current_tab = self.tabview.get()
-        if current_tab == "Names & Vocab":
+        if current_tab == "Vocabulary":
             self._update_progress_badge(source)
 
     def set_extraction_in_progress(self, in_progress: bool):
@@ -1036,7 +1036,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
         # Clear internal data storage (must match __init__ structure)
         self._outputs = {
             "Names & Vocabulary": [],  # Primary output
-            "Ask Questions": [],  # Q&A results
+            "Questions": [],  # Q&A results
             "Summary": "",  # Combined summary
             # Backward compatibility keys
             "Meta-Summary": "",
@@ -1104,7 +1104,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
             self._document_summaries.update(document_summaries)
         if qa_results is not None:
             self._outputs["Q&A Results"] = qa_results
-            self._outputs["Ask Questions"] = qa_results
+            self._outputs["Questions"] = qa_results
 
         self._refresh_tabs()
 
@@ -1125,7 +1125,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
         # Q&A tab - always enabled if Q&A system is ready
         main_window = self.winfo_toplevel()
         getattr(main_window, "_qa_ready", False)
-        qa_data = self._outputs.get("Ask Questions") or self._outputs.get("Q&A Results")
+        qa_data = self._outputs.get("Questions") or self._outputs.get("Q&A Results")
         if qa_data:
             self._display_qa_results(qa_data)
 
@@ -1154,11 +1154,11 @@ class DynamicOutputWidget(ctk.CTkFrame):
             current_tab = self.tabview.get()
             has_qa = bool(qa_data)
             has_summary = bool(summary) or bool(self._document_summaries)
-            stay_on_current = (current_tab == "Ask Questions" and has_qa) or (
+            stay_on_current = (current_tab == "Questions" and has_qa) or (
                 current_tab == "Summary" and has_summary
             )
             if not stay_on_current:
-                self.tabview.set("Names & Vocab")
+                self.tabview.set("Vocabulary")
 
     def _display_csv(self, data: list):
         """
@@ -1235,7 +1235,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
         # Create frame to hold treeview and scrollbars
         if self.treeview_frame is None:
             self.treeview_frame = ctk.CTkFrame(
-                self.tabview.tab("Names & Vocab"), **FRAME_STYLES["card"]
+                self.tabview.tab("Vocabulary"), **FRAME_STYLES["card"]
             )
 
         self.treeview_frame.grid(row=0, column=0, sticky="nsew")
@@ -1921,10 +1921,10 @@ class DynamicOutputWidget(ctk.CTkFrame):
         """
         current_tab = self.tabview.get()
 
-        if current_tab == "Names & Vocab":
+        if current_tab == "Vocabulary":
             data = self._get_filtered_vocab_data()
             return self._build_vocab_csv(data)
-        elif current_tab == "Ask Questions":
+        elif current_tab == "Questions":
             # Get export content from QAPanel if available
             if self._qa_panel is not None:
                 return self._qa_panel.get_export_content()
@@ -1949,7 +1949,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
             # Status bar confirmation with count
             current_tab = self.tabview.get()
             main_window = self.winfo_toplevel()
-            if current_tab == "Names & Vocab":
+            if current_tab == "Vocabulary":
                 vocab_data = self._outputs.get("Names & Vocabulary") or self._outputs.get(
                     "Rare Word List (CSV)", []
                 )
@@ -1973,10 +1973,10 @@ class DynamicOutputWidget(ctk.CTkFrame):
         default_filename = "output"
         filetypes = [("All Files", "*.*")]
 
-        if current_tab == "Names & Vocab":
+        if current_tab == "Vocabulary":
             default_filename = "names_vocabulary.csv"
             filetypes = [("CSV Files", "*.csv"), ("All Files", "*.*")]
-        elif current_tab == "Ask Questions":
+        elif current_tab == "Questions":
             default_filename = "qa_results.txt"
             filetypes = [("Text Files", "*.txt"), ("All Files", "*.*")]
         elif current_tab == "Summary":
@@ -2015,14 +2015,14 @@ class DynamicOutputWidget(ctk.CTkFrame):
             # Status bar confirmation with details
             main_window = self.winfo_toplevel()
             filename = os.path.basename(filepath)
-            if current_tab == "Names & Vocab":
+            if current_tab == "Vocabulary":
                 vocab_data = self._outputs.get("Names & Vocabulary") or self._outputs.get(
                     "Rare Word List (CSV)", []
                 )
                 main_window.set_status(
                     f"Saved {len(vocab_data)} terms to {filename}", duration_ms=5000
                 )
-            elif current_tab == "Ask Questions":
+            elif current_tab == "Questions":
                 main_window.set_status(f"Saved Q&A results to {filename}", duration_ms=5000)
             elif current_tab == "Summary":
                 main_window.set_status(f"Saved summary to {filename}", duration_ms=5000)

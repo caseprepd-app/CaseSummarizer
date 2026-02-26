@@ -11,15 +11,12 @@ Features:
 - Plain text scrollable display (full text, no truncation)
 - Include/exclude toggles for export (Select All/Deselect All)
 - Export to CSV or TXT
-- Collapsible follow-up question input pane
 """
 
 import csv
 import io
 import logging
 import os
-import queue
-import threading
 from collections.abc import Callable
 from tkinter import filedialog, messagebox
 
@@ -42,8 +39,6 @@ class QAPanel(ctk.CTkFrame):
     - Plain text display with full content (no truncation)
     - Include/exclude controls for export (Select All/Deselect All)
     - Export to CSV or TXT
-    - Follow-up question input pane
-
     Example:
         panel = QAPanel(parent)
         panel.display_results(qa_results)
@@ -74,11 +69,6 @@ class QAPanel(ctk.CTkFrame):
 
         # Results storage
         self._results: list[QAResult] = []
-
-        # Async follow-up state
-        self._followup_queue: queue.Queue = queue.Queue()
-        self._followup_thread: threading.Thread | None = None
-        self._polling_active: bool = False
 
         # Configure grid
         self.grid_columnconfigure(0, weight=1)
@@ -193,27 +183,6 @@ class QAPanel(ctk.CTkFrame):
             **BUTTON_STYLES["secondary"],
         )
         self.deselect_all_btn.pack(side="right", padx=5)
-
-    def _create_followup_pane(self):
-        """Create collapsible follow-up question input pane."""
-        self.followup_frame = ctk.CTkFrame(self, **FRAME_STYLES["input_area"])
-        # Initially hidden
-        self.followup_visible = False
-
-        # Input field
-        self.followup_entry = ctk.CTkEntry(
-            self.followup_frame, placeholder_text="Type your question here...", width=400
-        )
-        self.followup_entry.pack(side="left", fill="x", expand=True, padx=(10, 5), pady=10)
-
-        # Bind Enter key
-        self.followup_entry.bind("<Return>", lambda e: self._submit_followup())
-
-        # Ask button
-        self.followup_ask_btn = ctk.CTkButton(
-            self.followup_frame, text="Ask", command=self._submit_followup, width=80
-        )
-        self.followup_ask_btn.pack(side="right", padx=(5, 10), pady=10)
 
     def display_results(self, results: list[QAResult]):
         """
@@ -381,90 +350,6 @@ class QAPanel(ctk.CTkFrame):
         # Refresh display
         self.display_results(self._results)
 
-    def _toggle_followup_pane(self):
-        """Show/hide the follow-up question input pane."""
-        if self.followup_visible:
-            self.followup_frame.grid_remove()
-            self.ask_more_btn.configure(text="Ask More Questions")
-            self.followup_visible = False
-        else:
-            self.followup_frame.grid(row=3, column=0, sticky="ew", padx=5, pady=(0, 5))
-            self.ask_more_btn.configure(text="Hide Question Input")
-            self.followup_visible = True
-            self.followup_entry.focus()
-
-    def _submit_followup(self):
-        """Submit a follow-up question asynchronously."""
-        question = self.followup_entry.get().strip()
-        if not question:
-            return
-
-        if self.on_ask_followup is None:
-            messagebox.showwarning(
-                "Not Available",
-                "Follow-up questions are not available. Please process a document first.",
-            )
-            return
-
-        # Prevent duplicate submissions
-        if self._followup_thread is not None and self._followup_thread.is_alive():
-            logger.debug("Follow-up already in progress, ignoring")
-            return
-
-        # Clear entry
-        self.followup_entry.delete(0, "end")
-
-        # Disable button while processing
-        self.followup_ask_btn.configure(state="disabled", text="Asking...")
-        self.followup_entry.configure(state="disabled")
-
-        logger.debug("Starting async follow-up: %s...", question[:30])
-
-        # Run callback in background thread
-        def run_followup():
-            try:
-                result = self.on_ask_followup(question)
-                self._followup_queue.put(("success", result))
-            except Exception as e:
-                self._followup_queue.put(("error", str(e)))
-                logger.debug("Follow-up thread error: %s", e)
-
-        self._followup_thread = threading.Thread(target=run_followup, daemon=True)
-        self._followup_thread.start()
-
-        # Start polling for results
-        self._polling_active = True
-        self._poll_followup_result()
-
-    def _poll_followup_result(self):
-        """Poll for follow-up result from background thread."""
-        if not self._polling_active:
-            return
-
-        try:
-            msg_type, data = self._followup_queue.get_nowait()
-
-            # Got a result - process it
-            self._polling_active = False
-
-            if msg_type == "success" and data is not None:
-                # Add to results
-                self._results.append(data)
-                self.display_results(self._results)
-                logger.debug("Follow-up completed successfully")
-
-            elif msg_type == "error":
-                messagebox.showerror("Error", f"Failed to ask question: {data}")
-
-            # Re-enable input
-            self.followup_ask_btn.configure(state="normal", text="Ask")
-            self.followup_entry.configure(state="normal")
-            self.followup_entry.focus()
-
-        except queue.Empty:
-            # No result yet, keep polling
-            self.after(100, self._poll_followup_result)
-
     def _on_edit_click(self):
         """Handle Edit Questions button click."""
         if self.on_edit_questions:
@@ -488,7 +373,7 @@ class QAPanel(ctk.CTkFrame):
             messagebox.showwarning(
                 "No Q&A Selected",
                 "Select at least one Q&A pair to export.\n\n"
-                "Click the checkboxes in the Include column.",
+                "Use 'Select All' or click individual results to include them.",
             )
             return
 
@@ -545,7 +430,7 @@ class QAPanel(ctk.CTkFrame):
             messagebox.showwarning(
                 "No Q&A Selected",
                 "Select at least one Q&A pair to export.\n\n"
-                "Click the checkboxes in the Include column.",
+                "Use 'Select All' or click individual results to include them.",
             )
             return
 
@@ -602,7 +487,7 @@ class QAPanel(ctk.CTkFrame):
             messagebox.showwarning(
                 "No Q&A Selected",
                 "Select at least one Q&A pair to export.\n\n"
-                "Click the checkboxes in the Include column.",
+                "Use 'Select All' or click individual results to include them.",
             )
             return
 
@@ -662,7 +547,7 @@ class QAPanel(ctk.CTkFrame):
             messagebox.showwarning(
                 "No Q&A Selected",
                 "Select at least one Q&A pair to export.\n\n"
-                "Click the checkboxes in the Include column.",
+                "Use 'Select All' or click individual results to include them.",
             )
             return
 
@@ -722,7 +607,7 @@ class QAPanel(ctk.CTkFrame):
             messagebox.showwarning(
                 "No Q&A Selected",
                 "Select at least one Q&A pair to export.\n\n"
-                "Click the checkboxes in the Include column.",
+                "Use 'Select All' or click individual results to include them.",
             )
             return
 

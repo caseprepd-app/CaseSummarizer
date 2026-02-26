@@ -510,7 +510,7 @@ class TaskMixin:
         """
         Ask a follow-up question from the QAPanel widget.
 
-        This runs in a background thread (from QAPanel._submit_followup).
+        This runs in a background thread (from MainWindow._ask_followup).
         Sends command to worker subprocess and polls synchronously.
 
         Args:

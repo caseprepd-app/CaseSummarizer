@@ -206,8 +206,8 @@ You'll see progress updates as it works.
 
 STEP 5: REVIEW & EXPORT
 Results appear in three tabs:
-- Names & Vocab: Table of extracted terms
-- Ask Questions: Q&A results and follow-up input
+- Vocabulary: Table of extracted terms
+- Questions: Q&A results and follow-up input
 - Summary: Generated case summary (if enabled)
 
 Export your results to Word, PDF, CSV, or other formats.

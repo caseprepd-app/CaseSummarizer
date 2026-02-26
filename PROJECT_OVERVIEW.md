@@ -86,7 +86,7 @@ Build a **100% offline, private, commercial Windows desktop application** for co
 2. PRE-PROCESSING   → App extracts text, provides OCR confidence scores
 3. FILE SELECTION   → User reviews quality scores, chooses which to include
 4. AI PROCESSING    → Extraction, question indexing, optional summarization
-5. OUTPUT DISPLAY   → Names & Vocabulary table, Questions panel, optional Summary
+5. OUTPUT DISPLAY   → Vocabulary table, Questions panel, optional Summary
 ```
 
 The status bar keeps users informed of progress through each pipeline stage.

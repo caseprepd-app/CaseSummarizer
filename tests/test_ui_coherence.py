@@ -53,10 +53,10 @@ class TestActualUIElements:
         assert 'text="Generate Summary"' in text
 
     def test_results_tab_names(self):
-        """Results tabs are 'Names & Vocab', 'Ask Questions', 'Summary'."""
+        """Results tabs are 'Vocabulary', 'Questions', 'Summary'."""
         text = _read("src/ui/dynamic_output.py")
-        assert '"Names & Vocab"' in text
-        assert '"Ask Questions"' in text
+        assert '"Vocabulary"' in text
+        assert '"Questions"' in text
         assert '"Summary"' in text
 
 
@@ -103,8 +103,8 @@ class TestHelpDialogCoherence:
         assert "Generate Outputs" not in self.text
 
     def test_results_tab_name_matches(self):
-        """Results tab name in help matches actual tab 'Names & Vocab'."""
-        assert "Names & Vocab:" in self.text
+        """Results tab name in help matches actual tab 'Vocabulary'."""
+        assert "Vocabulary:" in self.text
 
     def test_ctrl_f_shortcut_listed(self):
         """Ctrl+F shortcut is listed."""

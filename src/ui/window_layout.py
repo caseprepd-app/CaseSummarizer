@@ -194,7 +194,7 @@ class WindowLayoutMixin:
             text="Clear All",
             width=scale_value(80),
             corner_radius=6,
-            fg_color=("gray70", "gray30"),
+            **BUTTON_STYLES["danger"],
             command=self._clear_files,
         )
         self.clear_files_btn.pack(side="left")
@@ -238,7 +238,7 @@ class WindowLayoutMixin:
         # Default questions sub-checkbox (indented under Q&A)
         self.ask_default_questions_check = ctk.CTkCheckBox(
             task_frame,
-            text="Ask 0 default questions",
+            text="Ask default questions",
             command=self._on_default_questions_toggled,
         )
         self.ask_default_questions_check.pack(anchor="w", pady=(0, 2), padx=(20, 0))
@@ -318,7 +318,7 @@ class WindowLayoutMixin:
             self.followup_frame,
             placeholder_text="Q&A not ready - run tasks first",
             height=scale_value(35),
-            # state="disabled",  # TEST: Starting enabled to diagnose typing issue
+            state="disabled",
         )
         self.followup_entry.grid(row=1, column=0, sticky="ew", padx=(0, 5))
         self.followup_entry.bind("<Return>", lambda e: self._ask_followup())

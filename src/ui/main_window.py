@@ -1883,7 +1883,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         self._pending_followup_index = len(self._qa_results) - 1
         self.output_display.update_outputs(qa_results=list(self._qa_results))
         # Switch to Q&A tab so user sees the pending question
-        self.output_display.tabview.set("Ask Questions")
+        self.output_display.tabview.set("Questions")
 
         # Send follow-up command to worker subprocess
         logger.debug("Sending followup: %.80s", question)
@@ -2008,7 +2008,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             logger.debug("Follow-up unavailable: no vector store or Q&A not ready")
             return None
 
-        # NOTE: This method runs in a background thread (from QAPanel._submit_followup)
+        # NOTE: This method runs in a background thread (from MainWindow._ask_followup)
         # Do NOT call GUI methods like set_status() here - it causes freezes!
 
         try:
