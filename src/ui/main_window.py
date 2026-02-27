@@ -366,29 +366,54 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
     # =========================================================================
 
     def _refresh_corpus_dropdown(self):
-        """Refresh the corpus dropdown with available corpora."""
+        """
+        Refresh the corpus dropdown with available corpora.
+
+        Badge states:
+          0 corpora  → dropdown "None" (reddish), badge blank
+          0 docs     → corpus name, badge "(empty)"
+          1-4 docs   → corpus name, badge "(N/5+ docs required for corpus functionality)"
+          5+ docs    → corpus name, badge "(N docs · BM25 active)"
+        """
+        from src.ui.theme import COLORS
+
         try:
             corpora = self.corpus_registry.list_corpora()
-            names = [c.name for c in corpora]
+            active = self.corpus_registry.get_active_corpus()
 
-            if names:
-                self.corpus_dropdown.configure(values=names)
-                active = self.corpus_registry.get_active_corpus()
-                self.corpus_dropdown.set(active)
-
-                # Update corpus document count badge
-                active_info = next((c for c in corpora if c.name == active), None)
-                if active_info and active_info.doc_count > 0:
-                    doc_text = "doc" if active_info.doc_count == 1 else "docs"
-                    self.corpus_doc_count_label.configure(
-                        text=f"({active_info.doc_count} {doc_text} · BM25 active)"
-                    )
-                else:
-                    self.corpus_doc_count_label.configure(text="(empty)")
-            else:
-                self.corpus_dropdown.configure(values=["No corpora"])
-                self.corpus_dropdown.set("No corpora")
+            if active is None:
+                # No corpora exist — show placeholder
+                self.corpus_dropdown.configure(values=["None"])
+                self.corpus_dropdown.set("None")
+                self.corpus_dropdown.configure(text_color="#e07070")
                 self.corpus_doc_count_label.configure(text="")
+                return
+
+            # Reset text color to normal
+            self.corpus_dropdown.configure(text_color=COLORS["text_primary"])
+
+            names = [c.name for c in corpora]
+            self.corpus_dropdown.configure(values=names)
+            self.corpus_dropdown.set(active)
+
+            # Update badge based on document count
+            active_info = next((c for c in corpora if c.name == active), None)
+            doc_count = active_info.doc_count if active_info else 0
+
+            if doc_count == 0:
+                self.corpus_doc_count_label.configure(
+                    text="(empty)", text_color=COLORS["text_secondary"]
+                )
+            elif doc_count < 5:
+                self.corpus_doc_count_label.configure(
+                    text=f"({doc_count}/5+ docs required for corpus functionality)",
+                    text_color=COLORS["warning"],
+                )
+            else:
+                self.corpus_doc_count_label.configure(
+                    text=f"({doc_count} docs · BM25 active)",
+                    text_color=COLORS["text_secondary"],
+                )
 
         except Exception as e:
             logger.debug("Error refreshing corpus dropdown: %s", e)
@@ -398,6 +423,9 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
 
     def _on_corpus_changed(self, corpus_name: str):
         """Handle corpus selection change."""
+        if corpus_name == "None":
+            return
+
         try:
             self.corpus_registry.set_active_corpus(corpus_name)
             self._refresh_corpus_dropdown()

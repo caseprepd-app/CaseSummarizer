@@ -69,10 +69,6 @@ class CorpusRegistry:
         # Load existing registry
         self._load_registry()
 
-        # Create default corpus if none exist
-        if not self._registry.get("corpora"):
-            self._create_default_corpus()
-
     def _load_registry(self) -> None:
         """Load registry from JSON file."""
         if not self.registry_file.exists():
@@ -104,12 +100,6 @@ class CorpusRegistry:
         except Exception as e:
             logger.debug("Error saving registry: %s", e)
 
-    def _create_default_corpus(self) -> None:
-        """Create the default 'General' corpus if none exist."""
-        logger.debug("Creating default 'General' corpus")
-        self.create_corpus("General")
-        self.set_active_corpus("General")
-
     def create_corpus(self, name: str) -> Path:
         """
         Create a new corpus with the given name.
@@ -129,6 +119,9 @@ class CorpusRegistry:
         if safe_name in self._registry.get("corpora", {}):
             raise ValueError(f"Corpus '{name}' already exists")
 
+        # Check if this is the first corpus (registry was empty)
+        was_empty = not self._registry.get("corpora")
+
         # Create directory
         corpus_path = CORPORA_DIR / safe_name
         corpus_path.mkdir(parents=True, exist_ok=True)
@@ -145,6 +138,10 @@ class CorpusRegistry:
 
         self._save_registry()
         logger.debug("Created corpus '%s' at %s", name, corpus_path)
+
+        # Auto-activate first corpus created when registry was empty
+        if was_empty:
+            self.set_active_corpus(name)
 
         return corpus_path
 
@@ -301,29 +298,29 @@ class CorpusRegistry:
 
         return Path(self._registry["corpora"][safe_name]["path"])
 
-    def get_active_corpus(self) -> str:
+    def get_active_corpus(self) -> str | None:
         """
         Get the name of the currently active corpus.
 
         Returns:
-            Name of the active corpus, or first corpus if none set
+            Name of the active corpus, first corpus if none set, or None if no corpora exist
         """
+        corpora = self._registry.get("corpora", {})
+        if not corpora:
+            return None
+
         prefs = get_user_preferences()
         active = prefs.get("active_corpus")
 
         # Validate the active corpus still exists
         if active:
             safe_name = self._sanitize_name(active)
-            if safe_name in self._registry.get("corpora", {}):
+            if safe_name in corpora:
                 return active
 
         # Fall back to first corpus
-        corpora = self._registry.get("corpora", {})
-        if corpora:
-            first_safe_name = next(iter(corpora.keys()))
-            return corpora[first_safe_name].get("display_name", first_safe_name)
-
-        return "General"
+        first_safe_name = next(iter(corpora.keys()))
+        return corpora[first_safe_name].get("display_name", first_safe_name)
 
     def set_active_corpus(self, name: str) -> None:
         """
@@ -351,14 +348,16 @@ class CorpusRegistry:
 
         logger.debug("Set active corpus to '%s'", name)
 
-    def get_active_corpus_path(self) -> Path:
+    def get_active_corpus_path(self) -> Path | None:
         """
         Get the path to the currently active corpus.
 
         Returns:
-            Path to the active corpus directory
+            Path to the active corpus directory, or None if no corpora exist
         """
         active = self.get_active_corpus()
+        if active is None:
+            return None
         return self.get_corpus_path(active)
 
     def corpus_exists(self, name: str) -> bool:

@@ -234,10 +234,13 @@ class TestCorpusRegistry:
 
         monkeypatch.setattr("src.core.vocabulary.corpus_registry.CORPORA_DIR", tmp_path)
         reg = CorpusRegistry()
-        # Default corpus "General" should exist
+        # Fresh registry has no corpora
+        assert reg.list_corpora() == []
+        # After creating one, it should appear
+        reg.create_corpus("General")
         corpora = reg.list_corpora()
-        assert len(corpora) >= 1
-        assert any(c.name == "General" for c in corpora)
+        assert len(corpora) == 1
+        assert corpora[0].name == "General"
 
     def test_corpus_exists_false_for_missing(self, tmp_path, monkeypatch):
         from src.core.vocabulary.corpus_registry import CorpusRegistry
@@ -253,6 +256,7 @@ class TestCorpusRegistry:
 
         monkeypatch.setattr("src.core.vocabulary.corpus_registry.CORPORA_DIR", tmp_path)
         reg = CorpusRegistry()
+        reg.create_corpus("General")
         # Only "General" exists -- can't delete the last one
         with pytest.raises(ValueError, match="Cannot delete the last corpus"):
             reg.delete_corpus("General")
