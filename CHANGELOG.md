@@ -3,6 +3,20 @@
 All notable changes to CasePrepd are documented here.
 Format: user-facing changes first, internal/dev changes in a separate section.
 
+## [1.0.13] - 2026-02-26
+
+### Improved
+- Corpus dropdown shows "None" placeholder instead of auto-creating empty "General" corpus
+
+### Internal
+- Removed ~3,600 lines of dead code: 5 stale mixin files, unused dialogs, OllamaAIWorkerManager, 3 dead vocab table mixins, 6 uncalled functions
+- DRY refactored Q&A and vocabulary export methods (5 methods → 1 helper each)
+- Fixed dedup bug in vocabulary term exclusion (could add duplicates to exclusion list)
+- New shared Google word frequency loader (frequency_data.py) with thread-safe caching
+- Moved PENDING_ANSWER_TEXT constant from deleted mixin to main_window.py
+- Updated 11 test files: deleted stale tests, redirected imports, fixed file path references
+- 2784 tests passing (1 xfailed, 2 xpassed)
+
 ## [1.0.12] - 2026-02-26
 
 ### Improved
