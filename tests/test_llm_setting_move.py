@@ -71,51 +71,53 @@ class TestDefaultIsNo:
 class TestTaskPreviewUsesPreference:
     """Task preview shows NER+LLM vs NER based on preference, not checkbox."""
 
-    def _make_mixin(self):
-        """Create TaskMixin with mocked widgets."""
-        from src.ui.main_window_helpers.task_mixin import TaskMixin
-
-        mixin = TaskMixin.__new__(TaskMixin)
-        mixin.vocab_check = MagicMock()
-        mixin.qa_check = MagicMock()
-        mixin.summary_check = MagicMock()
-        mixin.ask_default_questions_check = MagicMock()
-        mixin.task_preview_label = MagicMock()
-        return mixin
+    def _make_stub(self):
+        """Create MainWindow stub with mocked widgets."""
+        stub = MagicMock()
+        stub.vocab_check = MagicMock()
+        stub.qa_check = MagicMock()
+        stub.summary_check = MagicMock()
+        stub.ask_default_questions_check = MagicMock()
+        stub.task_preview_label = MagicMock()
+        return stub
 
     @patch("src.user_preferences.get_user_preferences")
     def test_preview_shows_ner_when_llm_disabled(self, mock_prefs_fn):
         """Preview should show 'Vocabulary (NER)' when LLM is disabled."""
+        from src.ui.main_window import MainWindow
+
         mock_prefs = MagicMock()
         mock_prefs.is_vocab_llm_enabled.return_value = False
         mock_prefs_fn.return_value = mock_prefs
 
-        mixin = self._make_mixin()
-        mixin.vocab_check.get.return_value = True
-        mixin.qa_check.get.return_value = False
-        mixin.summary_check.get.return_value = False
+        stub = self._make_stub()
+        stub.vocab_check.get.return_value = True
+        stub.qa_check.get.return_value = False
+        stub.summary_check.get.return_value = False
 
-        mixin._update_task_preview()
+        MainWindow._update_task_preview(stub)
 
-        text = mixin.task_preview_label.configure.call_args[1]["text"]
+        text = stub.task_preview_label.configure.call_args[1]["text"]
         assert "Vocabulary (NER)" in text
         assert "LLM" not in text
 
     @patch("src.user_preferences.get_user_preferences")
     def test_preview_shows_ner_llm_when_enabled(self, mock_prefs_fn):
         """Preview should show 'Vocabulary (NER+LLM)' when LLM is enabled."""
+        from src.ui.main_window import MainWindow
+
         mock_prefs = MagicMock()
         mock_prefs.is_vocab_llm_enabled.return_value = True
         mock_prefs_fn.return_value = mock_prefs
 
-        mixin = self._make_mixin()
-        mixin.vocab_check.get.return_value = True
-        mixin.qa_check.get.return_value = False
-        mixin.summary_check.get.return_value = False
+        stub = self._make_stub()
+        stub.vocab_check.get.return_value = True
+        stub.qa_check.get.return_value = False
+        stub.summary_check.get.return_value = False
 
-        mixin._update_task_preview()
+        MainWindow._update_task_preview(stub)
 
-        text = mixin.task_preview_label.configure.call_args[1]["text"]
+        text = stub.task_preview_label.configure.call_args[1]["text"]
         assert "NER+LLM" in text
 
 

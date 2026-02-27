@@ -112,17 +112,6 @@ class AIService:
 
         return get_vram_gb()
 
-    def get_gpu_info(self) -> dict:
-        """
-        Get detailed GPU information.
-
-        Returns:
-            Dict with has_gpu, vram_gb, gpu_name, etc.
-        """
-        from src.core.utils.gpu_detector import get_gpu_info
-
-        return get_gpu_info()
-
     def get_prompt_template_manager(self):
         """
         Get the prompt template manager.

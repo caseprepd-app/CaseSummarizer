@@ -6,7 +6,6 @@ daemon thread settings, and cross-thread error message protection.
 """
 
 import threading
-from queue import Queue
 
 # =========================================================================
 # 1. AIService thread-safe singleton
@@ -189,73 +188,6 @@ class TestSystemMonitorConcurrency:
 
         source = inspect.getsource(SystemMonitor._schedule_main_thread_update)
         assert "_metrics_lock" in source
-
-
-# =========================================================================
-# 4a/4b. Queue drain without TOCTOU
-# =========================================================================
-
-
-class TestQueueDrainPattern:
-    """Verify _clear_queue and check_for_messages don't use queue.empty()."""
-
-    def test_clear_queue_no_empty_check(self):
-        """_clear_queue must not call queue.empty() (TOCTOU race)."""
-        import inspect
-
-        from src.services.workers import OllamaAIWorkerManager
-
-        source = inspect.getsource(OllamaAIWorkerManager._clear_queue)
-        assert "queue.empty()" not in source
-        assert ".empty()" not in source
-
-    def test_clear_queue_drains_all(self):
-        """_clear_queue must drain all items from the queue."""
-        from src.services.workers import OllamaAIWorkerManager
-
-        q = Queue()
-        for i in range(5):
-            q.put(i)
-
-        OllamaAIWorkerManager._clear_queue(q)
-        assert q.empty()
-
-    def test_clear_queue_handles_empty(self):
-        """_clear_queue on empty queue must not raise."""
-        from src.services.workers import OllamaAIWorkerManager
-
-        q = Queue()
-        OllamaAIWorkerManager._clear_queue(q)  # Should not raise
-
-    def test_check_for_messages_no_empty_check(self):
-        """check_for_messages must not call queue.empty() (TOCTOU race)."""
-        import inspect
-
-        from src.services.workers import OllamaAIWorkerManager
-
-        source = inspect.getsource(OllamaAIWorkerManager.check_for_messages)
-        assert ".empty()" not in source
-
-    def test_check_for_messages_returns_all(self):
-        """check_for_messages must return all queued items."""
-        import time
-
-        from src.services.workers import OllamaAIWorkerManager
-
-        manager = OllamaAIWorkerManager(Queue())
-        for i in range(3):
-            manager.output_queue.put(f"msg_{i}")
-
-        # Poll until all 3 messages are available (avoids flaky hard-coded sleep)
-        messages = []
-        deadline = time.monotonic() + 2.0
-        while time.monotonic() < deadline:
-            messages.extend(manager.check_for_messages())
-            if len(messages) >= 3:
-                break
-            time.sleep(0.05)
-
-        assert messages == ["msg_0", "msg_1", "msg_2"]
 
 
 # =========================================================================

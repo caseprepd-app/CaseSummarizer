@@ -867,8 +867,8 @@ class TestOptionalPackageBundling:
         assert "except" in source or "Exception" in source
 
     def test_tkinterdnd2_has_graceful_fallback(self):
-        """file_mixin.py has HAS_DND pattern for tkinterdnd2."""
-        source_path = PROJECT_ROOT / "src" / "ui" / "main_window_helpers" / "file_mixin.py"
+        """main_window.py has HAS_DND pattern for tkinterdnd2."""
+        source_path = PROJECT_ROOT / "src" / "ui" / "main_window.py"
         source = source_path.read_text(encoding="utf-8")
         assert "HAS_DND" in source
         assert "ImportError" in source

@@ -141,7 +141,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
             font=FONTS["body"],
             text_color=COLORS["text_secondary"],
             justify="center",
-            wraplength=400,
+            wraplength=0,
         )
         self._qa_status_label.grid(row=0, column=0, sticky="nsew", padx=20, pady=50)
 
@@ -156,7 +156,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
             font=FONTS["body"],
             text_color=COLORS["text_secondary"],
             justify="center",
-            wraplength=400,
+            wraplength=0,
         )
         self._summary_status_label.grid(row=1, column=0, sticky="nsew", padx=20, pady=50)
 
@@ -1766,16 +1766,9 @@ class DynamicOutputWidget(ctk.CTkFrame):
         if not result:
             return
 
-        # Add to exclusion file
+        # Add to exclusion file (dedup handled by _add_to_user_exclusion_list)
         try:
-            # Ensure directory exists
-            os.makedirs(os.path.dirname(USER_VOCAB_EXCLUDE_PATH), exist_ok=True)
-
-            # Append to file
-            with open(USER_VOCAB_EXCLUDE_PATH, "a", encoding="utf-8") as f:
-                f.write(f"{lower_term}\n")
-
-            logger.debug("Added '%s' to user exclusion list at %s", term, USER_VOCAB_EXCLUDE_PATH)
+            self._add_to_user_exclusion_list(term)
 
             # Remove from current display
             selected = self.csv_treeview.selection()
@@ -2027,17 +2020,30 @@ class DynamicOutputWidget(ctk.CTkFrame):
             elif current_tab == "Summary":
                 main_window.set_status(f"Saved summary to {filename}", duration_ms=5000)
 
-    def _quick_export_vocab_csv(self):
+    def _export_vocab(self, format_key: str):
         """
-        Quick export vocabulary to CSV file.
+        Export vocabulary in the given format.
 
-        Exports to last used folder (or Documents) with timestamped filename.
-        Uses status bar confirmation instead of modal dialog.
+        Shared boilerplate: get filtered data, empty check, build path,
+        write, save path, status bar, error handling.
+
+        Args:
+            format_key: One of "csv", "txt", "word", "pdf", "html"
         """
         from datetime import datetime
         from pathlib import Path
 
-        # Check if we have vocabulary data (score-filtered)
+        from src.services import DocumentService, get_export_service
+
+        ext_map = {
+            "csv": ".csv",
+            "txt": ".txt",
+            "word": ".docx",
+            "pdf": ".pdf",
+            "html": ".html",
+        }
+        ext = ext_map[format_key]
+
         vocab_data = self._get_filtered_vocab_data()
         if not vocab_data:
             messagebox.showwarning(
@@ -2045,234 +2051,80 @@ class DynamicOutputWidget(ctk.CTkFrame):
             )
             return
 
-        # Generate CSV content using shared helper
-        csv_content = self._build_vocab_csv(vocab_data)
-
-        # Use last export folder or Documents
-        from src.services import DocumentService
-
         prefs = get_user_preferences()
         export_path = (
             prefs.get("last_export_path") or DocumentService().get_default_documents_folder()
         )
 
-        # Generate timestamped filename
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        filename = f"vocabulary_{timestamp}.csv"
+        filename = f"vocabulary_{timestamp}{ext}"
         filepath = os.path.join(export_path, filename)
 
-        # Save the file
         try:
-            with open(filepath, "w", encoding="utf-8-sig", newline="") as f:
-                f.write(csv_content)
+            if format_key == "csv":
+                csv_content = self._build_vocab_csv(vocab_data)
+                with open(filepath, "w", encoding="utf-8-sig", newline="") as f:
+                    f.write(csv_content)
+                success = True
+            else:
+                export_service = get_export_service()
+                if format_key in ("word", "pdf"):
+                    include_details = any(
+                        self._column_visibility.get(col, False)
+                        for col in ["NER", "RAKE", "BM25", "Algo Count"]
+                    )
+                    is_single_doc = not self._column_visibility.get("# Docs", True)
+                    write_fn = {
+                        "word": export_service.export_vocabulary_to_word,
+                        "pdf": export_service.export_vocabulary_to_pdf,
+                    }
+                    success = write_fn[format_key](
+                        vocab_data, filepath, include_details, is_single_doc=is_single_doc
+                    )
+                elif format_key == "txt":
+                    success = export_service.export_vocabulary_to_txt(vocab_data, filepath)
+                else:  # html
+                    visible_columns = self._get_visible_columns()
+                    success = export_service.export_vocabulary_to_html(
+                        vocab_data, filepath, visible_columns
+                    )
 
-            # Remember export folder
-            prefs.set("last_export_path", str(Path(filepath).parent))
-
-            logger.debug("Saved %s terms to %s", len(vocab_data), filepath)
-
-            # Status bar confirmation
-            main_window = self.winfo_toplevel()
-            folder_name = Path(export_path).name
-            main_window.set_status(
-                f"Exported {len(vocab_data)} terms to {folder_name}/{filename}", duration_ms=5000
-            )
+            if success:
+                prefs.set("last_export_path", str(Path(filepath).parent))
+                folder_name = Path(export_path).name
+                main_window = self.winfo_toplevel()
+                if hasattr(main_window, "set_status"):
+                    main_window.set_status(
+                        f"Exported {len(vocab_data)} terms to {folder_name}/{filename}",
+                        duration_ms=5000,
+                    )
+                logger.debug("Exported %s terms to %s: %s", len(vocab_data), format_key, filepath)
+            else:
+                messagebox.showerror("Export Failed", f"Could not export to {ext} file.")
 
         except Exception as e:
             logger.debug("Vocab export failed: %s", e)
             messagebox.showerror("Export Failed", f"Could not save file:\n{e}")
 
+    def _quick_export_vocab_csv(self):
+        """Quick export vocabulary to CSV file."""
+        self._export_vocab("csv")
+
     def _export_vocab_to_word(self):
-        """
-        Export vocabulary to Word document.
-        """
-        from datetime import datetime
-        from pathlib import Path
-
-        from src.services import DocumentService, get_export_service
-
-        # Score-filtered vocabulary data
-        vocab_data = self._get_filtered_vocab_data()
-        if not vocab_data:
-            messagebox.showinfo("No Data", "No vocabulary data to export.")
-            return
-
-        # Use last export folder or Documents
-        prefs = get_user_preferences()
-        export_path = (
-            prefs.get("last_export_path") or DocumentService().get_default_documents_folder()
-        )
-
-        # Generate timestamped filename
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        filename = f"vocabulary_{timestamp}.docx"
-        filepath = os.path.join(export_path, filename)
-
-        # Export using service
-        export_service = get_export_service()
-        # Include details if any algorithm columns are visible
-        include_details = any(
-            self._column_visibility.get(col, False) for col in ["NER", "RAKE", "BM25", "Algo Count"]
-        )
-        is_single_doc = not self._column_visibility.get("# Docs", True)
-        success = export_service.export_vocabulary_to_word(
-            vocab_data, filepath, include_details, is_single_doc=is_single_doc
-        )
-
-        if success:
-            # Remember export folder
-            prefs.set("last_export_path", str(Path(filepath).parent))
-
-            # Status bar confirmation
-            main_window = self.winfo_toplevel()
-            folder_name = Path(export_path).name
-            main_window.set_status(
-                f"Exported {len(vocab_data)} terms to {folder_name}/{filename}", duration_ms=5000
-            )
-        else:
-            messagebox.showerror("Export Failed", "Could not export to Word document.")
+        """Export vocabulary to Word document."""
+        self._export_vocab("word")
 
     def _export_vocab_to_pdf(self):
-        """
-        Export vocabulary to PDF document.
-        """
-        from datetime import datetime
-        from pathlib import Path
-
-        from src.services import DocumentService, get_export_service
-
-        # Score-filtered vocabulary data
-        vocab_data = self._get_filtered_vocab_data()
-        if not vocab_data:
-            messagebox.showinfo("No Data", "No vocabulary data to export.")
-            return
-
-        # Use last export folder or Documents
-        prefs = get_user_preferences()
-        export_path = (
-            prefs.get("last_export_path") or DocumentService().get_default_documents_folder()
-        )
-
-        # Generate timestamped filename
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        filename = f"vocabulary_{timestamp}.pdf"
-        filepath = os.path.join(export_path, filename)
-
-        # Export using service
-        export_service = get_export_service()
-        # Include details if any algorithm columns are visible
-        include_details = any(
-            self._column_visibility.get(col, False) for col in ["NER", "RAKE", "BM25", "Algo Count"]
-        )
-        is_single_doc = not self._column_visibility.get("# Docs", True)
-        success = export_service.export_vocabulary_to_pdf(
-            vocab_data, filepath, include_details, is_single_doc=is_single_doc
-        )
-
-        if success:
-            # Remember export folder
-            prefs.set("last_export_path", str(Path(filepath).parent))
-
-            # Status bar confirmation
-            main_window = self.winfo_toplevel()
-            folder_name = Path(export_path).name
-            main_window.set_status(
-                f"Exported {len(vocab_data)} terms to {folder_name}/{filename}", duration_ms=5000
-            )
-        else:
-            messagebox.showerror("Export Failed", "Could not export to PDF document.")
+        """Export vocabulary to PDF document."""
+        self._export_vocab("pdf")
 
     def _export_vocab_to_txt(self):
-        """
-        Export vocabulary to plain text file.
-        """
-        from datetime import datetime
-        from pathlib import Path
-
-        from src.services import DocumentService, get_export_service
-
-        # Score-filtered vocabulary data
-        vocab_data = self._get_filtered_vocab_data()
-        if not vocab_data:
-            messagebox.showinfo("No Data", "No vocabulary data to export.")
-            return
-
-        # Use last export folder or Documents
-        prefs = get_user_preferences()
-        export_path = (
-            prefs.get("last_export_path") or DocumentService().get_default_documents_folder()
-        )
-
-        # Generate timestamped filename
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        filename = f"vocabulary_{timestamp}.txt"
-        filepath = os.path.join(export_path, filename)
-
-        # Export using service
-        export_service = get_export_service()
-        success = export_service.export_vocabulary_to_txt(vocab_data, filepath)
-
-        if success:
-            # Remember export folder
-            prefs.set("last_export_path", str(Path(filepath).parent))
-
-            # Status bar confirmation
-            main_window = self.winfo_toplevel()
-            folder_name = Path(export_path).name
-            main_window.set_status(
-                f"Exported {len(vocab_data)} terms to {folder_name}/{filename}", duration_ms=5000
-            )
-        else:
-            messagebox.showerror("Export Failed", "Could not export to text file.")
+        """Export vocabulary to plain text file."""
+        self._export_vocab("txt")
 
     def _export_vocab_to_html(self):
-        """
-        Export vocabulary to interactive HTML file.
-
-        Passes visible columns to HTML export so the exported file mirrors
-        the GUI's column visibility settings.
-        """
-        from datetime import datetime
-        from pathlib import Path
-
-        from src.services import DocumentService, get_export_service
-
-        # Score-filtered vocabulary data
-        vocab_data = self._get_filtered_vocab_data()
-        if not vocab_data:
-            messagebox.showinfo("No Data", "No vocabulary data to export.")
-            return
-
-        # Use last export folder or Documents
-        prefs = get_user_preferences()
-        export_path = (
-            prefs.get("last_export_path") or DocumentService().get_default_documents_folder()
-        )
-
-        # Generate timestamped filename
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        filename = f"vocabulary_{timestamp}.html"
-        filepath = os.path.join(export_path, filename)
-
-        # Pass current visible columns to HTML export
-        visible_columns = self._get_visible_columns()
-
-        # Export using service
-        export_service = get_export_service()
-        success = export_service.export_vocabulary_to_html(vocab_data, filepath, visible_columns)
-
-        if success:
-            # Remember export folder
-            prefs.set("last_export_path", str(Path(filepath).parent))
-
-            # Status bar confirmation
-            main_window = self.winfo_toplevel()
-            folder_name = Path(export_path).name
-            main_window.set_status(
-                f"Exported {len(vocab_data)} terms to {folder_name}/{filename}", duration_ms=5000
-            )
-        else:
-            messagebox.showerror("Export Failed", "Could not export to HTML file.")
+        """Export vocabulary to interactive HTML file."""
+        self._export_vocab("html")
 
     def _on_export_format_selected(self, choice: str):
         """
@@ -2284,16 +2136,15 @@ class DynamicOutputWidget(ctk.CTkFrame):
         if choice == "Export...":
             return  # Placeholder, do nothing
 
-        if choice == "TXT":
-            self._export_vocab_to_txt()
-        elif choice == "CSV":
-            self._quick_export_vocab_csv()
-        elif choice == "Word (.docx)":
-            self._export_vocab_to_word()
-        elif choice == "PDF":
-            self._export_vocab_to_pdf()
-        elif choice == "HTML":
-            self._export_vocab_to_html()
+        format_map = {
+            "TXT": "txt",
+            "CSV": "csv",
+            "Word (.docx)": "word",
+            "PDF": "pdf",
+            "HTML": "html",
+        }
+        if choice in format_map:
+            self._export_vocab(format_map[choice])
 
         # Reset dropdown to placeholder
         self.export_dropdown.set("Export...")

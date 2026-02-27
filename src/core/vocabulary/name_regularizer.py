@@ -70,24 +70,16 @@ def _load_known_words() -> set[str]:
     if _KNOWN_WORDS is not None:
         return _KNOWN_WORDS
 
-    from src.config import GOOGLE_WORD_FREQUENCY_FILE
+    from src.core.vocabulary.frequency_data import load_raw_frequency_data
 
     _KNOWN_WORDS = set()
 
-    # Source 1: Google word frequency list (top 50k)
-    if GOOGLE_WORD_FREQUENCY_FILE.exists():
-        try:
-            max_words = 50000
-            with open(GOOGLE_WORD_FREQUENCY_FILE, encoding="utf-8") as f:
-                for i, line in enumerate(f):
-                    if i >= max_words:
-                        break
-                    parts = line.strip().split("\t")
-                    if parts:
-                        _KNOWN_WORDS.add(parts[0].lower())
-            logger.debug("Loaded %d words from Google frequency list", len(_KNOWN_WORDS))
-        except Exception as e:
-            logger.debug("Failed to load Google word frequency file: %s", e)
+    # Source 1: Google word frequency list (top 50k by frequency)
+    raw_freq = load_raw_frequency_data()
+    if raw_freq:
+        top_words = sorted(raw_freq, key=raw_freq.get, reverse=True)[:50000]
+        _KNOWN_WORDS.update(top_words)
+        logger.debug("Loaded %d words from Google frequency list", len(top_words))
 
     # Source 2: International names dataset (reuse meta_learner's cached loader)
     forenames, surnames = _load_names_datasets()

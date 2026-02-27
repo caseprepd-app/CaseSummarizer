@@ -1,14 +1,12 @@
 """
-Tests for GUI polish features (7 visual improvements).
+Tests for GUI polish features.
 
 Covers:
 1. FileReviewTable empty state overlay (show/hide)
-2. Determinate progress bar (_update_progress)
-3. Drag-and-drop visual feedback (border highlight)
 4. PipelineIndicator widget (state transitions)
-5. Success celebration (status bar flash)
 6. Hover previews (result data storage, tooltip text)
-7. Tab transition animation
+7. Orange remove icon, tooltip auto-dismiss
+Plus: preprocessing flag, theme colors, drop zone structure, status bar enforcement
 """
 
 from unittest.mock import MagicMock
@@ -102,77 +100,6 @@ class TestFileReviewTableEmptyState:
 
         assert table._result_data == {}
         assert table.file_item_map == {}
-
-
-# =========================================================================
-# Feature 2: Determinate Progress Bar
-# =========================================================================
-
-
-class TestDeterminateProgressBar:
-    """Test the _update_progress method in TimerMixin."""
-
-    def _make_mixin(self):
-        """Create a TimerMixin instance with mocked widgets."""
-        from src.ui.main_window_helpers.timer_mixin import TimerMixin
-
-        mixin = TimerMixin.__new__(TimerMixin)
-        mixin.progress_bar = MagicMock()
-        mixin._progress_bar_visible = False
-        mixin.activity_indicator = MagicMock()
-        mixin._activity_indicator_visible = False
-        mixin.update_idletasks = MagicMock()
-        return mixin
-
-    def test_update_progress_sets_bar_value(self):
-        """_update_progress should set progress bar to percentage/100."""
-        mixin = self._make_mixin()
-        mixin._update_progress(50.0)
-        mixin.progress_bar.set.assert_called_once_with(0.5)
-
-    def test_update_progress_clamps_to_zero(self):
-        """Negative percentage should clamp to 0."""
-        mixin = self._make_mixin()
-        mixin._update_progress(-10.0)
-        mixin.progress_bar.set.assert_called_once_with(0.0)
-
-    def test_update_progress_clamps_to_one(self):
-        """Percentage over 100 should clamp to 1.0."""
-        mixin = self._make_mixin()
-        mixin._update_progress(150.0)
-        mixin.progress_bar.set.assert_called_once_with(1.0)
-
-    def test_update_progress_zero(self):
-        """Zero percentage should set bar to 0."""
-        mixin = self._make_mixin()
-        mixin._update_progress(0.0)
-        mixin.progress_bar.set.assert_called_once_with(0.0)
-
-    def test_update_progress_hundred(self):
-        """100% should set bar to 1.0."""
-        mixin = self._make_mixin()
-        mixin._update_progress(100.0)
-        mixin.progress_bar.set.assert_called_once_with(1.0)
-
-    def test_start_activity_indicator_shows_progress_bar(self):
-        """Starting activity should also show and reset the progress bar."""
-        mixin = self._make_mixin()
-        mixin._start_activity_indicator()
-
-        mixin.progress_bar.set.assert_called_once_with(0)
-        mixin.progress_bar.pack.assert_called_once()
-        assert mixin._progress_bar_visible is True
-
-    def test_stop_activity_indicator_hides_progress_bar(self):
-        """Stopping activity should also hide the progress bar."""
-        mixin = self._make_mixin()
-        mixin._progress_bar_visible = True
-        mixin._activity_indicator_visible = True
-
-        mixin._stop_activity_indicator()
-
-        mixin.progress_bar.pack_forget.assert_called_once()
-        assert mixin._progress_bar_visible is False
 
 
 # =========================================================================
@@ -299,105 +226,6 @@ class TestPipelineIndicator:
         # Q&A done
         indicator.set_step_state("Q&A", "done")
         assert indicator._step_states["Q&A"] == "done"
-
-
-# =========================================================================
-# Feature 5: Success Celebration
-# =========================================================================
-
-
-class TestSuccessCelebration:
-    """Test the success flash on task completion."""
-
-    def _make_task_mixin(self):
-        """Create a TaskMixin with mocked widgets."""
-        from src.ui.main_window_helpers.task_mixin import TaskMixin
-
-        mixin = TaskMixin.__new__(TaskMixin)
-        mixin.status_frame = MagicMock()
-        mixin.status_label = MagicMock()
-        mixin.add_files_btn = MagicMock()
-        mixin.generate_btn = MagicMock()
-        mixin.qa_check = MagicMock()
-        mixin.qa_check.get.return_value = False
-        mixin.vocab_check = MagicMock()
-        mixin.vocab_check.get.return_value = True
-        mixin.summary_check = MagicMock()
-        mixin.summary_check.get.return_value = False
-        mixin.processing_results = [{"filename": "test.pdf"}]
-        mixin.export_all_btn = MagicMock()
-        mixin._export_all_visible = False
-        mixin._qa_ready = False
-        mixin._qa_results = []
-        mixin._processing_start_time = 100.0
-        mixin.task_preview_label = MagicMock()
-        mixin.output_display = MagicMock()
-        mixin.output_display._vocab_csv_data = None
-        mixin.followup_btn = MagicMock()
-        mixin.followup_entry = MagicMock()
-        mixin.after = MagicMock()
-        mixin.stats_label = MagicMock()
-        mixin.pipeline_indicator = MagicMock()
-        mixin.pipeline_indicator._step_states = {}
-
-        # Mock _stop_timer and _update_generate_button_state
-        mixin._stop_timer = MagicMock()
-        mixin._update_generate_button_state = MagicMock()
-        mixin._gather_extraction_stats = MagicMock(return_value={})
-        mixin._update_session_stats = MagicMock()
-
-        return mixin
-
-    def test_success_sets_green_background(self):
-        """On success, status bar should flash green."""
-        mixin = self._make_task_mixin()
-        mixin._on_tasks_complete(True, "Completed 2 task(s)")
-
-        # Status frame should have green background
-        mixin.status_frame.configure.assert_called()
-        call_kwargs = mixin.status_frame.configure.call_args[1]
-        assert call_kwargs["fg_color"] == "#1a3a1a"  # monitor_bg
-
-    def test_success_shows_checkmark(self):
-        """On success, status text should have checkmark prefix."""
-        mixin = self._make_task_mixin()
-        mixin._on_tasks_complete(True, "Completed 2 task(s)")
-
-        mixin.status_label.configure.assert_called()
-        call_kwargs = mixin.status_label.configure.call_args[1]
-        assert call_kwargs["text"] == "\u2713 Completed 2 task(s)"
-
-    def test_success_schedules_restore(self):
-        """On success, should schedule restore after 2 seconds."""
-        mixin = self._make_task_mixin()
-        mixin._on_tasks_complete(True, "Completed 2 task(s)")
-
-        mixin.after.assert_called_once()
-        delay = mixin.after.call_args[0][0]
-        assert delay == 2000
-
-    def test_failure_uses_set_status(self):
-        """On failure, should call set_status without celebration."""
-        mixin = self._make_task_mixin()
-        mixin.set_status = MagicMock()
-        mixin._on_tasks_complete(False, "No text to analyze")
-
-        mixin.set_status.assert_called_once_with("No text to analyze")
-        # Should NOT change status frame color
-        mixin.status_frame.configure.assert_not_called()
-
-    def test_restore_status_bar_color(self):
-        """_restore_status_bar_color should reset to normal colors."""
-        mixin = self._make_task_mixin()
-        mixin._restore_status_bar_color("Completed 2 task(s)")
-
-        mixin.status_frame.configure.assert_called_once()
-        frame_kwargs = mixin.status_frame.configure.call_args[1]
-        assert frame_kwargs["fg_color"] == "#1a1a2e"  # status_bar_bg
-
-        mixin.status_label.configure.assert_called_once()
-        label_kwargs = mixin.status_label.configure.call_args[1]
-        assert label_kwargs["text"] == "Completed 2 task(s)"
 
 
 # =========================================================================
@@ -830,9 +658,9 @@ class TestPreprocessingActiveFlag:
         """_start_preprocessing should set _preprocessing_active, not _processing_active."""
         import inspect
 
-        from src.ui.main_window_helpers.file_mixin import FileMixin
+        from src.ui.main_window import MainWindow
 
-        source = inspect.getsource(FileMixin._start_preprocessing)
+        source = inspect.getsource(MainWindow._start_preprocessing)
         assert "self._preprocessing_active = True" in source
         assert "self._processing_active = True" not in source
 
@@ -840,18 +668,18 @@ class TestPreprocessingActiveFlag:
         """_on_preprocessing_complete should clear _preprocessing_active."""
         import inspect
 
-        from src.ui.main_window_helpers.file_mixin import FileMixin
+        from src.ui.main_window import MainWindow
 
-        source = inspect.getsource(FileMixin._on_preprocessing_complete)
+        source = inspect.getsource(MainWindow._on_preprocessing_complete)
         assert "self._preprocessing_active = False" in source
 
     def test_poll_queue_checks_preprocessing_active(self):
         """_poll_queue should continue polling when _preprocessing_active is True."""
         import inspect
 
-        from src.ui.main_window_helpers.file_mixin import FileMixin
+        from src.ui.main_window import MainWindow
 
-        source = inspect.getsource(FileMixin._poll_queue)
+        source = inspect.getsource(MainWindow._poll_queue)
         assert "self._preprocessing_active" in source
 
     def test_poll_queue_continues_during_preprocessing(self):
@@ -920,25 +748,6 @@ class TestPreprocessingActiveFlag:
         MainWindow._update_generate_button_state(w)
 
         w.generate_btn.configure.assert_called_with(state="disabled")
-
-    def test_main_window_start_preprocessing_mirrors_mixin(self):
-        """main_window.py _start_preprocessing should also use _preprocessing_active."""
-        import inspect
-
-        from src.ui.main_window import MainWindow
-
-        source = inspect.getsource(MainWindow._start_preprocessing)
-        assert "self._preprocessing_active = True" in source
-        assert "self._processing_active = True" not in source
-
-    def test_main_window_on_preprocessing_complete_clears_flag(self):
-        """main_window.py _on_preprocessing_complete should clear _preprocessing_active."""
-        import inspect
-
-        from src.ui.main_window import MainWindow
-
-        source = inspect.getsource(MainWindow._on_preprocessing_complete)
-        assert "self._preprocessing_active = False" in source
 
 
 # =========================================================================

@@ -5,7 +5,7 @@ GUI-side manager for the persistent worker subprocess. Handles process
 lifecycle (start, shutdown, restart) and provides a clean API for
 sending commands and receiving results via multiprocessing.Queue.
 
-Follows the same pattern as OllamaAIWorkerManager (workers.py:572-686).
+Manages subprocess lifecycle, IPC queues, and message polling.
 
 Usage:
     manager = WorkerProcessManager()

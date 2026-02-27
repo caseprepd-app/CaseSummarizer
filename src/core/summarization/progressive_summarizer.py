@@ -495,8 +495,3 @@ Summary:"""
             "average_summary_length": average_summary_length,
             "most_frequent_keyword": most_frequent_keyword,
         }
-
-
-def create_progressive_summarizer(config_path: Path | None = None) -> ProgressiveSummarizer:
-    """Factory function to create a ProgressiveSummarizer instance."""
-    return ProgressiveSummarizer(config_path)

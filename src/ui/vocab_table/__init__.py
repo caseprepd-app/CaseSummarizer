@@ -3,9 +3,6 @@ Vocabulary Table Components.
 
 This package contains the components for the vocabulary table display:
 - column_config: Column registry and display constants
-- treeview_manager: Treeview display, sorting, filtering (mixin)
-- export_handler: Export methods (TXT, CSV, Word, PDF, HTML) (mixin)
-- feedback_handler: Feedback UI and term exclusion (mixin)
 """
 
 from src.ui.vocab_table.column_config import (

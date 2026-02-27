@@ -39,7 +39,6 @@ import spacy
 from nltk.corpus import wordnet
 
 from src.config import (
-    GOOGLE_WORD_FREQUENCY_FILE,
     VOCABULARY_MAX_TEXT_KB,
     VOCABULARY_MIN_OCCURRENCES,
     VOCABULARY_RARITY_THRESHOLD,
@@ -1253,34 +1252,16 @@ class VocabularyExtractor:
 
     def _load_frequency_dataset(self) -> tuple[dict[str, int], dict[str, int]]:
         """Load Google word frequency dataset and build rank mapping."""
-        frequency_dict = {}
-        rank_map = {}
+        from src.core.vocabulary.frequency_data import load_raw_frequency_data
 
-        if not GOOGLE_WORD_FREQUENCY_FILE.exists():
-            logger.debug("Frequency dataset not found: %s", GOOGLE_WORD_FREQUENCY_FILE)
-            return frequency_dict, rank_map
+        frequency_dict = load_raw_frequency_data()
+        if not frequency_dict:
+            return {}, {}
 
-        try:
-            with open(GOOGLE_WORD_FREQUENCY_FILE, encoding="utf-8") as f:
-                for line in f:
-                    parts = line.strip().split("\t")
-                    if len(parts) == 2:
-                        word, count_str = parts
-                        try:
-                            count = int(count_str)
-                            frequency_dict[word.lower()] = count
-                        except ValueError:
-                            continue
-
-            logger.debug("Loaded %s words from frequency dataset", len(frequency_dict))
-
-            # Build rank map
-            sorted_words = sorted(frequency_dict.items(), key=lambda x: x[1], reverse=True)
-            rank_map = {word: rank for rank, (word, _) in enumerate(sorted_words)}
-            logger.debug("Built rank map for %s words", len(rank_map))
-
-        except Exception as e:
-            logger.debug("Error loading frequency dataset: %s", e)
+        # Build rank map (most frequent = rank 0)
+        sorted_words = sorted(frequency_dict.items(), key=lambda x: x[1], reverse=True)
+        rank_map = {word: rank for rank, (word, _) in enumerate(sorted_words)}
+        logger.debug("Built rank map for %s words", len(rank_map))
 
         return frequency_dict, rank_map
 
@@ -1292,30 +1273,6 @@ class VocabularyExtractor:
             raise RuntimeError(
                 "NLTK 'wordnet' corpus not found. Run: python scripts/download_models.py"
             )
-
-    def add_user_exclusion(self, term: str) -> bool:
-        """Add a term to the user's exclusion list."""
-        if not self.user_exclude_path:
-            logger.debug("Cannot add exclusion: no user exclude path configured")
-            return False
-
-        lower_term = term.lower().strip()
-        if not lower_term:
-            return False
-
-        self.user_exclude_list.add(lower_term)
-
-        try:
-            dirname = os.path.dirname(self.user_exclude_path)
-            if dirname:
-                os.makedirs(dirname, exist_ok=True)
-            with open(self.user_exclude_path, "a", encoding="utf-8") as f:
-                f.write(f"{lower_term}\n")
-            logger.debug("Added '%s' to user exclusion list", term)
-            return True
-        except Exception as e:
-            logger.debug("Failed to save user exclusion: %s", e)
-            return False
 
     def reload_user_exclusions(self):
         """Reload user exclusions from file."""

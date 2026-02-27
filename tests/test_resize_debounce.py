@@ -237,14 +237,6 @@ class TestNoIdletasksInHotPaths:
         # Check for actual call, not the word in a comment
         assert ".update_idletasks()" not in body
 
-    def test_no_idletasks_in_timer_mixin_start(self):
-        """Timer mixin _start_activity_indicator should not call update_idletasks."""
-        source = _read_source("src/ui/main_window_helpers/timer_mixin.py")
-        start = source.index("def _start_activity_indicator")
-        next_def = source.index("\n    def ", start + 1)
-        body = source[start:next_def]
-        assert ".update_idletasks()" not in body
-
 
 # ===========================================================================
 # DynamicOutputWidget: Configure event filtering

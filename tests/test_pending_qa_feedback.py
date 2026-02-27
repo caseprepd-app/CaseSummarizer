@@ -11,14 +11,14 @@ class TestPendingAnswerConstant:
 
     def test_constant_exists(self):
         """PENDING_ANSWER_TEXT constant should be defined."""
-        from src.ui.main_window_helpers.task_mixin import PENDING_ANSWER_TEXT
+        from src.ui.main_window import PENDING_ANSWER_TEXT
 
         assert PENDING_ANSWER_TEXT is not None
         assert isinstance(PENDING_ANSWER_TEXT, str)
 
     def test_constant_value(self):
         """PENDING_ANSWER_TEXT should have expected placeholder text."""
-        from src.ui.main_window_helpers.task_mixin import PENDING_ANSWER_TEXT
+        from src.ui.main_window import PENDING_ANSWER_TEXT
 
         assert (
             "searching" in PENDING_ANSWER_TEXT.lower() or "pending" in PENDING_ANSWER_TEXT.lower()
@@ -32,7 +32,7 @@ class TestPendingQAResult:
     def test_create_pending_qa_result(self):
         """Should be able to create a QAResult with pending answer."""
         from src.services import QAService
-        from src.ui.main_window_helpers.task_mixin import PENDING_ANSWER_TEXT
+        from src.ui.main_window import PENDING_ANSWER_TEXT
 
         QAResult = QAService().get_qa_result_class()
 
@@ -52,7 +52,7 @@ class TestPendingQAResult:
     def test_pending_qa_result_not_exportable(self):
         """Pending QAResult with include_in_export=False should not be exported."""
         from src.services import QAService
-        from src.ui.main_window_helpers.task_mixin import PENDING_ANSWER_TEXT
+        from src.ui.main_window import PENDING_ANSWER_TEXT
 
         QAResult = QAService().get_qa_result_class()
 
@@ -74,7 +74,7 @@ class TestPendingEntryReplacement:
     def test_replace_pending_by_index(self):
         """Pending entry should be replaceable by index."""
         from src.services import QAService
-        from src.ui.main_window_helpers.task_mixin import PENDING_ANSWER_TEXT
+        from src.ui.main_window import PENDING_ANSWER_TEXT
 
         QAResult = QAService().get_qa_result_class()
 
@@ -105,7 +105,7 @@ class TestPendingEntryReplacement:
     def test_remove_pending_on_error(self):
         """Pending entry should be removable on error."""
         from src.services import QAService
-        from src.ui.main_window_helpers.task_mixin import PENDING_ANSWER_TEXT
+        from src.ui.main_window import PENDING_ANSWER_TEXT
 
         QAResult = QAService().get_qa_result_class()
 
@@ -127,7 +127,7 @@ class TestPendingEntryReplacement:
     def test_pending_check_identifies_pending_entries(self):
         """Should be able to identify pending entries by their answer text."""
         from src.services import QAService
-        from src.ui.main_window_helpers.task_mixin import PENDING_ANSWER_TEXT
+        from src.ui.main_window import PENDING_ANSWER_TEXT
 
         QAResult = QAService().get_qa_result_class()
 

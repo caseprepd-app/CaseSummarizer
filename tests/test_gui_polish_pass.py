@@ -193,21 +193,21 @@ class TestStaleCheckboxText:
         """New message mentions 'Select All'."""
         assert "Use 'Select All' or click individual results" in self.text
 
-    def test_five_export_methods_use_new_text(self):
-        """All 5 export methods use the updated warning text."""
-        methods = [
+    def test_export_helper_has_warning_text(self):
+        """Consolidated _export_qa helper uses the updated warning text."""
+        assert "def _export_qa" in self.text, "_export_qa helper not found"
+        assert "Use 'Select All' or click individual results to include them." in self.text
+
+    def test_five_export_delegates_exist(self):
+        """All 5 export format delegates still exist."""
+        for method_name in [
             "_export_to_csv",
             "_export_to_txt",
             "_export_to_word",
             "_export_to_pdf",
             "_export_to_html",
-        ]
-        for method_name in methods:
+        ]:
             assert f"def {method_name}" in self.text, f"{method_name} not found"
-
-        # Count occurrences of the new message (should be 5)
-        count = self.text.count("Use 'Select All' or click individual results to include them.")
-        assert count == 5, f"Expected 5 occurrences, found {count}"
 
 
 # =========================================================================
@@ -223,7 +223,7 @@ class TestStaleCommentCleanup:
         text = _read("src/ui/main_window.py")
         assert "QAPanel._submit_followup" not in text
 
-    def test_task_mixin_no_qapanel_submit_followup_ref(self):
-        """task_mixin.py doesn't reference QAPanel._submit_followup."""
-        text = _read("src/ui/main_window_helpers/task_mixin.py")
+    def test_main_window_no_qapanel_submit_followup_ref_dup(self):
+        """main_window.py doesn't reference QAPanel._submit_followup (duplicate check)."""
+        text = _read("src/ui/main_window.py")
         assert "QAPanel._submit_followup" not in text

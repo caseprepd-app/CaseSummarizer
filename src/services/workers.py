@@ -3,10 +3,10 @@ Background Workers Module
 
 Contains threading and multiprocessing workers for document processing:
 - ProcessingWorker: Document extraction thread (with parallel processing)
-- OllamaAIWorkerManager: AI generation process manager
+- MultiDocSummaryWorker: Hierarchical summarization worker
+- ProgressiveExtractionWorker: NER + LLM + Q&A extraction worker
 
 Performance Optimizations:
-- Non-blocking termination for AI worker
 - Parallel document extraction via Strategy Pattern
 - BaseWorker base class eliminates boilerplate
 
@@ -14,12 +14,10 @@ Lives in services layer to enforce pipeline architecture.
 Workers are orchestration, not UI display.
 """
 
-import gc
 import logging
-import multiprocessing
 import threading
 from pathlib import Path
-from queue import Empty, Queue
+from queue import Queue
 
 from src.config import PARALLEL_MAX_WORKERS
 from src.core.extraction import RawTextExtractor
@@ -31,7 +29,6 @@ from src.core.parallel import (
 )
 from src.core.vocabulary import VocabularyExtractor
 from src.ui.base_worker import BaseWorker, CleanupWorker
-from src.ui.ollama_worker import ollama_generation_worker_process
 from src.ui.queue_messages import QueueMessage
 
 logger = logging.getLogger(__name__)
@@ -453,123 +450,6 @@ class QAWorker(BaseWorker):
 
         finally:
             strategy.shutdown(wait=True)
-
-
-class OllamaAIWorkerManager:
-    """
-    Manages the multiprocessing worker for Ollama AI generation.
-    Handles starting, stopping, and communication with the worker process.
-    """
-
-    def __init__(self, ui_queue: Queue):
-        self.ui_queue = ui_queue
-        self.input_queue = multiprocessing.Queue()
-        self.output_queue = multiprocessing.Queue()
-        self.process = None
-        self.is_running = False
-
-    @staticmethod
-    def _clear_queue(queue):
-        """Safely clear all messages from a queue (no TOCTOU race)."""
-        # Track how many items cleared for debugging
-        cleared_count = 0
-        while True:
-            try:
-                queue.get_nowait()
-                cleared_count += 1
-            except Empty:
-                break
-        if cleared_count > 0:
-            logger.debug("Cleared %s items from queue", cleared_count)
-
-    def start_worker(self):
-        """Starts the Ollama AI worker process."""
-        if self.is_running and self.process and self.process.is_alive():
-            logger.debug("Worker already running.")
-            return
-
-        # Ensure queues are empty from previous runs
-        self._clear_queue(self.input_queue)
-        self._clear_queue(self.output_queue)
-
-        logger.debug("Starting Ollama AI worker process.")
-        self.process = multiprocessing.Process(
-            target=ollama_generation_worker_process,
-            args=(self.input_queue, self.output_queue),
-            daemon=True,  # Daemon process allows main process to exit even if worker is alive
-        )
-        self.process.start()
-        self.is_running = True
-        logger.debug("Worker process started with PID: %s", self.process.pid)
-
-    def stop_worker(self, blocking=False):
-        """
-        Sends a termination signal and stops the Ollama AI worker process.
-
-        Args:
-            blocking: If True, wait for process to terminate. If False (default),
-                     terminate immediately without blocking the main thread.
-        """
-        if self.is_running and self.process and self.process.is_alive():
-            logger.debug("Sending TERMINATE signal to worker.")
-            try:
-                self.input_queue.put_nowait("TERMINATE")  # Non-blocking put
-
-                if blocking:
-                    # Wait briefly for graceful shutdown
-                    self.process.join(timeout=2)
-                else:
-                    # Non-blocking: check if it's already dead, but don't wait
-                    self.process.join(timeout=0.1)
-
-            except Exception as e:
-                logger.debug("Error sending terminate signal: %s", e)
-
-            # Force terminate if still alive
-            if self.process and self.process.is_alive():
-                logger.debug("Worker did not terminate gracefully, forcing shutdown.")
-                try:
-                    self.process.terminate()
-                    self.process.join(timeout=0.5)  # Brief wait for terminate
-                except Exception as e:
-                    logger.debug("Error during force terminate: %s", e)
-
-            # Clean up queues to prevent memory leaks
-            self._clear_queue(self.input_queue)
-            self._clear_queue(self.output_queue)
-
-            self.process = None
-            self.is_running = False
-
-            # Force garbage collection
-            gc.collect()
-
-            logger.debug("Ollama AI worker process stopped, memory cleaned.")
-        elif self.is_running:
-            logger.debug("Worker process already stopped or not alive.")
-            self.process = None
-            self.is_running = False
-
-    def send_task(self, task_type: str, payload: dict):
-        """Sends a task to the worker process."""
-        if not (self.is_running and self.process and self.process.is_alive()):
-            self.start_worker()  # Ensure worker is running before sending task
-
-        logger.debug("Sending task '%s' to worker.", task_type)
-        self.input_queue.put((task_type, payload))
-
-    def check_for_messages(self):
-        """Checks the output queue for messages from the worker process (no TOCTOU race)."""
-        messages = []
-        while True:
-            try:
-                messages.append(self.output_queue.get_nowait())
-            except Empty:
-                break
-        return messages
-
-    def is_worker_alive(self) -> bool:
-        return self.process is not None and self.process.is_alive()
 
 
 class MultiDocSummaryWorker(CleanupWorker):

@@ -59,7 +59,6 @@ import threading
 from functools import lru_cache
 
 from src.config import (
-    GOOGLE_WORD_FREQUENCY_FILE,
     NON_NER_PHRASE_COMMON_WORD_FLOOR,
     NON_NER_PHRASE_MAX_PASSTHROUGH_THRESHOLD,
     NON_NER_PHRASE_MEAN_PASSTHROUGH_THRESHOLD,
@@ -113,26 +112,11 @@ def _load_scaled_frequencies() -> dict[str, float]:
         if _scaled_frequencies is not None:
             return _scaled_frequencies
 
-        if not GOOGLE_WORD_FREQUENCY_FILE.exists():
-            logger.debug("Frequency file not found: %s", GOOGLE_WORD_FREQUENCY_FILE)
-            _scaled_frequencies = {}
-            return _scaled_frequencies
+        from src.core.vocabulary.frequency_data import load_raw_frequency_data
 
-        # Load raw frequencies
-        raw_frequencies: dict[str, int] = {}
+        raw_frequencies = load_raw_frequency_data()
 
         try:
-            with open(GOOGLE_WORD_FREQUENCY_FILE, encoding="utf-8") as f:
-                for line in f:
-                    parts = line.strip().split("\t")
-                    if len(parts) == 2:
-                        word, count_str = parts
-                        try:
-                            count = int(count_str)
-                            raw_frequencies[word.lower()] = count
-                        except ValueError:
-                            continue
-
             if not raw_frequencies:
                 logger.debug("No valid entries found in frequency file")
                 _scaled_frequencies = {}
@@ -161,20 +145,6 @@ def _load_scaled_frequencies() -> dict[str, float]:
             _scaled_frequencies = {}
 
         return _scaled_frequencies
-
-
-def get_word_commonality(word: str) -> float:
-    """
-    Get the commonality score for a single word.
-
-    Args:
-        word: The word to look up
-
-    Returns:
-        Commonality score from 0.0 (rare/unknown) to 1.0 (extremely common)
-    """
-    scaled = _load_scaled_frequencies()
-    return scaled.get(word.lower().strip(), 0.0)
 
 
 def is_common_word(word: str, top_n: int = 200000) -> bool:

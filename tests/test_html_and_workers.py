@@ -4,8 +4,7 @@ Tests for HTML export builders and background worker classes.
 Covers:
 - html_builder.py: _escape, build_vocabulary_html, export_vocabulary_html,
   export_qa_html (with verification coloring)
-- workers.py: ProcessingWorker, QAWorker,
-  OllamaAIWorkerManager structure and initialization
+- workers.py: ProcessingWorker, MultiDocSummaryWorker structure and initialization
 """
 
 from queue import Queue
@@ -333,50 +332,6 @@ class TestProcessingWorker:
         worker.execute()
         msg = q.get(timeout=2)
         assert msg[0] == "processing_finished"
-
-
-# ============================================================================
-# ============================================================================
-# OllamaAIWorkerManager
-# ============================================================================
-
-
-class TestOllamaAIWorkerManager:
-    """Tests for OllamaAIWorkerManager."""
-
-    def test_init_state(self):
-        from src.services.workers import OllamaAIWorkerManager
-
-        mgr = OllamaAIWorkerManager(Queue())
-        assert mgr.is_running is False
-        assert mgr.process is None
-
-    def test_clear_queue_empties(self):
-        from src.services.workers import OllamaAIWorkerManager
-
-        q = Queue()
-        q.put("a")
-        q.put("b")
-        OllamaAIWorkerManager._clear_queue(q)
-        assert q.empty()
-
-    def test_is_worker_alive_when_not_started(self):
-        from src.services.workers import OllamaAIWorkerManager
-
-        mgr = OllamaAIWorkerManager(Queue())
-        assert mgr.is_worker_alive() is False
-
-    def test_check_for_messages_empty(self):
-        from src.services.workers import OllamaAIWorkerManager
-
-        mgr = OllamaAIWorkerManager(Queue())
-        assert mgr.check_for_messages() == []
-
-    def test_stop_when_not_running(self):
-        from src.services.workers import OllamaAIWorkerManager
-
-        mgr = OllamaAIWorkerManager(Queue())
-        mgr.stop_worker()  # Should not raise
 
 
 # ============================================================================

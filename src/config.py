@@ -400,52 +400,6 @@ def load_model_configs():
         MODEL_CONFIGS = {}
 
 
-def get_model_config(model_name: str) -> dict:
-    """
-    Returns the configuration for a specific model, with fallbacks.
-
-    Args:
-        model_name: The name of the model (e.g., 'gemma3:1b').
-
-    Returns:
-        A dictionary containing the model's configuration.
-    """
-    if not MODEL_CONFIGS:
-        load_model_configs()
-
-    # 1. Try to find the exact model name
-    if model_name in MODEL_CONFIGS:
-        return MODEL_CONFIGS[model_name]
-
-    # 2. Fallback for base names (e.g., user has 'gemma3:1b-instruct', config has 'gemma3:1b')
-    base_name = model_name.split(":")[0]
-    for name, config in MODEL_CONFIGS.items():
-        if name.startswith(base_name):
-            logger.debug(
-                "Found partial match for '%s': using config for '%s'.",
-                model_name,
-                name,
-            )
-            return config
-
-    # 3. Fallback to the default model name if no match found
-    if OLLAMA_MODEL_NAME in MODEL_CONFIGS:
-        logger.warning(
-            "Model '%s' not found. Falling back to default model '%s'.",
-            model_name,
-            OLLAMA_MODEL_NAME,
-        )
-        return MODEL_CONFIGS[OLLAMA_MODEL_NAME]
-
-    # 4. Absolute fallback if config is empty or default is missing
-    logger.warning("No model configurations found. Using hard-coded fallback values.")
-    return {
-        "context_window": 4096,
-        "max_input_tokens": 2048,
-    }
-
-
-# Note: Model configs loaded lazily by get_model_config() to avoid circular import
 # --- End New Model Configuration System ---
 
 

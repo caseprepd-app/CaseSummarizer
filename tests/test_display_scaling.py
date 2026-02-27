@@ -10,7 +10,6 @@ Covers all code changes from the Universal Display Scaling implementation:
 - src/main.py: apply_scaling() call placement
 - src/ui/main_window.py: geometry scaling, old scale_fonts removed, styles with scale factor
 - src/ui/base_dialog.py: auto-scales dimensions
-- src/ui/dialogs.py: scaled geometry strings
 - src/ui/qa_question_editor.py: scaled geometry
 - src/ui/window_layout.py: scale_value imports in all layout methods
 - src/ui/settings/settings_registry.py: new settings, old removed, dialog scaled
@@ -865,37 +864,6 @@ class TestBaseDialogScaling:
         source = _read_source("src/ui/base_dialog.py")
         assert "scale_value(min_width)" in source
         assert "scale_value(min_height)" in source
-
-
-# ============================================================================
-# 12. src/ui/dialogs.py — scaled geometry
-# ============================================================================
-
-
-class TestDialogsScaling:
-    """Verify dialogs.py uses scale_value for geometry."""
-
-    def test_model_load_dialog_scaled(self):
-        """ModelLoadProgressDialog geometry uses scale_value."""
-        source = _read_source("src/ui/dialogs.py")
-        assert 'geometry("400x200")' not in source
-        assert "scale_value(400)" in source
-        assert "scale_value(200)" in source
-
-    def test_simple_progress_dialog_scaled(self):
-        """SimpleProgressDialog geometry uses scale_value."""
-        source = _read_source("src/ui/dialogs.py")
-        assert 'geometry("400x150")' not in source
-        assert "scale_value(150)" in source
-
-    def test_no_hardcoded_geometry_strings(self):
-        """No hardcoded WxH geometry strings remain."""
-        source = _read_source("src/ui/dialogs.py")
-        import re
-
-        # Match patterns like geometry("400x200") but not geometry(f"...")
-        hardcoded = re.findall(r'geometry\("\d+x\d+"\)', source)
-        assert hardcoded == [], f"Hardcoded geometry found: {hardcoded}"
 
 
 # ============================================================================

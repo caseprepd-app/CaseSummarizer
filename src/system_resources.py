@@ -135,18 +135,3 @@ def get_optimal_workers(
     )
 
     return final_workers
-
-
-def get_resource_summary() -> str:
-    """
-    Get a human-readable summary of system resources.
-
-    Returns:
-        String like "8 cores, 12.3 GB RAM available (75% usage)"
-    """
-    resources = get_system_resources()
-    return (
-        f"{resources.cpu_count} cores, "
-        f"{resources.available_ram_gb:.1f} GB RAM available "
-        f"({resources.resource_usage_pct}% usage setting)"
-    )

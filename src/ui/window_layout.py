@@ -147,8 +147,8 @@ class WindowLayoutMixin:
         self.main_frame.pack(fill="both", expand=True, padx=10, pady=10)
 
         # Configure grid for two panels
-        self.main_frame.grid_columnconfigure(0, weight=2)  # Left panel
-        self.main_frame.grid_columnconfigure(1, weight=3)  # Right panel (larger)
+        self.main_frame.grid_columnconfigure(0, weight=1, uniform="panel")  # Left panel (1/3)
+        self.main_frame.grid_columnconfigure(1, weight=2, uniform="panel")  # Right panel (2/3)
         self.main_frame.grid_rowconfigure(0, weight=1)
 
         # Left panel: Session Documents + Tasks

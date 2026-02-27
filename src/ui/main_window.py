@@ -14,13 +14,6 @@ Architecture:
 
     Layout code is in: src/ui/window_layout.py
     Business logic is in: This file (main_window.py)
-
-    Helper modules (standalone utilities, not inherited as mixins):
-    - src/ui/main_window_helpers/ollama_mixin.py - Ollama status helpers
-    - src/ui/main_window_helpers/file_mixin.py - File management helpers
-    - src/ui/main_window_helpers/task_mixin.py - Task execution helpers
-    - src/ui/main_window_helpers/export_mixin.py - Export helpers
-    - src/ui/main_window_helpers/timer_mixin.py - Timer helpers
 """
 
 import logging
@@ -48,6 +41,9 @@ except ImportError:
 
 # Pre-compile regex at module level (after all imports)
 _MODEL_PARAM_PATTERN = re.compile(r":(\d+\.?\d*)b")
+
+# Placeholder text shown in Q&A panel while a follow-up answer is pending
+PENDING_ANSWER_TEXT = "Answer pending..."
 
 
 class MainWindow(WindowLayoutMixin, ctk.CTk):
@@ -1902,7 +1898,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         QAResult = QAService().get_qa_result_class()
         pending_result = QAResult(
             question=question,
-            quick_answer="Answer pending...",
+            quick_answer=PENDING_ANSWER_TEXT,
             citation="",
             is_followup=True,
             include_in_export=False,
@@ -1985,7 +1981,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
                 with self._qa_results_lock:
                     pending_idx = getattr(self, "_pending_followup_index", None)
                     if pending_idx is not None and pending_idx < len(self._qa_results):
-                        if self._qa_results[pending_idx].quick_answer == "Answer pending...":
+                        if self._qa_results[pending_idx].quick_answer == PENDING_ANSWER_TEXT:
                             self._qa_results[pending_idx] = followup_result
                         else:
                             self._qa_results.append(followup_result)
@@ -2003,7 +1999,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
                 with self._qa_results_lock:
                     pending_idx = getattr(self, "_pending_followup_index", None)
                     if pending_idx is not None and pending_idx < len(self._qa_results):
-                        if self._qa_results[pending_idx].quick_answer == "Answer pending...":
+                        if self._qa_results[pending_idx].quick_answer == PENDING_ANSWER_TEXT:
                             self._qa_results.pop(pending_idx)
                     self._pending_followup_index = None
                     self.output_display.update_outputs(qa_results=list(self._qa_results))

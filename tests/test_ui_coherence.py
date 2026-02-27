@@ -130,21 +130,17 @@ class TestErrorMessageCoherence:
 
     def test_questions_not_ready_references_perform_tasks(self):
         """'Questions Not Ready' dialog references 'Perform Tasks' button."""
-        text = _read("src/ui/main_window_helpers/task_mixin.py")
+        text = _read("src/ui/main_window.py")
         assert "Click 'Perform Tasks'" in text
 
     def test_questions_not_ready_no_phantom_status(self):
         """No reference to phantom 'Questions and answers ready' status."""
-        for path in [
-            "src/ui/main_window.py",
-            "src/ui/main_window_helpers/task_mixin.py",
-        ]:
-            text = _read(path)
-            assert "Questions and answers ready" not in text
+        text = _read("src/ui/main_window.py")
+        assert "Questions and answers ready" not in text
 
     def test_questions_not_ready_uses_search_index(self):
         """Uses 'search index' phrasing instead of phantom status message."""
-        text = _read("src/ui/main_window_helpers/task_mixin.py")
+        text = _read("src/ui/main_window.py")
         assert "search index" in text
 
     def test_corpus_disabled_path_correct(self):
