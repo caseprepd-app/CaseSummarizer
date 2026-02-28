@@ -7,7 +7,7 @@ entity recognition covering CHEMICAL and DISEASE entity types.
 
 This complements the general-purpose NER pipeline:
 - NER finds people, organizations, locations
-- TextRank finds important keyphrases via graph centrality
+- TopicRank finds important keyphrases via topic-clustered graph centrality
 - MedicalNER finds drug names, chemical compounds, and disease terms
 
 Reference:
@@ -28,7 +28,7 @@ from src.core.vocabulary.algorithms.base import (
 
 logger = logging.getLogger(__name__)
 
-# Max input size: 1 MB (same cap as TextRank)
+# Max input size: 1 MB (same cap as TopicRank)
 _MAX_TEXT_BYTES = 1_024 * 1_024
 
 

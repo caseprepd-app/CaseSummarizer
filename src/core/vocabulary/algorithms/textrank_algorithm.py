@@ -1,21 +1,55 @@
 """
-TextRank Keyword Extraction Algorithm
+TopicRank Keyword Extraction Algorithm
 
-Uses pytextrank (a spaCy pipeline component) to extract keyphrases via
-graph-based ranking. TextRank builds a word co-occurrence graph and uses
-PageRank to identify the most important phrases.
+Uses pytextrank's TopicRank (a spaCy pipeline component) to extract
+keyphrases via graph-based ranking. TopicRank clusters candidate noun
+phrases into topics, builds a topic-level graph, and runs PageRank on it.
+It then selects one representative keyphrase per top-ranked topic.
 
-TextRank complements NER and RAKE:
-- NER finds named entities (people, organizations, locations)
-- RAKE uses co-occurrence statistics within stopword-delimited phrases
-- TextRank uses graph centrality across the full document
+Why TopicRank instead of TextRank:
+    This pipeline originally used plain TextRank (Mihalcea & Tarau, 2004),
+    which builds a word co-occurrence graph and runs PageRank on individual
+    words. We switched to TopicRank for three reasons specific to legal
+    document processing:
+
+    1. Redundancy elimination. TextRank returns overlapping phrases like
+       "Dr. Johnson", "Johnson", "the defendant Johnson" as separate entries.
+       TopicRank clusters candidates into topics (via hierarchical agglomerative
+       clustering with 25% lemma overlap) and selects one representative per
+       topic, structurally preventing near-duplicate output.
+
+    2. Long-document scaling. TextRank runs PageRank on a word graph with
+       thousands of nodes. On JCDL 2020 benchmarks, TextRank F@10 collapses
+       from 35.8 (short abstracts) to 1.8-2.7 on longer documents (PubMed,
+       NYTime). TopicRank runs PageRank on a topic graph with dozens of
+       nodes, scaling much better to our 50-200 page transcripts.
+
+    3. No position bias. Unlike PositionRank (another candidate), TopicRank
+       does not privilege terms appearing early in the document. In
+       depositions, critical testimony can appear on any page.
+
+    Both algorithms are implemented in pytextrank, so the switch required
+    only changing the spaCy pipe name from "textrank" to "topicrank". The
+    doc._.phrases API (text, rank, count) is identical.
+
+References:
+    Bougouin, Boudin & Daille (2013), "TopicRank: Graph-Based Topic
+    Ranking for Keyphrase Extraction"
+    https://aclanthology.org/I13-1062.pdf
+
+    Mihalcea & Tarau (2004), "TextRank: Bringing Order into Text"
+    https://aclanthology.org/W04-3252/
+
+    Boudin (2018), "Unsupervised Keyphrase Extraction with Multipartite
+    Graphs" (comparison of graph-based methods)
+    https://arxiv.org/abs/1803.08721
+
+    JCDL 2020 large-scale keyphrase extraction evaluation
+    https://github.com/ygorg/JCDL_2020_KPE_Eval
 
 This algorithm can share the NER pipeline's en_core_web_lg instance since
-textrank is a read-only analysis pipe. Falls back to loading its own
+topicrank is a read-only analysis pipe. Falls back to loading its own
 instance if no shared model is provided.
-
-Reference:
-Mihalcea & Tarau (2004), "TextRank: Bringing Order into Text"
 """
 
 import logging
@@ -33,30 +67,30 @@ from src.core.vocabulary.algorithms.base import (
 logger = logging.getLogger(__name__)
 
 
-@register_algorithm("TextRank")
+@register_algorithm("TopicRank")
 class TextRankAlgorithm(BaseExtractionAlgorithm):
     """
-    TextRank-based keyword extraction using pytextrank + spaCy.
+    TopicRank-based keyword extraction using pytextrank + spaCy.
 
-    Extracts keyphrases by building a word graph and applying PageRank.
-    Effective for finding domain-specific multi-word phrases and
-    important single terms that are central to the document's content.
+    Clusters candidate phrases into topics, builds a topic graph, and
+    applies PageRank to find the most important topics. Selects one
+    representative keyphrase per topic, eliminating redundancy.
 
     Can share the NER pipeline's spaCy model to save memory,
     or loads its own instance if none is provided.
     """
 
-    name = "TextRank"
-    weight = VOCAB_ALGORITHM_WEIGHTS.get("TextRank", 0.6)
+    name = "TopicRank"
+    weight = VOCAB_ALGORITHM_WEIGHTS.get("TopicRank", 0.6)
 
     def __init__(self, max_candidates: int = 150, nlp=None):
         """
-        Initialize TextRank algorithm.
+        Initialize TopicRank algorithm.
 
         Args:
             max_candidates: Maximum number of phrases to return
             nlp: Optional shared spaCy model (e.g. from NER). If provided,
-                 the textrank pipe is added to it. If None, loads its own.
+                 the topicrank pipe is added to it. If None, loads its own.
         """
         self.max_candidates = max_candidates
         self._nlp = None
@@ -65,17 +99,17 @@ class TextRankAlgorithm(BaseExtractionAlgorithm):
             import pytextrank  # noqa: F401 — registers the pipeline component
 
             self._nlp = nlp
-            if "textrank" not in self._nlp.pipe_names:
-                self._nlp.add_pipe("textrank")
-                logger.debug("Added textrank pipe to shared spaCy model")
+            if "topicrank" not in self._nlp.pipe_names:
+                self._nlp.add_pipe("topicrank")
+                logger.debug("Added topicrank pipe to shared spaCy model")
             else:
-                logger.debug("Shared spaCy model already has textrank pipe")
+                logger.debug("Shared spaCy model already has topicrank pipe")
 
     def _load_nlp(self):
         """
-        Load spaCy model with pytextrank pipeline component.
+        Load spaCy model with pytextrank TopicRank pipeline component.
 
-        Fallback: loads en_core_web_lg with textrank when no shared
+        Fallback: loads en_core_web_lg with topicrank when no shared
         model was provided at init time.
         """
         import pytextrank  # noqa: F401 — registers the pipeline component
@@ -88,12 +122,12 @@ class TextRankAlgorithm(BaseExtractionAlgorithm):
             logger.debug("Loaded bundled spaCy model: %s", SPACY_EN_CORE_WEB_LG_PATH)
         else:
             self._nlp = spacy.load("en_core_web_lg")
-        self._nlp.add_pipe("textrank")
-        logger.debug("Loaded en_core_web_lg with pytextrank pipeline")
+        self._nlp.add_pipe("topicrank")
+        logger.debug("Loaded en_core_web_lg with pytextrank TopicRank pipeline")
 
     def extract(self, text: str, **kwargs) -> AlgorithmResult:
         """
-        Extract keyphrases from text using TextRank.
+        Extract keyphrases from text using TopicRank.
 
         Args:
             text: Document text to analyze
@@ -109,17 +143,17 @@ class TextRankAlgorithm(BaseExtractionAlgorithm):
             try:
                 self._load_nlp()
             except Exception as e:
-                logger.warning("TextRank unavailable: %s", e)
+                logger.warning("TopicRank unavailable: %s", e)
                 return AlgorithmResult(
                     candidates=[],
                     processing_time_ms=0.0,
                     metadata={"skipped": True, "reason": str(e)},
                 )
 
-        # Truncate very long texts (TextRank is O(n^2) on vocabulary)
-        from src.config import TEXTRANK_MAX_TEXT_KB
+        # Truncate very long texts for performance
+        from src.config import TOPICRANK_MAX_TEXT_KB
 
-        max_chars = TEXTRANK_MAX_TEXT_KB * 1024
+        max_chars = TOPICRANK_MAX_TEXT_KB * 1024
         truncated = len(text) > max_chars
         process_text = text[:max_chars] if truncated else text
 
@@ -155,10 +189,10 @@ class TextRankAlgorithm(BaseExtractionAlgorithm):
                 continue
             seen_phrases.add(lower_text)
 
-            # pytextrank rank score is already 0-1 normalized
+            # pytextrank TopicRank score is already 0-1 normalized
             confidence = min(phrase.rank, 1.0)
 
-            # Count occurrences from pytextrank's chunk count
+            # Count occurrences from pytextrank TopicRank's chunk count
             frequency = phrase.count
 
             candidates.append(
@@ -169,7 +203,7 @@ class TextRankAlgorithm(BaseExtractionAlgorithm):
                     suggested_type="Technical",
                     frequency=max(frequency, 1),
                     metadata={
-                        "textrank_score": round(phrase.rank, 4),
+                        "topicrank_score": round(phrase.rank, 4),
                         "chunk_count": phrase.count,
                         "word_count": len(phrase_text.split()),
                     },

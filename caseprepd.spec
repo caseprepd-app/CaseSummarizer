@@ -57,6 +57,8 @@ hidden_imports = [
     "src.core.vocabulary.algorithms.bm25_algorithm",
     "src.core.vocabulary.algorithms.gliner_algorithm",
     "src.core.vocabulary.algorithms.scispacy_algorithm",
+    "src.core.vocabulary.algorithms.yake_algorithm",
+    "src.core.vocabulary.algorithms.keybert_algorithm",
     # Drag-and-drop support
     "tkinterdnd2",
     # Tiktoken encoding registry

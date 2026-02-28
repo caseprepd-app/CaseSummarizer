@@ -1,10 +1,10 @@
 """
-Tests for TextRank keyword extraction algorithm.
+Tests for TopicRank keyword extraction algorithm.
 
 Tests cover:
 - Shared spaCy model (nlp parameter)
 - Fallback when no nlp provided
-- Textrank pipe added only once
+- TopicRank pipe added only once
 - extract() returns correct CandidateTerms with original casing
 """
 
@@ -12,10 +12,10 @@ from unittest.mock import MagicMock, patch
 
 
 class TestSharedNlp:
-    """Test that TextRank can share an NLP instance."""
+    """Test that TopicRank can share an NLP instance."""
 
-    def test_shared_nlp_adds_textrank_pipe(self):
-        """TextRank adds textrank pipe to shared model if not present."""
+    def test_shared_nlp_adds_topicrank_pipe(self):
+        """TopicRank adds topicrank pipe to shared model if not present."""
         mock_nlp = MagicMock()
         mock_nlp.pipe_names = ["ner", "parser"]
 
@@ -24,12 +24,12 @@ class TestSharedNlp:
         alg = TextRankAlgorithm(nlp=mock_nlp)
 
         assert alg._nlp is mock_nlp
-        mock_nlp.add_pipe.assert_called_once_with("textrank")
+        mock_nlp.add_pipe.assert_called_once_with("topicrank")
 
     def test_shared_nlp_skips_if_already_present(self):
-        """TextRank does not add textrank pipe if already present."""
+        """TopicRank does not add topicrank pipe if already present."""
         mock_nlp = MagicMock()
-        mock_nlp.pipe_names = ["ner", "parser", "textrank"]
+        mock_nlp.pipe_names = ["ner", "parser", "topicrank"]
 
         from src.core.vocabulary.algorithms.textrank_algorithm import TextRankAlgorithm
 
@@ -48,7 +48,7 @@ class TestSharedNlp:
 
 
 class TestTextRankExtract:
-    """Tests for TextRank extract() method with mocked spaCy model."""
+    """Tests for TopicRank extract() method with mocked spaCy model."""
 
     def _make_mock_phrase(self, text, rank=0.5, count=2):
         """Create a mock pytextrank phrase object.
@@ -132,7 +132,7 @@ class TestTextRankExtract:
         )
         result = algo.extract("Spinal fusion was performed.")
         c = result.candidates[0]
-        assert c.source_algorithm == "TextRank"
+        assert c.source_algorithm == "TopicRank"
         assert c.suggested_type == "Technical"
         assert 0 <= c.confidence <= 1.0
         assert c.frequency >= 1

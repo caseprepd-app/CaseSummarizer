@@ -51,3 +51,7 @@ fastcoref
 nupunkt
 # Zero-shot NER for rare vocabulary extraction (~450MB model)
 gliner
+# Pure statistical keyword extraction (no model, zero dependencies)
+yake
+# Embedding-based keyword extraction using cosine similarity
+keybert

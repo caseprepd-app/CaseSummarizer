@@ -156,18 +156,44 @@ def create_default_algorithms(**config) -> list[BaseExtractionAlgorithm]:
         rake.weight = config.get("rake_weight", 0.7)
         algorithms.append(rake)
 
-    # TextRank Algorithm (graph-based keyphrase extraction)
-    if config.get("textrank_enabled", True):
+    # TopicRank Algorithm (topic-clustered graph-based keyphrase extraction)
+    if config.get("topicrank_enabled", True):
         try:
             from src.core.vocabulary.algorithms.textrank_algorithm import TextRankAlgorithm
 
-            textrank = TextRankAlgorithm()
-            textrank.weight = config.get("textrank_weight", 0.6)
-            algorithms.append(textrank)
+            topicrank = TextRankAlgorithm()
+            topicrank.weight = config.get("topicrank_weight", 0.6)
+            algorithms.append(topicrank)
         except ImportError:
             import logging
 
-            logging.getLogger(__name__).debug("TextRank unavailable (pytextrank not installed)")
+            logging.getLogger(__name__).debug("TopicRank unavailable (pytextrank not installed)")
+
+    # YAKE Algorithm (pure statistical keyword extraction)
+    if config.get("yake_enabled", True):
+        try:
+            from src.core.vocabulary.algorithms.yake_algorithm import YAKEAlgorithm
+
+            yake_algo = YAKEAlgorithm()
+            yake_algo.weight = config.get("yake_weight", 0.55)
+            algorithms.append(yake_algo)
+        except ImportError:
+            import logging
+
+            logging.getLogger(__name__).debug("YAKE unavailable (yake not installed)")
+
+    # KeyBERT Algorithm (embedding-based keyword extraction)
+    if config.get("keybert_enabled", True):
+        try:
+            from src.core.vocabulary.algorithms.keybert_algorithm import KeyBERTAlgorithm
+
+            keybert_algo = KeyBERTAlgorithm()
+            keybert_algo.weight = config.get("keybert_weight", 0.65)
+            algorithms.append(keybert_algo)
+        except ImportError:
+            import logging
+
+            logging.getLogger(__name__).debug("KeyBERT unavailable (keybert not installed)")
 
     return algorithms
 
