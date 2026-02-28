@@ -67,7 +67,7 @@ def test_feature_vector_length(mock_deps):
     term_data = {"Term": "John Smith", "occurrences": 5, "algorithms": "NER", "is_person": 1}
     features = extract_features(term_data)
     assert len(features) == len(FEATURE_NAMES)
-    assert len(features) == 52
+    assert len(features) == 63
 
 
 def test_person_feature(mock_deps):
@@ -85,7 +85,7 @@ def test_algorithm_features(mock_deps):
     assert features[FEATURE_NAMES.index("has_ner")] == 1.0
     assert features[FEATURE_NAMES.index("has_rake")] == 1.0
     assert features[FEATURE_NAMES.index("has_bm25")] == 1.0
-    assert features[FEATURE_NAMES.index("has_textrank")] == 0.0
+    assert features[FEATURE_NAMES.index("has_topicrank")] == 0.0
 
 
 def test_missing_term_raises(mock_deps):
@@ -128,3 +128,104 @@ def test_ends_with_stop_word(mock_deps):
     features = extract_features(term_data)
     assert features[FEATURE_NAMES.index("starts_with_stop_word")] == 0.0
     assert features[FEATURE_NAMES.index("ends_with_stop_word")] == 1.0
+
+
+def test_yake_feature(mock_deps):
+    extract_features, FEATURE_NAMES = mock_deps
+    term_data = {"Term": "legal term", "occurrences": 1, "algorithms": "YAKE", "yake_score": 0.8}
+    features = extract_features(term_data)
+    assert features[FEATURE_NAMES.index("has_yake")] == 1.0
+    assert features[FEATURE_NAMES.index("yake_score")] == 0.8
+
+
+def test_keybert_feature(mock_deps):
+    extract_features, FEATURE_NAMES = mock_deps
+    term_data = {
+        "Term": "legal term",
+        "occurrences": 1,
+        "algorithms": "KeyBERT",
+        "keybert_score": 0.75,
+    }
+    features = extract_features(term_data)
+    assert features[FEATURE_NAMES.index("has_keybert")] == 1.0
+    assert features[FEATURE_NAMES.index("keybert_score")] == 0.75
+
+
+def test_yake_keybert_absent(mock_deps):
+    extract_features, FEATURE_NAMES = mock_deps
+    term_data = {"Term": "legal term", "occurrences": 1, "algorithms": "NER"}
+    features = extract_features(term_data)
+    assert features[FEATURE_NAMES.index("has_yake")] == 0.0
+    assert features[FEATURE_NAMES.index("has_keybert")] == 0.0
+    assert features[FEATURE_NAMES.index("yake_score")] == 0.0
+    assert features[FEATURE_NAMES.index("keybert_score")] == 0.0
+
+
+def test_rake_score_feature(mock_deps):
+    extract_features, FEATURE_NAMES = mock_deps
+    term_data = {"Term": "legal term", "occurrences": 1, "algorithms": "RAKE", "rake_score": 7.5}
+    features = extract_features(term_data)
+    assert features[FEATURE_NAMES.index("rake_score")] == pytest.approx(0.5, abs=0.01)
+
+
+def test_bm25_score_feature(mock_deps):
+    extract_features, FEATURE_NAMES = mock_deps
+    term_data = {"Term": "legal term", "occurrences": 1, "algorithms": "BM25", "bm25_score": 15.0}
+    features = extract_features(term_data)
+    assert features[FEATURE_NAMES.index("bm25_score")] == pytest.approx(1.0, abs=0.01)
+
+
+def test_rake_bm25_absent(mock_deps):
+    extract_features, FEATURE_NAMES = mock_deps
+    term_data = {"Term": "legal term", "occurrences": 1, "algorithms": "NER"}
+    features = extract_features(term_data)
+    assert features[FEATURE_NAMES.index("rake_score")] == 0.0
+    assert features[FEATURE_NAMES.index("bm25_score")] == 0.0
+
+
+def test_algo_count_single(mock_deps):
+    extract_features, FEATURE_NAMES = mock_deps
+    term_data = {"Term": "test term", "occurrences": 1, "algorithms": "NER"}
+    features = extract_features(term_data)
+    assert features[FEATURE_NAMES.index("algo_count_1")] == 1.0
+    assert features[FEATURE_NAMES.index("algo_count_2")] == 0.0
+    assert features[FEATURE_NAMES.index("algo_count_3")] == 0.0
+    assert features[FEATURE_NAMES.index("algo_count_4_plus")] == 0.0
+
+
+def test_algo_count_three(mock_deps):
+    extract_features, FEATURE_NAMES = mock_deps
+    term_data = {"Term": "test term", "occurrences": 1, "algorithms": "NER, RAKE, BM25"}
+    features = extract_features(term_data)
+    assert features[FEATURE_NAMES.index("algo_count_1")] == 0.0
+    assert features[FEATURE_NAMES.index("algo_count_2")] == 0.0
+    assert features[FEATURE_NAMES.index("algo_count_3")] == 1.0
+    assert features[FEATURE_NAMES.index("algo_count_4_plus")] == 0.0
+
+
+def test_algo_count_four_plus(mock_deps):
+    extract_features, FEATURE_NAMES = mock_deps
+    term_data = {
+        "Term": "test term",
+        "occurrences": 1,
+        "algorithms": "NER, RAKE, BM25, TopicRank, YAKE",
+    }
+    features = extract_features(term_data)
+    assert features[FEATURE_NAMES.index("algo_count_1")] == 0.0
+    assert features[FEATURE_NAMES.index("algo_count_4_plus")] == 1.0
+
+
+def test_count_bin_7_12(mock_deps):
+    extract_features, FEATURE_NAMES = mock_deps
+    term_data = {"Term": "test", "occurrences": 10, "algorithms": "NER"}
+    features = extract_features(term_data)
+    assert features[FEATURE_NAMES.index("count_bin_7_12")] == 1.0
+    assert features[FEATURE_NAMES.index("count_bin_13_20")] == 0.0
+
+
+def test_count_bin_13_20(mock_deps):
+    extract_features, FEATURE_NAMES = mock_deps
+    term_data = {"Term": "test", "occurrences": 15, "algorithms": "NER"}
+    features = extract_features(term_data)
+    assert features[FEATURE_NAMES.index("count_bin_7_12")] == 0.0
+    assert features[FEATURE_NAMES.index("count_bin_13_20")] == 1.0

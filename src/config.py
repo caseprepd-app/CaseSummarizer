@@ -97,13 +97,13 @@ ML_DECAY_WEIGHT_FLOOR = _d("ml_decay_weight_floor")  # Old feedback retains 55% 
 # Thresholds: (min_samples, ml_weight) - finds first threshold where count < min
 #
 # Conservative ramp: pure rules until 30 samples, then gradual handover.
-# ML caps at 80% - rules always have 20% say as a safety net.
+# ML caps at 55% - rules always have 45% say as guardrails.
 ML_WEIGHT_THRESHOLDS = [
     (30, 0.0),  # 0-29 samples: pure rules (no ML)
-    (41, 0.40),  # 30-40 samples: 40% ML
-    (61, 0.50),  # 41-60 samples: 50% ML
-    (101, 0.60),  # 61-100 samples: 60% ML
-    (float("inf"), 0.80),  # 100+ samples: 80% ML (cap)
+    (41, 0.25),  # 30-40 samples: 25% ML
+    (61, 0.35),  # 41-60 samples: 35% ML
+    (101, 0.45),  # 61-100 samples: 45% ML
+    (float("inf"), 0.55),  # 100+ samples: 55% ML (cap) → rules floor = 45%
 ]
 
 # Source-Based Training Weights
@@ -138,7 +138,8 @@ COUNT_BIN_NAMES = (
     "bin_2",  # Two occurrences
     "bin_3",  # Three occurrences
     "bin_4_6",  # 4-6 occurrences - moderate confidence
-    "bin_7_20",  # 7-20 occurrences - mentioned multiple times
+    "bin_7_12",  # 7-12 occurrences - mentioned several times
+    "bin_13_20",  # 13-20 occurrences - mentioned frequently
     "bin_21_50",  # 21-50 occurrences - appears throughout document
     "bin_51_plus",  # 51+ occurrences - major figure in transcript
 )
@@ -164,14 +165,16 @@ def get_count_bin(count: int) -> str:
         return "bin_3"
     if 4 <= count <= 6:
         return "bin_4_6"
-    if 7 <= count <= 20:
-        return "bin_7_20"
+    if 7 <= count <= 12:
+        return "bin_7_12"
+    if 13 <= count <= 20:
+        return "bin_13_20"
     if 21 <= count <= 50:
         return "bin_21_50"
     return "bin_51_plus"
 
 
-def get_count_bin_features(count: int) -> tuple[float, float, float, float, float, float, float]:
+def get_count_bin_features(count: int) -> tuple[float, ...]:
     """
     Get one-hot encoded count bin features for ML model.
 
@@ -179,18 +182,34 @@ def get_count_bin_features(count: int) -> tuple[float, float, float, float, floa
         count: Term occurrence count (occurrences)
 
     Returns:
-        Tuple of 7 floats: (bin_1, bin_2, bin_3, bin_4_6, bin_7_20, bin_21_50, bin_51_plus)
+        Tuple of 8 floats: one-hot encoded count bins.
         One value will be 1.0, rest will be 0.0
     """
     bin_name = get_count_bin(count)
+    return tuple(1.0 if bin_name == name else 0.0 for name in COUNT_BIN_NAMES)
+
+
+# Algorithm Count Bin Configuration
+# One-hot encoded algorithm agreement bins for ML features.
+# Tracks how many algorithms found a term — stronger signal with more agreement.
+ALGO_COUNT_BIN_NAMES = ("algo_1", "algo_2", "algo_3", "algo_4_plus")
+
+
+def get_algo_count_bin_features(algo_count: int) -> tuple[float, float, float, float]:
+    """
+    One-hot encode algorithm count: 1 | 2 | 3 | 4+.
+
+    Args:
+        algo_count: Number of algorithms that found this term.
+
+    Returns:
+        Tuple of 4 floats: (algo_1, algo_2, algo_3, algo_4_plus)
+    """
     return (
-        1.0 if bin_name == "bin_1" else 0.0,
-        1.0 if bin_name == "bin_2" else 0.0,
-        1.0 if bin_name == "bin_3" else 0.0,
-        1.0 if bin_name == "bin_4_6" else 0.0,
-        1.0 if bin_name == "bin_7_20" else 0.0,
-        1.0 if bin_name == "bin_21_50" else 0.0,
-        1.0 if bin_name == "bin_51_plus" else 0.0,
+        1.0 if algo_count == 1 else 0.0,
+        1.0 if algo_count == 2 else 0.0,
+        1.0 if algo_count == 3 else 0.0,
+        1.0 if algo_count >= 4 else 0.0,
     )
 
 
@@ -201,7 +220,8 @@ SCORE_MULTI_DOC_BOOST = _d("score_multi_doc_boost")
 SCORE_HIGH_CONF_BOOST = _d("score_high_conf_boost")
 SCORE_ALL_LOW_CONF_PENALTY = _d("score_all_low_conf_penalty")
 SCORE_SINGLE_SOURCE_PENALTY = _d("score_single_source_penalty")
-SCORE_TEXTRANK_CENTRALITY_BOOST = _d("score_textrank_centrality_boost")
+SCORE_TOPICRANK_CENTRALITY_BOOST = _d("score_topicrank_centrality_boost")
+SCORE_ALGO_CONFIDENCE_BOOST = _d("score_algo_confidence_boost")
 SCORE_SINGLE_SOURCE_MIN_DOCS = 3  # Only apply single-source penalty when session has 3+ docs
 SCORE_SINGLE_SOURCE_CONF_THRESHOLD = 0.70  # Confidence threshold for single-source penalty
 
@@ -232,9 +252,11 @@ VOCAB_ALGORITHM_WEIGHTS = {
     "NER": _d("vocab_weight_ner"),
     "RAKE": _d("vocab_weight_rake"),
     "BM25": _d("vocab_weight_bm25"),
-    "TextRank": 0.6,
+    "TopicRank": 0.6,
     "MedicalNER": _d("vocab_weight_medical_ner"),
     "GLiNER": 0.75,
+    "YAKE": _d("vocab_weight_yake"),
+    "KeyBERT": _d("vocab_weight_keybert"),
 }
 
 # GLiNER Zero-Shot NER Configuration
@@ -624,8 +646,8 @@ SYSTEM_MONITOR_THRESHOLD_CRITICAL = 90  # 90%+: Red with "!" indicator
 # Individual algorithms handle their own limits internally
 VOCABULARY_MAX_TEXT_KB = 10000  # 10MB (~2,500 pages) - safety net only
 
-# TextRank-specific limit (O(n^2) on vocabulary size)
-TEXTRANK_MAX_TEXT_KB = 1000  # 1MB (~250 pages) - balances coverage vs performance
+# TopicRank-specific limit (graph construction on vocabulary)
+TOPICRANK_MAX_TEXT_KB = 1000  # 1MB (~250 pages) - balances coverage vs performance
 
 # RAKE minimum phrase frequency — phrases appearing fewer times are filtered
 RAKE_MIN_FREQUENCY = 3

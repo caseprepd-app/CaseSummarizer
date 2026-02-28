@@ -188,15 +188,15 @@ class VocabularyExtractor:
                 except Exception as e:
                     logger.debug("Failed to initialize BM25: %s", e)
 
-            # Conditionally add TextRank if pytextrank is installed
+            # Conditionally add TopicRank if pytextrank is installed
             try:
                 from src.core.vocabulary.algorithms.textrank_algorithm import TextRankAlgorithm
 
-                textrank = TextRankAlgorithm(nlp=ner.nlp)
-                self.algorithms.append(textrank)
-                logger.debug("TextRank algorithm enabled")
+                topicrank = TextRankAlgorithm(nlp=ner.nlp)
+                self.algorithms.append(topicrank)
+                logger.debug("TopicRank algorithm enabled")
             except ImportError:
-                logger.debug("TextRank unavailable (pytextrank not installed)")
+                logger.debug("TopicRank unavailable (pytextrank not installed)")
 
             # Conditionally add MedicalNER if scispacy is installed
             try:
@@ -223,6 +223,26 @@ class VocabularyExtractor:
                     logger.debug("GLiNER unavailable (gliner not installed)")
                 except Exception as e:
                     logger.debug("Failed to initialize GLiNER: %s", e)
+
+            # Conditionally add YAKE if installed
+            try:
+                from src.core.vocabulary.algorithms.yake_algorithm import YAKEAlgorithm
+
+                yake_algo = YAKEAlgorithm()
+                self.algorithms.append(yake_algo)
+                logger.debug("YAKE algorithm enabled")
+            except ImportError:
+                logger.debug("YAKE unavailable (yake not installed)")
+
+            # Conditionally add KeyBERT if installed
+            try:
+                from src.core.vocabulary.algorithms.keybert_algorithm import KeyBERTAlgorithm
+
+                keybert_algo = KeyBERTAlgorithm()
+                self.algorithms.append(keybert_algo)
+                logger.debug("KeyBERT algorithm enabled")
+            except ImportError:
+                logger.debug("KeyBERT unavailable (keybert not installed)")
         else:
             self.algorithms = algorithms
 
@@ -778,13 +798,17 @@ class VocabularyExtractor:
 
             # Calculate quality score
             frequency_rank = self._get_term_frequency_rank(term)
-            textrank_score = float(merged.metadata.get("textrank_score", 0.0))
+            topicrank_score = float(merged.metadata.get("topicrank_score", 0.0))
             base_quality_score = self._calculate_quality_score(
                 is_person,
                 merged.frequency,
                 frequency_rank,
                 len(merged.sources),
-                textrank_score=textrank_score,
+                topicrank_score=topicrank_score,
+                yake_score=float(merged.metadata.get("yake_score", 0.0)),
+                keybert_score=float(merged.metadata.get("keybert_score", 0.0)),
+                rake_score=float(merged.metadata.get("rake_score", 0.0)),
+                bm25_score=float(merged.metadata.get("bm25_score", 0.0)),
                 term=term,
             )
 
@@ -814,9 +838,11 @@ class VocabularyExtractor:
                 "NER": "Yes" if "NER" in sources_upper else "No",
                 "RAKE": "Yes" if "RAKE" in sources_upper else "No",
                 "BM25": "Yes" if "BM25" in sources_upper else "No",
-                "TextRank": "Yes" if "TEXTRANK" in sources_upper else "No",
+                "TopicRank": "Yes" if "TOPICRANK" in sources_upper else "No",
                 "MedicalNER": "Yes" if "MEDICALNER" in sources_upper else "No",
                 "GLiNER": "Yes" if "GLINER" in sources_upper else "No",
+                "YAKE": "Yes" if "YAKE" in sources_upper else "No",
+                "KeyBERT": "Yes" if "KEYBERT" in sources_upper else "No",
                 "Algo Count": algo_count,  # Sum of algorithms that found term
                 # Display columns from TermSources
                 "# Docs": sources_obj.num_documents,
@@ -832,7 +858,11 @@ class VocabularyExtractor:
                 "is_person": 1 if is_person else 0,  # Binary flag for ML
                 "total_unique_terms": total_unique_terms,  # For ML occurrence_ratio
                 "source_doc_confidence": doc_confidence,  # OCR quality for ML
-                "textrank_score": float(merged.metadata.get("textrank_score", 0.0)),
+                "topicrank_score": float(merged.metadata.get("topicrank_score", 0.0)),
+                "yake_score": float(merged.metadata.get("yake_score", 0.0)),
+                "keybert_score": float(merged.metadata.get("keybert_score", 0.0)),
+                "rake_score": float(merged.metadata.get("rake_score", 0.0)),
+                "bm25_score": float(merged.metadata.get("bm25_score", 0.0)),
                 "total_word_count": len(full_text.split()),  # For freq_per_1k_words feature
             }
 
@@ -970,7 +1000,11 @@ class VocabularyExtractor:
         algorithm_count: int,
         term_sources: TermSources | None = None,
         total_docs_in_session: int = 1,
-        textrank_score: float = 0.0,
+        topicrank_score: float = 0.0,
+        yake_score: float = 0.0,
+        keybert_score: float = 0.0,
+        rake_score: float = 0.0,
+        bm25_score: float = 0.0,
         term: str = "",
     ) -> float:
         """
@@ -985,20 +1019,25 @@ class VocabularyExtractor:
             algorithm_count: Number of algorithms that found this term
             term_sources: Optional TermSources for per-document confidence data
             total_docs_in_session: Total documents in this extraction session
-            textrank_score: TextRank centrality score (0-1), 0 if not available
+            topicrank_score: TopicRank centrality score (0-1), 0 if not available
+            yake_score: Raw YAKE score (lower = more important), 0 if not available
+            keybert_score: KeyBERT cosine similarity (0-1), 0 if not available
+            rake_score: Raw RAKE score, 0 if not available
+            bm25_score: Raw BM25 score, 0 if not available
             term: The term text (for artifact detection penalties)
 
         Returns:
             Quality score between 0.0 and 100.0
         """
         from src.config import (
+            SCORE_ALGO_CONFIDENCE_BOOST,
             SCORE_ALL_LOW_CONF_PENALTY,
             SCORE_HIGH_CONF_BOOST,
             SCORE_MULTI_DOC_BOOST,
             SCORE_SINGLE_SOURCE_CONF_THRESHOLD,
             SCORE_SINGLE_SOURCE_MIN_DOCS,
             SCORE_SINGLE_SOURCE_PENALTY,
-            SCORE_TEXTRANK_CENTRALITY_BOOST,
+            SCORE_TOPICRANK_CENTRALITY_BOOST,
         )
 
         score = 50.0  # Base score
@@ -1023,15 +1062,34 @@ class VocabularyExtractor:
         if is_person:
             score += 10
 
-        # Boost for multi-algorithm agreement (max +10)
+        # Boost for multi-algorithm agreement (non-linear tiers)
         # Terms found by multiple algorithms are more trustworthy
-        if algorithm_count >= 2:
-            score += min(algorithm_count * 3, 10)
+        if algorithm_count == 2:
+            score += 4
+        elif algorithm_count == 3:
+            score += 8
+        elif algorithm_count >= 4:
+            score += 12
 
-        # Boost for TextRank centrality (scaled by score, capped at config max)
-        # High centrality = term is well-connected in document's word graph
-        if textrank_score > 0:
-            score += min(textrank_score * 10, SCORE_TEXTRANK_CENTRALITY_BOOST)
+        # Boost for TopicRank centrality (scaled by score, capped at config max)
+        # High centrality = term is central to document's topic graph
+        if topicrank_score > 0:
+            score += min(topicrank_score * 10, SCORE_TOPICRANK_CENTRALITY_BOOST)
+
+        # Algorithm confidence boost — extra points when algorithms report high confidence
+        # Normalize all to 0-1 higher=better, take best score
+        algo_confidences = []
+        if yake_score > 0:
+            algo_confidences.append(1.0 / (1.0 + yake_score))  # Invert raw YAKE
+        if keybert_score > 0:
+            algo_confidences.append(keybert_score)  # Already 0-1
+        if rake_score > 0:
+            algo_confidences.append(min(rake_score / 15.0, 1.0))
+        if bm25_score > 0:
+            algo_confidences.append(min(bm25_score / 15.0, 1.0))
+        if algo_confidences:
+            best_confidence = max(algo_confidences)
+            score += min(best_confidence * 8, SCORE_ALGO_CONFIDENCE_BOOST)
 
         # === TermSources-based adjustments ===
         if term_sources is not None and term_sources.num_documents > 0:
@@ -1087,10 +1145,10 @@ class VocabularyExtractor:
 
         The ml_weight increases with training corpus size:
         - < 30 samples: 0% (rules only)
-        - 30-50 samples: 45%
-        - 51-99 samples: 60%
-        - 100-199 samples: 70%
-        - 200+ samples: 85%
+        - 30-40 samples: 25%
+        - 41-60 samples: 35%
+        - 61-100 samples: 45%
+        - 100+ samples: 55% (cap) → rules floor = 45%
 
         Args:
             term_data: Dictionary with term features for ML prediction
@@ -1482,7 +1540,11 @@ class VocabularyExtractor:
         ner = any(td.get("NER") == "Yes" for _, _, td in doc_entries)
         rake = any(td.get("RAKE") == "Yes" for _, _, td in doc_entries)
         bm25 = any(td.get("BM25") == "Yes" for _, _, td in doc_entries)
-        textrank = any(td.get("TextRank") == "Yes" for _, _, td in doc_entries)
+        topicrank = any(td.get("TopicRank") == "Yes" for _, _, td in doc_entries)
+        medical_ner = any(td.get("MedicalNER") == "Yes" for _, _, td in doc_entries)
+        gliner = any(td.get("GLiNER") == "Yes" for _, _, td in doc_entries)
+        yake = any(td.get("YAKE") == "Yes" for _, _, td in doc_entries)
+        keybert = any(td.get("KeyBERT") == "Yes" for _, _, td in doc_entries)
 
         # Set fields: union across docs
         all_found_by = set()
@@ -1497,8 +1559,24 @@ class VocabularyExtractor:
         # Numeric: sum / max / first
         total_freq = sum(td.get("Occurrences", td.get("Frequency", 0)) for _, _, td in doc_entries)
         rarity_rank = doc_entries[0][2].get("Google Rarity Rank", 0)
-        textrank_score = max(
-            (td.get("textrank_score", 0.0) for _, _, td in doc_entries),
+        topicrank_score = max(
+            (td.get("topicrank_score", 0.0) for _, _, td in doc_entries),
+            default=0.0,
+        )
+        yake_score = min(
+            (td.get("yake_score", 0.0) for _, _, td in doc_entries),
+            default=0.0,
+        )
+        keybert_score = max(
+            (td.get("keybert_score", 0.0) for _, _, td in doc_entries),
+            default=0.0,
+        )
+        rake_score = max(
+            (td.get("rake_score", 0.0) for _, _, td in doc_entries),
+            default=0.0,
+        )
+        bm25_score = max(
+            (td.get("bm25_score", 0.0) for _, _, td in doc_entries),
             default=0.0,
         )
         min_doc_confidence = min(c for _, c, _ in doc_entries)
@@ -1522,7 +1600,7 @@ class VocabularyExtractor:
         #         break
 
         # Algo count: recompute from merged flags
-        algo_count = sum([ner, rake, bm25, textrank])
+        algo_count = sum([ner, rake, bm25, topicrank, medical_ner, gliner, yake, keybert])
 
         # Quality score: recalculate with real TermSources
         quality_score = self._calculate_quality_score(
@@ -1532,7 +1610,11 @@ class VocabularyExtractor:
             algorithm_count=algo_count,
             term_sources=sources,
             total_docs_in_session=total_docs,
-            textrank_score=textrank_score,
+            topicrank_score=topicrank_score,
+            yake_score=yake_score,
+            keybert_score=keybert_score,
+            rake_score=rake_score,
+            bm25_score=bm25_score,
             term=best_term,
         )
 
@@ -1551,7 +1633,11 @@ class VocabularyExtractor:
             "NER": "Yes" if ner else "No",
             "RAKE": "Yes" if rake else "No",
             "BM25": "Yes" if bm25 else "No",
-            "TextRank": "Yes" if textrank else "No",
+            "TopicRank": "Yes" if topicrank else "No",
+            "MedicalNER": "Yes" if medical_ner else "No",
+            "GLiNER": "Yes" if gliner else "No",
+            "YAKE": "Yes" if yake else "No",
+            "KeyBERT": "Yes" if keybert else "No",
             "Algo Count": algo_count,
             # TermSources display
             "# Docs": sources.num_documents,
@@ -1567,7 +1653,11 @@ class VocabularyExtractor:
             "is_person": 1 if is_person else 0,
             "total_unique_terms": total_unique,
             "source_doc_confidence": min_doc_confidence,
-            "textrank_score": textrank_score,
+            "topicrank_score": topicrank_score,
+            "yake_score": yake_score,
+            "keybert_score": keybert_score,
+            "rake_score": rake_score,
+            "bm25_score": bm25_score,
             "total_word_count": sum(td.get("total_word_count", 0) for _, _, td in doc_entries),
         }
 

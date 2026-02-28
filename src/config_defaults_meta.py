@@ -103,15 +103,25 @@ DESCRIPTIONS = {
             "Less negative: More lenient toward terms found by one method."
         ),
     },
-    "score_textrank_centrality_boost": {
-        "label": "TextRank centrality boost",
+    "score_topicrank_centrality_boost": {
+        "label": "TopicRank centrality boost",
         "tooltip": (
-            "Maximum boost for terms with high TextRank centrality.\n"
-            "TextRank measures how central a term is in the document's\n"
-            "word co-occurrence graph (PageRank on words).\n\n"
+            "Maximum boost for terms with high TopicRank centrality.\n"
+            "TopicRank clusters phrases into topics and runs PageRank\n"
+            "on the topic graph to find central concepts.\n\n"
             "Default: +8 points (scaled by centrality score 0-1)\n\n"
-            "Higher: Favor terms that are well-connected to other terms.\n"
+            "Higher: Favor terms that are central to document topics.\n"
             "Lower: Reduce influence of graph centrality on ranking."
+        ),
+    },
+    "score_algo_confidence_boost": {
+        "label": "Algorithm confidence boost",
+        "tooltip": (
+            "Maximum bonus points for terms with high algorithm confidence.\n"
+            "Uses the best confidence score across YAKE, KeyBERT, RAKE, and BM25.\n\n"
+            "Default: 6 points (scaled by confidence 0-1)\n\n"
+            "Higher: Favor terms where algorithms report high confidence.\n"
+            "Lower: Reduce influence of algorithm confidence on ranking."
         ),
     },
     # =======================================================================
@@ -196,6 +206,28 @@ DESCRIPTIONS = {
             "Increase: More influence from corpus comparison.\n"
             "Decrease: Less influence from corpus-based scoring.\n\n"
             "Requires 5+ documents in your corpus to be effective."
+        ),
+    },
+    "vocab_weight_yake": {
+        "label": "YAKE algorithm weight",
+        "tooltip": (
+            "Influence of the YAKE algorithm on final vocabulary scores.\n"
+            "YAKE uses pure text statistics (casing, frequency, position)\n"
+            "to extract keywords — no model or corpus needed.\n\n"
+            "Default: 0.55\n\n"
+            "Increase: More influence from statistical keyword extraction.\n"
+            "Decrease: Less influence from YAKE results."
+        ),
+    },
+    "vocab_weight_keybert": {
+        "label": "KeyBERT algorithm weight",
+        "tooltip": (
+            "Influence of KeyBERT on final vocabulary scores.\n"
+            "KeyBERT uses transformer embeddings (cosine similarity)\n"
+            "to find keyphrases most representative of the document.\n\n"
+            "Default: 0.65\n\n"
+            "Increase: More influence from semantic keyword extraction.\n"
+            "Decrease: Less influence from KeyBERT results."
         ),
     },
     # =======================================================================

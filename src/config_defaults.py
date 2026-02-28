@@ -75,7 +75,7 @@ DEFAULTS = {
         "type": "int",
         "category": "Quality Scoring",
     },
-    "textrank_max_text_kb": {
+    "topicrank_max_text_kb": {
         "value": 1000,
         "min": 200,
         "max": 5000,
@@ -83,8 +83,15 @@ DEFAULTS = {
         "type": "int",
         "category": "Quality Scoring",
     },
-    "score_textrank_centrality_boost": {
+    "score_topicrank_centrality_boost": {
         "value": 8,
+        "min": 0,
+        "max": 15,
+        "type": "int",
+        "category": "Quality Scoring",
+    },
+    "score_algo_confidence_boost": {
+        "value": 6,
         "min": 0,
         "max": 15,
         "type": "int",
@@ -167,6 +174,22 @@ DEFAULTS = {
         "min": 0.0,
         "max": 2.0,
         "step": 0.1,
+        "type": "float",
+        "category": "Algorithm Weights",
+    },
+    "vocab_weight_yake": {
+        "value": 0.55,
+        "min": 0.0,
+        "max": 2.0,
+        "step": 0.05,
+        "type": "float",
+        "category": "Algorithm Weights",
+    },
+    "vocab_weight_keybert": {
+        "value": 0.65,
+        "min": 0.0,
+        "max": 2.0,
+        "step": 0.05,
         "type": "float",
         "category": "Algorithm Weights",
     },
