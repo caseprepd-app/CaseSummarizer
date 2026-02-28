@@ -57,6 +57,16 @@ from src.ui.vocab_table.column_config import (
 )
 from src.user_preferences import get_user_preferences
 
+# Prefix added to potential-duplicate terms in the treeview display
+_LINK_EMOJI_PREFIX = "🔗 "
+
+
+def _strip_display_prefix(term: str) -> str:
+    """Strip the potential-duplicate link emoji prefix from a display term."""
+    if term.startswith(_LINK_EMOJI_PREFIX):
+        return term[len(_LINK_EMOJI_PREFIX) :]
+    return term
+
 
 class DynamicOutputWidget(ctk.CTkFrame):
     """Widget to dynamically display Vocabulary, Q&A, or Summary outputs."""
@@ -1474,7 +1484,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
                             # Special handling for Term column - add 🔗 for potential duplicates
                             term_display = item.get("Term", "")
                             if item.get("_potential_duplicate_of"):
-                                term_display = f"🔗 {term_display}"
+                                term_display = f"{_LINK_EMOJI_PREFIX}{term_display}"
                             values.append(
                                 truncate_text(str(term_display), COLUMN_CONFIG[col]["max_chars"])
                             )
@@ -1666,7 +1676,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
             # Get the term value (first column)
             values = self.csv_treeview.item(item_id, "values")
             if values and len(values) >= 1:
-                self._selected_term = values[0]  # Term is first column
+                self._selected_term = _strip_display_prefix(values[0])
 
                 # Rebuild "View Alternatives" menu item based on term data
                 self._update_alternatives_menu_item(item_id)
@@ -1740,7 +1750,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
         if item_id:
             values = self.csv_treeview.item(item_id, "values")
             if values and len(values) >= 1:
-                term = values[0]  # Term is first column
+                term = _strip_display_prefix(values[0])
                 if term:
                     self.clipboard_clear()
                     self.clipboard_append(term)
@@ -1775,10 +1785,17 @@ class DynamicOutputWidget(ctk.CTkFrame):
             if selected:
                 self.csv_treeview.delete(selected[0])
 
-                # Also remove from internal data
-                self._outputs["Rare Word List (CSV)"] = [
+                # Also remove from internal data (both legacy and primary keys)
+                for key in ("Names & Vocabulary", "Rare Word List (CSV)"):
+                    self._outputs[key] = [
+                        item
+                        for item in self._outputs.get(key, [])
+                        if isinstance(item, dict) and item.get("Term", "").lower() != lower_term
+                    ]
+                # Remove from unsorted cache so re-sorts don't resurrect it
+                self._unsorted_vocab_data = [
                     item
-                    for item in self._outputs.get("Rare Word List (CSV)", [])
+                    for item in self._unsorted_vocab_data
                     if isinstance(item, dict) and item.get("Term", "").lower() != lower_term
                 ]
 
@@ -1943,11 +1960,9 @@ class DynamicOutputWidget(ctk.CTkFrame):
             current_tab = self.tabview.get()
             main_window = self.winfo_toplevel()
             if current_tab == "Vocabulary":
-                vocab_data = self._outputs.get("Names & Vocabulary") or self._outputs.get(
-                    "Rare Word List (CSV)", []
-                )
+                filtered_data = self._get_filtered_vocab_data()
                 main_window.set_status(
-                    f"Copied {len(vocab_data)} terms to clipboard", duration_ms=5000
+                    f"Copied {len(filtered_data)} terms to clipboard", duration_ms=5000
                 )
             elif current_tab == "Summary":
                 main_window.set_status("Copied summary to clipboard", duration_ms=5000)
@@ -2009,11 +2024,9 @@ class DynamicOutputWidget(ctk.CTkFrame):
             main_window = self.winfo_toplevel()
             filename = os.path.basename(filepath)
             if current_tab == "Vocabulary":
-                vocab_data = self._outputs.get("Names & Vocabulary") or self._outputs.get(
-                    "Rare Word List (CSV)", []
-                )
+                filtered_data = self._get_filtered_vocab_data()
                 main_window.set_status(
-                    f"Saved {len(vocab_data)} terms to {filename}", duration_ms=5000
+                    f"Saved {len(filtered_data)} terms to {filename}", duration_ms=5000
                 )
             elif current_tab == "Questions":
                 main_window.set_status(f"Saved Q&A results to {filename}", duration_ms=5000)
@@ -2256,7 +2269,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
         if not values or len(values) < 1:
             return
 
-        term = values[0]  # Term is first column
+        term = _strip_display_prefix(values[0])  # Term is first column
         current_rating = self._feedback_manager.get_rating(term)
 
         # Toggle logic: if already this rating, clear it; otherwise set it
@@ -2362,20 +2375,24 @@ class DynamicOutputWidget(ctk.CTkFrame):
         if len(values) <= max(keep_idx, skip_idx):
             return
 
+        # Preserve the row background tag (oddrow/evenrow) when setting rating tag
+        existing_tags = self.csv_treeview.item(item_id, "tags")
+        row_bg_tag = next((t for t in existing_tags if t in ("oddrow", "evenrow")), None)
+
         # Update the icon values at dynamic positions
         # User clicks always use session tags (darker colors)
         if rating == 1:
             values[keep_idx] = THUMB_UP_FILLED
             values[skip_idx] = THUMB_DOWN_EMPTY
-            tag = ("rated_up_session",)
+            tag = (row_bg_tag, "rated_up_session") if row_bg_tag else ("rated_up_session",)
         elif rating == -1:
             values[keep_idx] = THUMB_UP_EMPTY
             values[skip_idx] = THUMB_DOWN_FILLED
-            tag = ("rated_down_session",)
+            tag = (row_bg_tag, "rated_down_session") if row_bg_tag else ("rated_down_session",)
         else:  # rating == 0
             values[keep_idx] = THUMB_UP_EMPTY
             values[skip_idx] = THUMB_DOWN_EMPTY
-            tag = ()
+            tag = (row_bg_tag,) if row_bg_tag else ()
 
         # Update the item with new values and tag for coloring
         self.csv_treeview.item(item_id, values=tuple(values), tags=tag)

@@ -47,13 +47,14 @@ import time
 from collections.abc import Callable
 from typing import TYPE_CHECKING
 
-from src.config import OLLAMA_CONTEXT_WINDOW, PARALLEL_MAX_WORKERS
+from src.config import PARALLEL_MAX_WORKERS
 from src.core.parallel import (
     ExecutorStrategy,
     ParallelTaskRunner,
     ProgressAggregator,
     ThreadPoolStrategy,
 )
+from src.user_preferences import get_user_preferences
 
 logger = logging.getLogger(__name__)
 
@@ -346,7 +347,9 @@ class MultiDocumentOrchestrator:
 
         # Check if combined summaries fit in context window
         estimated_tokens = len(formatted_summaries) // 4
-        context_available = OLLAMA_CONTEXT_WINDOW - 500  # Reserve for prompt and output
+        context_available = (
+            get_user_preferences().get_effective_context_size() - 500
+        )  # Reserve for prompt and output
 
         if estimated_tokens > context_available:
             # Too large - need to chunk the summaries
@@ -394,7 +397,7 @@ class MultiDocumentOrchestrator:
         if self.prompt_adapter:
             # Get model name for adapter (cached)
             if not self._model_name:
-                self._model_name = getattr(self.model_manager, "loaded_model_name", "phi-3-mini")
+                self._model_name = getattr(self.model_manager, "model_name", "phi-3-mini")
 
             prompt = self.prompt_adapter.create_meta_summary_prompt(
                 preset_id=self.preset_id,
@@ -453,7 +456,9 @@ Meta-Summary:"""
         """
         # Calculate how many summaries can fit per batch
         avg_summary_length = sum(len(s.summary) for s in summaries) // len(summaries)
-        context_budget = (OLLAMA_CONTEXT_WINDOW - 500) * 4  # Convert tokens to chars
+        context_budget = (
+            get_user_preferences().get_effective_context_size() - 500
+        ) * 4  # Convert tokens to chars
         summaries_per_batch = max(2, context_budget // (avg_summary_length + 100))
 
         logger.debug(

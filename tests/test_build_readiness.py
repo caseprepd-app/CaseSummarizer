@@ -175,6 +175,8 @@ HIDDEN_IMPORTS_NON_UI = [
     "src.core.vocabulary.algorithms.bm25_algorithm",
     "src.core.vocabulary.algorithms.gliner_algorithm",
     "src.core.vocabulary.algorithms.scispacy_algorithm",
+    "src.core.vocabulary.algorithms.yake_algorithm",
+    "src.core.vocabulary.algorithms.keybert_algorithm",
     "tiktoken_ext.openai_public",
     "tiktoken_ext",
     "sklearn.utils._typedefs",

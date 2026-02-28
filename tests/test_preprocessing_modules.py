@@ -2,7 +2,6 @@
 
 import pytest
 
-
 # ---------------------------------------------------------------------------
 # QAConverter
 # ---------------------------------------------------------------------------
@@ -41,9 +40,11 @@ class TestQAConverter:
         result = self._make().process("Q: What happened?")
         assert "Question:" in result.text
 
-    def test_q_space_format(self):
+    def test_q_space_format_not_converted(self):
+        """Bare 'Q ' without separator is NOT converted (would corrupt 'A witness' etc.)."""
         result = self._make().process("Q  What happened?")
-        assert "Question:" in result.text
+        assert "Question:" not in result.text
+        assert "Q  What happened?" in result.text
 
     def test_multiple_qa_pairs(self):
         text = "Q. What happened?\nA. Nothing.\nQ. Are you sure?\nA. Yes."

@@ -338,7 +338,7 @@ class TextNormalizer:
             True if line should be kept
         """
         # Minimum length check
-        if len(line) <= MIN_LINE_LENGTH:
+        if len(line) < MIN_LINE_LENGTH:
             # Exception: Allow short legal headers
             return bool(self._is_legal_header(line))
 

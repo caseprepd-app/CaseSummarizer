@@ -1438,7 +1438,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             text="Cancel",
             command=on_cancel,
             width=100,
-            fg_color=COLORS.get("secondary", "#555555"),
+            fg_color=COLORS.get("btn_secondary", "#555555"),
         )
         cancel_btn.pack(side="left", padx=(0, 10))
 
@@ -1843,7 +1843,11 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         stats = {}
 
         # Vocabulary stats from output display
-        vocab_data = getattr(self.output_display, "_vocab_csv_data", None)
+        vocab_data = (
+            self.output_display._get_filtered_vocab_data()
+            if hasattr(self.output_display, "_get_filtered_vocab_data")
+            else None
+        )
         if vocab_data:
             stats["vocab_count"] = len(vocab_data)
             stats["person_count"] = sum(

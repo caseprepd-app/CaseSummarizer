@@ -465,8 +465,12 @@ class RawTextExtractor:
         return self.pdf_extractor.reconcile_extractions(primary_text, secondary_text)
 
     def _extract_text_pymupdf(self, file_path) -> tuple:
-        """Delegate to PDF extractor module (for test compatibility)."""
-        return self.pdf_extractor._extract_pymupdf(file_path)
+        """Delegate to PDF extractor — try layout-aware first, then flat."""
+        text, page_count, error = self.pdf_extractor._extract_pymupdf_layout(file_path)
+        if text is None and error is None:
+            # Layout detection failed gracefully; fall back to flat extraction
+            text, page_count, error = self.pdf_extractor._extract_pymupdf(file_path)
+        return text, page_count, error
 
     def _extract_pdf_text(self, file_path) -> tuple:
         """Delegate to PDF extractor module (for test compatibility)."""

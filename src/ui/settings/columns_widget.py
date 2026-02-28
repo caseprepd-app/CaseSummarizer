@@ -44,7 +44,7 @@ class ColumnVisibilityWidget(ctk.CTkFrame):
     # Column groups for organized display
     COLUMN_GROUPS: ClassVar[list[tuple[str, list[str]]]] = [
         ("Basic", ["Term", "Score", "Is Person", "Found By"]),
-        ("Term Sources", ["# Docs", "OCR Confidence"]),
+        ("Term Sources", ["# Docs", "Occurrences", "OCR Confidence"]),
         (
             "Algorithm Details",
             [

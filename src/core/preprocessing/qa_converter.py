@@ -7,7 +7,6 @@ Improves AI summary quality by making deposition transcripts more readable.
 Handles various formats:
 - "Q." / "A."
 - "Q:" / "A:"
-- "Q " / "A " (space only)
 - All followed by the actual question/answer text
 """
 
@@ -37,13 +36,13 @@ class QAConverter(BasePreprocessor):
     name = "Q/A Converter"
 
     # Pattern to match Q./A. at start of lines
-    # Captures: optional whitespace + Q/A + separator (. or : or space) + optional space
-    # The pattern is flexible to handle various formats:
+    # Captures: optional whitespace + Q/A + required separator (. or :) + space
+    # A separator is REQUIRED to avoid matching regular sentences starting
+    # with "A " (e.g., "A witness testified" would become "Answer: witness testified").
     # - "Q.  text" (standard)
     # - "Q: text"
-    # - "Q   text" (multiple spaces)
     # - "  Q. text" (indented)
-    QA_PATTERN = re.compile(r"^(\s*)([QA])([.:])?\s+", re.MULTILINE)
+    QA_PATTERN = re.compile(r"^(\s*)([QA])[.:]\s+", re.MULTILINE)
 
     # Alternative pattern for "BY MR./MS." examination markers
     # These indicate a new examiner is asking questions

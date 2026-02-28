@@ -215,8 +215,7 @@ class UnifiedChunker:
         """
         Count tokens in text using tiktoken with caching.
 
-        Uses a hash-based cache key combining first 100 chars, last 100 chars,
-        and total length to avoid full string hashing while still being unique.
+        Uses hash(text) as cache key which accounts for the full content.
 
         Args:
             text: Text to count tokens for
@@ -224,14 +223,7 @@ class UnifiedChunker:
         Returns:
             Number of tokens
         """
-        # Build cache key from text fingerprint (avoids hashing full text)
-        text_len = len(text)
-        if text_len > 200:
-            # Use first 100 + last 100 chars + length as fingerprint
-            cache_key = f"{hash(text[:100])}-{hash(text[-100:])}-{text_len}"
-        else:
-            # Short text: hash the whole thing
-            cache_key = f"{hash(text)}-{text_len}"
+        cache_key = hash(text)
 
         # Check cache
         if cache_key in self._token_count_cache:

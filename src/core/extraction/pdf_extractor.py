@@ -303,7 +303,6 @@ class PDFExtractor:
             on success, or one of: 'password', 'corrupted', 'empty', 'unknown'
         """
         try:
-            text = ""
             page_count = 0
 
             with fitz.open(file_path) as doc:
@@ -314,13 +313,16 @@ class PDFExtractor:
                     logger.error("PyMuPDF: PDF has no pages")
                     return None, 0, "empty"
 
+                pages_text = []
                 for i, page in enumerate(doc, 1):
                     if i % 10 == 0:
                         logger.debug("PyMuPDF: Extracting page %d/%d", i, page_count)
 
                     page_text = page.get_text()
                     if page_text:
-                        text += page_text + "\n"
+                        pages_text.append(page_text)
+
+                text = "\f".join(pages_text)
 
             return text, page_count, None
 
@@ -357,7 +359,6 @@ class PDFExtractor:
             on success, or one of: 'password', 'corrupted', 'empty', 'unknown'
         """
         try:
-            text = ""
             page_count = 0
 
             with pdfplumber.open(file_path) as pdf:
@@ -368,13 +369,16 @@ class PDFExtractor:
                     logger.error("pdfplumber: PDF has no pages")
                     return None, 0, "empty"
 
+                pages_text = []
                 for i, page in enumerate(pdf.pages, 1):
                     if i % 10 == 0:
                         logger.debug("pdfplumber: Extracting page %d/%d", i, page_count)
 
                     page_text = page.extract_text()
                     if page_text:
-                        text += page_text + "\n"
+                        pages_text.append(page_text)
+
+                text = "\f".join(pages_text)
 
             return text, page_count, None
 

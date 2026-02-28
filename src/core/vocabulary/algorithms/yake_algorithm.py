@@ -111,7 +111,7 @@ class YAKEAlgorithm(BaseExtractionAlgorithm):
             )
 
         # Truncate very long texts for performance
-        truncated = len(text.encode("utf-8", errors="ignore")) > _MAX_TEXT_BYTES
+        truncated = len(text) > _MAX_TEXT_BYTES
         process_text = text[:_MAX_TEXT_BYTES] if truncated else text
 
         # Extract keywords (returns list of (keyphrase, score) tuples)

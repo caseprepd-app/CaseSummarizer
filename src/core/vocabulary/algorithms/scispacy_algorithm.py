@@ -101,13 +101,10 @@ class ScispaCyAlgorithm(BaseExtractionAlgorithm):
 
         doc = self._nlp(process_text)
 
-        candidates = []
-        seen_terms: set[str] = set()
+        # First pass: count occurrences and record first-seen metadata
+        seen_terms: dict[str, dict] = {}
 
         for ent in doc.ents:
-            if len(candidates) >= self.max_candidates:
-                break
-
             ent_text = ent.text.strip()
 
             # Skip very short entities
@@ -118,23 +115,33 @@ class ScispaCyAlgorithm(BaseExtractionAlgorithm):
             if ent_text.replace(" ", "").isdigit():
                 continue
 
-            # Dedup (case-insensitive)
             lower_text = ent_text.lower()
             if lower_text in seen_terms:
-                continue
-            seen_terms.add(lower_text)
+                seen_terms[lower_text]["count"] += 1
+            else:
+                seen_terms[lower_text] = {
+                    "term": ent_text,
+                    "entity_label": ent.label_,
+                    "start_char": ent.start_char,
+                    "count": 1,
+                }
 
-            # Preserve original casing from source document
+        # Second pass: build candidates from counted terms
+        candidates = []
+        for info in seen_terms.values():
+            if len(candidates) >= self.max_candidates:
+                break
+
             candidates.append(
                 CandidateTerm(
-                    term=ent_text,
+                    term=info["term"],
                     source_algorithm=self.name,
                     confidence=0.7,
                     suggested_type="Medical",
-                    frequency=1,
+                    frequency=info["count"],
                     metadata={
-                        "entity_label": ent.label_,
-                        "start_char": ent.start_char,
+                        "entity_label": info["entity_label"],
+                        "start_char": info["start_char"],
                     },
                 )
             )

@@ -238,6 +238,8 @@ class QAService:
         if self._orchestrator:
             self._orchestrator.clear_results()
         self._is_ready = False
+        self._vector_store_path = None
+        self._temp_dir = None
 
         logger.debug("Cleared")
 
@@ -280,19 +282,19 @@ class QAService:
 
         return get_reliability_level(probability)
 
-    def get_span_category(self, span_dict: dict) -> str:
+    def get_span_category(self, hallucination_prob: float) -> str:
         """
         Get span category for color coding verification results.
 
         Args:
-            span_dict: Span dictionary with hallucination probability.
+            hallucination_prob: Hallucination probability (0-1).
 
         Returns:
             Category string for CSS styling.
         """
         from src.core.qa.verification_config import get_span_category
 
-        return get_span_category(span_dict)
+        return get_span_category(hallucination_prob)
 
     def create_orchestrator(self, vector_store_path=None, embeddings=None, answer_mode="ollama"):
         """

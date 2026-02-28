@@ -222,6 +222,11 @@ def calculate_phrase_component_scores(phrase: str, floor: float = 0.0) -> tuple[
     """
     scaled = _load_scaled_frequencies()
 
+    # Unknown words (not in Google 333K dataset) are treated as RARE, not common.
+    # Words absent from the dataset are likely proper nouns, medical terms, or
+    # specialized legal vocabulary — exactly what court reporters need.
+    unknown_score = NON_NER_UNKNOWN_WORD_RARITY  # 0.85 = very rare
+
     # Split phrase into words, filtering out empty strings
     words = [w.strip() for w in phrase.lower().split() if w.strip()]
 
@@ -230,11 +235,11 @@ def calculate_phrase_component_scores(phrase: str, floor: float = 0.0) -> tuple[
 
     if len(words) == 1:
         # Single words are handled by other filters (NER rarity check, stopwords)
-        score = scaled.get(words[0], 0.0)
+        score = scaled.get(words[0], unknown_score)
         return (score, score, 1)
 
     # Get commonality score for each word
-    scores = [scaled.get(w, 0.0) for w in words]
+    scores = [scaled.get(w, unknown_score) for w in words]
 
     min_score = min(scores)
     mean_score = compute_adjusted_mean(scores, floor)

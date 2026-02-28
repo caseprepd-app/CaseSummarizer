@@ -799,11 +799,19 @@ class VocabularyExtractor:
             # Calculate quality score
             frequency_rank = self._get_term_frequency_rank(term)
             topicrank_score = float(merged.metadata.get("topicrank_score", 0.0))
+
+            # Create legacy TermSources BEFORE quality score so confidence-based
+            # adjustments (high-conf boost, all-low-conf penalty, single-source
+            # penalty) actually fire instead of being dead code.
+            sources_obj = TermSources.create_legacy(merged.frequency, doc_confidence / 100.0)
+
             base_quality_score = self._calculate_quality_score(
                 is_person,
                 merged.frequency,
                 frequency_rank,
                 len(merged.sources),
+                term_sources=sources_obj,
+                total_docs_in_session=doc_count,
                 topicrank_score=topicrank_score,
                 yake_score=float(merged.metadata.get("yake_score", 0.0)),
                 keybert_score=float(merged.metadata.get("keybert_score", 0.0)),
@@ -819,10 +827,6 @@ class VocabularyExtractor:
 
             # Build "Found By" display string from sources
             found_by = ", ".join(merged.sources)  # e.g., "NER, RAKE" or "NER, RAKE, BM25"
-
-            # Create legacy TermSources for single-doc extraction path
-            # This enables consistent display columns across both extraction methods
-            sources_obj = TermSources.create_legacy(merged.frequency, doc_confidence / 100.0)
 
             term_data = {
                 "Term": term,

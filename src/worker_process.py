@@ -387,8 +387,7 @@ def _forwarder_loop(internal_queue, result_queue, command_queue, state):
                         questions=None,
                         use_default_questions=True,
                     )
-                    with state["worker_lock"]:
-                        state["active_worker"] = qa_worker
+                    state["auto_qa_worker"] = qa_worker
                     qa_worker.start()
                     logger.debug("Default QAWorker started in subprocess")
                 else:

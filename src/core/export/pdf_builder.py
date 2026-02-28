@@ -30,8 +30,10 @@ def _sanitize_for_latin1(text: str) -> str:
     """
     # Normalize to NFKD (decomposes accented chars into base + combining)
     normalized = unicodedata.normalize("NFKD", text)
+    # Strip combining marks (category "Mn") left by NFKD decomposition
+    stripped = "".join(c for c in normalized if unicodedata.category(c) != "Mn")
     # Encode to latin-1, replacing unencodable chars with '?'
-    return normalized.encode("latin-1", errors="replace").decode("latin-1")
+    return stripped.encode("latin-1", errors="replace").decode("latin-1")
 
 
 class PdfDocumentBuilder(DocumentBuilder):

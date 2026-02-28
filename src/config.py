@@ -611,10 +611,10 @@ SYSTEM_MONITOR_THRESHOLD_CRITICAL = 90  # 90%+: Red with "!" indicator
 VOCABULARY_MAX_TEXT_KB = 10000  # 10MB (~2,500 pages) - safety net only
 
 # TopicRank-specific limit (graph construction on vocabulary)
-TOPICRANK_MAX_TEXT_KB = 1000  # 1MB (~250 pages) - balances coverage vs performance
+TOPICRANK_MAX_TEXT_KB = _d("topicrank_max_text_kb")
 
 # RAKE minimum phrase frequency — phrases appearing fewer times are filtered
-RAKE_MIN_FREQUENCY = 3
+RAKE_MIN_FREQUENCY = _d("rake_min_frequency")
 
 # spaCy batch processing - higher values process faster with more memory
 # Testing shows: batch_size=4 (baseline), 8 (~17% faster), 16 (~25% faster but +100MB RAM)

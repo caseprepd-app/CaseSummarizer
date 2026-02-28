@@ -367,7 +367,7 @@ class ProgressiveDocumentSummarizer(DocumentSummarizer):
 
             # Get model name for adapter (cached)
             if not self._model_name:
-                self._model_name = getattr(self.model_manager, "loaded_model_name", "phi-3-mini")
+                self._model_name = getattr(self.model_manager, "model_name", "phi-3-mini")
 
             prompt = self.prompt_adapter.create_chunk_prompt(
                 preset_id=self.preset_id,
@@ -385,8 +385,11 @@ class ProgressiveDocumentSummarizer(DocumentSummarizer):
 
         # Inject extraction context from Pass 1 (enhanced mode)
         if extraction_context:
-            extraction_block = f"\nKEY FACTS IDENTIFIED IN THIS SECTION:\n{extraction_context}\n\n"
-            prompt = prompt + extraction_block
+            extraction_block = f"\nKEY FACTS IDENTIFIED IN THIS SECTION:\n{extraction_context}\n"
+            if "<|assistant|>" in prompt:
+                prompt = prompt.replace("<|assistant|>", extraction_block + "<|assistant|>", 1)
+            else:
+                prompt = prompt + extraction_block
 
         # Generate summary via Ollama
         # Use 1.5x tokens per word with buffer
@@ -439,8 +442,8 @@ class ProgressiveDocumentSummarizer(DocumentSummarizer):
         if not chunk_summaries:
             return ""
 
-        # Combine recent chunk summaries
-        combined = "\n\n".join(chunk_summaries[-5:])  # Last 5 chunks
+        # Combine recent chunk summaries (filter empty from skipped chunks)
+        combined = "\n\n".join(s for s in chunk_summaries[-5:] if s)  # Last 5 chunks
 
         prompt = f"""You are summarizing a legal document in progress.
 
@@ -481,14 +484,14 @@ Progressive Summary:"""
         if not chunk_summaries:
             return ""
 
-        # Combine all chunk summaries
-        combined = "\n\n".join(chunk_summaries)
+        # Combine all chunk summaries (filter empty from skipped chunks)
+        combined = "\n\n".join(s for s in chunk_summaries if s)
 
         # Use focus-aware prompts if adapter is configured
         if self.prompt_adapter:
             # Get model name for adapter (cached)
             if not self._model_name:
-                self._model_name = getattr(self.model_manager, "loaded_model_name", "phi-3-mini")
+                self._model_name = getattr(self.model_manager, "model_name", "phi-3-mini")
 
             prompt = self.prompt_adapter.create_document_final_prompt(
                 preset_id=self.preset_id,
