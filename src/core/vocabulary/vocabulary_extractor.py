@@ -1572,10 +1572,12 @@ class VocabularyExtractor:
             (td.get("topicrank_score", 0.0) for _, _, td in doc_entries),
             default=0.0,
         )
-        yake_score = min(
-            (td.get("yake_score", 0.0) for _, _, td in doc_entries),
-            default=0.0,
-        )
+        # YAKE: lower raw = better, but 0.0 means "no YAKE data", not best score.
+        # Filter to non-zero before taking min (best YAKE score across docs).
+        yake_values = [
+            td.get("yake_score", 0.0) for _, _, td in doc_entries if td.get("yake_score")
+        ]
+        yake_score = min(yake_values) if yake_values else 0.0
         keybert_score = max(
             (td.get("keybert_score", 0.0) for _, _, td in doc_entries),
             default=0.0,

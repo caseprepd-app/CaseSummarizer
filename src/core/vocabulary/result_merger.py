@@ -167,18 +167,34 @@ class AlgorithmScoreMerger:
         total_frequency = sum(c.frequency for c in candidates)
 
         # Merge metadata for ML training (track per-algorithm details)
+        source_details = [
+            {
+                "algorithm": c.source_algorithm,
+                "confidence": c.confidence,
+                "suggested_type": c.suggested_type,
+                **c.metadata,
+            }
+            for c in candidates
+        ]
+
+        # Promote algorithm scores to top-level for easy access.
+        # Each algorithm stores its score in candidate metadata (e.g. "yake_score").
+        # Use max() so the best score from any candidate wins.
+        score_keys = (
+            "topicrank_score",
+            "yake_score",
+            "keybert_score",
+            "rake_score",
+            "bm25_score",
+        )
         merged_metadata = {
-            "source_details": [
-                {
-                    "algorithm": c.source_algorithm,
-                    "confidence": c.confidence,
-                    "suggested_type": c.suggested_type,
-                    **c.metadata,
-                }
-                for c in candidates
-            ],
+            "source_details": source_details,
             "algorithm_count": len(sources),
         }
+        for key in score_keys:
+            values = [d[key] for d in source_details if key in d]
+            if values:
+                merged_metadata[key] = max(values)
 
         return MergedTerm(
             term=canonical_term,

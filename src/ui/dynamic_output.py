@@ -2071,7 +2071,17 @@ class DynamicOutputWidget(ctk.CTkFrame):
                 if format_key in ("word", "pdf"):
                     include_details = any(
                         self._column_visibility.get(col, False)
-                        for col in ["NER", "RAKE", "BM25", "Algo Count"]
+                        for col in [
+                            "NER",
+                            "RAKE",
+                            "BM25",
+                            "TopicRank",
+                            "MedicalNER",
+                            "GLiNER",
+                            "YAKE",
+                            "KeyBERT",
+                            "Algo Count",
+                        ]
                     )
                     is_single_doc = not self._column_visibility.get("# Docs", True)
                     write_fn = {

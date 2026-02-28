@@ -14,7 +14,8 @@ Layout:
     │  ☑ # Docs   ☑ Count   ☑ OCR Confidence                        │
     │                                                             │
     │  Algorithm Details:                                         │
-    │  ☐ NER   ☐ RAKE   ☐ BM25   ☐ Algo Count                    │
+    │  ☐ NER  ☐ RAKE  ☐ BM25  ☐ TopicRank  ☐ MedicalNER         │
+    │  ☐ GLiNER  ☐ YAKE  ☐ KeyBERT  ☐ Algo Count                │
     │                                                             │
     │  Other:                                                     │
     │  ☐ Google Rarity Rank   ☑ Keep   ☑ Skip                             │
@@ -44,7 +45,20 @@ class ColumnVisibilityWidget(ctk.CTkFrame):
     COLUMN_GROUPS: ClassVar[list[tuple[str, list[str]]]] = [
         ("Basic", ["Term", "Score", "Is Person", "Found By"]),
         ("Term Sources", ["# Docs", "OCR Confidence"]),
-        ("Algorithm Details", ["NER", "RAKE", "BM25", "Algo Count"]),
+        (
+            "Algorithm Details",
+            [
+                "NER",
+                "RAKE",
+                "BM25",
+                "TopicRank",
+                "MedicalNER",
+                "GLiNER",
+                "YAKE",
+                "KeyBERT",
+                "Algo Count",
+            ],
+        ),
         ("Other", ["Google Rarity Rank", "Keep", "Skip"]),
     ]
 

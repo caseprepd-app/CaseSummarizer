@@ -89,13 +89,25 @@ FEEDBACK_COLUMNS = [
     "feedback",
     "is_person",  # 1 if NER detected as person, 0 otherwise
     "algorithms",
+    # Per-algorithm detection flags (all 8 algorithms)
     "NER_detection",
     "RAKE_detection",
     "BM25_detection",
+    "TopicRank_detection",
+    "MedicalNER_detection",
+    "GLiNER_detection",
+    "YAKE_detection",
+    "KeyBERT_detection",
     "algo_count",
     "quality_score",
     "occurrences",
     "rarity_rank",
+    # Per-algorithm numeric scores (0.0 if algorithm didn't find term)
+    "topicrank_score",
+    "yake_score",
+    "keybert_score",
+    "rake_score",
+    "bm25_score",
     # TermSources-based per-document features
     "num_source_documents",  # How many docs contain this term
     "doc_diversity_ratio",  # num_docs / total_docs (0-1)
@@ -369,11 +381,27 @@ class FeedbackManager:
         algorithms_str = term_data.get("Sources", "")
         algorithms_upper = [a.strip().upper() for a in algorithms_str.split(",") if a.strip()]
 
-        # Calculate algo_count (sum of detection booleans)
+        # Per-algorithm detection flags (all 8 algorithms)
         ner_detected = "NER" in algorithms_upper
         rake_detected = "RAKE" in algorithms_upper
         bm25_detected = "BM25" in algorithms_upper
-        algo_count = sum([ner_detected, rake_detected, bm25_detected])
+        topicrank_detected = "TOPICRANK" in algorithms_upper
+        medical_ner_detected = "MEDICALNER" in algorithms_upper
+        gliner_detected = "GLINER" in algorithms_upper
+        yake_detected = "YAKE" in algorithms_upper
+        keybert_detected = "KEYBERT" in algorithms_upper
+        algo_count = sum(
+            [
+                ner_detected,
+                rake_detected,
+                bm25_detected,
+                topicrank_detected,
+                medical_ner_detected,
+                gliner_detected,
+                yake_detected,
+                keybert_detected,
+            ]
+        )
 
         # Use is_person (binary) instead of unreliable type string
         is_person_val = term_data.get("Is Person", "No")
@@ -409,13 +437,25 @@ class FeedbackManager:
             "feedback": feedback,
             "is_person": is_person,
             "algorithms": algorithms_str,
+            # Per-algorithm detection flags (all 8 algorithms)
             "NER_detection": ner_detected,
             "RAKE_detection": rake_detected,
             "BM25_detection": bm25_detected,
+            "TopicRank_detection": topicrank_detected,
+            "MedicalNER_detection": medical_ner_detected,
+            "GLiNER_detection": gliner_detected,
+            "YAKE_detection": yake_detected,
+            "KeyBERT_detection": keybert_detected,
             "algo_count": algo_count,
             "quality_score": term_data.get("Quality Score", 0),
             "occurrences": term_data.get("Occurrences", 1),
             "rarity_rank": term_data.get("Google Rarity Rank", 0),
+            # Per-algorithm numeric scores
+            "topicrank_score": term_data.get("topicrank_score", 0.0),
+            "yake_score": term_data.get("yake_score", 0.0),
+            "keybert_score": term_data.get("keybert_score", 0.0),
+            "rake_score": term_data.get("rake_score", 0.0),
+            "bm25_score": term_data.get("bm25_score", 0.0),
             # TermSources-based per-document features
             "num_source_documents": num_source_documents,
             "doc_diversity_ratio": doc_diversity_ratio,

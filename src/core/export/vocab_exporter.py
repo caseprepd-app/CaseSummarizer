@@ -53,7 +53,18 @@ def export_vocabulary(
         headers = ["Term", "Score", "Person", "Found By", "Occurrences"]
         if not is_single_doc:
             headers.append("# Docs")
-        headers.extend(["NER", "RAKE", "BM25"])
+        headers.extend(
+            [
+                "NER",
+                "RAKE",
+                "BM25",
+                "TopicRank",
+                "MedicalNER",
+                "GLiNER",
+                "YAKE",
+                "KeyBERT",
+            ]
+        )
     else:
         headers = ["Term", "Score", "Person", "Found By", "Occurrences"]
         if not is_single_doc:
@@ -70,6 +81,11 @@ def export_vocabulary(
         "NER": "NER",
         "RAKE": "RAKE",
         "BM25": "BM25",
+        "TopicRank": "TopicRank",
+        "MedicalNER": "MedicalNER",
+        "GLiNER": "GLiNER",
+        "YAKE": "YAKE",
+        "KeyBERT": "KeyBERT",
     }
     rows = []
     for v in vocab_data:
