@@ -371,11 +371,6 @@ class FeedbackManager:
             self._session_rated.discard(lower_term)
             # Delete from CSV instead of recording feedback=0
             return self._delete_feedback_from_csv(lower_term, term_data)
-        else:
-            self._cache[lower_term] = feedback
-            # Mark as session-rated (user clicked in GUI)
-            self._session_rated.add(lower_term)
-
         # Build feedback record
         # Parse algorithms string to create boolean detection columns
         algorithms_str = term_data.get("Sources", "")
@@ -529,6 +524,11 @@ class FeedbackManager:
                     except OSError:
                         pass
                     raise
+
+                # Update cache AFTER successful write so cache stays consistent
+                # if the write fails
+                self._cache[lower_term] = feedback
+                self._session_rated.add(lower_term)
 
                 self._pending_count += 1
                 target_type = "default" if DEBUG_MODE else "user"

@@ -26,6 +26,8 @@ def _make_stub():
     stub._completed_tasks = set()
     stub._vector_store_path = None
     stub.processing_results = []
+    stub._processing_active = False
+    stub._preprocessing_active = False
     # Widget mocks
     stub.followup_btn = MagicMock()
     stub.followup_entry = MagicMock()

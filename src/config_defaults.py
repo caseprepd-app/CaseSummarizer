@@ -169,7 +169,23 @@ DEFAULTS = {
         "type": "float",
         "category": "Algorithm Weights",
     },
+    "vocab_weight_topicrank": {
+        "value": 0.6,
+        "min": 0.0,
+        "max": 2.0,
+        "step": 0.1,
+        "type": "float",
+        "category": "Algorithm Weights",
+    },
     "vocab_weight_medical_ner": {
+        "value": 0.75,
+        "min": 0.0,
+        "max": 2.0,
+        "step": 0.1,
+        "type": "float",
+        "category": "Algorithm Weights",
+    },
+    "vocab_weight_gliner": {
         "value": 0.75,
         "min": 0.0,
         "max": 2.0,

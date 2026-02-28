@@ -784,9 +784,18 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             self._on_preprocessing_complete(data)
 
         elif msg_type == "error":
+            logger.error("Worker error: %s", data)
             self.set_status_error(f"Error: {data}")
             messagebox.showerror("Processing Error", str(data))
-            self._on_preprocessing_complete([])
+            # Reset ALL processing flags to prevent stuck UI
+            self._preprocessing_active = False
+            if self._processing_active:
+                self._processing_active = False
+                self._qa_answering_active = False
+                self.output_display.set_extraction_in_progress(False)
+                self._on_tasks_complete(False, str(data))
+            else:
+                self._on_preprocessing_complete([])
 
         # Progressive Extraction handlers
         elif msg_type == "extraction_started":
@@ -927,6 +936,9 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         elif msg_type == "command_ack":
             cmd = data.get("cmd", "unknown") if isinstance(data, dict) else data
             logger.debug("Worker acknowledged command: %s", cmd)
+
+        elif msg_type == "status_error":
+            self.set_status_error(str(data))
 
         else:
             # Log unhandled messages for debugging
@@ -1804,6 +1816,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         """Handle task completion."""
         self._stop_timer()
         self._processing_active = False
+        self.output_display.set_extraction_in_progress(False)
 
         # Update workflow phase for tab status
         from src.ui.workflow_status import WorkflowPhase
@@ -2423,6 +2436,9 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         if hasattr(self, "_timer_after_id") and self._timer_after_id:
             self.after_cancel(self._timer_after_id)
             self._timer_after_id = None
+        if self._resize_debounce_id is not None:
+            self.after_cancel(self._resize_debounce_id)
+            self._resize_debounce_id = None
 
         # Shut down the worker subprocess (non-blocking to avoid GUI hang)
         if self._worker_manager:

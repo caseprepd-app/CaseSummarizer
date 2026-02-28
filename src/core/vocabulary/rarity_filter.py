@@ -251,10 +251,10 @@ def get_phrase_rarity_scores(phrase: str) -> tuple[float, float, int]:
     """
     Calculate rarity scores for a phrase, treating unknown words as rare.
 
-    Unlike calculate_phrase_component_scores which gives 0.0 to unknown words
-    (treating them as maximally common), this function assigns them a
-    configurable rarity score (default 0.85) since words absent from the
-    Google frequency dataset are likely proper nouns or specialized terms.
+    Like calculate_phrase_component_scores, this function assigns a high
+    rarity score to unknown words (default 0.85 via NON_NER_UNKNOWN_WORD_RARITY)
+    since words absent from the Google frequency dataset are likely proper
+    nouns or specialized terms.
 
     The mean is "adjusted": common filler words (below the floor threshold)
     are excluded from the mean calculation to prevent words like "of", "the"

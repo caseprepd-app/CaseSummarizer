@@ -211,6 +211,11 @@ class RawTextExtractor:
                         )
                         logger.error("%s", result["error_message"])
                         return result
+                else:
+                    result["status"] = "error"
+                    result["error_message"] = "File contains no extractable text."
+                    logger.error("Empty text extracted from: %s", result.get("filename", "unknown"))
+                    return result
 
                 # Step 5: Sanitize characters
                 report_progress("Fixing character encoding...", 80)

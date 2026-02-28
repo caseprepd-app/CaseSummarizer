@@ -103,6 +103,16 @@ DESCRIPTIONS = {
             "Less negative: More lenient toward terms found by one method."
         ),
     },
+    "topicrank_max_text_kb": {
+        "label": "TopicRank max text size (KB)",
+        "tooltip": (
+            "Maximum text size in KB for TopicRank processing.\n"
+            "Larger texts are truncated to this limit before graph analysis.\n\n"
+            "Default: 1000 KB\n\n"
+            "Increase: Process more text (slower, more memory).\n"
+            "Decrease: Faster processing but may miss terms in long documents."
+        ),
+    },
     "score_topicrank_centrality_boost": {
         "label": "TopicRank centrality boost",
         "tooltip": (
@@ -122,6 +132,20 @@ DESCRIPTIONS = {
             "Default: 6 points (scaled by confidence 0-1)\n\n"
             "Higher: Favor terms where algorithms report high confidence.\n"
             "Lower: Reduce influence of algorithm confidence on ranking."
+        ),
+    },
+    # =======================================================================
+    # RAKE Algorithm
+    # =======================================================================
+    "rake_min_frequency": {
+        "label": "RAKE minimum word frequency",
+        "tooltip": (
+            "Minimum word frequency for RAKE keyword extraction.\n"
+            "Words appearing fewer times than this threshold are excluded\n"
+            "from candidate keyphrases.\n\n"
+            "Default: 3\n\n"
+            "Increase: Only consider frequently used words (fewer results).\n"
+            "Decrease: Include rarer words in keyphrases (more results)."
         ),
     },
     # =======================================================================
@@ -206,6 +230,39 @@ DESCRIPTIONS = {
             "Increase: More influence from corpus comparison.\n"
             "Decrease: Less influence from corpus-based scoring.\n\n"
             "Requires 5+ documents in your corpus to be effective."
+        ),
+    },
+    "vocab_weight_topicrank": {
+        "label": "TopicRank algorithm weight",
+        "tooltip": (
+            "Influence of TopicRank on final vocabulary scores.\n"
+            "TopicRank clusters keyphrases into topics and uses PageRank\n"
+            "to identify the most central concepts in the document.\n\n"
+            "Default: 0.6\n\n"
+            "Increase: More influence from graph-based topic analysis.\n"
+            "Decrease: Less influence from TopicRank results."
+        ),
+    },
+    "vocab_weight_medical_ner": {
+        "label": "MedicalNER algorithm weight",
+        "tooltip": (
+            "Confidence weight for MedicalNER (scispaCy) algorithm results.\n"
+            "MedicalNER uses biomedical NLP models to identify medical\n"
+            "terminology, conditions, procedures, and anatomy terms.\n\n"
+            "Default: 0.75\n\n"
+            "Increase: More influence from medical entity recognition.\n"
+            "Decrease: Less influence from MedicalNER results."
+        ),
+    },
+    "vocab_weight_gliner": {
+        "label": "GLiNER algorithm weight",
+        "tooltip": (
+            "Influence of GLiNER zero-shot NER on final vocabulary scores.\n"
+            "GLiNER uses a generalist model to detect domain-specific\n"
+            "entities (medical, legal, anatomical) without fine-tuning.\n\n"
+            "Default: 0.75\n\n"
+            "Increase: More influence from zero-shot entity recognition.\n"
+            "Decrease: Less influence from GLiNER results."
         ),
     },
     "vocab_weight_yake": {

@@ -216,9 +216,9 @@ VOCAB_ALGORITHM_WEIGHTS = {
     "NER": _d("vocab_weight_ner"),
     "RAKE": _d("vocab_weight_rake"),
     "BM25": _d("vocab_weight_bm25"),
-    "TopicRank": 0.6,
+    "TopicRank": _d("vocab_weight_topicrank"),
     "MedicalNER": _d("vocab_weight_medical_ner"),
-    "GLiNER": 0.75,
+    "GLiNER": _d("vocab_weight_gliner"),
     "YAKE": _d("vocab_weight_yake"),
     "KeyBERT": _d("vocab_weight_keybert"),
 }
@@ -941,12 +941,18 @@ COLUMN_DEFINITIONS = [
     ColumnDefinition("Is Person", "Is Person", 65, 4, True, True, True, False),
     ColumnDefinition("Found By", "Found By", 120, 20, True, True, True, False),
     # TermSources columns (default visible)
+    ColumnDefinition("Occurrences", "Occurrences", 80, 6, True, True, True, True),
     ColumnDefinition("# Docs", "# Docs", 55, 4, True, True, True, True),
     ColumnDefinition("OCR Confidence", "OCR Confidence", 80, 5, True, True, True, False),
     # Algorithm detail columns (default hidden)
     ColumnDefinition("NER", "NER", 45, 4, False, True, True, False),
     ColumnDefinition("RAKE", "RAKE", 50, 4, False, True, True, False),
     ColumnDefinition("BM25", "BM25", 50, 4, False, True, True, False),
+    ColumnDefinition("TopicRank", "TopicRank", 65, 4, False, True, True, False),
+    ColumnDefinition("MedicalNER", "MedicalNER", 75, 4, False, True, True, False),
+    ColumnDefinition("GLiNER", "GLiNER", 55, 4, False, True, True, False),
+    ColumnDefinition("YAKE", "YAKE", 50, 4, False, True, True, False),
+    ColumnDefinition("KeyBERT", "KeyBERT", 55, 4, False, True, True, False),
     ColumnDefinition("Algo Count", "Algo Count", 55, 3, False, True, True, True),
     # Additional columns (default hidden)
     ColumnDefinition("Google Rarity Rank", "Google Rarity Rank", 80, 10, False, True, True, True),

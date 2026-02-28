@@ -247,15 +247,18 @@ def extract_features(term_data: dict[str, Any]) -> np.ndarray:
             freq_per_1k_words = occurrences / 0.1  # Conservative fallback
 
     # === ALGORITHM SOURCE FEATURES ===
+    # Split into a set to avoid substring false positives
+    # (e.g., "ner" matching inside "medicalner" or "gliner")
     algorithms = str(term_data.get("algorithms", "")).lower()
-    has_ner = 1.0 if "ner" in algorithms else 0.0
-    has_rake = 1.0 if "rake" in algorithms else 0.0
-    has_bm25 = 1.0 if "bm25" in algorithms else 0.0
-    has_topicrank = 1.0 if "topicrank" in algorithms or "textrank" in algorithms else 0.0
-    has_medical_ner = 1.0 if "medicalner" in algorithms else 0.0
-    has_gliner = 1.0 if "gliner" in algorithms else 0.0
-    has_yake = 1.0 if "yake" in algorithms else 0.0
-    has_keybert = 1.0 if "keybert" in algorithms else 0.0
+    algo_set = {a.strip() for a in algorithms.replace(",", " ").split() if a.strip()}
+    has_ner = 1.0 if "ner" in algo_set else 0.0
+    has_rake = 1.0 if "rake" in algo_set else 0.0
+    has_bm25 = 1.0 if "bm25" in algo_set else 0.0
+    has_topicrank = 1.0 if "topicrank" in algo_set or "textrank" in algo_set else 0.0
+    has_medical_ner = 1.0 if "medicalner" in algo_set else 0.0
+    has_gliner = 1.0 if "gliner" in algo_set else 0.0
+    has_yake = 1.0 if "yake" in algo_set else 0.0
+    has_keybert = 1.0 if "keybert" in algo_set else 0.0
     topicrank_score = float(
         term_data.get("topicrank_score", 0.0) or term_data.get("textrank_score", 0.0)
     )

@@ -46,7 +46,7 @@ COMMON_WORD_ABSORPTION_GATE = 133000
 # Patterns to strip from person names (transcript artifacts)
 TRANSCRIPT_ARTIFACT_PATTERNS = [
     # Q/A notation: "DI LEO 1 Q", "SMITH 2 A", "JONES Q"
-    r"\s+\d*\s*[QA](?:\s+|$)",
+    r"\s+\d+\s*[QA](?:\s+|$)",
     # Speech attribution: "DI LEO: Objection", "SMITH: Yes"
     r":\s*\w+.*$",
     # Trailing numbers: "Di Leo 17", "Smith 2"

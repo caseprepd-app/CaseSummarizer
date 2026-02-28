@@ -439,7 +439,8 @@ Summary:"""
 
         # Get section name
         if chunk_num <= len(self.df):
-            section = self.df.loc[self.df["chunk_num"] == chunk_num, "section_detected"].iloc[0]
+            filtered = self.df.loc[self.df["chunk_num"] == chunk_num, "section_detected"]
+            section = filtered.iloc[0] if not filtered.empty else ""
             section_str = f" - Section: '{section}'" if section else ""
         else:
             section_str = ""

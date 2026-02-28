@@ -167,7 +167,20 @@ class TranscriptHeaderFilter(BaseVocabularyFilter):
         removed = []
         for term_data in vocabulary:
             term = term_data.get("Term", "")
-            if is_transcript_header_artifact(term, canonical_names):
+            term_lower = term.lower()
+
+            # Rule 1 check: keyword-only removal is skipped for person entries
+            # (a person named "Cross" or "Dirk Cross" should not be removed)
+            if _contains_section_keyword(term_lower) and not is_person_entry(term_data):
+                removed.append(term)
+                logger.debug("[Transcript Header Filter] Removed: '%s'", term)
+                continue
+
+            # Rules 2 & 3: name+keyword and two-name concatenation (apply to all)
+            if canonical_names and (
+                _has_name_plus_keyword(term_lower, canonical_names)
+                or _has_two_canonical_names(term_lower, canonical_names)
+            ):
                 removed.append(term)
                 logger.debug("[Transcript Header Filter] Removed: '%s'", term)
             else:

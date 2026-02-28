@@ -1674,6 +1674,9 @@ class VocabularyExtractor:
             "rake_score": rake_score,
             "bm25_score": bm25_score,
             "total_word_count": sum(td.get("total_word_count", 0) for _, _, td in doc_entries),
+            "corpus_common_term": any(
+                td.get("corpus_common_term", False) for _, _, td in doc_entries
+            ),
         }
 
     # ========================================================================
