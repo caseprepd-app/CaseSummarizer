@@ -5,7 +5,7 @@
 ; ──────────────────────────────────────────────────────────────
 
 #define MyAppName "CasePrepd"
-#define MyAppVersion "1.0.13"
+#define MyAppVersion "1.0.14"
 #define MyAppPublisher "CasePrepd"
 #define MyAppURL "https://sites.google.com/view/caseprepd/home"
 #define MyAppExeName "CasePrepd.exe"

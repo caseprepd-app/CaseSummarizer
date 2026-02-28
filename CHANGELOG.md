@@ -3,6 +3,34 @@
 All notable changes to CasePrepd are documented here.
 Format: user-facing changes first, internal/dev changes in a separate section.
 
+## [1.0.14] - 2026-02-28
+
+### Improved
+- Rules engine rebalanced: rules floor raised to 45% (ML capped at 55%) so rules act as stable guardrails
+- Tiered person name boost: multi-word rare names get +15, multi-word common +12, single-word +5
+- Gentler occurrence curve (log10 * 18, cap 35) reduces score inflation from high-frequency terms
+- Tougher artifact penalties: all-caps -12, leading digit -8, single letter -15, trailing punctuation -5
+- Algorithm confidence boost: high-confidence YAKE/KeyBERT/RAKE/BM25 scores add up to +6 quality points
+- All 8 algorithms (NER, RAKE, BM25, TopicRank, MedicalNER, GLiNER, YAKE, KeyBERT) now visible in vocabulary table columns and settings
+
+### Fixed
+- Algorithm scores (YAKE, KeyBERT, RAKE, BM25, TopicRank) were always 0 due to result merger burying scores in nested metadata — now promoted to top level
+- Feedback CSV only tracked 3 of 8 algorithms — now records all 8 detection flags and 5 numeric scores
+- algo_count was undercounting (summed only NER/RAKE/BM25) — now counts all 8 algorithms
+- YAKE score aggregation in multi-doc merge treated "no YAKE data" as perfect score
+- Vocabulary exports (Word, PDF) only included 3 algorithm columns — now includes all 8
+
+### Internal
+- Meta-learner ML weight thresholds reduced: 0/25/35/45/55% (was 0/40/50/60/80%)
+- Count bins consolidated to 5: 1 | 2-3 | 4-6 | 7-20 | 21+ (simpler, avoids sparse data)
+- Non-linear algorithm agreement tiers: +4 (2 algos), +8 (3), +12 (4+)
+- New SCORE_ALGO_CONFIDENCE_BOOST config constant (default 6, tunable 0-15)
+- RAKE and BM25 scores pulled through full pipeline (single-doc + multi-doc)
+- Developer feedback CSV cleared and header updated with new columns (feature dimensions changed)
+- Stale trained model deleted (incompatible with new feature vector)
+- 38 new tests: 31 for quality score rules engine, 4 for score promotion, 3 for feedback recording
+- Result merger `if d.get(key)` falsiness bug fixed (filtered legitimate 0.0 scores)
+
 ## [1.0.13] - 2026-02-26
 
 ### Improved
