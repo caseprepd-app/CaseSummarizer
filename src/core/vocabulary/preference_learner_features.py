@@ -157,7 +157,7 @@ FEATURE_NAMES = [
     "has_medical_suffix",
     "has_repeated_chars",
     "contains_hyphen",
-    # TermSources-based per-document confidence features (7 total)
+    # TermSources-based per-document confidence features (6 total)
     # These provide richer signals about term reliability across source documents
     "mean_count_per_doc",  # Average occurrences per source doc (occurrences / num_docs)
     "doc_diversity_ratio",  # num_docs / total_docs (0-1, spread across corpus)
@@ -165,7 +165,7 @@ FEATURE_NAMES = [
     "confidence_std_dev",  # Consistency of confidence across docs (0-0.5)
     "high_conf_doc_ratio",  # % of source docs with confidence > 0.80 (0-1)
     "all_low_conf",  # 1 if ALL source docs have conf < 0.60 (red flag)
-    # Name validation and domain-specific features (5 total)
+    # Name validation and domain-specific features (8 total)
     "is_in_names_dataset",  # Any word in international forenames/surnames datasets
     "names_word_ratio",  # Proportion of term's words found in names dataset (0-1)
     "has_forename_and_surname",  # Term has both a forename and surname match (0/1)
@@ -228,7 +228,7 @@ def extract_features(term_data: dict[str, Any]) -> np.ndarray:
     ) = get_count_bin_features(count)
 
     # Log-scaled count to preserve magnitude within bins
-    # bin_51_plus covers 51-∞ with no distinction; log_count provides continuous signal
+    # bin_21_plus covers 21-∞ with no distinction; log_count provides continuous signal
     # Examples: 1→0, 10→1.0, 100→2.0, 301→2.48
     log_count = np.log10(count + 1)
 
