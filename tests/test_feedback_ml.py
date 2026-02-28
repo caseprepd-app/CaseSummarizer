@@ -184,46 +184,39 @@ class TestVocabularyPreferenceLearner:
             "total_unique_terms": 100,
         }
         features = extract_features(term_data)
-        assert len(features) == 63  # 8 count bins + log_count + 54 other features
-        # features[0-7] are count bins: count=3 → count_bin_3=1.0
+        assert len(features) == 56  # 5 count bins + log_count + 50 other features
+        # features[0-4] are count bins: count=3 → count_bin_2_3=1.0
         assert features[0] == 0.0  # count_bin_1
-        assert features[1] == 0.0  # count_bin_2
-        assert features[2] == 1.0  # count_bin_3 (count=3)
-        assert features[3] == 0.0  # count_bin_4_6
-        assert features[4] == 0.0  # count_bin_7_12
-        assert features[5] == 0.0  # count_bin_13_20
-        assert features[6] == 0.0  # count_bin_21_50
-        assert features[7] == 0.0  # count_bin_51_plus
-        # features[8] is log_count: log10(3+1) ≈ 0.602
-        assert round(features[8], 2) == 0.60  # log_count
-        # features[9] is freq_per_1k_words: no total_word_count, fallback uses
+        assert features[1] == 1.0  # count_bin_2_3 (count=3)
+        assert features[2] == 0.0  # count_bin_4_6
+        assert features[3] == 0.0  # count_bin_7_20
+        assert features[4] == 0.0  # count_bin_21_plus
+        # features[5] is log_count: log10(3+1) ≈ 0.602
+        assert round(features[5], 2) == 0.60  # log_count
+        # features[6] is freq_per_1k_words: no total_word_count, fallback uses
         # total_unique_terms=100 → 3 / max(100/1000, 0.1) = 3/0.1 = 30.0
-        assert features[9] == 30.0
-        # features[10-17] are algorithm binary flags
-        assert features[10] == 1.0  # has_ner
-        assert features[11] == 1.0  # has_rake
-        assert features[12] == 0.0  # has_bm25
-        assert features[13] == 0.0  # has_topicrank
-        assert features[14] == 0.0  # has_medical_ner
-        assert features[15] == 0.0  # has_gliner
-        assert features[16] == 0.0  # has_yake
-        assert features[17] == 0.0  # has_keybert
-        # features[18-22] are algorithm scores
-        assert features[18] == 0.0  # topicrank_score
-        assert features[19] == 0.0  # yake_score
-        assert features[20] == 0.0  # keybert_score
-        assert features[21] == 0.0  # rake_score
-        assert features[22] == 0.0  # bm25_score
-        # features[28] is has_trailing_punctuation: "hypertension" has none
-        assert features[28] == 0.0
-        # features[29] is has_leading_digit: "hypertension" has none
-        assert features[29] == 0.0
-        # features[31] is word_count: "hypertension" is 1 word
-        assert features[31] == 1.0
-        # features[32] is is_all_caps: "hypertension" is not all caps
-        assert features[32] == 0.0
-        # features[43] is has_medical_suffix: "hypertension" ends with -ion (not medical suffix)
-        assert features[43] == 0.0
+        assert features[6] == 30.0
+        # features[7-14] are algorithm binary flags
+        assert features[7] == 1.0  # has_ner
+        assert features[8] == 1.0  # has_rake
+        assert features[9] == 0.0  # has_bm25
+        assert features[10] == 0.0  # has_topicrank
+        assert features[11] == 0.0  # has_medical_ner
+        assert features[12] == 0.0  # has_gliner
+        assert features[13] == 0.0  # has_yake
+        assert features[14] == 0.0  # has_keybert
+        # Use FEATURE_NAMES.index for remaining checks (more robust)
+        assert features[FEATURE_NAMES.index("topicrank_score")] == 0.0
+        assert features[FEATURE_NAMES.index("yake_score")] == 0.0
+        assert features[FEATURE_NAMES.index("keybert_score")] == 0.0
+        assert features[FEATURE_NAMES.index("rake_score")] == 0.0
+        assert features[FEATURE_NAMES.index("bm25_score")] == 0.0
+        assert features[FEATURE_NAMES.index("has_trailing_punctuation")] == 0.0
+        assert features[FEATURE_NAMES.index("has_leading_digit")] == 0.0
+        assert features[FEATURE_NAMES.index("word_count")] == 1.0
+        assert features[FEATURE_NAMES.index("is_all_caps")] == 0.0
+        # "hypertension" ends with -ion (not a medical suffix)
+        assert features[FEATURE_NAMES.index("has_medical_suffix")] == 0.0
 
     def test_feature_extraction_artifacts(self, meta_learner):
         """Test that artifact patterns are detected correctly.

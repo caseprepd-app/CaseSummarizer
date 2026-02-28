@@ -67,7 +67,7 @@ def test_feature_vector_length(mock_deps):
     term_data = {"Term": "John Smith", "occurrences": 5, "algorithms": "NER", "is_person": 1}
     features = extract_features(term_data)
     assert len(features) == len(FEATURE_NAMES)
-    assert len(features) == 63
+    assert len(features) == 56
 
 
 def test_person_feature(mock_deps):
@@ -183,49 +183,25 @@ def test_rake_bm25_absent(mock_deps):
     assert features[FEATURE_NAMES.index("bm25_score")] == 0.0
 
 
-def test_algo_count_single(mock_deps):
+def test_count_bin_2_3(mock_deps):
     extract_features, FEATURE_NAMES = mock_deps
-    term_data = {"Term": "test term", "occurrences": 1, "algorithms": "NER"}
+    term_data = {"Term": "test", "occurrences": 2, "algorithms": "NER"}
     features = extract_features(term_data)
-    assert features[FEATURE_NAMES.index("algo_count_1")] == 1.0
-    assert features[FEATURE_NAMES.index("algo_count_2")] == 0.0
-    assert features[FEATURE_NAMES.index("algo_count_3")] == 0.0
-    assert features[FEATURE_NAMES.index("algo_count_4_plus")] == 0.0
+    assert features[FEATURE_NAMES.index("count_bin_1")] == 0.0
+    assert features[FEATURE_NAMES.index("count_bin_2_3")] == 1.0
 
 
-def test_algo_count_three(mock_deps):
-    extract_features, FEATURE_NAMES = mock_deps
-    term_data = {"Term": "test term", "occurrences": 1, "algorithms": "NER, RAKE, BM25"}
-    features = extract_features(term_data)
-    assert features[FEATURE_NAMES.index("algo_count_1")] == 0.0
-    assert features[FEATURE_NAMES.index("algo_count_2")] == 0.0
-    assert features[FEATURE_NAMES.index("algo_count_3")] == 1.0
-    assert features[FEATURE_NAMES.index("algo_count_4_plus")] == 0.0
-
-
-def test_algo_count_four_plus(mock_deps):
-    extract_features, FEATURE_NAMES = mock_deps
-    term_data = {
-        "Term": "test term",
-        "occurrences": 1,
-        "algorithms": "NER, RAKE, BM25, TopicRank, YAKE",
-    }
-    features = extract_features(term_data)
-    assert features[FEATURE_NAMES.index("algo_count_1")] == 0.0
-    assert features[FEATURE_NAMES.index("algo_count_4_plus")] == 1.0
-
-
-def test_count_bin_7_12(mock_deps):
-    extract_features, FEATURE_NAMES = mock_deps
-    term_data = {"Term": "test", "occurrences": 10, "algorithms": "NER"}
-    features = extract_features(term_data)
-    assert features[FEATURE_NAMES.index("count_bin_7_12")] == 1.0
-    assert features[FEATURE_NAMES.index("count_bin_13_20")] == 0.0
-
-
-def test_count_bin_13_20(mock_deps):
+def test_count_bin_7_20(mock_deps):
     extract_features, FEATURE_NAMES = mock_deps
     term_data = {"Term": "test", "occurrences": 15, "algorithms": "NER"}
     features = extract_features(term_data)
-    assert features[FEATURE_NAMES.index("count_bin_7_12")] == 0.0
-    assert features[FEATURE_NAMES.index("count_bin_13_20")] == 1.0
+    assert features[FEATURE_NAMES.index("count_bin_7_20")] == 1.0
+    assert features[FEATURE_NAMES.index("count_bin_21_plus")] == 0.0
+
+
+def test_count_bin_21_plus(mock_deps):
+    extract_features, FEATURE_NAMES = mock_deps
+    term_data = {"Term": "test", "occurrences": 55, "algorithms": "NER"}
+    features = extract_features(term_data)
+    assert features[FEATURE_NAMES.index("count_bin_7_20")] == 0.0
+    assert features[FEATURE_NAMES.index("count_bin_21_plus")] == 1.0

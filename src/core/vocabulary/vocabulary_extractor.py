@@ -1042,12 +1042,10 @@ class VocabularyExtractor:
 
         score = 50.0  # Base score
 
-        # Boost for multiple occurrences (max +30)
-        # Log-scaled to better reward high-frequency names (301 occ vs 4 occ)
-        # Distinguishes 10, 100, 300+ occurrences
-        # Examples: 1→8, 4→17, 10→25, 100→30, 300→30
-
-        occurrence_boost = min(math.log10(term_count + 1) * 25, 30)
+        # Boost for multiple occurrences (max +35)
+        # Gentler curve with higher cap — more room to distinguish frequent terms
+        # Examples: 1→+5, 4→+13, 10→+18, 50→+31, 300→+35
+        occurrence_boost = min(math.log10(term_count + 1) * 18, 35)
         score += occurrence_boost
 
         # Boost for rare words (max +20)
@@ -1058,9 +1056,19 @@ class VocabularyExtractor:
         elif frequency_rank > 180000:
             score += 10
 
-        # Boost for person names (NER is reliable for these) (+10)
+        # Tiered person name boost
+        # Multi-word rare names are almost certainly real people;
+        # single common words like "Will" or "Grace" deserve less boost.
         if is_person:
-            score += 10
+            term_words = term.split() if term else []
+            is_rare = frequency_rank == 0 or frequency_rank > 180000
+            is_multi_word = len(term_words) >= 2
+            if is_multi_word and is_rare:
+                score += 15  # Multi-word + rare name = very strong signal
+            elif is_multi_word:
+                score += 12  # Multi-word name = likely real person
+            else:
+                score += 5  # Single word person = could be noise
 
         # Boost for multi-algorithm agreement (non-linear tiers)
         # Terms found by multiple algorithms are more trustworthy
@@ -1114,25 +1122,26 @@ class VocabularyExtractor:
             ):
                 score += SCORE_SINGLE_SOURCE_PENALTY
 
-        # === Artifact detection penalties (half-strength, ML handles the rest) ===
+        # === Artifact detection penalties ===
+        # Toughened to match rules' 45% floor — these need teeth.
         if term:
-            # All caps - headers/labels, rarely useful vocabulary (-7.5)
+            # All caps - headers/labels, rarely useful vocabulary (-12)
             alpha_chars = [c for c in term if c.isalpha()]
             if alpha_chars and all(c.isupper() for c in alpha_chars):
-                score -= 7.5
+                score -= 12.0
 
-            # Leading digit - line numbers attached to terms (-5)
+            # Leading digit - line numbers attached to terms (-8)
             if term[0].isdigit():
-                score -= 5.0
+                score -= 8.0
 
-            # Single letter - "Q", "A" transcript artifacts (-10)
+            # Single letter - "Q", "A" transcript artifacts (-15)
             stripped = term.strip()
             if len(stripped) == 1 and stripped.isalpha():
-                score -= 10.0
+                score -= 15.0
 
-            # Trailing punctuation - extraction boundary errors (-2.5)
+            # Trailing punctuation - extraction boundary errors (-5)
             if term[-1] in ":;.,!?":
-                score -= 2.5
+                score -= 5.0
 
         return min(100.0, max(0.0, round(score, 1)))
 

@@ -127,21 +127,17 @@ ML_SOURCE_WEIGHTS = [
 # Count Bin Configuration
 # Centralized definition of occurrence count bins for ML features and deduplication.
 # Rationale: count=1 could be OCR error, higher counts are progressively more reliable.
-# Extra granularity above 7 occurrences ensures high-frequency legitimate names
-# are scored differently from names with only 7 occurrences.
+# Only 5 bins — continuous features (log_count, freq_per_1k_words) handle fine granularity.
 #
 # Used by:
 # - feedback_manager.py: Deduplication key (term, count_bin)
 # - preference_learner.py: One-hot encoded features for ML model
 COUNT_BIN_NAMES = (
     "bin_1",  # Single occurrence - may be OCR error
-    "bin_2",  # Two occurrences
-    "bin_3",  # Three occurrences
+    "bin_2_3",  # 2-3 occurrences - low but real
     "bin_4_6",  # 4-6 occurrences - moderate confidence
-    "bin_7_12",  # 7-12 occurrences - mentioned several times
-    "bin_13_20",  # 13-20 occurrences - mentioned frequently
-    "bin_21_50",  # 21-50 occurrences - appears throughout document
-    "bin_51_plus",  # 51+ occurrences - major figure in transcript
+    "bin_7_20",  # 7-20 occurrences - mentioned multiple times
+    "bin_21_plus",  # 21+ occurrences - frequent/major figure
 )
 
 
@@ -155,23 +151,15 @@ def get_count_bin(count: int) -> str:
     Returns:
         Bin name: one of COUNT_BIN_NAMES
     """
-    if count <= 0:
+    if count <= 1:
         return "bin_1"
-    if count == 1:
-        return "bin_1"
-    if count == 2:
-        return "bin_2"
-    if count == 3:
-        return "bin_3"
-    if 4 <= count <= 6:
+    if count <= 3:
+        return "bin_2_3"
+    if count <= 6:
         return "bin_4_6"
-    if 7 <= count <= 12:
-        return "bin_7_12"
-    if 13 <= count <= 20:
-        return "bin_13_20"
-    if 21 <= count <= 50:
-        return "bin_21_50"
-    return "bin_51_plus"
+    if count <= 20:
+        return "bin_7_20"
+    return "bin_21_plus"
 
 
 def get_count_bin_features(count: int) -> tuple[float, ...]:
@@ -182,35 +170,11 @@ def get_count_bin_features(count: int) -> tuple[float, ...]:
         count: Term occurrence count (occurrences)
 
     Returns:
-        Tuple of 8 floats: one-hot encoded count bins.
+        Tuple of 5 floats: one-hot encoded count bins.
         One value will be 1.0, rest will be 0.0
     """
     bin_name = get_count_bin(count)
     return tuple(1.0 if bin_name == name else 0.0 for name in COUNT_BIN_NAMES)
-
-
-# Algorithm Count Bin Configuration
-# One-hot encoded algorithm agreement bins for ML features.
-# Tracks how many algorithms found a term — stronger signal with more agreement.
-ALGO_COUNT_BIN_NAMES = ("algo_1", "algo_2", "algo_3", "algo_4_plus")
-
-
-def get_algo_count_bin_features(algo_count: int) -> tuple[float, float, float, float]:
-    """
-    One-hot encode algorithm count: 1 | 2 | 3 | 4+.
-
-    Args:
-        algo_count: Number of algorithms that found this term.
-
-    Returns:
-        Tuple of 4 floats: (algo_1, algo_2, algo_3, algo_4_plus)
-    """
-    return (
-        1.0 if algo_count == 1 else 0.0,
-        1.0 if algo_count == 2 else 0.0,
-        1.0 if algo_count == 3 else 0.0,
-        1.0 if algo_count >= 4 else 0.0,
-    )
 
 
 # Rule-Based Quality Score: TermSources Adjustments

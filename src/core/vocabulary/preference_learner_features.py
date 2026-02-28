@@ -21,7 +21,6 @@ import numpy as np
 
 from src.config import (
     NON_NER_PHRASE_COMMON_WORD_FLOOR,
-    get_algo_count_bin_features,
     get_count_bin_features,
 )
 from src.core.vocabulary.adjusted_mean import compute_adjusted_mean
@@ -112,17 +111,13 @@ PROFESSIONAL_SUFFIXES = (
 # corpus feature and is_title_case are simplified to binary.
 # TermSources features provide per-document confidence tracking.
 FEATURE_NAMES = [
-    # Count bin features - one-hot encoded (8 bins)
-    # Rationale: count=1 could be OCR error, higher counts progressively more reliable
-    # Granularity above 7 distinguishes frequent names (119 occ)
+    # Count bin features - one-hot encoded (5 bins)
+    # Only coarse thresholds — log_count and freq_per_1k_words handle fine granularity
     "count_bin_1",  # Exactly 1 occurrence (possible OCR error)
-    "count_bin_2",  # Exactly 2 occurrences
-    "count_bin_3",  # Exactly 3 occurrences
-    "count_bin_4_6",  # 4-6 occurrences
-    "count_bin_7_12",  # 7-12 occurrences (mentioned several times)
-    "count_bin_13_20",  # 13-20 occurrences (mentioned frequently)
-    "count_bin_21_50",  # 21-50 occurrences (appears throughout document)
-    "count_bin_51_plus",  # 51+ occurrences (major figure in transcript)
+    "count_bin_2_3",  # 2-3 occurrences (low but real)
+    "count_bin_4_6",  # 4-6 occurrences (moderate confidence)
+    "count_bin_7_20",  # 7-20 occurrences (mentioned multiple times)
+    "count_bin_21_plus",  # 21+ occurrences (frequent/major figure)
     "log_count",  # Log-scaled count preserving magnitude (log10(count+1))
     "freq_per_1k_words",  # Scale-independent density (count / (total_words / 1000))
     # Algorithm binary flags (8)
@@ -140,11 +135,6 @@ FEATURE_NAMES = [
     "keybert_score",  # KeyBERT cosine similarity (0-1)
     "rake_score",  # Normalized RAKE score (0-1, higher = better keyphrase)
     "bm25_score",  # Normalized BM25 score (0-1, higher = better corpus relevance)
-    # Algorithm count bins (4)
-    "algo_count_1",  # Exactly 1 algorithm found this term
-    "algo_count_2",  # Exactly 2 algorithms
-    "algo_count_3",  # Exactly 3 algorithms (strong signal)
-    "algo_count_4_plus",  # 4+ algorithms (very strong signal)
     "is_person",  # NER person detection - the only reliable type info
     # Character/format features for artifact detection
     "has_trailing_punctuation",  # "Smith:", "Di Leo." - likely artifacts
@@ -207,7 +197,7 @@ def extract_features(term_data: dict[str, Any]) -> np.ndarray:
                   May include "sources" (TermSources) and "total_docs_in_session"
 
     Returns:
-        numpy array of 63 features (8 count bins + log_count + 54 other features)
+        numpy array of 56 features (5 count bins + log_count + 50 other features)
 
     Raises:
         ValueError: If term_data is not a dict or missing required fields
@@ -227,17 +217,14 @@ def extract_features(term_data: dict[str, Any]) -> np.ndarray:
     occurrences = float(term_data.get("occurrences") or 1)
     count = int(occurrences)
 
-    # Count bins - one-hot encoded via config (8 bins)
-    # Rationale: count=1 could be OCR error, higher counts more reliable
+    # Count bins - one-hot encoded via config (5 bins)
+    # Coarse thresholds only — log_count and freq_per_1k_words handle fine granularity
     (
         count_bin_1,
-        count_bin_2,
-        count_bin_3,
+        count_bin_2_3,
         count_bin_4_6,
-        count_bin_7_12,
-        count_bin_13_20,
-        count_bin_21_50,
-        count_bin_51_plus,
+        count_bin_7_20,
+        count_bin_21_plus,
     ) = get_count_bin_features(count)
 
     # Log-scaled count to preserve magnitude within bins
@@ -280,19 +267,6 @@ def extract_features(term_data: dict[str, Any]) -> np.ndarray:
     bm25_score_raw = float(term_data.get("bm25_score", 0.0))
     rake_score_norm = min(rake_score_raw / 15.0, 1.0)
     bm25_score_norm = min(bm25_score_raw / 15.0, 1.0)
-
-    # Algorithm count bins — one-hot encoded agreement signal
-    algo_count = int(
-        has_ner
-        + has_rake
-        + has_bm25
-        + has_topicrank
-        + has_medical_ner
-        + has_gliner
-        + has_yake
-        + has_keybert
-    )
-    algo_1, algo_2, algo_3, algo_4_plus = get_algo_count_bin_features(algo_count)
 
     # === PERSON DETECTION ===
     is_person_val = term_data.get("is_person", 0)
@@ -505,15 +479,12 @@ def extract_features(term_data: dict[str, Any]) -> np.ndarray:
 
     return np.array(
         [
-            # Count bin features (8) + log_count (1) + freq_per_1k_words (1)
+            # Count bin features (5) + log_count (1) + freq_per_1k_words (1)
             count_bin_1,
-            count_bin_2,
-            count_bin_3,
+            count_bin_2_3,
             count_bin_4_6,
-            count_bin_7_12,
-            count_bin_13_20,
-            count_bin_21_50,
-            count_bin_51_plus,
+            count_bin_7_20,
+            count_bin_21_plus,
             log_count,  # Log-scaled count for magnitude within bins
             freq_per_1k_words,  # Scale-independent density
             # Algorithm binary flags (8)
@@ -531,11 +502,6 @@ def extract_features(term_data: dict[str, Any]) -> np.ndarray:
             keybert_score,
             rake_score_norm,
             bm25_score_norm,
-            # Algorithm count bins (4)
-            algo_1,
-            algo_2,
-            algo_3,
-            algo_4_plus,
             # Type feature (1)
             is_person,
             # Original artifact features (6)

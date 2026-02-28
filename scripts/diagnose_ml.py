@@ -18,21 +18,15 @@ MODEL_PATH = Path.home() / "AppData/Roaming/CasePrepd/data/models/vocab_meta_lea
 
 def get_bin(count):
     """Get count bin name for a given occurrence count."""
-    if count == 1:
+    if count <= 1:
         return "bin_1"
-    if count == 2:
-        return "bin_2"
-    if count == 3:
-        return "bin_3"
-    if 4 <= count <= 6:
+    if count <= 3:
+        return "bin_2_3"
+    if count <= 6:
         return "bin_4_6"
-    if 7 <= count <= 12:
-        return "bin_7_12"
-    if 13 <= count <= 20:
-        return "bin_13_20"
-    if 21 <= count <= 50:
-        return "bin_21_50"
-    return "bin_51_plus"
+    if count <= 20:
+        return "bin_7_20"
+    return "bin_21_plus"
 
 
 def analyze_feedback():
@@ -128,10 +122,8 @@ def analyze_feedback():
         "bin_2",
         "bin_3",
         "bin_4_6",
-        "bin_7_12",
-        "bin_13_20",
-        "bin_21_50",
-        "bin_51_plus",
+        "bin_7_20",
+        "bin_21_plus",
     ]
     crosstab = crosstab.reindex(bin_order)
     col_labels = {-1: "-1 (negative)", 1: "+1 (positive)"}
@@ -317,13 +309,10 @@ def analyze_feature_patterns(df):
     df["count_bin"] = df["occurrences"].apply(get_bin)
     bin_order = [
         "bin_1",
-        "bin_2",
-        "bin_3",
+        "bin_2_3",
         "bin_4_6",
-        "bin_7_12",
-        "bin_13_20",
-        "bin_21_50",
-        "bin_51_plus",
+        "bin_7_20",
+        "bin_21_plus",
     ]
 
     print("\n  Positive rate for PERSONS by frequency bin:")
