@@ -325,11 +325,15 @@ class TestQAReadyHandler:
         assert stub._vector_store_path == "/tmp/vs"
 
     def test_enables_followup_controls(self):
-        """qa_ready enables follow-up button and entry."""
+        """qa_ready enables follow-up button and entry with white placeholder."""
         stub = _make_stub()
         _call_handler(stub, "qa_ready", {"chunk_count": 50})
         stub.followup_btn.configure.assert_called_with(state="normal")
-        stub.followup_entry.configure.assert_any_call(state="normal")
+        stub.followup_entry.configure.assert_any_call(
+            state="normal",
+            placeholder_text="Type your question here...",
+            placeholder_text_color="white",
+        )
 
     def test_does_not_mark_qa_complete(self):
         """qa_ready should NOT add 'qa' to _completed_tasks."""

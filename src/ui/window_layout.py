@@ -316,7 +316,8 @@ class WindowLayoutMixin:
 
         self.followup_entry = ctk.CTkEntry(
             self.followup_frame,
-            placeholder_text="Q&A not ready - run tasks first",
+            placeholder_text="Ask questions here after Q&A task completes...",
+            placeholder_text_color="#E8A838",
             height=scale_value(35),
             state="disabled",
         )

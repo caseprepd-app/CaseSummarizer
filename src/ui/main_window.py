@@ -613,6 +613,11 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         self._vector_store_path = None
         if hasattr(self, "followup_btn"):
             self.followup_btn.configure(state="disabled")
+            self.followup_entry.configure(
+                state="disabled",
+                placeholder_text="Ask questions here after Q&A task completes...",
+                placeholder_text_color="#E8A838",
+            )
         self._update_generate_button_state()
         self._update_session_stats()  # Clear stats display
         self.set_status("Files cleared")
@@ -845,8 +850,11 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             self._qa_ready = True
             # Enable question input whenever Q&A index is ready
             self.followup_btn.configure(state="normal")
-            self.followup_entry.configure(state="normal")
-            self.followup_entry.configure(placeholder_text="Type your question here...")
+            self.followup_entry.configure(
+                state="normal",
+                placeholder_text="Type your question here...",
+                placeholder_text_color="white",
+            )
             self.set_status(
                 f"Search index ready ({chunk_count} passages). Preparing to answer questions..."
             )
@@ -1582,6 +1590,15 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         self._qa_ready = False
         self._qa_answering_active = False
 
+        # Disable Q&A entry when Q&A task is not selected
+        if not do_qa and hasattr(self, "followup_entry"):
+            self.followup_entry.configure(
+                state="disabled",
+                placeholder_text="Q&A task not selected \u2014 enable it in tasks (checkboxes) to ask questions.",
+                placeholder_text_color="#E05555",
+            )
+            self.followup_btn.configure(state="disabled")
+
         # Set initial workflow phase for tab status messages
         from src.ui.workflow_status import WorkflowPhase
 
@@ -1726,8 +1743,11 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             self.set_status(f"Questions and answers: {len(qa_results)} questions answered")
             # Enable follow-up question controls
             self.followup_btn.configure(state="normal")
-            self.followup_entry.configure(state="normal")
-            self.followup_entry.configure(placeholder_text="Type your question here...")
+            self.followup_entry.configure(
+                state="normal",
+                placeholder_text="Type your question here...",
+                placeholder_text_color="white",
+            )
         else:
             self.set_status("Questions and answers complete (no results)")
 
