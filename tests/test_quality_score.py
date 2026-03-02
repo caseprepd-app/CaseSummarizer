@@ -10,6 +10,7 @@ Covers the rules engine scoring logic:
 - Algorithm confidence boost (up to +6)
 - Artifact detection penalties (all caps, leading digit, single letter, trailing punct)
 - TermSources-based adjustments (multi-doc, confidence)
+- User-defined indicator pattern signals (+5/-5)
 - Score clamped to 0-100
 """
 
@@ -316,3 +317,84 @@ class TestRarityBoost:
         s1 = _score(extractor, frequency_rank=50000)
         s2 = _score(extractor, frequency_rank=100000)
         assert s1 == s2
+
+
+# =========================================================================
+# User-defined indicator pattern signals
+# =========================================================================
+
+
+class TestIndicatorPatternSignals:
+    """Positive/negative indicator patterns add +5/-5 to rule-based score."""
+
+    def test_positive_indicator_adds_5(self, extractor):
+        """Term matching a positive indicator gets +5 boost."""
+        from unittest.mock import patch
+
+        base = _score(extractor, term="drywall")
+        with (
+            patch(
+                "src.core.vocabulary.indicator_patterns.matches_positive",
+                return_value=True,
+            ),
+            patch(
+                "src.core.vocabulary.indicator_patterns.matches_negative",
+                return_value=False,
+            ),
+        ):
+            boosted = _score(extractor, term="drywall")
+        assert boosted - base == pytest.approx(5.0, abs=0.1)
+
+    def test_negative_indicator_subtracts_5(self, extractor):
+        """Term matching a negative indicator gets -5 penalty."""
+        from unittest.mock import patch
+
+        base = _score(extractor, term="drywall")
+        with (
+            patch(
+                "src.core.vocabulary.indicator_patterns.matches_positive",
+                return_value=False,
+            ),
+            patch(
+                "src.core.vocabulary.indicator_patterns.matches_negative",
+                return_value=True,
+            ),
+        ):
+            penalized = _score(extractor, term="drywall")
+        assert base - penalized == pytest.approx(5.0, abs=0.1)
+
+    def test_both_indicators_cancel_out(self, extractor):
+        """Term matching both positive and negative nets zero."""
+        from unittest.mock import patch
+
+        base = _score(extractor, term="ambiguous")
+        with (
+            patch(
+                "src.core.vocabulary.indicator_patterns.matches_positive",
+                return_value=True,
+            ),
+            patch(
+                "src.core.vocabulary.indicator_patterns.matches_negative",
+                return_value=True,
+            ),
+        ):
+            both = _score(extractor, term="ambiguous")
+        assert both == pytest.approx(base, abs=0.1)
+
+    def test_no_indicators_no_change(self, extractor):
+        """Term matching neither indicator gets no adjustment."""
+        from unittest.mock import patch
+
+        base = _score(extractor, term="plaintiff")
+        with (
+            patch(
+                "src.core.vocabulary.indicator_patterns.matches_positive",
+                return_value=False,
+            ),
+            patch(
+                "src.core.vocabulary.indicator_patterns.matches_negative",
+                return_value=False,
+            ),
+        ):
+            unchanged = _score(extractor, term="plaintiff")
+        assert unchanged == pytest.approx(base, abs=0.1)

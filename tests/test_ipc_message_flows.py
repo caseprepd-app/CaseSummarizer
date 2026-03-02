@@ -294,6 +294,28 @@ class TestForwarderStatePreservation:
         types = [m[0] for m in output]
         assert "trigger_default_qa_started" in types
 
+    def test_trigger_default_qa_skipped_when_disabled(self):
+        """trigger_default_qa should send qa_complete (skip) when ask_default_questions=False."""
+        state = _make_forwarder_state()
+        state["ask_default_questions"] = False
+        state["embeddings"] = MagicMock()
+        state["vector_store_path"] = "/tmp/vs"
+
+        messages = [
+            (
+                "trigger_default_qa",
+                {
+                    "vector_store_path": "/tmp/vs",
+                    "embeddings": MagicMock(),
+                },
+            ),
+        ]
+        output, _ = _run_forwarder_with_messages(messages, state=state)
+        types = [m[0] for m in output]
+        # Should skip Q&A entirely — no trigger_default_qa_started
+        assert "trigger_default_qa_started" not in types
+        assert "qa_complete" in types
+
     def test_trigger_default_qa_without_state_logs_warning(self):
         """trigger_default_qa with no saved embeddings should warn, not crash."""
         state = _make_forwarder_state()

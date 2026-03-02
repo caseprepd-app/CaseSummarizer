@@ -1131,6 +1131,20 @@ class VocabularyExtractor:
             ):
                 score += SCORE_SINGLE_SOURCE_PENALTY
 
+        # === User-defined indicator patterns ===
+        # Modest nudge from user's positive/negative indicator settings (+/-5).
+        # Kept small because the rule-based score is poisoning-resistant.
+        if term:
+            from src.core.vocabulary.indicator_patterns import (
+                matches_negative,
+                matches_positive,
+            )
+
+            if matches_positive(term):
+                score += 5.0
+            if matches_negative(term):
+                score -= 5.0
+
         # === Artifact detection penalties ===
         # Toughened to match rules' 45% floor — these need teeth.
         if term:
