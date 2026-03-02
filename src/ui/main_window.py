@@ -1698,6 +1698,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
                 "user_exclude_path": str(USER_VOCAB_EXCLUDE_PATH),
                 "doc_confidence": doc_confidence,
                 "use_llm": use_llm,
+                "ask_default_questions": bool(self.ask_default_questions_check.get()),
             },
         )
 
