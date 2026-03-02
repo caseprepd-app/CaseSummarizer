@@ -29,12 +29,24 @@ python -m spacy download en_core_web_lg
 
 ## Running
 
+Entry point: `src/main.py`
+
+**Important:** The system PATH Python may be 3.13, but the project requires
+3.11 via `.venv`. Always activate the venv first, or run directly with
+`.venv/Scripts/python`.
+
 ```bash
+# Activate first (Windows)
+.venv\Scripts\activate
+
 # Normal mode
 python src/main.py
 
 # Debug mode (developer training data)
 python src/main.py --debug
+
+# Or run directly without activating
+.venv/Scripts/python src/main.py --debug
 ```
 
 ### Debug Mode and the Developer Dataset
@@ -58,6 +70,12 @@ CasePrepd uses a two-dataset ML system for vocabulary filtering. When you rate t
 | 200+ | 0.6x | 5.0x | Developer data is just a baseline floor |
 
 The developer dataset is never deleted — it just gets increasingly outweighed as the user adds their own ratings.
+
+### Logs
+
+- **stdout/stderr:** `%APPDATA%/CasePrepd/logs/main_log_YYYYMMDD_HHMMSS.txt`
+- **Structured log:** `%APPDATA%/CasePrepd/logs/caseprepd.log` (rotating)
+- **Crash log:** `%APPDATA%/CasePrepd/crash.log` (import failures only)
 
 ## Tests
 
@@ -87,4 +105,6 @@ python -m pytest tests/ -v
 ## Documentation
 
 - [PROJECT_OVERVIEW.md](PROJECT_OVERVIEW.md) — Goals, constraints, and rationale
+- [ARCHITECTURE.md](docs/ARCHITECTURE.md) — System design, diagrams, components
+- [RESEARCH_LOG.md](docs/RESEARCH_LOG.md) — Library/tool research with decision rationale
 - Run `pydeps src -o deps.svg` to visualize code structure

@@ -74,6 +74,7 @@ nul
 installer/Output/
 build_log.txt
 docs/
+!docs/*.md
 
 # Claude Code (project config, not shipped)
 .claude/
@@ -92,6 +93,8 @@ debug_flow.txt
 # Developer scratch files
 useful commands.txt
 REBUILDING.md
+requirements_backup_*.txt
+deps.ps1
 
 # Misc artifacts
 import_test_results.txt

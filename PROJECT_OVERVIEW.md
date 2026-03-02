@@ -1,14 +1,14 @@
 # CasePrepd - Project Overview
 
-> For technical implementation details, see [ARCHITECTURE.md](ARCHITECTURE.md).
+> For technical implementation details, see [ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ## Documentation
 
 | File | Purpose |
 |------|---------|
 | **PROJECT_OVERVIEW.md** (this file) | What we're building and why |
-| **[ARCHITECTURE.md](ARCHITECTURE.md)** | How it's built — diagrams, components, setup |
-| **[RESEARCH_LOG.md](RESEARCH_LOG.md)** | Technical research decisions with sources |
+| **[ARCHITECTURE.md](docs/ARCHITECTURE.md)** | How it's built — diagrams, components, setup |
+| **[RESEARCH_LOG.md](docs/RESEARCH_LOG.md)** | Technical research decisions with sources |
 
 ---
 
@@ -100,4 +100,4 @@ The status bar keeps users informed of progress through each pipeline stage.
 
 ---
 
-*This document defines the north star. Implementation details are in [ARCHITECTURE.md](ARCHITECTURE.md).*
+*This document defines the north star. Implementation details are in [ARCHITECTURE.md](docs/ARCHITECTURE.md).*
