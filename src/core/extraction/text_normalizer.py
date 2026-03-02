@@ -1,11 +1,12 @@
 """
 Text Normalization Pipeline for Extracted Documents.
 
-Applies a 4-stage normalization pipeline to raw extracted text:
+Applies a 5-stage normalization pipeline to raw extracted text:
     1. De-hyphenation - Rejoin words split across lines
     2. Page number removal - Remove page markers (Page 1, -2-, etc.)
     3. Line filtering - Remove short/garbage lines, keep legal headers
-    4. Whitespace normalization - Collapse excess blank lines
+    4. ALL-CAPS normalization - Convert ALL-CAPS body text to lowercase
+    5. Whitespace normalization - Collapse excess blank lines
 
 This is Step 2 of the document processing pipeline (after extraction, before
 character sanitization).
@@ -72,13 +73,14 @@ class TextNormalizer:
 
     def normalize(self, text: str) -> str:
         """
-        Apply the full 4-stage normalization pipeline.
+        Apply the full 5-stage normalization pipeline.
 
         Pipeline stages:
             1. De-hyphenation: Rejoin "plain-\\ntiff" -> "plaintiff"
             2. Page numbers: Remove "Page 1", "- 2 -", standalone numbers
             3. Line filtering: Remove short lines, keep legal headers
-            4. Whitespace: Collapse multiple blank lines
+            4. ALL-CAPS normalization: Convert ALL-CAPS lines to lowercase
+            5. Whitespace: Collapse multiple blank lines
 
         Args:
             text: Raw extracted text
@@ -102,7 +104,10 @@ class TextNormalizer:
         # Stage 3: Line filtering
         text = self._stage_line_filtering(text)
 
-        # Stage 4: Whitespace normalization
+        # Stage 4: ALL-CAPS normalization
+        text = self._stage_allcaps_normalization(text)
+
+        # Stage 5: Whitespace normalization
         text = self._stage_whitespace(text)
 
         return text
@@ -239,9 +244,73 @@ class TextNormalizer:
 
         return text
 
+    def _stage_allcaps_normalization(self, text: str) -> str:
+        """
+        Stage 4: Convert ALL-CAPS body text to lowercase.
+
+        Legal documents use ALL-CAPS for formatting (e.g., bills of
+        particulars, court headings). NER models interpret capitalized
+        words as entity signals, so "DRYWALL" looks like a proper noun.
+        Converting ALL-CAPS lines to lowercase prevents this.
+
+        Short ALL-CAPS lines (< 50 chars) that contain legal keywords
+        are preserved as-is since they're structural headers.
+
+        Args:
+            text: Input text (after line filtering)
+
+        Returns:
+            Text with ALL-CAPS body lines converted to lowercase
+        """
+        logger.debug("Stage 4: ALL-CAPS normalization")
+        start = time.time()
+        original_len = len(text)
+
+        try:
+            lines = text.split("\n")
+            normalized_lines = []
+            converted_count = 0
+
+            for line in lines:
+                stripped = line.strip()
+                # Skip empty or short lines
+                if not stripped or len(stripped) < 3:
+                    normalized_lines.append(line)
+                    continue
+
+                # Only convert lines that are entirely uppercase
+                if not stripped.isupper():
+                    normalized_lines.append(line)
+                    continue
+
+                # Preserve legal headers (short lines with legal keywords)
+                if self._is_legal_header(stripped):
+                    normalized_lines.append(line)
+                    continue
+
+                # Convert ALL-CAPS body text to lowercase
+                normalized_lines.append(line.lower())
+                converted_count += 1
+
+            text = "\n".join(normalized_lines)
+            duration = time.time() - start
+            logger.debug("OK (%.3fs) - Lowercased %d ALL-CAPS lines", duration, converted_count)
+            logger.debug(
+                "Input: %d | Output: %d | Delta: %+d",
+                original_len,
+                len(text),
+                len(text) - original_len,
+            )
+        except Exception as e:
+            duration = time.time() - start
+            logger.debug("FAILED (%.3fs) - %s: %s", duration, type(e).__name__, e)
+            raise
+
+        return text
+
     def _stage_whitespace(self, text: str) -> str:
         """
-        Stage 4: Normalize whitespace.
+        Stage 5: Normalize whitespace.
 
         Collapses multiple consecutive blank lines into a single blank line
         and strips leading/trailing whitespace.
@@ -252,7 +321,7 @@ class TextNormalizer:
         Returns:
             Text with normalized whitespace
         """
-        logger.debug("Stage 4: Whitespace normalization")
+        logger.debug("Stage 5: Whitespace normalization")
         start = time.time()
         original_len = len(text)
 

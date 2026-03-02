@@ -266,8 +266,10 @@ class AlgorithmScoreMerger:
         Tracks each unique casing variant weighted by its occurrence frequency.
         Returns the variant that appears most often across the document.
 
-        For Person entities, forces Title Case regardless of frequency to ensure
-        names like "jenkins" from BM25 become "Jenkins".
+        For Person entities whose best variant is ALL-CAPS, converts to Title
+        Case (e.g., "JOHN SMITH" → "John Smith"). Mixed-case and lowercase
+        variants are preserved as-is to avoid capitalizing common words that
+        were misclassified by NER.
 
         Example:
             "JAMES LUCAS" (freq 2), "James Lucas" (freq 10), "james lucas" (freq 1)
@@ -284,8 +286,8 @@ class AlgorithmScoreMerger:
 
         if len(candidates) == 1:
             term = candidates[0].term
-            # Force Title Case for Person entities
-            if is_person:
+            # Only title-case if ALL-CAPS (from legal filings); preserve otherwise
+            if is_person and term.isupper() and len(term) > 1:
                 return term.title()
             return term
 
@@ -308,8 +310,10 @@ class AlgorithmScoreMerger:
         sorted_variants = sorted(casing_counts.items(), key=sort_key, reverse=True)
         selected_term = sorted_variants[0][0]
 
-        # Force Title Case for Person entities
-        if is_person:
+        # Only title-case Person entities whose best variant is ALL-CAPS
+        # (from legal filings). Preserve mixed/lowercase to avoid capitalizing
+        # common words like "drywall" that NER misclassified.
+        if is_person and selected_term.isupper() and len(selected_term) > 1:
             return selected_term.title()
 
         return selected_term

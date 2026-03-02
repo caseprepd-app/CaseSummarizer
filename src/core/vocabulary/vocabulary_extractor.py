@@ -258,6 +258,11 @@ class VocabularyExtractor:
         self._nlp = None
         self._nlp_lock = threading.Lock()
 
+        # Track original casing variants across documents for merge_document_results.
+        # Populated by extract_from_document(), consumed by merge_document_results().
+        # Maps lowercase_term → {original_casing: weighted_frequency}
+        self._term_casing_variants: dict[str, dict[str, int]] = {}
+
         # Initialize meta-learner for ML-boosted quality scores
         self._meta_learner = get_meta_learner()
 
@@ -1227,6 +1232,34 @@ class VocabularyExtractor:
     #         return definition
     #     return "—"
 
+    def _select_best_casing(self, term_lower: str) -> str:
+        """
+        Select the best casing variant for a term from extraction data.
+
+        Uses frequency-weighted variants tracked during extract_from_document().
+        Prefers mixed-case over ALL-CAPS, falls back to lowercase if no
+        casing data exists.
+
+        Args:
+            term_lower: Lowercase term key
+
+        Returns:
+            Best-cased display term (e.g., "radiculopathy", "John Smith")
+        """
+        variants = self._term_casing_variants.get(term_lower)
+        if not variants:
+            # No casing data — use lowercase as-is (no blind capitalization)
+            return term_lower
+
+        # Sort by frequency, with tie-breaker preferring mixed case over ALL-CAPS
+        def sort_key(item):
+            term, count = item
+            is_mixed = not term.isupper() and not term.islower()
+            return (count, is_mixed, term)
+
+        sorted_variants = sorted(variants.items(), key=sort_key, reverse=True)
+        return sorted_variants[0][0]
+
     def _get_term_frequency_rank(self, term: str) -> int:
         """Get Google frequency rank for a term."""
         return self.frequency_rank_map.get(term.lower(), 0)
@@ -1693,6 +1726,10 @@ class VocabularyExtractor:
         This method extracts terms from ONE document only. Call this
         for each document, then use merge_document_results() to combine.
 
+        Also populates self._term_casing_variants with frequency-weighted
+        casing data so merge_document_results can pick the best variant
+        instead of blindly capitalizing.
+
         Args:
             text: The document text to analyze
             doc_id: Unique identifier for this document (e.g., file hash)
@@ -1716,11 +1753,18 @@ class VocabularyExtractor:
         # Merge algorithm results
         merged_terms = self.merger.merge(all_results)
 
-        # Build term → count mapping
+        # Build term → count mapping and track original casing
         term_counts: dict[str, int] = {}
         for merged in merged_terms:
             lower_term = merged.term.lower()
             term_counts[lower_term] = merged.frequency
+            # Track casing variants across documents for merge_document_results
+            if lower_term not in self._term_casing_variants:
+                self._term_casing_variants[lower_term] = {}
+            original = merged.term
+            self._term_casing_variants[lower_term][original] = (
+                self._term_casing_variants[lower_term].get(original, 0) + merged.frequency
+            )
 
         logger.debug("Document %s: %s unique terms", doc_id[:12], len(term_counts))
         return term_counts
@@ -1786,13 +1830,8 @@ class VocabularyExtractor:
                 counts_per_doc=data["counts_per_doc"],
             )
 
-            # Use original term (need to find best-cased version)
-            # For now, use title case for multi-word, capitalize for single
-            words = term_lower.split()
-            if len(words) > 1:
-                display_term = " ".join(w.capitalize() for w in words)
-            else:
-                display_term = term_lower.capitalize()
+            # Use best-cased variant from extraction (frequency-weighted)
+            display_term = self._select_best_casing(term_lower)
 
             # Determine if this is a person (will be refined in _post_process)
             is_person = False  # Default, will be updated below
@@ -1880,6 +1919,9 @@ class VocabularyExtractor:
 
         total_docs = len(documents)
         logger.debug("Starting per-document extraction for %s documents", total_docs)
+
+        # Reset casing tracker for this extraction run
+        self._term_casing_variants = {}
 
         # Create preprocessing pipeline to clean transcript artifacts
         # (headers, Q./A. notation, line numbers, etc.) before NER extraction
