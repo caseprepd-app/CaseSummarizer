@@ -800,6 +800,13 @@ class TestThemeColors:
             assert color.startswith("#"), f"{key} should start with #"
             assert len(color) == 7, f"{key} should be 7 chars (#RRGGBB)"
 
+    def test_extracting_tag_exists(self):
+        """FILE_STATUS_TAGS should include 'extracting' with purple color."""
+        from src.ui.theme import FILE_STATUS_TAGS
+
+        assert "extracting" in FILE_STATUS_TAGS
+        assert FILE_STATUS_TAGS["extracting"]["foreground"] == "#9b59b6"
+
 
 # =========================================================================
 # Feature 1b: Drop Zone Frame Structure
@@ -937,6 +944,136 @@ class TestDropZoneStructure:
             }
         )
         table._drop_zone.place_forget.assert_not_called()
+
+
+# =========================================================================
+# add_pending_file — purple "Extracting..." placeholder rows
+# =========================================================================
+
+
+class TestAddPendingFile:
+    """Test add_pending_file() inserts placeholder rows before extraction."""
+
+    def _make_table(self):
+        """Create a FileReviewTable with mocked widgets."""
+        from src.ui.widgets import FileReviewTable
+
+        table = FileReviewTable.__new__(FileReviewTable)
+        table.column_map = {
+            "filename": ("Filename", 300),
+            "status": ("Status", 100),
+            "method": ("Method", 100),
+            "confidence": ("Confidence", 100),
+            "pages": ("Pages", 50),
+            "size": ("Size", 80),
+        }
+        table.file_item_map = {}
+        table._result_data = {}
+        table._hovered_row = None
+        table._tooltip_window = None
+        table._remove_icon = MagicMock()
+        table._drop_zone = MagicMock()
+        table._drop_zone.winfo_ismapped.return_value = True
+        table.tree = MagicMock()
+        table.tree.insert.return_value = "item1"
+        return table
+
+    def test_inserts_row_with_extracting_status(self):
+        """add_pending_file should insert a row with 'Extracting...' status."""
+        import os
+        import tempfile
+
+        table = self._make_table()
+        with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as f:
+            f.write(b"x" * 2048)
+            tmp_path = f.name
+        try:
+            table.add_pending_file("test.pdf", tmp_path)
+
+            values = table.tree.insert.call_args[1]["values"]
+            assert values[0] == "test.pdf"
+            assert values[1] == "Extracting..."
+            assert values[2] == "—"  # method
+            assert values[3] == "—"  # confidence
+            assert values[4] == "—"  # pages
+            assert values[5] != "—"  # size should be computed
+        finally:
+            os.unlink(tmp_path)
+
+    def test_uses_extracting_tag(self):
+        """add_pending_file should tag the row as 'extracting' (purple)."""
+        import os
+        import tempfile
+
+        table = self._make_table()
+        with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as f:
+            f.write(b"data")
+            tmp_path = f.name
+        try:
+            table.add_pending_file("test.pdf", tmp_path)
+            tags = table.tree.insert.call_args[1]["tags"]
+            assert tags == ("extracting",)
+        finally:
+            os.unlink(tmp_path)
+
+    def test_registers_in_file_item_map(self):
+        """add_pending_file should register filename in file_item_map."""
+        table = self._make_table()
+        table.add_pending_file("report.pdf", "/nonexistent/report.pdf")
+        assert "report.pdf" in table.file_item_map
+        assert table.file_item_map["report.pdf"] == "item1"
+
+    def test_hides_drop_zone_on_first_file(self):
+        """add_pending_file should hide drop zone overlay on first file."""
+        table = self._make_table()
+        table.add_pending_file("test.pdf", "/fake/test.pdf")
+        table._drop_zone.place_forget.assert_called_once()
+
+    def test_updates_existing_row(self):
+        """add_pending_file with same filename should update in-place."""
+        table = self._make_table()
+        table.file_item_map["test.pdf"] = "existing_item"
+        table._drop_zone.winfo_ismapped.return_value = False
+
+        table.add_pending_file("test.pdf", "/fake/test.pdf")
+
+        table.tree.item.assert_called_once()
+        call_kwargs = table.tree.item.call_args[1]
+        assert call_kwargs["tags"] == ("extracting",)
+        table.tree.insert.assert_not_called()
+
+    def test_add_result_updates_pending_row(self):
+        """add_result should update a row previously created by add_pending_file."""
+        table = self._make_table()
+        table._drop_zone.winfo_ismapped.return_value = True
+
+        # First: pending
+        table.add_pending_file("test.pdf", "/fake/test.pdf")
+        assert "test.pdf" in table.file_item_map
+
+        # Then: real result arrives
+        result = {
+            "filename": "test.pdf",
+            "status": "success",
+            "confidence": 90,
+            "method": "digital",
+            "page_count": 5,
+            "file_size": 1024,
+        }
+        table.add_result(result)
+
+        # Should update existing item, not insert new
+        call_kwargs = table.tree.item.call_args[1]
+        assert call_kwargs["tags"] == ("green",)
+        assert "test.pdf" in table.file_item_map
+
+    def test_oserror_on_file_size(self):
+        """add_pending_file should show '—' for size when file doesn't exist."""
+        table = self._make_table()
+        table.add_pending_file("ghost.pdf", "/nonexistent/ghost.pdf")
+
+        values = table.tree.insert.call_args[1]["values"]
+        assert values[5] == "—"
 
 
 # ---------------------------------------------------------------------------

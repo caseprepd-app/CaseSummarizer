@@ -112,6 +112,46 @@ class FileReviewTable(ctk.CTkFrame):
         self.tree.bind("<Motion>", self._on_hover)
         self.tree.bind("<Leave>", self._on_leave)
 
+    def add_pending_file(self, filename, file_path):
+        """
+        Insert a placeholder row showing a file as 'Extracting...' in purple.
+
+        Called immediately when files are selected, before the subprocess begins
+        extraction. When add_result() is called later with the same filename,
+        the existing row is updated in-place.
+
+        Args:
+            filename: Display name of the file (e.g. "report.pdf").
+            file_path: Full path to the file, used to show file size.
+        """
+        import os
+
+        # Hide empty state overlay on first file
+        if not self.file_item_map and self._drop_zone.winfo_ismapped():
+            self._drop_zone.place_forget()
+
+        # Calculate file size for display
+        try:
+            size_bytes = os.path.getsize(file_path)
+            size_display = self._format_file_size(size_bytes)
+        except OSError:
+            size_display = "—"
+
+        values = (filename, "Extracting...", "—", "—", "—", size_display)
+        tag = "extracting"
+
+        if filename in self.file_item_map:
+            item_id = self.file_item_map[filename]
+            self.tree.item(item_id, values=values, image=self._remove_icon, tags=(tag,))
+        else:
+            item_id = self.tree.insert(
+                "", "end", values=values, image=self._remove_icon, tags=(tag,)
+            )
+            self.file_item_map[filename] = item_id
+
+        for tag_name, tag_config in FILE_STATUS_TAGS.items():
+            self.tree.tag_configure(tag_name, **tag_config)
+
     def add_result(self, result):
         """Add or update a processing result in the table."""
         filename = result.get("filename", "Unknown")

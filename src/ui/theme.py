@@ -328,4 +328,5 @@ FILE_STATUS_TAGS = {
     "yellow": {"foreground": COLORS["warning"]},
     "red": {"foreground": COLORS["danger"]},
     "pending": {"foreground": "gray"},
+    "extracting": {"foreground": "#9b59b6"},  # Purple — extraction in progress
 }

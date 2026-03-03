@@ -466,6 +466,36 @@ class TestStartPreprocessingIncremental:
         stub.add_files_btn.configure.assert_called_with(state="disabled")
         stub.generate_btn.configure.assert_called_with(state="disabled")
 
+    def test_calls_add_pending_file_for_each_path(self):
+        """_start_preprocessing should show placeholder rows before sending to worker."""
+        from src.ui.main_window import MainWindow
+
+        stub = _make_window_stub()
+        stub._check_ocr_availability = MagicMock(return_value=False)
+        paths = [r"C:\docs\a.pdf", r"C:\docs\b.pdf"]
+
+        MainWindow._start_preprocessing(stub, paths)
+
+        calls = stub.file_table.add_pending_file.call_args_list
+        assert len(calls) == 2
+        assert calls[0][0] == ("a.pdf", r"C:\docs\a.pdf")
+        assert calls[1][0] == ("b.pdf", r"C:\docs\b.pdf")
+
+    def test_pending_files_shown_before_send_command(self):
+        """add_pending_file calls must happen before send_command."""
+        from src.ui.main_window import MainWindow
+
+        stub = _make_window_stub()
+        stub._check_ocr_availability = MagicMock(return_value=False)
+
+        call_order = []
+        stub.file_table.add_pending_file.side_effect = lambda *a: call_order.append("pending")
+        stub._worker_manager.send_command.side_effect = lambda *a, **kw: call_order.append("send")
+
+        MainWindow._start_preprocessing(stub, [r"C:\test.pdf"])
+
+        assert call_order == ["pending", "send"]
+
 
 # ===========================================================================
 # 8. _on_preprocessing_complete — merge

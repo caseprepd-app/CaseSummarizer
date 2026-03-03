@@ -717,6 +717,11 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         # Start timer
         self._start_timer()
 
+        # Show placeholder rows immediately so user sees files were accepted
+        for fpath in paths_to_process:
+            fname = Path(fpath).name
+            self.file_table.add_pending_file(fname, fpath)
+
         # Send only the new batch to the worker subprocess
         logger.debug("Sending process_files: %d file(s)", len(paths_to_process))
         self._worker_manager.send_command(
