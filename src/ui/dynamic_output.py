@@ -566,7 +566,11 @@ class DynamicOutputWidget(ctk.CTkFrame):
             List of vocabulary dicts passing the score floor filter
         """
         if self._unsorted_vocab_data:
-            return list(self._unsorted_vocab_data)
+            return [
+                d
+                for d in self._unsorted_vocab_data
+                if self._feedback_manager.get_rating(d.get("Term", "")) != -1
+            ]
         # Fallback if display hasn't populated _unsorted_vocab_data yet
         raw = self._outputs.get("Names & Vocabulary") or self._outputs.get(
             "Rare Word List (CSV)", []
