@@ -1140,10 +1140,10 @@ class VocabularyExtractor:
                 matches_positive,
             )
 
-            if matches_positive(term):
-                score += 5.0
             if matches_negative(term):
                 score -= 5.0
+            elif matches_positive(term):
+                score += 5.0
 
         # === Artifact detection penalties ===
         # Toughened to match rules' 45% floor — these need teeth.

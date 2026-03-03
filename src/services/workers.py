@@ -861,12 +861,14 @@ class ProgressiveExtractionWorker(BaseWorker):
                     "Q&A search index timed out. Q&A tab may not work for this session."
                 )
             )
+            self.ui_queue.put(QueueMessage.qa_error("Q&A index timed out"))
         elif not self._qa_succeeded.is_set():
             # Thread exited but didn't signal success -- it crashed
             with self._qa_error_lock:
                 error_detail = self._qa_error_msg or "unknown error"
             logger.error("Q&A thread failed: %s", error_detail)
             self.send_progress(100, "Q&A indexing failed, vocabulary results still available.")
+            self.ui_queue.put(QueueMessage.qa_error(f"Q&A thread failed: {error_detail}"))
 
     def _build_vector_store(self):
         """Build vector store for Q&A (Phase 2) - runs in parallel thread."""

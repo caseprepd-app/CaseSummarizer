@@ -1059,8 +1059,10 @@ def _register_all_settings():
             from src.services import VocabularyService
 
             learner = VocabularyService().get_meta_learner()
-            learner.train()
-            logger.info("Vocabulary model retrained with updated indicator patterns")
+            if learner.train():
+                logger.info("Vocabulary model retrained with updated indicator patterns")
+            else:
+                logger.debug("Vocabulary model retrain skipped (insufficient data)")
         except Exception as e:
             logger.warning("Could not retrain vocabulary model: %s", e)
 
@@ -1667,18 +1669,13 @@ def _register_all_settings():
         return DefaultQuestionsWidget(parent)
 
     def _save_default_questions(questions_data: list[dict]) -> None:
-        """Persist buffered questions list to the manager."""
+        """Persist buffered questions list to the manager (single disk write)."""
         if questions_data is None:
             return
         from src.services import QAService
 
         manager = QAService().get_default_questions_manager()
-        # Remove all existing questions (reverse order to avoid index shift)
-        for i in range(manager.get_total_count() - 1, -1, -1):
-            manager.remove_question(i)
-        # Re-add from buffer
-        for q in questions_data:
-            manager.add_question(q["text"], q.get("enabled", True))
+        manager.replace_all(questions_data)
 
     SettingsRegistry.register(
         SettingDefinition(

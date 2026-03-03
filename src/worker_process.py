@@ -123,8 +123,10 @@ def _command_loop(command_queue, internal_queue, result_queue, state):
     while not state["shutdown"].is_set():
         try:
             msg = command_queue.get(timeout=1.0)
-        except Exception:
-            # Timeout or empty -- loop back and check shutdown
+        except Empty:
+            continue
+        except Exception as e:
+            logger.warning("Unexpected error reading command queue: %s", e)
             continue
 
         if msg == _SHUTDOWN_SENTINEL:
@@ -285,10 +287,15 @@ def _run_summary(args, internal_queue, state):
     """Spawn MultiDocSummaryWorker for document summarization."""
     from src.services.workers import MultiDocSummaryWorker
 
+    ai_params = args.get("ai_params", {})
+    # Inject chunk_scores from subprocess state (saved during qa_ready)
+    if "chunk_scores" not in ai_params and state.get("chunk_scores"):
+        ai_params["chunk_scores"] = state["chunk_scores"]
+
     worker = MultiDocSummaryWorker(
         documents=args["documents"],
         ui_queue=internal_queue,
-        ai_params=args.get("ai_params", {}),
+        ai_params=ai_params,
     )
     with state["worker_lock"]:
         state["active_worker"] = worker

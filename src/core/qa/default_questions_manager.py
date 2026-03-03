@@ -250,6 +250,21 @@ class DefaultQuestionsManager:
             self._save()
             return True
 
+    def replace_all(self, questions_data: list[dict]) -> None:
+        """
+        Replace all questions in a single disk write.
+
+        Args:
+            questions_data: List of dicts with 'text' and optional 'enabled' keys
+        """
+        with self._lock:
+            self._questions = [
+                DefaultQuestion(text=q["text"], enabled=q.get("enabled", True))
+                for q in questions_data
+                if q.get("text", "").strip()
+            ]
+            self._save()
+
     def reload(self):
         """Reload questions from file."""
         self._load()

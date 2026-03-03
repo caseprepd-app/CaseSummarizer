@@ -363,8 +363,8 @@ class TestIndicatorPatternSignals:
             penalized = _score(extractor, term="drywall")
         assert base - penalized == pytest.approx(5.0, abs=0.1)
 
-    def test_both_indicators_cancel_out(self, extractor):
-        """Term matching both positive and negative nets zero."""
+    def test_both_indicators_negative_wins(self, extractor):
+        """Term matching both positive and negative gets -5 (negative precedence)."""
         from unittest.mock import patch
 
         base = _score(extractor, term="ambiguous")
@@ -379,7 +379,7 @@ class TestIndicatorPatternSignals:
             ),
         ):
             both = _score(extractor, term="ambiguous")
-        assert both == pytest.approx(base, abs=0.1)
+        assert both == pytest.approx(base - 5.0, abs=0.1)
 
     def test_no_indicators_no_change(self, extractor):
         """Term matching neither indicator gets no adjustment."""

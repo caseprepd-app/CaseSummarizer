@@ -104,10 +104,19 @@ class VocabularyPreferenceLearner:
 
         # Auto-train if model doesn't exist but sufficient data is available
         # This ensures ML kicks in as soon as we have enough feedback, without needing
-        # a manual retrain trigger
+        # a manual retrain trigger. Guard with count check to avoid wasteful
+        # export_training_data() call when there's no data.
         if not self._is_trained:
-            logger.debug("No trained model - checking for sufficient data to auto-train")
-            self.train()  # train() internally checks for min samples
+            fm = get_feedback_manager()
+            if fm.get_feedback_count() >= ML_MIN_SAMPLES:
+                logger.debug(
+                    "No trained model - auto-training with %d samples", fm.get_feedback_count()
+                )
+                self.train(fm)
+            else:
+                logger.debug(
+                    "No trained model - insufficient data (%d samples)", fm.get_feedback_count()
+                )
 
     @property
     def is_trained(self) -> bool:

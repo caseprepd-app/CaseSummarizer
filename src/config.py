@@ -10,7 +10,34 @@ from pathlib import Path
 
 import yaml
 
-from src.config_defaults import get_default as _d
+from src.config_defaults import get_default as _factory_default
+
+
+def _d(key: str):
+    """
+    Get a config value: user preference first, then factory default.
+
+    Lazy-imports get_user_preferences to avoid circular imports
+    (config.py is imported before user_preferences singleton is ready).
+    Values are frozen at import time (per-session); restart to pick up changes.
+    """
+    factory = _factory_default(key)
+    try:
+        from src.user_preferences import get_user_preferences
+
+        value = get_user_preferences().get(key)
+        if value is not None:
+            # Guard against JSON float precision drift (e.g. 0.8 → 0.7999999999999998).
+            # If the stored value is approximately equal to factory default, use factory
+            # to avoid cascading imprecision in downstream calculations.
+            if isinstance(value, float) and isinstance(factory, float):
+                if abs(value - factory) < 1e-9:
+                    return factory
+            return value
+    except Exception:
+        pass  # Corrupted prefs, import error, etc. — use factory default
+    return factory
+
 
 logger = logging.getLogger(__name__)
 

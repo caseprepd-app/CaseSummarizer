@@ -62,7 +62,7 @@ def _register_advanced_settings():
             messagebox.showinfo(
                 "Defaults Restored",
                 "All Advanced settings have been restored to defaults.\n\n"
-                "Click Save to apply, or Cancel to discard.",
+                "Changes take effect next time you restart the app.",
             )
 
     SettingsRegistry.register(

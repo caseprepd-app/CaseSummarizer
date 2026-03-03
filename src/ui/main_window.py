@@ -760,13 +760,23 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             except (TypeError, ValueError):
                 logger.warning("Invalid message from worker subprocess: %s", msg)
 
+        # Detect dead subprocess while we think work is in progress
+        any_active = (
+            self._processing_active or self._preprocessing_active or self._qa_answering_active
+        )
+        if any_active and not messages and not self._worker_manager.is_alive():
+            logger.error("Worker subprocess died while tasks were active — recovering")
+            self.set_status_error("Worker process crashed. Results may be incomplete.")
+            self._preprocessing_active = False
+            self._qa_answering_active = False
+            if self._processing_active:
+                self._processing_active = False
+                self.output_display.set_extraction_in_progress(False)
+                self._on_tasks_complete(False, "Worker process crashed")
+            any_active = False
+
         # Continue polling while processing is active or we got messages
-        if (
-            self._processing_active
-            or self._preprocessing_active
-            or self._qa_answering_active
-            or messages
-        ):
+        if any_active or messages:
             self._queue_poll_id = self.after(33, self._poll_queue)  # ~30fps
         else:
             self._queue_poll_id = None
@@ -888,8 +898,12 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         # Q&A result handlers (messages from default questions worker)
         elif msg_type == "qa_progress":
             current, total, _question = data
-            logger.debug("Q&A progress: %s/%s", current + 1, total)
-            self.set_status(f"Answered {current + 1}/{total} questions, working on next...")
+            answered = current + 1
+            logger.debug("Q&A progress: %s/%s", answered, total)
+            if answered < total:
+                self.set_status(f"Answering question {answered + 1}/{total}...")
+            else:
+                self.set_status(f"Answered {answered}/{total} questions")
 
         elif msg_type == "qa_result":
             # Individual Q&A result - add to results and update display
@@ -1941,8 +1955,9 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             is_followup=True,
             include_in_export=False,
         )
-        self._qa_results.append(pending_result)
-        self._pending_followup_index = len(self._qa_results) - 1
+        with self._qa_results_lock:
+            self._qa_results.append(pending_result)
+            self._pending_followup_index = len(self._qa_results) - 1
         self.output_display.update_outputs(qa_results=list(self._qa_results))
         # Switch to Q&A tab so user sees the pending question
         self.output_display.tabview.set("Questions")

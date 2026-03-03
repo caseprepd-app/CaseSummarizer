@@ -321,7 +321,9 @@ class FeedbackManager:
                         writer = csv.DictWriter(f, fieldnames=FEEDBACK_COLUMNS)
                         writer.writeheader()
                         writer.writerows(kept_records)
-                    os.replace(temp_path, target_file)
+                    from src.file_utils import safe_replace
+
+                    safe_replace(temp_path, target_file)
                 except Exception:
                     try:
                         os.unlink(temp_path)
@@ -517,7 +519,9 @@ class FeedbackManager:
                         writer = csv.DictWriter(f, fieldnames=FEEDBACK_COLUMNS)
                         writer.writeheader()
                         writer.writerows(existing_records)
-                    os.replace(temp_path, target_file)
+                    from src.file_utils import safe_replace
+
+                    safe_replace(temp_path, target_file)
                 except Exception:
                     try:
                         os.unlink(temp_path)
@@ -601,9 +605,6 @@ class FeedbackManager:
         if lower_term not in self._cache:
             return False
 
-        del self._cache[lower_term]
-        self._session_rated.discard(lower_term)
-
         # Delete ALL entries for this term from CSV (any count bin)
         target_file = self.default_feedback_file if DEBUG_MODE else self.user_feedback_file
 
@@ -629,7 +630,9 @@ class FeedbackManager:
                         writer = csv.DictWriter(f, fieldnames=FEEDBACK_COLUMNS)
                         writer.writeheader()
                         writer.writerows(kept_records)
-                    os.replace(temp_path, target_file)
+                    from src.file_utils import safe_replace
+
+                    safe_replace(temp_path, target_file)
                 except Exception:
                     try:
                         os.unlink(temp_path)
@@ -637,14 +640,20 @@ class FeedbackManager:
                         pass
                     raise
 
+                # Update cache AFTER successful file write (matches record_feedback pattern)
+                del self._cache[lower_term]
+                self._session_rated.discard(lower_term)
                 logger.debug("Cleared all ratings for '%s'", term)
                 return True
 
             except FileNotFoundError:
-                return True  # File doesn't exist, nothing to clear
+                # File doesn't exist — clear cache since there's nothing on disk
+                del self._cache[lower_term]
+                self._session_rated.discard(lower_term)
+                return True
             except Exception as e:
-                logger.debug("Error clearing rating: %s", e)
-                return True  # Cache was cleared, file error is secondary
+                logger.debug("Error clearing rating for '%s': %s", term, e)
+                return False  # File write failed, keep cache consistent with disk
 
     def _load_feedback_from_file(self, filepath: Path) -> list[dict]:
         """

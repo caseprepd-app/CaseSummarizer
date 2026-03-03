@@ -78,8 +78,10 @@ class UserPreferencesManager:
             try:
                 with os.fdopen(fd, "w", encoding="utf-8") as f:
                     json.dump(self._preferences, f, indent=2)
-                # Atomic rename (works on Windows too via os.replace)
-                os.replace(temp_path, self.preferences_file)
+                # Atomic rename with retry for Dropbox file locking
+                from src.file_utils import safe_replace
+
+                safe_replace(temp_path, self.preferences_file)
             except Exception:
                 # Clean up temp file on failure
                 try:

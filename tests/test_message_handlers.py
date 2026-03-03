@@ -427,18 +427,26 @@ class TestQAProgressHandler:
     """Tests for 'qa_progress' message handler."""
 
     def test_updates_status_with_progress(self):
-        """qa_progress shows question count in status."""
+        """qa_progress shows next question number in status."""
         stub = _make_stub()
         _call_handler(stub, "qa_progress", (2, 5, "Who is the plaintiff?"))
         call_args = stub.set_status.call_args[0][0]
-        assert "3/5" in call_args  # current+1 / total
+        assert "4/5" in call_args  # answered 3, now working on 4
 
     def test_first_question(self):
-        """qa_progress shows 1/N for first question."""
+        """qa_progress shows working on 2/N after first answer."""
         stub = _make_stub()
         _call_handler(stub, "qa_progress", (0, 3, "Question 1"))
         call_args = stub.set_status.call_args[0][0]
-        assert "1/3" in call_args
+        assert "2/3" in call_args
+
+    def test_last_question(self):
+        """qa_progress shows 'Answered N/N' on the last question."""
+        stub = _make_stub()
+        _call_handler(stub, "qa_progress", (4, 5, "Last question"))
+        call_args = stub.set_status.call_args[0][0]
+        assert "5/5" in call_args
+        assert "Answered" in call_args
 
 
 # ---------------------------------------------------------------------------

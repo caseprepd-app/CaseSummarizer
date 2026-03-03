@@ -574,7 +574,13 @@ class DynamicOutputWidget(ctk.CTkFrame):
         if not raw:
             return []
         score_floor = get_user_preferences().get("vocab_score_floor", 55)
-        return [d for d in raw if isinstance(d, dict) and d.get("Quality Score", 0) >= score_floor]
+        return [
+            d
+            for d in raw
+            if isinstance(d, dict)
+            and d.get("Quality Score", 0) >= score_floor
+            and self._feedback_manager.get_rating(d.get("Term", "")) != -1
+        ]
 
     # -------------------------------------------------------------------------
     # Column Width Persistence

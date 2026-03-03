@@ -132,9 +132,8 @@ class CanonicalScorer:
         # Transcripts often have "BY MR. JONES:" inflating ALL CAPS frequency
         if original_casing:
             words = original_casing.split()
-            is_title = words and all(
-                w[0].isupper() and w[1:].islower() for w in words if len(w) > 1
-            )
+            multi_char = [w for w in words if len(w) > 1]
+            is_title = multi_char and all(w[0].isupper() and w[1:].islower() for w in multi_char)
             if is_title:
                 base_score *= 1.3
             elif original_casing == original_casing.upper() and len(original_casing) > 1:
