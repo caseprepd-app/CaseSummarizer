@@ -58,8 +58,17 @@ class UserPreferencesManager:
                 return default_structure
 
         except (json.JSONDecodeError, Exception) as e:
-            # If file is corrupted, log warning and return defaults
-            logger.warning("Preferences file corrupted, using defaults: %s", e)
+            # Preserve corrupted file for recovery before returning defaults
+            corrupt_path = self.preferences_file.with_suffix(".json.corrupt")
+            try:
+                self.preferences_file.rename(corrupt_path)
+                logger.warning(
+                    "Preferences file corrupted, renamed to %s, using defaults: %s",
+                    corrupt_path,
+                    e,
+                )
+            except OSError:
+                logger.warning("Preferences file corrupted, using defaults: %s", e)
             return default_structure
 
     def _save_preferences(self) -> None:

@@ -2084,6 +2084,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
         filepath = os.path.join(export_path, filename)
 
         try:
+            error_detail = None
             if format_key == "csv":
                 csv_content = self._build_vocab_csv(vocab_data)
                 with open(filepath, "w", encoding="utf-8-sig", newline="") as f:
@@ -2111,14 +2112,16 @@ class DynamicOutputWidget(ctk.CTkFrame):
                         "word": export_service.export_vocabulary_to_word,
                         "pdf": export_service.export_vocabulary_to_pdf,
                     }
-                    success = write_fn[format_key](
+                    success, error_detail = write_fn[format_key](
                         vocab_data, filepath, include_details, is_single_doc=is_single_doc
                     )
                 elif format_key == "txt":
-                    success = export_service.export_vocabulary_to_txt(vocab_data, filepath)
+                    success, error_detail = export_service.export_vocabulary_to_txt(
+                        vocab_data, filepath
+                    )
                 else:  # html
                     visible_columns = self._get_visible_columns()
-                    success = export_service.export_vocabulary_to_html(
+                    success, error_detail = export_service.export_vocabulary_to_html(
                         vocab_data, filepath, visible_columns
                     )
 
@@ -2133,7 +2136,8 @@ class DynamicOutputWidget(ctk.CTkFrame):
                     )
                 logger.debug("Exported %s terms to %s: %s", len(vocab_data), format_key, filepath)
             else:
-                messagebox.showerror("Export Failed", f"Could not export to {ext} file.")
+                detail = f"\n\n{error_detail}" if error_detail else ""
+                messagebox.showerror("Export Failed", f"Could not export to {ext} file.{detail}")
 
         except Exception as e:
             logger.debug("Vocab export failed: %s", e)

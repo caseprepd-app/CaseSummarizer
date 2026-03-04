@@ -59,7 +59,7 @@ def _auto_open_file(file_path: str) -> None:
 
 def _run_export(
     description: str, file_path: str, error_prefix: str, export_fn: Callable[[], bool | None]
-) -> bool:
+) -> tuple[bool, str | None]:
     """
     Helper to run export with standard logging and error handling.
 
@@ -72,7 +72,7 @@ def _run_export(
         export_fn: Callable that performs the export, returns True/None on success
 
     Returns:
-        True if successful, False otherwise
+        (True, None) if successful, (False, error_detail) otherwise
     """
     try:
         logger.debug("Exporting %s: %s", description, file_path)
@@ -82,10 +82,10 @@ def _run_export(
         if success:
             logger.info("Exported to %s", file_path)
             _auto_open_file(file_path)
-        return success
+        return (success, None)
     except Exception as e:
         logger.error("Failed to export %s: %s", error_prefix, e)
-        return False
+        return (False, str(e))
 
 
 class ExportService:

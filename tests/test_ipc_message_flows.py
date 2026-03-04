@@ -91,6 +91,7 @@ def _make_window_stub():
     stub._pending_tasks = {"vocab": True, "qa": True, "summary": False}
     stub._completed_tasks = set()
     stub._qa_answering_active = False
+    stub._qa_failed = False
     stub._qa_ready = False
     stub._processing_active = True
     stub._preprocessing_active = False
@@ -98,6 +99,7 @@ def _make_window_stub():
     stub._qa_results = []
     stub._qa_results_lock = threading.Lock()
     stub._vector_store_path = None
+    stub.clear_files_btn = MagicMock()
     return stub
 
 
@@ -496,6 +498,7 @@ class TestHandlerStateTransitions:
 
         elif msg_type == "qa_error":
             stub._qa_answering_active = False
+            stub._qa_failed = True
             if stub._pending_tasks.get("qa"):
                 stub._completed_tasks.add("qa")
 

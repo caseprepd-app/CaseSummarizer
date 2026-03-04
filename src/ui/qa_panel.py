@@ -411,6 +411,7 @@ class QAPanel(ctk.CTkFrame):
             return
 
         try:
+            error_detail = None
             # Write the file
             if format_key == "csv":
                 content = self._format_csv_export(exportable)
@@ -429,7 +430,7 @@ class QAPanel(ctk.CTkFrame):
                     "pdf": export_service.export_qa_to_pdf,
                     "html": export_service.export_qa_to_html,
                 }
-                success = write_fn[format_key](exportable, filepath)
+                success, error_detail = write_fn[format_key](exportable, filepath)
 
             if success:
                 prefs.set("last_export_path", str(Path(filepath).parent))
@@ -445,7 +446,8 @@ class QAPanel(ctk.CTkFrame):
                     "Exported %s Q&A pairs to %s: %s", len(exportable), format_key, filepath
                 )
             else:
-                messagebox.showerror("Export Error", f"Failed to create {ext} file.")
+                detail = f"\n\n{error_detail}" if error_detail else ""
+                messagebox.showerror("Export Error", f"Failed to create {ext} file.{detail}")
 
         except Exception as e:
             messagebox.showerror("Export Error", f"Failed to save file: {e}")

@@ -416,7 +416,9 @@ class TestExportServiceCombined:
                 summary_text="A summary.",
                 file_path=str(out),
             )
-        assert result is True
+        success, error_detail = result
+        assert success is True
+        assert error_detail is None
         assert out.exists()
         content = out.read_text(encoding="utf-8")
         assert "test" in content
@@ -454,10 +456,10 @@ class TestExportServiceCombined:
 
         out = tmp_path / "combined.docx"
         with patch("src.services.export_service._auto_open_file"):
-            result = svc.export_combined_to_word(
+            success, _ = svc.export_combined_to_word(
                 vocab_data=[{"Term": "test"}],
                 qa_results=[qa],
                 file_path=str(out),
             )
-        assert result is True
+        assert success is True
         assert out.exists()

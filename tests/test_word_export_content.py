@@ -151,9 +151,9 @@ class TestExportServiceVocabWord:
         out = tmp_path / "vocab.docx"
 
         with patch("src.services.export_service._auto_open_file"):
-            result = svc.export_vocabulary_to_word(vocab, str(out))
+            success, _ = svc.export_vocabulary_to_word(vocab, str(out))
 
-        assert result is True
+        assert success is True
         assert out.exists()
 
         # Read back and verify content
@@ -191,7 +191,7 @@ class TestExportServiceQaWord:
 
         out = tmp_path / "qa.docx"
         with patch("src.services.export_service._auto_open_file"):
-            success = svc.export_qa_to_word([result], str(out))
+            success, _ = svc.export_qa_to_word([result], str(out))
 
         assert success is True
         assert out.exists()
@@ -232,7 +232,7 @@ class TestExportServiceCombinedWord:
 
         out = tmp_path / "combined.docx"
         with patch("src.services.export_service._auto_open_file"):
-            success = svc.export_combined_to_word(vocab, [qa], str(out))
+            success, _ = svc.export_combined_to_word(vocab, [qa], str(out))
 
         assert success is True
 

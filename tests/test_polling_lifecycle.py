@@ -22,9 +22,11 @@ def _make_window_stub():
     stub._pending_tasks = {"vocab": True, "qa": True, "summary": False}
     stub._completed_tasks = set()
     stub._qa_answering_active = False
+    stub._qa_failed = False
     stub._processing_active = True
     stub._preprocessing_active = False
     stub._destroying = False
+    stub.clear_files_btn = MagicMock()
     return stub
 
 
@@ -87,9 +89,15 @@ class TestFinalizeTasksGuard:
 
     def _finalize(self, stub):
         """Simulate _finalize_tasks logic (matches production code)."""
+        if not stub._processing_active:
+            return "skipped"
         if stub._qa_answering_active:
             return "deferred"
-        qa_pending_not_started = stub._pending_tasks.get("qa") and "qa" not in stub._completed_tasks
+        qa_pending_not_started = (
+            stub._pending_tasks.get("qa")
+            and "qa" not in stub._completed_tasks
+            and not stub._qa_failed
+        )
         if qa_pending_not_started:
             return "deferred"
         return "finalized"
@@ -121,6 +129,21 @@ class TestFinalizeTasksGuard:
         stub._pending_tasks = {"vocab": True, "qa": True, "summary": False}
         stub._completed_tasks = {"vocab", "qa"}
         stub._qa_answering_active = False
+        assert self._finalize(stub) == "finalized"
+
+    def test_skips_when_already_complete(self):
+        """_finalize_tasks skips if _processing_active is already False (double call)."""
+        stub = _make_window_stub()
+        stub._processing_active = False
+        stub._completed_tasks = {"vocab", "qa"}
+        assert self._finalize(stub) == "skipped"
+
+    def test_proceeds_when_qa_failed_even_if_not_completed(self):
+        """_finalize_tasks proceeds when Q&A failed (don't wait for trigger_default_qa)."""
+        stub = _make_window_stub()
+        stub._pending_tasks = {"vocab": True, "qa": True, "summary": False}
+        stub._completed_tasks = {"vocab", "qa"}  # qa_error already added it
+        stub._qa_failed = True
         assert self._finalize(stub) == "finalized"
 
     def test_proceeds_when_qa_not_pending(self):
@@ -199,6 +222,7 @@ class TestQAHandlerBehavior:
     def _simulate_qa_error(self, stub):
         """Simulate the qa_error handler logic."""
         stub._qa_answering_active = False
+        stub._qa_failed = True
         if stub._pending_tasks.get("qa"):
             stub._completed_tasks.add("qa")
 
@@ -462,9 +486,15 @@ class TestLlmCompleteQARace:
 
     def _finalize(self, stub):
         """Simulate _finalize_tasks logic (matches production code)."""
+        if not stub._processing_active:
+            return "skipped"
         if stub._qa_answering_active:
             return "deferred"
-        qa_pending_not_started = stub._pending_tasks.get("qa") and "qa" not in stub._completed_tasks
+        qa_pending_not_started = (
+            stub._pending_tasks.get("qa")
+            and "qa" not in stub._completed_tasks
+            and not stub._qa_failed
+        )
         if qa_pending_not_started:
             return "deferred"
         stub._on_tasks_complete(True, f"Completed {len(stub._completed_tasks)} task(s)")
@@ -525,3 +555,38 @@ class TestLlmCompleteQARace:
         result = self._simulate_llm_complete(stub)
         assert result == "finalized"
         stub._on_tasks_complete.assert_called_once()
+
+
+# ---------------------------------------------------------------------------
+# Timer lifecycle: _start_timer / _stop_timer source-inspection tests
+# ---------------------------------------------------------------------------
+
+
+class TestTimerLifecycle:
+    """Tests that _start_timer and _stop_timer prevent orphaned timer loops."""
+
+    def _get_source(self, method_name):
+        import inspect
+
+        from src.ui.main_window import MainWindow
+
+        return inspect.getsource(getattr(MainWindow, method_name))
+
+    def test_start_timer_cancels_existing(self):
+        """_start_timer should cancel existing _timer_after_id to prevent parallel loops."""
+        source = self._get_source("_start_timer")
+        assert "after_cancel" in source, "_start_timer must cancel existing timer"
+        assert "_timer_after_id" in source
+
+    def test_stop_timer_clears_start_time(self):
+        """_stop_timer should set _processing_start_time = None to prevent reschedule."""
+        source = self._get_source("_stop_timer")
+        assert "_processing_start_time = None" in source
+
+    def test_no_duplicate_start_timer_in_progressive_extraction(self):
+        """_start_progressive_extraction should NOT call _start_timer (already done in _perform_tasks)."""
+        source = self._get_source("_start_progressive_extraction")
+        assert "_start_timer" not in source, (
+            "_start_progressive_extraction must not call _start_timer "
+            "(already called by _perform_tasks)"
+        )

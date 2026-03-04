@@ -113,6 +113,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         self._qa_results_lock = threading.Lock()  # Thread-safe access
         self._qa_ready = False  # Q&A becomes available after indexing
         self._qa_answering_active = False  # True while default Q&A questions are being answered
+        self._qa_failed = False  # True when Q&A indexing fails (embedding model error, etc.)
         self._worker_ready_retries = 0  # Auto-retry counter for worker startup
 
         # Task tracking defaults (normally set in _perform_tasks, but init here
@@ -339,7 +340,8 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             dialog = SettingsDialog(parent=self, initial_tab="AI Model")
             dialog.wait_window()
         except Exception as e:
-            logger.debug("Failed to open settings dialog: %s", e)
+            logger.warning("Failed to open settings dialog: %s", e)
+            self.set_status_error("Could not open settings dialog")
 
         # Check if model changed and reload if needed
         new_model = prefs.get("ollama_model", self.model_manager.model_name)
@@ -412,10 +414,11 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
                 )
 
         except Exception as e:
-            logger.debug("Error refreshing corpus dropdown: %s", e)
+            logger.warning("Error refreshing corpus dropdown: %s", e)
             self.corpus_dropdown.configure(values=["Error"])
             self.corpus_dropdown.set("Error")
             self.corpus_doc_count_label.configure(text="")
+            self.set_status_error("Could not load saved summaries")
 
     def _on_corpus_changed(self, corpus_name: str):
         """Handle corpus selection change."""
@@ -437,7 +440,8 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             dialog = SettingsDialog(parent=self, initial_tab="Corpus")
             dialog.wait_window()
         except Exception as e:
-            logger.debug("Failed to open settings dialog: %s", e)
+            logger.warning("Failed to open settings dialog: %s", e)
+            self.set_status_error("Could not open settings dialog")
 
         # Refresh after dialog closes
         self._refresh_corpus_dropdown()
@@ -603,12 +607,17 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
 
     def _clear_files(self):
         """Clear all files from the session."""
+        if self._processing_active or self._preprocessing_active:
+            logger.warning("Cannot clear files during active processing")
+            return
+
         self.selected_files.clear()
         self.processing_results.clear()
         self.file_table.clear()
         # Reset Q&A state so old answers don't persist
         self._qa_ready = False
         self._qa_answering_active = False
+        self._qa_failed = False
         self._qa_results.clear()
         self._vector_store_path = None
         if hasattr(self, "followup_btn"):
@@ -698,6 +707,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         # Disable controls during preprocessing
         self.add_files_btn.configure(state="disabled")
         self.generate_btn.configure(state="disabled")
+        self.clear_files_btn.configure(state="disabled")
 
         # Ensure worker subprocess is ready before sending work
         if not self._worker_manager.is_ready():
@@ -706,6 +716,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
                 self.set_status_error("Processing engine failed to start. Please restart the app.")
                 self.add_files_btn.configure(state="normal")
                 self.generate_btn.configure(state="normal")
+                self.clear_files_btn.configure(state="normal")
                 self._worker_ready_retries = 0
                 return
             self.set_status("Processing engine starting up, please wait...")
@@ -774,6 +785,17 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             self.set_status_error("Worker process crashed. Results may be incomplete.")
             self._preprocessing_active = False
             self._qa_answering_active = False
+            # Reset Q&A state so stale session data doesn't persist
+            self._qa_ready = False
+            self._qa_failed = False
+            self._vector_store_path = None
+            # Disable followup controls — session is dead
+            if hasattr(self, "followup_entry"):
+                self.followup_entry.configure(
+                    state="disabled",
+                    placeholder_text="Session ended — reprocess files",
+                )
+                self.followup_btn.configure(state="disabled")
             if self._processing_active:
                 self._processing_active = False
                 self.output_display.set_extraction_in_progress(False)
@@ -809,6 +831,10 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             messagebox.showerror("Processing Error", str(data))
             # Reset ALL processing flags to prevent stuck UI
             self._preprocessing_active = False
+            # Reset Q&A state so stale session data doesn't persist
+            self._qa_ready = False
+            self._qa_failed = False
+            self._vector_store_path = None
             if self._processing_active:
                 self._processing_active = False
                 self._qa_answering_active = False
@@ -882,6 +908,16 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             self.set_status_error(f"Q&A unavailable: {error_msg[:50]}")
             # Q&A won't be available but vocab extraction can continue
             self._qa_answering_active = False
+            self._qa_failed = True
+            # Disable follow-up controls with explanatory message
+            if hasattr(self, "followup_entry"):
+                self.followup_entry.configure(
+                    state="disabled",
+                    placeholder_text="Q&A unavailable \u2014 search index failed to build.",
+                    placeholder_text_color="#E05555",
+                )
+            if hasattr(self, "followup_btn"):
+                self.followup_btn.configure(state="disabled")
             if self._pending_tasks.get("qa"):
                 self._completed_tasks.add("qa")
             if self._all_tasks_complete():
@@ -1044,6 +1080,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
 
         # Re-enable controls
         self.add_files_btn.configure(state="normal")
+        self.clear_files_btn.configure(state="normal")
         self._update_generate_button_state()
 
         # Count results
@@ -1574,6 +1611,10 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
 
     def _perform_tasks(self):
         """Execute the selected tasks using progressive three-phase architecture."""
+        if self._processing_active:
+            logger.warning("_perform_tasks called while already processing — ignored")
+            return
+
         if not self.processing_results:
             messagebox.showwarning("No Files", "Please add files first.")
             return
@@ -1591,6 +1632,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         self._processing_active = True
         self.generate_btn.configure(state="disabled", text=f"Processing {task_count} tasks...")
         self.add_files_btn.configure(state="disabled")
+        self.clear_files_btn.configure(state="disabled")
 
         # Hide task preview - status bar now shows progress
         self.task_preview_label.configure(text="")
@@ -1608,6 +1650,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         self._completed_tasks = set()
         self._qa_ready = False
         self._qa_answering_active = False
+        self._qa_failed = False
 
         # Disable Q&A entry when Q&A task is not selected
         if not do_qa and hasattr(self, "followup_entry"):
@@ -1721,8 +1764,8 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             },
         )
 
-        # Restart timer for extraction phase (was stopped after preprocessing)
-        self._start_timer()
+        # Timer was already started by _perform_tasks() — no need to restart here.
+        # (Calling it again would create a parallel timer loop.)
 
         # Ensure queue polling is running (may have stopped after preprocessing)
         if self._queue_poll_id:
@@ -1840,13 +1883,17 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
 
     def _finalize_tasks(self):
         """Finalize all tasks and update UI."""
+        # Guard against duplicate finalization (e.g. two qa_error messages)
+        if not self._processing_active:
+            logger.debug("Skipping finalization: already complete")
+            return
         if self._qa_answering_active:
             logger.debug("Deferring finalization: Q&A answering still active")
             return
         # Guard against race: Q&A is pending but trigger_default_qa_started
         # hasn't arrived yet (subprocess is still building the index).
         qa_pending_not_started = self._pending_tasks.get("qa") and "qa" not in self._completed_tasks
-        if qa_pending_not_started:
+        if qa_pending_not_started and not self._qa_failed:
             logger.debug("Deferring finalization: Q&A pending but not yet started")
             return
         completed = len(self._completed_tasks)
@@ -1865,10 +1912,11 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
 
         # Re-enable controls
         self.add_files_btn.configure(state="normal")
+        self.clear_files_btn.configure(state="normal")
         self._update_generate_button_state()
 
-        # Enable follow-up if Q&A was run
-        if self.qa_check.get() and success:
+        # Enable follow-up if Q&A was run and succeeded
+        if self.qa_check.get() and success and not self._qa_failed:
             self.followup_btn.configure(state="normal")
 
         # Show Export All button after successful processing
@@ -2144,7 +2192,8 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             dialog = SettingsDialog(parent=self)
             dialog.wait_window()
         except Exception as e:
-            logger.debug("Failed to open settings dialog: %s", e)
+            logger.warning("Failed to open settings dialog: %s", e)
+            self.set_status_error("Could not open settings dialog")
 
         # Refresh UI after settings change
         self._refresh_corpus_dropdown()
@@ -2225,7 +2274,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
 
         # Export combined HTML
         export_service = get_export_service()
-        success = export_service.export_combined_html(
+        success, error_detail = export_service.export_combined_html(
             vocab_data=vocab_data,
             qa_results=qa_results,
             summary_text=summary_text,
@@ -2252,7 +2301,8 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             self.set_status(f"Exported {' + '.join(parts)} to {filename}", duration_ms=5000)
             logger.debug("Export All HTML: %s", filepath)
         else:
-            messagebox.showerror("Export Failed", "Failed to create HTML report.")
+            detail = f"\n\n{error_detail}" if error_detail else ""
+            messagebox.showerror("Export Failed", f"Failed to create HTML report.{detail}")
 
     # =========================================================================
     # Timer
@@ -2260,6 +2310,10 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
 
     def _start_timer(self):
         """Start the processing timer and activity indicator."""
+        # Cancel any existing timer loop to prevent orphaned parallel loops
+        if self._timer_after_id:
+            self.after_cancel(self._timer_after_id)
+            self._timer_after_id = None
         self._processing_start_time = time.time()
         self._update_timer()
         self._start_activity_indicator()
@@ -2274,6 +2328,9 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         if self._processing_start_time:
             elapsed = time.time() - self._processing_start_time
             self._format_timer(elapsed)
+
+        # Clear start time so any orphaned _update_timer callback won't reschedule
+        self._processing_start_time = None
 
         self._stop_activity_indicator()
 

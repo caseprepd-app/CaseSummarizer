@@ -347,6 +347,13 @@ def _forwarder_loop(internal_queue, result_queue, command_queue, state):
             msg = internal_queue.get(timeout=0.5)
         except Empty:
             continue
+        except Exception as exc:
+            logger.error("Forwarder loop error reading internal queue: %s", exc)
+            try:
+                result_queue.put(("error", f"Internal forwarder error: {exc}"))
+            except Exception:
+                pass
+            continue
 
         try:
             msg_type, data = msg
@@ -354,75 +361,96 @@ def _forwarder_loop(internal_queue, result_queue, command_queue, state):
             logger.warning("Invalid message format in forwarder: %s", msg)
             continue
 
-        if msg_type == "qa_ready":
-            # Save embeddings and vector store path in subprocess state
-            state["embeddings"] = data.get("embeddings")
-            state["vector_store_path"] = data.get("vector_store_path")
-            state["chunk_scores"] = data.get("chunk_scores")
-            logger.debug(
-                "Saved embeddings and vector_store_path in subprocess state (path=%s, chunks=%s)",
-                data.get("vector_store_path"),
-                data.get("chunk_count", "?"),
-            )
-
-            # Forward qa_ready WITHOUT embeddings (not picklable)
-            forwarded_data = {
-                "vector_store_path": data.get("vector_store_path"),
-                "chunk_count": data.get("chunk_count", 0),
-                "chunk_scores": data.get("chunk_scores"),
-            }
-            result_queue.put(("qa_ready", forwarded_data))
-
-        elif msg_type == "trigger_default_qa":
-            # Skip if user unchecked the default questions checkbox
-            if not state.get("ask_default_questions", True):
-                logger.debug("Default questions disabled by user, skipping QAWorker")
-                result_queue.put(("qa_complete", []))
-                continue
-
-            # Auto-spawn QAWorker in subprocess instead of forwarding
-            logger.debug("Intercepted trigger_default_qa, auto-spawning QAWorker")
-            result_queue.put(("trigger_default_qa_started", None))
-
-            # Spawn QAWorker using saved state
+        try:
+            _forward_message(msg_type, data, internal_queue, result_queue, state)
+        except Exception as exc:
+            logger.error("Forwarder loop error processing %s: %s", msg_type, exc)
             try:
-                from src.services.workers import QAWorker
-                from src.user_preferences import get_user_preferences
+                result_queue.put(("error", f"Internal error processing {msg_type}: {exc}"))
+            except Exception:
+                pass
 
-                embeddings = state.get("embeddings")
-                vector_store_path = data.get("vector_store_path") or state.get("vector_store_path")
 
-                if embeddings and vector_store_path:
-                    prefs = get_user_preferences()
-                    qa_worker = QAWorker(
-                        vector_store_path=vector_store_path,
-                        embeddings=embeddings,
-                        ui_queue=internal_queue,
-                        answer_mode=prefs.get("qa_answer_mode", "ollama"),
-                        questions=None,
-                        use_default_questions=True,
-                    )
-                    state["auto_qa_worker"] = qa_worker
-                    qa_worker.start()
-                    logger.debug("Default QAWorker started in subprocess")
-                else:
-                    logger.warning(
-                        "Cannot start default Q&A: missing embeddings or vector_store_path"
-                    )
-                    result_queue.put(("qa_complete", []))
-            except Exception as e:
-                logger.error("Failed to start default QAWorker: %s", e)
-                result_queue.put(("error", f"Default Q&A failed: {e}"))
+def _forward_message(msg_type, data, internal_queue, result_queue, state):
+    """
+    Process and forward a single message from the internal queue.
 
-        else:
-            # Forward all other messages as-is
-            logger.debug("Forwarding message: %s", msg_type)
-            try:
-                result_queue.put((msg_type, data))
-            except Exception as e:
-                logger.error(
-                    "Failed to forward message %s: %s\n%s",
-                    msg_type,
-                    e,
-                    traceback.format_exc(),
+    Extracted from _forwarder_loop for error isolation.
+
+    Args:
+        msg_type: Message type string
+        data: Message data payload
+        internal_queue: thread Queue workers write to
+        result_queue: mp.Queue for GUI consumption
+        state: shared subprocess state
+    """
+    if msg_type == "qa_ready":
+        # Save embeddings and vector store path in subprocess state
+        state["embeddings"] = data.get("embeddings")
+        state["vector_store_path"] = data.get("vector_store_path")
+        state["chunk_scores"] = data.get("chunk_scores")
+        logger.debug(
+            "Saved embeddings and vector_store_path in subprocess state (path=%s, chunks=%s)",
+            data.get("vector_store_path"),
+            data.get("chunk_count", "?"),
+        )
+
+        # Forward qa_ready WITHOUT embeddings (not picklable)
+        forwarded_data = {
+            "vector_store_path": data.get("vector_store_path"),
+            "chunk_count": data.get("chunk_count", 0),
+            "chunk_scores": data.get("chunk_scores"),
+        }
+        result_queue.put(("qa_ready", forwarded_data))
+
+    elif msg_type == "trigger_default_qa":
+        # Skip if user unchecked the default questions checkbox
+        if not state.get("ask_default_questions", True):
+            logger.debug("Default questions disabled by user, skipping QAWorker")
+            result_queue.put(("qa_complete", []))
+            return
+
+        # Auto-spawn QAWorker in subprocess instead of forwarding
+        logger.debug("Intercepted trigger_default_qa, auto-spawning QAWorker")
+        result_queue.put(("trigger_default_qa_started", None))
+
+        # Spawn QAWorker using saved state
+        try:
+            from src.services.workers import QAWorker
+            from src.user_preferences import get_user_preferences
+
+            embeddings = state.get("embeddings")
+            vector_store_path = data.get("vector_store_path") or state.get("vector_store_path")
+
+            if embeddings and vector_store_path:
+                prefs = get_user_preferences()
+                qa_worker = QAWorker(
+                    vector_store_path=vector_store_path,
+                    embeddings=embeddings,
+                    ui_queue=internal_queue,
+                    answer_mode=prefs.get("qa_answer_mode", "ollama"),
+                    questions=None,
+                    use_default_questions=True,
                 )
+                state["auto_qa_worker"] = qa_worker
+                qa_worker.start()
+                logger.debug("Default QAWorker started in subprocess")
+            else:
+                logger.warning("Cannot start default Q&A: missing embeddings or vector_store_path")
+                result_queue.put(("qa_complete", []))
+        except Exception as e:
+            logger.error("Failed to start default QAWorker: %s", e)
+            result_queue.put(("error", f"Default Q&A failed: {e}"))
+
+    else:
+        # Forward all other messages as-is
+        logger.debug("Forwarding message: %s", msg_type)
+        try:
+            result_queue.put((msg_type, data))
+        except Exception as e:
+            logger.error(
+                "Failed to forward message %s: %s\n%s",
+                msg_type,
+                e,
+                traceback.format_exc(),
+            )

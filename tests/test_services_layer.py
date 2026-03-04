@@ -325,8 +325,9 @@ class TestExportServiceRunExport:
     def test_run_export_success(self):
         from src.services.export_service import _run_export
 
-        result = _run_export("test export", "/tmp/test.html", "test", lambda: True)
-        assert result is True
+        success, detail = _run_export("test export", "/tmp/test.html", "test", lambda: True)
+        assert success is True
+        assert detail is None
 
     def test_run_export_returns_false_on_exception(self):
         from src.services.export_service import _run_export
@@ -334,14 +335,16 @@ class TestExportServiceRunExport:
         def fail():
             raise RuntimeError("disk full")
 
-        result = _run_export("test", "/tmp/x.html", "test", fail)
-        assert result is False
+        success, detail = _run_export("test", "/tmp/x.html", "test", fail)
+        assert success is False
+        assert "disk full" in detail
 
     def test_run_export_none_treated_as_success(self):
         from src.services.export_service import _run_export
 
-        result = _run_export("test", "/tmp/x.html", "test", lambda: None)
-        assert result is True
+        success, detail = _run_export("test", "/tmp/x.html", "test", lambda: None)
+        assert success is True
+        assert detail is None
 
 
 class TestExportServiceVocabulary:
@@ -356,8 +359,8 @@ class TestExportServiceVocabulary:
 
         with patch("src.services.export_service.export_vocabulary_txt") as mock_fn:
             mock_fn.return_value = True
-            result = svc.export_vocabulary_to_txt(data, str(out))
-            assert result is True
+            success, _ = svc.export_vocabulary_to_txt(data, str(out))
+            assert success is True
             mock_fn.assert_called_once()
 
     def test_export_vocabulary_to_word(self, tmp_path):
@@ -371,8 +374,8 @@ class TestExportServiceVocabulary:
             mock_builder = MagicMock()
             mock_builder_cls.return_value = mock_builder
             with patch("src.services.export_service.export_vocabulary"):
-                result = svc.export_vocabulary_to_word(data, str(out))
-                assert result is True
+                success, _ = svc.export_vocabulary_to_word(data, str(out))
+                assert success is True
                 mock_builder.save.assert_called_once_with(str(out))
 
     def test_export_vocabulary_to_pdf(self, tmp_path):
@@ -386,8 +389,8 @@ class TestExportServiceVocabulary:
             mock_builder = MagicMock()
             mock_builder_cls.return_value = mock_builder
             with patch("src.services.export_service.export_vocabulary"):
-                result = svc.export_vocabulary_to_pdf(data, str(out))
-                assert result is True
+                success, _ = svc.export_vocabulary_to_pdf(data, str(out))
+                assert success is True
                 mock_builder.save.assert_called_once_with(str(out))
 
 
@@ -405,8 +408,8 @@ class TestExportServiceQA:
             mock_builder = MagicMock()
             mock_cls.return_value = mock_builder
             with patch("src.services.export_service.export_qa_results"):
-                result = svc.export_qa_to_word(results, str(out))
-                assert result is True
+                success, _ = svc.export_qa_to_word(results, str(out))
+                assert success is True
 
     def test_export_qa_to_html(self, tmp_path):
         from src.services.export_service import ExportService
@@ -417,8 +420,8 @@ class TestExportServiceQA:
 
         with patch("src.services.export_service.export_qa_html") as mock_fn:
             mock_fn.return_value = True
-            result = svc.export_qa_to_html(results, str(out))
-            assert result is True
+            success, _ = svc.export_qa_to_html(results, str(out))
+            assert success is True
 
 
 class TestExportServiceCombined:
@@ -434,13 +437,13 @@ class TestExportServiceCombined:
             "src.core.export.combined_html_builder.build_combined_html",
             return_value="<html></html>",
         ):
-            result = svc.export_combined_html(
+            success, _ = svc.export_combined_html(
                 vocab_data=[{"Term": "a"}],
                 qa_results=[],
                 summary_text="Summary",
                 file_path=str(out),
             )
-            assert result is True
+            assert success is True
             assert out.exists()
 
     def test_export_combined_to_word(self, tmp_path):
@@ -453,12 +456,12 @@ class TestExportServiceCombined:
             mock_builder = MagicMock()
             mock_cls.return_value = mock_builder
             with patch("src.services.export_service.export_combined"):
-                result = svc.export_combined_to_word(
+                success, _ = svc.export_combined_to_word(
                     vocab_data=[{"Term": "a"}],
                     qa_results=[],
                     file_path=str(out),
                 )
-                assert result is True
+                assert success is True
 
 
 class TestExportServiceSingleton:

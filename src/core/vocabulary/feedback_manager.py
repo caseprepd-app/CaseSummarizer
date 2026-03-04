@@ -665,15 +665,16 @@ class FeedbackManager:
         Returns:
             List of feedback records as dictionaries
         """
-        try:
-            with open(filepath, encoding="utf-8", newline="") as f:
-                reader = csv.DictReader(f)
-                return list(reader)
-        except FileNotFoundError:
-            return []
-        except Exception as e:
-            logger.debug("Error loading feedback from %s: %s", filepath, e)
-            return []
+        with self._file_lock:
+            try:
+                with open(filepath, encoding="utf-8", newline="") as f:
+                    reader = csv.DictReader(f)
+                    return list(reader)
+            except FileNotFoundError:
+                return []
+            except Exception as e:
+                logger.debug("Error loading feedback from %s: %s", filepath, e)
+                return []
 
     def get_all_user_feedback(self) -> list[dict]:
         """
@@ -762,24 +763,25 @@ class FeedbackManager:
         Returns:
             True if clear succeeded
         """
-        try:
-            # Clear in-memory cache
-            self._cache.clear()
-            self._pending_count = 0
+        with self._file_lock:
+            try:
+                # Clear in-memory cache
+                self._cache.clear()
+                self._pending_count = 0
 
-            # Delete the user feedback CSV file (not the default file)
-            if self.user_feedback_file.exists():
-                self.user_feedback_file.unlink()
-                logger.debug("Deleted user feedback file: %s", self.user_feedback_file)
-            else:
-                logger.debug("No user feedback file to delete")
+                # Delete the user feedback CSV file (not the default file)
+                if self.user_feedback_file.exists():
+                    self.user_feedback_file.unlink()
+                    logger.debug("Deleted user feedback file: %s", self.user_feedback_file)
+                else:
+                    logger.debug("No user feedback file to delete")
 
-            logger.debug("User feedback cleared successfully")
-            return True
+                logger.debug("User feedback cleared successfully")
+                return True
 
-        except Exception as e:
-            logger.debug("Error clearing feedback: %s", e)
-            return False
+            except Exception as e:
+                logger.debug("Error clearing feedback: %s", e)
+                return False
 
     def export_training_data(self) -> list[dict]:
         """

@@ -28,9 +28,11 @@ def _make_stub():
     stub.processing_results = []
     stub._processing_active = False
     stub._preprocessing_active = False
+    stub._qa_failed = False
     # Widget mocks
     stub.followup_btn = MagicMock()
     stub.followup_entry = MagicMock()
+    stub.clear_files_btn = MagicMock()
     stub.status_label = MagicMock()
     stub.output_display = MagicMock()
     stub.file_table = MagicMock()
@@ -385,6 +387,27 @@ class TestQAErrorHandler:
         stub._all_tasks_complete = MagicMock(return_value=True)
         _call_handler(stub, "qa_error", {"error": "fail"})
         stub._finalize_tasks.assert_called_once()
+
+    def test_sets_qa_failed_flag(self):
+        """qa_error should set _qa_failed = True."""
+        stub = _make_stub()
+        _call_handler(stub, "qa_error", {"error": "Embedding model not available"})
+        assert stub._qa_failed is True
+
+    def test_disables_followup_entry_with_message(self):
+        """qa_error should disable followup_entry with explanatory placeholder."""
+        stub = _make_stub()
+        _call_handler(stub, "qa_error", {"error": "Embedding model not available"})
+        stub.followup_entry.configure.assert_called_once()
+        call_kwargs = stub.followup_entry.configure.call_args[1]
+        assert call_kwargs["state"] == "disabled"
+        assert "unavailable" in call_kwargs["placeholder_text"].lower()
+
+    def test_disables_followup_button(self):
+        """qa_error should disable followup_btn."""
+        stub = _make_stub()
+        _call_handler(stub, "qa_error", {"error": "fail"})
+        stub.followup_btn.configure.assert_called_with(state="disabled")
 
 
 # ---------------------------------------------------------------------------
