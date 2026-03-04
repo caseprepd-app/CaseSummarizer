@@ -127,7 +127,7 @@ class UnifiedChunker:
             self.encoder = tiktoken.get_encoding(tiktoken_encoding)
             logger.debug("Initialized tiktoken with encoding: %s", tiktoken_encoding)
         except Exception as e:
-            logger.error("Failed to initialize tiktoken: %s", e)
+            logger.error("Failed to initialize tiktoken: %s", e, exc_info=True)
             raise
 
         # Initialize semantic chunker components
@@ -159,7 +159,7 @@ class UnifiedChunker:
                 "%s took %.2fs", "Semantic chunker initialization", time.time() - init_start
             )
         except Exception as e:
-            logger.error("Failed to initialize semantic chunker: %s", e)
+            logger.error("Failed to initialize semantic chunker: %s", e, exc_info=True)
             self.embeddings = None
             self.semantic_chunker = None
 
@@ -340,7 +340,9 @@ class UnifiedChunker:
             semantic_docs = self.semantic_chunker.split_documents([doc])
             return [d.page_content for d in semantic_docs]
         except Exception as e:
-            logger.error("Semantic chunking failed: %s, falling back to paragraph chunking", e)
+            logger.error(
+                "Semantic chunking failed: %s, falling back to paragraph chunking", e, exc_info=True
+            )
             return self._paragraph_chunk(text)
 
     def _paragraph_chunk(self, text: str) -> list[str]:
@@ -511,7 +513,7 @@ class UnifiedChunker:
             return self.chunk_text(full_text, source_file=source)
 
         except Exception as e:
-            logger.error("Failed to chunk PDF %s: %s", file_path, e)
+            logger.error("Failed to chunk PDF %s: %s", file_path, e, exc_info=True)
             return []
 
     def clear_cache(self):

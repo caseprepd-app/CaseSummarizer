@@ -136,7 +136,7 @@ class QAService:
             return True
 
         except Exception as e:
-            logger.error("build_index failed: %s", e)
+            logger.error("build_index failed: %s", e, exc_info=True)
             self._is_ready = False
             return False
 

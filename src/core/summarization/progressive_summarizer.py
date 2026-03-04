@@ -346,7 +346,7 @@ class ProgressiveSummarizer:
             with open(template_path, encoding="utf-8") as f:
                 template = f.read()
         except Exception as e:
-            logger.error("Failed to load chunked prompt template: %s", e)
+            logger.error("Failed to load chunked prompt template: %s", e, exc_info=True)
             # Fallback to inline template
             template = """You are a legal document analyst. Below is a chunk from a longer document.
 

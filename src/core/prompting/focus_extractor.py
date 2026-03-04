@@ -180,7 +180,7 @@ INSTRUCTIONS:
             response = self.model_manager.generate_text(prompt, max_tokens=400)
             return self._parse_ai_response(response)
         except Exception as e:
-            logger.error("AI extraction failed for '%s': %s", preset_id, e)
+            logger.error("AI extraction failed for '%s': %s", preset_id, e, exc_info=True)
             logger.debug("Using generic fallback due to error")
             return self._generic_fallback()
 

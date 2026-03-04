@@ -435,7 +435,7 @@ class VectorStoreBuilder:
 
             return cleaned
         except Exception as e:
-            logger.error("Preprocessing error (using raw text): %s", e)
+            logger.error("Preprocessing error (using raw text): %s", e, exc_info=True)
             return text
 
     def _save_integrity_hash(self, persist_dir: Path) -> None:
@@ -557,5 +557,5 @@ class VectorStoreBuilder:
                 return True
             return False
         except Exception as e:
-            logger.error("Error deleting %s: %s", persist_dir, e)
+            logger.error("Error deleting %s: %s", persist_dir, e, exc_info=True)
             return False

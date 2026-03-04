@@ -54,7 +54,7 @@ def _auto_open_file(file_path: str) -> None:
             subprocess.run(["xdg-open", file_path], check=False)
         logger.debug("Auto-opened: %s", file_path)
     except Exception as e:
-        logger.debug("Auto-open failed: %s", e)
+        logger.warning("Auto-open failed: %s", e)
 
 
 def _run_export(
@@ -84,7 +84,7 @@ def _run_export(
             _auto_open_file(file_path)
         return (success, None)
     except Exception as e:
-        logger.error("Failed to export %s: %s", error_prefix, e)
+        logger.error("Failed to export %s: %s", error_prefix, e, exc_info=True)
         return (False, str(e))
 
 

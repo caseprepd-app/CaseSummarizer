@@ -175,7 +175,7 @@ class VocabularyService:
             return True
 
         except Exception as e:
-            logger.error("Export failed: %s", e)
+            logger.error("Export failed: %s", e, exc_info=True)
             return False
 
     def get_corpus_manager(self):

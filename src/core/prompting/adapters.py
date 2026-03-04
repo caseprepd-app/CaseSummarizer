@@ -157,7 +157,7 @@ class MultiDocStagePromptBuilder(StagePromptBuilder):
             return focus
 
         except Exception as e:
-            logger.error("Failed to get focus for '%s': %s", preset_id, e)
+            logger.error("Failed to get focus for '%s': %s", preset_id, e, exc_info=True)
             # Return generic fallback
             return {
                 "emphasis": "key facts, parties, timeline, outcomes",

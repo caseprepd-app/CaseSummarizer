@@ -120,7 +120,7 @@ class CoreferenceResolver(BasePreprocessor):
             return True
 
         except Exception as e:
-            logger.error("Failed to load coreference model: %s", e)
+            logger.error("Failed to load coreference model: %s", e, exc_info=True)
             self._available = False
             return False
 

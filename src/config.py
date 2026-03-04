@@ -34,8 +34,8 @@ def _d(key: str):
                 if abs(value - factory) < 1e-9:
                     return factory
             return value
-    except Exception:
-        pass  # Corrupted prefs, import error, etc. — use factory default
+    except Exception as e:
+        logging.debug("Config value recovery for '%s': %s", key, e)
     return factory
 
 
@@ -409,7 +409,7 @@ def load_model_configs():
         )
         MODEL_CONFIGS = {}
     except Exception as e:
-        logger.error("Failed to load or parse model config file: %s", e)
+        logger.error("Failed to load or parse model config file: %s", e, exc_info=True)
         MODEL_CONFIGS = {}
 
 

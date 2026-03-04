@@ -60,7 +60,7 @@ class DocumentService:
             ]
             return {k: prefs.get(k, True) for k in keys}
         except Exception as e:
-            logger.debug("Failed to load preprocessing settings: %s", e)
+            logger.warning("Failed to load preprocessing settings: %s", e)
             return {}
 
     def process_documents(

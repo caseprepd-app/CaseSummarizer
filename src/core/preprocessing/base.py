@@ -200,7 +200,7 @@ class PreprocessingPipeline:
                 current_text = result.text
 
             except Exception as e:
-                logger.error("Error in %s: %s", preprocessor.name, e)
+                logger.error("Error in %s: %s", preprocessor.name, e, exc_info=True)
                 # Continue with unchanged text on error
                 self._last_run_stats[preprocessor.name] = {
                     "error": str(e),

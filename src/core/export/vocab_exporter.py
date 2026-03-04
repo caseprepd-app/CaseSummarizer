@@ -116,5 +116,5 @@ def export_vocabulary_txt(vocab_data: list[dict], file_path: str) -> bool:
         Path(file_path).write_text(content, encoding="utf-8")
         return True
     except Exception as e:
-        logger.error("Failed to export vocabulary TXT to '%s': %s", file_path, e)
+        logger.error("Failed to export vocabulary TXT to '%s': %s", file_path, e, exc_info=True)
         return False

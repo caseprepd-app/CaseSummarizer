@@ -591,7 +591,14 @@ class QAPanel(ctk.CTkFrame):
             # Brief button flash for immediate feedback
             original_text = self.copy_btn.cget("text")
             self.copy_btn.configure(text=f"Copied {len(exportable)}!")
-            self.after(1500, lambda: self.copy_btn.configure(text=original_text))
+
+            def _reset_copy_btn():
+                try:
+                    self.copy_btn.configure(text=original_text)
+                except Exception:
+                    pass  # Widget destroyed during delay
+
+            self.after(1500, _reset_copy_btn)
 
             # Status bar confirmation
             main_window = self.winfo_toplevel()

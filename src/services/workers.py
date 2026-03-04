@@ -979,7 +979,7 @@ class ProgressiveExtractionWorker(BaseWorker):
             self._qa_succeeded.set()
 
         except Exception as e:
-            logger.error("Q&A indexing failed: %s", e)
+            logger.error("Q&A indexing failed: %s", e, exc_info=True)
             with self._qa_error_lock:
                 self._qa_error_msg = str(e)
             self.ui_queue.put(QueueMessage.status_error("Q&A indexing failed"))

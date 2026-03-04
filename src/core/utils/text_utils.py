@@ -76,7 +76,7 @@ def combine_document_texts(
         except ImportError as e:
             logger.debug("Preprocessing not available: %s", e)
         except Exception as e:
-            logger.error("Preprocessing error (using raw text): %s", e)
+            logger.error("Preprocessing error (using raw text): %s", e, exc_info=True)
     elif has_preprocessed:
         logger.debug("Using pre-cleaned text (no additional preprocessing needed)")
 

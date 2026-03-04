@@ -239,7 +239,7 @@ class QAOrchestrator:
             return questions
 
         except Exception as e:
-            logger.error("Error loading from manager, falling back to txt: %s", e)
+            logger.error("Error loading from manager, falling back to txt: %s", e, exc_info=True)
 
             # Fallback to legacy txt file
             if not DEFAULT_QUESTIONS_TXT_PATH.exists():
@@ -254,7 +254,7 @@ class QAOrchestrator:
                             questions.append(line)
                 return questions
             except Exception as e:
-                logger.error("Failed to load questions from txt file: %s", e)
+                logger.error("Failed to load questions from txt file: %s", e, exc_info=True)
                 return []
 
     def get_default_questions(self) -> list[str]:

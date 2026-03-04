@@ -349,7 +349,7 @@ class CorpusManager:
                 total_docs += 1
 
             except Exception as e:
-                logger.debug("Error processing %s: %s", doc_path.name, e)
+                logger.warning("Error processing %s: %s", doc_path.name, e)
                 continue
 
         if total_docs == 0:
@@ -544,7 +544,7 @@ class CorpusManager:
             return True
 
         except Exception as e:
-            logger.debug("Error saving cache: %s", e)
+            logger.warning("Error saving cache: %s", e)
             return False
 
     def _load_cache(self) -> bool:

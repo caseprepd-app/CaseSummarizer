@@ -2329,7 +2329,14 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
 
             # Flash button and status
             self.export_all_btn.configure(text="Exported!")
-            self.after(1500, lambda: self.export_all_btn.configure(text="Export All"))
+
+            def _reset_export_btn():
+                try:
+                    self.export_all_btn.configure(text="Export All")
+                except Exception:
+                    pass  # Widget destroyed during delay
+
+            self.after(1500, _reset_export_btn)
 
             filename = Path(filepath).name
             parts = []

@@ -173,7 +173,7 @@ class HybridRetriever:
                     algorithm.index_documents(self._chunks)
                     logger.debug("%s indexing complete", name)
                 except Exception as e:
-                    logger.error("%s indexing failed: %s", name, e)
+                    logger.error("%s indexing failed: %s", name, e, exc_info=True)
                     algorithm.enabled = False
 
         # Verify at least one algorithm is still enabled after indexing
@@ -335,7 +335,7 @@ class HybridRetriever:
                     )
 
             except Exception as e:
-                logger.error("FAISS retrieval failed: %s", e)
+                logger.error("FAISS retrieval failed: %s", e, exc_info=True)
 
         # FAISS passed (or wasn't enabled) — run remaining algorithms
         for name, algorithm in self._algorithms.items():
@@ -351,7 +351,7 @@ class HybridRetriever:
                 logger.debug("%s: %d chunks retrieved", name, len(result))
 
             except Exception as e:
-                logger.error("%s retrieval failed: %s", name, e)
+                logger.error("%s retrieval failed: %s", name, e, exc_info=True)
 
         if not algorithm_results:
             logger.warning("No algorithms returned results for query: '%s...'", query[:50])

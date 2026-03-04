@@ -1713,8 +1713,8 @@ class DynamicOutputWidget(ctk.CTkFrame):
             # Remove from index 3 onward (separator + alternatives item)
             try:
                 self.context_menu.delete(3, "end")
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug("Context menu cleanup failed: %s", e)
 
         # Look up the term data
         term_data = self._item_to_data.get(item_id, {})
@@ -1762,8 +1762,11 @@ class DynamicOutputWidget(ctk.CTkFrame):
             if values and len(values) >= 1:
                 term = _strip_display_prefix(values[0])
                 if term:
-                    self.clipboard_clear()
-                    self.clipboard_append(term)
+                    try:
+                        self.clipboard_clear()
+                        self.clipboard_append(term)
+                    except Exception as e:
+                        logger.warning("Clipboard copy failed: %s", e)
 
     def _exclude_selected_term(self):
         """Exclude the selected term from future vocabulary extractions."""
@@ -1824,8 +1827,11 @@ class DynamicOutputWidget(ctk.CTkFrame):
     def _copy_selected_term(self):
         """Copy the selected term to clipboard."""
         if self._selected_term:
-            self.clipboard_clear()
-            self.clipboard_append(self._selected_term)
+            try:
+                self.clipboard_clear()
+                self.clipboard_append(self._selected_term)
+            except Exception as e:
+                logger.warning("Clipboard copy failed: %s", e)
 
     def _add_to_user_exclusion_list(self, term: str) -> None:
         """
@@ -1958,13 +1964,24 @@ class DynamicOutputWidget(ctk.CTkFrame):
         """Copy currently displayed content to clipboard."""
         content = self.get_current_content_for_export()
         if content:
-            self.clipboard_clear()
-            self.clipboard_append(content)
+            try:
+                self.clipboard_clear()
+                self.clipboard_append(content)
+            except Exception as e:
+                logger.warning("Clipboard copy failed: %s", e)
+                return
 
             # Brief button flash for immediate feedback
             original_text = self.copy_btn.cget("text")
             self.copy_btn.configure(text="Copied!")
-            self.after(1500, lambda: self.copy_btn.configure(text=original_text))
+
+            def _reset_copy_btn():
+                try:
+                    self.copy_btn.configure(text=original_text)
+                except Exception:
+                    pass  # Widget destroyed during delay
+
+            self.after(1500, _reset_copy_btn)
 
             # Status bar confirmation with count
             current_tab = self.tabview.get()
@@ -2019,8 +2036,15 @@ class DynamicOutputWidget(ctk.CTkFrame):
         if filepath:
             from pathlib import Path
 
-            with open(filepath, "w", encoding="utf-8") as f:
-                f.write(content)
+            try:
+                with open(filepath, "w", encoding="utf-8") as f:
+                    f.write(content)
+            except OSError as e:
+                logger.error("Failed to save file '%s': %s", filepath, e)
+                main_window = self.winfo_toplevel()
+                if hasattr(main_window, "set_status_error"):
+                    main_window.set_status_error(f"Save failed: {e}")
+                return
 
             # Remember last export folder
             prefs.set("last_export_path", str(Path(filepath).parent))
@@ -2028,7 +2052,14 @@ class DynamicOutputWidget(ctk.CTkFrame):
             # Brief button flash for immediate feedback
             original_text = self.save_btn.cget("text")
             self.save_btn.configure(text="Saved!")
-            self.after(1500, lambda: self.save_btn.configure(text=original_text))
+
+            def _reset_save_btn():
+                try:
+                    self.save_btn.configure(text=original_text)
+                except Exception:
+                    pass  # Widget destroyed during delay
+
+            self.after(1500, _reset_save_btn)
 
             # Status bar confirmation with details
             main_window = self.winfo_toplevel()
@@ -2151,7 +2182,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
                 messagebox.showerror("Export Failed", f"Could not export to {ext} file.{detail}")
 
         except Exception as e:
-            logger.debug("Vocab export failed: %s", e)
+            logger.warning("Vocab export failed: %s", e)
             messagebox.showerror("Export Failed", f"Could not save file:\n{e}")
 
     def _quick_export_vocab_csv(self):

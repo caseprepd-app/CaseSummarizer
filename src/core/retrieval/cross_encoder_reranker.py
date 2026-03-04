@@ -110,7 +110,7 @@ class CrossEncoderReranker:
             try:
                 self._load_model()
             except Exception as e:
-                logger.error("Failed to load cross-encoder model: %s", e)
+                logger.error("Failed to load cross-encoder model: %s", e, exc_info=True)
                 return list(chunks[:top_k])
 
         # Build query-document pairs for cross-encoder

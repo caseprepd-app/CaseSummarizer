@@ -321,7 +321,7 @@ class ProgressiveDocumentSummarizer(DocumentSummarizer):
             )
 
         except Exception as e:
-            logger.error("Failed to summarize %s: %s", filename, e)
+            logger.error("Failed to summarize %s: %s", filename, e, exc_info=True)
             return DocumentSummaryResult(
                 filename=filename,
                 summary="",

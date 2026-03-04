@@ -124,7 +124,9 @@ def get_embeddings_model() -> "HuggingFaceEmbeddings":
                 query_encode_kwargs={"normalize_embeddings": True, "prompt": "search_query: "},
             )
         except Exception as e:
-            logger.error("Failed to load embedding model '%s': %s", DEFAULT_EMBEDDING_MODEL, e)
+            logger.error(
+                "Failed to load embedding model '%s': %s", DEFAULT_EMBEDDING_MODEL, e, exc_info=True
+            )
             raise RuntimeError(
                 f"Embedding model not available: {DEFAULT_EMBEDDING_MODEL}\n"
                 f"Run: python scripts/download_models.py\n"

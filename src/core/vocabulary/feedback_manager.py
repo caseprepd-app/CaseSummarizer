@@ -232,7 +232,7 @@ class FeedbackManager:
         except FileNotFoundError:
             logger.debug("No existing %s feedback file, starting fresh", target_type)
         except Exception as e:
-            logger.debug("Error loading %s feedback: %s", target_type, e)
+            logger.warning("Error loading %s feedback: %s", target_type, e)
 
     def set_document_id(self, doc_id: str):
         """
@@ -342,7 +342,7 @@ class FeedbackManager:
             except FileNotFoundError:
                 return True  # Nothing to delete
             except Exception as e:
-                logger.debug("Error deleting feedback: %s", e)
+                logger.warning("Error deleting feedback: %s", e)
                 return False
 
     def record_feedback(
@@ -547,7 +547,7 @@ class FeedbackManager:
                 return True
 
             except Exception as e:
-                logger.debug("Error recording feedback: %s", e)
+                logger.warning("Error recording feedback: %s", e)
                 return False
 
     def get_rating(self, term: str) -> int:
@@ -673,7 +673,7 @@ class FeedbackManager:
             except FileNotFoundError:
                 return []
             except Exception as e:
-                logger.debug("Error loading feedback from %s: %s", filepath, e)
+                logger.warning("Error loading feedback from %s: %s", filepath, e)
                 return []
 
     def get_all_user_feedback(self) -> list[dict]:

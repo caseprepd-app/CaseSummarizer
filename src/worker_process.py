@@ -148,12 +148,16 @@ def _command_loop(command_queue, internal_queue, result_queue, state):
 
         logger.debug("Dispatching command: %s", cmd_type)
         logger.debug("  args: %s", _summarize_command_args(cmd_type, args))
-        result_queue.put(("command_ack", {"cmd": cmd_type}))
+        try:
+            result_queue.put(("command_ack", {"cmd": cmd_type}))
+        except Exception as e:
+            logger.error("Failed to send command_ack for %s: %s", cmd_type, e, exc_info=True)
+            continue
 
         try:
             _dispatch_command(cmd_type, args, internal_queue, state)
         except Exception as e:
-            logger.error("Command dispatch error (%s): %s", cmd_type, e)
+            logger.error("Command dispatch error (%s): %s", cmd_type, e, exc_info=True)
             result_queue.put(("error", f"Worker error: {e}"))
 
 
@@ -275,7 +279,7 @@ def _run_followup(args, internal_queue, state):
             logger.debug("Follow-up answered: %d chars", len(result.answer) if result else 0)
             internal_queue.put(("qa_followup_result", result))
         except Exception as e:
-            logger.error("Follow-up error: %s", e)
+            logger.error("Follow-up error: %s", e, exc_info=True)
             internal_queue.put(("qa_followup_result", None))
 
     thread = threading.Thread(target=do_followup, daemon=True, name="followup")
@@ -348,11 +352,13 @@ def _forwarder_loop(internal_queue, result_queue, command_queue, state):
         except Empty:
             continue
         except Exception as exc:
-            logger.error("Forwarder loop error reading internal queue: %s", exc)
+            logger.error("Forwarder loop error reading internal queue: %s", exc, exc_info=True)
             try:
                 result_queue.put(("error", f"Internal forwarder error: {exc}"))
-            except Exception:
-                pass
+            except Exception as inner_exc:
+                logger.error(
+                    "Failed to send error to GUI via result_queue: %s", inner_exc, exc_info=True
+                )
             continue
 
         try:
@@ -364,11 +370,13 @@ def _forwarder_loop(internal_queue, result_queue, command_queue, state):
         try:
             _forward_message(msg_type, data, internal_queue, result_queue, state)
         except Exception as exc:
-            logger.error("Forwarder loop error processing %s: %s", msg_type, exc)
+            logger.error("Forwarder loop error processing %s: %s", msg_type, exc, exc_info=True)
             try:
                 result_queue.put(("error", f"Internal error processing {msg_type}: {exc}"))
-            except Exception:
-                pass
+            except Exception as inner_exc:
+                logger.error(
+                    "Failed to send error to GUI via result_queue: %s", inner_exc, exc_info=True
+                )
 
 
 def _forward_message(msg_type, data, internal_queue, result_queue, state):
@@ -439,7 +447,7 @@ def _forward_message(msg_type, data, internal_queue, result_queue, state):
                 logger.warning("Cannot start default Q&A: missing embeddings or vector_store_path")
                 result_queue.put(("qa_complete", []))
         except Exception as e:
-            logger.error("Failed to start default QAWorker: %s", e)
+            logger.error("Failed to start default QAWorker: %s", e, exc_info=True)
             result_queue.put(("error", f"Default Q&A failed: {e}"))
 
     else:

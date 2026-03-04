@@ -433,7 +433,7 @@ Meta-Summary:"""
             meta_summary = self.model_manager.generate_text(prompt=prompt, max_tokens=max_tokens)
             return meta_summary.strip()
         except Exception as e:
-            logger.error("Meta-summary generation failed: %s", e)
+            logger.error("Meta-summary generation failed: %s", e, exc_info=True)
             return f"Meta-summary generation failed: {e}"
 
     def _generate_chunked_meta_summary(
@@ -502,6 +502,6 @@ Final Meta-Summary:"""
             )
             return final_summary.strip()
         except Exception as e:
-            logger.error("Final meta-summary failed: %s", e)
+            logger.error("Final meta-summary failed: %s", e, exc_info=True)
             # Return concatenated intermediates as fallback
             return "\n\n".join(intermediate_summaries)

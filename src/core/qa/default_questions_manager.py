@@ -84,7 +84,7 @@ class DefaultQuestionsManager:
             logger.debug("Loaded %d questions from JSON", len(self._questions))
 
         except Exception as e:
-            logger.error("Error loading JSON: %s", e)
+            logger.error("Error loading JSON: %s", e, exc_info=True)
             self._create_default_questions()
 
     def _migrate_from_legacy(self):
@@ -103,7 +103,7 @@ class DefaultQuestionsManager:
             logger.debug("Migrated %d questions from legacy txt", len(questions))
 
         except Exception as e:
-            logger.error("Error migrating from legacy: %s", e)
+            logger.error("Error migrating from legacy: %s", e, exc_info=True)
             self._create_default_questions()
 
     def _create_default_questions(self):
@@ -132,7 +132,7 @@ class DefaultQuestionsManager:
             logger.debug("Saved %d questions", len(self._questions))
 
         except Exception as e:
-            logger.error("Error saving: %s", e)
+            logger.error("Error saving: %s", e, exc_info=True)
 
     # =========================================================================
     # Public API

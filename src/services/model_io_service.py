@@ -51,7 +51,7 @@ def export_user_model(dest_path: Path) -> tuple[bool, str]:
         logger.info("Exported user model to %s", dest_path)
         return True, f"Model exported to {dest_path.name}"
     except Exception as e:
-        logger.error("Failed to export model: %s", e)
+        logger.error("Failed to export model: %s", e, exc_info=True)
         return False, f"Export failed: {e}"
 
 
@@ -114,7 +114,7 @@ def import_user_model(src_path: Path) -> tuple[bool, str]:
         elif not had_existing:
             VOCAB_MODEL_PATH.unlink(missing_ok=True)
 
-        logger.error("Model import failed: %s", e)
+        logger.error("Model import failed: %s", e, exc_info=True)
         return False, f"Import failed: {e}"
 
 
@@ -140,7 +140,7 @@ def export_user_feedback(dest_path: Path, feedback_mgr: FeedbackManager) -> tupl
         logger.info("Exported %d feedback records to %s", len(records), dest_path)
         return True, f"Exported {len(records)} feedback records to {dest_path.name}"
     except Exception as e:
-        logger.error("Failed to export feedback: %s", e)
+        logger.error("Failed to export feedback: %s", e, exc_info=True)
         return False, f"Export failed: {e}"
 
 
@@ -250,5 +250,5 @@ def import_user_feedback(
         return True, msg, imported_count
 
     except Exception as e:
-        logger.error("Feedback import failed: %s", e)
+        logger.error("Feedback import failed: %s", e, exc_info=True)
         return False, f"Import failed: {e}", 0

@@ -452,7 +452,7 @@ def export_vocabulary_html(
         Path(file_path).write_text(html_content, encoding="utf-8")
         return True
     except Exception as e:
-        logger.error("Failed to export vocabulary HTML to '%s': %s", file_path, e)
+        logger.error("Failed to export vocabulary HTML to '%s': %s", file_path, e, exc_info=True)
         return False
 
 
@@ -801,5 +801,5 @@ def export_qa_html(
         Path(file_path).write_text(html_content, encoding="utf-8")
         return True
     except Exception as e:
-        logger.error("Failed to export Q&A HTML to '%s': %s", file_path, e)
+        logger.error("Failed to export Q&A HTML to '%s': %s", file_path, e, exc_info=True)
         return False
