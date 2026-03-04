@@ -5,8 +5,6 @@ Exports Q&A results to Word/PDF using DocumentBuilder interface.
 Supports verification coloring for hallucination detection.
 """
 
-from datetime import datetime
-
 from src.core.export.base import DocumentBuilder, TextSpan, get_verification_color
 
 
@@ -29,7 +27,9 @@ def export_qa_results(
     builder.add_heading(title, level=1)
 
     # Add summary
-    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M")
+    from src.core.export.base import format_export_timestamp
+
+    timestamp = format_export_timestamp()
     builder.add_paragraph(f"{len(results)} questions answered")
     builder.add_paragraph(f"Generated: {timestamp}", italic=True)
     builder.add_separator()

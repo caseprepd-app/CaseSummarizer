@@ -12,6 +12,7 @@ import logging
 import tkinter.font as tkfont
 
 from src.config import (
+    VF,
     VOCABULARY_BATCH_INSERT_DELAY_MS,
     VOCABULARY_BATCH_INSERT_SIZE,
     VOCABULARY_ROWS_PER_PAGE,
@@ -35,99 +36,99 @@ BATCH_INSERT_DELAY_MS = VOCABULARY_BATCH_INSERT_DELAY_MS
 # User preferences override defaults; "Term" cannot be hidden
 COLUMN_REGISTRY = {
     # Basic columns (default visible)
-    "Term": {"width": 180, "max_chars": 30, "default": True, "can_hide": False},
+    VF.TERM: {"width": 180, "max_chars": 30, "default": True, "can_hide": False},
     "Score": {"width": 55, "max_chars": 5, "default": True, "can_hide": True},
-    "Is Person": {"width": 65, "max_chars": 4, "default": True, "can_hide": True},
-    "Found By": {"width": 120, "max_chars": 20, "default": True, "can_hide": True},
+    VF.IS_PERSON: {"width": 65, "max_chars": 4, "default": True, "can_hide": True},
+    VF.FOUND_BY: {"width": 120, "max_chars": 20, "default": True, "can_hide": True},
     # TermSources columns (default visible)
-    "Occurrences": {"width": 65, "max_chars": 6, "default": True, "can_hide": True},
-    "# Docs": {"width": 55, "max_chars": 4, "default": True, "can_hide": True},
-    "OCR Confidence": {"width": 80, "max_chars": 5, "default": True, "can_hide": True},
+    VF.OCCURRENCES: {"width": 65, "max_chars": 6, "default": True, "can_hide": True},
+    VF.NUM_DOCS: {"width": 55, "max_chars": 4, "default": True, "can_hide": True},
+    VF.OCR_CONFIDENCE: {"width": 80, "max_chars": 5, "default": True, "can_hide": True},
     # Algorithm detail columns (default hidden — all 8 algorithms)
-    "NER": {"width": 45, "max_chars": 4, "default": False, "can_hide": True},
-    "RAKE": {"width": 50, "max_chars": 4, "default": False, "can_hide": True},
-    "BM25": {"width": 50, "max_chars": 4, "default": False, "can_hide": True},
-    "TopicRank": {"width": 65, "max_chars": 4, "default": False, "can_hide": True},
-    "MedicalNER": {"width": 75, "max_chars": 4, "default": False, "can_hide": True},
-    "GLiNER": {"width": 55, "max_chars": 4, "default": False, "can_hide": True},
-    "YAKE": {"width": 50, "max_chars": 4, "default": False, "can_hide": True},
-    "KeyBERT": {"width": 55, "max_chars": 4, "default": False, "can_hide": True},
-    "Algo Count": {"width": 55, "max_chars": 3, "default": False, "can_hide": True},
+    VF.NER: {"width": 45, "max_chars": 4, "default": False, "can_hide": True},
+    VF.RAKE: {"width": 50, "max_chars": 4, "default": False, "can_hide": True},
+    VF.BM25: {"width": 50, "max_chars": 4, "default": False, "can_hide": True},
+    VF.TOPICRANK: {"width": 65, "max_chars": 4, "default": False, "can_hide": True},
+    VF.MEDICALNER: {"width": 75, "max_chars": 4, "default": False, "can_hide": True},
+    VF.GLINER: {"width": 55, "max_chars": 4, "default": False, "can_hide": True},
+    VF.YAKE: {"width": 50, "max_chars": 4, "default": False, "can_hide": True},
+    VF.KEYBERT: {"width": 55, "max_chars": 4, "default": False, "can_hide": True},
+    VF.ALGO_COUNT: {"width": 55, "max_chars": 3, "default": False, "can_hide": True},
     # Additional columns (default hidden)
-    "Google Rarity Rank": {"width": 80, "max_chars": 10, "default": False, "can_hide": True},
+    VF.GOOGLE_RARITY_RANK: {"width": 80, "max_chars": 10, "default": False, "can_hide": True},
     # Feedback columns (default visible)
-    "Keep": {"width": 45, "max_chars": 3, "default": True, "can_hide": True},
-    "Skip": {"width": 45, "max_chars": 3, "default": True, "can_hide": True},
+    VF.KEEP: {"width": 45, "max_chars": 3, "default": True, "can_hide": True},
+    VF.SKIP: {"width": 45, "max_chars": 3, "default": True, "can_hide": True},
 }
 
 # Fixed column order (determines display sequence in table)
 COLUMN_ORDER = [
-    "Term",
+    VF.TERM,
     "Score",
-    "Is Person",
-    "Found By",
-    "Occurrences",
-    "# Docs",
-    "OCR Confidence",
-    "NER",
-    "RAKE",
-    "BM25",
-    "TopicRank",
-    "MedicalNER",
-    "GLiNER",
-    "YAKE",
-    "KeyBERT",
-    "Algo Count",
-    "Google Rarity Rank",
-    "Keep",
-    "Skip",
+    VF.IS_PERSON,
+    VF.FOUND_BY,
+    VF.OCCURRENCES,
+    VF.NUM_DOCS,
+    VF.OCR_CONFIDENCE,
+    VF.NER,
+    VF.RAKE,
+    VF.BM25,
+    VF.TOPICRANK,
+    VF.MEDICALNER,
+    VF.GLINER,
+    VF.YAKE,
+    VF.KEYBERT,
+    VF.ALGO_COUNT,
+    VF.GOOGLE_RARITY_RANK,
+    VF.KEEP,
+    VF.SKIP,
 ]
 
 # Backward compatibility: old column lists for reference
-GUI_DISPLAY_COLUMNS = ("Term", "Score", "Is Person", "Found By", "Keep", "Skip")
+GUI_DISPLAY_COLUMNS = (VF.TERM, "Score", VF.IS_PERSON, VF.FOUND_BY, VF.KEEP, VF.SKIP)
 GUI_DISPLAY_COLUMNS_EXTENDED = (
-    "Term",
+    VF.TERM,
     "Score",
-    "Is Person",
-    "Found By",
-    "NER",
-    "RAKE",
-    "BM25",
-    "TopicRank",
-    "MedicalNER",
-    "GLiNER",
-    "YAKE",
-    "KeyBERT",
-    "Algo Count",
-    "Keep",
-    "Skip",
+    VF.IS_PERSON,
+    VF.FOUND_BY,
+    VF.NER,
+    VF.RAKE,
+    VF.BM25,
+    VF.TOPICRANK,
+    VF.MEDICALNER,
+    VF.GLINER,
+    VF.YAKE,
+    VF.KEYBERT,
+    VF.ALGO_COUNT,
+    VF.KEEP,
+    VF.SKIP,
 )
 
 # All columns available for export (includes ML feature columns)
 ALL_EXPORT_COLUMNS = (
-    "Term",
-    "Quality Score",
-    "Is Person",
-    "Found By",
-    "# Docs",
-    "OCR Confidence",
-    "NER",
-    "RAKE",
-    "BM25",
-    "TopicRank",
-    "MedicalNER",
-    "GLiNER",
-    "YAKE",
-    "KeyBERT",
-    "Algo Count",
-    "Occurrences",
-    "Google Rarity Rank",
+    VF.TERM,
+    VF.QUALITY_SCORE,
+    VF.IS_PERSON,
+    VF.FOUND_BY,
+    VF.NUM_DOCS,
+    VF.OCR_CONFIDENCE,
+    VF.NER,
+    VF.RAKE,
+    VF.BM25,
+    VF.TOPICRANK,
+    VF.MEDICALNER,
+    VF.GLINER,
+    VF.YAKE,
+    VF.KEYBERT,
+    VF.ALGO_COUNT,
+    VF.OCCURRENCES,
+    VF.GOOGLE_RARITY_RANK,
 )
 
 # UI-002: Centralized mapping from display column names to data field names
 # "Score" in the GUI maps to "Quality Score" in the data dictionary
 DISPLAY_TO_DATA_COLUMN = {
-    "Score": "Quality Score",
+    "Score": VF.QUALITY_SCORE,
 }
 
 # Legacy COLUMN_CONFIG for backward compatibility
@@ -254,8 +255,8 @@ def _max_width_for_column(col_name: str, available_width: int) -> int:
     Returns:
         Maximum allowed width in pixels.
     """
-    if col_name == "Term":
+    if col_name == VF.TERM:
         return int(available_width * 0.45)
-    if col_name == "Found By":
+    if col_name == VF.FOUND_BY:
         return int(available_width * 0.20)
     return int(available_width * 0.15)

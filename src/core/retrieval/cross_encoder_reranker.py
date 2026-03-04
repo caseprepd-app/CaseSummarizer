@@ -21,7 +21,6 @@ Usage:
 """
 
 import logging
-import os
 
 from src.config import (
     HF_CACHE_DIR,
@@ -56,21 +55,13 @@ class CrossEncoderReranker:
         network downloads). Falls back to HuggingFace download with clear error
         messaging if that fails.
         """
-        # Set HuggingFace cache to project folder (setdefault avoids overwriting)
-        os.environ.setdefault("HF_HOME", str(HF_CACHE_DIR))
-        os.environ.setdefault("TRANSFORMERS_CACHE", str(HF_CACHE_DIR))
+        from src.core.utils.model_loader import resolve_model_path, set_hf_cache_env
+
+        set_hf_cache_env(HF_CACHE_DIR)
 
         from sentence_transformers import CrossEncoder
 
-        # Check for bundled model first
-        is_local = RERANKER_MODEL_LOCAL_PATH.exists()
-        if is_local:
-            model_path = str(RERANKER_MODEL_LOCAL_PATH)
-            logger.debug("Using bundled model: %s", model_path)
-        else:
-            model_path = RERANKER_MODEL_NAME
-            logger.debug("Downloading model: %s", model_path)
-            logger.debug("Cache directory: %s", HF_CACHE_DIR)
+        model_path, is_local = resolve_model_path(RERANKER_MODEL_LOCAL_PATH, RERANKER_MODEL_NAME)
 
         init_kwargs = {"max_length": RERANKER_MAX_LENGTH}
         if is_local:

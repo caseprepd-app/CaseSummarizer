@@ -9,10 +9,10 @@ JavaScript is scoped to prevent cross-tab interference.
 """
 
 import json
-from datetime import datetime
 
 from src.config import NUMERIC_COLUMNS, PROTECTED_COLUMNS, SORT_WARNING_COLUMNS
 from src.core.export.html_builder import VOCAB_HTML_COLUMNS, _escape
+from src.core.vocab_schema import VF
 
 
 def build_combined_html(
@@ -88,7 +88,9 @@ def build_combined_html(
         let sortAsc = true;
 """
 
-    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M")
+    from src.core.export.base import format_export_timestamp
+
+    timestamp = format_export_timestamp()
 
     return COMBINED_HTML_TEMPLATE.format(
         timestamp=_escape(timestamp),
@@ -112,10 +114,11 @@ def _build_vocab_section(vocab_data: list[dict], visible_columns: list[str] | No
         HTML fragment for the vocabulary section
     """
     if visible_columns is None:
-        visible_columns = ["Term", "Score", "Is Person", "Found By"]
+        visible_columns = [VF.TERM, "Score", VF.IS_PERSON, VF.FOUND_BY]
 
-    person_count = sum(1 for v in vocab_data if v.get("Is Person") == "Yes")
-    term_count = len(vocab_data) - person_count
+    from src.core.vocabulary.person_utils import vocab_summary_counts
+
+    total, person_count, term_count = vocab_summary_counts(vocab_data)
 
     # Controls
     toggle_parts = []
@@ -148,7 +151,7 @@ def _build_vocab_section(vocab_data: list[dict], visible_columns: list[str] | No
     # Table rows
     rows = []
     for v in vocab_data:
-        is_person = v.get("Is Person", "") == "Yes"
+        is_person = v.get(VF.IS_PERSON, "") == VF.YES
         row_class = ' class="person"' if is_person else ""
         cells = []
         for col_name, data_key in VOCAB_HTML_COLUMNS:

@@ -11,7 +11,6 @@ for consistency with GUI, sort warnings, and Term column protection.
 import html
 import json
 import logging
-from datetime import datetime
 from pathlib import Path
 
 from src.config import (
@@ -20,6 +19,7 @@ from src.config import (
     PROTECTED_COLUMNS,
     SORT_WARNING_COLUMNS,
 )
+from src.core.vocab_schema import VF
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +38,7 @@ def _escape(text: str) -> str:
 VOCAB_HTML_COLUMNS = [
     (c.name, c.data_key)
     for c in COLUMN_DEFINITIONS
-    if c.name not in ("Keep", "Skip")  # Feedback columns are GUI-only
+    if c.name not in (VF.KEEP, VF.SKIP)  # Feedback columns are GUI-only
 ]
 
 VOCAB_HTML_TEMPLATE = """<!DOCTYPE html>
@@ -357,16 +357,20 @@ def build_vocabulary_html(
     """
     # Default visible columns if not specified
     if visible_columns is None:
-        visible_columns = ["Term", "Score", "Is Person", "Found By"]
+        visible_columns = [VF.TERM, "Score", VF.IS_PERSON, VF.FOUND_BY]
 
     # Get all column display names in order
     column_names = [col[0] for col in VOCAB_HTML_COLUMNS]
 
     # Build summary
-    person_count = sum(1 for v in vocab_data if v.get("Is Person") == "Yes")
-    term_count = len(vocab_data) - person_count
-    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M")
-    summary = f"{len(vocab_data)} entries ({person_count} persons, {term_count} terms) — Generated {timestamp}"
+    from src.core.export.base import format_export_timestamp
+    from src.core.vocabulary.person_utils import vocab_summary_counts
+
+    total, person_count, term_count = vocab_summary_counts(vocab_data)
+    timestamp = format_export_timestamp()
+    summary = (
+        f"{total} entries ({person_count} persons, {term_count} terms) — Generated {timestamp}"
+    )
 
     # Build column toggle checkboxes
     # Protected columns (like Term) have disabled checkbox
@@ -402,7 +406,7 @@ def build_vocabulary_html(
     # Build table rows with all columns
     rows = []
     for v in vocab_data:
-        is_person = v.get("Is Person", "") == "Yes"
+        is_person = v.get(VF.IS_PERSON, "") == VF.YES
         row_class = ' class="person"' if is_person else ""
 
         cells = []
@@ -707,7 +711,9 @@ def export_qa_html(
     """
     try:
         # Build summary
-        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M")
+        from src.core.export.base import format_export_timestamp
+
+        timestamp = format_export_timestamp()
         summary = f"{len(results)} Q&A pairs — Generated {timestamp}"
 
         # Track if we need legend

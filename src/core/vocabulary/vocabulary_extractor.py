@@ -45,6 +45,7 @@ from src.config import (
     VOCABULARY_SORT_METHOD,
 )
 from src.core.utils.tokenizer import STOPWORDS
+from src.core.vocab_schema import VF
 from src.core.vocabulary.algorithms.base import BaseExtractionAlgorithm
 from src.core.vocabulary.preference_learner import get_meta_learner
 from src.core.vocabulary.reconciler import VocabularyReconciler
@@ -618,7 +619,7 @@ class VocabularyExtractor:
             term = reconciled[i].term
             category = reconciled[i].type
             role = self._get_role_relevance(term, category == "Person", text)
-            row["Role/Relevance"] = role
+            row[VF.ROLE_RELEVANCE] = role
 
         # 7. Run vocabulary filter chain
         # Consolidates: name dedup, artifact filter, name regularizer,
@@ -834,28 +835,28 @@ class VocabularyExtractor:
             found_by = ", ".join(merged.sources)  # e.g., "NER, RAKE" or "NER, RAKE, BM25"
 
             term_data = {
-                "Term": term,
-                "Is Person": "Yes" if is_person else "No",
-                "Found By": found_by,  # Which algorithms found this term
-                "Role/Relevance": role_relevance,
-                "Quality Score": base_quality_score,
-                "Occurrences": merged.frequency,
-                "Google Rarity Rank": frequency_rank,
+                VF.TERM: term,
+                VF.IS_PERSON: VF.YES if is_person else VF.NO,
+                VF.FOUND_BY: found_by,  # Which algorithms found this term
+                VF.ROLE_RELEVANCE: role_relevance,
+                VF.QUALITY_SCORE: base_quality_score,
+                VF.OCCURRENCES: merged.frequency,
+                VF.GOOGLE_RARITY_RANK: frequency_rank,
                 # "Definition": self._get_definition(term, is_person),  # Removed: see Phase 4 comment
-                "Sources": ",".join(merged.sources),  # Keep for backward compatibility
+                VF.SOURCES: ",".join(merged.sources),  # Keep for backward compatibility
                 # Per-algorithm detection flags
-                "NER": "Yes" if "NER" in sources_upper else "No",
-                "RAKE": "Yes" if "RAKE" in sources_upper else "No",
-                "BM25": "Yes" if "BM25" in sources_upper else "No",
-                "TopicRank": "Yes" if "TOPICRANK" in sources_upper else "No",
-                "MedicalNER": "Yes" if "MEDICALNER" in sources_upper else "No",
-                "GLiNER": "Yes" if "GLINER" in sources_upper else "No",
-                "YAKE": "Yes" if "YAKE" in sources_upper else "No",
-                "KeyBERT": "Yes" if "KEYBERT" in sources_upper else "No",
-                "Algo Count": algo_count,  # Sum of algorithms that found term
+                VF.NER: VF.YES if "NER" in sources_upper else VF.NO,
+                VF.RAKE: VF.YES if "RAKE" in sources_upper else VF.NO,
+                VF.BM25: VF.YES if "BM25" in sources_upper else VF.NO,
+                VF.TOPICRANK: VF.YES if "TOPICRANK" in sources_upper else VF.NO,
+                VF.MEDICALNER: VF.YES if "MEDICALNER" in sources_upper else VF.NO,
+                VF.GLINER: VF.YES if "GLINER" in sources_upper else VF.NO,
+                VF.YAKE: VF.YES if "YAKE" in sources_upper else VF.NO,
+                VF.KEYBERT: VF.YES if "KEYBERT" in sources_upper else VF.NO,
+                VF.ALGO_COUNT: algo_count,  # Sum of algorithms that found term
                 # Display columns from TermSources
-                "# Docs": sources_obj.num_documents,
-                "OCR Confidence": f"{sources_obj.median_confidence:.0%}",
+                VF.NUM_DOCS: sources_obj.num_documents,
+                VF.OCR_CONFIDENCE: f"{sources_obj.median_confidence:.0%}",
                 # TermSources object for ML/filters
                 "sources": sources_obj,
                 "total_docs_in_session": doc_count,
@@ -877,7 +878,7 @@ class VocabularyExtractor:
 
             # Apply ML boost if meta-learner is trained
             final_quality_score = self._apply_ml_boost(term_data, base_quality_score)
-            term_data["Quality Score"] = final_quality_score
+            term_data[VF.QUALITY_SCORE] = final_quality_score
 
             vocabulary.append(term_data)
             seen_terms.add(lower_term)
@@ -1212,7 +1213,7 @@ class VocabularyExtractor:
             # Log significant ML adjustments for debugging
             score_diff = final_score - base_score
             if abs(score_diff) > 5:
-                term = term_data.get("Term", "?")
+                term = term_data.get(VF.TERM, "?")
                 logger.debug(
                     "'%s': prob=%.2f, weight=%.0f%%, base=%.1f -> final=%.1f (%+.1f)",
                     term,
@@ -1311,7 +1312,7 @@ class VocabularyExtractor:
         Returns:
             Sorted vocabulary list (highest Quality Score first)
         """
-        return sorted(vocabulary, key=lambda x: float(x.get("Quality Score") or 0), reverse=True)
+        return sorted(vocabulary, key=lambda x: float(x.get(VF.QUALITY_SCORE) or 0), reverse=True)
 
     def _sort_by_rarity(self, vocabulary: list[dict]) -> list[dict]:
         """Sort vocabulary list by rarity (rarest first)."""
@@ -1319,13 +1320,13 @@ class VocabularyExtractor:
         in_dataset = []
 
         for item in vocabulary:
-            term = item["Term"].lower()
+            term = item[VF.TERM].lower()
             if term not in self.frequency_dataset:
                 not_in_dataset.append(item)
             else:
                 in_dataset.append(item)
 
-        in_dataset.sort(key=lambda x: self.frequency_dataset.get(x["Term"].lower(), float("inf")))
+        in_dataset.sort(key=lambda x: self.frequency_dataset.get(x[VF.TERM].lower(), float("inf")))
         return not_in_dataset + in_dataset
 
     # ========================================================================
@@ -1541,7 +1542,7 @@ class VocabularyExtractor:
 
         for doc_id, confidence, vocab_list in per_doc_results:
             for term_dict in vocab_list:
-                key = term_dict["Term"].lower()
+                key = term_dict[VF.TERM].lower()
                 if key not in term_index:
                     term_index[key] = []
                 term_index[key].append((doc_id, confidence, term_dict))
@@ -1557,7 +1558,7 @@ class VocabularyExtractor:
         # Re-apply ML boost with correct multi-doc data
         for term_data in merged_vocab:
             base = term_data["base_quality_score"]
-            term_data["Quality Score"] = self._apply_ml_boost(term_data, base)
+            term_data[VF.QUALITY_SCORE] = self._apply_ml_boost(term_data, base)
 
         # Sort by quality score descending
         return self._sort_vocabulary(merged_vocab)
@@ -1583,7 +1584,7 @@ class VocabularyExtractor:
         for doc_id, confidence, td in doc_entries:
             doc_ids.append(doc_id)
             confidences.append(confidence / 100.0)
-            counts_per_doc.append(td.get("Occurrences", td.get("Frequency", 1)))
+            counts_per_doc.append(td.get(VF.OCCURRENCES, td.get(VF.FREQUENCY, 1)))
 
         sources = TermSources(
             doc_ids=doc_ids,
@@ -1592,24 +1593,24 @@ class VocabularyExtractor:
         )
 
         # Term display: most frequent casing
-        casing_votes = Counter(td["Term"] for _, _, td in doc_entries)
+        casing_votes = Counter(td[VF.TERM] for _, _, td in doc_entries)
         best_term = casing_votes.most_common(1)[0][0]
 
         # Boolean fields: "Yes" if ANY doc says "Yes"
-        is_person = any(td.get("Is Person") == "Yes" for _, _, td in doc_entries)
-        ner = any(td.get("NER") == "Yes" for _, _, td in doc_entries)
-        rake = any(td.get("RAKE") == "Yes" for _, _, td in doc_entries)
-        bm25 = any(td.get("BM25") == "Yes" for _, _, td in doc_entries)
-        topicrank = any(td.get("TopicRank") == "Yes" for _, _, td in doc_entries)
-        medical_ner = any(td.get("MedicalNER") == "Yes" for _, _, td in doc_entries)
-        gliner = any(td.get("GLiNER") == "Yes" for _, _, td in doc_entries)
-        yake = any(td.get("YAKE") == "Yes" for _, _, td in doc_entries)
-        keybert = any(td.get("KeyBERT") == "Yes" for _, _, td in doc_entries)
+        is_person = any(td.get(VF.IS_PERSON) == VF.YES for _, _, td in doc_entries)
+        ner = any(td.get(VF.NER) == VF.YES for _, _, td in doc_entries)
+        rake = any(td.get(VF.RAKE) == VF.YES for _, _, td in doc_entries)
+        bm25 = any(td.get(VF.BM25) == VF.YES for _, _, td in doc_entries)
+        topicrank = any(td.get(VF.TOPICRANK) == VF.YES for _, _, td in doc_entries)
+        medical_ner = any(td.get(VF.MEDICALNER) == VF.YES for _, _, td in doc_entries)
+        gliner = any(td.get(VF.GLINER) == VF.YES for _, _, td in doc_entries)
+        yake = any(td.get(VF.YAKE) == VF.YES for _, _, td in doc_entries)
+        keybert = any(td.get(VF.KEYBERT) == VF.YES for _, _, td in doc_entries)
 
         # Set fields: union across docs
         all_found_by = set()
         for _, _, td in doc_entries:
-            found = td.get("Found By", td.get("Sources", ""))
+            found = td.get(VF.FOUND_BY, td.get(VF.SOURCES, ""))
             for algo in found.replace(",", " ").split():
                 algo = algo.strip()
                 if algo and algo != "—":
@@ -1617,8 +1618,10 @@ class VocabularyExtractor:
         found_by_str = ", ".join(sorted(all_found_by))
 
         # Numeric: sum / max / first
-        total_freq = sum(td.get("Occurrences", td.get("Frequency", 0)) for _, _, td in doc_entries)
-        rarity_rank = doc_entries[0][2].get("Google Rarity Rank", 0)
+        total_freq = sum(
+            td.get(VF.OCCURRENCES, td.get(VF.FREQUENCY, 0)) for _, _, td in doc_entries
+        )
+        rarity_rank = doc_entries[0][2].get(VF.GOOGLE_RARITY_RANK, 0)
         topicrank_score = max(
             (td.get("topicrank_score", 0.0) for _, _, td in doc_entries),
             default=0.0,
@@ -1645,7 +1648,7 @@ class VocabularyExtractor:
 
         # String: longest non-default
         default_role = "Vocabulary term"
-        roles = [td.get("Role/Relevance", default_role) for _, _, td in doc_entries]
+        roles = [td.get(VF.ROLE_RELEVANCE, default_role) for _, _, td in doc_entries]
         best_role = max(
             (r for r in roles if r != default_role),
             key=len,
@@ -1682,28 +1685,28 @@ class VocabularyExtractor:
 
         return {
             # Display columns
-            "Term": best_term,
-            "Is Person": "Yes" if is_person else "No",
-            "Found By": found_by_str,
-            "Role/Relevance": best_role,
-            "Quality Score": quality_score,
-            "Occurrences": total_freq,
-            "Google Rarity Rank": rarity_rank,
+            VF.TERM: best_term,
+            VF.IS_PERSON: VF.YES if is_person else VF.NO,
+            VF.FOUND_BY: found_by_str,
+            VF.ROLE_RELEVANCE: best_role,
+            VF.QUALITY_SCORE: quality_score,
+            VF.OCCURRENCES: total_freq,
+            VF.GOOGLE_RARITY_RANK: rarity_rank,
             # "Definition": definition or "—",  # Removed: see Phase 4 comment
-            "Sources": found_by_str,
+            VF.SOURCES: found_by_str,
             # Algorithm flags
-            "NER": "Yes" if ner else "No",
-            "RAKE": "Yes" if rake else "No",
-            "BM25": "Yes" if bm25 else "No",
-            "TopicRank": "Yes" if topicrank else "No",
-            "MedicalNER": "Yes" if medical_ner else "No",
-            "GLiNER": "Yes" if gliner else "No",
-            "YAKE": "Yes" if yake else "No",
-            "KeyBERT": "Yes" if keybert else "No",
-            "Algo Count": algo_count,
+            VF.NER: VF.YES if ner else VF.NO,
+            VF.RAKE: VF.YES if rake else VF.NO,
+            VF.BM25: VF.YES if bm25 else VF.NO,
+            VF.TOPICRANK: VF.YES if topicrank else VF.NO,
+            VF.MEDICALNER: VF.YES if medical_ner else VF.NO,
+            VF.GLINER: VF.YES if gliner else VF.NO,
+            VF.YAKE: VF.YES if yake else VF.NO,
+            VF.KEYBERT: VF.YES if keybert else VF.NO,
+            VF.ALGO_COUNT: algo_count,
             # TermSources display
-            "# Docs": sources.num_documents,
-            "OCR Confidence": f"{sources.median_confidence:.0%}",
+            VF.NUM_DOCS: sources.num_documents,
+            VF.OCR_CONFIDENCE: f"{sources.median_confidence:.0%}",
             # TermSources object (for ML/filters)
             "sources": sources,
             "total_docs_in_session": total_docs,
@@ -1863,22 +1866,22 @@ class VocabularyExtractor:
             )
 
             term_dict = {
-                "Term": display_term,
-                "Is Person": "No",  # Will be updated by filter chain
-                "Found By": "—",
-                "Role/Relevance": "Vocabulary term",
-                "Quality Score": base_quality_score,
-                "Occurrences": data["total_count"],
-                "Google Rarity Rank": frequency_rank,
+                VF.TERM: display_term,
+                VF.IS_PERSON: VF.NO,  # Will be updated by filter chain
+                VF.FOUND_BY: "—",
+                VF.ROLE_RELEVANCE: "Vocabulary term",
+                VF.QUALITY_SCORE: base_quality_score,
+                VF.OCCURRENCES: data["total_count"],
+                VF.GOOGLE_RARITY_RANK: frequency_rank,
                 # "Definition": "—",  # Removed: see Phase 4 comment
-                "Sources": "",
-                "NER": "No",
-                "RAKE": "No",
-                "BM25": "No",
-                "Algo Count": 0,
+                VF.SOURCES: "",
+                VF.NER: VF.NO,
+                VF.RAKE: VF.NO,
+                VF.BM25: VF.NO,
+                VF.ALGO_COUNT: 0,
                 # Display columns from TermSources
-                "# Docs": sources.num_documents,
-                "OCR Confidence": f"{sources.median_confidence:.0%}",
+                VF.NUM_DOCS: sources.num_documents,
+                VF.OCR_CONFIDENCE: f"{sources.median_confidence:.0%}",
                 # TermSources tracking
                 "sources": sources,
                 "total_docs_in_session": total_docs,

@@ -612,26 +612,28 @@ class UserPreferencesManager:
                     f"vocab_column_visibility must be a dict, got {type(value).__name__}"
                 )
             # Validate that all keys are valid column names
+            from src.core.vocab_schema import VF
+
             valid_columns = {
-                "Term",
+                VF.TERM,
                 "Score",
-                "Is Person",
-                "Found By",
-                "Occurrences",
-                "# Docs",
-                "OCR Confidence",
-                "NER",
-                "RAKE",
-                "BM25",
-                "TopicRank",
-                "MedicalNER",
-                "GLiNER",
-                "YAKE",
-                "KeyBERT",
-                "Algo Count",
-                "Google Rarity Rank",
-                "Keep",
-                "Skip",
+                VF.IS_PERSON,
+                VF.FOUND_BY,
+                VF.OCCURRENCES,
+                VF.NUM_DOCS,
+                VF.OCR_CONFIDENCE,
+                VF.NER,
+                VF.RAKE,
+                VF.BM25,
+                VF.TOPICRANK,
+                VF.MEDICALNER,
+                VF.GLINER,
+                VF.YAKE,
+                VF.KEYBERT,
+                VF.ALGO_COUNT,
+                VF.GOOGLE_RARITY_RANK,
+                VF.KEEP,
+                VF.SKIP,
             }
             invalid = set(value.keys()) - valid_columns
             if invalid:
@@ -643,33 +645,35 @@ class UserPreferencesManager:
                         f"Column visibility value must be boolean, got {type(visible).__name__} for '{col}'"
                     )
             # Term column cannot be hidden
-            if value.get("Term") is False:
+            if value.get(VF.TERM) is False:
                 raise ValueError("'Term' column cannot be hidden")
         # Column widths validation
         elif key == "vocab_column_widths":
             if not isinstance(value, dict):
                 raise ValueError(f"vocab_column_widths must be a dict, got {type(value).__name__}")
             # Validate that all keys are valid column names
+            from src.core.vocab_schema import VF
+
             valid_columns = {
-                "Term",
+                VF.TERM,
                 "Score",
-                "Is Person",
-                "Found By",
-                "Occurrences",
-                "# Docs",
-                "OCR Confidence",
-                "NER",
-                "RAKE",
-                "BM25",
-                "TopicRank",
-                "MedicalNER",
-                "GLiNER",
-                "YAKE",
-                "KeyBERT",
-                "Algo Count",
-                "Google Rarity Rank",
-                "Keep",
-                "Skip",
+                VF.IS_PERSON,
+                VF.FOUND_BY,
+                VF.OCCURRENCES,
+                VF.NUM_DOCS,
+                VF.OCR_CONFIDENCE,
+                VF.NER,
+                VF.RAKE,
+                VF.BM25,
+                VF.TOPICRANK,
+                VF.MEDICALNER,
+                VF.GLINER,
+                VF.YAKE,
+                VF.KEYBERT,
+                VF.ALGO_COUNT,
+                VF.GOOGLE_RARITY_RANK,
+                VF.KEEP,
+                VF.SKIP,
             }
             invalid = set(value.keys()) - valid_columns
             if invalid:

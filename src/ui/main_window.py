@@ -2022,10 +2022,10 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             else None
         )
         if vocab_data:
+            from src.config import VF
+
             stats["vocab_count"] = len(vocab_data)
-            stats["person_count"] = sum(
-                1 for v in vocab_data if v.get("Is Person", "").lower() in ("yes", "true", "1")
-            )
+            stats["person_count"] = sum(1 for v in vocab_data if v.get(VF.IS_PERSON) == VF.YES)
 
         # Q&A stats
         if self._qa_results:

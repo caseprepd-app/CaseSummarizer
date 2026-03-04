@@ -28,6 +28,7 @@ from typing import ClassVar
 
 import customtkinter as ctk
 
+from src.config import VF
 from src.ui.settings.settings_widgets import TooltipIcon
 from src.ui.theme import COLORS, FONTS
 
@@ -43,23 +44,23 @@ class ColumnVisibilityWidget(ctk.CTkFrame):
 
     # Column groups for organized display
     COLUMN_GROUPS: ClassVar[list[tuple[str, list[str]]]] = [
-        ("Basic", ["Term", "Score", "Is Person", "Found By"]),
-        ("Term Sources", ["# Docs", "Occurrences", "OCR Confidence"]),
+        ("Basic", [VF.TERM, "Score", VF.IS_PERSON, VF.FOUND_BY]),
+        ("Term Sources", [VF.NUM_DOCS, VF.OCCURRENCES, VF.OCR_CONFIDENCE]),
         (
             "Algorithm Details",
             [
-                "NER",
-                "RAKE",
-                "BM25",
-                "TopicRank",
-                "MedicalNER",
-                "GLiNER",
-                "YAKE",
-                "KeyBERT",
-                "Algo Count",
+                VF.NER,
+                VF.RAKE,
+                VF.BM25,
+                VF.TOPICRANK,
+                VF.MEDICALNER,
+                VF.GLINER,
+                VF.YAKE,
+                VF.KEYBERT,
+                VF.ALGO_COUNT,
             ],
         ),
-        ("Other", ["Google Rarity Rank", "Keep", "Skip"]),
+        ("Other", [VF.GOOGLE_RARITY_RANK, VF.KEEP, VF.SKIP]),
     ]
 
     def __init__(self, parent, **kwargs):

@@ -53,9 +53,10 @@ def _get_embedding_model_path() -> str:
         Local path if bundled model exists, otherwise HuggingFace model name
         for automatic download.
     """
-    if EMBEDDING_MODEL_LOCAL_PATH.exists():
-        return str(EMBEDDING_MODEL_LOCAL_PATH)
-    return EMBEDDING_MODEL_NAME
+    from src.core.utils.model_loader import resolve_model_path
+
+    path, _ = resolve_model_path(EMBEDDING_MODEL_LOCAL_PATH, EMBEDDING_MODEL_NAME)
+    return path
 
 
 # Embedding model - uses bundled local model if available, otherwise downloads

@@ -68,6 +68,7 @@ from src.config import (
     PHRASE_MEAN_COMMONALITY_THRESHOLD,
     SINGLE_WORD_COMMONALITY_THRESHOLD,
 )
+from src.core.vocab_schema import VF
 from src.core.vocabulary.adjusted_mean import compute_adjusted_mean
 from src.core.vocabulary.person_utils import is_person_entry
 from src.user_preferences import get_user_preferences
@@ -306,7 +307,7 @@ def should_passthrough_non_ner_term(term: str, term_data: dict) -> bool:
         False if normal rarity filtering should apply
     """
     # Only passthrough non-Person terms found by RAKE or BM25
-    if term_data.get("Is Person", "No") == "Yes":
+    if term_data.get(VF.IS_PERSON, "No") == VF.YES:
         return False
     if term_data.get("RAKE") != "Yes" and term_data.get("BM25") != "Yes":
         return False

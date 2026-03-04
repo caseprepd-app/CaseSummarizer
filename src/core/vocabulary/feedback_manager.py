@@ -54,6 +54,7 @@ from src.config import (
     ML_RETRAIN_THRESHOLD,
     get_count_bin,
 )
+from src.core.vocab_schema import VF
 from src.core.vocabulary.term_sources import TermSources
 
 logger = logging.getLogger(__name__)
@@ -285,7 +286,7 @@ class FeedbackManager:
             try:
                 # Get count bin for the term being deleted
                 try:
-                    count = int(term_data.get("Occurrences") or 1)
+                    count = int(term_data.get(VF.OCCURRENCES) or 1)
                 except (ValueError, TypeError):
                     count = 1
                 delete_key = (lower_term, get_count_bin(count))
@@ -360,7 +361,7 @@ class FeedbackManager:
         Returns:
             True if feedback was recorded successfully
         """
-        term = term_data.get("Term", "")
+        term = term_data.get(VF.TERM, "")
         if not term:
             return False
 
@@ -375,7 +376,7 @@ class FeedbackManager:
             return self._delete_feedback_from_csv(lower_term, term_data)
         # Build feedback record
         # Parse algorithms string to create boolean detection columns
-        algorithms_str = term_data.get("Sources", "")
+        algorithms_str = term_data.get(VF.SOURCES, "")
         algorithms_upper = [a.strip().upper() for a in algorithms_str.split(",") if a.strip()]
 
         # Per-algorithm detection flags (all 8 algorithms)
@@ -401,7 +402,7 @@ class FeedbackManager:
         )
 
         # Use is_person (binary) instead of unreliable type string
-        is_person_val = term_data.get("Is Person", "No")
+        is_person_val = term_data.get(VF.IS_PERSON, "No")
         is_person = 1 if str(is_person_val).lower() in ("yes", "1", "true") else 0
 
         # Extract TermSources-based features if available
@@ -444,9 +445,9 @@ class FeedbackManager:
             "YAKE_detection": yake_detected,
             "KeyBERT_detection": keybert_detected,
             "algo_count": algo_count,
-            "quality_score": term_data.get("Quality Score", 0),
-            "occurrences": term_data.get("Occurrences", 1),
-            "rarity_rank": term_data.get("Google Rarity Rank", 0),
+            "quality_score": term_data.get(VF.QUALITY_SCORE, 0),
+            "occurrences": term_data.get(VF.OCCURRENCES, 1),
+            "rarity_rank": term_data.get(VF.GOOGLE_RARITY_RANK, 0),
             # Per-algorithm numeric scores
             "topicrank_score": term_data.get("topicrank_score", 0.0),
             "yake_score": term_data.get("yake_score", 0.0),

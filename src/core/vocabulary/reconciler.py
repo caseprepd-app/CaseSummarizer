@@ -37,6 +37,7 @@ import logging
 from dataclasses import dataclass
 
 from src.categories import normalize_category
+from src.core.vocab_schema import VF
 from src.core.vocabulary.string_utils import fuzzy_match
 
 logger = logging.getLogger(__name__)
@@ -561,9 +562,9 @@ class VocabularyReconciler:
             row = {
                 "Term": term.term,
                 "Type": term.type,
-                "Found By": term.found_by,
-                "Frequency": term.frequency,
-                "Quality Score": round(term.combined_confidence * 100, 1),
+                VF.FOUND_BY: term.found_by,
+                VF.FREQUENCY: term.frequency,
+                VF.QUALITY_SCORE: round(term.combined_confidence * 100, 1),
             }
 
             # Definition column removed: WordNet definitions unhelpful for legal terms.
@@ -590,8 +591,8 @@ class VocabularyReconciler:
             row = {
                 "Name": person.name,
                 "Role": person.role.replace("_", " ").title(),
-                "Found By": person.found_by,
-                "Confidence": round(person.combined_confidence * 100, 1),
+                VF.FOUND_BY: person.found_by,
+                VF.CONFIDENCE: round(person.combined_confidence * 100, 1),
             }
             csv_data.append(row)
 
@@ -624,11 +625,11 @@ class VocabularyReconciler:
         for person in people:
             row = {
                 "Term": person.name,
-                "Is Person": "Yes",  # People are always persons
-                "Found By": person.found_by,
-                "Quality Score": round(person.combined_confidence * 100, 1),
+                VF.IS_PERSON: VF.YES,  # People are always persons
+                VF.FOUND_BY: person.found_by,
+                VF.QUALITY_SCORE: round(person.combined_confidence * 100, 1),
                 # Keep legacy fields for backward compatibility
-                "Role/Relevance": person.role.replace("_", " ").title(),
+                VF.ROLE_RELEVANCE: person.role.replace("_", " ").title(),
             }
             csv_data.append(row)
 
@@ -638,9 +639,9 @@ class VocabularyReconciler:
             is_person = term.type.lower() in ("person", "people", "name")
             row = {
                 "Term": term.term,
-                "Is Person": "Yes" if is_person else "No",
-                "Found By": term.found_by,
-                "Quality Score": round(term.combined_confidence * 100, 1),
+                VF.IS_PERSON: VF.YES if is_person else VF.NO,
+                VF.FOUND_BY: term.found_by,
+                VF.QUALITY_SCORE: round(term.combined_confidence * 100, 1),
                 # Keep legacy fields for backward compatibility
                 "Type": term.type,
             }

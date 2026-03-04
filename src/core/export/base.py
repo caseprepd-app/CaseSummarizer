@@ -124,3 +124,15 @@ def get_verification_color(hallucination_prob: float) -> tuple[tuple[int, int, i
         return VERIFICATION_COLORS["unreliable"], False, "unreliable"
     else:
         return VERIFICATION_COLORS["hallucinated"], True, "hallucinated"
+
+
+def format_export_timestamp() -> str:
+    """
+    Get current timestamp formatted for export documents.
+
+    Returns:
+        Timestamp string like "2026-03-04 14:30"
+    """
+    from datetime import datetime
+
+    return datetime.now().strftime("%Y-%m-%d %H:%M")

@@ -341,16 +341,20 @@ class TestSentinelDocstring:
 class TestHFEnvVarsSetDefault:
     """Bug #17: HF_HOME uses os.environ.setdefault, not direct assignment."""
 
-    def test_cross_encoder_uses_setdefault(self):
-        """cross_encoder_reranker.py uses setdefault."""
-
-        source = Path("src/core/retrieval/cross_encoder_reranker.py").read_text(encoding="utf-8")
+    def test_model_loader_uses_setdefault(self):
+        """model_loader.py set_hf_cache_env uses setdefault."""
+        source = Path("src/core/utils/model_loader.py").read_text(encoding="utf-8")
         assert 'os.environ.setdefault("HF_HOME"' in source
         assert 'os.environ["HF_HOME"]' not in source
 
-    def test_hallucination_verifier_uses_setdefault(self):
-        """hallucination_verifier.py uses setdefault."""
+    def test_cross_encoder_uses_set_hf_cache_env(self):
+        """cross_encoder_reranker.py delegates to set_hf_cache_env."""
+        source = Path("src/core/retrieval/cross_encoder_reranker.py").read_text(encoding="utf-8")
+        assert "set_hf_cache_env" in source
+        assert 'os.environ["HF_HOME"]' not in source
 
+    def test_hallucination_verifier_uses_set_hf_cache_env(self):
+        """hallucination_verifier.py delegates to set_hf_cache_env."""
         source = Path("src/core/qa/hallucination_verifier.py").read_text(encoding="utf-8")
-        assert 'os.environ.setdefault("HF_HOME"' in source
+        assert "set_hf_cache_env" in source
         assert 'os.environ["HF_HOME"]' not in source

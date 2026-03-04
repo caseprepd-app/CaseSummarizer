@@ -604,7 +604,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
             return [
                 d
                 for d in self._unsorted_vocab_data
-                if self._feedback_manager.get_rating(d.get("Term", "")) != -1
+                if self._feedback_manager.get_rating(d.get(VF.TERM, "")) != -1
             ]
         # Fallback if display hasn't populated _unsorted_vocab_data yet
         raw = self._outputs.get("Names & Vocabulary") or self._outputs.get(
@@ -617,8 +617,8 @@ class DynamicOutputWidget(ctk.CTkFrame):
             d
             for d in raw
             if isinstance(d, dict)
-            and d.get("Quality Score", 0) >= score_floor
-            and self._feedback_manager.get_rating(d.get("Term", "")) != -1
+            and d.get(VF.QUALITY_SCORE, 0) >= score_floor
+            and self._feedback_manager.get_rating(d.get(VF.TERM, "")) != -1
         ]
 
     # -------------------------------------------------------------------------
@@ -799,14 +799,14 @@ class DynamicOutputWidget(ctk.CTkFrame):
 
         total_docs = data[0].get("total_docs_in_session", 1)
         is_single_doc = total_docs <= 1
-        currently_visible = self._column_visibility.get("# Docs", True)
+        currently_visible = self._column_visibility.get(VF.NUM_DOCS, True)
 
         if is_single_doc and currently_visible:
-            self._column_visibility["# Docs"] = False
+            self._column_visibility[VF.NUM_DOCS] = False
             self._save_column_visibility()
             logger.debug("Auto-hid '# Docs' column (single document session)")
         elif not is_single_doc and not currently_visible:
-            self._column_visibility["# Docs"] = True
+            self._column_visibility[VF.NUM_DOCS] = True
             self._save_column_visibility()
             logger.debug("Auto-restored '# Docs' column (multi-document session)")
 
@@ -896,21 +896,21 @@ class DynamicOutputWidget(ctk.CTkFrame):
         """
         # Map display column names to data keys
         column_key_map = {
-            "Score": "Quality Score",
-            "# Docs": "# Docs",
-            "Algo Count": "Algo Count",
-            "Google Rarity Rank": "Google Rarity Rank",
+            "Score": VF.QUALITY_SCORE,
+            VF.NUM_DOCS: VF.NUM_DOCS,
+            VF.ALGO_COUNT: VF.ALGO_COUNT,
+            VF.GOOGLE_RARITY_RANK: VF.GOOGLE_RARITY_RANK,
         }
         data_key = column_key_map.get(column, column)
 
         # Numeric columns for type-aware sorting
         numeric_columns = {
             "Score",
-            "Quality Score",
-            "Occurrences",
-            "# Docs",
-            "Algo Count",
-            "Google Rarity Rank",
+            VF.QUALITY_SCORE,
+            VF.OCCURRENCES,
+            VF.NUM_DOCS,
+            VF.ALGO_COUNT,
+            VF.GOOGLE_RARITY_RANK,
         }
         is_numeric = column in numeric_columns or data_key in numeric_columns
 
@@ -949,7 +949,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
             Reordered list with potential duplicates grouped
         """
         # Build index of term positions
-        term_to_index = {item.get("Term", ""): i for i, item in enumerate(data)}
+        term_to_index = {item.get(VF.TERM, ""): i for i, item in enumerate(data)}
 
         # Find items that need to be moved
         items_to_move = []
@@ -970,7 +970,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
                 continue
             result.append(item)
             # Insert any items that should follow this one
-            term = item.get("Term", "")
+            term = item.get(VF.TERM, "")
             for _, moved_item, match in items_to_move:
                 if match == term:
                     result.append(moved_item)
@@ -1237,7 +1237,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
             item
             for item in data
             if self._feedback_manager.get_rating(
-                item.get("Term", "") if isinstance(item, dict) else ""
+                item.get(VF.TERM, "") if isinstance(item, dict) else ""
             )
             != -1
         ]
@@ -1259,7 +1259,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
         data = [
             item
             for item in data
-            if isinstance(item, dict) and item.get("Quality Score", 0) >= score_floor
+            if isinstance(item, dict) and item.get(VF.QUALITY_SCORE, 0) >= score_floor
         ]
         score_filtered = pre_score_count - len(data)
         if score_filtered > 0:
@@ -1515,17 +1515,17 @@ class DynamicOutputWidget(ctk.CTkFrame):
                     # Apply text truncation to prevent row overflow
                     # Build values for each column, handling feedback columns specially
                     values = []
-                    term = item.get("Term", "")
+                    term = item.get(VF.TERM, "")
                     rating = self._feedback_manager.get_rating(term)
 
                     for col in current_columns:
-                        if col == "Keep":
+                        if col == VF.KEEP:
                             values.append(THUMB_UP_FILLED if rating == 1 else THUMB_UP_EMPTY)
-                        elif col == "Skip":
+                        elif col == VF.SKIP:
                             values.append(THUMB_DOWN_FILLED if rating == -1 else THUMB_DOWN_EMPTY)
-                        elif col == "Term":
+                        elif col == VF.TERM:
                             # Special handling for Term column - add 🔗 for potential duplicates
-                            term_display = item.get("Term", "")
+                            term_display = item.get(VF.TERM, "")
                             if item.get("_potential_duplicate_of"):
                                 term_display = f"{_LINK_EMOJI_PREFIX}{term_display}"
                             values.append(
@@ -1751,9 +1751,9 @@ class DynamicOutputWidget(ctk.CTkFrame):
         # Look up the term data
         term_data = self._item_to_data.get(item_id, {})
         alternatives = term_data.get("_alternatives", [])
-        is_person = str(term_data.get("Is Person", "")).lower() in ("yes", "true", "1")
+        is_person = str(term_data.get(VF.IS_PERSON, "")).lower() in ("yes", "true", "1")
         if not is_person:
-            is_person = str(term_data.get("Type", "")).lower() == "person"
+            is_person = str(term_data.get(VF.TYPE, "")).lower() == "person"
 
         has_alts = bool(alternatives) and is_person
         alt_count = len(alternatives)
@@ -1779,8 +1779,8 @@ class DynamicOutputWidget(ctk.CTkFrame):
         occurrences = 0
         doc_count = 0
         try:
-            occurrences = int(term_data.get("Occurrences", 0))
-            doc_count = int(term_data.get("# Docs", 0))
+            occurrences = int(term_data.get(VF.OCCURRENCES, 0))
+            doc_count = int(term_data.get(VF.NUM_DOCS, 0))
         except (ValueError, TypeError):
             pass
 
@@ -1882,13 +1882,13 @@ class DynamicOutputWidget(ctk.CTkFrame):
                     self._outputs[key] = [
                         item
                         for item in self._outputs.get(key, [])
-                        if isinstance(item, dict) and item.get("Term", "").lower() != lower_term
+                        if isinstance(item, dict) and item.get(VF.TERM, "").lower() != lower_term
                     ]
                 # Remove from unsorted cache so re-sorts don't resurrect it
                 self._unsorted_vocab_data = [
                     item
                     for item in self._unsorted_vocab_data
-                    if isinstance(item, dict) and item.get("Term", "").lower() != lower_term
+                    if isinstance(item, dict) and item.get(VF.TERM, "").lower() != lower_term
                 ]
 
             messagebox.showinfo(
@@ -1989,13 +1989,13 @@ class DynamicOutputWidget(ctk.CTkFrame):
         if export_format == "all":
             columns = list(ALL_EXPORT_COLUMNS)
         elif export_format == "terms_only":
-            columns = ["Term"]
+            columns = [VF.TERM]
         else:  # "basic" (default)
             columns = list(GUI_DISPLAY_COLUMNS)
 
         # Respect auto-hide: remove "# Docs" when hidden (single-doc session)
-        if not self._column_visibility.get("# Docs", True) and "# Docs" in columns:
-            columns.remove("# Docs")
+        if not self._column_visibility.get(VF.NUM_DOCS, True) and VF.NUM_DOCS in columns:
+            columns.remove(VF.NUM_DOCS)
 
         output = io.StringIO()
         writer = csv.writer(output)
@@ -2217,18 +2217,18 @@ class DynamicOutputWidget(ctk.CTkFrame):
                     include_details = any(
                         self._column_visibility.get(col, False)
                         for col in [
-                            "NER",
-                            "RAKE",
-                            "BM25",
-                            "TopicRank",
-                            "MedicalNER",
-                            "GLiNER",
-                            "YAKE",
-                            "KeyBERT",
-                            "Algo Count",
+                            VF.NER,
+                            VF.RAKE,
+                            VF.BM25,
+                            VF.TOPICRANK,
+                            VF.MEDICALNER,
+                            VF.GLINER,
+                            VF.YAKE,
+                            VF.KEYBERT,
+                            VF.ALGO_COUNT,
                         ]
                     )
-                    is_single_doc = not self._column_visibility.get("# Docs", True)
+                    is_single_doc = not self._column_visibility.get(VF.NUM_DOCS, True)
                     write_fn = {
                         "word": export_service.export_vocabulary_to_word,
                         "pdf": export_service.export_vocabulary_to_pdf,
@@ -2326,8 +2326,8 @@ class DynamicOutputWidget(ctk.CTkFrame):
         # Dynamically find Keep and Skip column indices
         current_columns = getattr(self, "_current_columns", GUI_DISPLAY_COLUMNS)
         try:
-            keep_idx = current_columns.index("Keep") + 1  # 1-based
-            skip_idx = current_columns.index("Skip") + 1  # 1-based
+            keep_idx = current_columns.index(VF.KEEP) + 1  # 1-based
+            skip_idx = current_columns.index(VF.SKIP) + 1  # 1-based
         except ValueError:
             return  # Keep/Skip columns not found
 
@@ -2413,7 +2413,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
         # Find full term data from internal storage for ML features
         term_data = self._find_term_data(term)
         if not term_data:
-            term_data = {"Term": term}
+            term_data = {VF.TERM: term}
 
         # Record feedback (handles both setting and clearing)
         success = self._feedback_manager.record_feedback(term_data, new_rating)
@@ -2484,7 +2484,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
         lower_term = term.lower().strip()
 
         for item in vocab_data:
-            if isinstance(item, dict) and item.get("Term", "").lower().strip() == lower_term:
+            if isinstance(item, dict) and item.get(VF.TERM, "").lower().strip() == lower_term:
                 return item
 
         return None
@@ -2502,8 +2502,8 @@ class DynamicOutputWidget(ctk.CTkFrame):
         # Dynamically find Keep and Skip column indices
         current_columns = getattr(self, "_current_columns", GUI_DISPLAY_COLUMNS)
         try:
-            keep_idx = current_columns.index("Keep")  # 0-based for list access
-            skip_idx = current_columns.index("Skip")  # 0-based for list access
+            keep_idx = current_columns.index(VF.KEEP)  # 0-based for list access
+            skip_idx = current_columns.index(VF.SKIP)  # 0-based for list access
         except ValueError:
             return  # Keep/Skip columns not found
 

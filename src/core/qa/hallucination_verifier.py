@@ -28,7 +28,6 @@ Model Loading:
 """
 
 import logging
-import os
 from dataclasses import dataclass
 
 from src.config import (
@@ -87,24 +86,13 @@ class HallucinationVerifier:
            use local_files_only=True to prevent network calls
         3. Otherwise, download from HuggingFace (development mode)
         """
-        # Set HuggingFace environment variables to control cache location (setdefault avoids overwriting)
-        os.environ.setdefault("HF_HOME", str(HF_CACHE_DIR))
-        os.environ.setdefault("TRANSFORMERS_CACHE", str(HF_CACHE_DIR))
+        from src.core.utils.model_loader import resolve_model_path, set_hf_cache_env
 
-        # Check for bundled model
-        bundled_path = HALLUCINATION_MODEL_LOCAL_PATH
+        set_hf_cache_env(HF_CACHE_DIR)
 
-        if bundled_path.exists():
-            # Use bundled model (production/installer mode)
-            model_path = str(bundled_path)
-            local_only = True
-            logger.debug("Using bundled model: %s", model_path)
-        else:
-            # Download from HuggingFace (development mode)
-            model_path = self._model_path
-            local_only = False
-            logger.debug("Downloading model: %s", model_path)
-            logger.debug("Cache dir: %s", HF_CACHE_DIR)
+        model_path, local_only = resolve_model_path(
+            HALLUCINATION_MODEL_LOCAL_PATH, self._model_path
+        )
 
         from lettucedetect.models.inference import HallucinationDetector
 

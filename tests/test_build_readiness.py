@@ -929,17 +929,24 @@ class TestOptionalPackageBundling:
     # ── 4e. Loading pattern validation ────────────────────────────────────
 
     def test_hallucination_verifier_prefers_bundled_path(self):
-        """hallucination_verifier checks bundled_path.exists() before HF fallback."""
+        """hallucination_verifier delegates to resolve_model_path for bundled-first loading."""
         source_path = PROJECT_ROOT / "src" / "core" / "qa" / "hallucination_verifier.py"
         source = source_path.read_text(encoding="utf-8")
-        assert "bundled_path.exists()" in source or "HALLUCINATION_MODEL_LOCAL_PATH" in source
-        assert ".exists()" in source
+        assert "resolve_model_path" in source
+        assert "HALLUCINATION_MODEL_LOCAL_PATH" in source
 
     def test_hallucination_verifier_uses_local_files_only(self):
-        """hallucination_verifier passes local_files_only=True when bundled."""
+        """hallucination_verifier passes local_files_only from resolve_model_path."""
         source_path = PROJECT_ROOT / "src" / "core" / "qa" / "hallucination_verifier.py"
         source = source_path.read_text(encoding="utf-8")
-        assert "local_files_only" in source
+        assert "local_only" in source or "local_files_only" in source
+
+    def test_model_loader_checks_bundled_path(self):
+        """model_loader.resolve_model_path checks .exists() before HF fallback."""
+        source_path = PROJECT_ROOT / "src" / "core" / "utils" / "model_loader.py"
+        source = source_path.read_text(encoding="utf-8")
+        assert ".exists()" in source
+        assert "bundled_path" in source
 
     def test_coreference_resolver_prefers_bundled_path(self):
         """coreference_resolver checks COREF_MODEL_LOCAL_PATH.exists()."""

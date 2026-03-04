@@ -11,6 +11,7 @@ from pathlib import Path
 import yaml
 
 from src.config_defaults import get_default as _factory_default
+from src.core.vocab_schema import VF
 
 
 def _d(key: str):
@@ -980,30 +981,30 @@ class ColumnDefinition:
 # All other columns trigger a warning since non-Score sorts show lower-quality first.
 COLUMN_DEFINITIONS = [
     # Basic columns (default visible)
-    ColumnDefinition("Term", "Term", 180, 30, True, False, False, False),
-    ColumnDefinition("Score", "Quality Score", 55, 5, True, True, False, True),
-    ColumnDefinition("Is Person", "Is Person", 65, 4, True, True, True, False),
-    ColumnDefinition("Found By", "Found By", 120, 20, True, True, True, False),
+    ColumnDefinition(VF.TERM, VF.TERM, 180, 30, True, False, False, False),
+    ColumnDefinition("Score", VF.QUALITY_SCORE, 55, 5, True, True, False, True),
+    ColumnDefinition(VF.IS_PERSON, VF.IS_PERSON, 65, 4, True, True, True, False),
+    ColumnDefinition(VF.FOUND_BY, VF.FOUND_BY, 120, 20, True, True, True, False),
     # TermSources columns (default visible)
-    ColumnDefinition("Occurrences", "Occurrences", 80, 6, True, True, True, True),
-    ColumnDefinition("# Docs", "# Docs", 55, 4, True, True, True, True),
-    ColumnDefinition("OCR Confidence", "OCR Confidence", 80, 5, True, True, True, False),
+    ColumnDefinition(VF.OCCURRENCES, VF.OCCURRENCES, 80, 6, True, True, True, True),
+    ColumnDefinition(VF.NUM_DOCS, VF.NUM_DOCS, 55, 4, True, True, True, True),
+    ColumnDefinition(VF.OCR_CONFIDENCE, VF.OCR_CONFIDENCE, 80, 5, True, True, True, False),
     # Algorithm detail columns (default hidden)
-    ColumnDefinition("NER", "NER", 45, 4, False, True, True, False),
-    ColumnDefinition("RAKE", "RAKE", 50, 4, False, True, True, False),
-    ColumnDefinition("BM25", "BM25", 50, 4, False, True, True, False),
-    ColumnDefinition("TopicRank", "TopicRank", 65, 4, False, True, True, False),
-    ColumnDefinition("MedicalNER", "MedicalNER", 75, 4, False, True, True, False),
-    ColumnDefinition("GLiNER", "GLiNER", 55, 4, False, True, True, False),
-    ColumnDefinition("YAKE", "YAKE", 50, 4, False, True, True, False),
-    ColumnDefinition("KeyBERT", "KeyBERT", 55, 4, False, True, True, False),
-    ColumnDefinition("Algo Count", "Algo Count", 55, 3, False, True, True, True),
+    ColumnDefinition(VF.NER, VF.NER, 45, 4, False, True, True, False),
+    ColumnDefinition(VF.RAKE, VF.RAKE, 50, 4, False, True, True, False),
+    ColumnDefinition(VF.BM25, VF.BM25, 50, 4, False, True, True, False),
+    ColumnDefinition(VF.TOPICRANK, VF.TOPICRANK, 65, 4, False, True, True, False),
+    ColumnDefinition(VF.MEDICALNER, VF.MEDICALNER, 75, 4, False, True, True, False),
+    ColumnDefinition(VF.GLINER, VF.GLINER, 55, 4, False, True, True, False),
+    ColumnDefinition(VF.YAKE, VF.YAKE, 50, 4, False, True, True, False),
+    ColumnDefinition(VF.KEYBERT, VF.KEYBERT, 55, 4, False, True, True, False),
+    ColumnDefinition(VF.ALGO_COUNT, VF.ALGO_COUNT, 55, 3, False, True, True, True),
     # Additional columns (default hidden)
-    ColumnDefinition("Google Rarity Rank", "Google Rarity Rank", 80, 10, False, True, True, True),
+    ColumnDefinition(VF.GOOGLE_RARITY_RANK, VF.GOOGLE_RARITY_RANK, 80, 10, False, True, True, True),
     # Feedback columns (default visible) - Keep/Skip don't need sort warning
     # as they're action columns, not data columns
-    ColumnDefinition("Keep", "Keep", 45, 3, True, True, False, False),
-    ColumnDefinition("Skip", "Skip", 45, 3, True, True, False, False),
+    ColumnDefinition(VF.KEEP, VF.KEEP, 45, 3, True, True, False, False),
+    ColumnDefinition(VF.SKIP, VF.SKIP, 45, 3, True, True, False, False),
 ]
 
 # ============================================================================

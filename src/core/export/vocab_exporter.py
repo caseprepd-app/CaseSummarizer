@@ -5,10 +5,11 @@ Exports vocabulary data to Word/PDF/TXT using DocumentBuilder interface.
 """
 
 import logging
-from datetime import datetime
 from pathlib import Path
 
-from src.core.export.base import DocumentBuilder
+from src.core.export.base import DocumentBuilder, format_export_timestamp
+from src.core.vocab_schema import VF
+from src.core.vocabulary.person_utils import vocab_summary_counts
 
 logger = logging.getLogger(__name__)
 
@@ -34,12 +35,11 @@ def export_vocabulary(
     builder.add_heading(title, level=1)
 
     # Add summary
-    person_count = sum(1 for v in vocab_data if v.get("Is Person") == "Yes")
-    term_count = len(vocab_data) - person_count
-    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M")
+    total, person_count, term_count = vocab_summary_counts(vocab_data)
+    timestamp = format_export_timestamp()
 
     builder.add_paragraph(
-        f"Extracted {len(vocab_data)} total entries: {person_count} persons, {term_count} terms"
+        f"Extracted {total} total entries: {person_count} persons, {term_count} terms"
     )
     builder.add_paragraph(f"Generated: {timestamp}", italic=True)
     builder.add_separator()
@@ -50,42 +50,42 @@ def export_vocabulary(
 
     # Build column list dynamically
     if include_details:
-        headers = ["Term", "Score", "Person", "Found By", "Occurrences"]
+        headers = [VF.TERM, "Score", "Person", VF.FOUND_BY, VF.OCCURRENCES]
         if not is_single_doc:
-            headers.append("# Docs")
+            headers.append(VF.NUM_DOCS)
         headers.extend(
             [
-                "NER",
-                "RAKE",
-                "BM25",
-                "TopicRank",
-                "MedicalNER",
-                "GLiNER",
-                "YAKE",
-                "KeyBERT",
+                VF.NER,
+                VF.RAKE,
+                VF.BM25,
+                VF.TOPICRANK,
+                VF.MEDICALNER,
+                VF.GLINER,
+                VF.YAKE,
+                VF.KEYBERT,
             ]
         )
     else:
-        headers = ["Term", "Score", "Person", "Found By", "Occurrences"]
+        headers = [VF.TERM, "Score", "Person", VF.FOUND_BY, VF.OCCURRENCES]
         if not is_single_doc:
-            headers.append("# Docs")
+            headers.append(VF.NUM_DOCS)
 
     # Build rows matching headers
     key_map = {
-        "Term": "Term",
-        "Score": "Quality Score",
-        "Person": "Is Person",
-        "Found By": "Found By",
-        "Occurrences": "Occurrences",
-        "# Docs": "# Docs",
-        "NER": "NER",
-        "RAKE": "RAKE",
-        "BM25": "BM25",
-        "TopicRank": "TopicRank",
-        "MedicalNER": "MedicalNER",
-        "GLiNER": "GLiNER",
-        "YAKE": "YAKE",
-        "KeyBERT": "KeyBERT",
+        VF.TERM: VF.TERM,
+        "Score": VF.QUALITY_SCORE,
+        "Person": VF.IS_PERSON,
+        VF.FOUND_BY: VF.FOUND_BY,
+        VF.OCCURRENCES: VF.OCCURRENCES,
+        VF.NUM_DOCS: VF.NUM_DOCS,
+        VF.NER: VF.NER,
+        VF.RAKE: VF.RAKE,
+        VF.BM25: VF.BM25,
+        VF.TOPICRANK: VF.TOPICRANK,
+        VF.MEDICALNER: VF.MEDICALNER,
+        VF.GLINER: VF.GLINER,
+        VF.YAKE: VF.YAKE,
+        VF.KEYBERT: VF.KEYBERT,
     }
     rows = []
     for v in vocab_data:
@@ -110,7 +110,7 @@ def export_vocabulary_txt(vocab_data: list[dict], file_path: str) -> bool:
         True if successful, False otherwise
     """
     try:
-        terms = [v.get("Term", "") for v in vocab_data if v.get("Term")]
+        terms = [v.get(VF.TERM, "") for v in vocab_data if v.get(VF.TERM)]
         content = "\n".join(terms)
 
         Path(file_path).write_text(content, encoding="utf-8")
