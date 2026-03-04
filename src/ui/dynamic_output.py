@@ -1734,18 +1734,17 @@ class DynamicOutputWidget(ctk.CTkFrame):
 
     def _update_alternatives_menu_item(self, item_id: str):
         """
-        Add or update the View Alternatives menu item based on selected term.
+        Add or update dynamic menu items based on selected term.
 
-        Adds a separator and "View Alternatives" item if not already present.
-        Enables the item only for Person names that have alternatives.
+        Rebuilds the separator + "View Alternatives" + "View in Context" items
+        each time the user right-clicks a row.
 
         Args:
             item_id: Treeview item ID for the selected row
         """
-        # Remove existing alternatives item if present (always at the end)
+        # Remove existing dynamic items (always at index 3 onward)
         menu_size = self.context_menu.index("end")
         if menu_size is not None and menu_size >= 3:
-            # Remove from index 3 onward (separator + alternatives item)
             try:
                 self.context_menu.delete(3, "end")
             except Exception as e:
@@ -1761,7 +1760,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
         has_alts = bool(alternatives) and is_person
         alt_count = len(alternatives)
 
-        # Add separator and menu item
+        # --- View Alternatives ---
         self.context_menu.add_separator()
         if has_alts:
             label = f"View Alternatives ({alt_count} variant"
@@ -1778,6 +1777,30 @@ class DynamicOutputWidget(ctk.CTkFrame):
                 state="disabled",
             )
 
+        # --- View in Context ---
+        occurrences = 0
+        doc_count = 0
+        try:
+            occurrences = int(term_data.get("Occurrences", 0))
+            doc_count = int(term_data.get("# Docs", 0))
+        except (ValueError, TypeError):
+            pass
+
+        if occurrences > 0 and doc_count > 0:
+            ctx_label = f"View in Context ({doc_count} doc"
+            if doc_count != 1:
+                ctx_label += "s"
+            ctx_label += ")"
+            self.context_menu.add_command(
+                label=ctx_label,
+                command=lambda td=term_data: self._show_context_dialog(td),
+            )
+        else:
+            self.context_menu.add_command(
+                label="View in Context",
+                state="disabled",
+            )
+
     def _show_alternatives_dialog(self, term_data: dict):
         """
         Open the AlternativesDialog for a term.
@@ -1788,6 +1811,29 @@ class DynamicOutputWidget(ctk.CTkFrame):
         from src.ui.alternatives_dialog import AlternativesDialog
 
         AlternativesDialog(self, term_data)
+
+    def _show_context_dialog(self, term_data: dict):
+        """
+        Open the ContextViewerDialog showing term occurrences across documents.
+
+        Gets processing_results from the main window via winfo_toplevel().
+
+        Args:
+            term_data: Term dict with at least 'Term' key
+        """
+        from src.ui.context_viewer_dialog import ContextViewerDialog
+
+        try:
+            main_window = self.winfo_toplevel()
+            processing_results = getattr(main_window, "processing_results", [])
+        except Exception:
+            processing_results = []
+
+        if not processing_results:
+            logger.warning("No processing results available for context viewer")
+            return
+
+        ContextViewerDialog(self, term_data, processing_results)
 
     def _on_double_click(self, event):
         """Handle double-click to copy the term."""
