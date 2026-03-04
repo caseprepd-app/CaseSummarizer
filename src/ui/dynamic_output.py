@@ -2053,6 +2053,17 @@ class DynamicOutputWidget(ctk.CTkFrame):
         Args:
             format_key: One of "csv", "txt", "word", "pdf", "html"
         """
+        if getattr(self, "_exporting_vocab", False):
+            return
+        self._exporting_vocab = True
+
+        try:
+            self._export_vocab_impl(format_key)
+        finally:
+            self._exporting_vocab = False
+
+    def _export_vocab_impl(self, format_key: str):
+        """Implementation of _export_vocab, guarded by _exporting_vocab flag."""
         from datetime import datetime
         from pathlib import Path
 

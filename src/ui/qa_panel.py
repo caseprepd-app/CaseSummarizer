@@ -370,6 +370,17 @@ class QAPanel(ctk.CTkFrame):
         Args:
             format_key: One of "csv", "txt", "word", "pdf", "html"
         """
+        if getattr(self, "_exporting_qa", False):
+            return
+        self._exporting_qa = True
+
+        try:
+            self._export_qa_impl(format_key)
+        finally:
+            self._exporting_qa = False
+
+    def _export_qa_impl(self, format_key: str):
+        """Implementation of _export_qa, guarded by _exporting_qa flag."""
         from pathlib import Path
 
         from src.services import DocumentService, get_export_service

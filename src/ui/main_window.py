@@ -329,6 +329,10 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
 
     def _open_model_settings(self):
         """Open the settings dialog directly to the AI Model tab."""
+        if getattr(self, "_settings_dialog_open", False):
+            return
+        self._settings_dialog_open = True
+
         from src.ui.settings.settings_dialog import SettingsDialog
         from src.user_preferences import get_user_preferences
 
@@ -342,6 +346,8 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         except Exception as e:
             logger.warning("Failed to open settings dialog: %s", e)
             self.set_status_error("Could not open settings dialog")
+        finally:
+            self._settings_dialog_open = False
 
         # Check if model changed and reload if needed
         new_model = prefs.get("ollama_model", self.model_manager.model_name)
@@ -434,6 +440,10 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
 
     def _open_corpus_dialog(self):
         """Open Settings dialog to the Corpus tab."""
+        if getattr(self, "_settings_dialog_open", False):
+            return
+        self._settings_dialog_open = True
+
         from src.ui.settings import SettingsDialog
 
         try:
@@ -442,6 +452,8 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         except Exception as e:
             logger.warning("Failed to open settings dialog: %s", e)
             self.set_status_error("Could not open settings dialog")
+        finally:
+            self._settings_dialog_open = False
 
         # Refresh after dialog closes
         self._refresh_corpus_dropdown()
@@ -488,6 +500,10 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         Args:
             event: Drop event containing file paths
         """
+        if self._processing_active or self._preprocessing_active:
+            self.set_status("Cannot add files during active processing")
+            return
+
         # Parse the dropped file paths
         # tkinterdnd2 provides paths as a space-separated string or Tcl list
         raw_data = event.data
@@ -573,6 +589,10 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
 
     def _select_files(self):
         """Open file dialog to select documents for this session."""
+        if self._processing_active or self._preprocessing_active:
+            logger.warning("_select_files called during active processing — ignored")
+            return
+
         files = filedialog.askopenfilenames(
             title="Select Documents for This Session",
             filetypes=[
@@ -697,6 +717,10 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         Args:
             file_paths: List of new file paths to process. If None, uses self.selected_files.
         """
+        if self._preprocessing_active:
+            logger.warning("_start_preprocessing called while already preprocessing — ignored")
+            return
+
         paths_to_process = file_paths or self.selected_files
         if not paths_to_process:
             return
@@ -2182,6 +2206,10 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
 
     def _open_settings(self):
         """Open the settings dialog."""
+        if getattr(self, "_settings_dialog_open", False):
+            return
+        self._settings_dialog_open = True
+
         from src.ui.settings.settings_dialog import SettingsDialog
         from src.user_preferences import get_user_preferences
 
@@ -2194,6 +2222,8 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         except Exception as e:
             logger.warning("Failed to open settings dialog: %s", e)
             self.set_status_error("Could not open settings dialog")
+        finally:
+            self._settings_dialog_open = False
 
         # Refresh UI after settings change
         self._refresh_corpus_dropdown()
@@ -2222,6 +2252,17 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         Opens a save dialog defaulting to .html. Gathers score-filtered vocab,
         answered Q&A, and summary text into one combined HTML document.
         """
+        if getattr(self, "_exporting_all", False):
+            return
+        self._exporting_all = True
+
+        try:
+            self._export_all_impl()
+        finally:
+            self._exporting_all = False
+
+    def _export_all_impl(self):
+        """Implementation of _export_all, guarded by _exporting_all flag."""
         from datetime import datetime
 
         from src.services import DocumentService, get_export_service
