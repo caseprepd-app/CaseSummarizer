@@ -22,12 +22,18 @@ def _make_panel():
 
     panel = DocumentPreviewPanel.__new__(DocumentPreviewPanel)
     panel._current_filename = None
+    panel._sections = []
+    panel._current_section = 0
     panel._find_bar = MagicMock()
     panel._header_frame = MagicMock()
     panel._filename_label = MagicMock()
     panel._detail_label = MagicMock()
     panel._textbox = MagicMock()
     panel._status_label = MagicMock()
+    panel._nav_frame = MagicMock()
+    panel._prev_btn = MagicMock()
+    panel._next_btn = MagicMock()
+    panel._section_label = MagicMock()
     return panel
 
 
@@ -273,3 +279,119 @@ class TestFileSelectedFlow:
         MainWindow._remove_file(stub, "b.pdf")
 
         stub.output_display.clear_document_preview.assert_not_called()
+
+
+# ===========================================================================
+# 4. DocumentPreviewPanel — pagination
+# ===========================================================================
+
+
+def _long_text(word_count=1000):
+    """Generate multi-paragraph text exceeding the default section size."""
+    paragraphs = []
+    words_left = word_count
+    while words_left > 0:
+        chunk = min(80, words_left)
+        paragraphs.append(" ".join(["word"] * chunk))
+        words_left -= chunk
+    return "\n".join(paragraphs)
+
+
+class TestPagination:
+    """Tests for DocumentPreviewPanel pagination behavior."""
+
+    def test_short_text_hides_nav_bar(self):
+        """A short document hides the navigation bar."""
+        panel = _make_panel()
+        result = _sample_result(preprocessed_text="Short text here.")
+        panel.display_document(result)
+
+        panel._nav_frame.grid_remove.assert_called()
+
+    def test_long_text_shows_nav_bar(self):
+        """A long document shows the navigation bar."""
+        panel = _make_panel()
+        result = _sample_result(preprocessed_text=_long_text(1000))
+        panel.display_document(result)
+
+        panel._nav_frame.grid.assert_called()
+        assert len(panel._sections) > 1
+
+    def test_section_label_format(self):
+        """Section label reads 'Section 1 of N'."""
+        panel = _make_panel()
+        result = _sample_result(preprocessed_text=_long_text(1000))
+        panel.display_document(result)
+
+        label_text = panel._section_label.configure.call_args[1]["text"]
+        assert label_text.startswith("Section 1 of ")
+        total = len(panel._sections)
+        assert label_text == f"Section 1 of {total}"
+
+    def test_next_advances_section(self):
+        """Clicking next advances to section 2."""
+        panel = _make_panel()
+        result = _sample_result(preprocessed_text=_long_text(1000))
+        panel.display_document(result)
+
+        panel._show_next_section()
+
+        assert panel._current_section == 1
+        label_text = panel._section_label.configure.call_args[1]["text"]
+        assert "Section 2 of" in label_text
+
+    def test_prev_goes_back(self):
+        """After advancing, prev goes back to section 1."""
+        panel = _make_panel()
+        result = _sample_result(preprocessed_text=_long_text(1000))
+        panel.display_document(result)
+
+        panel._show_next_section()
+        panel._show_prev_section()
+
+        assert panel._current_section == 0
+
+    def test_prev_disabled_at_start(self):
+        """Prev button is disabled on the first section."""
+        panel = _make_panel()
+        result = _sample_result(preprocessed_text=_long_text(1000))
+        panel.display_document(result)
+
+        # Check the last configure call on _prev_btn
+        panel._prev_btn.configure.assert_called()
+        last_call = panel._prev_btn.configure.call_args
+        assert last_call[1]["state"] == "disabled"
+
+    def test_next_disabled_at_end(self):
+        """Next button is disabled on the last section."""
+        panel = _make_panel()
+        result = _sample_result(preprocessed_text=_long_text(1000))
+        panel.display_document(result)
+
+        # Navigate to last section
+        while panel._current_section < len(panel._sections) - 1:
+            panel._show_next_section()
+
+        last_call = panel._next_btn.configure.call_args
+        assert last_call[1]["state"] == "disabled"
+
+    def test_only_current_section_in_textbox(self):
+        """Textbox receives only the current section, not the full text."""
+        panel = _make_panel()
+        result = _sample_result(preprocessed_text=_long_text(1000))
+        panel.display_document(result)
+
+        inserted_text = panel._textbox.insert.call_args[0][1]
+        assert len(inserted_text.split()) <= 350
+
+    def test_clear_resets_pagination(self):
+        """clear() resets sections and hides nav bar."""
+        panel = _make_panel()
+        result = _sample_result(preprocessed_text=_long_text(1000))
+        panel.display_document(result)
+
+        panel.clear()
+
+        assert panel._sections == []
+        assert panel._current_section == 0
+        panel._nav_frame.grid_remove.assert_called()

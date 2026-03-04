@@ -3,12 +3,14 @@ Document Preview Panel for CasePrepd.
 
 Displays extracted/preprocessed text for a selected document with metadata header.
 Integrated into the right panel as the "Document" tab in DynamicOutputWidget.
+Large documents are paginated into ~300-word sections to prevent GUI freezes.
 """
 
 import logging
 
 import customtkinter as ctk
 
+from src.ui.document_paginator import split_into_sections
 from src.ui.theme import COLORS, FONTS, TEXTBOX_STYLES
 
 logger = logging.getLogger(__name__)
@@ -27,6 +29,7 @@ class DocumentPreviewPanel(ctk.CTkFrame):
         row 0: TextFindBar (hidden, shown on Ctrl+F)
         row 1: Metadata header (filename + detail line)
         row 2: CTkTextbox (read-only, word wrap) OR status label
+        row 3: Navigation bar (hidden when single section)
     """
 
     def __init__(self, master, **kwargs):
@@ -40,6 +43,8 @@ class DocumentPreviewPanel(ctk.CTkFrame):
         self.grid_rowconfigure(2, weight=1)  # Textbox expands
 
         self._current_filename = None
+        self._sections = []
+        self._current_section = 0
 
         # Row 0: Find bar (hidden initially)
         from src.ui.text_find_bar import TextFindBar
@@ -83,6 +88,25 @@ class DocumentPreviewPanel(ctk.CTkFrame):
         )
         self._status_label.grid(row=2, column=0, sticky="nsew", padx=20, pady=50)
 
+        # Row 3: Navigation bar (hidden initially)
+        self._nav_frame = ctk.CTkFrame(self, fg_color="transparent")
+        self._nav_frame.grid(row=3, column=0, sticky="ew", padx=10, pady=(0, 5))
+        self._nav_frame.grid_remove()
+        self._nav_frame.grid_columnconfigure(1, weight=1)
+
+        self._prev_btn = ctk.CTkButton(
+            self._nav_frame, text="\u25c0 Prev", width=80, command=self._show_prev_section
+        )
+        self._prev_btn.grid(row=0, column=0, padx=(0, 10))
+
+        self._section_label = ctk.CTkLabel(self._nav_frame, text="", font=FONTS["small"])
+        self._section_label.grid(row=0, column=1)
+
+        self._next_btn = ctk.CTkButton(
+            self._nav_frame, text="Next \u25b6", width=80, command=self._show_next_section
+        )
+        self._next_btn.grid(row=0, column=2, padx=(10, 0))
+
     @property
     def current_filename(self):
         """The filename of the currently displayed document, or None."""
@@ -90,7 +114,7 @@ class DocumentPreviewPanel(ctk.CTkFrame):
 
     def display_document(self, result):
         """
-        Populate the panel with document metadata and text.
+        Populate the panel with document metadata and paginated text.
 
         Args:
             result: Dict with keys like filename, preprocessed_text,
@@ -117,15 +141,20 @@ class DocumentPreviewPanel(ctk.CTkFrame):
         self._detail_label.configure(text=detail)
         self._header_frame.grid()
 
-        # Show textbox with content
+        # Paginate and show first section
+        self._sections = split_into_sections(text)
+        self._current_section = 0
         self._status_label.grid_remove()
         self._textbox.grid()
-        self._textbox.configure(state="normal")
-        self._textbox.delete("1.0", "end")
-        self._textbox.insert("1.0", text)
-        self._textbox.configure(state="disabled")
+        self._show_current_section()
+        self._update_nav_bar()
 
-        logger.debug("Previewing document: %s (%d chars)", filename, len(text))
+        logger.debug(
+            "Previewing document: %s (%d chars, %d sections)",
+            filename,
+            len(text),
+            len(self._sections),
+        )
 
     def _build_detail_line(self, result):
         """
@@ -164,12 +193,51 @@ class DocumentPreviewPanel(ctk.CTkFrame):
 
         return " | ".join(parts)
 
+    def _show_current_section(self):
+        """Insert the current section's text into the textbox."""
+        self._textbox.configure(state="normal")
+        self._textbox.delete("1.0", "end")
+        if self._sections:
+            self._textbox.insert("1.0", self._sections[self._current_section])
+        self._textbox.configure(state="disabled")
+
+    def _update_nav_bar(self):
+        """Show/hide nav bar and update label + button states."""
+        total = len(self._sections)
+        if total <= 1:
+            self._nav_frame.grid_remove()
+            return
+
+        self._nav_frame.grid()
+        self._section_label.configure(text=f"Section {self._current_section + 1} of {total}")
+        self._prev_btn.configure(state="normal" if self._current_section > 0 else "disabled")
+        self._next_btn.configure(
+            state="normal" if self._current_section < total - 1 else "disabled"
+        )
+
+    def _show_prev_section(self):
+        """Navigate to the previous section."""
+        if self._current_section > 0:
+            self._current_section -= 1
+            self._show_current_section()
+            self._update_nav_bar()
+
+    def _show_next_section(self):
+        """Navigate to the next section."""
+        if self._current_section < len(self._sections) - 1:
+            self._current_section += 1
+            self._show_current_section()
+            self._update_nav_bar()
+
     def clear(self):
         """Reset to empty placeholder state."""
         self._current_filename = None
+        self._sections = []
+        self._current_section = 0
         self._find_bar.grid_remove()
         self._header_frame.grid_remove()
         self._textbox.grid_remove()
+        self._nav_frame.grid_remove()
         self._status_label.configure(text=_PLACEHOLDER_TEXT)
         self._status_label.grid()
 
@@ -190,5 +258,6 @@ class DocumentPreviewPanel(ctk.CTkFrame):
         """Show a status message instead of document content."""
         self._header_frame.grid_remove()
         self._textbox.grid_remove()
+        self._nav_frame.grid_remove()
         self._status_label.configure(text=message)
         self._status_label.grid()

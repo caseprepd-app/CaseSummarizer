@@ -400,90 +400,119 @@ class PDFExtractor:
 
     def reconcile_extractions(self, primary_text: str, secondary_text: str) -> str:
         """
-        Reconcile two PDF extractions using word-level voting.
+        Reconcile two PDF extractions using line-level alignment and word-level voting.
 
-        When both extractors succeed, this method aligns their outputs word-by-word
-        and picks the better word at each position:
-            - If words match: keep them
-            - If words differ and one is in dictionary: use dictionary word
-            - If both valid or both invalid: use primary (PyMuPDF)
-
-        This catches OCR-like errors where one extractor misreads a character
-        (e.g., "tbe" vs "the").
+        Splits both texts into lines, aligns them with SequenceMatcher, then
+        delegates word-level voting to _reconcile_line() for differing lines.
+        This preserves newline structure while still correcting OCR-like errors.
 
         Args:
             primary_text: Text from PyMuPDF (preferred when tied)
             secondary_text: Text from pdfplumber (fallback)
 
         Returns:
-            Reconciled text with best words from each extractor
+            Reconciled text with newlines preserved and best words from each extractor
 
         Example:
             >>> extractor = PDFExtractor(DictionaryTextValidator())
-            >>> # PyMuPDF got "tbe", pdfplumber got "the"
             >>> extractor.reconcile_extractions("tbe quick fox", "the quick fox")
             'the quick fox'
         """
-        # Tokenize both texts
-        primary_tokens = self.dictionary.tokenize_for_voting(primary_text)
-        secondary_tokens = self.dictionary.tokenize_for_voting(secondary_text)
+        primary_lines = primary_text.split("\n")
+        secondary_lines = secondary_text.split("\n")
 
-        if not primary_tokens:
+        if not primary_text.strip():
             return secondary_text
-        if not secondary_tokens:
+        if not secondary_text.strip():
             return primary_text
 
-        # Use SequenceMatcher to align the two token sequences
-        matcher = SequenceMatcher(None, primary_tokens, secondary_tokens)
-        result_tokens = []
+        matcher = SequenceMatcher(None, primary_lines, secondary_lines)
+        result_lines = []
         corrections_made = 0
 
         for tag, i1, i2, j1, j2 in matcher.get_opcodes():
             if tag == "equal":
-                # Words match - keep primary
-                result_tokens.extend(primary_tokens[i1:i2])
+                result_lines.extend(primary_lines[i1:i2])
 
             elif tag == "replace":
-                # Words differ - vote on each pair
-                primary_chunk = primary_tokens[i1:i2]
-                secondary_chunk = secondary_tokens[j1:j2]
-
-                # Align chunks (may be different lengths)
-                max_len = max(len(primary_chunk), len(secondary_chunk))
+                p_chunk = primary_lines[i1:i2]
+                s_chunk = secondary_lines[j1:j2]
+                max_len = max(len(p_chunk), len(s_chunk))
                 for k in range(max_len):
-                    p_word = primary_chunk[k] if k < len(primary_chunk) else ""
-                    s_word = secondary_chunk[k] if k < len(secondary_chunk) else ""
+                    p_line = p_chunk[k] if k < len(p_chunk) else ""
+                    s_line = s_chunk[k] if k < len(s_chunk) else ""
+                    reconciled, count = self._reconcile_line(p_line, s_line)
+                    result_lines.append(reconciled)
+                    corrections_made += count
 
+            elif tag == "delete":
+                result_lines.extend(primary_lines[i1:i2])
+
+            elif tag == "insert":
+                for line in secondary_lines[j1:j2]:
+                    if line.strip():
+                        result_lines.append(line)
+
+        if corrections_made > 0:
+            logger.debug("Made %d dictionary corrections", corrections_made)
+
+        return "\n".join(result_lines)
+
+    def _reconcile_line(self, primary_line: str, secondary_line: str) -> tuple[str, int]:
+        """
+        Reconcile a single pair of lines using word-level voting.
+
+        Tokenizes both lines, aligns words with SequenceMatcher, and picks the
+        best word at each position (dictionary word wins over garbage).
+
+        Args:
+            primary_line: Line from PyMuPDF
+            secondary_line: Line from pdfplumber
+
+        Returns:
+            Tuple of (reconciled line text, number of corrections made)
+        """
+        p_tokens = self.dictionary.tokenize_for_voting(primary_line)
+        s_tokens = self.dictionary.tokenize_for_voting(secondary_line)
+
+        if not p_tokens:
+            return secondary_line, 0
+        if not s_tokens:
+            return primary_line, 0
+
+        matcher = SequenceMatcher(None, p_tokens, s_tokens)
+        result_tokens = []
+        corrections = 0
+
+        for tag, i1, i2, j1, j2 in matcher.get_opcodes():
+            if tag == "equal":
+                result_tokens.extend(p_tokens[i1:i2])
+            elif tag == "replace":
+                p_chunk = p_tokens[i1:i2]
+                s_chunk = s_tokens[j1:j2]
+                max_len = max(len(p_chunk), len(s_chunk))
+                for k in range(max_len):
+                    p_word = p_chunk[k] if k < len(p_chunk) else ""
+                    s_word = s_chunk[k] if k < len(s_chunk) else ""
                     if not p_word:
                         result_tokens.append(s_word)
                     elif not s_word:
                         result_tokens.append(p_word)
                     else:
-                        # Both have words - vote
                         p_valid = self.dictionary.is_valid_word(p_word)
                         s_valid = self.dictionary.is_valid_word(s_word)
-
                         if p_valid and not s_valid:
                             result_tokens.append(p_word)
                         elif s_valid and not p_valid:
                             result_tokens.append(s_word)
-                            corrections_made += 1
-                            logger.debug("'%s' -> '%s' (dictionary correction)", p_word, s_word)
+                            corrections += 1
                         else:
-                            # Both valid or both invalid - use primary
                             result_tokens.append(p_word)
-
             elif tag == "delete":
-                # Words only in primary - keep them
-                result_tokens.extend(primary_tokens[i1:i2])
-
+                result_tokens.extend(p_tokens[i1:i2])
             elif tag == "insert":
-                # Words only in secondary - only add if they're real words
-                for token in secondary_tokens[j1:j2]:
+                for token in s_tokens[j1:j2]:
                     if len(token) > 1 and self.dictionary.is_valid_word(token):
                         result_tokens.append(token)
 
-        if corrections_made > 0:
-            logger.debug("Made %d dictionary corrections", corrections_made)
-
-        return " ".join(result_tokens)
+        return " ".join(result_tokens), corrections
