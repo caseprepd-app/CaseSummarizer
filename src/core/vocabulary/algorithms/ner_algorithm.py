@@ -54,6 +54,11 @@ logger = logging.getLogger(__name__)
 SPACY_MODEL_NAME = "en_core_web_lg"
 SPACY_MODEL_VERSION = "3.8.0"
 
+# Components disabled during NER pipe() calls for performance.
+# Only tok2vec + ner are needed; the others add ~40% overhead.
+# Uses disable= (per-call) so TextRankAlgorithm can still use the full pipeline.
+_NER_DISABLED_COMPONENTS = ["tagger", "parser", "attribute_ruler", "lemmatizer"]
+
 
 @register_algorithm("NER")
 class NERAlgorithm(BaseExtractionAlgorithm):
@@ -139,7 +144,7 @@ class NERAlgorithm(BaseExtractionAlgorithm):
         # Use provided chunks or chunk the text
         chunks = kwargs.get("chunks")
         if chunks is None:
-            chunks = self._chunk_text(text, chunk_size_kb=50)
+            chunks = self._chunk_text(text, chunk_size_kb=100)
 
         # Progress callback for progressive vocabulary loading
         progress_callback = kwargs.get("progress_callback")
@@ -156,7 +161,9 @@ class NERAlgorithm(BaseExtractionAlgorithm):
         last_reported_pct = 0  # Track last reported percentage for throttling
         last_report_time = start_time  # Time-based progress floor
 
-        for doc in self.nlp.pipe(chunks, batch_size=VOCABULARY_BATCH_SIZE):
+        for doc in self.nlp.pipe(
+            chunks, batch_size=VOCABULARY_BATCH_SIZE, disable=_NER_DISABLED_COMPONENTS
+        ):
             chunk_num += 1
             total_tokens += len(doc)
             total_entities += len(doc.ents)
@@ -434,7 +441,7 @@ class NERAlgorithm(BaseExtractionAlgorithm):
                 f"Or:  python -m spacy download {SPACY_MODEL_NAME}"
             )
 
-    def _chunk_text(self, text: str, chunk_size_kb: int = 50) -> list[str]:
+    def _chunk_text(self, text: str, chunk_size_kb: int = 100) -> list[str]:
         """Split text into chunks for efficient processing."""
         chunk_size_chars = chunk_size_kb * 1024
         paragraphs = text.split("\n\n")
