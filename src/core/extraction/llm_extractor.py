@@ -49,6 +49,10 @@ from src.core.ai.ollama_model_manager import OllamaModelManager
 
 logger = logging.getLogger(__name__)
 
+# Frozensets for O(1) membership checks (replaces list literals in parse loop)
+_GENERIC_TITLE_NAMES = frozenset({"DR", "MR", "MS", "MRS", "MISS", "THE", "PLAINTIFF", "DEFENDANT"})
+_NOISE_TERMS = frozenset({"Q", "A", "THE", "AND", "OR", "BUT"})
+
 # JSON schema for structured extraction (Ollama v0.5+)
 # Guarantees the model produces the exact required structure.
 _VOCAB_JSON_SCHEMA = {
@@ -376,7 +380,7 @@ DOCUMENT CHUNK:
                 continue
 
             # Skip generic titles alone
-            if name.upper() in ["DR", "MR", "MS", "MRS", "MISS", "THE", "PLAINTIFF", "DEFENDANT"]:
+            if name.upper() in _GENERIC_TITLE_NAMES:
                 continue
 
             people.append(
@@ -405,7 +409,7 @@ DOCUMENT CHUNK:
                 continue
 
             # Skip obvious noise
-            if term_text.upper() in ["Q", "A", "THE", "AND", "OR", "BUT"]:
+            if term_text.upper() in _NOISE_TERMS:
                 continue
 
             terms.append(

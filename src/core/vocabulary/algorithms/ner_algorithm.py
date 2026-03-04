@@ -259,13 +259,18 @@ class NERAlgorithm(BaseExtractionAlgorithm):
                     )
                 )
 
+        # Build set of token indices covered by ANY entity span (even filtered ones).
+        # O(E) build + O(1) per-token lookup instead of O(T×E) nested scan.
+        entity_token_indices = set()
+        for ent in doc.ents:
+            entity_token_indices.update(range(ent.start, ent.end))
+
         # Extract unusual single tokens not part of entities
         for token in doc:
             # Skip tokens that are part of ANY entity span (even if entity was filtered)
             # This prevents common words like "leg" from bypassing rarity check
             # when spaCy tagged them as entities but they were filtered for being too common
-            is_part_of_entity = any(ent.start <= token.i < ent.end for ent in doc.ents)
-            if is_part_of_entity:
+            if token.i in entity_token_indices:
                 continue
 
             if self._is_unusual(token, ent_type=token.ent_type_):

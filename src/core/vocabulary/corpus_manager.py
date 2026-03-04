@@ -332,10 +332,15 @@ class CorpusManager:
         doc_freq: Counter = Counter()
         total_docs = 0
 
+        # Reuse a single extractor instance for all files (avoids per-file instantiation)
+        from src.core.extraction import RawTextExtractor
+
+        shared_extractor = RawTextExtractor()
+
         # Process each document
         for doc_path in doc_files:
             try:
-                text = self._extract_text(doc_path)
+                text = self._extract_text(doc_path, extractor=shared_extractor)
                 if not text:
                     continue
 
@@ -445,14 +450,14 @@ class CorpusManager:
 
     def _get_corpus_files(self) -> list[Path]:
         """Get list of supported document files in corpus folder."""
-        # Use set to avoid duplicates on case-insensitive filesystems (Windows)
+        # Single glob pass — Windows FS is case-insensitive, so
+        # *{ext.upper()} is redundant and doubles directory scans.
         files = set()
         for ext in SUPPORTED_EXTENSIONS:
             files.update(self.corpus_dir.glob(f"*{ext}"))
-            files.update(self.corpus_dir.glob(f"*{ext.upper()}"))
         return sorted(files)
 
-    def _extract_text(self, file_path: Path) -> str:
+    def _extract_text(self, file_path: Path, extractor=None) -> str:
         """
         Extract text from a document file.
 
@@ -460,14 +465,16 @@ class CorpusManager:
 
         Args:
             file_path: Path to the document
+            extractor: Optional pre-created RawTextExtractor (avoids per-file instantiation)
 
         Returns:
             Extracted text content
         """
         try:
-            from src.core.extraction import RawTextExtractor
+            if extractor is None:
+                from src.core.extraction import RawTextExtractor
 
-            extractor = RawTextExtractor()
+                extractor = RawTextExtractor()
             # Use process_document (not extract) - returns dict with 'status' and 'extracted_text'
             result = extractor.process_document(str(file_path))
 

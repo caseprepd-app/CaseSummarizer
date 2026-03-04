@@ -65,6 +65,14 @@ class SystemMonitor(ctk.CTkFrame):
         self.current_ram_percent = 0
         self._monitor_thread = None
 
+        # Cache previous display values to skip redundant .configure() calls
+        self._last_cpu_text = ""
+        self._last_cpu_fg = ""
+        self._last_cpu_bg = ""
+        self._last_ram_text = ""
+        self._last_ram_fg = ""
+        self._last_ram_bg = ""
+
         # Get CPU info
         try:
             self.cpu_model = platform.processor() or "Unknown CPU"
@@ -213,13 +221,22 @@ class SystemMonitor(ctk.CTkFrame):
             cpu_bg, cpu_fg = self._get_colors(cpu_percent)
             ram_bg, ram_fg = self._get_colors(ram_percent)
 
-            # Update CPU label and frame
-            self.cpu_label.configure(text=cpu_text, text_color=cpu_fg)
-            self.cpu_frame.configure(fg_color=cpu_bg)
+            # Only call .configure() when values actually changed
+            if cpu_text != self._last_cpu_text or cpu_fg != self._last_cpu_fg:
+                self.cpu_label.configure(text=cpu_text, text_color=cpu_fg)
+                self._last_cpu_text = cpu_text
+                self._last_cpu_fg = cpu_fg
+            if cpu_bg != self._last_cpu_bg:
+                self.cpu_frame.configure(fg_color=cpu_bg)
+                self._last_cpu_bg = cpu_bg
 
-            # Update RAM label and frame
-            self.ram_label.configure(text=ram_text, text_color=ram_fg)
-            self.ram_frame.configure(fg_color=ram_bg)
+            if ram_text != self._last_ram_text or ram_fg != self._last_ram_fg:
+                self.ram_label.configure(text=ram_text, text_color=ram_fg)
+                self._last_ram_text = ram_text
+                self._last_ram_fg = ram_fg
+            if ram_bg != self._last_ram_bg:
+                self.ram_frame.configure(fg_color=ram_bg)
+                self._last_ram_bg = ram_bg
 
         except Exception as e:
             logger.debug("Error updating display: %s", e)

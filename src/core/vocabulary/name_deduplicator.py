@@ -525,9 +525,14 @@ def _absorb_single_word_names(
     if len(person_terms) < 2:
         return terms
 
-    # Separate single-word and multi-word Person names
-    single_word = [t for t in person_terms if len(t.get("Term", "").split()) == 1]
-    multi_word = [t for t in person_terms if len(t.get("Term", "").split()) >= 2]
+    # Separate single-word and multi-word Person names (split once, not twice)
+    single_word = []
+    multi_word = []
+    for t in person_terms:
+        if len(t.get("Term", "").split()) == 1:
+            single_word.append(t)
+        else:
+            multi_word.append(t)
 
     if not single_word or not multi_word:
         return terms

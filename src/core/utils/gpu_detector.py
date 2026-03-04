@@ -113,12 +113,12 @@ def _detect_gpu_wmi() -> dict | None:
             # Detect overflow: vram <= 0 or suspiciously wrapped values.
             if vram <= 0 or vram > 2**32:
                 vram = 0
-                logger.debug(f"[GPU] WMI AdapterRAM overflow for {gpu_name}, VRAM unknown")
+                logger.debug("[GPU] WMI AdapterRAM overflow for %s, VRAM unknown", gpu_name)
 
             is_dedicated, vendor = _is_dedicated_gpu(gpu_name)
 
             if is_dedicated:
-                logger.info(f"[GPU] WMI detected dedicated GPU: {gpu_name} ({vendor})")
+                logger.info("[GPU] WMI detected dedicated GPU: %s (%s)", gpu_name, vendor)
                 return {
                     "gpu_name": gpu_name,
                     "vendor": vendor,
@@ -132,10 +132,10 @@ def _detect_gpu_wmi() -> dict | None:
         logger.debug("[GPU] WMI query timed out")
         return None
     except json.JSONDecodeError as e:
-        logger.debug(f"[GPU] WMI JSON parse error: {e}")
+        logger.debug("[GPU] WMI JSON parse error: %s", e)
         return None
     except Exception as e:
-        logger.debug(f"[GPU] WMI detection failed: {e}")
+        logger.debug("[GPU] WMI detection failed: %s", e)
         return None
 
 
@@ -157,7 +157,7 @@ def _detect_gpu_pytorch() -> dict | None:
             except Exception:
                 vram = 0
 
-            logger.info(f"[GPU] PyTorch detected NVIDIA GPU: {gpu_name}")
+            logger.info("[GPU] PyTorch detected NVIDIA GPU: %s", gpu_name)
             return {
                 "gpu_name": gpu_name,
                 "vendor": "nvidia",
@@ -166,7 +166,7 @@ def _detect_gpu_pytorch() -> dict | None:
     except ImportError:
         logger.debug("[GPU] PyTorch not available")
     except Exception as e:
-        logger.debug(f"[GPU] PyTorch CUDA check failed: {e}")
+        logger.debug("[GPU] PyTorch CUDA check failed: %s", e)
 
     return None
 
@@ -197,19 +197,19 @@ def _detect_gpu_cli() -> dict | None:
                 gpu_name = parts[0]
                 vram_mib = int(parts[1]) if len(parts) > 1 and parts[1].isdigit() else 0
                 vram_bytes = vram_mib * 1024 * 1024
-                logger.info(f"[GPU] nvidia-smi detected: {gpu_name} ({vram_mib} MiB)")
+                logger.info("[GPU] nvidia-smi detected: %s (%d MiB)", gpu_name, vram_mib)
                 return {
                     "gpu_name": gpu_name,
                     "vendor": "nvidia",
                     "vram_bytes": vram_bytes,
                 }
         except Exception as e:
-            logger.debug(f"[GPU] nvidia-smi query failed: {e}")
+            logger.debug("[GPU] nvidia-smi query failed: %s", e)
 
     # Check AMD
     amd_cmd = shutil.which("amd-smi") or shutil.which("rocm-smi")
     if amd_cmd is not None:
-        logger.info(f"[GPU] AMD CLI tool found: {amd_cmd}")
+        logger.info("[GPU] AMD CLI tool found: %s", amd_cmd)
         return {
             "gpu_name": "AMD GPU",
             "vendor": "amd",
@@ -365,7 +365,7 @@ def get_optimal_context_size() -> int:
     # Find appropriate tier
     for min_vram, context_size in VRAM_CONTEXT_TIERS:
         if vram_gb >= min_vram:
-            logger.info(f"[GPU] VRAM: {vram_gb:.1f}GB -> optimal context: {context_size:,} tokens")
+            logger.info("[GPU] VRAM: %.1fGB -> optimal context: %d tokens", vram_gb, context_size)
             return context_size
 
     # Fallback (shouldn't reach here due to 0 tier)
@@ -434,10 +434,11 @@ def get_optimal_chunk_sizes(context_size: int | None = None) -> dict:
         context_size = get_optimal_context_size()
 
     logger.debug(
-        f"[GPU] Fixed chunk sizes: min={OPTIMAL_CHUNK_SIZES['min_tokens']}, "
-        f"target={OPTIMAL_CHUNK_SIZES['target_tokens']}, "
-        f"max={OPTIMAL_CHUNK_SIZES['max_tokens']} "
-        f"(context={context_size:,})"
+        "[GPU] Fixed chunk sizes: min=%d, target=%d, max=%d (context=%d)",
+        OPTIMAL_CHUNK_SIZES["min_tokens"],
+        OPTIMAL_CHUNK_SIZES["target_tokens"],
+        OPTIMAL_CHUNK_SIZES["max_tokens"],
+        context_size,
     )
 
     return {

@@ -33,6 +33,11 @@ CORPORA_DIR = APPDATA_DIR / "corpora"
 # Supported file extensions for corpus documents
 SUPPORTED_EXTENSIONS = {".pdf", ".txt", ".rtf"}
 
+# Compiled pattern for filename sanitization (replaces 9 sequential .replace() calls)
+import re
+
+_UNSAFE_FILENAME_CHARS = re.compile(r'[<>:"/\\|?*]')
+
 
 @dataclass
 class CorpusInfo:
@@ -375,11 +380,8 @@ class CorpusRegistry:
         Returns:
             Filesystem-safe name
         """
-        # Remove/replace problematic characters
-        safe = name.strip()
-        for char in ["<", ">", ":", '"', "/", "\\", "|", "?", "*"]:
-            safe = safe.replace(char, "_")
-        return safe
+        # Single compiled regex replaces 9 sequential .replace() calls
+        return _UNSAFE_FILENAME_CHARS.sub("_", name.strip())
 
     def _count_documents(self, corpus_path: Path) -> int:
         """Count supported documents in a corpus directory."""
@@ -389,18 +391,14 @@ class CorpusRegistry:
         count = 0
         seen = set()
         for ext in SUPPORTED_EXTENSIONS:
+            # Single glob pass — Windows FS is case-insensitive, so
+            # *{ext.upper()} is redundant and doubles directory scans.
             for file_path in corpus_path.glob(f"*{ext}"):
-                # Skip preprocessed files
                 if "_preprocessed" in file_path.stem:
                     continue
-                if file_path.name.lower() not in seen:
-                    seen.add(file_path.name.lower())
-                    count += 1
-            for file_path in corpus_path.glob(f"*{ext.upper()}"):
-                if "_preprocessed" in file_path.stem:
-                    continue
-                if file_path.name.lower() not in seen:
-                    seen.add(file_path.name.lower())
+                name_lower = file_path.name.lower()
+                if name_lower not in seen:
+                    seen.add(name_lower)
                     count += 1
 
         return count
