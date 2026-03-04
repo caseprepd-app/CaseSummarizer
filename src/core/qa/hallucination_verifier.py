@@ -87,9 +87,9 @@ class HallucinationVerifier:
            use local_files_only=True to prevent network calls
         3. Otherwise, download from HuggingFace (development mode)
         """
-        # Set HuggingFace environment variables to control cache location
-        os.environ["HF_HOME"] = str(HF_CACHE_DIR)
-        os.environ["TRANSFORMERS_CACHE"] = str(HF_CACHE_DIR)
+        # Set HuggingFace environment variables to control cache location (setdefault avoids overwriting)
+        os.environ.setdefault("HF_HOME", str(HF_CACHE_DIR))
+        os.environ.setdefault("TRANSFORMERS_CACHE", str(HF_CACHE_DIR))
 
         # Check for bundled model
         bundled_path = HALLUCINATION_MODEL_LOCAL_PATH

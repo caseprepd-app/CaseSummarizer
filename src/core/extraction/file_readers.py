@@ -257,8 +257,8 @@ class FileReaders:
             }
 
         try:
-            img = Image.open(file_path)
-            result = self.ocr_processor.process_image(img)
+            with Image.open(file_path) as img:
+                result = self.ocr_processor.process_image(img)
 
             # Add page_count to result
             result["page_count"] = 1

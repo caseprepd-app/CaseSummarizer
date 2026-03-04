@@ -10,6 +10,7 @@ Uses _run_export() helper to reduce duplication.
 import logging
 import os
 import sys
+import threading
 from collections.abc import Callable
 
 from src.core.export import (
@@ -402,11 +403,15 @@ class ExportService:
 
 # Singleton instance
 _export_service = None
+_export_service_lock = threading.Lock()
 
 
 def get_export_service() -> ExportService:
-    """Get or create the export service singleton."""
+    """Get or create the export service singleton, thread-safe."""
     global _export_service
-    if _export_service is None:
-        _export_service = ExportService()
+    if _export_service is not None:
+        return _export_service
+    with _export_service_lock:
+        if _export_service is None:
+            _export_service = ExportService()
     return _export_service

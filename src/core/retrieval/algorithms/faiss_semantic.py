@@ -25,6 +25,7 @@ semantic search is primary for comprehensive retrieval of relevant content.
 """
 
 import logging
+import threading
 import time
 from typing import TYPE_CHECKING, Any
 
@@ -62,6 +63,7 @@ DEFAULT_EMBEDDING_MODEL = _get_embedding_model_path()
 
 # Module-level cached embeddings instance (shared across callers)
 _shared_embeddings: "HuggingFaceEmbeddings | None" = None
+_embeddings_lock = threading.Lock()
 
 
 def _get_embedding_device() -> str:
@@ -100,7 +102,14 @@ def get_embeddings_model() -> "HuggingFaceEmbeddings":
         RuntimeError: If model cannot be loaded (missing bundled model + no network)
     """
     global _shared_embeddings
-    if _shared_embeddings is None:
+    if _shared_embeddings is not None:
+        return _shared_embeddings
+
+    with _embeddings_lock:
+        # Double-check after acquiring lock
+        if _shared_embeddings is not None:
+            return _shared_embeddings
+
         from langchain_huggingface import HuggingFaceEmbeddings
 
         device = _get_embedding_device()

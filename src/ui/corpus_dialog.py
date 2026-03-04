@@ -583,7 +583,9 @@ class CorpusDialog(BaseModalDialog):
             if os.name == "nt":  # Windows
                 os.startfile(str(path))
             else:  # macOS/Linux
-                subprocess.run(["open" if os.name == "darwin" else "xdg-open", str(path)])
+                import sys
+
+                subprocess.run(["open" if sys.platform == "darwin" else "xdg-open", str(path)])
         except Exception as e:
             messagebox.showerror("Error", f"Failed to open folder: {e}")
 

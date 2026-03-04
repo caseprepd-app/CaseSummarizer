@@ -23,7 +23,7 @@ from queue import Empty, Queue
 logger = logging.getLogger(__name__)
 
 # Sentinels: plain strings placed on command_queue to signal control events.
-# Checked by identity comparison in _command_loop().
+# Checked by equality comparison in _command_loop() (identity won't work across pickle).
 _SHUTDOWN_SENTINEL = "shutdown"
 _CANCEL_SENTINEL = "cancel"
 
@@ -320,12 +320,14 @@ def _stop_active_worker(state):
         state["active_worker"] = None
 
     # Also stop auto-spawned QA worker if running
-    auto_qa = state.get("auto_qa_worker")
+    with state["worker_lock"]:
+        auto_qa = state.get("auto_qa_worker")
     if auto_qa and hasattr(auto_qa, "is_alive") and auto_qa.is_alive():
         if hasattr(auto_qa, "stop"):
             auto_qa.stop()
         auto_qa.join(timeout=2.0)
-    state["auto_qa_worker"] = None
+    with state["worker_lock"]:
+        state["auto_qa_worker"] = None
 
 
 def _forwarder_loop(internal_queue, result_queue, command_queue, state):

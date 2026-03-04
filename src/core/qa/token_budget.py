@@ -11,6 +11,7 @@ Best sub-chunk chosen by FAISS cosine similarity to the question.
 """
 
 import logging
+import threading
 
 import numpy as np
 import tiktoken
@@ -20,13 +21,17 @@ from src.config import UNIFIED_CHUNK_ENCODING
 logger = logging.getLogger(__name__)
 
 _encoder = None
+_encoder_lock = threading.Lock()
 
 
 def _get_encoder():
-    """Lazy-load tiktoken encoder (cl100k_base)."""
+    """Lazy-load tiktoken encoder (cl100k_base), thread-safe."""
     global _encoder
-    if _encoder is None:
-        _encoder = tiktoken.get_encoding(UNIFIED_CHUNK_ENCODING)
+    if _encoder is not None:
+        return _encoder
+    with _encoder_lock:
+        if _encoder is None:
+            _encoder = tiktoken.get_encoding(UNIFIED_CHUNK_ENCODING)
     return _encoder
 
 

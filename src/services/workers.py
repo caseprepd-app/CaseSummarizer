@@ -957,6 +957,11 @@ class ProgressiveExtractionWorker(BaseWorker):
                 except Exception as e:
                     logger.warning("Redundancy detection failed: %s", e)
 
+            # Guard: skip sending messages if extraction was cancelled
+            if self.is_stopped:
+                logger.debug("Phase 2: Cancelled — discarding qa_ready/trigger_default_qa")
+                return
+
             self.ui_queue.put(
                 QueueMessage.qa_ready(
                     vector_store_path=result.persist_dir,

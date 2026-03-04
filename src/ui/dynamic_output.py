@@ -1177,9 +1177,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
             self._display_csv(vocab_data)
             self._update_progress_badge(self._extraction_source)
 
-        # Q&A tab - always enabled if Q&A system is ready
-        main_window = self.winfo_toplevel()
-        getattr(main_window, "_qa_ready", False)
+        # Q&A tab
         qa_data = self._outputs.get("Questions") or self._outputs.get("Q&A Results")
         if qa_data:
             self._display_qa_results(qa_data)

@@ -142,15 +142,16 @@ class PdfDocumentBuilder(DocumentBuilder):
                 self.pdf.set_font("Helvetica", "B", 10)
                 self.pdf.set_fill_color(240, 240, 240)
                 for header in headers:
+                    header_text = header[:17] + "..." if len(header) > 20 else header
                     self.pdf.cell(
-                        col_width, 8, _sanitize_for_latin1(header[:20]), border=1, fill=True
+                        col_width, 8, _sanitize_for_latin1(header_text), border=1, fill=True
                     )
                 self.pdf.ln()
                 self.pdf.set_font("Helvetica", size=10)
 
             for i, cell_text in enumerate(row_data):
                 if i < col_count:
-                    # Truncate long text
+                    # Truncate long text with ellipsis indicator
                     cell_str = str(cell_text)
                     if len(cell_str) > 25:
                         logger.warning(
@@ -158,7 +159,9 @@ class PdfDocumentBuilder(DocumentBuilder):
                             len(cell_str),
                             cell_str,
                         )
-                    display_text = cell_str[:25] if len(cell_str) > 25 else cell_str
+                        display_text = cell_str[:22] + "..."
+                    else:
+                        display_text = cell_str
                     self.pdf.cell(col_width, 7, _sanitize_for_latin1(display_text), border=1)
             self.pdf.ln()
 

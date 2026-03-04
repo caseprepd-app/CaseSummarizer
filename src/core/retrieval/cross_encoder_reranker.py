@@ -56,9 +56,9 @@ class CrossEncoderReranker:
         network downloads). Falls back to HuggingFace download with clear error
         messaging if that fails.
         """
-        # Set HuggingFace cache to project folder
-        os.environ["HF_HOME"] = str(HF_CACHE_DIR)
-        os.environ["TRANSFORMERS_CACHE"] = str(HF_CACHE_DIR)
+        # Set HuggingFace cache to project folder (setdefault avoids overwriting)
+        os.environ.setdefault("HF_HOME", str(HF_CACHE_DIR))
+        os.environ.setdefault("TRANSFORMERS_CACHE", str(HF_CACHE_DIR))
 
         from sentence_transformers import CrossEncoder
 

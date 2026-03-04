@@ -57,8 +57,8 @@ class UserPreferencesManager:
             else:
                 return default_structure
 
-        except (json.JSONDecodeError, Exception) as e:
-            # Preserve corrupted file for recovery before returning defaults
+        except json.JSONDecodeError as e:
+            # File content is corrupted — preserve for recovery, use defaults
             corrupt_path = self.preferences_file.with_suffix(".json.corrupt")
             try:
                 self.preferences_file.rename(corrupt_path)
@@ -69,6 +69,10 @@ class UserPreferencesManager:
                 )
             except OSError:
                 logger.warning("Preferences file corrupted, using defaults: %s", e)
+            return default_structure
+        except Exception as e:
+            # Transient errors (PermissionError, Dropbox lock) — don't rename the file
+            logger.warning("Could not read preferences (transient error), using defaults: %s", e)
             return default_structure
 
     def _save_preferences(self) -> None:

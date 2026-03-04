@@ -239,7 +239,7 @@ class QAService:
             self._orchestrator.clear_results()
         self._is_ready = False
         self._vector_store_path = None
-        self._temp_dir = None
+        self.cleanup()  # Delete temp directory before clearing reference
 
         logger.debug("Cleared")
 

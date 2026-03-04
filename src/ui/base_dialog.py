@@ -89,7 +89,7 @@ class BaseModalDialog(ctk.CTkToplevel):
         self.geometry(f"{width}x{height}")
         self.resizable(resizable, resizable)
 
-        if min_width and min_height:
+        if min_width is not None and min_height is not None:
             self.minsize(scale_value(min_width), scale_value(min_height))
 
         # Make modal

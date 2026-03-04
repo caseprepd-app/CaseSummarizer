@@ -124,6 +124,10 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         # Follow-up polling timeout counter (BUG 1 fix)
         self._followup_poll_count: int = 0
 
+        # Panel follow-up IPC: background thread waits on event, main thread delivers result
+        self._panel_followup_event = threading.Event()
+        self._panel_followup_data = None  # Stores QAResult for panel followup
+
         # Initialize ttk styles with UI scale factor and font offset.
         # Must happen AFTER super().__init__() creates the Tk root (ttk.Style needs it).
         from src.ui.scaling import get_effective_font_offset, get_effective_ui_scale
@@ -1015,6 +1019,15 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
                 self._completed_tasks.add("qa")
             if self._all_tasks_complete():
                 self._finalize_tasks()
+
+        elif msg_type == "qa_followup_result":
+            # Route panel followup results via event (avoids queue race condition)
+            if not self._panel_followup_event.is_set():
+                self._panel_followup_data = data
+                self._panel_followup_event.set()
+                logger.debug("Panel followup result delivered via event")
+            else:
+                logger.debug("Followup result received but no panel waiting")
 
         elif msg_type == "llm_progress":
             current, total = data
@@ -2197,39 +2210,37 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             logger.debug("Follow-up unavailable: no vector store or Q&A not ready")
             return None
 
-        # NOTE: This method runs in a background thread (from MainWindow._ask_followup)
+        # NOTE: This method runs in a background thread (from QAPanel._ask_followup)
         # Do NOT call GUI methods like set_status() here - it causes freezes!
+        # Do NOT poll the shared result_queue here — it races with _poll_queue on main thread.
+        # Instead, wait on _panel_followup_event which _handle_queue_message sets.
 
         try:
-            import time
+            # Reset event and send command
+            self._panel_followup_event.clear()
+            self._panel_followup_data = None
 
-            # Send followup command to worker subprocess
             logger.debug("Sending followup (panel): %.80s", question)
             self._worker_manager.send_command("followup", {"question": question})
 
-            # Poll for result (blocking, since we're in a background thread)
+            # Wait for main thread to deliver result via _handle_queue_message
             timeout = 54000  # 15 hours — CPU-only Ollama can take hours
-            start = time.time()
-            while time.time() - start < timeout:
-                messages = self._worker_manager.check_for_messages()
-                for msg in messages:
-                    try:
-                        msg_type, data = msg
-                        if msg_type == "qa_followup_result":
-                            if data is not None:
-                                with self._qa_results_lock:
-                                    self._qa_results.append(data)
-                                logger.debug("Follow-up answered: %s chars", len(data.answer))
-                                return data
-                            return None
-                        # Re-queue non-followup messages for main thread
-                        self._worker_manager.result_queue.put(msg)
-                    except (TypeError, ValueError):
-                        pass
-                time.sleep(0.1)
+            got_result = self._panel_followup_event.wait(timeout=timeout)
 
-            logger.warning("Follow-up timed out after %ss for question: %.80s", timeout, question)
-            return None
+            if not got_result:
+                logger.warning(
+                    "Follow-up timed out after %ss for question: %.80s", timeout, question
+                )
+                return None
+
+            data = self._panel_followup_data
+            self._panel_followup_data = None
+
+            if data is not None:
+                with self._qa_results_lock:
+                    self._qa_results.append(data)
+                logger.debug("Follow-up answered: %s chars", len(data.quick_answer))
+            return data
 
         except Exception as e:
             logger.debug("Follow-up error: %s", e)
