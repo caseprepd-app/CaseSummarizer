@@ -14,11 +14,8 @@ Every session is ephemeral. You load files, process, export, close — everythin
 
 This is probably the single biggest gap for a working court reporter.
 
-### 2. Document Preview Panel
-After extraction, there's no way to view the cleaned/preprocessed text. Users can see OCR confidence scores in the file table, but can't inspect what the app actually extracted. This matters because:
-- Users can't verify preprocessing worked correctly (headers removed, Q/A converted, etc.)
-- When vocabulary terms look wrong, there's no way to check the source text
-- OCR quality issues are invisible beyond the confidence number
+### 2. ~~Document Preview Panel~~ ✅ Implemented
+Clicking a file row in the left panel shows its extracted text in a "Document" tab (first tab position) with metadata header (pages, word count, confidence, method). Prefers preprocessed text, falls back to raw. Supports Ctrl+F search. Auto-clears when file is removed.
 
 ### 3. Term-in-Context Viewer
 The vocabulary table shows a term, its score, and occurrence count — but not *where* it appears. Clicking a term should show document excerpts with the term highlighted. The `# Docs` column shows a count but not which documents. This would let users make better keep/skip decisions.
