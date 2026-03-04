@@ -50,7 +50,6 @@ __all__ = [
     # Name Deduplication
     "deduplicate_names",
     "filter_name_fragments",
-    "filter_typo_variants",
     "get_corpus_manager",
     "get_corpus_registry",
     "get_feedback_manager",

@@ -1593,6 +1593,10 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         success_count = sum(1 for r in self.processing_results if r.get("status") == "success")
         total_pages = sum(r.get("page_count", 0) or 0 for r in self.processing_results)
         total_size = sum(r.get("file_size", 0) or 0 for r in self.processing_results)
+        total_words = sum(
+            len((r.get("preprocessed_text") or r.get("extracted_text", "")).split())
+            for r in self.processing_results
+        )
 
         # Format file size
         if total_size >= 1024 * 1024:
@@ -1602,11 +1606,19 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         else:
             size_str = f"{total_size} B"
 
+        # Format word count
+        if total_words >= 1000:
+            words_str = f"{total_words:,} words"
+        else:
+            words_str = f"{total_words} words"
+
         # Build stats text
         parts = [f"{success_count}/{file_count} files"]
         if total_pages > 0:
             parts.append(f"{total_pages} pages")
         parts.append(size_str)
+        if total_words > 0:
+            parts.append(words_str)
 
         stats_text = " · ".join(parts)
 
