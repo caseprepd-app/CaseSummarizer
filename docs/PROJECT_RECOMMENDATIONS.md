@@ -61,8 +61,8 @@ Currently dark mode only, hardcoded. Some users (especially those working in bri
 ### 11. Dead Export in `__init__.py` ✅
 Removed `"filter_typo_variants"` from `src/core/vocabulary/__init__.py` `__all__` — it referenced a function that didn't exist.
 
-### 12. ExportService Return Type Annotations
-All 8+ export methods declare `-> bool` but actually return `tuple[bool, str | None]`. Type checkers will complain. Should be `-> tuple[bool, str | None]`.
+### 12. ExportService Return Type Annotations ✅
+Fixed all 10 export methods: `-> bool` changed to `-> tuple[bool, str | None]` with matching docstrings.
 
 ### 13. Score Floor Filtering TODO
 `src/ui/dynamic_output.py` has `# TODO: Test score floor filtering for both GUI display and CSV export`. This is the only TODO in the codebase — needs verification and the TODO removed.

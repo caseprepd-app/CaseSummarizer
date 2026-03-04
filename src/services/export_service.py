@@ -102,7 +102,7 @@ class ExportService:
         file_path: str,
         include_details: bool = False,
         is_single_doc: bool = True,
-    ) -> bool:
+    ) -> tuple[bool, str | None]:
         """
         Export vocabulary to Word document.
 
@@ -113,7 +113,7 @@ class ExportService:
             is_single_doc: If True, omit "# Docs" column
 
         Returns:
-            True if successful, False otherwise
+            (True, None) if successful, (False, error_detail) otherwise
         """
 
         def do_export():
@@ -131,7 +131,7 @@ class ExportService:
         file_path: str,
         include_details: bool = False,
         is_single_doc: bool = True,
-    ) -> bool:
+    ) -> tuple[bool, str | None]:
         """
         Export vocabulary to PDF document.
 
@@ -142,7 +142,7 @@ class ExportService:
             is_single_doc: If True, omit "# Docs" column
 
         Returns:
-            True if successful, False otherwise
+            (True, None) if successful, (False, error_detail) otherwise
         """
 
         def do_export():
@@ -156,7 +156,7 @@ class ExportService:
 
     def export_qa_to_word(
         self, results: list, file_path: str, include_verification: bool = True
-    ) -> bool:
+    ) -> tuple[bool, str | None]:
         """
         Export Q&A results to Word document.
 
@@ -166,7 +166,7 @@ class ExportService:
             include_verification: Include verification coloring
 
         Returns:
-            True if successful, False otherwise
+            (True, None) if successful, (False, error_detail) otherwise
         """
 
         def do_export():
@@ -178,7 +178,7 @@ class ExportService:
 
     def export_qa_to_pdf(
         self, results: list, file_path: str, include_verification: bool = True
-    ) -> bool:
+    ) -> tuple[bool, str | None]:
         """
         Export Q&A results to PDF document.
 
@@ -188,7 +188,7 @@ class ExportService:
             include_verification: Include verification coloring
 
         Returns:
-            True if successful, False otherwise
+            (True, None) if successful, (False, error_detail) otherwise
         """
 
         def do_export():
@@ -198,7 +198,9 @@ class ExportService:
 
         return _run_export(f"{len(results)} Q&A pairs to PDF", file_path, "Q&A to PDF", do_export)
 
-    def export_vocabulary_to_txt(self, vocab_data: list[dict], file_path: str) -> bool:
+    def export_vocabulary_to_txt(
+        self, vocab_data: list[dict], file_path: str
+    ) -> tuple[bool, str | None]:
         """
         Export vocabulary to plain text (one term per line).
 
@@ -207,7 +209,7 @@ class ExportService:
             file_path: Output file path (.txt)
 
         Returns:
-            True if successful, False otherwise
+            (True, None) if successful, (False, error_detail) otherwise
         """
         return _run_export(
             f"{len(vocab_data)} terms to TXT",
@@ -218,7 +220,7 @@ class ExportService:
 
     def export_vocabulary_to_html(
         self, vocab_data: list[dict], file_path: str, visible_columns: list[str] | None = None
-    ) -> bool:
+    ) -> tuple[bool, str | None]:
         """
         Export vocabulary to interactive HTML.
 
@@ -230,7 +232,7 @@ class ExportService:
             visible_columns: Columns to show initially (from GUI selection)
 
         Returns:
-            True if successful, False otherwise
+            (True, None) if successful, (False, error_detail) otherwise
         """
         return _run_export(
             f"{len(vocab_data)} terms to HTML",
@@ -260,7 +262,7 @@ class ExportService:
 
     def export_qa_to_html(
         self, results: list, file_path: str, include_verification: bool = True
-    ) -> bool:
+    ) -> tuple[bool, str | None]:
         """
         Export Q&A results to interactive HTML.
 
@@ -270,7 +272,7 @@ class ExportService:
             include_verification: Include verification coloring
 
         Returns:
-            True if successful, False otherwise
+            (True, None) if successful, (False, error_detail) otherwise
         """
         return _run_export(
             f"{len(results)} Q&A pairs to HTML",
@@ -287,7 +289,7 @@ class ExportService:
         file_path: str,
         visible_columns: list[str] | None = None,
         include_verification: bool = True,
-    ) -> bool:
+    ) -> tuple[bool, str | None]:
         """
         Export vocabulary, Q&A, and summary to a single tabbed HTML file.
 
@@ -300,7 +302,7 @@ class ExportService:
             include_verification: Include verification badges in Q&A
 
         Returns:
-            True if successful, False otherwise
+            (True, None) if successful, (False, error_detail) otherwise
         """
         from src.core.export.combined_html_builder import build_combined_html
 
@@ -332,7 +334,7 @@ class ExportService:
         file_path: str,
         include_vocab_details: bool = False,
         include_qa_verification: bool = True,
-    ) -> bool:
+    ) -> tuple[bool, str | None]:
         """
         Export vocabulary and Q&A together to a single Word document.
 
@@ -344,7 +346,7 @@ class ExportService:
             include_qa_verification: Include verification coloring
 
         Returns:
-            True if successful, False otherwise
+            (True, None) if successful, (False, error_detail) otherwise
         """
 
         def do_export():
@@ -368,7 +370,7 @@ class ExportService:
         file_path: str,
         include_vocab_details: bool = False,
         include_qa_verification: bool = True,
-    ) -> bool:
+    ) -> tuple[bool, str | None]:
         """
         Export vocabulary and Q&A together to a single PDF document.
 
@@ -380,7 +382,7 @@ class ExportService:
             include_qa_verification: Include verification coloring
 
         Returns:
-            True if successful, False otherwise
+            (True, None) if successful, (False, error_detail) otherwise
         """
 
         def do_export():
