@@ -21,7 +21,7 @@ class TestNERDisabledComponents:
 
     def test_ner_disabled_components_constant(self):
         """Verify _NER_DISABLED_COMPONENTS contains exactly the expected components."""
-        expected = ["tagger", "parser", "attribute_ruler", "lemmatizer"]
+        expected = ["tagger", "parser", "attribute_ruler", "lemmatizer", "topicrank"]
         assert expected == _NER_DISABLED_COMPONENTS
 
     def test_ner_pipe_disables_components(self):

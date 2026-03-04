@@ -57,7 +57,15 @@ SPACY_MODEL_VERSION = "3.8.0"
 # Components disabled during NER pipe() calls for performance.
 # Only tok2vec + ner are needed; the others add ~40% overhead.
 # Uses disable= (per-call) so TextRankAlgorithm can still use the full pipeline.
-_NER_DISABLED_COMPONENTS = ["tagger", "parser", "attribute_ruler", "lemmatizer"]
+# "topicrank" is included because TextRankAlgorithm adds it to the shared model,
+# and it accesses doc.noun_chunks which requires the parser.
+_NER_DISABLED_COMPONENTS = [
+    "tagger",
+    "parser",
+    "attribute_ruler",
+    "lemmatizer",
+    "topicrank",
+]
 
 
 @register_algorithm("NER")
