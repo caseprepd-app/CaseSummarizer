@@ -26,6 +26,7 @@ def _make_table(on_remove=None):
 
     table = FileReviewTable.__new__(FileReviewTable)
     table._on_remove = on_remove
+    table._on_select = None
     table.column_map = {
         "filename": ("Filename", 300),
         "status": ("Status", 100),

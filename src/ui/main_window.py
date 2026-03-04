@@ -634,6 +634,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         self.selected_files.clear()
         self.processing_results.clear()
         self.file_table.clear()
+        self.output_display.clear_document_preview()
         # Reset Q&A state so old answers don't persist
         self._qa_ready = False
         self._qa_answering_active = False
@@ -650,6 +651,24 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         self._update_generate_button_state()
         self._update_session_stats()  # Clear stats display
         self.set_status("Files cleared")
+
+    def _on_file_selected(self, filename):
+        """
+        Handle file row click — show document preview in the Document tab.
+
+        Args:
+            filename: The display filename that was clicked.
+        """
+        # Find the result dict for this filename
+        result = next(
+            (r for r in self.processing_results if r.get("filename") == filename),
+            None,
+        )
+        if result:
+            self.output_display.show_document_preview(result)
+        else:
+            # File added but not yet extracted
+            logger.debug("No extraction result for %s yet", filename)
 
     def _remove_file(self, filename):
         """
@@ -668,6 +687,10 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
 
         # Remove from file table widget
         self.file_table.remove_result(filename)
+
+        # Clear document preview if the removed file is currently previewed
+        if self.output_display.document_preview_filename == filename:
+            self.output_display.clear_document_preview()
 
         # Update UI state
         self._update_generate_button_state()

@@ -83,7 +83,8 @@ class DynamicOutputWidget(ctk.CTkFrame):
         self.tabview = ctk.CTkTabview(self)
         self.tabview.grid(row=0, column=0, sticky="nsew", padx=5, pady=5)
 
-        # Create tabs
+        # Create tabs — Document first (matches pipeline flow: input → results)
+        self.tabview.add("Document")
         self.tabview.add("Vocabulary")
         self.tabview.add("Questions")
         self.tabview.add("Summary")
@@ -92,12 +93,20 @@ class DynamicOutputWidget(ctk.CTkFrame):
         self.tabview.configure(command=self._on_tab_changed)
 
         # Configure tab grids
+        self.tabview.tab("Document").grid_columnconfigure(0, weight=1)
+        self.tabview.tab("Document").grid_rowconfigure(0, weight=1)
         self.tabview.tab("Vocabulary").grid_columnconfigure(0, weight=1)
         self.tabview.tab("Vocabulary").grid_rowconfigure(0, weight=1)
         self.tabview.tab("Questions").grid_columnconfigure(0, weight=1)
         self.tabview.tab("Questions").grid_rowconfigure(0, weight=1)
         self.tabview.tab("Summary").grid_columnconfigure(0, weight=1)
         self.tabview.tab("Summary").grid_rowconfigure(0, weight=1)
+
+        # Document Tab: Preview panel for extracted text
+        from src.ui.document_preview_panel import DocumentPreviewPanel
+
+        self._document_panel = DocumentPreviewPanel(self.tabview.tab("Document"))
+        self._document_panel.grid(row=0, column=0, sticky="nsew")
 
         # Progress Badge - shows data source status for Names & Vocab tab
         self._progress_badge = ctk.CTkLabel(
@@ -186,6 +195,9 @@ class DynamicOutputWidget(ctk.CTkFrame):
 
         # Initialize tab status messages
         self._update_tab_status_messages()
+
+        # Default to Vocabulary tab (Document is just a placeholder until user clicks a file)
+        self.tabview.set("Vocabulary")
 
         # Bind Ctrl+F for find-in-text
         self._bind_find_shortcut()
@@ -278,7 +290,9 @@ class DynamicOutputWidget(ctk.CTkFrame):
 
         def _on_ctrl_f(event):
             active_tab = self.tabview.get()
-            if active_tab == "Questions":
+            if active_tab == "Document":
+                self._document_panel.show_find_bar()
+            elif active_tab == "Questions":
                 self._qa_panel.show_find_bar()
             elif active_tab == "Summary":
                 self._summary_find_bar.show()
@@ -401,6 +415,27 @@ class DynamicOutputWidget(ctk.CTkFrame):
         self._summary_status_label.grid()
         self._update_tab_status_messages()
 
+    def show_document_preview(self, result):
+        """
+        Display a document's extracted text in the Document tab.
+
+        Auto-switches to the Document tab.
+
+        Args:
+            result: Extraction result dict with filename, preprocessed_text, etc.
+        """
+        self._document_panel.display_document(result)
+        self.tabview.set("Document")
+
+    def clear_document_preview(self):
+        """Clear the Document tab back to placeholder state."""
+        self._document_panel.clear()
+
+    @property
+    def document_preview_filename(self):
+        """The filename currently shown in the Document tab, or None."""
+        return self._document_panel.current_filename
+
     def _on_tab_changed(self):
         """
         Handle tab change to show/hide appropriate button bars.
@@ -423,8 +458,8 @@ class DynamicOutputWidget(ctk.CTkFrame):
             else:
                 main_window.followup_frame.grid_remove()
 
-        if current_tab == "Questions":
-            # Hide shared button bar - QAPanel has its own buttons
+        if current_tab in ("Questions", "Document"):
+            # Hide shared button bar - QAPanel has its own, Document is read-only
             self.button_frame.grid_remove()
         else:
             # Show shared button bar for Names & Vocab and Summary tabs

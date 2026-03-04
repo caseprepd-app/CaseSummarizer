@@ -24,6 +24,8 @@ class TestFileReviewTableEmptyState:
         from src.ui.widgets import FileReviewTable
 
         table = FileReviewTable.__new__(FileReviewTable)
+        table._on_remove = None
+        table._on_select = None
         table.column_map = {
             "filename": ("Filename", 300),
             "status": ("Status", 100),

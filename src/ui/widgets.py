@@ -20,15 +20,17 @@ class FileReviewTable(ctk.CTkFrame):
     refactored with CustomTkinter using a tkinter.ttk.Treeview.
     """
 
-    def __init__(self, master, on_remove=None, **kwargs):
+    def __init__(self, master, on_remove=None, on_select=None, **kwargs):
         """
         Args:
             master: Parent widget.
             on_remove: Optional callback(filename) invoked when the ✕ button is clicked.
+            on_select: Optional callback(filename) invoked when a data column is clicked.
         """
         super().__init__(master, **kwargs)
 
         self._on_remove = on_remove
+        self._on_select = on_select
 
         self.column_map = {
             "filename": ("Filename", 300),
@@ -244,17 +246,12 @@ class FileReviewTable(ctk.CTkFrame):
         self._drop_zone.place(relx=0.5, rely=0.5, anchor="center", relwidth=0.85, relheight=0.7)
 
     def _on_click(self, event):
-        """Handle click on the treeview — remove file if ✕ column clicked."""
-        if not self._on_remove:
-            return
-
-        col = self.tree.identify_column(event.x)
-        if col != "#0":  # Tree column holds the orange ✕ icon
-            return
-
+        """Handle click on the treeview — remove or select based on column."""
         row_id = self.tree.identify_row(event.y)
         if not row_id:
             return
+
+        col = self.tree.identify_column(event.x)
 
         try:
             values = self.tree.item(row_id, "values")
@@ -262,8 +259,16 @@ class FileReviewTable(ctk.CTkFrame):
         except Exception:
             return
 
-        if filename:
+        if not filename:
+            return
+
+        if col == "#0" and self._on_remove:
+            # Tree column (#0) holds the orange ✕ icon
             self._on_remove(filename)
+        elif col != "#0" and self._on_select:
+            # Any data column click triggers selection
+            self.tree.selection_set(row_id)
+            self._on_select(filename)
 
     def remove_result(self, filename):
         """
