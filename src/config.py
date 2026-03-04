@@ -615,6 +615,23 @@ VOCABULARY_BATCH_INSERT_DELAY_MS = 10  # Delay between batches (ms)
 DEFAULT_NEGATIVE_INDICATORS = ["proceedings", "Direct", "Cross", "Redirect", "Recross"]
 DEFAULT_POSITIVE_INDICATORS: list[str] = []
 
+# Default regex overrides for indicator patterns.  These combine the simple
+# string indicators above with richer patterns that catch common legal-document
+# artifacts.  When a user hasn't customised the regex, these are used instead
+# of the auto-generated OR pattern from the string lists.
+#
+# Negative: Q/A transcript artifacts (1-3 trailing words), exhibit/page/line
+#           references, plus the existing procedural-term strings.
+# Positive: Names with a middle initial ("John A. Smith").
+DEFAULT_NEGATIVE_REGEX_OVERRIDE = (
+    r"^[AQ]\.?(\s+\w+){1,3}"
+    r"|^Exhibit\s+[A-Z\d]"
+    r"|^Page\s+\d+"
+    r"|^Line\s+\d+"
+    r"|proceedings|Direct|Cross|Redirect|Recross"
+)
+DEFAULT_POSITIVE_REGEX_OVERRIDE = r"[A-Z][a-z]+\s[A-Z]\.\s[A-Z][a-z]+"
+
 # spaCy Model Download Timeouts
 # Controls timeout behavior during automatic spaCy model downloads
 SPACY_DOWNLOAD_TIMEOUT_SEC = 3600  # Overall timeout: 1 hour (slow connections)

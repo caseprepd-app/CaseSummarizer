@@ -1029,13 +1029,22 @@ def _register_all_settings():
     # Session: User-defined indicator patterns for vocabulary ML
     def _get_indicator_patterns(p):
         """Get current indicator pattern config with shipped defaults."""
-        from src.config import DEFAULT_NEGATIVE_INDICATORS, DEFAULT_POSITIVE_INDICATORS
+        from src.config import (
+            DEFAULT_NEGATIVE_INDICATORS,
+            DEFAULT_NEGATIVE_REGEX_OVERRIDE,
+            DEFAULT_POSITIVE_INDICATORS,
+            DEFAULT_POSITIVE_REGEX_OVERRIDE,
+        )
 
         return {
             "positive_strings": p.get("vocab_positive_indicators", DEFAULT_POSITIVE_INDICATORS),
             "negative_strings": p.get("vocab_negative_indicators", DEFAULT_NEGATIVE_INDICATORS),
-            "positive_override": p.get("vocab_positive_regex_override", ""),
-            "negative_override": p.get("vocab_negative_regex_override", ""),
+            "positive_override": p.get(
+                "vocab_positive_regex_override", DEFAULT_POSITIVE_REGEX_OVERRIDE
+            ),
+            "negative_override": p.get(
+                "vocab_negative_regex_override", DEFAULT_NEGATIVE_REGEX_OVERRIDE
+            ),
         }
 
     def _create_indicator_pattern_widget(parent):

@@ -101,10 +101,10 @@ def matches_positive(term: str) -> bool:
         True if the term matches a positive indicator pattern.
     """
     prefs = get_user_preferences()
-    from src.config import DEFAULT_POSITIVE_INDICATORS
+    from src.config import DEFAULT_POSITIVE_INDICATORS, DEFAULT_POSITIVE_REGEX_OVERRIDE
 
     strings = prefs.get("vocab_positive_indicators", DEFAULT_POSITIVE_INDICATORS)
-    override = prefs.get("vocab_positive_regex_override", "")
+    override = prefs.get("vocab_positive_regex_override", DEFAULT_POSITIVE_REGEX_OVERRIDE)
     pattern = _get_cached_pattern("positive", strings, override)
     if pattern is None:
         return False
@@ -121,11 +121,11 @@ def matches_negative(term: str) -> bool:
     Returns:
         True if the term matches a negative indicator pattern.
     """
-    from src.config import DEFAULT_NEGATIVE_INDICATORS
+    from src.config import DEFAULT_NEGATIVE_INDICATORS, DEFAULT_NEGATIVE_REGEX_OVERRIDE
 
     prefs = get_user_preferences()
     strings = prefs.get("vocab_negative_indicators", DEFAULT_NEGATIVE_INDICATORS)
-    override = prefs.get("vocab_negative_regex_override", "")
+    override = prefs.get("vocab_negative_regex_override", DEFAULT_NEGATIVE_REGEX_OVERRIDE)
     pattern = _get_cached_pattern("negative", strings, override)
     if pattern is None:
         return False

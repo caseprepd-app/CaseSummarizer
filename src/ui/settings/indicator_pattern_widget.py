@@ -94,7 +94,12 @@ class IndicatorPatternWidget(ctk.CTkFrame):
         from src.user_preferences import get_user_preferences
 
         self._prefs = get_user_preferences()
-        from src.config import DEFAULT_NEGATIVE_INDICATORS, DEFAULT_POSITIVE_INDICATORS
+        from src.config import (
+            DEFAULT_NEGATIVE_INDICATORS,
+            DEFAULT_NEGATIVE_REGEX_OVERRIDE,
+            DEFAULT_POSITIVE_INDICATORS,
+            DEFAULT_POSITIVE_REGEX_OVERRIDE,
+        )
 
         self._positive_strings: list[str] = list(
             self._prefs.get("vocab_positive_indicators", DEFAULT_POSITIVE_INDICATORS)
@@ -102,8 +107,12 @@ class IndicatorPatternWidget(ctk.CTkFrame):
         self._negative_strings: list[str] = list(
             self._prefs.get("vocab_negative_indicators", DEFAULT_NEGATIVE_INDICATORS)
         )
-        self._positive_override: str = self._prefs.get("vocab_positive_regex_override", "")
-        self._negative_override: str = self._prefs.get("vocab_negative_regex_override", "")
+        self._positive_override: str = self._prefs.get(
+            "vocab_positive_regex_override", DEFAULT_POSITIVE_REGEX_OVERRIDE
+        )
+        self._negative_override: str = self._prefs.get(
+            "vocab_negative_regex_override", DEFAULT_NEGATIVE_REGEX_OVERRIDE
+        )
         self._show_regex = False
         self._regex_error_label = None
         # Track the auto-generated regex text so Edit can copy it

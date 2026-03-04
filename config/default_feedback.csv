@@ -20,3 +20,16 @@ timestamp,document_id,term,feedback,is_person,algorithms,NER_detection,RAKE_dete
 2026-03-02T16:43:56.580372,unknown,p g,-1,1,"RAKE,NER",True,True,False,False,False,False,False,False,2,100.0,13,0,0.0,0.0,0.0,4.265151515151516,0.0,1,1.0,0.94,0.94,0.0,1.0,0,1,12639
 2026-03-02T16:44:05.914126,unknown,Faierman p g - Mr,-1,1,NER,True,False,False,False,False,False,False,False,1,95.4,1,0,0.0,0.0,0.0,0.0,0.0,1,1.0,0.94,0.94,0.0,1.0,0,1,12639
 2026-03-02T16:44:10.841903,unknown,1:7,-1,1,NER,True,False,False,False,False,False,False,False,1,77.4,1,0,0.0,0.0,0.0,0.0,0.0,1,1.0,0.94,0.94,0.0,1.0,0,1,12639
+2026-03-03T16:44:03.738600,unknown,Scott Occhiogrosso,1,1,"NER, YAKE",True,False,False,False,False,False,True,False,2,100.0,260,0,0.0,0.021866,0.0,0.0,0.0,2,1.0,0.94,0.94,0.0,1.0,0,2,71597
+2026-03-03T16:44:21.596249,unknown,Hal Epstein,1,1,"MedicalNER, NER, RAKE, TopicRank, YAKE",True,True,False,True,True,False,True,False,5,100.0,34,0,0.0019,0.020302,0.0,3.948717948717949,0.0,2,1.0,0.94,0.94,0.0,1.0,0,2,71597
+2026-03-03T16:44:44.713738,unknown,mark,-1,1,NER,True,False,False,False,False,False,False,False,1,77.2,8,833,0.0,0.0,0.0,0.0,0.0,1,0.5,0.94,0.94,0.0,1.0,0,2,35015
+2026-03-03T16:45:04.825543,unknown,Robert Genna,1,1,"NER, TopicRank",True,False,False,True,False,False,False,False,2,100.0,29,0,0.0016,0.0,0.0,0.0,0.0,1,0.5,0.94,0.94,0.0,1.0,0,2,36582
+2026-03-03T16:45:11.422310,unknown,Devi Nampiaparampil,1,1,NER,True,False,False,False,False,False,False,False,1,100.0,25,0,0.0,0.0,0.0,0.0,0.0,2,1.0,0.9399999999999998,0.94,0.0,1.0,0,2,71597
+2026-03-03T16:45:20.231776,unknown,De Plaintiff,-1,1,"NER, RAKE",True,True,False,False,False,False,False,False,2,100.0,109,0,0.0,0.0,0.0,3.578504043126685,0.0,1,0.5,0.94,0.94,0.0,1.0,0,2,35015
+2026-03-03T16:45:26.276026,unknown,Hansraj,1,1,"NER, YAKE",True,False,False,False,False,False,True,False,2,100.0,94,0,0.0,0.000678,0.0,0.0,0.0,1,0.5,0.94,0.94,0.0,1.0,0,2,35015
+2026-03-03T16:45:41.280990,unknown,Gaon Wellness,-1,1,NER,True,False,False,False,False,False,False,False,1,95.4,1,0,0.0,0.0,0.0,0.0,0.0,1,0.5,0.94,0.94,0.0,1.0,0,2,36582
+2026-03-03T16:45:48.181904,unknown,miles Defendant per hour,-1,1,NER,True,False,False,False,False,False,False,False,1,95.4,1,0,0.0,0.0,0.0,0.0,0.0,1,0.5,0.94,0.94,0.0,1.0,0,2,36582
+2026-03-03T16:46:05.406925,unknown,--you,-1,1,NER,True,False,False,False,False,False,False,False,1,85.4,1,0,0.0,0.0,0.0,0.0,0.0,1,0.5,0.94,0.94,0.0,1.0,0,2,36582
+2026-03-03T16:46:40.112491,unknown,Melanie Nahrain,1,1,"NER, RAKE",True,True,False,False,False,False,False,False,2,100.0,10,0,0.0,0.0,0.0,4.0,0.0,1,0.5,0.9399999999999998,0.94,0.0,1.0,0,2,36582
+2026-03-03T16:46:54.092777,unknown,Robert Counsel,-1,1,NER,True,False,False,False,False,False,False,False,1,95.4,1,0,0.0,0.0,0.0,0.0,0.0,1,0.5,0.94,0.94,0.0,1.0,0,2,36582
+2026-03-03T16:47:06.817737,unknown,Brown,-1,1,NER,True,False,False,False,False,False,False,False,1,75.2,6,1267,0.0,0.0,0.0,0.0,0.0,1,0.5,0.94,0.94,0.0,1.0,0,2,35015

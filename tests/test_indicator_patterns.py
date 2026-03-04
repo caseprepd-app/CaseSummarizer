@@ -105,7 +105,12 @@ class TestMatchesPositive:
 
     def test_matches_string_pattern(self):
         """String patterns should match case-insensitively."""
-        prefs = MockPrefs({"vocab_positive_indicators": ["dr.", "plaintiff"]})
+        prefs = MockPrefs(
+            {
+                "vocab_positive_indicators": ["dr.", "plaintiff"],
+                "vocab_positive_regex_override": "",
+            }
+        )
         with patch(
             "src.core.vocabulary.indicator_patterns.get_user_preferences",
             return_value=prefs,
@@ -197,7 +202,12 @@ class TestCaching:
 
     def test_cache_auto_updates_on_preference_change(self):
         """Cache should auto-update when preferences change."""
-        prefs1 = MockPrefs({"vocab_positive_indicators": ["old"]})
+        prefs1 = MockPrefs(
+            {
+                "vocab_positive_indicators": ["old"],
+                "vocab_positive_regex_override": "",
+            }
+        )
         with patch(
             "src.core.vocabulary.indicator_patterns.get_user_preferences",
             return_value=prefs1,
@@ -207,7 +217,12 @@ class TestCaching:
             assert matches_positive("old") is True
             assert matches_positive("new") is False
 
-        prefs2 = MockPrefs({"vocab_positive_indicators": ["new"]})
+        prefs2 = MockPrefs(
+            {
+                "vocab_positive_indicators": ["new"],
+                "vocab_positive_regex_override": "",
+            }
+        )
         with patch(
             "src.core.vocabulary.indicator_patterns.get_user_preferences",
             return_value=prefs2,
@@ -228,6 +243,8 @@ class TestFeatureExtraction:
             {
                 "vocab_positive_indicators": ["dr."],
                 "vocab_negative_indicators": ["redirect", "cross"],
+                "vocab_positive_regex_override": "",
+                "vocab_negative_regex_override": "",
             }
         )
         MOCK_FREQ = {"the": 0.0, "john": 0.01, "smith": 0.05}
@@ -306,3 +323,127 @@ class TestFeatureExtraction:
         features = extract_features(term_data)
         assert len(features) == 56
         assert len(FEATURE_NAMES) == 56
+
+
+class TestDefaultRegexOverrides:
+    """Tests for the shipped default regex override patterns."""
+
+    # -- Negative defaults: Q/A artifacts, Exhibit, Page, Line, procedural --
+
+    @pytest.mark.parametrize(
+        "term",
+        [
+            "Q. What",
+            "A. Yes",
+            "Q What happened",
+            "A I do",
+            "Q. Good morning sir",
+            "A. No I do not",
+        ],
+    )
+    def test_negative_qa_artifacts(self, term):
+        """Q/A transcript artifacts match the default negative pattern."""
+        with patch(
+            "src.core.vocabulary.indicator_patterns.get_user_preferences",
+            return_value=MockPrefs(),
+        ):
+            from src.core.vocabulary.indicator_patterns import matches_negative
+
+            assert matches_negative(term) is True, f"Expected negative match: {term!r}"
+
+    @pytest.mark.parametrize("term", ["Exhibit A", "Exhibit 1", "Exhibit B3"])
+    def test_negative_exhibit_refs(self, term):
+        """Exhibit references match the default negative pattern."""
+        with patch(
+            "src.core.vocabulary.indicator_patterns.get_user_preferences",
+            return_value=MockPrefs(),
+        ):
+            from src.core.vocabulary.indicator_patterns import matches_negative
+
+            assert matches_negative(term) is True, f"Expected negative match: {term!r}"
+
+    @pytest.mark.parametrize("term", ["Page 12", "Page 1", "Line 5", "Line 100"])
+    def test_negative_page_line_refs(self, term):
+        """Page/Line references match the default negative pattern."""
+        with patch(
+            "src.core.vocabulary.indicator_patterns.get_user_preferences",
+            return_value=MockPrefs(),
+        ):
+            from src.core.vocabulary.indicator_patterns import matches_negative
+
+            assert matches_negative(term) is True, f"Expected negative match: {term!r}"
+
+    @pytest.mark.parametrize(
+        "term", ["proceedings", "Direct Examination", "Cross Examination", "Recross"]
+    )
+    def test_negative_procedural_strings(self, term):
+        """Existing procedural-term strings match in the default override."""
+        with patch(
+            "src.core.vocabulary.indicator_patterns.get_user_preferences",
+            return_value=MockPrefs(),
+        ):
+            from src.core.vocabulary.indicator_patterns import matches_negative
+
+            assert matches_negative(term) is True, f"Expected negative match: {term!r}"
+
+    @pytest.mark.parametrize(
+        "term", ["John Smith", "Negligence", "Proximate Cause", "Cervical Spine"]
+    )
+    def test_negative_does_not_match_legitimate_terms(self, term):
+        """Legitimate legal/medical terms should NOT match the negative pattern."""
+        with patch(
+            "src.core.vocabulary.indicator_patterns.get_user_preferences",
+            return_value=MockPrefs(),
+        ):
+            from src.core.vocabulary.indicator_patterns import matches_negative
+
+            assert matches_negative(term) is False, f"False negative match: {term!r}"
+
+    # -- Positive defaults: names with middle initial --
+
+    @pytest.mark.parametrize(
+        "term",
+        [
+            "John A. Smith",
+            "Mary J. Watson",
+            "Christopher L. Gorayeb",
+            "Robert E. Lee",
+        ],
+    )
+    def test_positive_middle_initial_names(self, term):
+        """Names with middle initials match the default positive pattern."""
+        with patch(
+            "src.core.vocabulary.indicator_patterns.get_user_preferences",
+            return_value=MockPrefs(),
+        ):
+            from src.core.vocabulary.indicator_patterns import matches_positive
+
+            assert matches_positive(term) is True, f"Expected positive match: {term!r}"
+
+    @pytest.mark.parametrize(
+        "term", ["John Smith", "Dr. Smith", "Q. Good", "A. Yes", "proceedings"]
+    )
+    def test_positive_does_not_match_non_names(self, term):
+        """Non-name terms should NOT match the default positive pattern."""
+        with patch(
+            "src.core.vocabulary.indicator_patterns.get_user_preferences",
+            return_value=MockPrefs(),
+        ):
+            from src.core.vocabulary.indicator_patterns import matches_positive
+
+            assert matches_positive(term) is False, f"False positive match: {term!r}"
+
+    def test_middle_initial_name_not_caught_by_negative(self):
+        """Names with middle initials must NOT match negative (^-anchored Q/A)."""
+        with patch(
+            "src.core.vocabulary.indicator_patterns.get_user_preferences",
+            return_value=MockPrefs(),
+        ):
+            from src.core.vocabulary.indicator_patterns import (
+                matches_negative,
+                matches_positive,
+            )
+
+            term = "John A. Smith"
+            assert matches_positive(term) is True
+            assert matches_negative(term) is False
