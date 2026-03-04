@@ -39,8 +39,8 @@ Only **34 observations** (14 good, 20 bad). The ML model needs 30 minimum to act
 ### 6. Combined Export to Word/PDF (Not Just HTML)
 "Export All" only produces HTML. The `export_combined_to_word()` and `export_combined_to_pdf()` methods exist in ExportService but aren't wired to any UI button. Court reporters handing off prep documents probably want Word or PDF, not HTML.
 
-### 7. Undo/Correct Vocabulary Feedback
-If a user accidentally thumbs-down a good term, there's no undo. They'd have to manually edit the feedback CSV. A simple "undo last rating" or the ability to re-rate a term from the context menu would save frustration.
+### 7. ~~Undo/Correct Vocabulary Feedback~~ ✅ Already Working
+Clicking Keep/Skip toggles the rating on; clicking the same box again sets `feedback=0` which calls `_delete_feedback_from_csv()` and removes the row entirely. The CSV always mirrors the GUI state. Rapid-click safe: toggle decision reads from in-memory cache (instant), CSV writes are under `_file_lock`, and deleting a nonexistent row is a no-op.
 
 ### 8. Summary Section-Level or Quick Mode
 Summary is all-or-nothing: off (0 minutes) or on (30+ minutes). Options to consider:
