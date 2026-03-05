@@ -1,133 +1,13 @@
 """
-Tests for Hybrid PDF Extraction with Word-Level Voting.
+Tests for Hybrid PDF Extraction.
 
-Session 79: Tests the hybrid extraction pipeline that uses both PyMuPDF
-and pdfplumber, reconciling differences with word-level voting.
+Tests the hybrid extraction pipeline that uses both PyMuPDF
+and pdfplumber with best-of-two confidence selection.
 """
 
 from unittest.mock import MagicMock
 
 import pytest
-
-
-class TestWordLevelVoting:
-    """Tests for the word-level voting reconciliation logic."""
-
-    @pytest.fixture
-    def extractor(self):
-        """Create a RawTextExtractor with mocked dictionary."""
-        from src.core.extraction.raw_text_extractor import RawTextExtractor
-
-        extractor = RawTextExtractor()
-        # Use a small test dictionary
-        extractor.english_words = {
-            "the",
-            "and",
-            "is",
-            "of",
-            "in",
-            "to",
-            "for",
-            "with",
-            "on",
-            "at",
-            "plaintiff",
-            "defendant",
-            "court",
-            "case",
-            "motion",
-            "order",
-            "john",
-            "smith",
-            "hospital",
-            "surgery",
-            "patient",
-            "doctor",
-            "january",
-            "february",
-            "march",
-            "april",
-            "may",
-            "june",
-            "medical",
-            "injury",
-            "negligence",
-            "damages",
-            "evidence",
-        }
-        return extractor
-
-    def test_matching_words_kept(self, extractor):
-        """When words match, they should be kept."""
-        primary = "The plaintiff filed a motion"
-        secondary = "The plaintiff filed a motion"
-
-        result = extractor._reconcile_extractions(primary, secondary)
-        assert result == "The plaintiff filed a motion"
-
-    def test_dictionary_word_wins(self, extractor):
-        """Dictionary word should win over non-dictionary word."""
-        # "teh" is a common OCR error for "the"
-        primary = "teh plaintiff filed a motion"
-        secondary = "the plaintiff filed a motion"
-
-        result = extractor._reconcile_extractions(primary, secondary)
-        assert "the plaintiff" in result
-
-    def test_primary_wins_on_tie(self, extractor):
-        """When both words are valid (or both invalid), primary wins."""
-        # Both "plaintiff" and "claimant" are valid words
-        # But our test dict only has "plaintiff"
-        primary = "The plaintiff filed a motion"
-        secondary = "The claimant filed a motion"
-
-        result = extractor._reconcile_extractions(primary, secondary)
-        # "plaintiff" is in our dict, "claimant" is not
-        assert "plaintiff" in result
-
-    def test_ocr_error_correction(self, extractor):
-        """OCR errors should be corrected when one extractor gets it right."""
-        # Primary has OCR error, secondary is correct
-        primary = "Dr. Srnith performed the surgery"
-        secondary = "Dr. Smith performed the surgery"
-
-        result = extractor._reconcile_extractions(primary, secondary)
-        # "smith" is in our dict, "srnith" is not
-        assert "Smith" in result or "smith" in result.lower()
-
-    def test_handles_different_word_counts(self, extractor):
-        """Should handle when extractors have different word counts."""
-        primary = "The plaintiff filed motion"  # Missing "a"
-        secondary = "The plaintiff filed a motion"
-
-        result = extractor._reconcile_extractions(primary, secondary)
-        # Should include content from both
-        assert "plaintiff" in result
-        assert "motion" in result
-
-    def test_empty_primary_returns_secondary(self, extractor):
-        """If primary is empty, return secondary."""
-        result = extractor._reconcile_extractions("", "The plaintiff filed")
-        assert result == "The plaintiff filed"
-
-    def test_empty_secondary_returns_primary(self, extractor):
-        """If secondary is empty, return primary."""
-        result = extractor._reconcile_extractions("The plaintiff filed", "")
-        assert result == "The plaintiff filed"
-
-    def test_both_empty_returns_empty(self, extractor):
-        """If both are empty, return empty string."""
-        result = extractor._reconcile_extractions("", "")
-        assert result == ""
-
-    def test_punctuation_preserved(self, extractor):
-        """Punctuation should be preserved in output."""
-        primary = "The plaintiff, John Smith, filed."
-        secondary = "The plaintiff, John Smith, filed."
-
-        result = extractor._reconcile_extractions(primary, secondary)
-        assert "," in result
-        assert "." in result
 
 
 class TestIsValidWord:
@@ -213,10 +93,6 @@ class TestHybridExtractionPipeline:
     def test_process_pdf_method_exists(self, extractor):
         """The _process_pdf method should exist."""
         assert hasattr(extractor, "_process_pdf")
-
-    def test_reconcile_extractions_method_exists(self, extractor):
-        """The _reconcile_extractions method should exist."""
-        assert hasattr(extractor, "_reconcile_extractions")
 
     def test_hybrid_method_reported(self, extractor):
         """When both extractors succeed, method should be best-of-two."""

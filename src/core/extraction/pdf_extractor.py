@@ -20,7 +20,6 @@ Example usage:
 """
 
 import logging
-from difflib import SequenceMatcher
 from pathlib import Path
 
 import fitz  # PyMuPDF
@@ -362,7 +361,7 @@ class PDFExtractor:
                 text = "\f".join(pages_text)
 
                 # Safety check: if clipping removed too much text, reject
-                flat_text = "".join(p.get_text(sort=True) for p in doc)
+                flat_text = "\f".join(p.get_text(sort=True) for p in doc)
                 flat_words = len(flat_text.split())
                 clip_words = len(text.split())
 
@@ -502,122 +501,3 @@ class PDFExtractor:
             else:
                 logger.error("pdfplumber: Failed to extract PDF text: %s", e, exc_info=True)
                 return None, 0, "unknown"
-
-    def reconcile_extractions(self, primary_text: str, secondary_text: str) -> str:
-        """
-        Reconcile two PDF extractions using line-level alignment and word-level voting.
-
-        Splits both texts into lines, aligns them with SequenceMatcher, then
-        delegates word-level voting to _reconcile_line() for differing lines.
-        This preserves newline structure while still correcting OCR-like errors.
-
-        Args:
-            primary_text: Text from PyMuPDF (preferred when tied)
-            secondary_text: Text from pdfplumber (fallback)
-
-        Returns:
-            Reconciled text with newlines preserved and best words from each extractor
-
-        Example:
-            >>> extractor = PDFExtractor(DictionaryTextValidator())
-            >>> extractor.reconcile_extractions("tbe quick fox", "the quick fox")
-            'the quick fox'
-        """
-        primary_lines = primary_text.split("\n")
-        secondary_lines = secondary_text.split("\n")
-
-        if not primary_text.strip():
-            return secondary_text
-        if not secondary_text.strip():
-            return primary_text
-
-        matcher = SequenceMatcher(None, primary_lines, secondary_lines)
-        result_lines = []
-        corrections_made = 0
-
-        for tag, i1, i2, j1, j2 in matcher.get_opcodes():
-            if tag == "equal":
-                result_lines.extend(primary_lines[i1:i2])
-
-            elif tag == "replace":
-                p_chunk = primary_lines[i1:i2]
-                s_chunk = secondary_lines[j1:j2]
-                max_len = max(len(p_chunk), len(s_chunk))
-                for k in range(max_len):
-                    p_line = p_chunk[k] if k < len(p_chunk) else ""
-                    s_line = s_chunk[k] if k < len(s_chunk) else ""
-                    reconciled, count = self._reconcile_line(p_line, s_line)
-                    result_lines.append(reconciled)
-                    corrections_made += count
-
-            elif tag == "delete":
-                result_lines.extend(primary_lines[i1:i2])
-
-            elif tag == "insert":
-                for line in secondary_lines[j1:j2]:
-                    if line.strip():
-                        result_lines.append(line)
-
-        if corrections_made > 0:
-            logger.debug("Made %d dictionary corrections", corrections_made)
-
-        return "\n".join(result_lines)
-
-    def _reconcile_line(self, primary_line: str, secondary_line: str) -> tuple[str, int]:
-        """
-        Reconcile a single pair of lines using word-level voting.
-
-        Tokenizes both lines, aligns words with SequenceMatcher, and picks the
-        best word at each position (dictionary word wins over garbage).
-
-        Args:
-            primary_line: Line from PyMuPDF
-            secondary_line: Line from pdfplumber
-
-        Returns:
-            Tuple of (reconciled line text, number of corrections made)
-        """
-        p_tokens = self.dictionary.tokenize_for_voting(primary_line)
-        s_tokens = self.dictionary.tokenize_for_voting(secondary_line)
-
-        if not p_tokens:
-            return secondary_line, 0
-        if not s_tokens:
-            return primary_line, 0
-
-        matcher = SequenceMatcher(None, p_tokens, s_tokens)
-        result_tokens = []
-        corrections = 0
-
-        for tag, i1, i2, j1, j2 in matcher.get_opcodes():
-            if tag == "equal":
-                result_tokens.extend(p_tokens[i1:i2])
-            elif tag == "replace":
-                p_chunk = p_tokens[i1:i2]
-                s_chunk = s_tokens[j1:j2]
-                max_len = max(len(p_chunk), len(s_chunk))
-                for k in range(max_len):
-                    p_word = p_chunk[k] if k < len(p_chunk) else ""
-                    s_word = s_chunk[k] if k < len(s_chunk) else ""
-                    if not p_word:
-                        result_tokens.append(s_word)
-                    elif not s_word:
-                        result_tokens.append(p_word)
-                    else:
-                        p_valid = self.dictionary.is_valid_word(p_word)
-                        s_valid = self.dictionary.is_valid_word(s_word)
-                        if p_valid and not s_valid:
-                            result_tokens.append(p_word)
-                        elif s_valid and not p_valid:
-                            result_tokens.append(s_word)
-                            corrections += 1
-                        else:
-                            result_tokens.append(p_word)
-            elif tag == "delete":
-                result_tokens.extend(p_tokens[i1:i2])
-            elif tag == "insert":
-                for token in s_tokens[j1:j2]:
-                    if len(token) > 1 and self.dictionary.is_valid_word(token):
-                        result_tokens.append(token)
-
-        return " ".join(result_tokens), corrections

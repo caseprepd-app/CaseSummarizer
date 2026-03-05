@@ -558,10 +558,6 @@ class RawTextExtractor:
         best_text = primary_text if primary_conf >= secondary_conf else secondary_text
         return best_text, method
 
-    def _reconcile_extractions(self, primary_text: str, secondary_text: str) -> str:
-        """Delegate to PDF extractor module (for test compatibility)."""
-        return self.pdf_extractor.reconcile_extractions(primary_text, secondary_text)
-
     def _extract_text_pymupdf(self, file_path) -> tuple:
         """Delegate to PDF extractor — try layout-aware first, then flat."""
         text, page_count, error = self.pdf_extractor._extract_pymupdf_layout(file_path)

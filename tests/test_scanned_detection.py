@@ -406,7 +406,6 @@ class TestProcessPdfInnerRouting:
         digital_text = ("Page1 content " * 100) + "\f" + ("Page2 content " * 100) + "\fBlank"
         ext._extract_text_pymupdf = MagicMock(return_value=(digital_text, 3, None))
         ext._extract_pdf_text = MagicMock(return_value=(None, 0, "failed"))
-        ext._reconcile_extractions = MagicMock(return_value=digital_text)
         ext._calculate_dictionary_confidence = MagicMock(return_value=80.0)
 
         with patch(
