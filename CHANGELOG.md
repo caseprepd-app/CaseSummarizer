@@ -3,6 +3,41 @@
 All notable changes to CasePrepd are documented here.
 Format: user-facing changes first, internal/dev changes in a separate section.
 
+## [1.0.15] - 2026-03-04
+
+### Added
+- Document preview tab for viewing extracted/preprocessed text
+- Term-in-Context viewer for vocabulary table
+- Document tab pagination for large documents
+- Default regex overrides for vocabulary indicator patterns
+- Word count in session stats
+- Files shown in table immediately as purple "Extracting..." rows
+- User indicator patterns contribute to rule-based quality score (+/-5)
+
+### Improved
+- NER extraction ~40% faster by disabling unused spaCy components (including TopicRank)
+- Performance audit: optimized data structures, I/O, caching, and logging (9 items)
+- DRY refactoring: vocab field constants, export helpers, and model loading centralized
+- Pipeline no longer capitalizes common words like "drywall"
+- Q&A follow-up entry uses three-state placeholder with color coding
+
+### Fixed
+- 17-bug sweep across UI, core, and services layers
+- 16-bug audit: silent config, stuck UI, cache/file races, precision errors
+- 11-bug audit: re-entrancy guards, crash recovery, export details, lock gaps
+- 36-bug audit: 6 HIGH, 15 MEDIUM, 15 LOW issues across full pipeline
+- Deep bug audit round 2: state management, data flow, name dedup, config
+- Exception handling audit: crash guards, logging, tracebacks
+- Text flattening in reconciliation fixed
+- Skipped vocab terms excluded from all export paths
+- "Ask default questions" checkbox state now passed to worker subprocess
+- ExportService return type annotations corrected
+
+### Internal
+- Re-entrancy guards on all GUI button handlers
+- DRY: VF constants class, shared export helpers, centralized model loader
+- Repo root decluttered: docs moved, junk deleted, README updated
+
 ## [1.0.14] - 2026-02-28
 
 ### Improved
