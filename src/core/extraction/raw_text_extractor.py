@@ -319,6 +319,32 @@ class RawTextExtractor:
         """Core PDF processing logic (extracted for portfolio support)."""
         from src.config import MIN_DICTIONARY_CONFIDENCE
 
+        # Step 0: Pre-scan for scanned pages (fast, avoids unnecessary extraction)
+        with Timer("Scanned page pre-detection"):
+            scanned_pages, all_scanned = self.pdf_extractor.detect_scanned_pages(file_path)
+
+        if all_scanned:
+            logger.debug("All pages are scanned — skipping digital extraction, going to OCR")
+            if not self.ocr_allowed:
+                return {
+                    "status": "ocr_skipped",
+                    "error_message": "OCR skipped — Tesseract not installed.",
+                    "text": None,
+                    "method": None,
+                    "confidence": 0,
+                    "page_count": None,
+                }
+            with Timer("Full OCR (all scanned)"):
+                ocr_result = self.ocr_processor.process_pdf(file_path)
+            return {
+                "status": ocr_result["status"],
+                "error_message": ocr_result.get("error_message"),
+                "text": ocr_result["text"],
+                "method": ocr_result["method"],
+                "confidence": ocr_result["confidence"],
+                "page_count": ocr_result["page_count"],
+            }
+
         # Step 1: Try PyMuPDF extraction (primary)
         # Uses facade methods so tests can mock them
         with Timer("PyMuPDF text extraction"):
@@ -374,13 +400,17 @@ class RawTextExtractor:
                 "page_count": page_count,
             }
 
-        # Step 4: Check text quality
+        # Step 4: Check text quality and CID markers
         with Timer("Dictionary confidence check"):
             confidence = self._calculate_dictionary_confidence(text)
         logger.debug("Dictionary confidence: %.1f%% (method: %s)", confidence, method)
 
+        has_cid = PDFExtractor.has_cid_problem(text)
+        if has_cid:
+            logger.debug("CID markers detected — will trigger OCR fallback")
+
         # Decision: Use digital text or fall back to OCR
-        needs_ocr = confidence <= MIN_DICTIONARY_CONFIDENCE or len(text) <= 1000
+        needs_ocr = confidence <= MIN_DICTIONARY_CONFIDENCE or len(text) <= 1000 or has_cid
 
         if needs_ocr and not self.ocr_allowed:
             logger.debug(
@@ -410,6 +440,21 @@ class RawTextExtractor:
                 "page_count": ocr_result["page_count"],
             }
 
+        # Step 5: Splice OCR text for scanned pages in mixed documents
+        if scanned_pages and self.ocr_allowed:
+            # Convert 0-indexed scanned_pages to 1-indexed for OCR
+            ocr_page_nums = sorted(p + 1 for p in scanned_pages)
+            logger.debug("Mixed document: OCR-ing scanned pages %s", ocr_page_nums)
+
+            with Timer("Per-page OCR for mixed document"):
+                ocr_result = self.ocr_processor.process_pages(file_path, ocr_page_nums, page_count)
+
+            if ocr_result["status"] == "success" and ocr_result["pages"]:
+                text = self._splice_ocr_pages(text, ocr_result["pages"])
+                method = "hybrid_voting+partial_ocr"
+                # Recalculate confidence with spliced text
+                confidence = self._calculate_dictionary_confidence(text)
+
         # Digital extraction succeeded
         return {
             "status": "success",
@@ -419,6 +464,28 @@ class RawTextExtractor:
             "confidence": int(confidence),
             "page_count": page_count,
         }
+
+    @staticmethod
+    def _splice_ocr_pages(digital_text: str, ocr_pages: dict[int, str]) -> str:
+        """
+        Replace scanned pages in digital text with OCR results.
+
+        Splits digital text on form-feed (\\f) page separators, replaces
+        pages that were OCR'd, and rejoins.
+
+        Args:
+            digital_text: Full digital extraction with \\f page separators
+            ocr_pages: Dict mapping 1-indexed page numbers to OCR text
+
+        Returns:
+            Text with scanned pages replaced by OCR text.
+        """
+        pages = digital_text.split("\f")
+        for page_num, ocr_text in ocr_pages.items():
+            idx = page_num - 1  # Convert 1-indexed to 0-indexed
+            if 0 <= idx < len(pages):
+                pages[idx] = ocr_text
+        return "\f".join(pages)
 
     # =========================================================================
     # BACKWARD COMPATIBILITY - Delegation wrappers for tests

@@ -29,6 +29,7 @@ import pdfplumber
 from src.config import MIN_DICTIONARY_CONFIDENCE
 from src.logging_config import Timer
 
+from .column_detector import extract_page_text
 from .dictionary_utils import DictionaryTextValidator
 from .layout_analyzer import LayoutAnalyzer
 
@@ -104,6 +105,100 @@ class PDFExtractor:
         """
         self.dictionary = dictionary
         self._layout_analyzer = LayoutAnalyzer()
+
+    def detect_scanned_pages(self, file_path: Path) -> tuple[set[int], bool]:
+        """
+        Pre-scan PDF to identify which pages are scanned images vs digital text.
+
+        A page is considered "scanned" if it has an image covering >90% of the
+        page area AND contains fewer than 50 characters of extractable text.
+
+        Args:
+            file_path: Path to the PDF file
+
+        Returns:
+            Tuple of (scanned_page_indices, all_scanned) where indices are
+            0-based page numbers and all_scanned is True if every page is scanned.
+        """
+        scanned = set()
+        try:
+            with fitz.open(file_path) as doc:
+                page_count = len(doc)
+                if page_count == 0:
+                    return set(), False
+
+                for i, page in enumerate(doc):
+                    page_area = page.rect.width * page.rect.height
+                    if page_area == 0:
+                        continue
+
+                    # Check if large image covers most of the page
+                    image_rects = page.get_image_rects(page.get_images(full=True))
+                    max_image_coverage = 0.0
+                    for rect in image_rects:
+                        img_area = rect.width * rect.height
+                        coverage = img_area / page_area
+                        if coverage > max_image_coverage:
+                            max_image_coverage = coverage
+
+                    # Check extractable text length
+                    text = page.get_text().strip()
+                    has_little_text = len(text) < 50
+
+                    if max_image_coverage > 0.90 and has_little_text:
+                        scanned.add(i)
+
+                all_scanned = len(scanned) == page_count
+                if scanned:
+                    logger.debug(
+                        "Scanned page detection: %d/%d pages are scanned (all=%s)",
+                        len(scanned),
+                        page_count,
+                        all_scanned,
+                    )
+                return scanned, all_scanned
+
+        except Exception as e:
+            logger.debug("Scanned page detection failed: %s", e)
+            return set(), False
+
+    @staticmethod
+    def has_cid_problem(text: str, threshold: float = 0.05) -> bool:
+        """
+        Check if text contains excessive CID markers indicating broken font encoding.
+
+        CID markers like (cid:72) appear when PDF fonts lack a proper Unicode
+        mapping. If more than `threshold` fraction of words are CID markers,
+        the text is likely unusable without OCR.
+
+        Args:
+            text: Extracted text to check
+            threshold: Fraction of words that must be CID markers to trigger (default 5%)
+
+        Returns:
+            True if CID marker density exceeds the threshold.
+        """
+        import re
+
+        if not text or not text.strip():
+            return False
+
+        words = text.split()
+        if not words:
+            return False
+
+        cid_pattern = re.compile(r"\(cid:\d+\)")
+        cid_count = sum(1 for w in words if cid_pattern.search(w))
+        ratio = cid_count / len(words)
+
+        if ratio > threshold:
+            logger.debug(
+                "CID problem detected: %.1f%% of words are CID markers (%d/%d)",
+                ratio * 100,
+                cid_count,
+                len(words),
+            )
+        return ratio > threshold
 
     def extract(self, file_path: Path) -> dict:
         """
@@ -250,14 +345,14 @@ class PDFExtractor:
                 for i, page in enumerate(doc, 1):
                     if i % 10 == 0:
                         logger.debug("PyMuPDF layout: Extracting page %d/%d", i, page_count)
-                    page_text = page.get_text(clip=clip)
+                    page_text = extract_page_text(page, clip=clip)
                     if page_text:
                         pages_text.append(page_text)
 
                 text = "\f".join(pages_text)
 
                 # Safety check: if clipping removed too much text, reject
-                flat_text = "".join(p.get_text() for p in doc)
+                flat_text = "".join(p.get_text(sort=True) for p in doc)
                 flat_words = len(flat_text.split())
                 clip_words = len(text.split())
 
@@ -318,7 +413,7 @@ class PDFExtractor:
                     if i % 10 == 0:
                         logger.debug("PyMuPDF: Extracting page %d/%d", i, page_count)
 
-                    page_text = page.get_text()
+                    page_text = extract_page_text(page)
                     if page_text:
                         pages_text.append(page_text)
 
@@ -374,7 +469,7 @@ class PDFExtractor:
                     if i % 10 == 0:
                         logger.debug("pdfplumber: Extracting page %d/%d", i, page_count)
 
-                    page_text = page.extract_text()
+                    page_text = page.extract_text(x_tolerance_ratio=0.1)
                     if page_text:
                         pages_text.append(page_text)
 

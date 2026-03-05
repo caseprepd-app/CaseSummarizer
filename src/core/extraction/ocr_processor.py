@@ -214,6 +214,103 @@ class OCRProcessor:
                 "error_message": error_msg,
             }
 
+    def process_pages(self, file_path: Path, page_numbers: list[int], page_count: int) -> dict:
+        """
+        Perform OCR on specific pages of a PDF file.
+
+        Converts only the requested pages to images and runs OCR on them.
+        Page numbers are 1-indexed (matching PDF convention).
+
+        Args:
+            file_path: Path to the PDF file
+            page_numbers: List of 1-indexed page numbers to OCR
+            page_count: Total page count (for result metadata)
+
+        Returns:
+            Dict with keys:
+                - pages: Dict mapping 1-indexed page number to OCR text
+                - method: 'ocr_partial' or 'ocr_partial_enhanced'
+                - confidence: Dictionary confidence percentage of OCR text
+                - status: 'success' or 'error'
+                - error_message: Error description if failed
+        """
+        logger.debug(
+            "Starting per-page OCR on %s: pages %s",
+            file_path.name,
+            page_numbers,
+        )
+
+        try:
+            import pytesseract
+            from pdf2image import convert_from_path
+
+            _configure_tesseract()
+
+            from src.config import POPPLER_BUNDLED_DIR
+
+            poppler_kwargs = {}
+            if POPPLER_BUNDLED_DIR.exists():
+                poppler_kwargs["poppler_path"] = str(POPPLER_BUNDLED_DIR)
+
+            pages_text = {}
+            all_ocr_text = []
+
+            for page_num in sorted(page_numbers):
+                logger.debug("OCR processing page %d/%d", page_num, page_count)
+
+                with Timer(f"PDF to image page {page_num}"):
+                    images = convert_from_path(
+                        str(file_path),
+                        dpi=OCR_DPI,
+                        first_page=page_num,
+                        last_page=page_num,
+                        **poppler_kwargs,
+                    )
+
+                if not images:
+                    logger.warning("No image produced for page %d", page_num)
+                    continue
+
+                image = images[0]
+
+                if self.preprocessor is not None:
+                    image, _stats = self.preprocessor.preprocess(image)
+
+                with Timer(f"OCR page {page_num}"):
+                    page_text = pytesseract.image_to_string(image)
+
+                pages_text[page_num] = page_text
+                all_ocr_text.append(page_text)
+
+            combined = "\n".join(all_ocr_text)
+            confidence = self.dictionary.calculate_confidence(combined) if combined else 0
+
+            return {
+                "pages": pages_text,
+                "method": "ocr_partial_enhanced" if self.preprocessor else "ocr_partial",
+                "confidence": int(confidence),
+                "status": "success",
+                "error_message": None,
+            }
+
+        except Exception as e:
+            error_msg = str(e)
+            if "poppler" in error_msg.lower() or "pdftoppm" in error_msg.lower():
+                error_msg = (
+                    "OCR unavailable -- Poppler binaries are missing or damaged. "
+                    "Try reinstalling the application to restore them."
+                )
+            else:
+                error_msg = f"Per-page OCR failed: {error_msg}"
+
+            return {
+                "pages": {},
+                "method": None,
+                "confidence": 0,
+                "status": "error",
+                "error_message": error_msg,
+            }
+
     def process_image(self, image) -> dict:
         """
         Perform OCR on a single image (PIL Image object).
