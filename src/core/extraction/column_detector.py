@@ -73,12 +73,37 @@ def _cluster_x_positions(blocks: list[tuple], page_width: float) -> list[list[tu
     return columns
 
 
+def _columns_overlap_x(columns: list[list[tuple]]) -> bool:
+    """
+    Check if adjacent column clusters have overlapping block x-ranges.
+
+    In true multi-column layouts (e.g., Min-U-Script 4-up), columns occupy
+    non-overlapping horizontal bands. In indented single-column text (e.g.,
+    legal transcripts with speaker labels), wide body-text blocks span across
+    the "gap" between label and text x-center positions.
+
+    Args:
+        columns: Column groups from _cluster_x_positions, ordered left-to-right.
+                 Each block tuple: (x0, y0, x1, y1, text, block_no, block_type)
+
+    Returns:
+        True if any adjacent pair of columns has overlapping x-ranges
+    """
+    for i in range(len(columns) - 1):
+        left_max_x1 = max(b[2] for b in columns[i])
+        right_min_x0 = min(b[0] for b in columns[i + 1])
+        if left_max_x1 > right_min_x0:
+            return True
+    return False
+
+
 def _is_multi_column(columns: list[list[tuple]]) -> bool:
     """
     Determine if the detected columns represent a true multi-column layout.
 
-    A page is multi-column only if there are 2+ columns, each with enough
-    text blocks to be meaningful (not just a stray margin annotation).
+    A page is multi-column only if there are 2+ significant columns whose
+    block x-ranges do NOT overlap. Overlapping x-ranges indicate indented
+    single-column text (e.g., legal transcripts with speaker labels).
 
     Args:
         columns: Column groups from _cluster_x_positions
@@ -87,7 +112,12 @@ def _is_multi_column(columns: list[list[tuple]]) -> bool:
         True if the page has a genuine multi-column layout
     """
     significant_columns = [c for c in columns if len(c) >= MIN_BLOCKS_PER_COLUMN]
-    return len(significant_columns) >= 2
+    if len(significant_columns) < 2:
+        return False
+    if _columns_overlap_x(significant_columns):
+        logger.debug("Column x-ranges overlap — treating as single-column indented text")
+        return False
+    return True
 
 
 def extract_page_text(

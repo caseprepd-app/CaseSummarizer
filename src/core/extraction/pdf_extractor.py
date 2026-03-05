@@ -1,12 +1,12 @@
 """
-PDF Text Extraction with Hybrid Voting.
+PDF Text Extraction with Best-of-Two Selection.
 
-Extracts text from PDF files using a dual-extractor pipeline with word-level
-voting to maximize accuracy:
+Extracts text from PDF files using a dual-extractor pipeline that picks
+the higher-confidence output:
 
     1. PyMuPDF (primary) - Fast, accurate for most PDFs
     2. pdfplumber (secondary) - Good fallback, different parsing approach
-    3. Word-level voting - When extractors disagree, dictionary words win
+    3. Best-of-two - Score both with dictionary confidence, pick the winner
 
 If text quality is below threshold (60%), falls back to OCR.
 
@@ -16,7 +16,7 @@ Example usage:
     >>> extractor = PDFExtractor(dictionary)
     >>> result = extractor.extract(Path("document.pdf"))
     >>> print(f"Method: {result['method']}, Confidence: {result['confidence']}%")
-    Method: hybrid_voting, Confidence: 85%
+    Method: pymupdf_best, Confidence: 85%
 """
 
 import logging
@@ -217,7 +217,7 @@ class PDFExtractor:
             Dict with keys:
                 - text: Extracted text (or None if failed)
                 - page_count: Number of pages
-                - method: 'hybrid_voting', 'pymupdf_only', 'pdfplumber_only'
+                - method: 'pymupdf_best', 'pdfplumber_best', 'pymupdf_only', 'pdfplumber_only'
                 - confidence: Dictionary confidence percentage
                 - needs_ocr: True if quality too low for digital extraction
                 - error: Error type if extraction failed
@@ -246,31 +246,41 @@ class PDFExtractor:
         # Use whichever page count we got
         page_count = page_count or secondary_page_count
 
-        # Step 3: Determine extraction method based on what succeeded
+        # Step 3: Pick the best extraction by dictionary confidence
         text = None
         method = None
 
         if primary_text and secondary_text:
-            # Both succeeded - reconcile with word-level voting
-            with Timer("Word-level voting reconciliation"):
-                text = self.reconcile_extractions(primary_text, secondary_text)
-            method = "hybrid_voting"
-            logger.debug("Using hybrid extraction with word-level voting")
+            # Both succeeded — score each and pick the winner
+            with Timer("Best-of-two confidence comparison"):
+                primary_conf = self.dictionary.calculate_confidence(primary_text)
+                secondary_conf = self.dictionary.calculate_confidence(secondary_text)
+
+            if primary_conf >= secondary_conf:
+                text = primary_text
+                method = "pymupdf_best"
+            else:
+                text = secondary_text
+                method = "pdfplumber_best"
+
+            logger.debug(
+                "Hybrid extraction: PyMuPDF=%.1f%% vs pdfplumber=%.1f%% → %s",
+                primary_conf,
+                secondary_conf,
+                method,
+            )
 
         elif primary_text:
-            # Only PyMuPDF succeeded
             text = primary_text
             method = "pymupdf_only"
             logger.debug("Using PyMuPDF only (pdfplumber failed: %s)", secondary_error)
 
         elif secondary_text:
-            # Only pdfplumber succeeded
             text = secondary_text
             method = "pdfplumber_only"
             logger.debug("Using pdfplumber only (PyMuPDF failed: %s)", primary_error)
 
         else:
-            # Both failed
             error_type = primary_error or secondary_error or "unknown"
             return {
                 "text": None,

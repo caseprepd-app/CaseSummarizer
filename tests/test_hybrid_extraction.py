@@ -219,7 +219,7 @@ class TestHybridExtractionPipeline:
         assert hasattr(extractor, "_reconcile_extractions")
 
     def test_hybrid_method_reported(self, extractor):
-        """When both extractors succeed, method should be 'hybrid_voting'."""
+        """When both extractors succeed, method should be best-of-two."""
         # Create long enough text to pass the >1000 char check
         long_text = "The plaintiff filed a motion. " * 50  # ~1500 chars
 
@@ -231,6 +231,6 @@ class TestHybridExtractionPipeline:
 
         result = extractor._process_pdf(Path("test.pdf"))
 
-        assert result["method"] == "hybrid_voting"
+        assert result["method"] in ("pymupdf_best", "pdfplumber_best")
         assert result["status"] == "success"
         assert result["confidence"] > 0

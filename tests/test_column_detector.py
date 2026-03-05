@@ -70,9 +70,18 @@ class TestIsMultiColumn:
     def test_single_column_not_multi(self):
         assert _is_multi_column([[(0,) * 7] * 10]) is False
 
-    def test_two_significant_columns(self):
-        col1 = [(0,) * 7] * MIN_BLOCKS_PER_COLUMN
-        col2 = [(0,) * 7] * MIN_BLOCKS_PER_COLUMN
+    def test_two_significant_non_overlapping_columns(self):
+        """Two significant columns with non-overlapping x-ranges → multi-column."""
+        # Left column blocks: x0=50, x1=280
+        col1 = [
+            (50, 100 + i * 30, 280, 120 + i * 30, f"L{i}", i, 0)
+            for i in range(MIN_BLOCKS_PER_COLUMN)
+        ]
+        # Right column blocks: x0=320, x1=560 (no overlap with left)
+        col2 = [
+            (320, 100 + i * 30, 560, 120 + i * 30, f"R{i}", i + 10, 0)
+            for i in range(MIN_BLOCKS_PER_COLUMN)
+        ]
         assert _is_multi_column([col1, col2]) is True
 
     def test_one_column_too_small(self):
@@ -172,3 +181,83 @@ class TestExtractPageText:
         clip = fitz.Rect(40, 90, 300, 400)
         result = extract_page_text(page, clip=clip)
         assert "clipped text" in result
+
+    def test_transcript_indented_text_is_single_column(self):
+        """Legal transcript with speaker labels + indented body → single column.
+
+        Speaker labels at x=72-200, body text at x=200-550. The body text
+        x-range overlaps with the label x-range, so this should NOT be
+        detected as multi-column.
+        """
+        page_width = 612
+        blocks = []
+        # Speaker labels (narrow, left-aligned) — centers near x=136
+        for i in range(4):
+            y = 100 + i * 60
+            blocks.append((72, y, 200, y + 15, f"SPEAKER {i}:", i, 0))
+        # Body text (wide, indented but overlapping label x-range)
+        # In real transcripts, body blocks often start inside the label region
+        for i in range(4):
+            y = 115 + i * 60
+            blocks.append((180, y, 550, y + 15, f"Body text line {i}", i + 10, 0))
+
+        page = self._make_page(blocks, width=page_width)
+        result = extract_page_text(page)
+        # Should use sort=True (single-column), so reading order is by y
+        assert result.index("SPEAKER 0") < result.index("Body text line 0")
+        assert result.index("Body text line 0") < result.index("SPEAKER 1")
+
+    def test_true_multi_column_still_detected(self):
+        """True multi-column (non-overlapping x-ranges) still works."""
+        page_width = 612
+        blocks = []
+        # Left column: x=50-280
+        for i in range(4):
+            y = 100 + i * 30
+            blocks.append((50, y, 280, y + 20, f"L{i + 1}", i, 0))
+        # Right column: x=320-560 (clear gap, no overlap)
+        for i in range(4):
+            y = 100 + i * 30
+            blocks.append((320, y, 560, y + 20, f"R{i + 1}", i + 4, 0))
+
+        page = self._make_page(blocks, width=page_width)
+        result = extract_page_text(page)
+        # Multi-column: all left before any right
+        assert result.index("L4") < result.index("R1")
+
+
+class TestColumnsOverlapX:
+    """Tests for the _columns_overlap_x helper."""
+
+    def test_non_overlapping_columns(self):
+        """Columns with clear gap between x-ranges → no overlap."""
+        from src.core.extraction.column_detector import _columns_overlap_x
+
+        col1 = [(50, 100, 280, 120, "a", 0, 0), (50, 130, 280, 150, "b", 1, 0)]
+        col2 = [(320, 100, 560, 120, "c", 2, 0), (320, 130, 560, 150, "d", 3, 0)]
+        assert _columns_overlap_x([col1, col2]) is False
+
+    def test_overlapping_columns(self):
+        """Body text x1 extends past next column's x0 → overlap."""
+        from src.core.extraction.column_detector import _columns_overlap_x
+
+        col1 = [(72, 100, 200, 120, "label", 0, 0), (72, 130, 200, 150, "label2", 1, 0)]
+        col2 = [(200, 100, 550, 120, "body", 2, 0), (200, 130, 550, 150, "body2", 3, 0)]
+        # col1 max x1 = 200, col2 min x0 = 200 → NOT overlapping (equal, not greater)
+        assert _columns_overlap_x([col1, col2]) is False
+
+    def test_overlapping_columns_body_spans_past(self):
+        """Left column block extends into right column's x-range."""
+        from src.core.extraction.column_detector import _columns_overlap_x
+
+        col1 = [(72, 100, 350, 120, "wide block", 0, 0)]
+        col2 = [(300, 100, 550, 120, "right block", 1, 0)]
+        # col1 max x1=350 > col2 min x0=300 → overlap
+        assert _columns_overlap_x([col1, col2]) is True
+
+    def test_empty_columns(self):
+        """Single column list → no adjacent pairs → no overlap."""
+        from src.core.extraction.column_detector import _columns_overlap_x
+
+        col1 = [(50, 100, 280, 120, "a", 0, 0)]
+        assert _columns_overlap_x([col1]) is False

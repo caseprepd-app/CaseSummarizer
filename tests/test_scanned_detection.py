@@ -423,7 +423,7 @@ class TestProcessPdfInnerRouting:
 
             result = ext._process_pdf_inner(Path("mixed.pdf"))
 
-        assert result["method"] == "hybrid_voting+partial_ocr"
+        assert result["method"].endswith("+partial_ocr")
         ext.ocr_processor.process_pages.assert_called_once()
 
 

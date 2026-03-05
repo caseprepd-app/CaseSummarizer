@@ -364,11 +364,9 @@ class RawTextExtractor:
         method = None
 
         if primary_text and secondary_text:
-            # Both succeeded - reconcile with word-level voting
-            with Timer("Word-level voting reconciliation"):
-                text = self._reconcile_extractions(primary_text, secondary_text)
-            method = "hybrid_voting"
-            logger.debug("Using hybrid extraction with word-level voting")
+            # Both succeeded — pick the one with higher dictionary confidence
+            with Timer("Best-of-two confidence comparison"):
+                text, method = self._pick_best_extraction(primary_text, secondary_text)
 
         elif primary_text:
             text = primary_text
@@ -451,7 +449,7 @@ class RawTextExtractor:
 
             if ocr_result["status"] == "success" and ocr_result["pages"]:
                 text = self._splice_ocr_pages(text, ocr_result["pages"])
-                method = "hybrid_voting+partial_ocr"
+                method = f"{method}+partial_ocr"
                 # Recalculate confidence with spliced text
                 confidence = self._calculate_dictionary_confidence(text)
 
@@ -531,6 +529,34 @@ class RawTextExtractor:
     def _extract_case_numbers(self, text: str) -> list[str]:
         """Delegate to case extractor module (for test compatibility)."""
         return self.case_extractor.extract(text)
+
+    def _pick_best_extraction(self, primary_text: str, secondary_text: str) -> tuple[str, str]:
+        """Pick the extractor output with higher dictionary confidence.
+
+        Args:
+            primary_text: Text from PyMuPDF
+            secondary_text: Text from pdfplumber
+
+        Returns:
+            Tuple of (best_text, method_name)
+        """
+        primary_conf = self._calculate_dictionary_confidence(primary_text)
+        secondary_conf = self._calculate_dictionary_confidence(secondary_text)
+
+        if primary_conf >= secondary_conf:
+            method = "pymupdf_best"
+        else:
+            method = "pdfplumber_best"
+
+        logger.debug(
+            "Hybrid extraction: PyMuPDF=%.1f%% vs pdfplumber=%.1f%% → %s",
+            primary_conf,
+            secondary_conf,
+            method,
+        )
+
+        best_text = primary_text if primary_conf >= secondary_conf else secondary_text
+        return best_text, method
 
     def _reconcile_extractions(self, primary_text: str, secondary_text: str) -> str:
         """Delegate to PDF extractor module (for test compatibility)."""
