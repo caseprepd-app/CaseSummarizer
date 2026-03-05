@@ -30,7 +30,7 @@ from tkinter import Menu, filedialog, messagebox, ttk
 
 import customtkinter as ctk
 
-from src.config import SORT_WARNING_COLUMNS, USER_VOCAB_EXCLUDE_PATH
+from src.config import SORT_WARNING_COLUMNS, USER_VOCAB_EXCLUDE_PATH, VF
 from src.ui.qa_panel import QAPanel
 
 logger = logging.getLogger(__name__)
@@ -1250,7 +1250,6 @@ class DynamicOutputWidget(ctk.CTkFrame):
             return
 
         # Filter by quality score floor
-        # TODO: Test score floor filtering for both GUI display and CSV export
         from src.user_preferences import get_user_preferences
 
         prefs = get_user_preferences()
@@ -2222,9 +2221,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
                             VF.BM25,
                             VF.TOPICRANK,
                             VF.MEDICALNER,
-                            VF.GLINER,
                             VF.YAKE,
-                            VF.KEYBERT,
                             VF.ALGO_COUNT,
                         ]
                     )
