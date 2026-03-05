@@ -627,16 +627,20 @@ class TestModelIOFeedbackExport:
         valid, msg, _ = _validate_csv_columns(csv_file)
         assert valid is False
 
-    def test_validate_csv_unrecognized_columns(self, tmp_path):
+    def test_validate_csv_extra_columns_tolerated(self, tmp_path):
+        """Extra columns (e.g. from older versions) are tolerated, not rejected."""
         from src.services.model_io_service import _validate_csv_columns
 
         csv_file = tmp_path / "extra.csv"
         with open(csv_file, "w", encoding="utf-8", newline="") as f:
             writer = csv.writer(f)
-            writer.writerow(["term", "feedback", "timestamp", "EXTRA_COL"])
+            writer.writerow(
+                ["term", "feedback", "timestamp", "GLiNER_detection", "KeyBERT_detection"]
+            )
 
         valid, msg, _ = _validate_csv_columns(csv_file)
-        assert valid is False
+        assert valid is True
+        assert "dropped" in msg
         assert "unrecognized" in msg
 
 

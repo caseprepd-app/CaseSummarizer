@@ -330,8 +330,8 @@ class TestPackageDataAccessibility:
 # ============================================================================
 # P1 - Download Script Cross-Reference
 # ============================================================================
-# If download_models.py saves to "gliner_medium-v2.1" but config.py expects
-# a different name, the bundled app fails silently at runtime.
+# If download_models.py saves to a different name than config.py expects,
+# the bundled app fails silently at runtime.
 
 
 class TestDownloadScriptCrossReference:

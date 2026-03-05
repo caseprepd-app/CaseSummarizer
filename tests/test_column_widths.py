@@ -207,7 +207,7 @@ class TestComputeColumnWidths:
         """Found By column is capped at 20% of available width."""
         from src.ui.vocab_table.column_config import compute_column_widths
 
-        sample = [{"Found By": "RAKE, NER, BM25, GLiNER, LLM, ScispaCy"}] * 10
+        sample = [{"Found By": "RAKE, NER, BM25, TopicRank, YAKE, MedicalNER"}] * 10
         result = compute_column_widths(
             ["Found By"], ("Segoe UI", 10), ("Segoe UI", 10, "bold"), 800, data_sample=sample
         )

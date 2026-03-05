@@ -175,12 +175,16 @@ def _validate_csv_columns(src_path: Path) -> tuple[bool, str, list[str]]:
     extra = headers_set - expected_set
     missing_optional = expected_set - headers_set
 
-    if extra:
-        return False, f"CSV has unrecognized columns: {', '.join(sorted(extra))}", headers
-
     warning = ""
+    if extra:
+        # Tolerate columns from older versions (e.g. GLiNER_detection,
+        # KeyBERT_detection, keybert_score) — they'll be silently dropped
+        # by DictWriter(extrasaction="ignore") during write-back.
+        logger.debug("Ignoring extra CSV columns from older version: %s", sorted(extra))
+        warning += f" (dropped {len(extra)} unrecognized column(s): {', '.join(sorted(extra))})"
+
     if missing_optional:
-        warning = f" (missing optional columns: {', '.join(sorted(missing_optional))} — defaults will be used during training)"
+        warning += f" (missing optional columns: {', '.join(sorted(missing_optional))} — defaults will be used during training)"
 
     return True, warning, headers
 

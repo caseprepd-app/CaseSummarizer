@@ -50,7 +50,7 @@ SAMPLE_PDFS = list(SAMPLE_DOCS_DIR.glob("*.pdf"))
 
 # Timeouts (seconds)
 PREPROCESSING_TIMEOUT = 120  # 2 minutes per file
-PHASE1_TIMEOUT = 600  # 10 minutes for NER/RAKE/GLiNER/BM25 on CPU
+PHASE1_TIMEOUT = 600  # 10 minutes for NER/RAKE/BM25/TopicRank/YAKE on CPU
 PHASE2_TIMEOUT = 600  # 10 minutes for Q&A indexing (CPU embedding can be very slow)
 PHASE3_TIMEOUT = 600  # 10 minutes for LLM (if enabled)
 TOTAL_TIMEOUT = 900  # 15 minutes total
