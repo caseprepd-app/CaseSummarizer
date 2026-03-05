@@ -6,7 +6,7 @@ Extracts feature vectors from term data for ML model training and prediction.
 Features include:
 - Count bins (one-hot encoded occurrence frequency)
 - freq_per_1k_words: Scale-independent document density (occurrences per 1K words)
-- Algorithm source features (NER, RAKE, BM25, TopicRank, MedicalNER, GLiNER, YAKE, KeyBERT)
+- Algorithm source features (NER, RAKE, BM25, TopicRank, MedicalNER, YAKE)
 - Character/format features (artifact detection)
 - Document quality features
 - Name validation features
@@ -120,19 +120,16 @@ FEATURE_NAMES = [
     "count_bin_21_plus",  # 21+ occurrences (frequent/major figure)
     "log_count",  # Log-scaled count preserving magnitude (log10(count+1))
     "freq_per_1k_words",  # Scale-independent density (count / (total_words / 1000))
-    # Algorithm binary flags (8)
+    # Algorithm binary flags (6)
     "has_ner",
     "has_rake",
     "has_bm25",  # Per-algorithm tracking
     "has_topicrank",  # Binary: TopicRank found this term
     "has_medical_ner",  # Binary: MedicalNER (medspacy) found this term
-    "has_gliner",  # Binary: GLiNER found this term
     "has_yake",  # Binary: YAKE found this term
-    "has_keybert",  # Binary: KeyBERT found this term
-    # Algorithm scores (5)
+    # Algorithm scores (4)
     "topicrank_score",  # TopicRank centrality score (0-1)
     "yake_score",  # Inverted YAKE score (higher = more important, 0-1)
-    "keybert_score",  # KeyBERT cosine similarity (0-1)
     "rake_score",  # Normalized RAKE score (0-1, higher = better keyphrase)
     "bm25_score",  # Normalized BM25 score (0-1, higher = better corpus relevance)
     "is_person",  # NER person detection - the only reliable type info
@@ -197,7 +194,7 @@ def extract_features(term_data: dict[str, Any]) -> np.ndarray:
                   May include "sources" (TermSources) and "total_docs_in_session"
 
     Returns:
-        numpy array of 56 features (5 count bins + log_count + 50 other features)
+        numpy array of 53 features (5 count bins + log_count + 47 other features)
 
     Raises:
         ValueError: If term_data is not a dict or missing required fields
@@ -248,7 +245,7 @@ def extract_features(term_data: dict[str, Any]) -> np.ndarray:
 
     # === ALGORITHM SOURCE FEATURES ===
     # Split into a set to avoid substring false positives
-    # (e.g., "ner" matching inside "medicalner" or "gliner")
+    # (e.g., "ner" matching inside "medicalner")
     algorithms = str(term_data.get("algorithms", "")).lower()
     algo_set = {a.strip() for a in algorithms.replace(",", " ").split() if a.strip()}
     has_ner = 1.0 if "ner" in algo_set else 0.0
@@ -256,14 +253,11 @@ def extract_features(term_data: dict[str, Any]) -> np.ndarray:
     has_bm25 = 1.0 if "bm25" in algo_set else 0.0
     has_topicrank = 1.0 if "topicrank" in algo_set or "textrank" in algo_set else 0.0
     has_medical_ner = 1.0 if "medicalner" in algo_set else 0.0
-    has_gliner = 1.0 if "gliner" in algo_set else 0.0
     has_yake = 1.0 if "yake" in algo_set else 0.0
-    has_keybert = 1.0 if "keybert" in algo_set else 0.0
     topicrank_score = float(
         term_data.get("topicrank_score", 0.0) or term_data.get("textrank_score", 0.0)
     )
     yake_score = float(term_data.get("yake_score", 0.0))
-    keybert_score = float(term_data.get("keybert_score", 0.0))
 
     # RAKE and BM25 scores — normalize to 0-1 (algorithms use score/15 for confidence)
     rake_score_raw = float(term_data.get("rake_score", 0.0))
@@ -490,19 +484,16 @@ def extract_features(term_data: dict[str, Any]) -> np.ndarray:
             count_bin_21_plus,
             log_count,  # Log-scaled count for magnitude within bins
             freq_per_1k_words,  # Scale-independent density
-            # Algorithm binary flags (8)
+            # Algorithm binary flags (6)
             has_ner,
             has_rake,
             has_bm25,
             has_topicrank,
             has_medical_ner,
-            has_gliner,
             has_yake,
-            has_keybert,
-            # Algorithm scores (5)
+            # Algorithm scores (4)
             topicrank_score,
             yake_score,
-            keybert_score,
             rake_score_norm,
             bm25_score_norm,
             # Type feature (1)

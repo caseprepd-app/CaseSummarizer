@@ -36,22 +36,15 @@ def _make_term_dict(
     bm25="No",
     topicrank="No",
     medical_ner="No",
-    gliner="No",
     yake="No",
-    keybert="No",
     role="Vocabulary term",
     topicrank_score=0.0,
     yake_score=0.0,
-    keybert_score=0.0,
     rake_score=0.0,
     bm25_score=0.0,
 ):
     """Build a minimal vocab term dict matching extract() output schema."""
-    algo_count = sum(
-        1
-        for flag in [ner, rake, bm25, topicrank, medical_ner, gliner, yake, keybert]
-        if flag == "Yes"
-    )
+    algo_count = sum(1 for flag in [ner, rake, bm25, topicrank, medical_ner, yake] if flag == "Yes")
     sources_str = ", ".join(
         name
         for name, flag in [
@@ -60,9 +53,7 @@ def _make_term_dict(
             ("BM25", bm25),
             ("TopicRank", topicrank),
             ("MedicalNER", medical_ner),
-            ("GLiNER", gliner),
             ("YAKE", yake),
-            ("KeyBERT", keybert),
         ]
         if flag == "Yes"
     )
@@ -80,9 +71,7 @@ def _make_term_dict(
         "BM25": bm25,
         "TopicRank": topicrank,
         "MedicalNER": medical_ner,
-        "GLiNER": gliner,
         "YAKE": yake,
-        "KeyBERT": keybert,
         "Algo Count": algo_count,
         "# Docs": 1,
         "OCR Confidence": "95%",
@@ -97,7 +86,6 @@ def _make_term_dict(
         "source_doc_confidence": 95.0,
         "topicrank_score": topicrank_score,
         "yake_score": yake_score,
-        "keybert_score": keybert_score,
         "rake_score": rake_score,
         "bm25_score": bm25_score,
     }
@@ -283,16 +271,15 @@ class TestMergeTermAcrossDocs:
 
         assert merged["source_doc_confidence"] == 60.0
 
-    def test_yake_keybert_flags_union(self, extractor):
-        """YAKE/KeyBERT flags should be 'Yes' if ANY doc had them."""
+    def test_yake_flag_union(self, extractor):
+        """YAKE flag should be 'Yes' if ANY doc had it."""
         doc_entries = [
-            ("doc1", 95.0, _make_term_dict(term="test", yake="Yes", keybert="No")),
-            ("doc2", 90.0, _make_term_dict(term="test", yake="No", keybert="Yes")),
+            ("doc1", 95.0, _make_term_dict(term="test", yake="Yes")),
+            ("doc2", 90.0, _make_term_dict(term="test", yake="No")),
         ]
         merged = extractor._merge_term_across_docs(doc_entries, total_docs=2, total_unique=5)
 
         assert merged["YAKE"] == "Yes"
-        assert merged["KeyBERT"] == "Yes"
 
     def test_yake_score_takes_min(self, extractor):
         """yake_score should be min across docs (lower inverted = better)."""
@@ -304,39 +291,28 @@ class TestMergeTermAcrossDocs:
 
         assert merged["yake_score"] == 0.3
 
-    def test_keybert_score_takes_max(self, extractor):
-        """keybert_score should be max across docs."""
-        doc_entries = [
-            ("doc1", 95.0, _make_term_dict(term="test", keybert_score=0.5)),
-            ("doc2", 90.0, _make_term_dict(term="test", keybert_score=0.9)),
-        ]
-        merged = extractor._merge_term_across_docs(doc_entries, total_docs=2, total_unique=5)
-
-        assert merged["keybert_score"] == 0.9
-
-    def test_algo_count_includes_yake_keybert(self, extractor):
-        """Algo count should include YAKE and KeyBERT."""
+    def test_algo_count_includes_yake(self, extractor):
+        """Algo count should include YAKE."""
         doc_entries = [
             (
                 "doc1",
                 95.0,
-                _make_term_dict(term="test", ner="Yes", yake="Yes", keybert="Yes"),
+                _make_term_dict(term="test", ner="Yes", yake="Yes"),
             ),
         ]
         merged = extractor._merge_term_across_docs(doc_entries, total_docs=1, total_unique=5)
 
-        assert merged["Algo Count"] == 3  # NER + YAKE + KeyBERT
+        assert merged["Algo Count"] == 2  # NER + YAKE
 
-    def test_medical_ner_gliner_flags_union(self, extractor):
-        """MedicalNER/GLiNER flags should be 'Yes' if ANY doc had them."""
+    def test_medical_ner_flag_union(self, extractor):
+        """MedicalNER flag should be 'Yes' if ANY doc had it."""
         doc_entries = [
             ("doc1", 95.0, _make_term_dict(term="radiculopathy", medical_ner="Yes")),
-            ("doc2", 90.0, _make_term_dict(term="radiculopathy", gliner="Yes")),
+            ("doc2", 90.0, _make_term_dict(term="radiculopathy")),
         ]
         merged = extractor._merge_term_across_docs(doc_entries, total_docs=2, total_unique=5)
 
         assert merged["MedicalNER"] == "Yes"
-        assert merged["GLiNER"] == "Yes"
 
     def test_rake_score_takes_max(self, extractor):
         """rake_score should be max across docs."""
@@ -358,8 +334,8 @@ class TestMergeTermAcrossDocs:
 
         assert merged["bm25_score"] == 5.5
 
-    def test_algo_count_includes_all_eight(self, extractor):
-        """Algo count should include all 8 algorithms."""
+    def test_algo_count_includes_all_six(self, extractor):
+        """Algo count should include all 6 active algorithms."""
         doc_entries = [
             (
                 "doc1",
@@ -371,15 +347,13 @@ class TestMergeTermAcrossDocs:
                     bm25="Yes",
                     topicrank="Yes",
                     medical_ner="Yes",
-                    gliner="Yes",
                     yake="Yes",
-                    keybert="Yes",
                 ),
             ),
         ]
         merged = extractor._merge_term_across_docs(doc_entries, total_docs=1, total_unique=5)
 
-        assert merged["Algo Count"] == 8
+        assert merged["Algo Count"] == 6
 
 
 # =========================================================================

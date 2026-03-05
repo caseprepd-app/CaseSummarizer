@@ -247,8 +247,8 @@ def test_best_score_wins_when_multiple_candidates():
     assert merged[0].metadata.get("rake_score") == 8.5
 
 
-def test_all_five_score_keys_promoted():
-    """All 5 algorithm score keys should be promoted when present."""
+def test_all_four_score_keys_promoted():
+    """All 4 algorithm score keys should be promoted when present."""
     candidates = [
         CandidateTerm(
             term="test",
@@ -263,13 +263,6 @@ def test_all_five_score_keys_promoted():
             confidence=0.8,
             frequency=1,
             metadata={"yake_score": 0.05},
-        ),
-        CandidateTerm(
-            term="test",
-            source_algorithm="KeyBERT",
-            confidence=0.7,
-            frequency=1,
-            metadata={"keybert_score": 0.88},
         ),
         CandidateTerm(
             term="test",
@@ -293,7 +286,6 @@ def test_all_five_score_keys_promoted():
     m = merged[0].metadata
     assert m["topicrank_score"] == 0.3
     assert m["yake_score"] == 0.05
-    assert m["keybert_score"] == 0.88
     assert m["rake_score"] == 7.2
     assert m["bm25_score"] == 12.1
 

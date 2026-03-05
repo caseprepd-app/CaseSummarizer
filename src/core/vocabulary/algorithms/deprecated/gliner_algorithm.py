@@ -1,4 +1,8 @@
 """
+DEPRECATED: Too slow for large documents without GPU. 209MB model, chunks text
+into ~300-word pieces. Overlaps significantly with the faster algorithms (NER,
+RAKE, YAKE, TopicRank). Preserved here for reference.
+
 GLiNER Zero-Shot NER Algorithm
 
 Uses GLiNER (Generalist and Lightweight model for Named Entity Recognition)
@@ -19,7 +23,18 @@ import threading
 import time
 from typing import Any
 
-from src.config import GLINER_DEFAULT_LABELS, VOCAB_ALGORITHM_WEIGHTS
+from src.config import VOCAB_ALGORITHM_WEIGHTS
+
+# Inlined from deleted config.py constant (algorithm is deprecated)
+GLINER_DEFAULT_LABELS = [
+    "anatomical body part",
+    "medical procedure",
+    "medical condition",
+    "medication",
+    "chemical compound",
+    "specialized scientific term",
+    "foreign phrase",
+]
 from src.core.vocabulary.algorithms import register_algorithm
 from src.core.vocabulary.algorithms.base import (
     AlgorithmResult,

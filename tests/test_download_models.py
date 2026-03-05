@@ -68,7 +68,6 @@ class TestModuleStructure:
         repo_ids = {entry[0] for entry in download_module.HF_MODELS}
         expected = {
             "tinylettuce/ettin-68m-en",
-            "urchade/gliner_medium-v2.1",
             "nomic-ai/nomic-embed-text-v1.5",
             "sentence-transformers/all-MiniLM-L6-v2",
             "Alibaba-NLP/gte-reranker-modernbert-base",

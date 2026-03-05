@@ -17,7 +17,6 @@ Models downloaded:
     models/nltk_data/corpora/stopwords/      (rake-nltk dependency)
     models/nltk_data/tokenizers/punkt_tab/   (rake-nltk sentence tokenizer)
     models/tinylettuce-ettin-68m-en/      (hallucination detector)
-    models/gliner_medium-v2.1/            (zero-shot NER)
     models/embeddings/nomic-embed-text-v1.5/  (FAISS embeddings)
     models/gte-reranker-modernbert-base/  (cross-encoder reranker)
     models/coref/f-coref/                 (coreference resolution)
@@ -45,7 +44,6 @@ NLTK_DIR = MODELS_DIR / "nltk_data"
 # HuggingFace models: (repo_id, local_subdir, ignore_patterns)
 HF_MODELS = [
     ("tinylettuce/ettin-68m-en", "tinylettuce-ettin-68m-en", None),
-    ("urchade/gliner_medium-v2.1", "gliner_medium-v2.1", None),
     (
         "nomic-ai/nomic-embed-text-v1.5",
         "embeddings/nomic-embed-text-v1.5",

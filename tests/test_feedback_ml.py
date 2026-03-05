@@ -152,8 +152,8 @@ class TestFeedbackManager:
         feedback_manager.set_document_id(doc_id)
         assert feedback_manager._current_doc_id == doc_id
 
-    def test_records_all_eight_algorithm_flags(self, temp_feedback_dir):
-        """Feedback CSV should record detection flags for all 8 algorithms."""
+    def test_records_all_six_algorithm_flags(self, temp_feedback_dir):
+        """Feedback CSV should record detection flags for all 6 algorithms."""
         import csv
 
         nonexistent_default = temp_feedback_dir / "default_feedback.csv"
@@ -162,7 +162,7 @@ class TestFeedbackManager:
         )
         term_data = {
             "Term": "radiculopathy",
-            "Sources": "NER, RAKE, BM25, TopicRank, MedicalNER, GLiNER, YAKE, KeyBERT",
+            "Sources": "NER, RAKE, BM25, TopicRank, MedicalNER, YAKE",
             "Quality Score": 90,
             "Occurrences": 5,
             "Google Rarity Rank": 0,
@@ -179,10 +179,8 @@ class TestFeedbackManager:
         assert row["BM25_detection"] == "True"
         assert row["TopicRank_detection"] == "True"
         assert row["MedicalNER_detection"] == "True"
-        assert row["GLiNER_detection"] == "True"
         assert row["YAKE_detection"] == "True"
-        assert row["KeyBERT_detection"] == "True"
-        assert row["algo_count"] == "8"
+        assert row["algo_count"] == "6"
 
     def test_records_algorithm_scores(self, temp_feedback_dir):
         """Feedback CSV should record numeric algorithm scores."""
@@ -194,12 +192,11 @@ class TestFeedbackManager:
         )
         term_data = {
             "Term": "radiculopathy",
-            "Sources": "TopicRank, YAKE, KeyBERT, RAKE, BM25",
+            "Sources": "TopicRank, YAKE, RAKE, BM25",
             "Quality Score": 85,
             "Occurrences": 3,
             "topicrank_score": 0.45,
             "yake_score": 0.12,
-            "keybert_score": 0.88,
             "rake_score": 7.2,
             "bm25_score": 12.1,
         }
@@ -211,7 +208,6 @@ class TestFeedbackManager:
         row = rows[0]
         assert float(row["topicrank_score"]) == 0.45
         assert float(row["yake_score"]) == 0.12
-        assert float(row["keybert_score"]) == 0.88
         assert float(row["rake_score"]) == 7.2
         assert float(row["bm25_score"]) == 12.1
 
@@ -274,7 +270,7 @@ class TestVocabularyPreferenceLearner:
             "total_unique_terms": 100,
         }
         features = extract_features(term_data)
-        assert len(features) == 56  # 5 count bins + log_count + 50 other features
+        assert len(features) == 53  # 5 count bins + log_count + 47 other features
         # features[0-4] are count bins: count=3 → count_bin_2_3=1.0
         assert features[0] == 0.0  # count_bin_1
         assert features[1] == 1.0  # count_bin_2_3 (count=3)
@@ -286,19 +282,16 @@ class TestVocabularyPreferenceLearner:
         # features[6] is freq_per_1k_words: no total_word_count, fallback uses
         # total_unique_terms=100 → 3 / max(100/1000, 0.1) = 3/0.1 = 30.0
         assert features[6] == 30.0
-        # features[7-14] are algorithm binary flags
+        # features[7-12] are algorithm binary flags (6 algorithms)
         assert features[7] == 1.0  # has_ner
         assert features[8] == 1.0  # has_rake
         assert features[9] == 0.0  # has_bm25
         assert features[10] == 0.0  # has_topicrank
         assert features[11] == 0.0  # has_medical_ner
-        assert features[12] == 0.0  # has_gliner
-        assert features[13] == 0.0  # has_yake
-        assert features[14] == 0.0  # has_keybert
+        assert features[12] == 0.0  # has_yake
         # Use FEATURE_NAMES.index for remaining checks (more robust)
         assert features[FEATURE_NAMES.index("topicrank_score")] == 0.0
         assert features[FEATURE_NAMES.index("yake_score")] == 0.0
-        assert features[FEATURE_NAMES.index("keybert_score")] == 0.0
         assert features[FEATURE_NAMES.index("rake_score")] == 0.0
         assert features[FEATURE_NAMES.index("bm25_score")] == 0.0
         assert features[FEATURE_NAMES.index("has_trailing_punctuation")] == 0.0

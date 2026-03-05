@@ -15,7 +15,7 @@ Layout:
     │                                                             │
     │  Algorithm Details:                                         │
     │  ☐ NER  ☐ RAKE  ☐ BM25  ☐ TopicRank  ☐ MedicalNER         │
-    │  ☐ GLiNER  ☐ YAKE  ☐ KeyBERT  ☐ Algo Count                │
+    │  ☐ YAKE  ☐ Algo Count                                     │
     │                                                             │
     │  Other:                                                     │
     │  ☐ Google Rarity Rank   ☑ Keep   ☑ Skip                             │
@@ -54,9 +54,7 @@ class ColumnVisibilityWidget(ctk.CTkFrame):
                 VF.BM25,
                 VF.TOPICRANK,
                 VF.MEDICALNER,
-                VF.GLINER,
                 VF.YAKE,
-                VF.KEYBERT,
                 VF.ALGO_COUNT,
             ],
         ),

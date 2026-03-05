@@ -1,4 +1,9 @@
 """
+DEPRECATED: Too slow for large documents without GPU. Generates all 1-3 gram
+candidates, encodes each through a transformer, then runs O(n²) MMR — hangs or
+takes 20+ minutes on 177-page (48K word) documents. Overlaps with faster
+algorithms (RAKE, YAKE, TopicRank). Preserved here for reference.
+
 KeyBERT Keyword Extraction Algorithm
 
 KeyBERT uses document and candidate embeddings (via sentence-transformers)

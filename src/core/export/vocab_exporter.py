@@ -60,9 +60,7 @@ def export_vocabulary(
                 VF.BM25,
                 VF.TOPICRANK,
                 VF.MEDICALNER,
-                VF.GLINER,
                 VF.YAKE,
-                VF.KEYBERT,
             ]
         )
     else:
@@ -83,9 +81,7 @@ def export_vocabulary(
         VF.BM25: VF.BM25,
         VF.TOPICRANK: VF.TOPICRANK,
         VF.MEDICALNER: VF.MEDICALNER,
-        VF.GLINER: VF.GLINER,
         VF.YAKE: VF.YAKE,
-        VF.KEYBERT: VF.KEYBERT,
     }
     rows = []
     for v in vocab_data:

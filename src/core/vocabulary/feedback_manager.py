@@ -22,6 +22,7 @@ CSV Schema:
 - NER_detection: Boolean - whether NER algorithm detected this term
 - RAKE_detection: Boolean - whether RAKE algorithm detected this term
 - BM25_detection: Boolean - whether BM25 algorithm detected this term
+- YAKE_detection: Boolean - whether YAKE algorithm detected this term
 - algo_count: Number of algorithms that detected this term (sum of detection booleans)
 - quality_score: Quality score at time of feedback
 - occurrences: Term occurrence count
@@ -90,15 +91,13 @@ FEEDBACK_COLUMNS = [
     "feedback",
     "is_person",  # 1 if NER detected as person, 0 otherwise
     "algorithms",
-    # Per-algorithm detection flags (all 8 algorithms)
+    # Per-algorithm detection flags (6 active algorithms)
     "NER_detection",
     "RAKE_detection",
     "BM25_detection",
     "TopicRank_detection",
     "MedicalNER_detection",
-    "GLiNER_detection",
     "YAKE_detection",
-    "KeyBERT_detection",
     "algo_count",
     "quality_score",
     "occurrences",
@@ -106,7 +105,6 @@ FEEDBACK_COLUMNS = [
     # Per-algorithm numeric scores (0.0 if algorithm didn't find term)
     "topicrank_score",
     "yake_score",
-    "keybert_score",
     "rake_score",
     "bm25_score",
     # TermSources-based per-document features
@@ -379,15 +377,13 @@ class FeedbackManager:
         algorithms_str = term_data.get(VF.SOURCES, "")
         algorithms_upper = [a.strip().upper() for a in algorithms_str.split(",") if a.strip()]
 
-        # Per-algorithm detection flags (all 8 algorithms)
+        # Per-algorithm detection flags (6 active algorithms)
         ner_detected = "NER" in algorithms_upper
         rake_detected = "RAKE" in algorithms_upper
         bm25_detected = "BM25" in algorithms_upper
         topicrank_detected = "TOPICRANK" in algorithms_upper
         medical_ner_detected = "MEDICALNER" in algorithms_upper
-        gliner_detected = "GLINER" in algorithms_upper
         yake_detected = "YAKE" in algorithms_upper
-        keybert_detected = "KEYBERT" in algorithms_upper
         algo_count = sum(
             [
                 ner_detected,
@@ -395,9 +391,7 @@ class FeedbackManager:
                 bm25_detected,
                 topicrank_detected,
                 medical_ner_detected,
-                gliner_detected,
                 yake_detected,
-                keybert_detected,
             ]
         )
 
@@ -435,15 +429,13 @@ class FeedbackManager:
             "feedback": feedback,
             "is_person": is_person,
             "algorithms": algorithms_str,
-            # Per-algorithm detection flags (all 8 algorithms)
+            # Per-algorithm detection flags (6 active algorithms)
             "NER_detection": ner_detected,
             "RAKE_detection": rake_detected,
             "BM25_detection": bm25_detected,
             "TopicRank_detection": topicrank_detected,
             "MedicalNER_detection": medical_ner_detected,
-            "GLiNER_detection": gliner_detected,
             "YAKE_detection": yake_detected,
-            "KeyBERT_detection": keybert_detected,
             "algo_count": algo_count,
             "quality_score": term_data.get(VF.QUALITY_SCORE, 0),
             "occurrences": term_data.get(VF.OCCURRENCES, 1),
@@ -451,7 +443,6 @@ class FeedbackManager:
             # Per-algorithm numeric scores
             "topicrank_score": term_data.get("topicrank_score", 0.0),
             "yake_score": term_data.get("yake_score", 0.0),
-            "keybert_score": term_data.get("keybert_score", 0.0),
             "rake_score": term_data.get("rake_score", 0.0),
             "bm25_score": term_data.get("bm25_score", 0.0),
             # TermSources-based per-document features

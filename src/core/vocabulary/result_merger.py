@@ -183,7 +183,6 @@ class AlgorithmScoreMerger:
         score_keys = (
             "topicrank_score",
             "yake_score",
-            "keybert_score",
             "rake_score",
             "bm25_score",
         )

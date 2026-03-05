@@ -69,7 +69,6 @@ class TestModelPathConstants:
             BUNDLED_MODELS_DIR,
             COREF_MODEL_LOCAL_PATH,
             EMBEDDING_MODEL_LOCAL_PATH,
-            GLINER_MODEL_LOCAL_PATH,
             HALLUCINATION_MODEL_LOCAL_PATH,
             RERANKER_MODEL_LOCAL_PATH,
             SEMANTIC_CHUNKER_MODEL_LOCAL_PATH,
@@ -78,7 +77,6 @@ class TestModelPathConstants:
 
         for path in [
             HALLUCINATION_MODEL_LOCAL_PATH,
-            GLINER_MODEL_LOCAL_PATH,
             EMBEDDING_MODEL_LOCAL_PATH,
             SEMANTIC_CHUNKER_MODEL_LOCAL_PATH,
             RERANKER_MODEL_LOCAL_PATH,

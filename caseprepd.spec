@@ -55,10 +55,8 @@ hidden_imports = [
     "src.core.vocabulary.algorithms.rake_algorithm",
     "src.core.vocabulary.algorithms.textrank_algorithm",
     "src.core.vocabulary.algorithms.bm25_algorithm",
-    "src.core.vocabulary.algorithms.gliner_algorithm",
     "src.core.vocabulary.algorithms.scispacy_algorithm",
     "src.core.vocabulary.algorithms.yake_algorithm",
-    "src.core.vocabulary.algorithms.keybert_algorithm",
     # Drag-and-drop support
     "tkinterdnd2",
     # Tiktoken encoding registry
@@ -90,7 +88,6 @@ packages_to_collect = [
     "huggingface_hub",
     "tokenizers",
     "safetensors",
-    "gliner",
     "fastcoref",
     "torch",
     "cymem",
@@ -123,7 +120,6 @@ data_packages = [
     "langchain_core",
     "langchain_community",
     "certifi",
-    "gliner",
     "nupunkt",
     "spellchecker",      # Word frequency dictionaries for gibberish filter
     "docx",              # default.docx template for Word export

@@ -282,12 +282,6 @@ class TestBundledConfigFiles:
         assert path.is_file(), f"Missing: {path}"
         assert path.stat().st_size > 0, f"Empty: {path}"
 
-    def test_gliner_labels_txt_exists(self):
-        """config/gliner_labels.txt must exist and be non-empty."""
-        path = BUNDLED_CONFIG_DIR / "gliner_labels.txt"
-        assert path.is_file(), f"Missing: {path}"
-        assert path.stat().st_size > 0, f"Empty: {path}"
-
     def test_default_questions_json_exists(self):
         """config/default_questions.json must exist and be non-empty."""
         path = BUNDLED_CONFIG_DIR / "default_questions.json"
@@ -384,13 +378,6 @@ class TestBundledModels:
         assert any(HALLUCINATION_MODEL_LOCAL_PATH.iterdir()), (
             f"Empty: {HALLUCINATION_MODEL_LOCAL_PATH}"
         )
-
-    def test_gliner_model_exists(self):
-        """GLiNER model directory must exist and be non-empty."""
-        from src.config import GLINER_MODEL_LOCAL_PATH
-
-        assert GLINER_MODEL_LOCAL_PATH.is_dir(), f"Missing: {GLINER_MODEL_LOCAL_PATH}"
-        assert any(GLINER_MODEL_LOCAL_PATH.iterdir()), f"Empty: {GLINER_MODEL_LOCAL_PATH}"
 
     def test_embedding_model_exists(self):
         """Embedding model directory must exist and be non-empty."""
@@ -489,7 +476,6 @@ class TestHiddenImportsResolvable:
             "src.core.vocabulary.algorithms.rake_algorithm",
             "src.core.vocabulary.algorithms.textrank_algorithm",
             "src.core.vocabulary.algorithms.bm25_algorithm",
-            "src.core.vocabulary.algorithms.gliner_algorithm",
             "src.core.vocabulary.algorithms.scispacy_algorithm",
             "tiktoken_ext.openai_public",
             "tiktoken_ext",

@@ -114,10 +114,9 @@ class TestHelpDialogCoherence:
         """No reference to phantom 'LLM enhancement in settings'."""
         assert "LLM enhancement in settings" not in self.text
 
-    def test_gliner_tip_present(self):
-        """Tips mention GLiNER under Settings > Vocabulary."""
-        assert "GLiNER" in self.text
-        assert "Settings > Vocabulary" in self.text
+    def test_no_gliner_tip(self):
+        """GLiNER was deprecated — no reference should remain in tips."""
+        assert "GLiNER" not in self.text
 
 
 # =========================================================================

@@ -715,7 +715,7 @@ class TestDownloadModelsScript:
 
 
 class TestOCRPreCheck:
-    """Tests for the _check_ocr_availability method in file_mixin."""
+    """Tests for OCR pre-check logic."""
 
     def test_returns_true_when_ocr_available(self):
         """Pre-check returns True when OCR tools are installed."""

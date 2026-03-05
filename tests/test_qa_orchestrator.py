@@ -10,8 +10,6 @@ Tests the Q&A system components:
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 
 class TestQAResult:
     """Tests for QAResult dataclass."""
@@ -133,9 +131,6 @@ class TestAnswerGenerator:
         assert "name" in keywords
         assert "plaintiff" in keywords
 
-    @pytest.mark.xfail(
-        reason="Sentence splitter does not handle abbreviations (Dr., Jan.)", strict=False
-    )
     def test_split_sentences_handles_abbreviations(self):
         """_split_sentences should handle common abbreviations."""
         from src.core.qa import AnswerGenerator

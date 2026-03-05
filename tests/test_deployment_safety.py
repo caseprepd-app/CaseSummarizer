@@ -661,20 +661,6 @@ class TestModelLoadingGuards:
         source = verifier_path.read_text(encoding="utf-8")
         assert "local_files_only" in source
 
-    def test_gliner_has_bundled_path_check(self):
-        """GLiNER algorithm checks for bundled model path before loading."""
-        gliner_path = (
-            Path(__file__).parent.parent
-            / "src"
-            / "core"
-            / "vocabulary"
-            / "algorithms"
-            / "gliner_algorithm.py"
-        )
-        source = gliner_path.read_text(encoding="utf-8")
-        assert "GLINER_MODEL_LOCAL_PATH" in source
-        assert ".exists()" in source
-
     def test_cross_encoder_load_model_has_local_files_only_in_source(self):
         """_load_model source code contains local_files_only as direct kwarg."""
         from src.core.retrieval.cross_encoder_reranker import CrossEncoderReranker

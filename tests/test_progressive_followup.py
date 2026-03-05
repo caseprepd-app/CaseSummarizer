@@ -337,7 +337,7 @@ class TestFollowupThreadMessages:
             mock_svc.get_placeholder_texts.return_value = {"ollama_unavailable": "unavail"}
             MockPrefs.return_value.get.return_value = "ollama"
 
-            # Simulate the thread body from task_mixin
+            # Simulate the followup thread body from main_window
             def run():
                 from src.services import QAService
                 from src.user_preferences import get_user_preferences

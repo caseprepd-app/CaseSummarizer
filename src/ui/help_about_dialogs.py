@@ -349,8 +349,6 @@ TROUBLESHOOTING
 Poor vocabulary results?
 - Check document quality (OCR confidence)
 - Rate more terms to train the model
-- Try enabling GLiNER under Settings > Vocabulary for better entity detection
-
 Processing seems stuck?
 - Large documents take time - check the progress indicator
 - Summary generation can take several hours without a GPU

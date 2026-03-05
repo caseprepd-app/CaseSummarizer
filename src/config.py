@@ -246,85 +246,8 @@ VOCAB_ALGORITHM_WEIGHTS = {
     "BM25": _d("vocab_weight_bm25"),
     "TopicRank": _d("vocab_weight_topicrank"),
     "MedicalNER": _d("vocab_weight_medical_ner"),
-    "GLiNER": _d("vocab_weight_gliner"),
     "YAKE": _d("vocab_weight_yake"),
-    "KeyBERT": _d("vocab_weight_keybert"),
 }
-
-# GLiNER Zero-Shot NER Configuration
-GLINER_DEFAULT_LABELS = [
-    "anatomical body part",
-    "medical procedure",
-    "medical condition",
-    "medication",
-    "chemical compound",
-    "specialized scientific term",
-    "foreign phrase",
-]
-GLINER_MAX_LABELS = 20
-GLINER_LABELS_FILE = CONFIG_DIR / "gliner_labels.txt"
-GLINER_DEFAULT_LABELS_FILE = BUNDLED_CONFIG_DIR / "gliner_labels.txt"
-
-
-def load_gliner_labels() -> list[str]:
-    """
-    Load GLiNER labels from user's config file, falling back to defaults.
-
-    Reads labels from CONFIG_DIR/gliner_labels.txt. If the file doesn't
-    exist, copies the shipped default file. Validates labels and warns
-    if the maximum is exceeded.
-
-    Returns:
-        List of validated label strings (1-20 labels)
-    """
-    import shutil
-
-    # Copy default file to user config if it doesn't exist yet
-    if not GLINER_LABELS_FILE.exists() and GLINER_DEFAULT_LABELS_FILE.exists():
-        shutil.copy2(GLINER_DEFAULT_LABELS_FILE, GLINER_LABELS_FILE)
-        logger.debug("Copied default GLiNER labels to %s", GLINER_LABELS_FILE)
-
-    # Read from user file
-    labels = []
-    source = GLINER_LABELS_FILE if GLINER_LABELS_FILE.exists() else GLINER_DEFAULT_LABELS_FILE
-    try:
-        with open(source, encoding="utf-8") as f:
-            for line in f:
-                line = line.strip()
-                # Skip comments and empty lines
-                if not line or line.startswith("#"):
-                    continue
-                # Validate: 2-50 chars, must contain letters
-                if len(line) < 2 or len(line) > 50:
-                    logger.debug("Skipping invalid GLiNER label (length): '%s'", line)
-                    continue
-                if not any(c.isalpha() for c in line):
-                    logger.debug("Skipping invalid GLiNER label (no letters): '%s'", line)
-                    continue
-                # Skip duplicates (case-insensitive)
-                if line.lower() in {l.lower() for l in labels}:
-                    continue
-                labels.append(line)
-    except Exception as e:
-        logger.warning("Failed to read GLiNER labels file: %s", e)
-
-    # Warn and truncate if over maximum
-    if len(labels) > GLINER_MAX_LABELS:
-        logger.warning(
-            "GLiNER labels file has %d labels (maximum is %d). Only the first %d will be used.",
-            len(labels),
-            GLINER_MAX_LABELS,
-            GLINER_MAX_LABELS,
-        )
-        labels = labels[:GLINER_MAX_LABELS]
-
-    # Fall back to defaults if empty
-    if not labels:
-        logger.debug("No valid labels found, using defaults")
-        return list(GLINER_DEFAULT_LABELS)
-
-    return labels
-
 
 # Similarity Thresholds (consolidated from scattered definitions)
 # Used for name deduplication, fuzzy matching, and text similarity
@@ -861,10 +784,6 @@ HALLUCINATION_REJECTION_MESSAGE = (
 BUNDLED_MODELS_DIR = BUNDLED_BASE_DIR / "models"
 HALLUCINATION_MODEL_LOCAL_PATH = BUNDLED_MODELS_DIR / "tinylettuce-ettin-68m-en"
 
-# GLiNER zero-shot NER model (209M params, Apache 2.0)
-GLINER_MODEL_NAME = "urchade/gliner_medium-v2.1"
-GLINER_MODEL_LOCAL_PATH = BUNDLED_MODELS_DIR / "gliner_medium-v2.1"
-
 # Embedding model for FAISS semantic search
 # nomic-embed-text-v1.5 (137M params, 768 dims, 8192-token context, 270MB)
 # Downsized from modernbert-embed-large (1.58GB) — research shows small embeddings
@@ -995,9 +914,7 @@ COLUMN_DEFINITIONS = [
     ColumnDefinition(VF.BM25, VF.BM25, 50, 4, False, True, True, False),
     ColumnDefinition(VF.TOPICRANK, VF.TOPICRANK, 65, 4, False, True, True, False),
     ColumnDefinition(VF.MEDICALNER, VF.MEDICALNER, 75, 4, False, True, True, False),
-    ColumnDefinition(VF.GLINER, VF.GLINER, 55, 4, False, True, True, False),
     ColumnDefinition(VF.YAKE, VF.YAKE, 50, 4, False, True, True, False),
-    ColumnDefinition(VF.KEYBERT, VF.KEYBERT, 55, 4, False, True, True, False),
     ColumnDefinition(VF.ALGO_COUNT, VF.ALGO_COUNT, 55, 3, False, True, True, True),
     # Additional columns (default hidden)
     ColumnDefinition(VF.GOOGLE_RARITY_RANK, VF.GOOGLE_RARITY_RANK, 80, 10, False, True, True, True),

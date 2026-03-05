@@ -65,7 +65,6 @@ class TestBaseScore:
             frequency_rank=0,
             algorithm_count=5,
             topicrank_score=1.0,
-            keybert_score=1.0,
             term="Dr. James Morrison",
         )
         assert high <= 100.0
@@ -191,21 +190,14 @@ class TestAlgoConfidenceBoost:
     def test_no_scores_no_boost(self, extractor):
         """No algorithm scores means no confidence boost."""
         s1 = _score(extractor)
-        s2 = _score(extractor, yake_score=0.0, keybert_score=0.0)
+        s2 = _score(extractor, yake_score=0.0)
         assert s1 == s2
-
-    def test_keybert_high_confidence(self, extractor):
-        """High KeyBERT score should add up to +6."""
-        base = _score(extractor)
-        boosted = _score(extractor, keybert_score=0.95)
-        diff = boosted - base
-        assert 0 < diff <= 6.0
 
     def test_confidence_capped_at_6(self, extractor):
         """Confidence boost should not exceed SCORE_ALGO_CONFIDENCE_BOOST (6)."""
         base = _score(extractor)
         # Max out all scores
-        boosted = _score(extractor, keybert_score=1.0, rake_score=15.0, bm25_score=15.0)
+        boosted = _score(extractor, rake_score=15.0, bm25_score=15.0)
         assert boosted - base == pytest.approx(6.0, abs=0.1)
 
     def test_yake_inverted(self, extractor):
@@ -221,8 +213,8 @@ class TestAlgoConfidenceBoost:
         """When multiple algo scores present, the best one determines the boost."""
         # Only weak RAKE
         weak = _score(extractor, rake_score=1.0)
-        # Weak RAKE + strong KeyBERT — KeyBERT should dominate
-        strong = _score(extractor, rake_score=1.0, keybert_score=0.9)
+        # Weak RAKE + strong TopicRank — TopicRank should dominate
+        strong = _score(extractor, rake_score=1.0, topicrank_score=0.9)
         assert strong > weak
 
 

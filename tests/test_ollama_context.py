@@ -121,7 +121,6 @@ class TestOllamaPayload:
 class TestTruncationWarning:
     """Test that truncation warnings are issued appropriately."""
 
-    @pytest.mark.xfail(reason="Singleton state leakage can cause false failures", strict=False)
     @patch("src.core.ai.ollama_model_manager._get_context_window", return_value=2048)
     @patch("src.core.ai.ollama_model_manager.logger")
     @patch("src.core.ai.ollama_model_manager._create_ollama_client")

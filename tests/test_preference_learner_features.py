@@ -67,7 +67,7 @@ def test_feature_vector_length(mock_deps):
     term_data = {"Term": "John Smith", "occurrences": 5, "algorithms": "NER", "is_person": 1}
     features = extract_features(term_data)
     assert len(features) == len(FEATURE_NAMES)
-    assert len(features) == 56
+    assert len(features) == 53
 
 
 def test_person_feature(mock_deps):
@@ -138,27 +138,12 @@ def test_yake_feature(mock_deps):
     assert features[FEATURE_NAMES.index("yake_score")] == 0.8
 
 
-def test_keybert_feature(mock_deps):
-    extract_features, FEATURE_NAMES = mock_deps
-    term_data = {
-        "Term": "legal term",
-        "occurrences": 1,
-        "algorithms": "KeyBERT",
-        "keybert_score": 0.75,
-    }
-    features = extract_features(term_data)
-    assert features[FEATURE_NAMES.index("has_keybert")] == 1.0
-    assert features[FEATURE_NAMES.index("keybert_score")] == 0.75
-
-
-def test_yake_keybert_absent(mock_deps):
+def test_yake_absent(mock_deps):
     extract_features, FEATURE_NAMES = mock_deps
     term_data = {"Term": "legal term", "occurrences": 1, "algorithms": "NER"}
     features = extract_features(term_data)
     assert features[FEATURE_NAMES.index("has_yake")] == 0.0
-    assert features[FEATURE_NAMES.index("has_keybert")] == 0.0
     assert features[FEATURE_NAMES.index("yake_score")] == 0.0
-    assert features[FEATURE_NAMES.index("keybert_score")] == 0.0
 
 
 def test_rake_score_feature(mock_deps):

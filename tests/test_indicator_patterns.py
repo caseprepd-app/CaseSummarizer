@@ -316,13 +316,13 @@ class TestFeatureExtraction:
         assert features[pos_idx] == 0.0
         assert features[neg_idx] == 0.0
 
-    def test_feature_vector_has_56_elements(self, mock_all_deps):
-        """Feature vector should now have 56 elements."""
+    def test_feature_vector_has_53_elements(self, mock_all_deps):
+        """Feature vector should have 53 elements."""
         extract_features, FEATURE_NAMES = mock_all_deps
         term_data = {"Term": "test", "occurrences": 1, "algorithms": ""}
         features = extract_features(term_data)
-        assert len(features) == 56
-        assert len(FEATURE_NAMES) == 56
+        assert len(features) == 53
+        assert len(FEATURE_NAMES) == 53
 
 
 class TestDefaultRegexOverrides:

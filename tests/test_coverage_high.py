@@ -818,15 +818,26 @@ class TestPDFExtractorExtractPyMuPDF:
         """A normal PDF returns text, page count, and no error."""
         extractor = self._make_extractor()
 
-        # Set up mock page
-        mock_page = MagicMock()
-        mock_page.get_text.return_value = "Page one content."
+        # Set up mock page that returns block tuples for extract_page_text
+        def _make_mock_page():
+            page = MagicMock()
+            page.number = 0
+            page.rect = MagicMock()
+            page.rect.width = 612
+
+            def mock_get_text(opt=None, clip=None, sort=False, flags=0):
+                if opt == "blocks":
+                    return [(50, 100, 200, 120, "Page one content.\n", 0, 0)]
+                return "Page one content."
+
+            page.get_text = mock_get_text
+            return page
 
         mock_doc = MagicMock()
         mock_doc.__enter__ = MagicMock(return_value=mock_doc)
         mock_doc.__exit__ = MagicMock(return_value=False)
         mock_doc.__len__ = MagicMock(return_value=2)
-        mock_doc.__iter__ = MagicMock(return_value=iter([mock_page, mock_page]))
+        mock_doc.__iter__ = MagicMock(return_value=iter([_make_mock_page(), _make_mock_page()]))
 
         mock_fitz_module.open.return_value = mock_doc
 

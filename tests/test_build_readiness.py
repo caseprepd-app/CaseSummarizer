@@ -72,7 +72,6 @@ class TestFrozenModePathResolution:
         "constant_name",
         [
             "DEFAULT_FEEDBACK_CSV",
-            "GLINER_DEFAULT_LABELS_FILE",
             "LEGAL_EXCLUDE_LIST_PATH",
             "MEDICAL_TERMS_LIST_PATH",
             "GOOGLE_WORD_FREQUENCY_FILE",
@@ -103,7 +102,6 @@ class TestFrozenModePathResolution:
         # These constants point into config/ and must use BUNDLED_CONFIG_DIR
         config_file_constants = [
             "DEFAULT_FEEDBACK_CSV",
-            "GLINER_DEFAULT_LABELS_FILE",
             "LEGAL_EXCLUDE_LIST_PATH",
             "MEDICAL_TERMS_LIST_PATH",
             "MODEL_CONFIG_FILE",
@@ -173,10 +171,8 @@ HIDDEN_IMPORTS_NON_UI = [
     "src.core.vocabulary.algorithms.rake_algorithm",
     "src.core.vocabulary.algorithms.textrank_algorithm",
     "src.core.vocabulary.algorithms.bm25_algorithm",
-    "src.core.vocabulary.algorithms.gliner_algorithm",
     "src.core.vocabulary.algorithms.scispacy_algorithm",
     "src.core.vocabulary.algorithms.yake_algorithm",
-    "src.core.vocabulary.algorithms.keybert_algorithm",
     "tiktoken_ext.openai_public",
     "tiktoken_ext",
     "sklearn.utils._typedefs",
@@ -353,7 +349,6 @@ class TestDownloadScriptCrossReference:
         "config_attr,expected_suffix",
         [
             ("HALLUCINATION_MODEL_LOCAL_PATH", "tinylettuce-ettin-68m-en"),
-            ("GLINER_MODEL_LOCAL_PATH", "gliner_medium-v2.1"),
             ("EMBEDDING_MODEL_LOCAL_PATH", "embeddings/nomic-embed-text-v1.5"),
             ("SEMANTIC_CHUNKER_MODEL_LOCAL_PATH", "embeddings/all-MiniLM-L6-v2"),
             ("RERANKER_MODEL_LOCAL_PATH", "gte-reranker-modernbert-base"),
@@ -361,7 +356,6 @@ class TestDownloadScriptCrossReference:
         ],
         ids=[
             "tinylettuce",
-            "gliner",
             "nomic-embed",
             "all-MiniLM",
             "gte-reranker",
@@ -441,7 +435,6 @@ class TestPostBuildDistVerification:
             "config/legal_exclude.txt",
             "config/medical_terms.txt",
             "config/models.yaml",
-            "config/gliner_labels.txt",
         ],
     )
     def test_config_files_in_dist(self, config_file):
@@ -615,7 +608,6 @@ class TestMaxPathSafety:
 
         constants = [
             "DEFAULT_FEEDBACK_CSV",
-            "GLINER_DEFAULT_LABELS_FILE",
             "LEGAL_EXCLUDE_LIST_PATH",
             "MEDICAL_TERMS_LIST_PATH",
             "GOOGLE_WORD_FREQUENCY_FILE",

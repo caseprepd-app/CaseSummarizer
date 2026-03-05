@@ -268,65 +268,6 @@ class TestHeadlessPreprocessing:
         assert file_messages, "No file_processed messages received"
 
 
-class TestHeadlessVocabulary:
-    """Test vocabulary extraction without GUI."""
-
-    @pytest.fixture
-    def extracted_text(self, sample_pdfs, ui_queue, progress_tracker):
-        """Pre-extract text from one sample PDF for vocabulary tests."""
-        from src.services.workers import ProcessingWorker
-
-        # Use only the first (smallest) PDF to keep extraction time reasonable on CPU
-        one_pdf = sample_pdfs[:1]
-        worker = ProcessingWorker(file_paths=one_pdf, ui_queue=ui_queue)
-        worker.start()
-
-        collector = QueueCollector(ui_queue, progress_tracker)
-        collector.collect_until(
-            condition=lambda: progress_tracker.preprocessing_complete,
-            timeout=PREPROCESSING_TIMEOUT,
-        )
-        worker.join(timeout=5)
-
-        return worker.processed_results
-
-    def test_ner_extraction_completes(self, extracted_text, ui_queue, progress_tracker):
-        """Test that NER extraction completes within timeout."""
-        from src.core.utils.text_utils import combine_document_texts
-        from src.services.workers import VocabularyWorker
-
-        if not extracted_text:
-            pytest.skip("No extracted text available")
-
-        combined_text = combine_document_texts(extracted_text)
-
-        worker = VocabularyWorker(
-            combined_text=combined_text,
-            ui_queue=ui_queue,
-            doc_count=len(extracted_text),
-            use_llm=False,  # NER only for speed
-        )
-        worker.start()
-
-        # Wait for vocab result
-        start_time = time.time()
-        result = None
-        while time.time() - start_time < PHASE1_TIMEOUT:
-            try:
-                msg = ui_queue.get(timeout=1)
-                if msg[0] == MessageType.VOCAB_CSV_GENERATED:
-                    result = msg[1]
-                    break
-            except Empty:
-                continue
-
-        worker.join(timeout=5)
-
-        assert result is not None, f"Vocabulary extraction timed out after {PHASE1_TIMEOUT}s"
-        assert len(result) > 0, "No vocabulary terms extracted"
-        logger.debug(f"[TEST] Extracted {len(result)} vocabulary terms")
-
-
 class TestHeadlessProgressiveExtraction:
     """Test the full progressive extraction pipeline without GUI."""
 

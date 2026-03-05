@@ -128,7 +128,7 @@ DESCRIPTIONS = {
         "label": "Algorithm confidence boost",
         "tooltip": (
             "Maximum bonus points for terms with high algorithm confidence.\n"
-            "Uses the best confidence score across YAKE, KeyBERT, RAKE, and BM25.\n\n"
+            "Uses the best confidence score across YAKE, RAKE, and BM25.\n\n"
             "Default: 6 points (scaled by confidence 0-1)\n\n"
             "Higher: Favor terms where algorithms report high confidence.\n"
             "Lower: Reduce influence of algorithm confidence on ranking."
@@ -254,17 +254,6 @@ DESCRIPTIONS = {
             "Decrease: Less influence from MedicalNER results."
         ),
     },
-    "vocab_weight_gliner": {
-        "label": "GLiNER algorithm weight",
-        "tooltip": (
-            "Influence of GLiNER zero-shot NER on final vocabulary scores.\n"
-            "GLiNER uses a generalist model to detect domain-specific\n"
-            "entities (medical, legal, anatomical) without fine-tuning.\n\n"
-            "Default: 0.75\n\n"
-            "Increase: More influence from zero-shot entity recognition.\n"
-            "Decrease: Less influence from GLiNER results."
-        ),
-    },
     "vocab_weight_yake": {
         "label": "YAKE algorithm weight",
         "tooltip": (
@@ -274,17 +263,6 @@ DESCRIPTIONS = {
             "Default: 0.55\n\n"
             "Increase: More influence from statistical keyword extraction.\n"
             "Decrease: Less influence from YAKE results."
-        ),
-    },
-    "vocab_weight_keybert": {
-        "label": "KeyBERT algorithm weight",
-        "tooltip": (
-            "Influence of KeyBERT on final vocabulary scores.\n"
-            "KeyBERT uses transformer embeddings (cosine similarity)\n"
-            "to find keyphrases most representative of the document.\n\n"
-            "Default: 0.65\n\n"
-            "Increase: More influence from semantic keyword extraction.\n"
-            "Decrease: Less influence from KeyBERT results."
         ),
     },
     # =======================================================================
