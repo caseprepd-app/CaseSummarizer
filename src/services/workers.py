@@ -834,7 +834,7 @@ class ProgressiveExtractionWorker(BaseWorker):
         # Wait for Q&A thread with periodic status updates (CPU embeddings can take 5+ minutes)
         # Using timeout loop instead of indefinite join to keep UI responsive with status updates
         QA_JOIN_TIMEOUT_SECONDS = 30  # Check every 30 seconds
-        QA_MAX_WAIT_MINUTES = 900  # Give up after 15 hours
+        QA_MAX_WAIT_MINUTES = 60  # Give up after 1 hour
         wait_count = 0
         max_waits = (QA_MAX_WAIT_MINUTES * 60) // QA_JOIN_TIMEOUT_SECONDS
 

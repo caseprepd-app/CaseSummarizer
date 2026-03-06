@@ -575,7 +575,7 @@ class OllamaModelManager:
             logger.error("Ollama API error (status %s): %s", e.status_code, e.error)
             raise RuntimeError(f"Ollama error (status {e.status_code}): {e.error}") from e
         except Exception as e:
-            logger.debug("Error: %s", e)
+            logger.warning("generate_structured failed: %s", e)
             return None
 
     def _parse_json_response(self, text: str) -> dict[str, Any] | None:

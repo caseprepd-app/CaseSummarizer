@@ -351,17 +351,19 @@ class PDFExtractor:
                 )
 
                 pages_text = []
+                flat_parts = []
                 for i, page in enumerate(doc, 1):
                     if i % 10 == 0:
                         logger.debug("PyMuPDF layout: Extracting page %d/%d", i, page_count)
                     page_text = extract_page_text(page, clip=clip)
                     if page_text:
                         pages_text.append(page_text)
+                    flat_parts.append(page.get_text(sort=True))
 
                 text = "\f".join(pages_text)
 
                 # Safety check: if clipping removed too much text, reject
-                flat_text = "\f".join(p.get_text(sort=True) for p in doc)
+                flat_text = "\f".join(flat_parts)
                 flat_words = len(flat_text.split())
                 clip_words = len(text.split())
 

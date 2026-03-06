@@ -177,10 +177,12 @@ class RawTextExtractor:
                 report_progress("Extracting text", 20)
                 extraction = self._extract_by_type(file_path)
 
-                if extraction["status"] == "error":
+                if extraction["status"] in ("error", "ocr_skipped"):
                     result["status"] = "error"
-                    result["error_message"] = extraction["error_message"]
-                    logger.error("%s", extraction["error_message"])
+                    result["error_message"] = extraction.get(
+                        "error_message", "File contains no extractable text."
+                    )
+                    logger.error("%s", result["error_message"])
                     return result
 
                 result["method"] = extraction["method"]

@@ -123,6 +123,8 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
 
         # Follow-up polling timeout counter (BUG 1 fix)
         self._followup_poll_count: int = 0
+        self._followup_pending: bool = False
+        self._pending_followup_index: int | None = None
 
         # Panel follow-up IPC: background thread waits on event, main thread delivers result
         self._panel_followup_event = threading.Event()

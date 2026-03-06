@@ -442,7 +442,8 @@ def _forward_message(msg_type, data, internal_queue, result_queue, state):
                     questions=None,
                     use_default_questions=True,
                 )
-                state["auto_qa_worker"] = qa_worker
+                with state["worker_lock"]:
+                    state["auto_qa_worker"] = qa_worker
                 qa_worker.start()
                 logger.debug("Default QAWorker started in subprocess")
             else:
