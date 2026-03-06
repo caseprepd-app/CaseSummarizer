@@ -48,7 +48,8 @@ def _get_effective_qa_context_window() -> int:
 
         prefs = get_user_preferences()
         return prefs.get_effective_context_size()
-    except Exception:
+    except Exception as e:
+        logger.warning("Could not load user preferences for QA context window: %s", e)
         return QA_CONTEXT_WINDOW
 
 
@@ -72,7 +73,8 @@ def _get_effective_algorithm_weights() -> dict[str, float]:
         if not isinstance(bm25_w, (int, float)):
             bm25_w = RETRIEVAL_ALGORITHM_WEIGHTS["BM25+"]
         return {"FAISS": faiss_w, "BM25+": bm25_w}
-    except Exception:
+    except Exception as e:
+        logger.warning("Could not load retrieval algorithm weights: %s", e)
         return RETRIEVAL_ALGORITHM_WEIGHTS
 
 

@@ -83,7 +83,7 @@ def _get_context_window() -> int:
         return prefs.get_effective_context_size()
     except Exception as e:
         # Fallback to config default if preferences unavailable
-        logger.debug("Could not load user preferences for context size: %s", e)
+        logger.warning("Could not load user preferences for context size: %s", e)
         return OLLAMA_CONTEXT_WINDOW
 
 
@@ -107,7 +107,7 @@ class OllamaModelManager:
             saved_model = prefs.get("ollama_model", "")
             self.model_name = saved_model if saved_model else OLLAMA_MODEL_NAME
         except Exception as e:
-            logger.debug("Could not load saved model preference: %s", e)
+            logger.warning("Could not load saved model preference: %s", e)
             self.model_name = OLLAMA_MODEL_NAME
 
         self.current_model_name = self.model_name  # For compatibility with worker code

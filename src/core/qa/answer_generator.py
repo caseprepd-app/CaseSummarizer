@@ -244,9 +244,10 @@ class AnswerGenerator:
             from src.user_preferences import get_user_preferences
 
             return get_user_preferences().get_effective_context_size()
-        except Exception:
+        except Exception as e:
             from src.config import QA_CONTEXT_WINDOW
 
+            logger.warning("Could not load user preferences for context size: %s", e)
             return QA_CONTEXT_WINDOW
 
     def _select_prompt_template(self, context_window: int) -> str:
@@ -280,8 +281,8 @@ class AnswerGenerator:
             from src.core.retrieval.algorithms.faiss_semantic import get_embeddings_model
 
             return get_embeddings_model()
-        except Exception:
-            logger.debug("Could not load embeddings for sub-chunking")
+        except Exception as e:
+            logger.warning("Could not load embeddings for sub-chunking: %s", e)
             return None
 
     def _extract_keywords(self, text: str) -> set[str]:

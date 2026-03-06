@@ -144,7 +144,8 @@ def _rebuild_custom_prefixes() -> tuple[str, ...]:
             if enabled and cat_name in LOG_CATEGORIES:
                 prefixes.extend(LOG_CATEGORIES[cat_name])
         return tuple(prefixes)
-    except Exception:
+    except Exception as e:
+        logging.getLogger(__name__).debug("Could not load custom log prefixes: %s", e)
         all_prefixes: list[str] = []
         for p in LOG_CATEGORIES.values():
             all_prefixes.extend(p)
@@ -162,7 +163,8 @@ def _get_logging_level() -> str:
         from src.user_preferences import get_user_preferences
 
         return get_user_preferences().get_logging_level()
-    except Exception:
+    except Exception as e:
+        logging.getLogger(__name__).debug("Could not load logging level preference: %s", e)
         return "brief"
 
 
@@ -347,7 +349,8 @@ def clear_log_file() -> bool:
         _file_handler = fh
 
         return True
-    except Exception:
+    except Exception as e:
+        logging.getLogger(__name__).debug("Failed to clear log file: %s", e)
         return False
 
 
@@ -365,7 +368,8 @@ def purge_old_logs() -> int:
         from src.user_preferences import get_user_preferences
 
         days = int(get_user_preferences().get("log_retention_days", 90))
-    except Exception:
+    except Exception as e:
+        logging.getLogger(__name__).debug("Could not load log retention preference: %s", e)
         days = 90
 
     if days <= 0:
@@ -383,10 +387,10 @@ def purge_old_logs() -> int:
                 if path.stat().st_mtime < cutoff:
                     path.unlink()
                     deleted += 1
-            except OSError:
-                pass
-    except OSError:
-        pass
+            except OSError as e:
+                logging.getLogger(__name__).debug("Could not delete old log %s: %s", path.name, e)
+    except OSError as e:
+        logging.getLogger(__name__).debug("Could not iterate log directory: %s", e)
 
     if deleted:
         logger.info("Purged %d old log file(s) (retention: %d days)", deleted, days)

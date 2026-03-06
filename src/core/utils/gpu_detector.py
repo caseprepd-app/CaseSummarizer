@@ -154,7 +154,8 @@ def _detect_gpu_pytorch() -> dict | None:
             # Get VRAM if available
             try:
                 vram = torch.cuda.get_device_properties(0).total_memory
-            except Exception:
+            except Exception as e:
+                logger.debug("[GPU] Could not read VRAM from PyTorch: %s", e)
                 vram = 0
 
             logger.info("[GPU] PyTorch detected NVIDIA GPU: %s", gpu_name)
@@ -325,7 +326,8 @@ def get_gpu_status_text() -> str:
                 return f"{vendor} GPU detected"
             return "GPU detected"
         return "No dedicated GPU detected"
-    except Exception:
+    except Exception as e:
+        logger.warning("[GPU] Status text retrieval failed: %s", e)
         return "GPU detection unavailable"
 
 

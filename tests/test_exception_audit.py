@@ -140,11 +140,11 @@ class TestBug5SilentCatchesLog:
     """Verify formerly silent catches now produce log output."""
 
     def test_config_value_recovery_logs_on_error(self):
-        """_d logs debug when preferences fail."""
-        # Verify via source code that logging.debug is called on exception
+        """_d logs warning when preferences fail."""
+        # Verify via source code that logging.warning is called on exception
         source = _read_source("config.py")
         assert "Config value recovery" in source
-        assert "logging.debug" in source
+        assert "logging.warning" in source
 
     def test_worker_forwarder_inner_except_logs(self):
         """Forwarder loop inner except blocks log errors."""

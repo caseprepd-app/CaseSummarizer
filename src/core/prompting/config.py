@@ -101,11 +101,11 @@ class PromptConfig:
                 return defaults
 
         except json.JSONDecodeError as e:
-            logger.debug("Error parsing prompt parameters file: %s", e)
+            logger.warning("Error parsing prompt parameters file: %s", e, exc_info=True)
             logger.debug("Using default values from config.py.")
             return defaults
         except Exception as e:
-            logger.debug("Error loading prompt parameters: %s", e)
+            logger.warning("Error loading prompt parameters: %s", e, exc_info=True)
             logger.debug("Using default values from config.py.")
             return defaults
 

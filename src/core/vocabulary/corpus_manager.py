@@ -645,7 +645,8 @@ class CorpusManager:
                 stat = file_path.stat()
                 modified_at = datetime.fromtimestamp(stat.st_mtime)
                 size_bytes = stat.st_size
-            except Exception:
+            except Exception as e:
+                logger.debug("Could not stat corpus file %s: %s", file_path.name, e)
                 modified_at = None
                 size_bytes = 0
 

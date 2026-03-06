@@ -964,7 +964,7 @@ class ProgressiveExtractionWorker(BaseWorker):
                         len(result.chunk_embeddings),
                     )
                 except Exception as e:
-                    logger.warning("Redundancy detection failed: %s", e)
+                    logger.warning("Redundancy detection failed: %s", e, exc_info=True)
 
             # Guard: skip sending messages if extraction was cancelled
             if self.is_stopped:

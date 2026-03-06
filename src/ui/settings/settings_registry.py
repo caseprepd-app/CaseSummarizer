@@ -449,10 +449,13 @@ def _register_all_settings():
             import subprocess
             import sys
 
-            if sys.platform == "darwin":
-                subprocess.run(["open", str(CORPUS_DIR)])
-            else:
-                subprocess.run(["xdg-open", str(CORPUS_DIR)])
+            try:
+                if sys.platform == "darwin":
+                    subprocess.run(["open", str(CORPUS_DIR)])
+                else:
+                    subprocess.run(["xdg-open", str(CORPUS_DIR)])
+            except Exception as e:
+                logger.warning("Could not open corpus folder: %s", e)
 
     SettingsRegistry.register(
         SettingDefinition(
@@ -1287,7 +1290,8 @@ def _register_all_settings():
                     options.append((display, name))
                 return options
             return [("(No models installed - run 'ollama pull gemma3:1b')", "")]
-        except Exception:
+        except Exception as e:
+            logger.warning("Failed to fetch Ollama models: %s", e)
             return [("(Error connecting to Ollama)", "")]
 
     def _set_ollama_model(model_name: str) -> None:
@@ -1760,10 +1764,13 @@ def _register_all_settings():
             import subprocess
             import sys
 
-            if sys.platform == "darwin":
-                subprocess.run(["open", str(LOGS_DIR)])
-            else:
-                subprocess.run(["xdg-open", str(LOGS_DIR)])
+            try:
+                if sys.platform == "darwin":
+                    subprocess.run(["open", str(LOGS_DIR)])
+                else:
+                    subprocess.run(["xdg-open", str(LOGS_DIR)])
+            except Exception as e:
+                logger.warning("Could not open log folder: %s", e)
 
     SettingsRegistry.register(
         SettingDefinition(
@@ -1897,7 +1904,8 @@ def _register_all_settings():
             from src.services import AIService
 
             return AIService().get_gpu_status_text()
-        except Exception:
+        except Exception as e:
+            logger.debug("GPU status tooltip failed: %s", e)
             return "GPU detection unavailable"
 
     SettingsRegistry.register(

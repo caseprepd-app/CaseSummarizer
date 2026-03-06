@@ -441,7 +441,8 @@ class CorpusDialog(BaseModalDialog):
             self.status_label.configure(
                 text=f"{len(corpora)} corpus(es) | {total_docs} total documents | Active: {active_path}"
             )
-        except Exception:
+        except Exception as e:
+            logger.debug("Could not resolve active corpus path: %s", e)
             self.status_label.configure(
                 text=f"{len(corpora)} corpus(es) | {total_docs} total documents"
             )
@@ -661,7 +662,7 @@ class CorpusDialog(BaseModalDialog):
                     try:
                         self._vocab_service.preprocess_corpus_file(self._corpus_path, dst)
                     except Exception as e:
-                        logger.debug("Preprocess error: %s", e)
+                        logger.warning("Preprocess error for %s: %s", dst.name, e)
 
             self.corpus_changed = True
             self._refresh_corpus_list()

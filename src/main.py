@@ -144,8 +144,11 @@ def main():
         from src.ui.main_window import MainWindow
     except Exception:
         kill(splash_proc)
-        _CRASH_LOG.parent.mkdir(parents=True, exist_ok=True)
-        _CRASH_LOG.write_text(traceback.format_exc(), encoding="utf-8")
+        try:
+            _CRASH_LOG.parent.mkdir(parents=True, exist_ok=True)
+            _CRASH_LOG.write_text(traceback.format_exc(), encoding="utf-8")
+        except Exception:
+            pass  # Best-effort crash log; original exception re-raised below
         raise
 
     # 3. Setup stdout/stderr crash log (separate from structured logging)

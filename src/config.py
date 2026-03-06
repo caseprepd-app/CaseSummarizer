@@ -36,7 +36,7 @@ def _d(key: str):
                     return factory
             return value
     except Exception as e:
-        logging.debug("Config value recovery for '%s': %s", key, e)
+        logging.warning("Config value recovery for '%s': %s", key, e)
     return factory
 
 

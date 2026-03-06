@@ -31,7 +31,6 @@ Usage:
 import gc
 import logging
 import threading
-import traceback
 from queue import Queue
 
 from src.ui.queue_messages import QueueMessage
@@ -131,7 +130,7 @@ class BaseWorker(threading.Thread):
             error: The exception that occurred
         """
         error_msg = f"{operation} failed: {error!s}"
-        logger.debug("%s: %s\n%s", self._worker_name, error_msg, traceback.format_exc())
+        logger.error("%s: %s", self._worker_name, error_msg, exc_info=True)
         self.ui_queue.put(QueueMessage.error(error_msg))
 
     def run(self) -> None:

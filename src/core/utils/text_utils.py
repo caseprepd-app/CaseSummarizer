@@ -101,7 +101,8 @@ def get_documents_folder() -> str:
             r"Software\Microsoft\Windows\CurrentVersion\Explorer\Shell Folders",
         ) as key:
             return winreg.QueryValueEx(key, "Personal")[0]
-    except Exception:
+    except Exception as e:
+        logger.debug("Windows registry Documents folder lookup failed: %s", e)
         from pathlib import Path
 
         return str(Path.home() / "Documents")

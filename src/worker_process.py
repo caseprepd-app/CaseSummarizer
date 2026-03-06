@@ -128,7 +128,7 @@ def _command_loop(command_queue, internal_queue, result_queue, state):
         except Empty:
             continue
         except Exception as e:
-            logger.warning("Unexpected error reading command queue: %s", e)
+            logger.warning("Unexpected error reading command queue: %s", e, exc_info=True)
             continue
 
         if msg == _SHUTDOWN_SENTINEL:
@@ -160,7 +160,10 @@ def _command_loop(command_queue, internal_queue, result_queue, state):
             _dispatch_command(cmd_type, args, internal_queue, state)
         except Exception as e:
             logger.error("Command dispatch error (%s): %s", cmd_type, e, exc_info=True)
-            result_queue.put(("error", f"Worker error: {e}"))
+            try:
+                result_queue.put(("error", f"Worker error: {e}"))
+            except Exception as put_err:
+                logger.error("Failed to send dispatch error to GUI: %s", put_err)
 
 
 def _dispatch_command(cmd_type, args, internal_queue, state):
