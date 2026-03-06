@@ -6,7 +6,7 @@ This module provides a single chunking service that:
 2. Enforces token limits using tiktoken for accurate counting
 3. Caches chunks in memory for reuse by all downstream consumers
 
-Based on RAG research (2024-2025), chunk sizes are FIXED at 400-1000
+Based on RAG research (2024-2025), chunk sizes are FIXED at 300-1000
 tokens regardless of context window. Larger context = more chunks retrieved,
 not bigger chunks. Research sources:
 - Chroma: 200-400 tokens for best precision
@@ -42,7 +42,7 @@ logger = logging.getLogger(__name__)
 # The embedding model (nomic-embed-text-v1.5) has an 8,192-token context window,
 # so even the max chunk size (1000 tokens) fits comfortably within that limit.
 # Chunks are sized for retrieval quality, not to fill the embedding window.
-DEFAULT_MIN_TOKENS = UNIFIED_CHUNK_MIN_TOKENS  # Fallback: 400
+DEFAULT_MIN_TOKENS = UNIFIED_CHUNK_MIN_TOKENS  # Fallback: 300
 DEFAULT_TARGET_TOKENS = UNIFIED_CHUNK_TARGET_TOKENS  # Fallback: 700
 DEFAULT_MAX_TOKENS = UNIFIED_CHUNK_MAX_TOKENS  # Fallback: 1000
 
@@ -541,7 +541,7 @@ def create_unified_chunker(
     Factory function to create a UnifiedChunker instance.
 
     If token sizes are not provided, uses optimal fixed sizes based on RAG research.
-    Chunk sizes are FIXED at 400-1000 tokens (research-based optimal range).
+    Chunk sizes are FIXED at 300-1000 tokens (research-based optimal range).
 
     Args:
         min_tokens: Minimum tokens per chunk (auto-scaled if None)

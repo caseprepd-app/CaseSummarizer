@@ -424,8 +424,8 @@ class TestOptimalChunkSizes:
 
         sizes = get_optimal_chunk_sizes(32000)
 
-        # Research: min 400, target 700, max 1000
-        assert sizes["min_tokens"] == 400
+        # Research: min 300, target 700, max 1000
+        assert sizes["min_tokens"] == 300
         assert sizes["target_tokens"] == 700
         assert sizes["max_tokens"] == 1000
 
@@ -494,8 +494,8 @@ class TestUserPreferencesChunkSizes:
             # Context should be passed through
             assert sizes["context_window"] == 16000
 
-            # Chunk sizes should be FIXED (400/700/1000) regardless of context
-            assert sizes["min_tokens"] == 400
+            # Chunk sizes should be FIXED (300/700/1000) regardless of context
+            assert sizes["min_tokens"] == 300
             assert sizes["target_tokens"] == 700
             assert sizes["max_tokens"] == 1000
 
@@ -520,6 +520,6 @@ class TestUserPreferencesChunkSizes:
                 assert sizes["context_window"] == 48000
 
                 # Chunk sizes should still be fixed (same as 16K context)
-                assert sizes["min_tokens"] == 400
+                assert sizes["min_tokens"] == 300
                 assert sizes["target_tokens"] == 700
                 assert sizes["max_tokens"] == 1000

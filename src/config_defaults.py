@@ -325,7 +325,7 @@ DEFAULTS = {
         "category": "Chunking",
     },
     "unified_chunk_min_tokens": {
-        "value": 400,
+        "value": 300,
         "min": 200,
         "max": 600,
         "step": 50,

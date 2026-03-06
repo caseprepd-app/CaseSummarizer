@@ -7,7 +7,7 @@ with a single prompt per chunk for efficiency. This replaces the previous
 
 TEXT FLOW DESIGN DECISION:
 Unlike NER/RAKE/BM25 which receive the full preprocessed text, LLM extraction
-intentionally uses UnifiedChunks (400-1000 tokens each). This is BY DESIGN:
+intentionally uses UnifiedChunks (300-1000 tokens each). This is BY DESIGN:
 - Ollama has limited context windows
 - Chunking provides better extraction quality for LLMs
 - Results are reconciled with NER output for comprehensive coverage
@@ -278,7 +278,7 @@ DOCUMENT CHUNK:
         """
         Extract people and vocabulary from text using single LLM prompt per chunk.
 
-        Uses token-based UnifiedChunker for optimal chunk sizes (400-1000 tokens).
+        Uses token-based UnifiedChunker for optimal chunk sizes (300-1000 tokens).
         Results are stored in memory as lists of LLMPerson and LLMTerm objects.
 
         Args:
@@ -291,7 +291,7 @@ DOCUMENT CHUNK:
         # Import here to avoid circular import at module level
         from src.core.chunking.unified_chunker import create_unified_chunker
 
-        # Use UnifiedChunker for token-based chunking (research-optimal 400-1000 tokens)
+        # Use UnifiedChunker for token-based chunking (research-optimal 300-1000 tokens)
         chunker = create_unified_chunker()
         chunks = chunker.chunk_text(text)
 

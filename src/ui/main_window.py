@@ -2295,10 +2295,10 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
 
     def _export_all(self):
         """
-        Export all results (vocabulary, Q&A, summary) to a single tabbed HTML file.
+        Export all results (vocabulary, Q&A, summary) to a single file.
 
-        Opens a save dialog defaulting to .html. Gathers score-filtered vocab,
-        answered Q&A, and summary text into one combined HTML document.
+        Opens a save dialog offering HTML, Word, and PDF formats. Gathers
+        score-filtered vocab, answered Q&A, and summary text into one document.
         """
         if getattr(self, "_exporting_all", False):
             return
@@ -2342,12 +2342,14 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         doc_service = DocumentService()
         initial_dir = prefs.get("last_export_path") or doc_service.get_default_documents_folder()
 
-        # Open save dialog
+        # Open save dialog with all supported formats
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         filepath = filedialog.asksaveasfilename(
             defaultextension=".html",
             filetypes=[
                 ("HTML files", "*.html"),
+                ("Word documents", "*.docx"),
+                ("PDF files", "*.pdf"),
                 ("All files", "*.*"),
             ],
             initialfile=f"case_report_{timestamp}.html",
@@ -2358,18 +2360,36 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         if not filepath:
             return
 
-        # Get visible columns from vocab display
-        visible_columns = self.output_display._get_visible_columns()
-
-        # Export combined HTML
+        # Route to format-specific export
         export_service = get_export_service()
-        success, error_detail = export_service.export_combined_html(
-            vocab_data=vocab_data,
-            qa_results=qa_results,
-            summary_text=summary_text,
-            file_path=filepath,
-            visible_columns=visible_columns,
-        )
+        ext = Path(filepath).suffix.lower()
+
+        if ext == ".docx":
+            success, error_detail = export_service.export_combined_to_word(
+                vocab_data=vocab_data,
+                qa_results=qa_results,
+                file_path=filepath,
+                summary_text=summary_text,
+            )
+            fmt_label = "Word"
+        elif ext == ".pdf":
+            success, error_detail = export_service.export_combined_to_pdf(
+                vocab_data=vocab_data,
+                qa_results=qa_results,
+                file_path=filepath,
+                summary_text=summary_text,
+            )
+            fmt_label = "PDF"
+        else:
+            visible_columns = self.output_display._get_visible_columns()
+            success, error_detail = export_service.export_combined_html(
+                vocab_data=vocab_data,
+                qa_results=qa_results,
+                summary_text=summary_text,
+                file_path=filepath,
+                visible_columns=visible_columns,
+            )
+            fmt_label = "HTML"
 
         if success:
             # Remember export folder
@@ -2395,10 +2415,10 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             if summary_text:
                 parts.append("summary")
             self.set_status(f"Exported {' + '.join(parts)} to {filename}", duration_ms=5000)
-            logger.debug("Export All HTML: %s", filepath)
+            logger.debug("Export All %s: %s", fmt_label, filepath)
         else:
             detail = f"\n\n{error_detail}" if error_detail else ""
-            messagebox.showerror("Export Failed", f"Failed to create HTML report.{detail}")
+            messagebox.showerror("Export Failed", f"Failed to create {fmt_label} report.{detail}")
 
     # =========================================================================
     # Timer

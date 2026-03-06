@@ -231,7 +231,7 @@ class ProgressiveSummarizer:
             text: Full document text
 
         Returns:
-            List of UnifiedChunk objects (400-1000 tokens each, research-based)
+            List of UnifiedChunk objects (300-1000 tokens each, research-based)
         """
         start_time = time.time()
         logger.debug("Starting document chunking...")

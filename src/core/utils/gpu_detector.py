@@ -402,7 +402,7 @@ def get_vram_gb() -> float:
 # - https://arxiv.org/html/2407.19794v2 (Context Window Utilization)
 # - https://www.firecrawl.dev/blog/best-chunking-strategies-rag-2025
 OPTIMAL_CHUNK_SIZES = {
-    "min_tokens": 400,  # Minimum to prevent semantic fragmentation
+    "min_tokens": 300,  # Minimum to prevent semantic fragmentation
     "target_tokens": 700,  # Optimal for mixed query types (research: 500-800)
     "max_tokens": 1000,  # Upper bound (research: >1024 hurts precision)
 }
@@ -412,7 +412,7 @@ def get_optimal_chunk_sizes(context_size: int | None = None) -> dict:
     """
     Get optimal chunk sizes for RAG retrieval.
 
-    Based on 2024-2025 research, chunk sizes should be FIXED at 400-1000 tokens
+    Based on 2024-2025 research, chunk sizes should be FIXED at 300-1000 tokens
     regardless of context window size. What scales with larger context is how
     many chunks can be retrieved, not the chunk size itself.
 
@@ -422,7 +422,7 @@ def get_optimal_chunk_sizes(context_size: int | None = None) -> dict:
 
     Returns:
         Dict with:
-        - min_tokens: Minimum tokens per chunk (400)
+        - min_tokens: Minimum tokens per chunk (300)
         - target_tokens: Target tokens per chunk (700)
         - max_tokens: Maximum tokens per chunk (1000)
         - context_window: The context window (for reference)

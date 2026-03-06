@@ -1,11 +1,12 @@
 """
 Combined Export Module
 
-Exports both vocabulary and Q&A results in a single document.
+Exports vocabulary, Q&A results, and summary in a single document.
 
 This creates a unified report with:
-1. Names & Vocabulary table
-2. Questions & Answers section
+1. Summary (if available)
+2. Names & Vocabulary table
+3. Questions & Answers section
 
 Supports Word (.docx) and PDF formats using the DocumentBuilder pattern.
 """
@@ -26,9 +27,10 @@ def export_combined(
     include_vocab_details: bool = False,
     include_qa_verification: bool = True,
     title: str = "Document Analysis Report",
+    summary_text: str = "",
 ) -> None:
     """
-    Export both vocabulary and Q&A results to a single document.
+    Export vocabulary, Q&A, and summary to a single document.
 
     Args:
         vocab_data: List of vocabulary dicts
@@ -37,21 +39,31 @@ def export_combined(
         include_vocab_details: Include algorithm columns in vocabulary table
         include_qa_verification: Include verification coloring in Q&A
         title: Document title
+        summary_text: Summary text to include (empty string to skip)
     """
     logger.debug(
-        "Creating combined report: %d terms, %d Q&A pairs", len(vocab_data), len(qa_results)
+        "Creating combined report: %d terms, %d Q&A pairs, summary=%s",
+        len(vocab_data),
+        len(qa_results),
+        bool(summary_text),
     )
 
     # Document title
     builder.add_heading(title, level=1)
     builder.add_paragraph("")  # Spacer
 
-    # Section 1: Vocabulary
+    # Section 1: Summary
+    if summary_text:
+        builder.add_heading("Summary", level=2)
+        builder.add_paragraph(summary_text)
+        builder.add_paragraph("")  # Spacer
+
+    # Section 2: Vocabulary
     if vocab_data:
         export_vocabulary(vocab_data, builder, include_vocab_details)
         builder.add_paragraph("")  # Spacer after table
 
-    # Section 2: Q&A
+    # Section 3: Q&A
     if qa_results:
         export_qa_results(qa_results, builder, include_qa_verification)
 

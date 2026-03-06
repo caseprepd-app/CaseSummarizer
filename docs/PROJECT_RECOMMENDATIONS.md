@@ -33,8 +33,8 @@ Only **34 observations** (14 good, 20 bad). The ML model needs 30 minimum to act
 
 ## Medium Changes (Gaps in Existing Features)
 
-### 6. Combined Export to Word/PDF (Not Just HTML)
-"Export All" only produces HTML. The `export_combined_to_word()` and `export_combined_to_pdf()` methods exist in ExportService but aren't wired to any UI button. Court reporters handing off prep documents probably want Word or PDF, not HTML.
+### 6. ~~Combined Export to Word/PDF (Not Just HTML)~~ ✅ Implemented
+"Export All" file dialog now offers HTML, Word (.docx), and PDF formats. Routes to the existing `export_combined_to_word()` / `export_combined_to_pdf()` methods based on chosen extension. Note: Word/PDF include vocab + Q&A but not summary text (HTML does include summary).
 
 ### 7. ~~Undo/Correct Vocabulary Feedback~~ ✅ Already Working
 Clicking Keep/Skip toggles the rating on; clicking the same box again sets `feedback=0` which calls `_delete_feedback_from_csv()` and removes the row entirely. The CSV always mirrors the GUI state. Rapid-click safe: toggle decision reads from in-memory cache (instant), CSV writes are under `_file_lock`, and deleting a nonexistent row is a no-op.

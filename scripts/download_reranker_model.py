@@ -24,6 +24,58 @@ models_dir = project_root / "models"
 MODEL_ID = "Alibaba-NLP/gte-reranker-modernbert-base"
 MODEL_DIR = "gte-reranker-modernbert-base"
 
+# TODO: Convert reranker to ONNX-only (ship no PyTorch weights)
+#
+# WHY: The reranker is the slowest stage in our 3-stage RAG pipeline (hybrid
+# retrieval → reranking → LLM answer). On CPU-only machines (our target users
+# are stenographers without GPUs), ONNX Runtime gives 2-3x inference speedup
+# over PyTorch by converting the dynamic computation graph to an optimized
+# static graph. Same model, same accuracy, just faster. Also saves ~300MB in
+# the bundled installer by deleting PyTorch weights after ONNX export.
+#
+# WHY WE'RE WAITING: The HuggingFace ONNX ecosystem is mid-migration (Mar 2026).
+# The old `optimum` package (1.x) had ModernBERT O3 optimization (PR #2208,
+# merged June 2025, released in 1.25+). But `optimum` 2.x removed its
+# onnxruntime/ code, delegating to the new `optimum-onnx` package — and
+# `optimum-onnx` is only at v0.1.0 (Dec 2024), which does NOT include
+# ModernBERT optimization support yet.
+#
+# Why we can't install either path today:
+#   - optimum 1.27.0 (old, has ModernBERT O3): requires transformers<4.54,
+#     which would DOWNGRADE our transformers 4.57.3 → 4.53.3. Too risky.
+#   - optimum 2.1.0 + optimum-onnx 0.1.0 (new): no ModernBERT O3 optimization.
+#     Basic ONNX export may work but without O3 the speedup is marginal.
+#   - sentence-transformers 5.1.2 imports `from optimum.onnxruntime` (old path).
+#     sentence-transformers 5.2.3 still uses the old path too. The main branch
+#     (5.3.0.dev0) switched to `optimum-onnx`, but isn't released yet.
+#
+# WHAT TO CHECK PERIODICALLY:
+#   - optimum-onnx on PyPI: needs a release with ModernBERT optimization config
+#     (currently 0.1.0, need 0.2+ or similar)
+#   - sentence-transformers: needs a release that depends on optimum-onnx instead
+#     of old optimum (main branch already does, awaiting 5.3.0 release)
+#   - Once both align, the install is safe: dry-run showed only 3-4 NEW packages,
+#     zero upgrades/downgrades to existing deps
+#
+# WHEN READY — implementation steps:
+#   1. pip install sentence-transformers[onnx]  (should pull optimum-onnx with
+#      ModernBERT support; optimum-onnx is build-time only, not needed at runtime)
+#   2. After download, load with CrossEncoder(target_dir, backend="onnx")
+#   3. Call export_optimized_onnx_model(model, "O3", target_dir)
+#   4. Verify onnx/model_O3.onnx exists, delete model.safetensors to save ~300MB
+#   5. Update cross_encoder_reranker.py _load_model() to pass:
+#        backend="onnx", model_kwargs={"file_name": "onnx/model_O3.onnx"}
+#      max_length=8192 works the same in ONNX mode (confirmed in sbert docs)
+#   6. Update verify_model() in this script to check for onnx/model_O3.onnx
+#      instead of model.safetensors / pytorch_model.bin
+#   7. Update tests that assert on model weight filenames
+#   8. onnxruntime is already installed (1.23.2) and collected in caseprepd.spec
+#
+# DOCS & REFERENCES:
+#   - sbert ONNX efficiency guide: https://sbert.net/docs/cross_encoder/usage/efficiency.html
+#   - optimum ModernBERT optimization fix: https://github.com/huggingface/optimum/pull/2208
+#   - optimum ModernBERT export issue: https://github.com/huggingface/optimum/issues/2177
+
 
 def download_model() -> bool:
     """

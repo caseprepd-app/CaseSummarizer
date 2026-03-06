@@ -335,9 +335,10 @@ class ExportService:
         file_path: str,
         include_vocab_details: bool = False,
         include_qa_verification: bool = True,
+        summary_text: str = "",
     ) -> tuple[bool, str | None]:
         """
-        Export vocabulary and Q&A together to a single Word document.
+        Export vocabulary, Q&A, and summary to a single Word document.
 
         Args:
             vocab_data: List of vocabulary dicts
@@ -345,6 +346,7 @@ class ExportService:
             file_path: Output file path (.docx)
             include_vocab_details: Include algorithm columns
             include_qa_verification: Include verification coloring
+            summary_text: Summary text to include (empty string to skip)
 
         Returns:
             (True, None) if successful, (False, error_detail) otherwise
@@ -353,7 +355,12 @@ class ExportService:
         def do_export():
             builder = WordDocumentBuilder()
             export_combined(
-                vocab_data, qa_results, builder, include_vocab_details, include_qa_verification
+                vocab_data,
+                qa_results,
+                builder,
+                include_vocab_details,
+                include_qa_verification,
+                summary_text=summary_text,
             )
             builder.save(file_path)
 
@@ -371,9 +378,10 @@ class ExportService:
         file_path: str,
         include_vocab_details: bool = False,
         include_qa_verification: bool = True,
+        summary_text: str = "",
     ) -> tuple[bool, str | None]:
         """
-        Export vocabulary and Q&A together to a single PDF document.
+        Export vocabulary, Q&A, and summary to a single PDF document.
 
         Args:
             vocab_data: List of vocabulary dicts
@@ -381,6 +389,7 @@ class ExportService:
             file_path: Output file path (.pdf)
             include_vocab_details: Include algorithm columns
             include_qa_verification: Include verification coloring
+            summary_text: Summary text to include (empty string to skip)
 
         Returns:
             (True, None) if successful, (False, error_detail) otherwise
@@ -389,7 +398,12 @@ class ExportService:
         def do_export():
             builder = PdfDocumentBuilder()
             export_combined(
-                vocab_data, qa_results, builder, include_vocab_details, include_qa_verification
+                vocab_data,
+                qa_results,
+                builder,
+                include_vocab_details,
+                include_qa_verification,
+                summary_text=summary_text,
             )
             builder.save(file_path)
 
