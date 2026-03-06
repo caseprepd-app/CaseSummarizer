@@ -29,6 +29,7 @@ Usage:
             print(f"{result.task_id} failed: {result.error}")
 """
 
+import logging
 import threading
 from collections.abc import Callable
 from concurrent.futures import as_completed
@@ -36,6 +37,8 @@ from dataclasses import dataclass
 from typing import Any
 
 from .executor_strategy import ExecutorStrategy
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass

@@ -7,10 +7,14 @@ from config_defaults_meta.py. Includes a "Restore All Defaults"
 button at the top of the tab.
 """
 
+import logging
+
 from src.config_defaults import DEFAULTS
 from src.config_defaults_meta import DESCRIPTIONS
 
 from .settings_registry import SettingDefinition, SettingsRegistry, SettingType
+
+logger = logging.getLogger(__name__)
 
 _CATEGORY = "Advanced"
 

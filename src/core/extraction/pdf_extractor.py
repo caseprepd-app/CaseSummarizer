@@ -158,7 +158,7 @@ class PDFExtractor:
                 return scanned, all_scanned
 
         except Exception as e:
-            logger.debug("Scanned page detection failed: %s", e)
+            logger.warning("Scanned page detection failed: %s", e)
             return set(), False
 
     @staticmethod
@@ -391,7 +391,7 @@ class PDFExtractor:
             return None, 0, None
 
         except Exception as e:
-            logger.debug("Layout extraction failed: %s", e)
+            logger.warning("Layout extraction failed: %s", e)
             return None, 0, None
 
     def _extract_pymupdf(self, file_path: Path) -> tuple[str | None, int, str | None]:

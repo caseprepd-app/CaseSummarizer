@@ -157,10 +157,10 @@ class OllamaModelManager:
             self.is_connected = True
             logger.debug("Successfully connected to Ollama")
         except ollama.ResponseError as e:
-            logger.debug("Ollama connection error: %s", e)
+            logger.warning("Ollama connection error: %s", e)
             self.is_connected = False
         except Exception as e:
-            logger.debug("Connection check failed: %s", e)
+            logger.warning("Connection check failed: %s", e)
             self.is_connected = False
 
         return self.is_connected
@@ -195,11 +195,11 @@ class OllamaModelManager:
                     }
                 logger.debug("Found %s available models: %s", len(models), list(models.keys()))
             except ollama.ResponseError as e:
-                logger.debug("Failed to get models: %s", e)
+                logger.warning("Failed to get models: %s", e)
             except Exception as e:
-                logger.debug("Error fetching available models: %s", e)
+                logger.warning("Error fetching available models: %s", e)
         else:
-            logger.debug("Ollama not connected - cannot get available models")
+            logger.warning("Ollama not connected - cannot get available models")
 
         return models
 
@@ -231,7 +231,7 @@ class OllamaModelManager:
             self._check_connection()
 
         if not self.is_connected:
-            logger.debug("Cannot load model: Ollama not running at %s", self.api_base)
+            logger.warning("Cannot load model: Ollama not running at %s", self.api_base)
             return False
 
         try:
@@ -381,7 +381,7 @@ class OllamaModelManager:
             logger.error("Ollama API error (status %s): %s", e.status_code, e.error)
             raise RuntimeError(f"Ollama error (status {e.status_code}): {e.error}") from e
         except Exception as e:
-            logger.debug("Text generation failed: %s", e)
+            logger.warning("Text generation failed: %s", e)
             raise RuntimeError(f"Text generation failed: {e!s}") from e
 
     def generate_summary(

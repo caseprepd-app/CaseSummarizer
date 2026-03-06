@@ -4,8 +4,12 @@ Word Document Builder
 Implements DocumentBuilder using python-docx for .docx export.
 """
 
+import logging
+
 from docx import Document
 from docx.enum.table import WD_TABLE_ALIGNMENT
+
+logger = logging.getLogger(__name__)
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.shared import Pt, RGBColor
 

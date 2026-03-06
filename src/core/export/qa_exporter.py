@@ -5,7 +5,11 @@ Exports Q&A results to Word/PDF using DocumentBuilder interface.
 Supports verification coloring for hallucination detection.
 """
 
+import logging
+
 from src.core.export.base import DocumentBuilder, TextSpan, get_verification_color
+
+logger = logging.getLogger(__name__)
 
 
 def export_qa_results(

@@ -34,6 +34,7 @@ LOG_CATEGORIES: dict[str, tuple[str, ...]] = {
         "src.core.chunking",
         "src.core.preprocessing",
         "src.services.document_service",
+        "src.services.ocr_availability",
     ),
     "Vocabulary Extraction": (
         "src.core.vocabulary.algorithms",
@@ -69,6 +70,7 @@ LOG_CATEGORIES: dict[str, tuple[str, ...]] = {
     ),
     "IPC & Worker": (
         "src.services.worker_manager",
+        "src.services.workers",
         "src.worker_process",
     ),
     "UI Events": ("src.ui",),

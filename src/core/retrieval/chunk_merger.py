@@ -19,10 +19,13 @@ Reference: Cormack, Clarke & Buettcher (2009), "Reciprocal Rank Fusion
 outperforms Condorcet and individual Rank Learning Methods"
 """
 
+import logging
 from dataclasses import dataclass, field
 from typing import Any
 
 from src.core.retrieval.base import AlgorithmRetrievalResult, RetrievedChunk
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass

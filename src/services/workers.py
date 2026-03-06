@@ -184,7 +184,7 @@ class ProcessingWorker(BaseWorker):
                 self.processed_results.append(task_result.result)
             else:
                 # Log errors and show in status bar (non-blocking)
-                logger.debug("Document failed: %s - %s", task_result.task_id, task_result.error)
+                logger.warning("Document failed: %s - %s", task_result.task_id, task_result.error)
                 filename = Path(task_result.task_id).name
                 self.send_status_error(f"Failed to extract {filename}")
 
@@ -434,7 +434,7 @@ class QAWorker(BaseWorker):
             # Handle any failures
             for task_result in task_results:
                 if not task_result.success:
-                    logger.debug("Question %s failed: %s", task_result.task_id, task_result.error)
+                    logger.warning("Question %s failed: %s", task_result.task_id, task_result.error)
 
             # Return results in original order (thread-safe read)
             with results_lock:

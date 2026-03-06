@@ -33,10 +33,13 @@ Usage:
     # "Processed 1/5 documents" (20%)
 """
 
+import logging
 import threading
 import time
 from dataclasses import dataclass, field
 from queue import Queue
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass

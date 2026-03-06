@@ -75,6 +75,7 @@ class QAService:
         Returns:
             True if successful, False otherwise
         """
+        logger.info("Building Q&A index (%d chars)", len(text))
         try:
             if progress_callback:
                 progress_callback("Loading embeddings model...")
@@ -152,6 +153,7 @@ class QAService:
         Returns:
             List of QAResult objects
         """
+        logger.info("Running default questions")
         if not self._is_ready or self._orchestrator is None:
             logger.warning("Cannot run questions - index not ready")
             return []
@@ -168,6 +170,7 @@ class QAService:
         Returns:
             QAResult object or None if not ready
         """
+        logger.info("Follow-up question: %s", question[:80])
         if not self._is_ready or self._orchestrator is None:
             logger.warning("Cannot ask question - index not ready")
             return None

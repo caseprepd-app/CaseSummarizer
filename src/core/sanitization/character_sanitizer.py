@@ -17,11 +17,14 @@ Uses ftfy for encoding recovery + unicodedata for character classification.
 Optionally uses unidecode for transliteration (ASCII-safe output).
 """
 
+import logging
 import re
 import time
 import unicodedata
 
 import ftfy
+
+logger = logging.getLogger(__name__)
 
 try:
     from unidecode import unidecode

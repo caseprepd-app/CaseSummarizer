@@ -21,7 +21,10 @@ To add a new profile:
     4. Import in vocabulary_extractor.py
 """
 
+import logging
 import re
+
+logger = logging.getLogger(__name__)
 
 
 class RoleDetectionProfile:

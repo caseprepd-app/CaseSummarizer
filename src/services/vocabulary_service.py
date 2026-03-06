@@ -55,6 +55,7 @@ class VocabularyService:
         Returns:
             List of vocabulary dicts with Term, Is Person, Quality Score, etc.
         """
+        logger.info("Starting vocabulary extraction (%d chars)", len(text))
         if not text.strip():
             logger.debug("Empty text provided, returning empty list")
             return []
@@ -86,6 +87,7 @@ class VocabularyService:
             List of vocabulary dicts with TermSources attached via 'sources' key.
             The TermSources enables confidence-weighted canonical selection.
         """
+        logger.info("Starting per-document vocabulary extraction (%d documents)", len(documents))
         if not documents:
             logger.debug("No documents provided, returning empty list")
             return []

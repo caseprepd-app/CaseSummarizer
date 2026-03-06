@@ -14,10 +14,13 @@ Merge Strategy:
 6. Track which algorithms found each term (for ML features)
 """
 
+import logging
 from dataclasses import dataclass, field
 from typing import Any, ClassVar
 
 from src.core.vocabulary.algorithms.base import AlgorithmResult, CandidateTerm
+
+logger = logging.getLogger(__name__)
 
 
 def _normalize_for_merge(term: str) -> str:

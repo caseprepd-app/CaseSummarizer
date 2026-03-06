@@ -5,8 +5,12 @@ Wraps the existing deduplicate_names() function for FilterChain integration.
 Merges similar Person names (OCR variants, transcript artifacts).
 """
 
+import logging
+
 from src.config import NAME_SIMILARITY_THRESHOLD
 from src.core.vocabulary.filters.base import BaseVocabularyFilter, FilterResult
+
+logger = logging.getLogger(__name__)
 
 
 class NameDeduplicationFilter(BaseVocabularyFilter):

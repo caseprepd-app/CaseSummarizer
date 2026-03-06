@@ -15,9 +15,12 @@ Features include:
   - doc_diversity_ratio: Proportion of session docs containing term
 """
 
+import logging
 from typing import Any
 
 import numpy as np
+
+logger = logging.getLogger(__name__)
 
 from src.config import (
     NON_NER_PHRASE_COMMON_WORD_FLOOR,

@@ -5,8 +5,12 @@ Wraps the existing is_gibberish() function for FilterChain integration.
 Removes nonsense/random character sequences.
 """
 
+import logging
+
 from src.core.vocabulary.filters.base import BaseVocabularyFilter, FilterResult
 from src.core.vocabulary.person_utils import is_person_entry
+
+logger = logging.getLogger(__name__)
 
 
 class GibberishFilter(BaseVocabularyFilter):

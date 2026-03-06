@@ -78,6 +78,7 @@ class DocumentService:
         """
         results = []
         total = len(file_paths)
+        logger.info("Starting document processing for %d files", total)
 
         for i, file_path in enumerate(file_paths):
             if progress_callback:
@@ -103,6 +104,7 @@ class DocumentService:
         Returns:
             Result dict with 'file_path', 'text', 'raw_text', 'confidence', etc.
         """
+        logger.debug("Processing document: %s", Path(file_path).name)
         # Extract raw text
         extraction_result = self.extractor.extract(file_path)
 

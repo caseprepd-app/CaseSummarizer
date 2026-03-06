@@ -9,8 +9,11 @@ JavaScript is scoped to prevent cross-tab interference.
 """
 
 import json
+import logging
 
 from src.config import NUMERIC_COLUMNS, PROTECTED_COLUMNS, SORT_WARNING_COLUMNS
+
+logger = logging.getLogger(__name__)
 from src.core.export.html_builder import VOCAB_HTML_COLUMNS, _escape
 from src.core.vocab_schema import VF
 

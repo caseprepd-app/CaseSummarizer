@@ -10,10 +10,13 @@ run_splash_window() and exits. Environment variables are passed directly
 via CreateProcess on Windows — no argv parsing by PyInstaller's bootloader.
 """
 
+import logging
 import os
 import subprocess
 import sys
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 # tkinter.PhotoImage supports .png (Tk 8.6+) and .gif natively
 SPLASH_EXTENSIONS = {".png", ".gif"}

@@ -996,7 +996,16 @@ class TestSplashModuleArchitecture:
 
         # Find all top-level imports (not inside functions)
         top_level_imports = re.findall(r"^(?:from|import)\s+(\S+)", source, re.MULTILINE)
-        stdlib_allowed = {"os", "subprocess", "sys", "pathlib", "random", "tkinter", "contextlib"}
+        stdlib_allowed = {
+            "logging",
+            "os",
+            "subprocess",
+            "sys",
+            "pathlib",
+            "random",
+            "tkinter",
+            "contextlib",
+        }
         for module in top_level_imports:
             root_module = module.split(".")[0]
             assert root_module in stdlib_allowed, f"splash.py imports non-stdlib module: {module}"
