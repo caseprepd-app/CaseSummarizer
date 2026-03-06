@@ -100,7 +100,7 @@ class TestPipelineIntegration:
     """Tests verifying components work together in the full pipeline."""
 
     def test_process_pdf_inner_flow(self, extractor, long_good_text):
-        """Full _process_pdf_inner flow: mock extractors, verify structure."""
+        """Full _process_pdf_inner flow: high-confidence PyMuPDF skips pdfplumber."""
         from pathlib import Path
 
         extractor._extract_text_pymupdf = MagicMock(return_value=(long_good_text, 10, None))
@@ -110,10 +110,13 @@ class TestPipelineIntegration:
         result = extractor._process_pdf_inner(Path("test.pdf"))
 
         assert result["status"] == "success"
-        assert result["method"] in ("pymupdf_best", "pdfplumber_best")
+        # High-confidence text skips pdfplumber via fast path
+        assert result["method"] == "pymupdf_only"
         assert result["confidence"] > 0
         assert result["page_count"] == 10
         assert result["text"] is not None
+        # pdfplumber should NOT have been called
+        extractor._extract_pdf_text.assert_not_called()
 
     def test_normalization_preserves_transcript_text(self):
         """Transcript-style text survives normalization with content intact."""

@@ -347,67 +347,97 @@ class RawTextExtractor:
                 "page_count": ocr_result["page_count"],
             }
 
+        from src.config import PDFPLUMBER_SKIP_CONFIDENCE
+
         # Step 1: Try PyMuPDF extraction (primary)
         # Uses facade methods so tests can mock them
         with Timer("PyMuPDF text extraction"):
             primary_text, page_count, primary_error = self._extract_text_pymupdf(file_path)
 
-        # Step 2: Try pdfplumber extraction (secondary)
-        with Timer("pdfplumber text extraction"):
-            secondary_text, secondary_page_count, secondary_error = self._extract_pdf_text(
-                file_path
-            )
+        # Step 2: Check if PyMuPDF is good enough to skip pdfplumber
+        text = None
+        method = None
+        confidence = 0.0
+        has_cid = False
+        secondary_text = None
+        secondary_page_count = 0
+
+        if primary_text:
+            with Timer("PyMuPDF confidence check"):
+                primary_conf = self._calculate_dictionary_confidence(primary_text)
+            has_cid = PDFExtractor.has_cid_problem(primary_text)
+
+            if primary_conf >= PDFPLUMBER_SKIP_CONFIDENCE and not has_cid:
+                # PyMuPDF is good enough — skip pdfplumber entirely
+                text = primary_text
+                method = "pymupdf_only"
+                confidence = primary_conf
+                logger.info(
+                    "PyMuPDF confidence %.1f%% >= %d%% — skipping pdfplumber",
+                    primary_conf,
+                    PDFPLUMBER_SKIP_CONFIDENCE,
+                )
+            else:
+                # PyMuPDF quality insufficient — run pdfplumber as backup
+                reason = "CID markers" if has_cid else f"confidence {primary_conf:.1f}%"
+                logger.info(
+                    "PyMuPDF %s below threshold — running pdfplumber for comparison",
+                    reason,
+                )
+                with Timer("pdfplumber text extraction"):
+                    secondary_text, secondary_page_count, secondary_error = self._extract_pdf_text(
+                        file_path
+                    )
+
+                if secondary_text:
+                    text, method = self._pick_best_extraction(primary_text, secondary_text)
+                else:
+                    text = primary_text
+                    method = "pymupdf_only"
+                    logger.debug("Using PyMuPDF only (pdfplumber failed: %s)", secondary_error)
+        else:
+            # PyMuPDF failed entirely — try pdfplumber
+            logger.info("PyMuPDF extraction failed — trying pdfplumber")
+            with Timer("pdfplumber text extraction"):
+                secondary_text, secondary_page_count, secondary_error = self._extract_pdf_text(
+                    file_path
+                )
+
+            if secondary_text:
+                text = secondary_text
+                method = "pdfplumber_only"
+            else:
+                error_type = primary_error or secondary_error or "unknown"
+                error_messages = {
+                    "password": "PDF is password-protected or encrypted",
+                    "corrupted": "PDF file appears to be corrupted or damaged",
+                    "permission": "Permission denied when accessing PDF",
+                    "empty": "PDF has no pages or content",
+                }
+                return {
+                    "status": "error",
+                    "error_message": error_messages.get(
+                        error_type, f"Failed to extract PDF text: {error_type}"
+                    ),
+                    "text": None,
+                    "method": None,
+                    "confidence": 0,
+                    "page_count": page_count or secondary_page_count,
+                }
 
         # Use whichever page count we got
         page_count = page_count or secondary_page_count
 
-        # Step 3: Determine extraction method based on what succeeded
-        text = None
-        method = None
-
-        if primary_text and secondary_text:
-            # Both succeeded — pick the one with higher dictionary confidence
-            with Timer("Best-of-two confidence comparison"):
-                text, method = self._pick_best_extraction(primary_text, secondary_text)
-
-        elif primary_text:
-            text = primary_text
-            method = "pymupdf_only"
-            logger.debug("Using PyMuPDF only (pdfplumber failed: %s)", secondary_error)
-
-        elif secondary_text:
-            text = secondary_text
-            method = "pdfplumber_only"
-            logger.debug("Using pdfplumber only (PyMuPDF failed: %s)", primary_error)
-
-        else:
-            # Both failed
-            error_type = primary_error or secondary_error or "unknown"
-            error_messages = {
-                "password": "PDF is password-protected or encrypted",
-                "corrupted": "PDF file appears to be corrupted or damaged",
-                "permission": "Permission denied when accessing PDF",
-                "empty": "PDF has no pages or content",
-            }
-            return {
-                "status": "error",
-                "error_message": error_messages.get(
-                    error_type, f"Failed to extract PDF text: {error_type}"
-                ),
-                "text": None,
-                "method": None,
-                "confidence": 0,
-                "page_count": page_count,
-            }
-
-        # Step 4: Check text quality and CID markers
-        with Timer("Dictionary confidence check"):
-            confidence = self._calculate_dictionary_confidence(text)
+        # Step 3: Final confidence and CID check
+        # In the fast path (pymupdf_only with high confidence), these are already set.
+        # For all other paths, calculate now.
+        if not (method == "pymupdf_only" and text is primary_text):
+            with Timer("Dictionary confidence check"):
+                confidence = self._calculate_dictionary_confidence(text)
+            has_cid = PDFExtractor.has_cid_problem(text)
+            if has_cid:
+                logger.debug("CID markers detected — will trigger OCR fallback")
         logger.debug("Dictionary confidence: %.1f%% (method: %s)", confidence, method)
-
-        has_cid = PDFExtractor.has_cid_problem(text)
-        if has_cid:
-            logger.debug("CID markers detected — will trigger OCR fallback")
 
         # Decision: Use digital text or fall back to OCR
         needs_ocr = confidence <= MIN_DICTIONARY_CONFIDENCE or len(text) <= 1000 or has_cid

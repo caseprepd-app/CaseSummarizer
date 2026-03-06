@@ -107,6 +107,7 @@ class TestHybridExtractionPipeline:
 
         result = extractor._process_pdf(Path("test.pdf"))
 
-        assert result["method"] in ("pymupdf_best", "pdfplumber_best")
+        # High-confidence text takes PyMuPDF fast path (skips pdfplumber)
+        assert result["method"] in ("pymupdf_only", "pymupdf_best", "pdfplumber_best")
         assert result["status"] == "success"
         assert result["confidence"] > 0

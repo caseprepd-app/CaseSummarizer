@@ -264,6 +264,7 @@ MAX_FILE_SIZE_MB = 500
 LARGE_FILE_WARNING_MB = 100
 MIN_LINE_LENGTH = 15
 MIN_DICTIONARY_CONFIDENCE = 60  # Percentage
+PDFPLUMBER_SKIP_CONFIDENCE = 75  # Skip pdfplumber if PyMuPDF confidence >= this
 
 # PDF Extraction Configuration
 # Hybrid extraction uses both PyMuPDF and pdfplumber, reconciling with word-level voting

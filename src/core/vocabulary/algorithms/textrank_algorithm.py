@@ -66,6 +66,11 @@ from src.core.vocabulary.algorithms.base import (
 
 logger = logging.getLogger(__name__)
 
+# Components TopicRank does NOT need — disable per-call for speed.
+# TopicRank requires: tagger (POS tags) + parser (noun_chunks) + topicrank.
+# NER, attribute_ruler, lemmatizer are unused overhead (~30-50% savings).
+_TOPICRANK_DISABLED = ["ner", "attribute_ruler", "lemmatizer"]
+
 
 @register_algorithm("TopicRank")
 class TextRankAlgorithm(BaseExtractionAlgorithm):
@@ -157,7 +162,10 @@ class TextRankAlgorithm(BaseExtractionAlgorithm):
         truncated = len(text) > max_chars
         process_text = text[:max_chars] if truncated else text
 
-        doc = self._nlp(process_text)
+        # Disable components TopicRank doesn't use (ner, attr_ruler, lemmatizer)
+        active_pipes = self._nlp.pipe_names
+        disable = [c for c in _TOPICRANK_DISABLED if c in active_pipes]
+        doc = self._nlp(process_text, disable=disable)
 
         candidates = []
         seen_phrases: set[str] = set()
