@@ -259,16 +259,16 @@ class SystemMonitor(ctk.CTkFrame):
         """
         if percent < SYSTEM_MONITOR_THRESHOLD_GREEN:
             # Green: healthy
-            return ("#1a3a1a", "#90EE90")  # Dark green bg, light green text
+            return (get_color("sysmon_good_bg"), get_color("sysmon_good_fg"))
         elif percent < SYSTEM_MONITOR_THRESHOLD_YELLOW:
             # Yellow: elevated
-            return ("#3a3a1a", "#FFEB3B")  # Dark yellow bg, bright yellow text
+            return (get_color("sysmon_warn_bg"), get_color("sysmon_warn_fg"))
         elif percent < SYSTEM_MONITOR_THRESHOLD_CRITICAL:
             # Orange: high
-            return ("#3a2a1a", "#FFA500")  # Dark orange bg, bright orange text
+            return (get_color("sysmon_caution_bg"), get_color("sysmon_caution_fg"))
         else:
             # Red: critical
-            return ("#3a1a1a", "#FF4444")  # Dark red bg, bright red text
+            return (get_color("sysmon_critical_bg"), get_color("sysmon_critical_fg"))
 
     def _on_enter(self, event):
         """Handle mouse enter - schedule tooltip display."""
@@ -337,8 +337,8 @@ class SystemMonitor(ctk.CTkFrame):
             label = ctk.CTkLabel(
                 self.tooltip_window,
                 text=tooltip_text,
-                bg_color=("#333333", "#333333"),
-                text_color=("white", "white"),
+                bg_color=COLORS["tooltip_bg"],
+                text_color=COLORS["tooltip_fg"],
                 corner_radius=5,
                 wraplength=280,
                 font=FONTS["tiny"],

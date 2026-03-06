@@ -16,14 +16,19 @@ import customtkinter as ctk
 
 from src.ui.base_dialog import BaseModalDialog
 from src.ui.text_find_bar import TextFindBar
-from src.ui.theme import BUTTON_STYLES
+from src.ui.theme import BUTTON_STYLES, COLORS
 
 logger = logging.getLogger(__name__)
 
-# Tag styles for the context textbox
-_TERM_HIGHLIGHT = {"background": "#FFEB3B", "foreground": "#000000"}
-_DOC_HEADER = {"foreground": "#4A9EFF", "font": ("Segoe UI", 13, "bold")}
-_MORE_NOTE = {"foreground": "#888888", "font": ("Segoe UI", 11, "italic")}
+# Tag styles for the context textbox (tuples resolved at call time via resolve_tags)
+_CONTEXT_TAGS = {
+    "term_highlight": {
+        "background": COLORS["term_highlight_bg"],
+        "foreground": COLORS["term_highlight_fg"],
+    },
+    "doc_header": {"foreground": COLORS["doc_header_fg"], "font": ("Segoe UI", 13, "bold")},
+    "more_note": {"foreground": COLORS["more_note_fg"], "font": ("Segoe UI", 11, "italic")},
+}
 
 
 def _expand_to_word_boundary(text: str, pos: int, direction: str, max_chars: int) -> int:
@@ -213,9 +218,10 @@ class ContextViewerDialog(BaseModalDialog):
 
         # Configure text tags on the underlying tk.Text widget
         text_widget = self._textbox._textbox
-        text_widget.tag_configure("term_highlight", cnf=_TERM_HIGHLIGHT)
-        text_widget.tag_configure("doc_header", cnf=_DOC_HEADER)
-        text_widget.tag_configure("more_note", cnf=_MORE_NOTE)
+        from src.ui.theme import resolve_tags
+
+        for tag_name, tag_conf in resolve_tags(_CONTEXT_TAGS).items():
+            text_widget.tag_configure(tag_name, cnf=tag_conf)
 
         # Close button
         close_btn = ctk.CTkButton(

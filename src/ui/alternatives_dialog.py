@@ -11,6 +11,7 @@ in the vocabulary table.
 import customtkinter as ctk
 
 from src.ui.base_dialog import BaseModalDialog
+from src.ui.theme import COLORS
 
 
 class AlternativesDialog(BaseModalDialog):
@@ -67,7 +68,7 @@ class AlternativesDialog(BaseModalDialog):
             scroll,
             text="CHOSEN",
             font=ctk.CTkFont(size=11, weight="bold"),
-            text_color="#4a9eff",
+            text_color=COLORS["dialog_chosen"],
             anchor="w",
         )
         chosen_label.pack(fill="x", pady=(0, 4))
@@ -84,7 +85,7 @@ class AlternativesDialog(BaseModalDialog):
             scroll,
             text=reason,
             font=ctk.CTkFont(size=12),
-            text_color="#aaaaaa",
+            text_color=COLORS["dialog_subtitle"],
             anchor="w",
         )
         reason_label.pack(fill="x", pady=(2, 0))
@@ -93,14 +94,14 @@ class AlternativesDialog(BaseModalDialog):
             scroll,
             text=f"{freq} occurrences",
             font=ctk.CTkFont(size=11),
-            text_color="#888888",
+            text_color=COLORS["dialog_muted"],
             anchor="w",
         )
         freq_label.pack(fill="x", pady=(2, 8))
 
         # --- Rejected variants section ---
         if alternatives:
-            sep = ctk.CTkFrame(scroll, height=1, fg_color="#555555")
+            sep = ctk.CTkFrame(scroll, height=1, fg_color=COLORS["dialog_separator"])
             sep.pack(fill="x", pady=(4, 8))
 
             count_text = f"{len(alternatives)} Rejected Variant"
@@ -111,7 +112,7 @@ class AlternativesDialog(BaseModalDialog):
                 scroll,
                 text=count_text,
                 font=ctk.CTkFont(size=11, weight="bold"),
-                text_color="#cc6666",
+                text_color=COLORS["dialog_rejected"],
                 anchor="w",
             )
             header.pack(fill="x", pady=(0, 8))
@@ -123,7 +124,7 @@ class AlternativesDialog(BaseModalDialog):
                 scroll,
                 text="No rejected variants recorded.",
                 font=ctk.CTkFont(size=12),
-                text_color="#888888",
+                text_color=COLORS["dialog_muted"],
                 anchor="w",
             )
             no_alts.pack(fill="x", pady=(8, 0))
@@ -164,7 +165,7 @@ class AlternativesDialog(BaseModalDialog):
                 parent_frame,
                 text=f"  \u2022 {part}",
                 font=ctk.CTkFont(size=11),
-                text_color="#aaaaaa",
+                text_color=COLORS["dialog_subtitle"],
                 anchor="w",
             )
             bullet.pack(fill="x")
@@ -173,7 +174,7 @@ class AlternativesDialog(BaseModalDialog):
             parent_frame,
             text=f"  \u2022 Appeared {freq} times",
             font=ctk.CTkFont(size=11),
-            text_color="#888888",
+            text_color=COLORS["dialog_muted"],
             anchor="w",
         )
         freq_label.pack(fill="x", pady=(0, 6))

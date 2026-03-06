@@ -232,6 +232,8 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         return (True, "")
 
     def _setup_ollama_tooltip(self):
+        from src.ui.theme import COLORS
+
         """Set up hover tooltip for disconnected Ollama status."""
         tooltip_text = (
             "Ollama is not running.\n\n"
@@ -254,7 +256,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
                 tooltip,
                 text=tooltip_text,
                 font=("Segoe UI", 10),
-                fg_color=("#2b2b2b", "#2b2b2b"),
+                fg_color=COLORS["tooltip_bg"],
                 corner_radius=6,
                 padx=10,
                 pady=8,
@@ -395,7 +397,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
                 # No corpora exist — show placeholder
                 self.corpus_dropdown.configure(values=["None"])
                 self.corpus_dropdown.set("None")
-                self.corpus_dropdown.configure(text_color="#e07070")
+                self.corpus_dropdown.configure(text_color=COLORS["corpus_error_text"])
                 self.corpus_doc_count_label.configure(text="")
                 return
 
@@ -633,6 +635,8 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
 
     def _clear_files(self):
         """Clear all files from the session."""
+        from src.ui.theme import COLORS
+
         if self._processing_active or self._preprocessing_active:
             logger.warning("Cannot clear files during active processing")
             return
@@ -652,7 +656,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             self.followup_entry.configure(
                 state="disabled",
                 placeholder_text="Ask questions here after Q&A task completes...",
-                placeholder_text_color="#E8A838",
+                placeholder_text_color=COLORS["placeholder_golden"],
             )
         self._update_generate_button_state()
         self._update_session_stats()  # Clear stats display
@@ -864,6 +868,8 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
 
     def _handle_queue_message(self, msg_type: str, data):
         """Handle a message from the worker queue."""
+        from src.ui.theme import COLORS
+
         if msg_type == "progress":
             _percentage, message = data
             # Append Q&A status note if index is ready but answers haven't appeared yet
@@ -967,7 +973,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
                 self.followup_entry.configure(
                     state="disabled",
                     placeholder_text="Q&A unavailable \u2014 search index failed to build.",
-                    placeholder_text_color="#E05555",
+                    placeholder_text_color=COLORS["placeholder_red"],
                 )
             if hasattr(self, "followup_btn"):
                 self.followup_btn.configure(state="disabled")
@@ -1576,7 +1582,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             text="Cancel",
             command=on_cancel,
             width=100,
-            fg_color=COLORS.get("btn_secondary", "#555555"),
+            fg_color=COLORS["btn_secondary"],
         )
         cancel_btn.pack(side="left", padx=(0, 10))
 
@@ -1685,6 +1691,8 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
 
     def _perform_tasks(self):
         """Execute the selected tasks using progressive three-phase architecture."""
+        from src.ui.theme import COLORS
+
         if self._processing_active:
             logger.warning("_perform_tasks called while already processing — ignored")
             return
@@ -1731,7 +1739,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             self.followup_entry.configure(
                 state="disabled",
                 placeholder_text="Q&A task not selected \u2014 enable it in tasks (checkboxes) to ask questions.",
-                placeholder_text_color="#E05555",
+                placeholder_text_color=COLORS["placeholder_red"],
             )
             self.followup_btn.configure(state="disabled")
 

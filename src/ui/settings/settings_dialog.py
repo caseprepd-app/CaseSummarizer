@@ -100,8 +100,8 @@ class SettingsDialog(BaseModalDialog):
             self,
             corner_radius=8,
             segmented_button_fg_color=("gray75", "gray30"),
-            segmented_button_selected_color=("#3B8ED0", "#1F6AA5"),
-            segmented_button_selected_hover_color=("#36719F", "#144870"),
+            segmented_button_selected_color=COLORS["settings_tab_selected"],
+            segmented_button_selected_hover_color=COLORS["settings_tab_hover"],
             text_color=("gray10", "gray90"),
         )
         self.tabview.grid(row=1, column=0, padx=20, pady=10, sticky="nsew")

@@ -35,6 +35,10 @@ _styles_initialized = False
 _vocab_font_spec = ("Segoe UI", 10)
 _vocab_heading_font_spec = ("Segoe UI", 10, "bold")
 
+# Cache init params for re-initialization on theme change
+_last_scale_factor = 1.0
+_last_font_offset = 0
+
 
 def _get_rowheight(font_spec: tuple, padding: int = 8) -> int:
     """
@@ -70,9 +74,12 @@ def initialize_all_styles(scale_factor: float = 1.0, font_offset: int = 0) -> No
     Must be called once before any Treeview widgets are created.
     Calling multiple times is safe (no-op after first call).
     """
-    global _styles_initialized
+    global _styles_initialized, _last_scale_factor, _last_font_offset
     if _styles_initialized:
         return
+
+    _last_scale_factor = scale_factor
+    _last_font_offset = font_offset
 
     logger.debug(
         "Initializing all Treeview styles (scale=%.2f, font_offset=%d)",
@@ -84,13 +91,33 @@ def initialize_all_styles(scale_factor: float = 1.0, font_offset: int = 0) -> No
     # This is the expensive call - do it exactly once at startup
     style.theme_use("default")
 
+    _apply_all_styles(style, scale_factor, font_offset)
+
+    _styles_initialized = True
+    logger.debug("All Treeview styles initialized")
+
+
+def reinitialize_styles() -> None:
+    """
+    Re-apply all Treeview styles after a theme mode change.
+
+    Uses the same scale_factor and font_offset from the initial call.
+    Skips the expensive theme_use("default") since it was already done.
+    """
+    if not _styles_initialized:
+        return
+
+    style = ttk.Style()
+    _apply_all_styles(style, _last_scale_factor, _last_font_offset)
+    logger.debug("Treeview styles re-applied for theme change")
+
+
+def _apply_all_styles(style: ttk.Style, scale_factor: float, font_offset: int) -> None:
+    """Apply all treeview style configurations using current theme colors."""
     _configure_vocab_treeview_style(style, scale_factor, font_offset)
     _configure_qa_table_style(style, scale_factor, font_offset)
     _configure_file_review_style(style, scale_factor, font_offset)
     _configure_question_list_style(style, scale_factor, font_offset)
-
-    _styles_initialized = True
-    logger.debug("All Treeview styles initialized")
 
 
 def get_vocab_font_specs() -> tuple[tuple, tuple]:
@@ -109,6 +136,8 @@ def get_vocab_font_specs() -> tuple[tuple, tuple]:
 
 def _configure_vocab_treeview_style(style: ttk.Style, sf: float, font_offset: int) -> None:
     """Configure style for vocabulary/NER grid (DynamicOutputWidget)."""
+    from src.ui.theme import get_color
+
     global _vocab_font_spec, _vocab_heading_font_spec
     # 8pt floor matches theme.scale_fonts() -- prevents unreadable text
     font_size = max(8, int(10 * sf) + font_offset)
@@ -117,121 +146,135 @@ def _configure_vocab_treeview_style(style: ttk.Style, sf: float, font_offset: in
     _vocab_heading_font_spec = ("Segoe UI", font_size, "bold")
     style.configure(
         "Vocab.Treeview",
-        background="#2b2b2b",
-        foreground="white",
-        fieldbackground="#2b2b2b",
+        background=get_color("tree_bg"),
+        foreground=get_color("tree_fg"),
+        fieldbackground=get_color("tree_field_bg"),
         borderwidth=0,
         rowheight=_get_rowheight(font_spec),
         font=font_spec,
     )
-    style.map("Vocab.Treeview", background=[("selected", "#3470b6")])
+    style.map("Vocab.Treeview", background=[("selected", get_color("row_selected"))])
 
     style.configure(
         "Vocab.Treeview.Heading",
-        background="#404040",
-        foreground="white",
+        background=get_color("tree_heading_bg"),
+        foreground=get_color("tree_heading_fg"),
         relief="flat",
         font=("Segoe UI", font_size, "bold"),
         padding=(int(8 * sf), int(4 * sf)),
     )
-    style.map("Vocab.Treeview.Heading", background=[("active", "#505050")])
+    style.map("Vocab.Treeview.Heading", background=[("active", get_color("tree_heading_hover"))])
 
     style.configure(
         "Vocab.Vertical.TScrollbar",
-        background="#404040",
-        troughcolor="#2b2b2b",
+        background=get_color("tree_scroll_bg"),
+        troughcolor=get_color("tree_scroll_trough"),
         borderwidth=0,
-        arrowcolor="white",
+        arrowcolor=get_color("tree_arrow"),
     )
     style.configure(
         "Vocab.Horizontal.TScrollbar",
-        background="#404040",
-        troughcolor="#2b2b2b",
+        background=get_color("tree_scroll_bg"),
+        troughcolor=get_color("tree_scroll_trough"),
         borderwidth=0,
-        arrowcolor="white",
+        arrowcolor=get_color("tree_arrow"),
     )
 
 
 def _configure_qa_table_style(style: ttk.Style, sf: float, font_offset: int) -> None:
     """Configure style for Q&A results table (QAPanel)."""
+    from src.ui.theme import get_color
+
     font_size = max(8, int(10 * sf) + font_offset)
     font_spec = ("Segoe UI", font_size)
     style.configure(
         "QATable.Treeview",
-        background="#2b2b2b",
-        foreground="white",
-        fieldbackground="#2b2b2b",
+        background=get_color("tree_bg"),
+        foreground=get_color("tree_fg"),
+        fieldbackground=get_color("tree_field_bg"),
         borderwidth=0,
         rowheight=_get_rowheight(font_spec),
         font=font_spec,
     )
-    style.map("QATable.Treeview", background=[("selected", "#3470b6")])
+    style.map("QATable.Treeview", background=[("selected", get_color("row_selected"))])
 
     style.configure(
         "QATable.Treeview.Heading",
-        background="#404040",
-        foreground="white",
+        background=get_color("tree_heading_bg"),
+        foreground=get_color("tree_heading_fg"),
         relief="flat",
         font=("Segoe UI", font_size, "bold"),
         padding=(int(8 * sf), int(4 * sf)),
     )
-    style.map("QATable.Treeview.Heading", background=[("active", "#505050")])
+    style.map("QATable.Treeview.Heading", background=[("active", get_color("tree_heading_hover"))])
 
     style.configure(
         "QATable.Vertical.TScrollbar",
-        background="#404040",
-        troughcolor="#2b2b2b",
+        background=get_color("tree_scroll_bg"),
+        troughcolor=get_color("tree_scroll_trough"),
         borderwidth=0,
-        arrowcolor="white",
+        arrowcolor=get_color("tree_arrow"),
     )
     style.configure(
         "QATable.Horizontal.TScrollbar",
-        background="#404040",
-        troughcolor="#2b2b2b",
+        background=get_color("tree_scroll_bg"),
+        troughcolor=get_color("tree_scroll_trough"),
         borderwidth=0,
-        arrowcolor="white",
+        arrowcolor=get_color("tree_arrow"),
     )
 
 
 def _configure_file_review_style(style: ttk.Style, sf: float, font_offset: int) -> None:
     """Configure style for file review table (FileReviewTable/widgets.py)."""
+    from src.ui.theme import get_color
+
     font_size = max(8, int(10 * sf) + font_offset)
     font_spec = ("Segoe UI", font_size)
     style.configure(
         "Treeview",
-        background="#2b2b2b",
-        foreground="white",
-        fieldbackground="#2b2b2b",
+        background=get_color("tree_bg"),
+        foreground=get_color("tree_fg"),
+        fieldbackground=get_color("tree_field_bg"),
         borderwidth=0,
         rowheight=_get_rowheight(font_spec),
         font=font_spec,
     )
-    style.map("Treeview", background=[("selected", "#3470b6")])
+    style.map("Treeview", background=[("selected", get_color("row_selected"))])
 
-    style.configure("Treeview.Heading", background="#565b5e", foreground="white", relief="flat")
-    style.map("Treeview.Heading", background=[("active", "#6c757d")])
+    style.configure(
+        "Treeview.Heading",
+        background=get_color("tree_file_heading_bg"),
+        foreground=get_color("tree_heading_fg"),
+        relief="flat",
+    )
+    style.map("Treeview.Heading", background=[("active", get_color("tree_file_heading_hover"))])
 
 
 def _configure_question_list_style(style: ttk.Style, sf: float, font_offset: int) -> None:
     """Configure style for question editor list (QAQuestionEditor)."""
+    from src.ui.theme import get_color
+
     font_size = max(8, int(10 * sf) + font_offset)
     font_spec = ("Segoe UI", font_size)
     style.configure(
         "QuestionList.Treeview",
-        background="#2b2b2b",
-        foreground="white",
-        fieldbackground="#2b2b2b",
+        background=get_color("tree_bg"),
+        foreground=get_color("tree_fg"),
+        fieldbackground=get_color("tree_field_bg"),
         borderwidth=0,
         rowheight=_get_rowheight(font_spec),
         font=font_spec,
     )
-    style.map("QuestionList.Treeview", background=[("selected", "#3470b6")])
+    style.map("QuestionList.Treeview", background=[("selected", get_color("row_selected"))])
 
     style.configure(
         "QuestionList.Treeview.Heading",
-        background="#404040",
-        foreground="white",
+        background=get_color("tree_heading_bg"),
+        foreground=get_color("tree_heading_fg"),
         relief="flat",
         font=("Segoe UI", font_size, "bold"),
     )
-    style.map("QuestionList.Treeview.Heading", background=[("active", "#505050")])
+    style.map(
+        "QuestionList.Treeview.Heading",
+        background=[("active", get_color("tree_heading_hover"))],
+    )

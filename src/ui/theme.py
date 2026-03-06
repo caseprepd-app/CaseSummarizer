@@ -5,14 +5,16 @@ All fonts, colors, and common widget configurations are defined here.
 This prevents scattered magic values and ensures consistency.
 
 Usage:
-    from src.ui.theme import FONTS, COLORS, BUTTON_STYLES
+    from src.ui.theme import FONTS, COLORS, BUTTON_STYLES, get_color
 
-    label = ctk.CTkLabel(parent, font=FONTS["heading"], text_color=COLORS["text_muted"])
+    label = ctk.CTkLabel(parent, font=FONTS["heading"], text_color=get_color("text_secondary"))
     button = ctk.CTkButton(parent, **BUTTON_STYLES["primary"])
 
 IMPORTANT: Use tuple fonts, NOT CTkFont objects, to avoid scaling conflicts
 with CTkTextbox.tag_config(). See RESEARCH_LOG.md "Q&A Follow-up Font Scaling Error".
 """
+
+import customtkinter as ctk
 
 # =============================================================================
 # FONTS
@@ -75,94 +77,259 @@ def scale_fonts(offset: int = 0) -> None:
 
 
 # =============================================================================
+# THEME MODE HELPERS
+# =============================================================================
+
+
+def get_mode() -> str:
+    """
+    Get current appearance mode as 'light' or 'dark'.
+
+    Returns:
+        'light' or 'dark' (resolves 'system' to actual mode).
+    """
+    mode = ctk.get_appearance_mode()
+    return mode.lower() if mode else "dark"
+
+
+def get_color(key: str) -> str:
+    """
+    Get the color value for the current appearance mode.
+
+    For (light, dark) tuples, returns the appropriate value.
+    For plain strings, returns as-is (backwards compatible).
+
+    Args:
+        key: Color key from COLORS dict.
+
+    Returns:
+        Hex color string for the current mode.
+    """
+    value = COLORS[key]
+    if isinstance(value, tuple):
+        return value[0] if get_mode() == "light" else value[1]
+    return value
+
+
+def color_pair(key: str) -> tuple[str, str]:
+    """
+    Get the (light, dark) color tuple for a key.
+
+    For plain strings, returns (value, value).
+
+    Args:
+        key: Color key from COLORS dict.
+
+    Returns:
+        (light_value, dark_value) tuple.
+    """
+    value = COLORS[key]
+    if isinstance(value, tuple):
+        return value
+    return (value, value)
+
+
+def resolve_tags(tag_dict: dict) -> dict:
+    """
+    Resolve a tag config dict for the current appearance mode.
+
+    Tkinter tag_config() requires single color strings, not (light, dark) tuples.
+    This resolves all tuple values in the tag dict to the current mode's color.
+
+    Args:
+        tag_dict: Dict of {tag_name: {property: color_or_tuple, ...}}.
+
+    Returns:
+        New dict with all color tuples resolved to single strings.
+    """
+    mode = get_mode()
+    idx = 0 if mode == "light" else 1
+    resolved = {}
+    for tag_name, config in tag_dict.items():
+        resolved_config = {}
+        for prop, value in config.items():
+            if (
+                isinstance(value, tuple)
+                and len(value) == 2
+                and all(isinstance(v, str) for v in value)
+            ):
+                resolved_config[prop] = value[idx]
+            else:
+                resolved_config[prop] = value
+        resolved[tag_name] = resolved_config
+    return resolved
+
+
+# =============================================================================
 # COLORS
 # =============================================================================
-# Organized by semantic meaning, not visual appearance
-# Format: (light_mode, dark_mode) or just string for dark-mode-only
+# All values are (light_mode, dark_mode) tuples.
+# Use get_color("key") for current mode, or color_pair("key") for CTk widgets.
+#
+# Light mode palette:
+# - Backgrounds: warm off-whites (#f0f0f0 range), not pure white
+# - Text: dark grays (#1a1a1a to #666666)
+# - Attention colors (red/orange/yellow): slightly deeper for light bg contrast
 
 COLORS = {
     # Backgrounds
-    "bg_dark": "#2b2b2b",  # Main dark background (panels, frames)
-    "bg_darker": "#1e1e1e",  # Deeper background (textboxes)
-    "bg_card": "#333333",  # Card/section background
-    "bg_input": "#404040",  # Input field backgrounds
-    "bg_hover": "#505050",  # Hover state for backgrounds
-    # Buttons - Primary (action buttons)
-    "btn_primary": "#2d5a87",  # Primary button background
-    "btn_primary_hover": "#3d6a97",  # Primary button hover
-    # Buttons - Secondary (neutral buttons)
-    "btn_secondary": "#555555",  # Secondary button background
-    "btn_secondary_hover": "#666666",  # Secondary button hover
-    # Buttons - Tertiary (less prominent)
-    "btn_tertiary": "#444444",  # Tertiary button background
-    "btn_tertiary_hover": "#555555",  # Tertiary button hover
+    "bg_dark": ("#e8e8e8", "#2b2b2b"),  # Main panel/frame background
+    "bg_darker": ("#dcdcdc", "#1e1e1e"),  # Deeper background (textboxes)
+    "bg_card": ("#d8d8d8", "#333333"),  # Card/section background
+    "bg_input": ("#d0d0d0", "#404040"),  # Input field backgrounds
+    "bg_hover": ("#c8c8c8", "#505050"),  # Hover state
+    # Buttons - Primary
+    "btn_primary": ("#2d5a87", "#2d5a87"),
+    "btn_primary_hover": ("#3d6a97", "#3d6a97"),
+    # Buttons - Secondary
+    "btn_secondary": ("#9e9e9e", "#555555"),
+    "btn_secondary_hover": ("#b0b0b0", "#666666"),
+    # Buttons - Tertiary
+    "btn_tertiary": ("#bdbdbd", "#444444"),
+    "btn_tertiary_hover": ("#9e9e9e", "#555555"),
     # Buttons - Danger
-    "btn_danger": "#994444",  # Danger/delete button
-    "btn_danger_hover": "#bb5555",  # Danger button hover
+    "btn_danger": ("#c62828", "#994444"),
+    "btn_danger_hover": ("#d32f2f", "#bb5555"),
     # Buttons - Disabled
-    "btn_disabled": "#6c757d",  # Disabled button
-    "btn_disabled_hover": "#5a6268",  # Disabled button hover (shouldn't happen)
+    "btn_disabled": ("#b0b0b0", "#6c757d"),
+    "btn_disabled_hover": ("#9e9e9e", "#5a6268"),
     # Text
-    "text_primary": "#e0e0e0",  # Primary text (bright)
-    "text_secondary": "#aaaaaa",  # Secondary/muted text
-    "text_disabled": "#666666",  # Disabled text
-    "text_white": "#ffffff",  # Pure white text
-    # Semantic colors
-    "success": "#28a745",  # Success/approved/keep (green)
-    "success_light": "#90EE90",  # Light green (system monitor)
-    "warning": "#ffc107",  # Warning (yellow)
-    "danger": "#dc3545",  # Error/rejected/skip (red)
-    "danger_light": "#f5a9b0",  # Light red (loaded feedback)
-    "info": "#17a2b8",  # Info/LLM (blue)
+    "text_primary": ("#1a1a1a", "#e0e0e0"),  # Primary text
+    "text_secondary": ("#666666", "#aaaaaa"),  # Muted text
+    "text_disabled": ("#999999", "#666666"),  # Disabled text
+    "text_white": ("#ffffff", "#ffffff"),  # Pure white (buttons, headings)
+    # Semantic colors — attention-grabbing in both modes
+    "success": ("#1b7a2f", "#28a745"),  # Keep/approved (green)
+    "success_light": ("#4caf50", "#90EE90"),  # Light green (loaded feedback)
+    "warning": ("#e6a800", "#ffc107"),  # Warning (yellow) — darker on light bg
+    "danger": ("#c62828", "#dc3545"),  # Error/skip (red) — deeper on light bg
+    "danger_light": ("#e57373", "#f5a9b0"),  # Light red (loaded feedback)
+    "info": ("#0d7a8a", "#17a2b8"),  # Info/LLM (blue)
     # Q&A Panel text tags
-    "qa_question": "#5dade2",  # Question text (light blue)
-    "qa_question_default": "#7dacd6",  # Default question (muted blue)
-    "qa_answer": "#aed6f1",  # Answer text (pale blue)
-    "qa_citation": "#d7dbdd",  # Citation text (light gray)
-    "qa_source": "#52be80",  # Source info (green)
-    "qa_label": "#85929e",  # Labels (gray)
-    "qa_separator": "#566573",  # Section separators
+    "qa_question": ("#1565c0", "#5dade2"),  # Question text (blue)
+    "qa_question_default": ("#5b86a7", "#7dacd6"),  # Default question (muted blue)
+    "qa_answer": ("#1a3a5c", "#aed6f1"),  # Answer text
+    "qa_citation": ("#4a4a4a", "#d7dbdd"),  # Citation text
+    "qa_source": ("#1b7a2f", "#52be80"),  # Source info (green)
+    "qa_label": ("#5a6b7a", "#85929e"),  # Labels (gray)
+    "qa_separator": ("#b0bec5", "#566573"),  # Section separators
     # Algorithm detection colors (vocabulary table)
-    # Brighter colors for dark mode visibility
-    "algo_multi": "#5dde77",  # Multiple algorithms (bright green)
-    "algo_ner": "#7ec8e3",  # NER only (light blue) - was dark slate, invisible
-    "algo_rake": "#c792ea",  # RAKE only (light purple)
-    "algo_bm25": "#ffb347",  # BM25 only (light orange)
-    "algo_llm": "#4dd0e1",  # LLM only (cyan)
-    # Table rows - dark mode colors (light mode values caused invisible text)
-    "row_odd": "#2b2b2b",  # Odd row (same as treeview bg)
-    "row_even": "#353535",  # Even row (slightly lighter for alternation)
-    "row_selected": "#3470b6",  # Selected row
-    "row_text": "#e0e0e0",  # Default row text (light gray for dark mode)
+    "algo_multi": ("#1b8a3a", "#5dde77"),  # Multiple algorithms (green)
+    "algo_ner": ("#1565c0", "#7ec8e3"),  # NER only (blue)
+    "algo_rake": ("#7b1fa2", "#c792ea"),  # RAKE only (purple)
+    "algo_bm25": ("#e67e22", "#ffb347"),  # BM25 only (orange)
+    "algo_llm": ("#00838f", "#4dd0e1"),  # LLM only (cyan)
+    # Table rows
+    "row_odd": ("#f0f0f0", "#2b2b2b"),  # Odd row
+    "row_even": ("#e4e4e4", "#353535"),  # Even row
+    "row_selected": ("#3470b6", "#3470b6"),  # Selected row (same both modes)
+    "row_text": ("#1a1a1a", "#e0e0e0"),  # Row text
     # Output pane
-    "output_pane": ("#e8e8e8", "#1a1a2e"),  # Light/dark mode pair
+    "output_pane": ("#e8e8e8", "#1a1a2e"),
     # Progress/status
-    "progress_partial": ("orange", "#ffaa00"),  # NER only
-    "progress_complete": ("green", "#00cc66"),  # NER + LLM
-    # Status bar error/warning (orange — visible but not alarming like red)
-    "status_error": ("#e67e22", "#f0932b"),  # Light/dark mode orange
+    "progress_partial": ("#cc8800", "#ffaa00"),  # NER only (orange)
+    "progress_complete": ("#1b7a2f", "#00cc66"),  # NER + LLM (green)
     # Status bar
-    "status_bar_bg": "#1a1a2e",  # Deep navy (matches output pane dark mode)
+    "status_error": ("#c75000", "#f0932b"),  # Orange — visible but not alarming
+    "status_bar_bg": ("#d8d8e8", "#1a1a2e"),  # Matches output pane
     # Progress bar
-    "progress_bar": "#3d8bfd",  # Blue (matches primary button family)
+    "progress_bar": ("#3d8bfd", "#3d8bfd"),
     # Drag-and-drop zone
-    "drop_zone_border": "#3d8bfd",  # Blue highlight on drag enter
-    "drop_zone_bg": "#1a3050",  # Subtle blue tint on drag enter
-    "drop_zone_idle_border": "#555555",  # Subtle border for empty-state drop zone
-    "drop_zone_idle_bg": "#2b2b2b",  # Slightly lighter than panel background
+    "drop_zone_border": ("#3d8bfd", "#3d8bfd"),
+    "drop_zone_bg": ("#d0e0f0", "#1a3050"),
+    "drop_zone_idle_border": ("#b0b0b0", "#555555"),
+    "drop_zone_idle_bg": ("#e8e8e8", "#2b2b2b"),
     # System monitor
-    "monitor_bg": "#1a3a1a",  # System monitor frame bg
+    "monitor_bg": ("#d8e8d8", "#1a3a1a"),
     # Hallucination verification colors
-    # Used for color-coding Q&A answer reliability
-    "verify_verified": "#28a745",  # Green - verified (< 0.30 prob)
-    "verify_uncertain": "#ffc107",  # Yellow - uncertain (0.30-0.50)
-    "verify_suspicious": "#fd7e14",  # Orange - suspicious (0.50-0.70)
-    "verify_unreliable": "#dc3545",  # Red - unreliable (0.70-0.85)
-    "verify_hallucinated": "#888888",  # Gray + strikethrough (>= 0.85)
-    # Overall reliability header colors
-    "reliability_high": "#28a745",  # >= 80% reliable (green)
-    "reliability_medium": "#ffc107",  # 50-80% reliable (yellow)
-    "reliability_low": "#dc3545",  # < 50% reliable (red, rejected)
+    "verify_verified": ("#1b7a2f", "#28a745"),  # Green
+    "verify_uncertain": ("#e6a800", "#ffc107"),  # Yellow
+    "verify_suspicious": ("#c75000", "#fd7e14"),  # Orange
+    "verify_unreliable": ("#c62828", "#dc3545"),  # Red
+    "verify_hallucinated": ("#999999", "#888888"),  # Gray + strikethrough
+    # Reliability header colors
+    "reliability_high": ("#1b7a2f", "#28a745"),  # Green
+    "reliability_medium": ("#e6a800", "#ffc107"),  # Yellow
+    "reliability_low": ("#c62828", "#dc3545"),  # Red
+    # ---------------------------------------------------------------
+    # UI element colors (used directly by specific widgets)
+    # ---------------------------------------------------------------
+    # Menus (tkinter Menu widgets don't support CTk tuples)
+    "menu_bg": ("#e8e8e8", "#212121"),
+    "menu_fg": ("#1a1a1a", "#ffffff"),
+    "menu_active_bg": ("#d0d0d0", "#333333"),
+    "menu_active_fg": ("#1a1a1a", "#ffffff"),
+    "menu_disabled_fg": ("#999999", "#666666"),
+    # Treeview (ttk widgets, need single values via get_color)
+    "tree_bg": ("#f0f0f0", "#2b2b2b"),
+    "tree_fg": ("#1a1a1a", "#ffffff"),
+    "tree_field_bg": ("#f0f0f0", "#2b2b2b"),
+    "tree_heading_bg": ("#d0d0d0", "#404040"),
+    "tree_heading_fg": ("#1a1a1a", "#ffffff"),
+    "tree_heading_hover": ("#c0c0c0", "#505050"),
+    "tree_scroll_bg": ("#d0d0d0", "#404040"),
+    "tree_scroll_trough": ("#f0f0f0", "#2b2b2b"),
+    "tree_arrow": ("#1a1a1a", "#ffffff"),
+    # File review treeview heading (slightly different shade)
+    "tree_file_heading_bg": ("#c0c5c8", "#565b5e"),
+    "tree_file_heading_hover": ("#b0b5b8", "#6c757d"),
+    # Placeholder text (attention-grabbing)
+    "placeholder_golden": ("#b07800", "#E8A838"),  # Disabled Q&A entry
+    "placeholder_red": ("#c62828", "#E05555"),  # Q&A failure/unavailable
+    # Corpus dropdown error
+    "corpus_error_text": ("#c62828", "#e07070"),  # Red — no corpora available
+    # Separator
+    "separator": ("#c8c8c8", "#2b2b2b"),
+    # Tooltips
+    "tooltip_bg": ("#FFF9C4", "#424242"),
+    "tooltip_fg": ("#333333", "#FFFFFF"),
+    # Find bar highlights
+    "find_highlight_bg": ("#FFEB3B", "#FFEB3B"),  # Yellow (same both modes)
+    "find_highlight_fg": ("#000000", "#000000"),
+    "find_current_bg": ("#FF9800", "#FF9800"),  # Orange current match
+    "find_current_fg": ("#000000", "#000000"),
+    # Term highlight in context viewer
+    "term_highlight_bg": ("#FFEB3B", "#FFEB3B"),
+    "term_highlight_fg": ("#000000", "#000000"),
+    # Document header in context viewer
+    "doc_header_fg": ("#1565c0", "#4A9EFF"),
+    # "More..." note text
+    "more_note_fg": ("#666666", "#888888"),
+    # Dialog colors
+    "dialog_link": ("#1565c0", "#5dade2"),  # Clickable links
+    "dialog_subtitle": ("#666666", "#aaaaaa"),  # Subtitle/description text
+    "dialog_muted": ("#777777", "#888888"),  # Muted text in dialogs
+    "dialog_separator": ("#c0c0c0", "#555555"),  # Separator lines
+    "dialog_chosen": ("#1565c0", "#4a9eff"),  # Chosen/selected item
+    "dialog_rejected": ("#c62828", "#cc6666"),  # Rejected/error items
+    # Warning banner (settings corpus warning)
+    "warning_banner_bg": ("#FFF3CD", "#FFF3CD"),  # Yellow-cream
+    "warning_banner_fg": ("#856404", "#856404"),  # Dark brown text
+    # System monitor status tiers
+    "sysmon_good_bg": ("#d8e8d8", "#1a3a1a"),
+    "sysmon_good_fg": ("#1b7a2f", "#90EE90"),
+    "sysmon_warn_bg": ("#e8e8d0", "#3a3a1a"),
+    "sysmon_warn_fg": ("#b08800", "#FFEB3B"),
+    "sysmon_caution_bg": ("#e8ddd0", "#3a2a1a"),
+    "sysmon_caution_fg": ("#c75000", "#FFA500"),
+    "sysmon_critical_bg": ("#e8d0d0", "#3a1a1a"),
+    "sysmon_critical_fg": ("#c62828", "#FF4444"),
+    # Extracting status (purple)
+    "extracting": ("#7b1fa2", "#9b59b6"),
+    # Corpus dialog buttons
+    "corpus_add_btn": ("#217346", "#217346"),
+    "corpus_add_hover": ("#1a5c38", "#1a5c38"),
+    "corpus_delete_hover": ("#c42b1c", "#c42b1c"),
+    # Settings dialog tab buttons
+    "settings_tab_selected": ("#3B8ED0", "#1F6AA5"),
+    "settings_tab_hover": ("#36719F", "#144870"),
+    # Remove icon (file review)
+    "remove_icon": ("#c62828", "#e67e22"),
+    # Question editor list bg
+    "question_list_bg": ("#e8e8e8", "#2b2b2b"),
+    # Splash screen
+    "splash_bg": ("#e0e0e8", "#1a1a2e"),
+    "splash_fg": ("#1a1a1a", "#ffffff"),
 }
 
 
@@ -189,8 +356,8 @@ BUTTON_STYLES = {
         "hover_color": COLORS["btn_danger_hover"],
     },
     "caution": {
-        "fg_color": "#7744aa",
-        "hover_color": "#9955cc",
+        "fg_color": ("#6a3a9e", "#7744aa"),
+        "hover_color": ("#8650b8", "#9955cc"),
     },
     "disabled": {
         "fg_color": COLORS["btn_disabled"],
@@ -303,16 +470,15 @@ QA_TEXT_TAGS = {
 
 VOCAB_TABLE_TAGS = {
     # Distinguish session (user clicked) vs loaded (from dataset) feedback
-    "rated_up_session": {"foreground": COLORS["success"]},  # User clicked Keep (darker green)
-    "rated_up_loaded": {"foreground": COLORS["success_light"]},  # From dataset (lighter green)
-    "rated_down_session": {"foreground": COLORS["danger"]},  # User clicked Skip (darker red)
-    "rated_down_loaded": {"foreground": COLORS["danger_light"]},  # From dataset (lighter red)
+    "rated_up_session": {"foreground": COLORS["success"]},  # User clicked Keep
+    "rated_up_loaded": {"foreground": COLORS["success_light"]},  # From dataset
+    "rated_down_session": {"foreground": COLORS["danger"]},  # User clicked Skip
+    "rated_down_loaded": {"foreground": COLORS["danger_light"]},  # From dataset
     "found_multi": {"foreground": COLORS["algo_multi"]},
     "found_ner": {"foreground": COLORS["algo_ner"]},
     "found_rake": {"foreground": COLORS["algo_rake"]},
     "found_bm25": {"foreground": COLORS["algo_bm25"]},
     "found_llm": {"foreground": COLORS["algo_llm"]},
-    # Foreground set explicitly to ensure text visibility in dark mode
     "oddrow": {"background": COLORS["row_odd"], "foreground": COLORS["row_text"]},
     "evenrow": {"background": COLORS["row_even"], "foreground": COLORS["row_text"]},
 }
@@ -327,6 +493,6 @@ FILE_STATUS_TAGS = {
     "green": {"foreground": COLORS["success"]},
     "yellow": {"foreground": COLORS["warning"]},
     "red": {"foreground": COLORS["danger"]},
-    "pending": {"foreground": "gray"},
-    "extracting": {"foreground": "#9b59b6"},  # Purple — extraction in progress
+    "pending": {"foreground": COLORS["text_secondary"]},
+    "extracting": {"foreground": COLORS["extracting"]},
 }

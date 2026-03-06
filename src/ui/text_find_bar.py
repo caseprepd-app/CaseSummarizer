@@ -9,13 +9,23 @@ import logging
 
 import customtkinter as ctk
 
-from src.ui.theme import BUTTON_STYLES, COLORS, FONTS
+from src.ui.theme import BUTTON_STYLES, COLORS, FONTS, get_color
 
 logger = logging.getLogger(__name__)
 
-# Highlight tag styles applied to the target textbox
-FIND_HIGHLIGHT = {"background": "#FFEB3B", "foreground": "#000000"}
-FIND_CURRENT = {"background": "#FF9800", "foreground": "#000000"}
+
+def _find_highlight_tags():
+    """Return highlight tag styles resolved for the current appearance mode."""
+    return {
+        "find_highlight": {
+            "background": get_color("find_highlight_bg"),
+            "foreground": get_color("find_highlight_fg"),
+        },
+        "find_current": {
+            "background": get_color("find_current_bg"),
+            "foreground": get_color("find_current_fg"),
+        },
+    }
 
 
 class TextFindBar(ctk.CTkFrame):
@@ -42,8 +52,9 @@ class TextFindBar(ctk.CTkFrame):
         self._debounce_id = None
 
         # Configure highlight tags on the target textbox
-        self._textbox.tag_config("find_highlight", cnf=FIND_HIGHLIGHT)
-        self._textbox.tag_config("find_current", cnf=FIND_CURRENT)
+        tags = _find_highlight_tags()
+        self._textbox.tag_config("find_highlight", cnf=tags["find_highlight"])
+        self._textbox.tag_config("find_current", cnf=tags["find_current"])
 
         # Layout
         self.grid_columnconfigure(0, weight=1)

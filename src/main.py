@@ -181,9 +181,13 @@ def main():
 
     threading.excepthook = _uncaught_thread_exception
 
-    # 6. Set appearance mode (light/dark/system)
-    ctk.set_appearance_mode("System")  # Options: "System", "Dark", "Light"
-    ctk.set_default_color_theme("blue")  # Options: "blue", "green", "dark-blue"
+    # 6. Set appearance mode from user preference (default: Dark)
+    from src.user_preferences import get_user_preferences
+
+    _prefs = get_user_preferences()
+    _appearance = _prefs.get("appearance_mode", "Dark")
+    ctk.set_appearance_mode(_appearance)
+    ctk.set_default_color_theme("blue")
 
     # Apply display scaling (font offset + UI scale) before creating any widgets
     from src.ui.scaling import apply_scaling

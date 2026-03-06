@@ -563,7 +563,7 @@ class TestOrangeRemoveIcon:
         from src.ui.widgets import FileReviewTable
 
         source = inspect.getsource(FileReviewTable._create_remove_icon)
-        assert "#e67e22" in source
+        assert "remove_icon" in source  # Uses get_color("remove_icon") from theme
         assert "BitmapImage" in source
 
     def test_treeview_shows_tree_column(self):
@@ -765,7 +765,8 @@ class TestThemeColors:
         from src.ui.theme import COLORS
 
         assert "progress_bar" in COLORS
-        assert COLORS["progress_bar"] == "#3d8bfd"
+        # COLORS values are now (light, dark) tuples
+        assert isinstance(COLORS["progress_bar"], tuple)
 
     def test_drop_zone_border_color_exists(self):
         """drop_zone_border color should be defined."""
@@ -784,30 +785,35 @@ class TestThemeColors:
         from src.ui.theme import COLORS
 
         assert "drop_zone_idle_border" in COLORS
-        assert isinstance(COLORS["drop_zone_idle_border"], str)
+        assert isinstance(COLORS["drop_zone_idle_border"], tuple)
 
     def test_drop_zone_idle_bg_color_exists(self):
         """drop_zone_idle_bg color should be defined for empty-state rectangle."""
         from src.ui.theme import COLORS
 
         assert "drop_zone_idle_bg" in COLORS
-        assert isinstance(COLORS["drop_zone_idle_bg"], str)
+        assert isinstance(COLORS["drop_zone_idle_bg"], tuple)
 
     def test_drop_zone_idle_colors_are_valid_hex(self):
-        """Idle drop zone colors should be valid hex color strings."""
+        """Idle drop zone colors should be valid hex color tuples."""
         from src.ui.theme import COLORS
 
         for key in ("drop_zone_idle_border", "drop_zone_idle_bg"):
             color = COLORS[key]
-            assert color.startswith("#"), f"{key} should start with #"
-            assert len(color) == 7, f"{key} should be 7 chars (#RRGGBB)"
+            assert isinstance(color, tuple), f"{key} should be a (light, dark) tuple"
+            for val in color:
+                assert val.startswith("#"), f"{key} value should start with #"
+                assert len(val) == 7, f"{key} value should be 7 chars (#RRGGBB)"
 
     def test_extracting_tag_exists(self):
         """FILE_STATUS_TAGS should include 'extracting' with purple color."""
         from src.ui.theme import FILE_STATUS_TAGS
 
         assert "extracting" in FILE_STATUS_TAGS
-        assert FILE_STATUS_TAGS["extracting"]["foreground"] == "#9b59b6"
+        # foreground is now a (light, dark) tuple from COLORS
+        fg = FILE_STATUS_TAGS["extracting"]["foreground"]
+        assert isinstance(fg, tuple)
+        assert "#9b59b6" in fg  # Dark mode purple retained
 
 
 # =========================================================================

@@ -20,11 +20,13 @@ def create_menus(window, select_files_callback, show_settings_callback, quit_cal
         show_settings_callback: Function to call when "Settings" is clicked
         quit_callback: Function to call when "Exit" is clicked
     """
-    # Darker colors to blend seamlessly with CustomTkinter dark theme
-    bg_color = "#212121"  # Very dark (blends with UI)
-    fg_color = "#ffffff"  # White text
-    active_bg = "#333333"  # Slightly lighter for hover
-    active_fg = "#ffffff"  # White text on hover
+    from src.ui.theme import get_color
+
+    bg_color = get_color("menu_bg")
+    fg_color = get_color("menu_fg")
+    active_bg = get_color("menu_active_bg")
+    active_fg = get_color("menu_active_fg")
+    disabled_fg = get_color("menu_disabled_fg")
 
     menubar = Menu(
         window,
@@ -34,7 +36,7 @@ def create_menus(window, select_files_callback, show_settings_callback, quit_cal
         activeforeground=active_fg,
         borderwidth=1,
         relief="flat",
-        disabledforeground="#666666",
+        disabledforeground=disabled_fg,
     )
     window.config(menu=menubar)
 
@@ -48,7 +50,7 @@ def create_menus(window, select_files_callback, show_settings_callback, quit_cal
         activeforeground=active_fg,
         borderwidth=0,
         relief="flat",
-        disabledforeground="#666666",
+        disabledforeground=disabled_fg,
     )
     menubar.add_cascade(label="File", menu=file_menu)
     file_menu.add_command(
@@ -65,7 +67,7 @@ def create_menus(window, select_files_callback, show_settings_callback, quit_cal
         activeforeground=active_fg,
         borderwidth=0,
         relief="flat",
-        disabledforeground="#666666",
+        disabledforeground=disabled_fg,
     )
 
     export_menu = Menu(file_menu, **menu_style)
@@ -105,7 +107,7 @@ def create_menus(window, select_files_callback, show_settings_callback, quit_cal
         activeforeground=active_fg,
         borderwidth=0,
         relief="flat",
-        disabledforeground="#666666",
+        disabledforeground=disabled_fg,
     )
     menubar.add_cascade(label="Help", menu=help_menu)
     help_menu.add_command(

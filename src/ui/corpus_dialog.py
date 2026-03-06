@@ -154,7 +154,7 @@ class CorpusDialog(BaseModalDialog):
             text="Learn more ↗",
             font=FONTS["small"],
             fg_color="transparent",
-            text_color=("#1f6aa5", "#3B8ED0"),
+            text_color=COLORS["dialog_link"],
             hover_color=("gray80", "gray30"),
             width=80,
             height=24,
@@ -240,7 +240,7 @@ class CorpusDialog(BaseModalDialog):
             text="Delete Corpus",
             width=120,
             fg_color=("gray70", "gray30"),
-            hover_color=("#c42b1c", "#a52714"),
+            hover_color=COLORS["corpus_delete_hover"],
             command=self._delete_corpus,
         )
         self.delete_corpus_btn.pack(side="left", padx=5)
@@ -259,8 +259,8 @@ class CorpusDialog(BaseModalDialog):
             btn_frame,
             text="Set as Active",
             width=110,
-            fg_color=("#217346", "#1a5c38"),
-            hover_color=("#1a5c38", "#145230"),
+            fg_color=COLORS["corpus_add_btn"],
+            hover_color=COLORS["corpus_add_hover"],
             command=self._set_active_corpus,
         )
         self.set_active_btn.pack(side="right")
@@ -326,7 +326,7 @@ class CorpusDialog(BaseModalDialog):
             text="Remove Selected",
             width=120,
             fg_color=("gray70", "gray30"),
-            hover_color=("#c42b1c", "#a52714"),
+            hover_color=COLORS["corpus_delete_hover"],
             command=self._remove_files,
         )
         self.remove_files_btn.pack(side="left", padx=5)

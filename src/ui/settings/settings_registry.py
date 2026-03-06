@@ -198,6 +198,41 @@ def _register_all_settings():
 
     SettingsRegistry.register(
         SettingDefinition(
+            key="appearance_mode",
+            label="Theme",
+            category="Appearance",
+            setting_type=SettingType.DROPDOWN,
+            tooltip=(
+                "Choose the application color theme.\n\n"
+                "• Dark: Dark backgrounds with light text (default)\n"
+                "• Light: Light backgrounds with dark text\n"
+                "• System: Follow your Windows theme setting\n\n"
+                "Takes effect immediately."
+            ),
+            default="Dark",
+            options=[
+                ("Dark", "Dark"),
+                ("Light", "Light"),
+                ("System", "System"),
+            ],
+            getter=lambda: prefs.get("appearance_mode", "Dark"),
+            setter=lambda v: _apply_appearance_mode(v),
+        )
+    )
+
+    def _apply_appearance_mode(mode: str):
+        """Apply appearance mode change and refresh styles."""
+        import customtkinter as ctk
+
+        prefs.set("appearance_mode", mode)
+        ctk.set_appearance_mode(mode)
+
+        from src.ui.styles import reinitialize_styles
+
+        reinitialize_styles()
+
+    SettingsRegistry.register(
+        SettingDefinition(
             key="font_size_offset",
             label="Font Size Adjustment",
             category="Appearance",
@@ -251,6 +286,7 @@ def _register_all_settings():
         import customtkinter as ctk
 
         from src.services import VocabularyService
+        from src.ui.theme import COLORS
 
         frame = ctk.CTkFrame(parent, fg_color="transparent")
         frame._warning_frame = None
@@ -269,12 +305,14 @@ def _register_all_settings():
                 )
 
                 if frame._warning_frame is None:
-                    frame._warning_frame = ctk.CTkFrame(frame, fg_color="#FFF3CD", corner_radius=6)
+                    frame._warning_frame = ctk.CTkFrame(
+                        frame, fg_color=COLORS["warning_banner_bg"], corner_radius=6
+                    )
                     frame._warning_frame.pack(fill="x", pady=(0, 10), padx=5)
                     frame._warning_label = ctk.CTkLabel(
                         frame._warning_frame,
                         text=warning_text,
-                        text_color="#856404",
+                        text_color=COLORS["warning_banner_fg"],
                         wraplength=400,
                         justify="left",
                         anchor="w",
@@ -1427,7 +1465,7 @@ def _register_all_settings():
         """Create a 'Learn more' link widget for Ollama education."""
         import customtkinter as ctk
 
-        from src.ui.theme import FONTS
+        from src.ui.theme import COLORS, FONTS
 
         frame = ctk.CTkFrame(parent, fg_color="transparent")
 
@@ -1436,7 +1474,7 @@ def _register_all_settings():
             text="Learn more about local LLM models ↗",
             font=FONTS["small"],
             fg_color="transparent",
-            text_color=("#1f6aa5", "#3B8ED0"),
+            text_color=COLORS["dialog_link"],
             hover_color=("gray90", "gray25"),
             anchor="w",
             width=250,
@@ -1449,7 +1487,7 @@ def _register_all_settings():
             frame,
             text="Tip: Models with 8B+ parameters are recommended for reliable answers.",
             font=FONTS["small"],
-            text_color=("#888888", "#999999"),
+            text_color=COLORS["dialog_muted"],
             anchor="w",
         )
         tip.pack(anchor="w", pady=(2, 0))

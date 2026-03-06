@@ -85,7 +85,9 @@ class FileReviewTable(ctk.CTkFrame):
             "   0x01, 0x01};"
         )
         # Use orange foreground on transparent background
-        icon = tk.BitmapImage(data=xbm_data, foreground="#e67e22", background="")
+        from src.ui.theme import get_color
+
+        icon = tk.BitmapImage(data=xbm_data, foreground=get_color("remove_icon"), background="")
         return icon
 
     def _create_treeview(self):
@@ -151,7 +153,9 @@ class FileReviewTable(ctk.CTkFrame):
             )
             self.file_item_map[filename] = item_id
 
-        for tag_name, tag_config in FILE_STATUS_TAGS.items():
+        from src.ui.theme import resolve_tags
+
+        for tag_name, tag_config in resolve_tags(FILE_STATUS_TAGS).items():
             self.tree.tag_configure(tag_name, **tag_config)
 
     def add_result(self, result):
@@ -181,7 +185,9 @@ class FileReviewTable(ctk.CTkFrame):
             self.file_item_map[filename] = item_id
 
         # Configure colors for tags
-        for tag_name, tag_config in FILE_STATUS_TAGS.items():
+        from src.ui.theme import resolve_tags
+
+        for tag_name, tag_config in resolve_tags(FILE_STATUS_TAGS).items():
             self.tree.tag_configure(tag_name, **tag_config)
 
     def _prepare_result_for_display(self, result):
@@ -361,8 +367,8 @@ class FileReviewTable(ctk.CTkFrame):
         label = ctk.CTkLabel(
             self._tooltip_window,
             text=text,
-            bg_color=("#333333", "#333333"),
-            text_color=("white", "white"),
+            bg_color=COLORS["tooltip_bg"],
+            text_color=COLORS["tooltip_fg"],
             corner_radius=5,
             wraplength=350,
             font=FONTS["small"],

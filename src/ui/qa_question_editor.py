@@ -102,7 +102,7 @@ class QAQuestionEditor(BaseModalDialog):
         description.pack(side="left", padx=20)
 
         # Question list
-        list_frame = ctk.CTkFrame(self, fg_color="#2b2b2b", corner_radius=6)
+        list_frame = ctk.CTkFrame(self, fg_color=COLORS["question_list_bg"], corner_radius=6)
         list_frame.grid(row=1, column=0, sticky="nsew", padx=10, pady=5)
         list_frame.grid_columnconfigure(0, weight=1)
         list_frame.grid_rowconfigure(0, weight=1)

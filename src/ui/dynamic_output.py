@@ -35,7 +35,14 @@ from src.ui.qa_panel import QAPanel
 
 logger = logging.getLogger(__name__)
 from src.ui.styles import get_vocab_font_specs
-from src.ui.theme import BUTTON_STYLES, COLORS, FONTS, FRAME_STYLES, VOCAB_TABLE_TAGS
+from src.ui.theme import (
+    BUTTON_STYLES,
+    COLORS,
+    FONTS,
+    FRAME_STYLES,
+    VOCAB_TABLE_TAGS,
+    get_color,
+)
 
 # Import column configuration from centralized module
 from src.ui.vocab_table.column_config import (
@@ -73,7 +80,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
 
     def __init__(self, master, **kwargs):
         # Distinct background color for output pane (slightly different to distinguish)
-        kwargs.setdefault("fg_color", ("#e8e8e8", "#1a1a2e"))  # Light/dark mode colors
+        kwargs.setdefault("fg_color", COLORS["output_pane"])
         super().__init__(master, **kwargs)
 
         self.grid_columnconfigure(0, weight=1)
@@ -523,11 +530,11 @@ class DynamicOutputWidget(ctk.CTkFrame):
         elif source == "ner":
             # Results come from NER, RAKE, BM25
             self._progress_badge.configure(
-                text="Results (local algorithms)", text_color=("orange", "#ffaa00")
+                text="Results (local algorithms)", text_color=COLORS["progress_partial"]
             )
         elif source == "both":
             self._progress_badge.configure(
-                text="Enhanced results (+ LLM)", text_color=("green", "#00cc66")
+                text="Enhanced results (+ LLM)", text_color=COLORS["progress_complete"]
             )
 
     def set_extraction_source(self, source: str):
@@ -736,10 +743,10 @@ class DynamicOutputWidget(ctk.CTkFrame):
         menu = Menu(
             self,
             tearoff=0,
-            bg="#404040",
-            fg="white",
-            activebackground="#505050",
-            activeforeground="white",
+            bg=get_color("menu_bg"),
+            fg=get_color("menu_fg"),
+            activebackground=get_color("menu_active_bg"),
+            activeforeground=get_color("menu_active_fg"),
             font=("Segoe UI", 10),
         )
 
@@ -1411,7 +1418,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
             self._create_context_menu()
 
             # Configure all vocabulary table tags from centralized theme
-            for tag_name, tag_config in VOCAB_TABLE_TAGS.items():
+            for tag_name, tag_config in resolve_tags(VOCAB_TABLE_TAGS).items():
                 self.csv_treeview.tag_configure(tag_name, **tag_config)
 
         # Cancel any pending async insertion before starting new one
@@ -1689,10 +1696,10 @@ class DynamicOutputWidget(ctk.CTkFrame):
         self.context_menu = Menu(
             self,
             tearoff=0,
-            bg="#404040",
-            fg="white",
-            activebackground="#505050",
-            activeforeground="white",
+            bg=get_color("menu_bg"),
+            fg=get_color("menu_fg"),
+            activebackground=get_color("menu_active_bg"),
+            activeforeground=get_color("menu_active_fg"),
             font=("Segoe UI", 10),
         )
         self.context_menu.add_command(
@@ -2590,8 +2597,8 @@ class DynamicOutputWidget(ctk.CTkFrame):
         label = ctk.CTkLabel(
             self._tooltip,
             text=text,
-            fg_color=("#FFF9C4", "#424242"),  # Light yellow / dark gray
-            text_color=("#333333", "#FFFFFF"),
+            fg_color=COLORS["tooltip_bg"],
+            text_color=COLORS["tooltip_fg"],
             corner_radius=4,
             padx=8,
             pady=4,

@@ -160,7 +160,11 @@ class TestRefreshCorpusDropdown:
 
         mock_window.corpus_dropdown.configure.assert_any_call(values=["None"])
         mock_window.corpus_dropdown.set.assert_called_with("None")
-        mock_window.corpus_dropdown.configure.assert_any_call(text_color="#e07070")
+        from src.ui.theme import COLORS
+
+        mock_window.corpus_dropdown.configure.assert_any_call(
+            text_color=COLORS["corpus_error_text"]
+        )
         mock_window.corpus_doc_count_label.configure.assert_called_with(text="")
 
     def test_corpus_with_zero_docs_shows_empty(self, mock_window):
