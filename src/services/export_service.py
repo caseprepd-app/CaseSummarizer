@@ -429,3 +429,10 @@ def get_export_service() -> ExportService:
         if _export_service is None:
             _export_service = ExportService()
     return _export_service
+
+
+def reset_export_service():
+    """Reset the singleton for test isolation."""
+    global _export_service
+    with _export_service_lock:
+        _export_service = None

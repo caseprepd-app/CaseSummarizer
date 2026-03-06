@@ -7,9 +7,12 @@ This module contains reusable CustomTkinter widget components for the main appli
 Note: System monitoring is handled by src/ui/system_monitor.py (not in this module).
 """
 
+import logging
 from tkinter import ttk
 
 import customtkinter as ctk
+
+logger = logging.getLogger(__name__)
 
 from src.ui.theme import COLORS, FILE_STATUS_TAGS, FONTS
 
@@ -291,7 +294,7 @@ class FileReviewTable(ctk.CTkFrame):
             try:
                 self.tree.delete(item_id)
             except Exception:
-                pass
+                logger.debug("Tree item delete failed for %s", item_id)
 
         # Show drop zone if table is now empty
         if not self.file_item_map and not self._drop_zone.winfo_ismapped():

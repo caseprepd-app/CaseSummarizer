@@ -598,7 +598,7 @@ class QAPanel(ctk.CTkFrame):
                 try:
                     self.copy_btn.configure(text=original_text)
                 except Exception:
-                    pass  # Widget destroyed during delay
+                    logger.debug("Copy button reset skipped (widget destroyed)")
 
             self.after(1500, _reset_copy_btn)
 

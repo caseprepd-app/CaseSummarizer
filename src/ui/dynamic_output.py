@@ -506,7 +506,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
                 overlay.place_forget()
                 overlay.destroy()
             except Exception:
-                pass
+                logger.debug("Overlay cleanup skipped (widget destroyed)")
 
         self.after(100, remove_overlay)
 
@@ -1788,7 +1788,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
             occurrences = int(term_data.get(VF.OCCURRENCES, 0))
             doc_count = int(term_data.get(VF.NUM_DOCS, 0))
         except (ValueError, TypeError):
-            pass
+            logger.debug("Could not parse occurrences/doc_count for context menu")
 
         if occurrences > 0 and doc_count > 0:
             ctx_label = f"View in Context ({doc_count} doc"

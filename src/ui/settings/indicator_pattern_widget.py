@@ -18,9 +18,12 @@ Layout:
     +---------------------------------------------------+
 """
 
+import logging
 import re
 
 import customtkinter as ctk
+
+logger = logging.getLogger(__name__)
 
 from src.ui.theme import FONTS
 
@@ -455,12 +458,12 @@ class IndicatorPatternWidget(ctk.CTkFrame):
             try:
                 pos_override = self._pos_regex_entry.get().strip()
             except Exception:
-                pass
+                logger.debug("Could not read positive regex entry")
         if self._show_regex and neg_override and hasattr(self, "_neg_regex_entry"):
             try:
                 neg_override = self._neg_regex_entry.get().strip()
             except Exception:
-                pass
+                logger.debug("Could not read negative regex entry")
 
         return {
             "positive_strings": list(self._positive_strings),

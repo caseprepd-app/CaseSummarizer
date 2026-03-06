@@ -84,6 +84,8 @@ def worker_process_main(command_queue, result_queue):
         "vector_store_path": None,
         "chunk_scores": None,
         "active_worker": None,
+        "auto_qa_worker": None,
+        "ask_default_questions": True,
         "shutdown": threading.Event(),
         "worker_lock": threading.Lock(),
     }

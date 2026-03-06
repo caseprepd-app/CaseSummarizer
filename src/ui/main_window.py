@@ -2136,7 +2136,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
                     # Re-handle non-followup messages normally
                     other_messages.append(msg)
             except (TypeError, ValueError):
-                pass
+                logger.debug("Malformed message in followup poll: %s", msg)
 
         # Process any non-followup messages that arrived
         for msg in other_messages:
@@ -2144,7 +2144,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
                 msg_type, data = msg
                 self._handle_queue_message(msg_type, data)
             except (TypeError, ValueError):
-                pass
+                logger.debug("Malformed message in queue processing: %s", msg)
 
         if followup_result is None and not messages:
             # No result yet, keep polling

@@ -50,6 +50,7 @@ def load_raw_frequency_data() -> dict[str, int]:
                         try:
                             result[parts[0].lower()] = int(parts[1])
                         except ValueError:
+                            logger.debug("Skipping bad frequency line: %s", line.strip()[:80])
                             continue
 
             logger.debug("Loaded %s words from frequency dataset", len(result))

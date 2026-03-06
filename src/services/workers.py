@@ -879,6 +879,11 @@ class ProgressiveExtractionWorker(BaseWorker):
             from src.core.chunking import create_unified_chunker
             from src.core.vector_store import VectorStoreBuilder
 
+            # Early exit if cancelled before we start heavy work
+            if self.is_stopped:
+                logger.debug("Phase 2: Cancelled before start")
+                return
+
             # Lazy-load embeddings if not provided (shared instance, GPU-aware)
             if self.embeddings is None:
                 logger.debug("Loading embeddings model...")
@@ -914,6 +919,10 @@ class ProgressiveExtractionWorker(BaseWorker):
                 if text.strip():
                     doc_chunks = chunker.chunk_text(text, source_file=filename)
                     all_chunks.extend(doc_chunks)
+
+            if self.is_stopped:
+                logger.debug("Phase 2: Cancelled before vector store build")
+                return
 
             # Build vector store
             total_chunks = len(all_chunks)

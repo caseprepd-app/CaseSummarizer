@@ -38,3 +38,11 @@ def _do_reset():
         AIService.reset_singleton()
     except ImportError:
         pass
+
+    # ExportService -- singleton for Word/PDF/HTML export
+    try:
+        from src.services.export_service import reset_export_service
+
+        reset_export_service()
+    except ImportError:
+        pass

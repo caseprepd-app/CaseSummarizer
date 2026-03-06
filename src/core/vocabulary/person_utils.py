@@ -62,7 +62,7 @@ def count_persons(vocab_data: list[dict]) -> int:
     Returns:
         Number of person entries
     """
-    return sum(1 for v in vocab_data if v.get(VF.IS_PERSON) == VF.YES)
+    return sum(1 for v in vocab_data if is_person_entry(v))
 
 
 def vocab_summary_counts(vocab_data: list[dict]) -> tuple[int, int, int]:

@@ -224,6 +224,27 @@ class TestInitDefaults:
         assert result is True
 
 
+class TestWorkerProcessStateInit:
+    """Verify worker_process state dict has all required keys at startup."""
+
+    def _get_state_keys(self):
+        """Extract state dict keys from worker_process source."""
+        src = inspect.getsource(__import__("src.worker_process", fromlist=["run_worker"]))
+        match = re.search(r"state\s*=\s*\{(.*?)\}", src, re.DOTALL)
+        assert match, "state dict not found in worker_process"
+        return match.group(1)
+
+    def test_auto_qa_worker_initialized(self):
+        """auto_qa_worker must be in the initial state dict."""
+        body = self._get_state_keys()
+        assert "auto_qa_worker" in body, "auto_qa_worker not in initial state dict"
+
+    def test_ask_default_questions_initialized(self):
+        """ask_default_questions must be in the initial state dict."""
+        body = self._get_state_keys()
+        assert "ask_default_questions" in body, "ask_default_questions not in initial state dict"
+
+
 # =========================================================================
 # 5. Anti-pattern audit (source inspection)
 # =========================================================================

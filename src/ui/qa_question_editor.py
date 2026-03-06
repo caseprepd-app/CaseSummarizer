@@ -280,7 +280,7 @@ class QAQuestionEditor(BaseModalDialog):
                 self.status_label.configure(text="Question edited (unsaved)")
 
         except (ValueError, IndexError):
-            pass
+            logger.debug("Invalid selection in edit: %s", selection)
 
     def _delete_selected(self):
         """Delete the selected question."""
@@ -300,7 +300,7 @@ class QAQuestionEditor(BaseModalDialog):
             self.status_label.configure(text="Question deleted (unsaved)")
 
         except (ValueError, IndexError):
-            pass
+            logger.debug("Invalid selection in delete: %s", selection)
 
     def _move_up(self):
         """Move selected question up in the list."""
@@ -320,7 +320,7 @@ class QAQuestionEditor(BaseModalDialog):
                 self.question_tree.selection_set(str(index - 1))
 
         except (ValueError, IndexError):
-            pass
+            logger.debug("Invalid selection in move up: %s", selection)
 
     def _move_down(self):
         """Move selected question down in the list."""
@@ -340,7 +340,7 @@ class QAQuestionEditor(BaseModalDialog):
                 self.question_tree.selection_set(str(index + 1))
 
         except (ValueError, IndexError):
-            pass
+            logger.debug("Invalid selection in move down: %s", selection)
 
     def _reset_to_defaults(self):
         """Reset questions to default values."""
