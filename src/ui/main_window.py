@@ -832,6 +832,8 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
                 self._handle_queue_message(msg_type, data)
             except (TypeError, ValueError):
                 logger.warning("Invalid message from worker subprocess: %s", msg)
+            except Exception:
+                logger.error("Unhandled error processing message: %s", msg, exc_info=True)
 
         # Detect dead subprocess while we think work is in progress
         any_active = (

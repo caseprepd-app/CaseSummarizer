@@ -42,6 +42,7 @@ from src.ui.theme import (
     FRAME_STYLES,
     VOCAB_TABLE_TAGS,
     get_color,
+    resolve_tags,
 )
 
 # Import column configuration from centralized module
