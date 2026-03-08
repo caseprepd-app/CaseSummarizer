@@ -573,7 +573,9 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             return
 
         self.selected_files.extend(new_files)
-        self.set_status(f"Processing {len(new_files)} dropped file(s)...")
+        self.set_status(
+            f"Processing {len(new_files)} dropped {'file' if len(new_files) == 1 else 'files'}..."
+        )
         self._start_preprocessing(new_files)
 
     def _on_drag_enter(self, _event):
@@ -630,7 +632,9 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             return
 
         self.selected_files.extend(new_files)
-        self.set_status(f"Processing {len(new_files)} new file(s)...")
+        self.set_status(
+            f"Processing {len(new_files)} new {'file' if len(new_files) == 1 else 'files'}..."
+        )
         self._start_preprocessing(new_files)
 
     def _clear_files(self):
@@ -1157,7 +1161,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         success_count = sum(1 for r in results if r.get("status") == "success")
         failed_count = len(results) - success_count
 
-        status = f"Processed {len(results)} file(s): {success_count} ready"
+        status = f"Processed {len(results)} {'file' if len(results) == 1 else 'files'}: {success_count} ready"
         if failed_count > 0:
             status += f", {failed_count} failed"
             self.set_status_error(status)

@@ -669,7 +669,9 @@ class CorpusDialog(BaseModalDialog):
             self._refresh_document_list()
 
             if copied > 0:
-                messagebox.showinfo("Files Added", f"Added {copied} file(s) to corpus.")
+                messagebox.showinfo(
+                    "Files Added", f"Added {copied} {'file' if copied == 1 else 'files'} to corpus."
+                )
 
         except Exception as e:
             messagebox.showerror("Error", f"Failed to add files: {e}")
