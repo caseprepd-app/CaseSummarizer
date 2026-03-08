@@ -168,7 +168,7 @@ class TestWorkflowPhaseTransitions:
         dynamic_output_widget.set_workflow_phase(WorkflowPhase.QA_INDEXING)
 
         qa_text = dynamic_output_widget._qa_status_label.cget("text")
-        assert "Building Q&A search index" in qa_text
+        assert "building search index from your documents" in qa_text
 
     def test_qa_indexing_to_answering(self, dynamic_output_widget):
         """Transition from QA_INDEXING to QA_ANSWERING."""

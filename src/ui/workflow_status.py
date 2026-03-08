@@ -69,7 +69,10 @@ def get_qa_tab_status(phase: WorkflowPhase, config: TabStatusConfig) -> str:
         )
 
     if phase == WorkflowPhase.QA_INDEXING:
-        return "Building Q&A search index...\n\nThis may take a moment for large documents."
+        return (
+            "Preparing Q&A — building search index from your documents...\n\n"
+            "This may take a moment for large documents."
+        )
 
     if phase == WorkflowPhase.QA_ANSWERING:
         return "Answering questions...\n\nResults will appear below as they complete."

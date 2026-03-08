@@ -100,7 +100,7 @@ class TestQATabStatus:
         """During Q&A indexing, show indexing status."""
         config = TabStatusConfig(qa_enabled=True)
         msg = get_qa_tab_status(WorkflowPhase.QA_INDEXING, config)
-        assert "Building Q&A search index" in msg
+        assert "building search index from your documents" in msg
 
     def test_qa_answering_phase(self):
         """During Q&A answering, show answering status."""

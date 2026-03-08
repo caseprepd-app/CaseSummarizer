@@ -943,6 +943,15 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             self.output_display.set_extraction_source("ner")
             from src.user_preferences import get_user_preferences
 
+            # Vocab results are now visible — transition Q&A tab from
+            # "vocab in progress" to "building search index" so users
+            # aren't confused by the vocab tab being done while the Q&A
+            # tab still says vocab is running.
+            if not self._qa_ready:
+                from src.ui.workflow_status import WorkflowPhase
+
+                self.output_display.set_workflow_phase(WorkflowPhase.QA_INDEXING)
+
             if get_user_preferences().is_vocab_llm_enabled():
                 self.set_status(f"Found {term_count} terms. LLM enhancement starting...")
             else:
