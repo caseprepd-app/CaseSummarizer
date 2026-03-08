@@ -4,19 +4,18 @@ Line Number Remover Preprocessor
 Removes line numbers that appear in margins of legal transcripts.
 Common in deposition transcripts and court filings.
 
-Patterns handled:
-- "1  ", "2  ", ..., "25  " at line start (transcript format)
-- "24   text" - numbers 1-25 followed by 3+ spaces anywhere (strong signal)
-- "  1", "  2", ..., "  25" at line end (some PDF exports)
-- "|1", "|2", etc. (some legal document formats)
-- "25THE COURT:" - numbers attached to uppercase content (PDF extraction error)
-- "Thank you.25" - numbers attached to punctuation (PDF extraction error)
-- "back 16 in August" - collapsed line numbers from PDF line joining
-- "monitored. 24 Plaintiff's" - line numbers after sentence punctuation
+Two-phase approach:
+1. Surgical patterns (high confidence): Target numbers 1-25 with specific
+   contextual signals (2+ spaces, pipe prefixes, Q/A markers, etc.)
+2. Aggressive sweep (final pass): Remove any 1-3 digit number at line start,
+   UNLESS the next word ends in 's' (plural noun = likely a quantity).
+   Preserves "3 boxes" but removes "5 Q. Good morning" and "142 THE COURT:".
+   4-digit numbers (years like 2024) are never touched.
 
 Does NOT remove:
-- Numbers that are part of content (dates, case numbers, citations)
-- Page numbers (handled by TranscriptCleaner)
+- Numbers followed by plural words ("3 boxes", "10 minutes")
+- 4+ digit numbers (years, case numbers)
+- Numbers that are part of content mid-sentence (handled surgically only)
 """
 
 import re
@@ -142,6 +141,28 @@ class LineNumberRemover(BasePreprocessor):
         re.MULTILINE,
     )
 
+    # Aggressive final sweep: remove any 1-3 digit number at line start,
+    # UNLESS the next word ends in 's' (plural = likely a quantity).
+    #
+    # What it matches:
+    #   "5 Q. Good morning"  -> removes "5 "   (next word "Q." doesn't end in 's')
+    #   "142 THE COURT:"     -> removes "142 " (next word "THE" doesn't end in 's')
+    #   "14 Detective Smith" -> removes "14 "  (next word "Detective" doesn't end in 's')
+    #
+    # What it preserves:
+    #   "3 boxes"            -> kept (next word "boxes" ends in 's')
+    #   "10 minutes"         -> kept (next word "minutes" ends in 's')
+    #   "2024 was"           -> kept (4 digits, not matched)
+    #
+    # The negative lookahead (?!\S*s(?:\s|[.,;:!?]|$)) checks whether the
+    # next word (sequence of non-space chars) ends in 's' before whitespace
+    # or punctuation. If it does, the number is likely a quantity, not a
+    # line/page number.
+    AGGRESSIVE_LINE_START_PATTERN = re.compile(
+        r"^\s*\d{1,3}\s+(?!\S*s(?:\s|[.,;:!?]|$))",
+        re.MULTILINE,
+    )
+
     def process(self, text: str) -> PreprocessingResult:
         """
         Remove line numbers from text margins.
@@ -218,6 +239,11 @@ class LineNumberRemover(BasePreprocessor):
         result, punctuation_count = self.PUNCTUATION_LINE_PATTERN.subn("", result)
         changes += punctuation_count
 
+        # Aggressive final sweep: remove any 1-3 digit number at line start,
+        # unless the next word ends in 's' (plural noun = likely a quantity)
+        result, aggressive_count = self.AGGRESSIVE_LINE_START_PATTERN.subn("", result)
+        changes += aggressive_count
+
         return PreprocessingResult(
             text=result,
             changes_made=changes,
@@ -229,5 +255,6 @@ class LineNumberRemover(BasePreprocessor):
                 "attached_end_numbers": attached_end_count,
                 "collapsed_line_numbers": collapsed_count,
                 "punctuation_line_numbers": punctuation_count,
+                "aggressive_line_start": aggressive_count,
             },
         )

@@ -106,10 +106,24 @@ class TestLineNumberRemover:
         assert "THE COURT:" in result.text
         assert result.changes_made >= 1
 
-    def test_does_not_remove_numbers_above_25(self):
-        text = "26  This should stay."
+    def test_aggressive_sweep_removes_numbers_above_25(self):
+        """Aggressive sweep catches 1-3 digit numbers at line start."""
+        text = "26  This should be removed."
         result = self._make().process(text)
-        assert "26" in result.text
+        assert "26" not in result.text
+        assert "This should be removed." in result.text
+
+    def test_aggressive_sweep_preserves_plural_next_word(self):
+        """Numbers before plural words (ending in 's') are kept."""
+        text = "3 boxes on the table"
+        result = self._make().process(text)
+        assert "3 boxes" in result.text
+
+    def test_aggressive_sweep_preserves_four_digit_numbers(self):
+        """4-digit numbers (years, etc.) are never removed."""
+        text = "2024 was a good year"
+        result = self._make().process(text)
+        assert "2024" in result.text
 
     def test_metadata_tracks_patterns(self):
         text = "1  First line\n2  Second line"
