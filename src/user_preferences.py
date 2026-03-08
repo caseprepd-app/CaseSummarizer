@@ -99,8 +99,8 @@ class UserPreferencesManager:
                 # Clean up temp file on failure
                 try:
                     os.unlink(temp_path)
-                except OSError:
-                    pass
+                except Exception:
+                    pass  # Best-effort cleanup
                 raise
 
         except Exception as e:
@@ -728,6 +728,8 @@ class UserPreferencesManager:
                     _re.compile(value.strip())
                 except _re.error as e:
                     raise ValueError(f"{key} contains invalid regex: {e}")
+                except Exception as e:
+                    raise ValueError(f"{key} regex validation failed: {e}")
 
         self._preferences[key] = value
         self._save_preferences()

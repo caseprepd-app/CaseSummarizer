@@ -2139,6 +2139,8 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
                     other_messages.append(msg)
             except (TypeError, ValueError):
                 logger.debug("Malformed message in followup poll: %s", msg)
+            except Exception:
+                logger.error("Unhandled error in followup poll: %s", msg, exc_info=True)
 
         # Process any non-followup messages that arrived
         for msg in other_messages:
@@ -2147,6 +2149,8 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
                 self._handle_queue_message(msg_type, data)
             except (TypeError, ValueError):
                 logger.debug("Malformed message in queue processing: %s", msg)
+            except Exception:
+                logger.error("Unhandled error processing message: %s", msg, exc_info=True)
 
         if followup_result is None and not messages:
             # No result yet, keep polling
@@ -2316,6 +2320,8 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
 
         try:
             self._export_all_impl()
+        except Exception:
+            logger.error("Export all failed", exc_info=True)
         finally:
             self._exporting_all = False
 

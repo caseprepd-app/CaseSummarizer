@@ -934,6 +934,9 @@ class DynamicOutputWidget(ctk.CTkFrame):
                     return float(clean) if clean else 0
                 except (ValueError, TypeError):
                     return 0
+                except Exception:
+                    logger.error("Unexpected error in sort key", exc_info=True)
+                    return 0
             else:
                 # String comparison, case-insensitive
                 return str(value).lower()
@@ -1074,6 +1077,9 @@ class DynamicOutputWidget(ctk.CTkFrame):
                 regex_pattern = re.compile(filter_text, re.IGNORECASE)
             except re.error:
                 # Invalid regex - don't filter, let user fix it
+                return
+            except Exception:
+                logger.error("Unexpected error compiling filter regex", exc_info=True)
                 return
 
         # Detach non-matching items
@@ -1734,6 +1740,8 @@ class DynamicOutputWidget(ctk.CTkFrame):
                 # Show context menu at cursor position
                 try:
                     self.context_menu.tk_popup(event.x_root, event.y_root)
+                except Exception:
+                    logger.error("Context menu popup failed", exc_info=True)
                 finally:
                     self.context_menu.grab_release()
 
@@ -1790,6 +1798,8 @@ class DynamicOutputWidget(ctk.CTkFrame):
             doc_count = int(term_data.get(VF.NUM_DOCS, 0))
         except (ValueError, TypeError):
             logger.debug("Could not parse occurrences/doc_count for context menu")
+        except Exception:
+            logger.error("Unexpected error parsing context menu data", exc_info=True)
 
         if occurrences > 0 and doc_count > 0:
             ctx_label = f"View in Context ({doc_count} doc"
@@ -2131,6 +2141,9 @@ class DynamicOutputWidget(ctk.CTkFrame):
                 if hasattr(main_window, "set_status_error"):
                     main_window.set_status_error(f"Save failed: {e}")
                 return
+            except Exception as e:
+                logger.error("Unexpected error saving file '%s': %s", filepath, e, exc_info=True)
+                return
 
             # Remember last export folder
             prefs.set("last_export_path", str(Path(filepath).parent))
@@ -2176,6 +2189,8 @@ class DynamicOutputWidget(ctk.CTkFrame):
 
         try:
             self._export_vocab_impl(format_key)
+        except Exception:
+            logger.error("Vocabulary export failed", exc_info=True)
         finally:
             self._exporting_vocab = False
 
@@ -2335,6 +2350,9 @@ class DynamicOutputWidget(ctk.CTkFrame):
             skip_idx = current_columns.index(VF.SKIP) + 1  # 1-based
         except ValueError:
             return  # Keep/Skip columns not found
+        except Exception:
+            logger.error("Unexpected error finding feedback columns", exc_info=True)
+            return
 
         # Check if click was on a feedback column
         if column == f"#{keep_idx}":  # Keep column
@@ -2511,6 +2529,9 @@ class DynamicOutputWidget(ctk.CTkFrame):
             skip_idx = current_columns.index(VF.SKIP)  # 0-based for list access
         except ValueError:
             return  # Keep/Skip columns not found
+        except Exception:
+            logger.error("Unexpected error finding feedback columns", exc_info=True)
+            return
 
         if len(values) <= max(keep_idx, skip_idx):
             return

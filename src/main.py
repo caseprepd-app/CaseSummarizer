@@ -91,14 +91,16 @@ def setup_file_logging(logs_dir):
                         self.terminal.write(
                             message.encode("ascii", errors="replace").decode("ascii")
                         )
-                    except OSError:
-                        pass
+                    except Exception:
+                        pass  # Terminal write completely failed
+                except Exception:
+                    pass  # Unexpected terminal error — don't crash the app
             if self.logfile:
                 try:
                     self.logfile.write(message)
                     self.flush()
-                except OSError:
-                    pass  # Log file may have been closed
+                except Exception:
+                    pass  # Log file may have been closed or inaccessible
 
         def flush(self):
             if self.terminal is not None:

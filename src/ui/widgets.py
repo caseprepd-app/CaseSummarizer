@@ -143,6 +143,9 @@ class FileReviewTable(ctk.CTkFrame):
             size_display = self._format_file_size(size_bytes)
         except OSError:
             size_display = "—"
+        except Exception as e:
+            logger.error("Unexpected error getting file size: %s", e, exc_info=True)
+            size_display = "—"
 
         values = (filename, "Extracting...", "—", "—", "—", size_display)
         tag = "extracting"

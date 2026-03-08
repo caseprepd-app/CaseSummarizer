@@ -387,9 +387,9 @@ def purge_old_logs() -> int:
                 if path.stat().st_mtime < cutoff:
                     path.unlink()
                     deleted += 1
-            except OSError as e:
+            except Exception as e:
                 logging.getLogger(__name__).debug("Could not delete old log %s: %s", path.name, e)
-    except OSError as e:
+    except Exception as e:
         logging.getLogger(__name__).debug("Could not iterate log directory: %s", e)
 
     if deleted:

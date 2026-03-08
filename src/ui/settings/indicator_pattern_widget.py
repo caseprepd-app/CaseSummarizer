@@ -45,6 +45,8 @@ def _validate_regex(regex_str: str) -> str | None:
         return None
     except re.error as e:
         return str(e)
+    except Exception as e:
+        return f"Unexpected error: {e}"
 
 
 # Shared tooltip text

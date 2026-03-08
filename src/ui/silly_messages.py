@@ -33,6 +33,9 @@ try:
 except FileNotFoundError:
     logger.debug("Silly messages file not found, using fallback list")
     _messages = _FALLBACK_MESSAGES
+except Exception as e:
+    logger.error("Failed to load silly messages: %s", e, exc_info=True)
+    _messages = _FALLBACK_MESSAGES
 
 
 def get_silly_message() -> str:

@@ -378,6 +378,8 @@ class QAPanel(ctk.CTkFrame):
 
         try:
             self._export_qa_impl(format_key)
+        except Exception:
+            logger.error("Q&A export failed", exc_info=True)
         finally:
             self._exporting_qa = False
 

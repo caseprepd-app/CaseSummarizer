@@ -82,6 +82,14 @@ class RegexExclusionFilter(BaseVocabularyFilter):
                             line,
                             e,
                         )
+                    except Exception as e:
+                        logger.error(
+                            "Unexpected error compiling regex on line %s: '%s' - %s",
+                            line_num,
+                            line,
+                            e,
+                            exc_info=True,
+                        )
 
             logger.debug(
                 "Loaded %s patterns from %s",

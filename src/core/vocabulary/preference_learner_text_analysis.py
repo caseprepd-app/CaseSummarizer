@@ -75,7 +75,7 @@ def _load_names_datasets() -> tuple[set[str], set[str]]:
                                 country_sets[name].add(country)
                 logger.debug("Loaded %d forenames", len(_forenames_set))
             except Exception as e:
-                logger.debug("Error loading forenames: %s", e)
+                logger.warning("Error loading forenames: %s", e, exc_info=True)
 
         # Load surnames
         _surnames_set = set()
@@ -96,7 +96,7 @@ def _load_names_datasets() -> tuple[set[str], set[str]]:
                                 country_sets[name].add(country)
                 logger.debug("Loaded %d surnames", len(_surnames_set))
             except Exception as e:
-                logger.debug("Error loading surnames: %s", e)
+                logger.warning("Error loading surnames: %s", e, exc_info=True)
 
         # Build country count cache
         _total_countries = len(all_countries) if all_countries else 1

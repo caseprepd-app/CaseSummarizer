@@ -46,6 +46,9 @@ def _compile_pattern(strings: list[str], regex_override: str) -> re.Pattern | No
         except re.error as e:
             logger.warning("Invalid regex override '%s': %s", regex_override, e)
             return None
+        except Exception as e:
+            logger.error("Unexpected error compiling regex override: %s", e, exc_info=True)
+            return None
 
     if not strings:
         return None
@@ -60,6 +63,9 @@ def _compile_pattern(strings: list[str], regex_override: str) -> re.Pattern | No
         return re.compile(pattern)
     except re.error as e:
         logger.warning("Failed to compile indicator pattern: %s", e)
+        return None
+    except Exception as e:
+        logger.error("Unexpected error compiling indicator pattern: %s", e, exc_info=True)
         return None
 
 

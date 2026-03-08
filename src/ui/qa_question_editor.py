@@ -281,6 +281,8 @@ class QAQuestionEditor(BaseModalDialog):
 
         except (ValueError, IndexError):
             logger.debug("Invalid selection in edit: %s", selection)
+        except Exception:
+            logger.error("Unexpected error editing question", exc_info=True)
 
     def _delete_selected(self):
         """Delete the selected question."""
@@ -301,6 +303,8 @@ class QAQuestionEditor(BaseModalDialog):
 
         except (ValueError, IndexError):
             logger.debug("Invalid selection in delete: %s", selection)
+        except Exception:
+            logger.error("Unexpected error deleting question", exc_info=True)
 
     def _move_up(self):
         """Move selected question up in the list."""
@@ -321,6 +325,8 @@ class QAQuestionEditor(BaseModalDialog):
 
         except (ValueError, IndexError):
             logger.debug("Invalid selection in move up: %s", selection)
+        except Exception:
+            logger.error("Unexpected error moving question up", exc_info=True)
 
     def _move_down(self):
         """Move selected question down in the list."""
@@ -341,6 +347,8 @@ class QAQuestionEditor(BaseModalDialog):
 
         except (ValueError, IndexError):
             logger.debug("Invalid selection in move down: %s", selection)
+        except Exception:
+            logger.error("Unexpected error moving question down", exc_info=True)
 
     def _reset_to_defaults(self):
         """Reset questions to default values."""

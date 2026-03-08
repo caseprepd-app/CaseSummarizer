@@ -48,8 +48,8 @@ Summary is all-or-nothing: off (0 minutes) or on (30+ minutes). Options to consi
 ### 9. Default Export Folder Preference
 Every export opens a file picker starting from wherever. No setting for a default export directory. Court reporters working on many cases would benefit from a configurable default folder.
 
-### 10. Dark/Light Theme Toggle
-Currently dark mode only, hardcoded. Some users (especially those working in bright office environments) prefer light mode. CustomTkinter supports both — this is just a settings toggle and theme constant swap.
+### 10. ✅ Dark/Light Theme Toggle — Implemented
+All colors converted to (light, dark) tuples. Theme dropdown in Settings > Appearance (Dark/Light/System). Light mode uses off-white palette with eye-catching attention colors. Live switching via reinitialize_styles().
 
 ---
 
