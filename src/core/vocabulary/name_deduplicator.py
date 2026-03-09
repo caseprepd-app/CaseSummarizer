@@ -118,6 +118,11 @@ def deduplicate_names(
     # Phase 2: Group by normalized name (exact match after cleaning)
     groups = _group_by_normalized(cleaned_terms)
 
+    # Phase 2.5: Merge groups with identical word sets (reversed name order)
+    # "Mario Osorio" and "Osorio Mario" have the same word set {mario, osorio}
+    # and should be treated as the same person regardless of word order.
+    groups = _merge_reversed_name_groups(groups)
+
     # Phase 3: Fuzzy merge groups that are still similar
     merged_groups = _fuzzy_merge_groups(groups, similarity_threshold)
 
@@ -218,6 +223,72 @@ def _group_by_normalized(cleaned_terms: list[dict]) -> dict[str, list[dict]]:
         if key not in groups:
             groups[key] = []
         groups[key].append(entry)
+    return groups
+
+
+def _merge_reversed_name_groups(groups: dict[str, list]) -> dict[str, list]:
+    """
+    Merge groups whose normalized names are the same words in different order.
+
+    Legal transcripts often produce both "Mario Osorio" and "Osorio Mario"
+    from different formatting contexts (testimony attribution vs. narrative).
+    These are the same person but would fail fuzzy matching (low similarity)
+    and first-letter blocking (different starting letters).
+
+    This phase detects identical word sets and merges them. The group key
+    with the most entries is kept as canonical (higher occurrence = more
+    likely the intended order). For ties, the "First Last" order
+    (shorter first word) is preferred as a tiebreaker.
+
+    Only applies to multi-word names (single-word names have no order to reverse).
+
+    Args:
+        groups: Dict mapping normalized name to list of term entries
+
+    Returns:
+        Dict with reversed-name groups merged under the canonical key
+    """
+    # Build word-set → list of group keys mapping
+    from collections import defaultdict
+
+    wordset_to_keys: dict[frozenset[str], list[str]] = defaultdict(list)
+    for key in groups:
+        words = key.lower().split()
+        if len(words) >= 2:
+            wordset_to_keys[frozenset(words)].append(key)
+
+    # Merge groups that share a word set
+    merged_count = 0
+    for word_set, keys in wordset_to_keys.items():
+        if len(keys) < 2:
+            continue
+
+        # Pick the canonical key: most entries first, then prefer the key
+        # whose first word is shorter (heuristic for "First Last" order —
+        # first names tend to be shorter than last names)
+        def sort_key(k):
+            entry_count = len(groups[k])
+            first_word_len = len(k.split()[0]) if k.split() else 0
+            return (-entry_count, first_word_len)
+
+        keys.sort(key=sort_key)
+        canonical_key = keys[0]
+
+        # Merge all other keys into the canonical
+        for other_key in keys[1:]:
+            groups[canonical_key].extend(groups[other_key])
+            del groups[other_key]
+            merged_count += 1
+            logger.debug(
+                "Merged reversed name '%s' into '%s' (same word set: %s)",
+                other_key,
+                canonical_key,
+                sorted(word_set),
+            )
+
+    if merged_count:
+        logger.debug("Reversed-name merge: combined %d group(s)", merged_count)
+
     return groups
 
 

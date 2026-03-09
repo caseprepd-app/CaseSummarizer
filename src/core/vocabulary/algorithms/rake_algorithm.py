@@ -125,11 +125,14 @@ class RAKEAlgorithm(BaseExtractionAlgorithm):
         """
         start_time = time.time()
 
-        # Keep original text for frequency counting
+        # Keep original text for frequency counting and case restoration
         original_text_lower = text.lower()
 
         # Clean text for RAKE processing
         cleaned_text = self._preprocess_text(text)
+
+        # Build case-restoration map from original text (before RAKE lowercases it)
+        case_map = self._build_case_map(cleaned_text)
 
         # Extract keywords
         self.rake.extract_keywords_from_text(cleaned_text)
@@ -160,6 +163,9 @@ class RAKEAlgorithm(BaseExtractionAlgorithm):
             if not cleaned_phrase:
                 filtered_by_invalid += 1
                 continue
+
+            # Restore original capitalization from source text
+            cleaned_phrase = self._restore_case(cleaned_phrase, case_map)
 
             # Skip if already added (dedup)
             lower_phrase = cleaned_phrase.lower()
@@ -266,6 +272,43 @@ class RAKEAlgorithm(BaseExtractionAlgorithm):
         pattern = r"\b" + re.escape(phrase_lower) + r"\b"
         matches = re.findall(pattern, text_lower)
         return len(matches)
+
+    def _build_case_map(self, text: str) -> dict[str, str]:
+        """
+        Build a mapping of lowercased phrases to their original-case versions.
+
+        Scans the preprocessed text for 1-to-3-word windows and records the
+        first occurrence of each lowercased form with its original case.
+
+        Args:
+            text: Preprocessed text (before RAKE lowercases it)
+
+        Returns:
+            Dict mapping lowercase phrase to original-case phrase
+        """
+        case_map: dict[str, str] = {}
+        words = text.split()
+        for n in range(1, min(self.max_length + 1, 4)):
+            for i in range(len(words) - n + 1):
+                window = " ".join(words[i : i + n])
+                key = window.lower()
+                if key not in case_map:
+                    case_map[key] = window
+        return case_map
+
+    def _restore_case(self, phrase: str, case_map: dict[str, str]) -> str:
+        """
+        Restore original capitalization for a RAKE-extracted phrase.
+
+        Args:
+            phrase: Lowercased phrase from RAKE
+            case_map: Mapping from _build_case_map()
+
+        Returns:
+            Phrase with original capitalization, or unchanged if not found
+        """
+        key = phrase.lower()
+        return case_map.get(key, phrase)
 
     def _clean_phrase(self, phrase: str) -> str:
         """
