@@ -878,6 +878,9 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
 
         if msg_type == "progress":
             _percentage, message = data
+            # Don't overwrite completion status with stale progress messages
+            if not self._processing_active:
+                return
             # Append Q&A status note if index is ready but answers haven't appeared yet
             if self._qa_ready and "question" not in message.lower() and "Q&A" not in message:
                 message = f"{message} (answering questions...)"
@@ -951,7 +954,10 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
 
                 self.output_display.set_workflow_phase(WorkflowPhase.QA_INDEXING)
 
-            self.set_status(f"Found {term_count} terms. Building search index...")
+            if self._pending_tasks.get("qa"):
+                self.set_status(f"Found {term_count} terms. Building search index...")
+            else:
+                self.set_status(f"Vocabulary extraction complete: {term_count} terms")
 
             # Vocabulary extraction is complete — mark task done
             self._completed_tasks.add("vocab")

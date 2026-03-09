@@ -59,12 +59,21 @@ class TestProgressHandler:
     def test_sets_status_message(self):
         """Progress handler updates status with message text."""
         stub = _make_stub()
+        stub._processing_active = True
         _call_handler(stub, "progress", (50, "Processing files..."))
         stub.set_status.assert_called_once_with("Processing files...")
+
+    def test_ignored_when_processing_inactive(self):
+        """Progress messages are ignored after processing completes."""
+        stub = _make_stub()
+        stub._processing_active = False
+        _call_handler(stub, "progress", (90, "Stale progress"))
+        stub.set_status.assert_not_called()
 
     def test_appends_qa_note_when_qa_ready(self):
         """When Q&A index is ready, append answering note to status."""
         stub = _make_stub()
+        stub._processing_active = True
         stub._qa_ready = True
         _call_handler(stub, "progress", (75, "LLM chunk 3/5"))
         call_args = stub.set_status.call_args[0][0]
@@ -73,6 +82,7 @@ class TestProgressHandler:
     def test_no_qa_note_when_message_mentions_question(self):
         """Don't append Q&A note if message already mentions questions."""
         stub = _make_stub()
+        stub._processing_active = True
         stub._qa_ready = True
         _call_handler(stub, "progress", (75, "Answering question 2/5"))
         call_args = stub.set_status.call_args[0][0]
@@ -81,6 +91,7 @@ class TestProgressHandler:
     def test_no_qa_note_when_message_mentions_qa(self):
         """Don't append Q&A note if message already mentions Q&A."""
         stub = _make_stub()
+        stub._processing_active = True
         stub._qa_ready = True
         _call_handler(stub, "progress", (75, "Q&A indexing..."))
         call_args = stub.set_status.call_args[0][0]
@@ -292,13 +303,21 @@ class TestNERCompleteHandler:
         _call_handler(stub, "ner_complete", [{"term": "a"}])
         assert "vocab" in stub._completed_tasks
 
-    def test_status_mentions_search_index(self):
-        """ner_complete shows search index building message."""
+    def test_status_mentions_search_index_when_qa_pending(self):
+        """ner_complete shows search index message when Q&A is pending."""
+        stub = _make_stub()
+        stub._pending_tasks = {"vocab": True, "qa": True, "summary": False}
+        _call_handler(stub, "ner_complete", [{"term": "a"}])
+        call_args = stub.set_status.call_args[0][0]
+        assert "search index" in call_args.lower() or "index" in call_args.lower()
+
+    def test_status_shows_complete_when_vocab_only(self):
+        """ner_complete shows completion message when no Q&A pending."""
         stub = _make_stub()
         stub._pending_tasks = {"vocab": True, "qa": False, "summary": False}
         _call_handler(stub, "ner_complete", [{"term": "a"}])
         call_args = stub.set_status.call_args[0][0]
-        assert "search index" in call_args.lower() or "index" in call_args.lower()
+        assert "complete" in call_args.lower()
 
 
 # ---------------------------------------------------------------------------
