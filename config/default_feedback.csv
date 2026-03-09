@@ -1,1 +1,22 @@
 timestamp,document_id,term,feedback,is_person,algorithms,NER_detection,RAKE_detection,BM25_detection,TopicRank_detection,MedicalNER_detection,YAKE_detection,algo_count,quality_score,occurrences,rarity_rank,topicrank_score,yake_score,rake_score,bm25_score,num_source_documents,doc_diversity_ratio,mean_doc_confidence,median_doc_confidence,confidence_std_dev,high_conf_doc_ratio,all_low_conf,total_docs_in_session,total_word_count
+2026-03-08T16:17:48.729761,unknown,p g,-1,1,NER,True,False,False,False,False,False,1,100.0,7,0,0.0,0.0,0.0,0.0,1,1.0,0.9400000000000001,0.94,0.0,1.0,0,1,10919
+2026-03-08T16:18:45.501277,unknown,John Bendo,1,1,"NER,YAKE",True,False,False,False,False,True,2,100.0,28,0,0.0,0.105295,0.0,0.0,1,1.0,0.94,0.94,0.0,1.0,0,1,10919
+2026-03-08T16:18:55.903694,unknown,spondylosis,1,0,"MedicalNER,NER",True,False,False,False,True,False,2,67.6,2,167992,0.0,0.0,0.0,0.0,1,1.0,0.94,0.94,0.0,1.0,0,1,10919
+2026-03-08T16:19:04.241808,unknown,Maloney,1,1,"NER,YAKE",True,False,False,False,False,True,2,85.2,6,29034,0.0,0.059033,0.0,0.0,1,1.0,0.94,0.94,0.0,1.0,0,1,10919
+2026-03-08T16:19:11.870373,unknown,MJ g,-1,1,NER,True,False,False,False,False,False,1,95.4,1,0,0.0,0.0,0.0,0.0,1,1.0,0.94,0.94,0.0,1.0,0,1,10919
+2026-03-09T12:11:12.491921,unknown,McMurray,1,1,"YAKE,NER",True,False,False,False,False,True,2,100.0,52,30136,0.0,0.010783,0.0,0.0,1,1.0,0.95,0.95,0.0,1.0,0,1,22717
+2026-03-09T12:11:21.170891,unknown,february 3rd,-1,0,RAKE,False,True,False,False,False,False,1,94.0,8,0,0.0,0.0,3.3870967741935485,0.0,1,1.0,0.95,0.95,0.0,1.0,0,1,22717
+2026-03-09T12:11:27.330585,unknown,condyles,1,0,NER,True,False,False,False,False,False,1,82.6,4,266172,0.0,0.0,0.0,0.0,1,1.0,0.95,0.95,0.0,1.0,0,1,22717
+2026-03-09T12:13:45.016726,unknown,M.D,-1,1,NER,True,False,False,False,False,False,1,76.6,2,0,0.0,0.0,0.0,0.0,1,1.0,0.95,0.95,0.0,1.0,0,1,22717
+2026-03-09T12:15:06.645617,unknown,B120,-1,1,NER,True,False,False,False,False,False,1,73.4,1,0,0.0,0.0,0.0,0.0,1,1.0,0.95,0.95,0.0,1.0,0,1,22717
+2026-03-09T12:15:10.532399,unknown,Pmh,-1,1,NER,True,False,False,False,False,False,1,65.4,1,84834,0.0,0.0,0.0,0.0,1,1.0,0.95,0.95,0.0,1.0,0,1,22717
+2026-03-09T12:16:59.963782,unknown,ligamentous,1,0,NER,True,False,False,False,False,False,1,78.6,2,228958,0.0,0.0,0.0,0.0,1,1.0,0.95,0.95,0.0,1.0,0,1,22717
+2026-03-09T12:17:14.884709,unknown,Appell,1,1,"YAKE,NER",True,False,False,False,False,True,2,100.0,50,149974,0.0,0.000426,0.0,0.0,1,1.0,0.95,0.95,0.0,1.0,0,1,22717
+2026-03-09T12:17:20.203909,unknown,Bressler,1,1,"YAKE,NER",True,False,False,False,False,True,2,94.5,22,123145,0.0,0.012395,0.0,0.0,1,1.0,0.95,0.95,0.0,1.0,0,1,22717
+2026-03-09T14:04:57.279202,unknown,P-E-R-R-I,-1,1,NER,True,False,False,False,False,False,1,73.4,1,0,0.0,0.0,0.0,0.0,1,1.0,0.94,0.94,0.0,1.0,0,1,17220
+2026-03-09T14:05:03.719357,unknown,MJ g Velovic,-1,1,NER,True,False,False,False,False,False,1,95.4,1,0,0.0,0.0,0.0,0.0,1,1.0,0.94,0.94,0.0,1.0,0,1,17220
+2026-03-09T14:05:10.667580,unknown,osteophytes,1,0,"YAKE,NER",True,False,False,False,False,True,2,100.0,17,308000,0.0,0.034693,0.0,0.0,1,1.0,0.94,0.94,0.0,1.0,0,1,17220
+2026-03-09T14:05:27.638910,unknown,foramina,1,0,NER,True,False,False,False,False,False,1,89.4,11,246061,0.0,0.0,0.0,0.0,1,1.0,0.94,0.94,0.0,1.0,0,1,17220
+2026-03-09T14:05:37.792589,unknown,edematous,1,0,NER,True,False,False,False,False,False,1,86.3,7,223282,0.0,0.0,0.0,0.0,1,1.0,0.9400000000000001,0.94,0.0,1.0,0,1,17220
+2026-03-09T14:05:50.005513,unknown,fibular,1,0,NER,True,False,False,False,False,False,1,78.6,2,251907,0.0,0.0,0.0,0.0,1,1.0,0.94,0.94,0.0,1.0,0,1,17220
+2026-03-09T14:05:53.458657,unknown,Frittola,1,1,"MedicalNER,YAKE,NER",True,False,False,False,True,True,3,100.0,38,0,0.0,0.012354,0.0,0.0,1,1.0,0.94,0.94,0.0,1.0,0,1,17220
