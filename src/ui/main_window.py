@@ -1701,7 +1701,8 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
 
         # Disable controls during processing
         self._processing_active = True
-        self.generate_btn.configure(state="disabled", text=f"Processing {task_count} tasks...")
+        self.generate_btn.configure(state="disabled")
+        self._show_stop_button()
         self.add_files_btn.configure(state="disabled")
         self.clear_files_btn.configure(state="disabled")
 
@@ -1752,6 +1753,54 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             self._start_summary_task()
         else:
             self._on_tasks_complete(True, "No tasks selected")
+
+    # =========================================================================
+    # Stop / Cancel
+    # =========================================================================
+
+    def _on_stop_clicked(self):
+        """Handle stop button click — confirm then cancel all active work."""
+        if not self._processing_active:
+            return
+
+        result = messagebox.askyesno(
+            "Stop Processing",
+            "Are you sure you want to stop?\n\n"
+            "Completed results (vocabulary, answered questions) will be kept,\n"
+            "but any work still in progress will be lost.",
+            icon="warning",
+        )
+        if not result:
+            return
+
+        logger.info("User requested stop — cancelling active work")
+
+        # Send cancel to worker subprocess
+        if self._worker_manager and self._worker_manager.is_alive():
+            self._worker_manager.cancel()
+
+        # Reset processing state
+        self._qa_answering_active = False
+        self._preprocessing_active = False
+
+        # Finalize as a partial completion
+        completed = len(self._completed_tasks)
+        if completed:
+            msg = f"Stopped by user ({completed} task(s) completed)"
+        else:
+            msg = "Stopped by user"
+        self._on_tasks_complete(True, msg)
+        self.set_status(msg)
+
+    def _show_stop_button(self):
+        """Swap generate button for stop button during processing."""
+        self.generate_btn.grid_remove()
+        self.stop_btn.grid(row=7, column=0, sticky="ew", padx=10, pady=(15, 5))
+
+    def _hide_stop_button(self):
+        """Swap stop button back to generate button after processing ends."""
+        self.stop_btn.grid_remove()
+        self.generate_btn.grid(row=7, column=0, sticky="ew", padx=10, pady=(15, 5))
 
     # =========================================================================
     # Progressive Extraction
@@ -1965,6 +2014,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         """Handle task completion."""
         self._stop_timer()
         self._processing_active = False
+        self._hide_stop_button()
         self.output_display.set_extraction_in_progress(False)
 
         # Update workflow phase for tab status

@@ -272,6 +272,7 @@ class OllamaModelManager:
         max_tokens: int = 500,
         temperature: float | None = None,
         top_p: float | None = None,
+        cancel_event: "threading.Event | None" = None,
     ) -> str:
         """
         Generate text using official Ollama Python library with streaming.
@@ -285,12 +286,14 @@ class OllamaModelManager:
             max_tokens: Maximum tokens to generate
             temperature: Sampling temperature (0.0-1.0)
             top_p: Nucleus sampling parameter
+            cancel_event: Optional threading.Event; if set, streaming aborts early.
 
         Returns:
             str: Generated text
 
         Raises:
             RuntimeError: If Ollama is not available
+            InterruptedError: If cancel_event is set during streaming
         """
 
         if not self.is_model_loaded():
@@ -355,8 +358,11 @@ class OllamaModelManager:
                 stream=True,
             )
 
-            # Collect streamed chunks
+            # Collect streamed chunks (check cancel_event between chunks)
             for chunk in stream:
+                if cancel_event and cancel_event.is_set():
+                    logger.info("Streaming cancelled by caller")
+                    raise InterruptedError("Generation cancelled")
                 if "response" in chunk:
                     generated_chunks.append(chunk["response"])
 

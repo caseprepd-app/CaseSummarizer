@@ -37,6 +37,7 @@ class WindowLayoutMixin:
     - self._update_generate_button_state (callback method)
     - self._on_summary_checked (callback method)
     - self._perform_tasks (callback method)
+    - self._on_stop_clicked (callback method)
     - self._ask_followup (callback method)
 
     And expects to create these widget references:
@@ -46,7 +47,7 @@ class WindowLayoutMixin:
     - self.banner_frame, self.banner_label, self.setup_corpus_btn
     - self.main_frame, self.left_panel, self.right_panel
     - self.file_table, self.add_files_btn, self.clear_files_btn
-    - self.qa_check, self.vocab_check, self.summary_check, self.generate_btn
+    - self.qa_check, self.vocab_check, self.summary_check, self.generate_btn, self.stop_btn
     - self.output_display, self.followup_frame, self.followup_entry, self.followup_btn
     - self.status_frame, self.status_label, self.timer_label
     - self.ollama_status_frame, self.ollama_status_dot, self.ollama_status_label
@@ -264,6 +265,18 @@ class WindowLayoutMixin:
             command=self._perform_tasks,
         )
         self.generate_btn.grid(row=7, column=0, sticky="ew", padx=10, pady=(15, 5))
+
+        # Stop button (hidden by default, shown during processing)
+        self.stop_btn = ctk.CTkButton(
+            self.left_panel,
+            text="STOP",
+            font=FONTS["heading"],
+            height=scale_value(40),
+            corner_radius=6,
+            **BUTTON_STYLES["danger"],
+            command=self._on_stop_clicked,
+        )
+        # Same grid position as generate_btn — only one visible at a time
 
         # Task preview label - shows what will run
         self.task_preview_label = ctk.CTkLabel(
