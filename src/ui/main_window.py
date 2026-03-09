@@ -353,7 +353,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             dialog.wait_window()
         except Exception as e:
             logger.warning("Failed to open settings dialog: %s", e)
-            self.set_status_error("Could not open settings dialog")
+            self.set_status_error("Settings dialog failed to open. Try again.")
         finally:
             self._settings_dialog_open = False
 
@@ -459,7 +459,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             dialog.wait_window()
         except Exception as e:
             logger.warning("Failed to open settings dialog: %s", e)
-            self.set_status_error("Could not open settings dialog")
+            self.set_status_error("Settings dialog failed to open. Try again.")
         finally:
             self._settings_dialog_open = False
 
@@ -780,7 +780,8 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
                 self.clear_files_btn.configure(state="normal")
                 self._worker_ready_retries = 0
                 return
-            self.set_status("Processing engine starting up, please wait...")
+            retries = self._worker_ready_retries
+            self.set_status(f"Processing engine starting up, please wait... ({retries}/20)")
             self.after(3000, lambda: self._start_preprocessing(paths_to_process))
             return
 
@@ -928,14 +929,24 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             logger.debug("Partial results: %s terms from BM25+RAKE", term_count)
             self.output_display.update_outputs(vocab_csv_data=data)
             self.output_display.set_extraction_source("partial")
-            self.set_status(f"Found {term_count} terms (BM25+RAKE). Running NER...")
+            from src.config import DEBUG_MODE
+
+            if DEBUG_MODE:
+                self.set_status(f"Found {term_count} terms (BM25+RAKE). Running NER...")
+            else:
+                self.set_status(f"Found {term_count} key terms. Now scanning for names...")
 
         elif msg_type == "ner_progress":
             # Update status bar with NER chunk progress
             chunk_num = data.get("chunk_num", 0)
             total_chunks = data.get("total_chunks", 1)
             pct = int((chunk_num / total_chunks) * 100)
-            self.set_status(f"NER: {pct}% complete (chunk {chunk_num}/{total_chunks})...")
+            from src.config import DEBUG_MODE
+
+            if DEBUG_MODE:
+                self.set_status(f"NER: {pct}% complete (chunk {chunk_num}/{total_chunks})...")
+            else:
+                self.set_status(f"Extracting names... {pct}% complete")
             # Note: We don't update the vocab table with each chunk because raw NER
             # candidates need post-processing. The final merged results come with ner_complete.
 
@@ -988,7 +999,10 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
                 data.get("error", "Unknown Q&A error") if isinstance(data, dict) else str(data)
             )
             logger.warning("Q&A indexing error (full): %s", error_msg)
-            self.set_status_error(f"Q&A unavailable: {error_msg[:50]}")
+            # Truncate at word boundary to avoid mid-word cuts
+            if len(error_msg) > 80:
+                error_msg = error_msg[:77].rsplit(" ", 1)[0] + "..."
+            self.set_status_error(f"Q&A unavailable: {error_msg}")
             # Q&A won't be available but vocab extraction can continue
             self._qa_answering_active = False
             self._qa_failed = True
@@ -1100,7 +1114,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         self._completed_tasks.add("summary")
 
         if result.documents_failed > 0:
-            self.set_status_error(
+            self.set_status(
                 f"Summary complete: {result.documents_processed} succeeded, "
                 f"{result.documents_failed} failed"
             )
@@ -1856,7 +1870,8 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
                     False, "Processing engine failed to start. Please restart the app."
                 )
                 return
-            self.set_status("Processing engine starting up, please wait...")
+            retries = self._worker_ready_retries
+            self.set_status(f"Processing engine starting up, please wait... ({retries}/20)")
             self.after(3000, self._start_progressive_extraction)
             return
 
@@ -1929,7 +1944,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
                 placeholder_text_color="white",
             )
         else:
-            self.set_status("Questions and answers complete (no results)")
+            self.set_status("Q&A complete. No answers found — try asking different questions.")
 
         # Continue to next task
         if self._pending_tasks.get("summary"):
@@ -2113,7 +2128,12 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         self.followup_btn.configure(state="disabled", text="Asking...")
         self.followup_entry.configure(state="disabled")
 
-        self.set_status(f"Asking: {question[:40]}...")
+        # Truncate at word boundary to avoid mid-word cuts
+        if len(question) > 60:
+            display_q = question[:57].rsplit(" ", 1)[0] + "..."
+        else:
+            display_q = question
+        self.set_status(f"Asking: {display_q}")
 
         # Show pending result immediately in Q&A panel
         from src.services import QAService
@@ -2231,11 +2251,11 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
                             self._qa_results.pop(pending_idx)
                     self._pending_followup_index = None
                     self.output_display.update_outputs(qa_results=list(self._qa_results))
-                self.set_status_error("Follow-up failed")
+                self.set_status_error("Follow-up question could not be answered")
                 messagebox.showerror("Error", "Failed to process follow-up question")
         except Exception as e:
             logger.debug("Error processing follow-up result: %s", e)
-            self.set_status_error("Follow-up error - check logs")
+            self.set_status_error("Follow-up error. Try rephrasing your question.")
             messagebox.showerror("Error", f"Error displaying result: {e!s}")
 
     def _ask_followup_for_qa_panel(self, question: str):
@@ -2317,7 +2337,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             dialog.wait_window()
         except Exception as e:
             logger.warning("Failed to open settings dialog: %s", e)
-            self.set_status_error("Could not open settings dialog")
+            self.set_status_error("Settings dialog failed to open. Try again.")
         finally:
             self._settings_dialog_open = False
 

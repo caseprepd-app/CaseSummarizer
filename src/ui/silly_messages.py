@@ -38,11 +38,19 @@ except Exception as e:
     _messages = _FALLBACK_MESSAGES
 
 
-def get_silly_message() -> str:
+def get_silly_message(chance: float = 0.2) -> str:
     """
     Return a random silly message for status bar flavor.
 
+    Only returns a silly message some of the time (default 20%).
+    Otherwise returns a straightforward status message.
+
+    Args:
+        chance: Probability (0.0-1.0) of returning a silly message.
+
     Returns:
-        str: A random humorous status message.
+        str: A silly or straightforward status message.
     """
-    return random.choice(_messages)
+    if random.random() < chance:
+        return random.choice(_messages)
+    return "Finalizing documents..."

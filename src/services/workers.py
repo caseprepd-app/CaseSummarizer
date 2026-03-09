@@ -675,8 +675,14 @@ class ProgressiveExtractionWorker(BaseWorker):
 
         # Build algo list dynamically from extractor's enabled algorithms
         algo_list = ", ".join(alg.name for alg in extractor.algorithms if alg.enabled)
-        self.send_progress(5, "Scanning for names and entities...")
-        self.send_progress(10, f"Phase 1: Running local extraction ({algo_list})...")
+        from src.config import DEBUG_MODE
+
+        if DEBUG_MODE:
+            self.send_progress(5, "Scanning for names and entities...")
+            self.send_progress(10, f"Phase 1: Running local extraction ({algo_list})...")
+        else:
+            self.send_progress(5, "Scanning your documents...")
+            self.send_progress(10, "Extracting vocabulary and names...")
 
         # Per-document parallel extraction when 2+ documents.
         # Each doc runs the full pipeline independently, then results are merged
@@ -710,10 +716,11 @@ class ProgressiveExtractionWorker(BaseWorker):
             def on_ner_progress(chunk_candidates, chunk_num, total_chunks):
                 """Called after each NER chunk completes."""
                 pct = int((chunk_num / total_chunks) * 100)
-                self.send_progress(
-                    10 + int((chunk_num / total_chunks) * 20),
-                    f"NER: {pct}% complete (chunk {chunk_num}/{total_chunks})...",
-                )
+                if DEBUG_MODE:
+                    msg = f"NER: {pct}% complete (chunk {chunk_num}/{total_chunks})..."
+                else:
+                    msg = f"Extracting names... {pct}% complete"
+                self.send_progress(10 + int((chunk_num / total_chunks) * 20), msg)
                 self.ui_queue.put(
                     QueueMessage.ner_progress(chunk_candidates, chunk_num, total_chunks)
                 )
@@ -764,7 +771,9 @@ class ProgressiveExtractionWorker(BaseWorker):
                 self.send_progress(100, "Vocabulary complete. Building Q&A search index...")
             else:
                 self.send_progress(
-                    100, f"Q&A index still building ({wait_minutes}m elapsed, please wait)..."
+                    100,
+                    f"Q&A index still building ({wait_minutes}m elapsed, "
+                    "typically takes 1-5 minutes)...",
                 )
             qa_thread.join(timeout=QA_JOIN_TIMEOUT_SECONDS)
             wait_count += 1

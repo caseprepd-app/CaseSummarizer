@@ -231,15 +231,17 @@ class TestPartialVocabCompleteHandler:
         terms = [{"term": "a"}, {"term": "b"}, {"term": "c"}]
         _call_handler(stub, "partial_vocab_complete", terms)
         call_args = stub.set_status.call_args[0][0]
-        assert "3 terms" in call_args
-        assert "BM25+RAKE" in call_args
+        # Non-debug: "Found 3 key terms. Now scanning for names..."
+        # Debug: "Found 3 terms (BM25+RAKE). Running NER..."
+        assert "3" in call_args
+        assert "terms" in call_args.lower()
 
     def test_handles_empty_data(self):
         """partial_vocab_complete handles empty/None data."""
         stub = _make_stub()
         _call_handler(stub, "partial_vocab_complete", [])
         call_args = stub.set_status.call_args[0][0]
-        assert "0 terms" in call_args
+        assert "0" in call_args and "terms" in call_args.lower()
 
 
 # ---------------------------------------------------------------------------
@@ -256,7 +258,6 @@ class TestNERProgressHandler:
         _call_handler(stub, "ner_progress", {"chunk_num": 3, "total_chunks": 10})
         call_args = stub.set_status.call_args[0][0]
         assert "30%" in call_args
-        assert "3/10" in call_args
 
     def test_handles_single_chunk(self):
         """ner_progress handles single-chunk document."""

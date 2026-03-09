@@ -320,7 +320,7 @@ class TestBug7DialogExceptions:
             mock_prefs.return_value.get.return_value = "test-model"
             MainWindow._open_model_settings(stub)
 
-        stub.set_status_error.assert_called_with("Could not open settings dialog")
+        stub.set_status_error.assert_called_with("Settings dialog failed to open. Try again.")
 
     def test_corpus_dialog_error_logs_warning(self):
         """_open_corpus_dialog catches dialog error and sets status error."""
@@ -334,7 +334,7 @@ class TestBug7DialogExceptions:
         ):
             MainWindow._open_corpus_dialog(stub)
 
-        stub.set_status_error.assert_called_with("Could not open settings dialog")
+        stub.set_status_error.assert_called_with("Settings dialog failed to open. Try again.")
 
     def test_general_settings_dialog_error_logs_warning(self):
         """_open_settings catches dialog error and sets status error."""
@@ -353,7 +353,7 @@ class TestBug7DialogExceptions:
             mock_prefs.return_value.get.return_value = "medium"
             MainWindow._open_settings(stub)
 
-        stub.set_status_error.assert_called_with("Could not open settings dialog")
+        stub.set_status_error.assert_called_with("Settings dialog failed to open. Try again.")
 
 
 # ===========================================================================

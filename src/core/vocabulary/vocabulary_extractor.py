@@ -53,6 +53,37 @@ from src.user_preferences import get_user_preferences
 
 logger = logging.getLogger(__name__)
 
+# User-friendly status messages for each algorithm (non-debug mode)
+_ALGO_FRIENDLY_NAMES = {
+    "NER": "Extracting proper names...",
+    "YAKE": "Identifying domain-specific terms...",
+    "RAKE": "Scanning for key phrases...",
+    "BM25": "Analyzing term relevance...",
+    "TopicRank": "Finding topic keywords...",
+    "MedicalNER": "Identifying medical terminology...",
+}
+
+
+def _algo_status_message(algo_name: str) -> str:
+    """
+    Return a status message for the given algorithm.
+
+    In debug mode, shows the technical algorithm name.
+    In normal mode, shows a user-friendly description.
+
+    Args:
+        algo_name: Internal algorithm name (e.g., "YAKE", "NER")
+
+    Returns:
+        Status message string for the status bar
+    """
+    from src.config import DEBUG_MODE
+
+    if DEBUG_MODE:
+        return f"{algo_name} extraction in progress..."
+    return _ALGO_FRIENDLY_NAMES.get(algo_name, f"Processing ({algo_name})...")
+
+
 # Organization indicator words for category detection
 ORGANIZATION_INDICATORS = {
     "LLP",
@@ -415,7 +446,7 @@ class VocabularyExtractor:
                 # Sequential for single algorithm
                 alg = fast_algorithms[0]
                 if status_callback:
-                    status_callback(f"{alg.name} extraction in progress...")
+                    status_callback(_algo_status_message(alg.name))
                 result = alg.extract(text)
                 all_results.append(result)
                 logger.debug("%s: %s candidates", alg.name, len(result.candidates))
@@ -423,7 +454,7 @@ class VocabularyExtractor:
                 # Sequential with status updates (so user sees per-algorithm messages)
                 for alg in fast_algorithms:
                     if status_callback:
-                        status_callback(f"{alg.name} extraction in progress...")
+                        status_callback(_algo_status_message(alg.name))
                     result = alg.extract(text)
                     all_results.append(result)
                     logger.debug("%s: %s candidates", alg.name, len(result.candidates))
@@ -453,7 +484,7 @@ class VocabularyExtractor:
         # Phase 2: Run NER with progress callback
         if ner_algorithm is not None:
             if status_callback:
-                status_callback("NER extraction in progress...")
+                status_callback(_algo_status_message("NER"))
             logger.debug("Phase 2: Running NER with progress updates...")
 
             # Wrapper to post-process NER chunk results before sending
