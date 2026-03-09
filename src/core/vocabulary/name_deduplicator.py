@@ -31,7 +31,7 @@ from src.core.vocabulary.canonical_scorer import create_canonical_scorer
 from src.core.vocabulary.name_regularizer import _load_known_words
 from src.core.vocabulary.person_utils import is_person_entry
 from src.core.vocabulary.rarity_filter import is_common_word
-from src.core.vocabulary.string_utils import fuzzy_match
+from src.core.vocabulary.string_utils import edit_distance, fuzzy_match
 from src.core.vocabulary.term_sources import TermSources
 
 logger = logging.getLogger(__name__)
@@ -299,13 +299,25 @@ def _fuzzy_merge_groups(groups: dict[str, list], threshold: float) -> list[list[
     Handles OCR variants like "Arthur Jenkins" vs "Anhur Jenkins" that
     survived artifact stripping but are still different keys.
 
+    Uses a three-tier matching strategy:
+    1. Primary: SequenceMatcher ratio >= threshold (default 0.85)
+    2. Second-chance A (component-wise): Multi-word names sharing at least
+       one exact word, with differing components >= 0.75 similarity.
+       Example: "Kenny McCulloch" vs "Kenny McCullough" — shared "Kenny",
+       differing "McCulloch"/"McCullough" = 0.89 → merge.
+    3. Second-chance B (edit distance + length): Shorter name >= 8 chars
+       AND Levenshtein distance <= 2. Catches single-typo variants on
+       longer names without risking short-name false positives.
+       Example: "McCulloch" vs "McCullough" — 9 chars, 2 edits → merge.
+       Counter-example: "Bates" vs "Gates" — 5 chars, fails length gate.
+
     Uses first-letter blocking to reduce O(n²) to ~O(n²/26). Only compares
     names that share the same first letter, since OCR rarely corrupts the
     first character. This gives 5-10x speedup for large name lists.
 
     Args:
         groups: Dict mapping normalized name to entries
-        threshold: Similarity threshold
+        threshold: Similarity threshold for primary matching
 
     Returns:
         List of merged groups
@@ -337,17 +349,123 @@ def _fuzzy_merge_groups(groups: dict[str, list], threshold: float) -> list[list[
             if (i, j) not in candidate_pairs:
                 continue
 
-            is_match, similarity = fuzzy_match(key1.lower(), key2.lower(), threshold)
+            k1_lower = key1.lower()
+            k2_lower = key2.lower()
+
+            # Tier 1: Primary fuzzy match (standard threshold)
+            is_match, similarity = fuzzy_match(k1_lower, k2_lower, threshold)
+
+            # Tier 2: Second-chance checks when primary fails
+            match_reason = ""
+            if is_match:
+                match_reason = f"fuzzy={similarity:.2f}"
+            elif _component_wise_match(k1_lower, k2_lower):
+                is_match = True
+                match_reason = "component-wise"
+            elif _edit_distance_match(k1_lower, k2_lower):
+                is_match = True
+                match_reason = "edit-distance"
+
             if is_match:
                 current_group.extend(groups[key2])
                 merged_indices.add(j)
-                logger.debug(
-                    "Fuzzy merged '%s' into '%s' (similarity: %.2f)", key2, key1, similarity
-                )
+                logger.debug("Fuzzy merged '%s' into '%s' (%s)", key2, key1, match_reason)
 
         result_groups.append(current_group)
 
     return result_groups
+
+
+# ---------------------------------------------------------------------------
+# Second-chance matching helpers for _fuzzy_merge_groups
+# ---------------------------------------------------------------------------
+
+# Minimum similarity for differing name components (second-chance A)
+_COMPONENT_FUZZY_THRESHOLD = 0.75
+
+# Maximum edit distance for second-chance B
+_MAX_EDIT_DISTANCE = 2
+
+# Minimum name length (chars) to qualify for edit-distance second chance
+_MIN_LENGTH_FOR_EDIT_MATCH = 8
+
+
+def _component_wise_match(name1: str, name2: str) -> bool:
+    """
+    Check if two multi-word names share at least one exact word and
+    their differing components are similar.
+
+    When names share a word, we know they likely refer to the same person,
+    so we can apply a lower threshold to the differing parts.
+
+    Example:
+        "kenny mcculloch" vs "kenny mccullough"
+        Shared: {"kenny"}, Differing: "mcculloch" vs "mccullough" = 0.89 → True
+
+    Only applies to multi-word names. Single-word names have no shared
+    component to anchor the comparison.
+
+    Args:
+        name1: Lowercase normalized name
+        name2: Lowercase normalized name
+
+    Returns:
+        True if names share a word and differing parts are similar
+    """
+    words1 = name1.split()
+    words2 = name2.split()
+
+    # Only for multi-word names
+    if len(words1) < 2 or len(words2) < 2:
+        return False
+
+    set1 = set(words1)
+    set2 = set(words2)
+    shared = set1 & set2
+
+    if not shared:
+        return False
+
+    # Get the differing words from each name
+    diff1 = sorted(set1 - shared)
+    diff2 = sorted(set2 - shared)
+
+    # Must have the same number of differing components to compare
+    if len(diff1) != len(diff2) or not diff1:
+        return False
+
+    # All differing components must pass the lower threshold
+    for w1, w2 in zip(diff1, diff2):
+        is_match, _ratio = fuzzy_match(w1, w2, _COMPONENT_FUZZY_THRESHOLD)
+        if not is_match:
+            return False
+
+    return True
+
+
+def _edit_distance_match(name1: str, name2: str) -> bool:
+    """
+    Check if two names are within a small edit distance on sufficiently long names.
+
+    A Levenshtein distance of 1-2 on a name with 8+ characters is almost
+    certainly an OCR or transcription typo, not a different person.
+
+    The length gate prevents false merges on short names where 1-2 edits
+    can completely change the name (e.g., "Bates" → "Gates").
+
+    Args:
+        name1: Lowercase normalized name
+        name2: Lowercase normalized name
+
+    Returns:
+        True if edit distance <= 2 and shorter name >= 8 chars
+    """
+    shorter_len = min(len(name1), len(name2))
+    if shorter_len < _MIN_LENGTH_FOR_EDIT_MATCH:
+        return False
+
+    dist = edit_distance(name1, name2)
+    return dist <= _MAX_EDIT_DISTANCE
 
 
 def _build_candidate_pairs(keys: list[str]) -> set[tuple[int, int]]:
