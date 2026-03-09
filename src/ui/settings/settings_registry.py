@@ -754,36 +754,6 @@ def _register_all_settings():
         )
     )
 
-    # LLM vocabulary extraction setting (moved from Performance to Vocabulary)
-    SettingsRegistry.register(
-        SettingDefinition(
-            key="vocab_use_llm",
-            label="LLM vocabulary extraction",
-            category="Vocabulary",
-            setting_type=SettingType.DROPDOWN,
-            tooltip=lambda: (
-                "Controls whether LLM (Ollama) is used for vocabulary extraction "
-                "in addition to NER (spaCy).\n\n"
-                "• Auto: Enables LLM if a dedicated GPU is detected. Without a "
-                "GPU, LLM extraction is very slow and often not worth the wait.\n"
-                "• Always enable: Force LLM extraction on every run.\n"
-                "• NER only (default): Only NER-based extraction will run. "
-                "Fastest option, finds person names and organizations.\n\n"
-                "Adding LLM extraction also finds medical terms, legal "
-                "terminology, and domain-specific vocabulary.\n\n"
-                f"Current status: {_get_gpu_status_for_tooltip()}"
-            ),
-            default="no",
-            options=[
-                ("NER only (no LLM)", "no"),
-                ("Auto (enable if GPU detected)", "auto"),
-                ("Always enable", "yes"),
-            ],
-            getter=lambda: prefs.get_vocab_llm_mode(),
-            setter=lambda v: prefs.set_vocab_llm_mode(v),
-        )
-    )
-
     # Vocabulary filtering thresholds (user-configurable)
     SettingsRegistry.register(
         SettingDefinition(

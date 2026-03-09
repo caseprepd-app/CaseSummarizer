@@ -41,7 +41,6 @@ def _summarize_command_args(cmd_type, args):
             parts.append(f"ocr_allowed={args['ocr_allowed']}")
     elif cmd_type == "extract":
         parts.append(f"docs={len(args.get('documents', []))}")
-        parts.append(f"use_llm={args.get('use_llm', '?')}")
         parts.append(f"doc_confidence={args.get('doc_confidence', '?')}")
     elif cmd_type == "run_qa":
         parts.append(f"answer_mode={args.get('answer_mode', '?')}")
@@ -225,7 +224,6 @@ def _run_extraction(args, internal_queue, state):
         medical_terms_path=args.get("medical_terms_path"),
         user_exclude_path=args.get("user_exclude_path"),
         doc_confidence=args.get("doc_confidence", 100.0),
-        use_llm=args.get("use_llm", True),
     )
     with state["worker_lock"]:
         state["active_worker"] = worker

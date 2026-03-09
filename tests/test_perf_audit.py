@@ -254,44 +254,6 @@ class TestSanitizeNameRegex:
 # ========================================================================
 
 
-class TestFrozensetMembership:
-    """Verify list literals replaced with frozensets in LLM extractor."""
-
-    def test_generic_title_names_is_frozenset(self):
-        """_GENERIC_TITLE_NAMES should be a frozenset."""
-        from src.core.extraction.llm_extractor import _GENERIC_TITLE_NAMES
-
-        assert isinstance(_GENERIC_TITLE_NAMES, frozenset)
-        assert "DR" in _GENERIC_TITLE_NAMES
-        assert "MRS" in _GENERIC_TITLE_NAMES
-        assert "PLAINTIFF" in _GENERIC_TITLE_NAMES
-        assert "DEFENDANT" in _GENERIC_TITLE_NAMES
-
-    def test_noise_terms_is_frozenset(self):
-        """_NOISE_TERMS should be a frozenset."""
-        from src.core.extraction.llm_extractor import _NOISE_TERMS
-
-        assert isinstance(_NOISE_TERMS, frozenset)
-        assert "Q" in _NOISE_TERMS
-        assert "A" in _NOISE_TERMS
-        assert "THE" in _NOISE_TERMS
-        assert "AND" in _NOISE_TERMS
-
-    def test_generic_titles_membership(self):
-        """All expected titles should be present."""
-        from src.core.extraction.llm_extractor import _GENERIC_TITLE_NAMES
-
-        expected = {"DR", "MR", "MS", "MRS", "MISS", "THE", "PLAINTIFF", "DEFENDANT"}
-        assert expected == _GENERIC_TITLE_NAMES
-
-    def test_noise_terms_membership(self):
-        """All expected noise terms should be present."""
-        from src.core.extraction.llm_extractor import _NOISE_TERMS
-
-        expected = {"Q", "A", "THE", "AND", "OR", "BUT"}
-        assert expected == _NOISE_TERMS
-
-
 # ========================================================================
 # 6. Eliminated redundant .split() in name deduplicator
 # ========================================================================

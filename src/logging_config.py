@@ -39,7 +39,6 @@ LOG_CATEGORIES: dict[str, tuple[str, ...]] = {
     "Vocabulary Extraction": (
         "src.core.vocabulary.algorithms",
         "src.core.vocabulary.vocabulary_extractor",
-        "src.core.vocabulary.reconciler",
         "src.services.vocabulary_service",
     ),
     "ML & Learning": (
@@ -50,7 +49,6 @@ LOG_CATEGORIES: dict[str, tuple[str, ...]] = {
     "LLM / Ollama": (
         "src.core.ai",
         "src.core.prompting",
-        "src.core.extraction.llm_extractor",
         "src.services.ai_service",
     ),
     "Q&A & Retrieval": (

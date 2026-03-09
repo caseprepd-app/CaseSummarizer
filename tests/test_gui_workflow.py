@@ -64,7 +64,6 @@ class WorkflowProgress:
     preprocessing_complete: bool = False
     ner_complete: bool = False
     qa_ready: bool = False
-    llm_complete: bool = False
     errors: list = field(default_factory=list)
     messages: list = field(default_factory=list)
 
@@ -72,12 +71,9 @@ class WorkflowProgress:
         """Record a message for debugging."""
         self.messages.append((time.time(), msg_type, str(data)[:200]))
 
-    def is_complete(self, require_llm: bool = False) -> bool:
+    def is_complete(self) -> bool:
         """Check if workflow completed all expected phases."""
-        base_complete = self.preprocessing_complete and self.ner_complete and self.qa_ready
-        if require_llm:
-            return base_complete and self.llm_complete
-        return base_complete
+        return self.preprocessing_complete and self.ner_complete and self.qa_ready
 
 
 # =============================================================================
@@ -200,11 +196,6 @@ class QueueCollector:
             chunk_count = data.get("chunk_count", 0) if isinstance(data, dict) else 0
             logger.debug(f"[COLLECTOR] Q&A ready: {chunk_count} chunks")
 
-        elif msg_type == MessageType.LLM_COMPLETE:
-            self.progress.llm_complete = True
-            term_count = len(data) if data else 0
-            logger.debug(f"[COLLECTOR] LLM complete: {term_count} terms")
-
         elif msg_type == MessageType.ERROR:
             self.progress.errors.append(str(data))
             logger.debug(f"[COLLECTOR] Error: {data}")
@@ -312,8 +303,6 @@ class TestHeadlessProgressiveExtraction:
         # Reset progress tracker for extraction phases
         progress_tracker.ner_complete = False
         progress_tracker.qa_ready = False
-        progress_tracker.llm_complete = False
-
         # Fresh queue for extraction
         extract_queue = Queue()
         extract_progress = WorkflowProgress()
@@ -322,7 +311,6 @@ class TestHeadlessProgressiveExtraction:
             documents=documents,
             combined_text=combined_text,
             ui_queue=extract_queue,
-            use_llm=False,  # Skip LLM for faster testing
         )
         extract_worker.start()
 
@@ -344,14 +332,6 @@ class TestHeadlessProgressiveExtraction:
         )
         assert qa_success, f"Phase 2 (Q&A) timed out. Messages: {extract_progress.messages[-10:]}"
         logger.debug("[TEST] Phase 2 complete!")
-
-        # Wait for LLM Complete (Phase 3) - even with use_llm=False, we get llm_complete with empty list
-        logger.debug("[TEST] Waiting for Phase 3 (LLM/finalization)...")
-        llm_success = extract_collector.collect_until(
-            condition=lambda: extract_progress.llm_complete,
-            timeout=60,  # Should be fast since LLM is disabled
-        )
-        assert llm_success, f"Phase 3 timed out. Messages: {extract_progress.messages[-10:]}"
         logger.debug("[TEST] Phase 3 complete!")
 
         # Cleanup

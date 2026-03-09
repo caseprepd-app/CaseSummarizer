@@ -58,8 +58,6 @@ class MessageType:
     # Progressive Extraction
     NER_COMPLETE = "ner_complete"
     QA_READY = "qa_ready"
-    LLM_PROGRESS = "llm_progress"
-    LLM_COMPLETE = "llm_complete"
 
     # Progressive Vocabulary Loading
     PARTIAL_VOCAB_COMPLETE = "partial_vocab_complete"  # BM25 + RAKE results before NER
@@ -342,27 +340,6 @@ class QueueMessage:
                 "chunk_scores": chunk_scores,
             },
         )
-
-    @staticmethod
-    def llm_progress(current: int, total: int) -> tuple[str, tuple[int, int]]:
-        """
-        Create LLM extraction progress message (Phase 3).
-
-        Args:
-            current: Current chunk number
-            total: Total chunks to process
-        """
-        return (MessageType.LLM_PROGRESS, (current, total))
-
-    @staticmethod
-    def llm_complete(vocab_data: list[dict]) -> tuple[str, list[dict]]:
-        """
-        Create LLM extraction complete message (Phase 3).
-
-        Args:
-            vocab_data: Reconciled NER + LLM vocabulary terms
-        """
-        return (MessageType.LLM_COMPLETE, vocab_data)
 
     # =========================================================================
     # Progressive Vocabulary Loading

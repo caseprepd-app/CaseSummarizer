@@ -71,7 +71,7 @@ class ProgressiveSummarizer:
 
         self.config = self._load_config(config_path)
 
-        # CHUNKING SITE 3 of 3: Summarization (per-document, fresh instance)
+        # CHUNKING SITE 2 of 2: Summarization (per-document, fresh instance)
         #
         # A fresh ProgressiveSummarizer (and thus a fresh UnifiedChunker) is created
         # for each document by ProgressiveDocumentSummarizer.summarize(). This is

@@ -4,7 +4,7 @@ Background Workers Module
 Contains threading and multiprocessing workers for document processing:
 - ProcessingWorker: Document extraction thread (with parallel processing)
 - MultiDocSummaryWorker: Hierarchical summarization worker
-- ProgressiveExtractionWorker: NER + LLM + Q&A extraction worker
+- ProgressiveExtractionWorker: NER + Q&A extraction worker
 
 Performance Optimizations:
 - Parallel document extraction via Strategy Pattern
@@ -598,18 +598,15 @@ class MultiDocSummaryWorker(CleanupWorker):
 
 class ProgressiveExtractionWorker(BaseWorker):
     """
-    Progressive three-phase extraction worker.
+    Progressive two-phase extraction worker.
 
     Implements the vocabulary-first architecture with progressive output:
-    - Phase 1 (NER): Fast extraction, returns results in ~5 seconds
-    - Phase 2 (Q&A): Builds vector store for Q&A (parallel with Phase 3)
-    - Phase 3 (LLM): Slow LLM extraction, updates progressively
+    - Phase 1 (NER): Fast extraction via local algorithms (NER, RAKE, BM25)
+    - Phase 2 (Q&A): Builds vector store for Q&A (parallel with Phase 1)
 
     Signals sent to ui_queue:
     - ('ner_complete', vocab_data) - Phase 1 complete, display immediately
     - ('qa_ready', vector_store_path) - Phase 2 complete, enable Q&A
-    - ('llm_progress', (current, total, new_terms)) - LLM chunk processed
-    - ('llm_complete', reconciled_data) - Phase 3 complete, final results
     - ('error', str) - Error occurred
 
     Example:
@@ -632,7 +629,6 @@ class ProgressiveExtractionWorker(BaseWorker):
         medical_terms_path: str | None = None,
         user_exclude_path: str | None = None,
         doc_confidence: float = 100.0,
-        use_llm: bool = True,
     ):
         """
         Initialize progressive extraction worker.
@@ -646,7 +642,6 @@ class ProgressiveExtractionWorker(BaseWorker):
             medical_terms_path: Path to medical terms list
             user_exclude_path: Path to user exclusion list
             doc_confidence: Aggregate OCR confidence (0-100) for ML feature
-            use_llm: Whether to run Phase 3 LLM extraction
         """
         super().__init__(ui_queue)
         self.documents = documents
@@ -656,14 +651,13 @@ class ProgressiveExtractionWorker(BaseWorker):
         self.medical_terms_path = medical_terms_path
         self.user_exclude_path = user_exclude_path
         self.doc_confidence = doc_confidence  # OCR quality for ML feature
-        self.use_llm = use_llm  # Whether to run LLM phase
         # Cross-thread state for Q&A phase (Phase 2)
         self._qa_succeeded = threading.Event()
         self._qa_error_lock = threading.Lock()
         self._qa_error_msg: str | None = None
 
     def execute(self):
-        """Execute three-phase progressive extraction."""
+        """Execute two-phase progressive extraction."""
         logger.debug("Starting progressive extraction")
 
         # Signal extraction started (dims feedback buttons)
@@ -704,7 +698,6 @@ class ProgressiveExtractionWorker(BaseWorker):
 
             ner_results = extractor.extract_documents(
                 doc_list,
-                use_llm=self.use_llm,
                 progress_callback=doc_progress,
             )
         else:
@@ -746,90 +739,16 @@ class ProgressiveExtractionWorker(BaseWorker):
 
         self.check_cancelled()
 
+        self.send_progress(90, f"Complete: {len(ner_results)} terms extracted")
+
         # ===== PHASE 2: Q&A Indexing (Fast - ~10-30 seconds) =====
-        # Run in parallel thread while Phase 3 starts
+        # Run in parallel thread
         # Reset Q&A phase state for this execution
         self._qa_succeeded.clear()
         with self._qa_error_lock:
             self._qa_error_msg = None
         qa_thread = threading.Thread(target=self._build_vector_store, daemon=False)
         qa_thread.start()
-
-        # ===== PHASE 3: LLM Enhancement (Slow - minutes) =====
-        # Only runs if enabled (GPU auto-detect or user override)
-        if self.use_llm:
-            logger.debug("Phase 3: LLM extraction starting...")
-            self.send_progress(30, "Phase 3: Starting LLM enhancement...")
-
-            from src.core.chunking import create_unified_chunker
-            from src.core.extraction import LLMVocabExtractor
-
-            # Get NER candidates for reconciliation
-            ner_candidates = []
-            for algorithm in extractor.algorithms:
-                if algorithm.name == "NER" and algorithm.enabled:
-                    result = algorithm.extract(self.combined_text)
-                    ner_candidates = result.candidates
-                    break
-
-            # CHUNKING SITE 2 of 3: LLM vocab extraction (combined text, no source attribution)
-            #
-            # Unlike Q&A (Site 1) which chunks per-document, this chunks all documents
-            # concatenated together. The LLM extracts terms/names from each chunk.
-            # Coreference resolution runs on the full combined text inside chunk_text(),
-            # helping the LLM understand pronoun references across document boundaries.
-            #
-            # Note: NER (Phase 1) does NOT use the chunker -- it runs directly on
-            # preprocessed_text with its own internal chunking, so NER sees original
-            # pronouns and identifies entities without coreference interference.
-            chunker = create_unified_chunker()
-            chunks = chunker.chunk_text(self.combined_text)
-            logger.debug("Created %s unified chunks", len(chunks))
-
-            # Extract with LLM progressively
-            llm_extractor = LLMVocabExtractor()
-
-            def llm_progress(current, total):
-                if not self.is_stopped:
-                    pct = 30 + int((current / total) * 60)  # 30-90% range
-                    self.send_progress(pct, f"LLM analyzing chunk {current}/{total}...")
-                    self.ui_queue.put(QueueMessage.llm_progress(current, total))
-
-            llm_result = llm_extractor.extract_from_unified_chunks(
-                chunks,
-                progress_callback=llm_progress,
-            )
-
-            self.check_cancelled()
-
-            # Deduplicate NER + LLM results
-            from src.core.vocabulary.reconciler import VocabularyReconciler
-            from src.ui.silly_messages import get_silly_message
-
-            self.send_progress(92, get_silly_message())
-            logger.debug("Deduplicating NER + LLM results...")
-            reconciler = VocabularyReconciler()
-
-            # Reconcile people
-            ner_people = [c for c in ner_candidates if getattr(c, "suggested_type", "") == "Person"]
-            reconciled_people = reconciler.reconcile_people(ner_people, llm_result.people)
-
-            # Reconcile vocabulary terms
-            reconciled_terms = reconciler.reconcile(ner_candidates, llm_result.terms)
-
-            # Convert to unified CSV format
-            final_data = reconciler.combined_to_csv_data(reconciled_people, reconciled_terms)
-
-            logger.info("Phase 3 complete: %s reconciled terms", len(final_data))
-            self.ui_queue.put(QueueMessage.llm_complete(final_data))
-            self.send_progress(100, f"Complete: {len(final_data)} names & terms found")
-        else:
-            # Skip LLM phase - NER results are already sent in Phase 1
-            logger.debug("Phase 3: Skipped (LLM disabled by user preference or no GPU)")
-            self.send_progress(90, "Phase 3: Skipped (LLM disabled)")
-            # Signal LLM complete with empty list - UI will show NER-only results
-            self.ui_queue.put(QueueMessage.llm_complete([]))
-            self.send_progress(100, f"Complete: {len(ner_results)} terms (local algorithms only)")
 
         # Wait for Q&A thread with periodic status updates (CPU embeddings can take 5+ minutes)
         # Using timeout loop instead of indefinite join to keep UI responsive with status updates
@@ -896,7 +815,7 @@ class ProgressiveExtractionWorker(BaseWorker):
 
                 self.embeddings = get_embeddings_model()
 
-            # CHUNKING SITE 1 of 3: Q&A vector store (per-document, with source attribution)
+            # CHUNKING SITE 1 of 2: Q&A vector store (per-document, with source attribution)
             #
             # Chunks each document separately so each chunk retains its source_file for
             # citation in Q&A answers. Coreference resolution (pronoun -> name replacement)

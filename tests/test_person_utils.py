@@ -42,7 +42,7 @@ def test_count_persons_all_formats():
 
     data = [
         {"Term": "Alice", "Is Person": "Yes"},  # VocabularyExtractor format
-        {"Term": "Bob", "Type": "Person"},  # LLMVocabExtractor format
+        {"Term": "Bob", "Type": "Person"},  # Type-based detection format
         {"Term": "Carol", "is_person": 1},  # ML feature format
         {"Term": "radiculopathy", "Type": "Medical"},  # Not a person
         {"Term": "stenosis"},  # Not a person

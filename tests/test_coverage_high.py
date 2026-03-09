@@ -1,17 +1,15 @@
 """
-High-priority coverage gap tests for 4 source modules.
+High-priority coverage gap tests for 3 source modules.
 
 Covers behavioral tests (not just import checks) for:
 1. VectorStoreBuilder  — create_from_unified_chunks, cleanup_stale_stores, empty input
 2. QARetriever         — retrieve_context, get_chunk_count, empty results
-3. LLMVocabExtractor   — _parse_response JSON parsing, extract with mocked Ollama
-4. PDFExtractor        — _extract_pymupdf with mocked fitz
+3. PDFExtractor        — _extract_pymupdf with mocked fitz
 
 All external dependencies (fitz, pdfplumber, FAISS, Ollama, langchain, etc.)
 are mocked so tests run without real models or connections.
 """
 
-import json
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -476,191 +474,7 @@ class TestQARetrieverHelpers:
 
 
 # =========================================================================
-# 3. LLMVocabExtractor
-# =========================================================================
-
-
-class TestLLMParseResponse:
-    """Tests for LLMVocabExtractor._parse_response() JSON parsing."""
-
-    def _make_extractor(self):
-        """Create an LLMVocabExtractor with mocked Ollama manager."""
-        with patch("src.core.extraction.llm_extractor.OllamaModelManager"):
-            from src.core.extraction.llm_extractor import LLMVocabExtractor
-
-            extractor = LLMVocabExtractor(
-                ollama_manager=MagicMock(),
-                prompt_file=Path("/fake/prompt.txt"),
-            )
-        return extractor
-
-    def test_valid_combined_json_dict(self):
-        """A well-formed dict with people and vocabulary is parsed correctly."""
-        extractor = self._make_extractor()
-
-        response = {
-            "people": [
-                {"name": "John Smith", "role": "plaintiff"},
-                {"name": "Jane Doe", "role": "attorney"},
-            ],
-            "vocabulary": [
-                {"term": "summary judgment", "type": "Legal"},
-                {"term": "pulmonary embolism", "type": "Medical"},
-            ],
-        }
-
-        people, terms = extractor._parse_response(response, chunk_id=0)
-
-        assert len(people) == 2
-        assert people[0].name == "John Smith"
-        assert people[0].role == "plaintiff"
-        assert len(terms) == 2
-        assert terms[0].term == "summary judgment"
-
-    def test_valid_json_string_is_parsed(self):
-        """A JSON string response is deserialized and parsed."""
-        extractor = self._make_extractor()
-
-        response_str = json.dumps(
-            {
-                "people": [{"name": "Dr. Adams", "role": "doctor"}],
-                "vocabulary": [{"term": "MRI", "type": "Medical"}],
-            }
-        )
-
-        people, terms = extractor._parse_response(response_str, chunk_id=1)
-
-        assert len(people) == 1
-        assert people[0].role == "treating_physician"  # "doctor" normalized
-        assert len(terms) == 1
-        assert terms[0].term == "MRI"
-
-    def test_malformed_json_string_returns_empty(self):
-        """A non-JSON string returns empty lists without raising."""
-        extractor = self._make_extractor()
-
-        people, terms = extractor._parse_response("not valid json {{", chunk_id=2)
-
-        assert people == []
-        assert terms == []
-
-    def test_empty_dict_returns_empty(self):
-        """An empty dict (no people/vocabulary keys) returns empty lists."""
-        extractor = self._make_extractor()
-
-        people, terms = extractor._parse_response({}, chunk_id=3)
-
-        assert people == []
-        assert terms == []
-
-    def test_filters_short_names_and_noise_terms(self):
-        """Names shorter than 2 chars and noise words (Q, A, THE) are skipped."""
-        extractor = self._make_extractor()
-
-        response = {
-            "people": [
-                {"name": "X", "role": "other"},  # too short
-                {"name": "DR", "role": "other"},  # generic title
-                {"name": "Valid Person", "role": "judge"},
-            ],
-            "vocabulary": [
-                {"term": "Q", "type": "Unknown"},  # noise
-                {"term": "THE", "type": "Unknown"},  # noise
-                {"term": "cervical radiculopathy", "type": "Medical"},
-            ],
-        }
-
-        people, terms = extractor._parse_response(response, chunk_id=4)
-
-        assert len(people) == 1
-        assert people[0].name == "Valid Person"
-        assert len(terms) == 1
-        assert terms[0].term == "cervical radiculopathy"
-
-    def test_legacy_terms_key_used_when_vocabulary_absent(self):
-        """Falls back to 'terms' key when 'vocabulary' key is missing."""
-        extractor = self._make_extractor()
-
-        response = {
-            "terms": [
-                {"term": "subpoena duces tecum", "type": "Legal"},
-            ],
-        }
-
-        people, terms = extractor._parse_response(response, chunk_id=5)
-
-        assert len(terms) == 1
-        assert terms[0].term == "subpoena duces tecum"
-
-
-class TestLLMExtractWithMockedOllama:
-    """Tests for LLMVocabExtractor.extract() with mocked Ollama."""
-
-    def test_extract_from_chunks_calls_ollama_per_chunk(self):
-        """extract_from_chunks calls generate_structured once per chunk."""
-        mock_manager = MagicMock()
-        mock_manager.generate_structured.return_value = {
-            "people": [{"name": "Bob Jones", "role": "witness"}],
-            "vocabulary": [{"term": "deposition", "type": "Legal"}],
-        }
-
-        with patch("src.core.extraction.llm_extractor.OllamaModelManager"):
-            from src.core.extraction.llm_extractor import LLMVocabExtractor
-
-            extractor = LLMVocabExtractor(
-                ollama_manager=mock_manager,
-                prompt_file=Path("/fake/prompt.txt"),
-            )
-
-        # Patch os.cpu_count to force sequential mode
-        with patch("os.cpu_count", return_value=1):
-            result = extractor.extract_from_chunks(["Chunk one text.", "Chunk two text."])
-
-        assert result.success is True
-        assert result.chunk_count == 2
-        assert len(result.people) == 2  # 1 per chunk x 2 chunks
-        assert len(result.terms) == 2
-        assert mock_manager.generate_structured.call_count == 2
-
-    def test_extract_chunk_handles_none_response(self):
-        """When Ollama returns None, _extract_chunk returns empty lists."""
-        mock_manager = MagicMock()
-        mock_manager.generate_structured.return_value = None
-
-        with patch("src.core.extraction.llm_extractor.OllamaModelManager"):
-            from src.core.extraction.llm_extractor import LLMVocabExtractor
-
-            extractor = LLMVocabExtractor(
-                ollama_manager=mock_manager,
-                prompt_file=Path("/fake/prompt.txt"),
-            )
-
-        people, terms = extractor._extract_chunk("Some text here.", chunk_id=0)
-
-        assert people == []
-        assert terms == []
-
-    def test_extract_chunk_handles_ollama_exception(self):
-        """When Ollama raises, _extract_chunk returns empty lists gracefully."""
-        mock_manager = MagicMock()
-        mock_manager.generate_structured.side_effect = RuntimeError("Connection refused")
-
-        with patch("src.core.extraction.llm_extractor.OllamaModelManager"):
-            from src.core.extraction.llm_extractor import LLMVocabExtractor
-
-            extractor = LLMVocabExtractor(
-                ollama_manager=mock_manager,
-                prompt_file=Path("/fake/prompt.txt"),
-            )
-
-        people, terms = extractor._extract_chunk("Text that fails.", chunk_id=0)
-
-        assert people == []
-        assert terms == []
-
-
-# =========================================================================
-# 4. PDFExtractor
+# 3. PDFExtractor
 # =========================================================================
 
 

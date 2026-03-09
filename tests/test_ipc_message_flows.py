@@ -178,18 +178,6 @@ class TestForwarderMessageSequence:
         assert "trigger_default_qa_started" in types
         assert types.index("qa_ready") < types.index("trigger_default_qa_started")
 
-    def test_llm_complete_forwarded_as_is(self):
-        """llm_complete messages pass through without modification."""
-        messages = [
-            ("llm_progress", (1, 5)),
-            ("llm_progress", (2, 5)),
-            ("llm_complete", [{"term": "plaintiff", "source": "llm"}]),
-        ]
-        output, _ = _run_forwarder_with_messages(messages)
-        assert len(output) == 3
-        assert output[2][0] == "llm_complete"
-        assert output[2][1] == [{"term": "plaintiff", "source": "llm"}]
-
     def test_error_messages_forwarded(self):
         """Error messages pass through the forwarder."""
         messages = [
@@ -350,8 +338,7 @@ class TestForwarderStatePreservation:
                     "chunk_scores": None,
                 },
             ),
-            ("progress", (80, "LLM processing...")),
-            ("llm_complete", [{"term": "foo"}]),
+            ("progress", (80, "Processing...")),
         ]
         _, state = _run_forwarder_with_messages(messages)
         # State should still have embeddings from qa_ready
@@ -376,11 +363,9 @@ class TestFullExtractionSequence:
     5. progress (phase 2)
     6. qa_ready (-> stripped by forwarder)
     7. trigger_default_qa (-> intercepted, becomes trigger_default_qa_started)
-    8. llm_progress (multiple, if LLM enabled)
-    9. llm_complete
-    10. qa_progress (multiple)
-    11. qa_result (multiple)
-    12. qa_complete
+    8. qa_progress (multiple)
+    9. qa_result (multiple)
+    10. qa_complete
     """
 
     def test_full_vocab_qa_sequence_through_forwarder(self):
@@ -408,11 +393,6 @@ class TestFullExtractionSequence:
                     "embeddings": mock_embeddings,
                 },
             ),
-            ("progress", (30, "Phase 3: LLM enhancement...")),
-            ("llm_progress", (1, 3)),
-            ("llm_progress", (2, 3)),
-            ("llm_progress", (3, 3)),
-            ("llm_complete", [{"term": "plaintiff"}]),
         ]
         output, state = _run_forwarder_with_messages(messages)
         types = [m[0] for m in output]
@@ -422,7 +402,6 @@ class TestFullExtractionSequence:
         assert "ner_complete" in types
         assert "qa_ready" in types
         assert "trigger_default_qa_started" in types  # Note: renamed by forwarder
-        assert "llm_complete" in types
 
         # extraction_started before ner_complete
         assert types.index("extraction_started") < types.index("ner_complete")
@@ -511,9 +490,6 @@ class TestHandlerStateTransitions:
                 stub._completed_tasks.add("qa")
 
         elif msg_type == "ner_complete":
-            pass  # UI updates only
-
-        elif msg_type == "llm_complete":
             stub._completed_tasks.add("vocab")
 
         elif msg_type == "multi_doc_result":
@@ -527,16 +503,11 @@ class TestHandlerStateTransitions:
         return not stub._qa_answering_active
 
     def test_vocab_only_flow(self):
-        """Vocab only: llm_complete -> finalize."""
+        """Vocab only: ner_complete -> finalize."""
         stub = _make_window_stub()
         stub._pending_tasks = {"vocab": True, "qa": False, "summary": False}
 
-        sequence = [
-            ("ner_complete", []),
-            ("llm_complete", []),
-        ]
-        for msg_type, data in sequence:
-            self._simulate_handler(stub, msg_type, data)
+        self._simulate_handler(stub, "ner_complete", [])
 
         assert "vocab" in stub._completed_tasks
         assert self._all_tasks_complete(stub)
@@ -559,8 +530,7 @@ class TestHandlerStateTransitions:
         self._simulate_handler(stub, "trigger_default_qa_started", None)
         assert stub._qa_answering_active is True
 
-        # Phase 3: LLM completes (vocab done, but Q&A still active)
-        self._simulate_handler(stub, "llm_complete", [])
+        # Vocab already completed via ner_complete
         assert "vocab" in stub._completed_tasks
         assert not self._all_tasks_complete(stub)  # Q&A still active!
 
@@ -578,7 +548,6 @@ class TestHandlerStateTransitions:
         self._simulate_handler(stub, "ner_complete", [])
         self._simulate_handler(stub, "qa_ready", {"chunk_count": 10})
         self._simulate_handler(stub, "trigger_default_qa_started", None)
-        self._simulate_handler(stub, "llm_complete", [])
 
         # Vocab done, Q&A still active, summary not started
         assert not self._all_tasks_complete(stub)
@@ -599,7 +568,6 @@ class TestHandlerStateTransitions:
 
         self._simulate_handler(stub, "ner_complete", [])
         self._simulate_handler(stub, "qa_error", {"error": "Indexing failed"})
-        self._simulate_handler(stub, "llm_complete", [])
 
         assert "qa" in stub._completed_tasks
         assert "vocab" in stub._completed_tasks
@@ -629,14 +597,14 @@ class TestHandlerStateTransitions:
         self._simulate_handler(stub, "trigger_default_qa_started", None)
         assert stub._qa_answering_active is True
 
-    def test_llm_complete_before_qa_complete(self):
-        """LLM completing before Q&A should NOT allow premature finalization."""
+    def test_vocab_complete_before_qa_complete(self):
+        """Vocab completing before Q&A should NOT allow premature finalization."""
         stub = _make_window_stub()
         stub._pending_tasks = {"vocab": True, "qa": True, "summary": False}
 
+        self._simulate_handler(stub, "ner_complete", [])
         self._simulate_handler(stub, "qa_ready", {})
         self._simulate_handler(stub, "trigger_default_qa_started", None)
-        self._simulate_handler(stub, "llm_complete", [])
 
         # Vocab is done but Q&A answering is still active
         assert "vocab" in stub._completed_tasks
@@ -644,11 +612,12 @@ class TestHandlerStateTransitions:
         assert stub._qa_answering_active is True
         assert not self._all_tasks_complete(stub)
 
-    def test_qa_complete_before_llm_complete(self):
-        """Q&A completing before LLM should NOT allow premature finalization."""
+    def test_qa_complete_before_vocab_complete_impossible(self):
+        """With NER marking vocab done, Q&A can't complete before vocab in practice."""
         stub = _make_window_stub()
         stub._pending_tasks = {"vocab": True, "qa": True, "summary": False}
 
+        # Simulate Q&A completing first (unlikely but should be handled)
         self._simulate_handler(stub, "qa_ready", {})
         self._simulate_handler(stub, "trigger_default_qa_started", None)
         self._simulate_handler(stub, "qa_complete", [])

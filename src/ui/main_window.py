@@ -941,7 +941,6 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             logger.debug("NER complete: %s terms - displaying immediately", term_count)
             self.output_display.update_outputs(vocab_csv_data=data)
             self.output_display.set_extraction_source("ner")
-            from src.user_preferences import get_user_preferences
 
             # Vocab results are now visible — transition Q&A tab from
             # "vocab in progress" to "building search index" so users
@@ -952,10 +951,14 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
 
                 self.output_display.set_workflow_phase(WorkflowPhase.QA_INDEXING)
 
-            if get_user_preferences().is_vocab_llm_enabled():
-                self.set_status(f"Found {term_count} terms. LLM enhancement starting...")
-            else:
-                self.set_status(f"Found {term_count} terms. Building search index...")
+            self.set_status(f"Found {term_count} terms. Building search index...")
+
+            # Vocabulary extraction is complete — mark task done
+            self._completed_tasks.add("vocab")
+            if self._pending_tasks.get("summary"):
+                self._start_summary_task()
+            elif self._all_tasks_complete():
+                self._finalize_tasks()
 
         elif msg_type == "qa_ready":
             chunk_count = data.get("chunk_count", 0)
@@ -1051,30 +1054,6 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
                 logger.debug("Panel followup result delivered via event")
             else:
                 logger.debug("Followup result received but no panel waiting")
-
-        elif msg_type == "llm_progress":
-            current, total = data
-            logger.debug("LLM progress: %s/%s", current, total)
-
-        elif msg_type == "llm_complete":
-            term_count = len(data) if data else 0
-            logger.debug("LLM complete: %s reconciled terms", term_count)
-
-            # Only update vocab and show "Enhanced" if LLM actually returned results
-            # When LLM is skipped/disabled, data is empty [] - keep NER-only results
-            if data:
-                self.output_display.update_outputs(vocab_csv_data=data)
-                self.output_display.set_extraction_source("both")
-                self.set_status(f"Complete: {term_count} names & vocabulary extracted")
-            else:
-                # LLM was skipped - keep extraction source as "ner" (already set)
-                self.set_status("Complete: NER extraction only (LLM disabled)")
-
-            self._completed_tasks.add("vocab")
-            if self._pending_tasks.get("summary"):
-                self._start_summary_task()
-            else:
-                self._finalize_tasks()
 
         elif msg_type == "multi_doc_result":
             self._on_summary_complete(data)
@@ -1220,18 +1199,13 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         Update the task preview label to show what will run.
 
         Shows a concise preview like:
-        "Will run: Vocabulary (NER+LLM), Q&A (6 questions)"
+        "Will run: Vocabulary (NER), Q&A (6 questions)"
         """
         parts = []
 
         # Vocabulary task
         if self.vocab_check.get():
-            from src.user_preferences import get_user_preferences
-
-            if get_user_preferences().is_vocab_llm_enabled():
-                parts.append("Vocabulary (NER+LLM)")
-            else:
-                parts.append("Vocabulary (NER)")
+            parts.append("Vocabulary (NER)")
 
         # Q&A task
         if self.qa_check.get():
@@ -1785,11 +1759,10 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
 
     def _start_progressive_extraction(self):
         """
-        Start progressive three-phase extraction.
+        Start progressive two-phase extraction.
 
         Phase 1 (NER): Fast, displays results in ~5 seconds
         Phase 2 (Q&A): Builds vector store, enables Q&A panel
-        Phase 3 (LLM): Slow enhancement, updates table progressively
         """
         from src.config import (
             LEGAL_EXCLUDE_LIST_PATH,
@@ -1797,7 +1770,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             USER_VOCAB_EXCLUDE_PATH,
         )
 
-        self.set_status("Starting extraction (NER first, then LLM enhancement)...")
+        self.set_status("Starting vocabulary extraction...")
 
         # Combine text from all processed documents
         from src.services import DocumentService
@@ -1819,12 +1792,6 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         doc_confidence = self._calculate_aggregate_confidence(self.processing_results)
         logger.debug("Aggregate document confidence: %.1f%%", doc_confidence)
 
-        # Read LLM preference directly from settings (no main-window checkbox)
-        from src.user_preferences import get_user_preferences
-
-        use_llm = get_user_preferences().is_vocab_llm_enabled()
-        logger.debug("LLM extraction from preference: %s", use_llm)
-
         # Ensure worker subprocess is ready before sending work
         if not self._worker_manager.is_ready():
             self._worker_ready_retries += 1
@@ -1842,9 +1809,8 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
 
         # Send extraction command to worker subprocess
         logger.debug(
-            "Sending extract: %d doc(s), llm=%s, confidence=%.0f%%",
+            "Sending extract: %d doc(s), confidence=%.0f%%",
             len(self.processing_results),
-            use_llm,
             doc_confidence,
         )
         self._worker_manager.send_command(
@@ -1856,7 +1822,6 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
                 "medical_terms_path": str(MEDICAL_TERMS_LIST_PATH),
                 "user_exclude_path": str(USER_VOCAB_EXCLUDE_PATH),
                 "doc_confidence": doc_confidence,
-                "use_llm": use_llm,
                 "ask_default_questions": bool(self.ask_default_questions_check.get()),
             },
         )

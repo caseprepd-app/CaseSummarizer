@@ -519,16 +519,6 @@ class TestProgressiveExtractionWorkerQueueMessages:
         assert msg[0] == "ner_complete"
         assert msg[1] == vocab_data
 
-    def test_llm_complete_message_format(self):
-        """QueueMessage.llm_complete() returns correct tuple format."""
-        from src.ui.queue_messages import QueueMessage
-
-        data = [{"term": "plaintiff", "type": "Legal"}]
-        msg = QueueMessage.llm_complete(data)
-        assert isinstance(msg, tuple)
-        assert msg[0] == "llm_complete"
-        assert msg[1] == data
-
     def test_processing_worker_empty_files_sends_finished(self):
         """ProcessingWorker with 0 files sends processing_finished immediately."""
         from src.services.workers import ProcessingWorker

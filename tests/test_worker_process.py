@@ -523,8 +523,6 @@ class TestQAResultPickling:
             ("processing_finished", [{"filename": "test.pdf"}]),
             ("ner_complete", [{"term": "defendant"}]),
             ("qa_ready", {"vector_store_path": "/tmp/vs", "chunk_count": 10}),
-            ("llm_progress", (3, 10)),
-            ("llm_complete", [{"term": "plaintiff"}]),
             ("qa_progress", (1, 5, "What happened?")),
             ("extraction_started", None),
             ("extraction_complete", None),
@@ -632,8 +630,6 @@ class TestQueueMessageFactory:
                 embeddings=None,  # Real embeddings not picklable, but None is
                 chunk_count=10,
             ),
-            QueueMessage.llm_progress(3, 10),
-            QueueMessage.llm_complete([]),
             QueueMessage.extraction_started(),
             QueueMessage.extraction_complete(),
             QueueMessage.partial_vocab_complete([]),

@@ -635,12 +635,8 @@ class TestExtractionReadinessGuard:
         """When is_ready() is False, should set status and schedule retry."""
         stub = self._make_extraction_stub(worker_ready=False)
 
-        with (
-            patch("src.services.DocumentService") as mock_doc_svc,
-            patch("src.user_preferences.get_user_preferences") as mock_prefs,
-        ):
+        with patch("src.services.DocumentService") as mock_doc_svc:
             mock_doc_svc.return_value.combine_document_texts.return_value = "Some text"
-            mock_prefs.return_value.is_vocab_llm_enabled.return_value = False
 
             from src.ui.main_window import MainWindow
 
@@ -662,12 +658,8 @@ class TestExtractionReadinessGuard:
         stub = self._make_extraction_stub(worker_ready=False)
         stub._worker_ready_retries = 20
 
-        with (
-            patch("src.services.DocumentService") as mock_doc_svc,
-            patch("src.user_preferences.get_user_preferences") as mock_prefs,
-        ):
+        with patch("src.services.DocumentService") as mock_doc_svc:
             mock_doc_svc.return_value.combine_document_texts.return_value = "Some text"
-            mock_prefs.return_value.is_vocab_llm_enabled.return_value = False
 
             from src.ui.main_window import MainWindow
 
@@ -683,12 +675,8 @@ class TestExtractionReadinessGuard:
         """When is_ready() is True, should send extract command."""
         stub = self._make_extraction_stub(worker_ready=True)
 
-        with (
-            patch("src.services.DocumentService") as mock_doc_svc,
-            patch("src.user_preferences.get_user_preferences") as mock_prefs,
-        ):
+        with patch("src.services.DocumentService") as mock_doc_svc:
             mock_doc_svc.return_value.combine_document_texts.return_value = "Some text"
-            mock_prefs.return_value.is_vocab_llm_enabled.return_value = False
 
             from src.ui.main_window import MainWindow
 
@@ -702,12 +690,8 @@ class TestExtractionReadinessGuard:
         stub = self._make_extraction_stub(worker_ready=True)
         stub._worker_ready_retries = 3
 
-        with (
-            patch("src.services.DocumentService") as mock_doc_svc,
-            patch("src.user_preferences.get_user_preferences") as mock_prefs,
-        ):
+        with patch("src.services.DocumentService") as mock_doc_svc:
             mock_doc_svc.return_value.combine_document_texts.return_value = "Some text"
-            mock_prefs.return_value.is_vocab_llm_enabled.return_value = False
 
             from src.ui.main_window import MainWindow
 

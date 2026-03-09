@@ -515,11 +515,10 @@ class DynamicOutputWidget(ctk.CTkFrame):
         """
         Update the progress badge to show data source status.
 
-        The badge indicates extraction phase (local algorithms vs LLM-enhanced).
         "Local algorithms" covers NER, RAKE, and BM25 results.
 
         Args:
-            source: "none", "ner" (local algorithms), or "both" (local + LLM)
+            source: "none", "partial" (BM25+RAKE only), or "ner" (all local algorithms)
         """
         if source == "none":
             self._progress_badge.configure(text="")
@@ -531,11 +530,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
         elif source == "ner":
             # Results come from NER, RAKE, BM25
             self._progress_badge.configure(
-                text="Results (local algorithms)", text_color=COLORS["progress_partial"]
-            )
-        elif source == "both":
-            self._progress_badge.configure(
-                text="Enhanced results (+ LLM)", text_color=COLORS["progress_complete"]
+                text="Results (local algorithms)", text_color=COLORS["progress_complete"]
             )
 
     def set_extraction_source(self, source: str):
@@ -545,7 +540,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
         Called by workflow orchestrator to update progress badge.
 
         Args:
-            source: "none", "ner", "partial" (BM25+RAKE only), or "both"
+            source: "none", "partial" (BM25+RAKE only), or "ner" (all local algorithms)
         """
         self._extraction_source = source
         # Update badge if Names & Vocabulary tab is currently active

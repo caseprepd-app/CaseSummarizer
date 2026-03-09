@@ -3,9 +3,8 @@ Person Detection Utilities for Vocabulary Extraction.
 
 Centralized person detection to handle inconsistent formats.
 
-The vocabulary pipeline has two sources that mark person names:
-1. VocabularyExtractor.extract(): Sets {"Is Person": "Yes"}
-2. LLMVocabExtractor: Sets {"Type": "Person"}
+The vocabulary pipeline marks person names via {"Is Person": "Yes"}.
+Some legacy formats use {"Type": "Person"} instead.
 
 This module provides a single function to check both formats,
 ensuring consistent behavior across all filtering and processing.
@@ -20,7 +19,7 @@ def is_person_entry(term_data: dict) -> bool:
 
     Handles multiple formats from different extraction sources:
     - VocabularyExtractor: {"Is Person": "Yes"} or {"Is Person": "No"}
-    - LLMVocabExtractor: {"Type": "Person"}
+    - Type field: {"Type": "Person"}
     - ML features: {"is_person": 1} or {"is_person": 0}
 
     Args:
@@ -42,7 +41,7 @@ def is_person_entry(term_data: dict) -> bool:
     if str(is_person_val).lower() in ("yes", "true", "1"):
         return True
 
-    # Check "Type" format (LLMVocabExtractor)
+    # Check "Type" format (legacy/alternative)
     type_val = term_data.get(VF.TYPE, "")
     if str(type_val).lower() == "person":
         return True

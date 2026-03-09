@@ -356,8 +356,7 @@ LLM_TOP_P = _d("llm_top_p")
 LLM_TOKENS_PER_WORD = 1.5  # Estimate for token budget calculation
 LLM_TOKEN_BUFFER_MULTIPLIER = 1.3  # Safety buffer to prevent mid-sentence cutoffs
 
-# LLM Vocabulary Extractor Settings
-# Used by llm_extractor.py for vocabulary extraction
+# LLM Response Settings
 LLM_EXTRACTOR_MAX_TOKENS = 1000  # Maximum tokens for LLM response
 
 # Summary Length Enforcement Settings

@@ -240,22 +240,3 @@ class TestDictionaryTextValidator:
         # Gibberish should have lower confidence than real text
         real_confidence = helpers.calculate_confidence("The court has ruled in favor.")
         assert confidence <= real_confidence
-
-
-# ---------------------------------------------------------------------------
-# LLMExtractor
-# ---------------------------------------------------------------------------
-
-
-class TestLLMVocabExtractor:
-    """LLMVocabExtractor uses Ollama for fallback text extraction."""
-
-    def test_class_exists(self):
-        from src.core.extraction.llm_extractor import LLMVocabExtractor
-
-        assert LLMVocabExtractor is not None
-
-    def test_has_extract_method(self):
-        from src.core.extraction.llm_extractor import LLMVocabExtractor
-
-        assert hasattr(LLMVocabExtractor, "extract") or hasattr(LLMVocabExtractor, "extract_text")

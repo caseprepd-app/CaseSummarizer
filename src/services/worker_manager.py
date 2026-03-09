@@ -43,7 +43,7 @@ def _summarize_args(args):
             parts.append(f"questions={len(val) if val else 0}")
         elif key == "ai_params" and isinstance(val, dict):
             parts.append(f"model={val.get('model_name', '?')}")
-        elif key in ("ocr_allowed", "use_llm", "answer_mode", "doc_confidence"):
+        elif key in ("ocr_allowed", "answer_mode", "doc_confidence"):
             parts.append(f"{key}={val}")
         else:
             parts.append(f"{key}=<present>")

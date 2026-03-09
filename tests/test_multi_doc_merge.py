@@ -7,7 +7,7 @@ Tests cover:
 - _merge_multi_doc_results: Indexing, dedup, ML re-boost, sorting
 - extract_documents: Single-doc passthrough, multi-doc dispatch, progress callback
 
-These tests use mock vocab dicts (the output format of extract/extract_with_llm)
+These tests use mock vocab dicts (the output format of extract())
 to test merge logic without running spaCy or real extraction.
 """
 
@@ -451,23 +451,9 @@ class TestExtractDocuments:
         with patch.object(extractor, "extract", return_value=fake_vocab) as mock_extract:
             result = extractor.extract_documents(
                 [{"text": "some text", "doc_id": "doc1", "confidence": 95.0}],
-                use_llm=False,
             )
 
         mock_extract.assert_called_once()
-        assert result == fake_vocab
-
-    def test_single_doc_with_llm_calls_extract_with_llm(self, extractor):
-        """Single document with use_llm=True should call extract_with_llm()."""
-        fake_vocab = [_make_term_dict(term="test")]
-
-        with patch.object(extractor, "extract_with_llm", return_value=fake_vocab) as mock_llm:
-            result = extractor.extract_documents(
-                [{"text": "some text", "doc_id": "doc1", "confidence": 95.0}],
-                use_llm=True,
-            )
-
-        mock_llm.assert_called_once()
         assert result == fake_vocab
 
     def test_multi_doc_calls_merge(self, extractor):
@@ -481,7 +467,6 @@ class TestExtractDocuments:
                     {"text": "text one", "doc_id": "doc1", "confidence": 95.0},
                     {"text": "text two", "doc_id": "doc2", "confidence": 90.0},
                 ],
-                use_llm=False,
             )
 
         # Both docs return same term -> should merge into 1 entry with # Docs = 2
@@ -500,7 +485,6 @@ class TestExtractDocuments:
                     {"text": "text one", "doc_id": "doc1", "confidence": 95.0},
                     {"text": "text two", "doc_id": "doc2", "confidence": 90.0},
                 ],
-                use_llm=False,
                 progress_callback=callback,
             )
 
@@ -528,7 +512,6 @@ class TestExtractDocuments:
                     {"text": "text one", "doc_id": "doc1", "confidence": 95.0},
                     {"text": "text two", "doc_id": "doc2", "confidence": 90.0},
                 ],
-                use_llm=False,
             )
 
         lower_terms = [t["Term"].lower() for t in result]

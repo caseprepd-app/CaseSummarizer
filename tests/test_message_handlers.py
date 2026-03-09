@@ -273,35 +273,30 @@ class TestNERCompleteHandler:
     def test_updates_vocab_display(self):
         """ner_complete updates output display with NER results."""
         stub = _make_stub()
+        stub._pending_tasks = {"vocab": True, "qa": False, "summary": False}
         terms = [{"term": "John Smith"}, {"term": "plaintiff"}]
-        with patch("src.user_preferences.get_user_preferences") as mock_prefs:
-            mock_prefs.return_value.is_vocab_llm_enabled.return_value = False
-            _call_handler(stub, "ner_complete", terms)
+        _call_handler(stub, "ner_complete", terms)
         stub.output_display.update_outputs.assert_called_once_with(vocab_csv_data=terms)
 
     def test_sets_extraction_source_ner(self):
         """ner_complete sets extraction source to 'ner'."""
         stub = _make_stub()
-        with patch("src.user_preferences.get_user_preferences") as mock_prefs:
-            mock_prefs.return_value.is_vocab_llm_enabled.return_value = False
-            _call_handler(stub, "ner_complete", [{"term": "a"}])
+        stub._pending_tasks = {"vocab": True, "qa": False, "summary": False}
+        _call_handler(stub, "ner_complete", [{"term": "a"}])
         stub.output_display.set_extraction_source.assert_called_once_with("ner")
 
-    def test_status_mentions_llm_when_enabled(self):
-        """ner_complete shows LLM enhancement message when LLM enabled."""
+    def test_marks_vocab_completed(self):
+        """ner_complete adds 'vocab' to _completed_tasks."""
         stub = _make_stub()
-        with patch("src.user_preferences.get_user_preferences") as mock_prefs:
-            mock_prefs.return_value.is_vocab_llm_enabled.return_value = True
-            _call_handler(stub, "ner_complete", [{"term": "a"}, {"term": "b"}])
-        call_args = stub.set_status.call_args[0][0]
-        assert "LLM" in call_args
+        stub._pending_tasks = {"vocab": True, "qa": False, "summary": False}
+        _call_handler(stub, "ner_complete", [{"term": "a"}])
+        assert "vocab" in stub._completed_tasks
 
-    def test_status_mentions_index_when_llm_disabled(self):
-        """ner_complete shows index building message when LLM disabled."""
+    def test_status_mentions_search_index(self):
+        """ner_complete shows search index building message."""
         stub = _make_stub()
-        with patch("src.user_preferences.get_user_preferences") as mock_prefs:
-            mock_prefs.return_value.is_vocab_llm_enabled.return_value = False
-            _call_handler(stub, "ner_complete", [{"term": "a"}])
+        stub._pending_tasks = {"vocab": True, "qa": False, "summary": False}
+        _call_handler(stub, "ner_complete", [{"term": "a"}])
         call_args = stub.set_status.call_args[0][0]
         assert "search index" in call_args.lower() or "index" in call_args.lower()
 
@@ -594,90 +589,6 @@ class TestQACompleteHandler:
 
 
 # ---------------------------------------------------------------------------
-# llm_progress handler
-# ---------------------------------------------------------------------------
-
-
-class TestLLMProgressHandler:
-    """Tests for 'llm_progress' message handler."""
-
-    def test_does_not_crash(self):
-        """llm_progress logs but doesn't update UI widgets."""
-        stub = _make_stub()
-        _call_handler(stub, "llm_progress", (3, 10))
-        # Should not crash - only logs
-
-
-# ---------------------------------------------------------------------------
-# llm_complete handler
-# ---------------------------------------------------------------------------
-
-
-class TestLLMCompleteHandler:
-    """Tests for 'llm_complete' message handler."""
-
-    def test_updates_vocab_display_with_results(self):
-        """llm_complete updates vocab display when LLM returned results."""
-        stub = _make_stub()
-        stub._pending_tasks = {"vocab": True, "qa": False, "summary": False}
-        terms = [{"term": "a"}, {"term": "b"}]
-        _call_handler(stub, "llm_complete", terms)
-        stub.output_display.update_outputs.assert_called_once_with(vocab_csv_data=terms)
-
-    def test_sets_extraction_source_both(self):
-        """llm_complete sets extraction source to 'both' when results exist."""
-        stub = _make_stub()
-        stub._pending_tasks = {"vocab": True, "qa": False, "summary": False}
-        _call_handler(stub, "llm_complete", [{"term": "a"}])
-        stub.output_display.set_extraction_source.assert_called_once_with("both")
-
-    def test_skips_display_update_with_empty_results(self):
-        """llm_complete skips vocab display update when LLM returned nothing."""
-        stub = _make_stub()
-        stub._pending_tasks = {"vocab": True, "qa": False, "summary": False}
-        _call_handler(stub, "llm_complete", [])
-        stub.output_display.update_outputs.assert_not_called()
-
-    def test_marks_vocab_completed(self):
-        """llm_complete adds 'vocab' to _completed_tasks."""
-        stub = _make_stub()
-        stub._pending_tasks = {"vocab": True, "qa": False, "summary": False}
-        _call_handler(stub, "llm_complete", [{"term": "a"}])
-        assert "vocab" in stub._completed_tasks
-
-    def test_starts_summary_when_pending(self):
-        """llm_complete starts summary task when summary is pending."""
-        stub = _make_stub()
-        stub._pending_tasks = {"vocab": True, "qa": False, "summary": True}
-        _call_handler(stub, "llm_complete", [{"term": "a"}])
-        stub._start_summary_task.assert_called_once()
-
-    def test_finalizes_when_no_summary(self):
-        """llm_complete calls _finalize_tasks when no summary pending."""
-        stub = _make_stub()
-        stub._pending_tasks = {"vocab": True, "qa": False, "summary": False}
-        _call_handler(stub, "llm_complete", [])
-        stub._finalize_tasks.assert_called_once()
-
-    def test_status_shows_enhanced_count(self):
-        """llm_complete shows enhanced term count in status."""
-        stub = _make_stub()
-        stub._pending_tasks = {"vocab": True, "qa": False, "summary": False}
-        terms = [{"term": "a"}, {"term": "b"}, {"term": "c"}]
-        _call_handler(stub, "llm_complete", terms)
-        call_args = stub.set_status.call_args[0][0]
-        assert "3" in call_args
-
-    def test_status_shows_ner_only_when_empty(self):
-        """llm_complete shows NER-only message when LLM returned nothing."""
-        stub = _make_stub()
-        stub._pending_tasks = {"vocab": True, "qa": False, "summary": False}
-        _call_handler(stub, "llm_complete", [])
-        call_args = stub.set_status.call_args[0][0]
-        assert "NER" in call_args
-
-
-# ---------------------------------------------------------------------------
 # multi_doc_result handler
 # ---------------------------------------------------------------------------
 
@@ -725,9 +636,7 @@ class TestMessageSequences:
         _call_handler(stub, "partial_vocab_complete", [{"term": "a"}])
         stub.output_display.set_extraction_source.assert_called_with("partial")
 
-        with patch("src.user_preferences.get_user_preferences") as mock_prefs:
-            mock_prefs.return_value.is_vocab_llm_enabled.return_value = False
-            _call_handler(stub, "ner_complete", [{"term": "a"}, {"term": "b"}])
+        _call_handler(stub, "ner_complete", [{"term": "a"}, {"term": "b"}])
         stub.output_display.set_extraction_source.assert_called_with("ner")
 
         _call_handler(stub, "extraction_complete", None)
@@ -762,15 +671,13 @@ class TestMessageSequences:
         assert "qa" in stub._completed_tasks
 
     def test_vocab_plus_qa_finalization_order(self):
-        """Vocab+Q&A: llm_complete before qa_complete defers finalization."""
+        """Vocab+Q&A: ner_complete before qa_complete marks vocab done."""
         stub = _make_stub()
         stub._pending_tasks = {"vocab": True, "qa": True, "summary": False}
 
-        # LLM complete first - should call _finalize_tasks (which has guard)
-        _call_handler(stub, "llm_complete", [{"term": "a"}])
+        # NER complete first - should mark vocab done
+        _call_handler(stub, "ner_complete", [{"term": "a"}])
         assert "vocab" in stub._completed_tasks
-        # _finalize_tasks called, but the real implementation would defer if qa_answering_active
-        stub._finalize_tasks.assert_called()
 
     def test_error_during_extraction_resets_state(self):
         """Error during extraction triggers preprocessing complete."""

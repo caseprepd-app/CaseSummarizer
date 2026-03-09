@@ -29,7 +29,6 @@ class TestQAThreadErrorPropagation:
             combined_text="Hello world.",
             ui_queue=Queue(),
             embeddings=MagicMock(),
-            use_llm=False,
         )
         return worker
 

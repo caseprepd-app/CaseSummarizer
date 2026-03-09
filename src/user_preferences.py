@@ -40,10 +40,6 @@ class UserPreferencesManager:
             "model_defaults": {},
             "last_used_model": None,
             "processing": {"cpu_fraction": 0.5},  # Default: 1/2 cores (0.25, 0.5, or 0.75)
-            # vocab_use_llm is tri-state: "auto", "yes", "no"
-            "experimental": {
-                "vocab_use_llm": "no",  # LLM extraction: "auto", "yes", or "no"
-            },
         }
 
         try:
@@ -186,70 +182,6 @@ class UserPreferencesManager:
 
         self._preferences["processing"]["cpu_fraction"] = cpu_fraction
         self._save_preferences()
-
-    # =========================================================================
-    # LLM Extraction Settings
-    # =========================================================================
-
-    def get_vocab_llm_mode(self) -> str:
-        """
-        Get LLM extraction mode.
-
-        Returns:
-            str: "auto", "yes", or "no"
-        """
-        value = self._preferences.get("experimental", {}).get("vocab_use_llm", "no")
-        # Handle legacy boolean values from older preferences
-        if value is True:
-            return "yes"
-        elif value is False:
-            return "no"
-        return value if value in ("auto", "yes", "no") else "no"
-
-    def is_vocab_llm_enabled(self) -> bool:
-        """
-        Check if LLM extraction is enabled for vocabulary.
-
-        Resolves "auto" mode using GPU detection.
-
-        Returns:
-            bool: True if LLM should be used alongside NER
-        """
-        mode = self.get_vocab_llm_mode()
-        if mode == "yes":
-            return True
-        elif mode == "no":
-            return False
-        else:  # "auto" - use GPU detection
-            from src.core.utils.gpu_detector import has_dedicated_gpu
-
-            return has_dedicated_gpu()
-
-    def set_vocab_llm_mode(self, mode: str) -> None:
-        """
-        Set LLM extraction mode.
-
-        Args:
-            mode: "auto", "yes", or "no"
-        """
-        if mode not in ("auto", "yes", "no"):
-            raise ValueError(f"Invalid mode: {mode}, must be 'auto', 'yes', or 'no'")
-        if "experimental" not in self._preferences:
-            self._preferences["experimental"] = {}
-        self._preferences["experimental"]["vocab_use_llm"] = mode
-        self._save_preferences()
-
-    def set_vocab_llm_enabled(self, enabled: bool) -> None:
-        """
-        Legacy method - Enable or disable LLM for vocabulary extraction.
-
-        Deprecated: Use set_vocab_llm_mode() instead.
-
-        Args:
-            enabled: Whether to use LLM alongside NER
-        """
-        # Convert boolean to string mode for backwards compatibility
-        self.set_vocab_llm_mode("yes" if enabled else "no")
 
     # =========================================================================
     # LLM Context Window Settings
@@ -593,11 +525,6 @@ class UserPreferencesManager:
         elif key == "corpus_was_ever_ready":
             if not isinstance(value, bool):
                 raise ValueError(f"corpus_was_ever_ready must be boolean, got {value}")
-        # LLM extraction mode validation
-        elif key == "vocab_use_llm":
-            # Accept both legacy boolean and new tri-state string
-            if value not in ("auto", "yes", "no") and not isinstance(value, bool):
-                raise ValueError(f"vocab_use_llm must be 'auto', 'yes', or 'no', got {value}")
         # LLM context window size validation
         elif key == "llm_context_size":
             valid_sizes = [2048, 4000, 8000, 16000, 32000, 48000, 64000]

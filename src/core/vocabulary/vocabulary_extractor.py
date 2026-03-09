@@ -24,8 +24,7 @@ TEXT FLOW ARCHITECTURE:
 All vocabulary algorithms (NER, RAKE, BM25) receive IDENTICAL preprocessed text.
 The text flow is:
     preprocessed_text → All algorithms receive same input → Merged results
-The LLM extraction path intentionally uses chunks (different from other algorithms)
-for efficiency with Ollama. This is documented and by design.
+All algorithms run locally without external LLM calls.
 """
 
 import logging
@@ -44,11 +43,9 @@ from src.config import (
     VOCABULARY_RARITY_THRESHOLD,
     VOCABULARY_SORT_METHOD,
 )
-from src.core.utils.tokenizer import STOPWORDS
 from src.core.vocab_schema import VF
 from src.core.vocabulary.algorithms.base import BaseExtractionAlgorithm
 from src.core.vocabulary.preference_learner import get_meta_learner
-from src.core.vocabulary.reconciler import VocabularyReconciler
 from src.core.vocabulary.result_merger import AlgorithmScoreMerger, MergedTerm
 from src.core.vocabulary.role_profiles import RoleDetectionProfile, StenographerProfile
 from src.core.vocabulary.term_sources import TermSources
@@ -494,128 +491,6 @@ class VocabularyExtractor:
         vocabulary = self._sort_vocabulary(vocabulary)
         return vocabulary
 
-    def extract_with_llm(
-        self,
-        text: str,
-        doc_count: int = 1,
-        include_llm: bool = True,
-        progress_callback=None,
-    ) -> list[dict]:
-        """
-        Extract vocabulary using NER and optionally LLM, then reconcile results.
-
-        This method provides a unified extraction pipeline that:
-        1. Runs NER extraction (existing algorithm)
-        2. Optionally runs LLM extraction (single prompt per chunk)
-        3. Reconciles results into unified output with "Found By" column
-
-        Args:
-            text: The document text to analyze
-            doc_count: Number of documents being processed
-            include_llm: Whether to run LLM extraction (default True)
-            progress_callback: Optional callback(current, total) for progress
-
-        Returns:
-            List of vocabulary dictionaries with schema:
-            - Term: The extracted term
-            - Type: Person/Place/Medical/Technical/Unknown
-            - Found By: "Both", "NER", or "LLM"
-            - Frequency: Occurrence count
-            - Quality Score: 0-100 composite score
-            - Definition: WordNet definition (optional)
-        """
-        logger.debug("Starting extract_with_llm (include_llm=%s)", include_llm)
-        start_time = time.time()
-
-        # 1. Run NER extraction via existing algorithms
-        logger.debug("Phase 1: Running NER extraction...")
-        ner_candidates = []
-        for algorithm in self.algorithms:
-            if not algorithm.enabled:
-                continue
-            if algorithm.name == "NER":
-                result = algorithm.extract(text)
-                ner_candidates = result.candidates
-                logger.debug("NER found %s candidates", len(ner_candidates))
-                break
-
-        # 2. Run LLM extraction if enabled
-        llm_terms = []
-        if include_llm:
-            logger.debug("Phase 2: Running LLM extraction...")
-            try:
-                from src.core.extraction.llm_extractor import LLMVocabExtractor
-
-                llm_extractor = LLMVocabExtractor()
-                llm_result = llm_extractor.extract(
-                    text,
-                    progress_callback=progress_callback,
-                )
-                llm_terms = llm_result.terms
-                logger.debug(
-                    "LLM found %s terms in %.1fms",
-                    len(llm_terms),
-                    llm_result.processing_time_ms,
-                )
-            except Exception as e:
-                logger.debug("LLM extraction failed: %s", e)
-                # Continue with NER-only results
-
-        # 3. Reconcile results
-        logger.debug("Phase 3: Reconciling NER and LLM results...")
-        reconciler = VocabularyReconciler()
-        reconciled = reconciler.reconcile(ner_candidates, llm_terms)
-        logger.debug("Reconciled to %s unique terms", len(reconciled))
-
-        # 3.5 Filter out common words and apply frequency thresholds
-        logger.debug("Phase 3.5: Filtering common words...")
-        filtered_reconciled = self._filter_reconciled_terms(reconciled, doc_count, len(text))
-        logger.debug(
-            "After filtering: %s terms (removed %s)",
-            len(filtered_reconciled),
-            len(reconciled) - len(filtered_reconciled),
-        )
-        reconciled = filtered_reconciled
-
-        # Definitions removed: WordNet generic definitions were unhelpful for legal
-        # terms (e.g., "Hearing" got the sense-organ definition, not legal proceeding).
-        # To reinstate, uncomment below and restore _get_definition() method at end of file.
-        # # 4. Add definitions for Medical/Technical terms
-        # logger.debug("Phase 4: Adding definitions...")
-        # for term in reconciled:
-        #     if term.type in ("Medical", "Technical") and not term.definition:
-        #         term.definition = self._get_definition(term.term, term.type == "Person")
-
-        # 5. Convert to CSV format
-        csv_data = reconciler.to_csv_data(reconciled, include_definitions=False)
-
-        # 6. Add Role/Relevance using role profile
-        for i, row in enumerate(csv_data):
-            term = reconciled[i].term
-            category = reconciled[i].type
-            role = self._get_role_relevance(term, category == "Person", text)
-            row[VF.ROLE_RELEVANCE] = role
-
-        # 7. Run vocabulary filter chain
-        # Consolidates: name dedup, artifact filter, name regularizer,
-        # rarity filter, corpus familiarity, and gibberish filter
-        logger.debug("Phase 7: Running filter chain...")
-        from src.core.vocabulary.filters import create_optimized_filter_chain
-
-        filter_chain = create_optimized_filter_chain()
-        filter_result = filter_chain.run(csv_data)
-        csv_data = filter_result.vocabulary
-        logger.debug(
-            "Filter chain complete: %s removed, %s remaining",
-            filter_result.removed_count,
-            len(csv_data),
-        )
-
-        total_time = (time.time() - start_time) * 1000
-        logger.debug("extract_with_llm complete in %.1fms, %s terms", total_time, len(csv_data))
-
-        return csv_data
-
     def _run_algorithms_parallel(self, text: str) -> list:
         """
         Run extraction algorithms in parallel when beneficial.
@@ -868,110 +743,6 @@ class VocabularyExtractor:
         else:
             # For non-person terms, detect based on term characteristics
             return "Vocabulary term"
-
-    def _filter_reconciled_terms(
-        self, reconciled: list, doc_count: int, text_length: int = 0
-    ) -> list:
-        """
-        Filter reconciled terms for single-word noise.
-
-        This handles SINGLE-WORD filtering only:
-        - Exclude lists (legal/user)
-        - Rarity threshold check
-        - Frequency bounds (too rare = OCR error, too common = noise)
-        - Stopwords
-
-        MULTI-WORD phrase filtering is done CENTRALLY by rarity_filter.py
-        in the main pipeline (see extract_with_llm phase 9). This separation
-        ensures consistent filtering across all algorithms.
-
-        Args:
-            reconciled: List of ReconciledTerm objects
-            doc_count: Number of documents being processed
-
-        Returns:
-            Filtered list of ReconciledTerm objects
-        """
-        from src.config import VOCABULARY_MIN_OCCURRENCES
-
-        filtered = []
-        seen_terms = set()
-        # Estimate total pages across all docs (~3500 chars per transcript page)
-        estimated_pages = max(text_length // 3500, 1) * doc_count
-        frequency_threshold = estimated_pages * 5
-
-        for term_obj in reconciled:
-            term = term_obj.term
-            lower_term = term.lower()
-            category = term_obj.type
-
-            # Skip duplicates
-            if lower_term in seen_terms:
-                continue
-
-            # Skip if in exclude lists (common legal words)
-            if lower_term in self.exclude_list:
-                logger.debug("Skipping excluded term: %s", term)
-                continue
-
-            # Skip if in user exclude list
-            if lower_term in self.user_exclude_list:
-                logger.debug("Skipping user-excluded term: %s", term)
-                continue
-
-            # Skip common words based on frequency rank (except Person names)
-            if category != "Person" and self.frequency_rank_map:
-                rank = self.frequency_rank_map.get(lower_term)
-                if rank is not None and rank < self.rarity_threshold:
-                    # Word is too common - in top N most common words
-                    logger.debug("Skipping common word: %s (rank=%s)", term, rank)
-                    continue
-
-            # Apply rarity filter to catch common words not in frequency dataset
-            # This uses the scaled frequency database which has better coverage for LLM terms
-            from src.core.vocabulary.rarity_filter import should_filter_phrase
-
-            is_person = category == "Person"
-            if should_filter_phrase(term, is_person):
-                logger.debug("Skipping common term via rarity filter: %s", term)
-                continue
-
-            # Frequency filtering (PERSON exempt) - skip if too frequent
-            if category != "Person" and term_obj.frequency > frequency_threshold:
-                logger.debug(
-                    "Skipping high-frequency term: %s (freq=%s)",
-                    term,
-                    term_obj.frequency,
-                )
-                continue
-
-            # Minimum occurrence filtering (PERSON exempt) - skip if too rare
-            # Read from user preferences with config fallback
-            min_occurrences = get_user_preferences().get(
-                "vocab_min_occurrences", VOCABULARY_MIN_OCCURRENCES
-            )
-            if category != "Person" and term_obj.frequency < min_occurrences:
-                logger.debug(
-                    "Skipping low-frequency term: %s (freq=%s)",
-                    term,
-                    term_obj.frequency,
-                )
-                continue
-
-            # Skip single-character terms
-            if len(term) < 2:
-                continue
-
-            # Skip single-word terms that are stopwords (uses shared STOPWORDS)
-            # Note: Multi-word phrase filtering is done centrally by rarity_filter.py
-            if len(term.split()) == 1 and lower_term in STOPWORDS and category != "Person":
-                logger.debug("Skipping stopword: %s", term)
-                continue
-
-            filtered.append(term_obj)
-            seen_terms.add(lower_term)
-
-        return filtered
 
     def _calculate_quality_score(
         self,
@@ -1412,13 +1183,12 @@ class VocabularyExtractor:
     # PER-DOCUMENT PARALLEL EXTRACTION
     # ========================================================================
 
-    def extract_documents(self, documents, use_llm=False, progress_callback=None):
+    def extract_documents(self, documents, progress_callback=None):
         """
         Run full pipeline per document (in parallel), then merge results.
 
         Args:
             documents: List of {"text", "doc_id", "confidence"}
-            use_llm: Whether to use LLM enhancement
             progress_callback: Optional callback(current, total, doc_id)
 
         Returns:
@@ -1430,8 +1200,6 @@ class VocabularyExtractor:
         # Single doc — no merge needed, just run normally
         if len(documents) == 1:
             doc = documents[0]
-            if use_llm:
-                return self.extract_with_llm(doc["text"], doc_count=1)
             return self.extract(doc["text"], doc_count=1, doc_confidence=doc["confidence"])
 
         # Multi-doc — parallel extraction
@@ -1445,10 +1213,7 @@ class VocabularyExtractor:
 
         def _extract_single(doc):
             """Extract vocab from one document (runs in worker thread)."""
-            if use_llm:
-                vocab = self.extract_with_llm(doc["text"], doc_count=1)
-            else:
-                vocab = self.extract(doc["text"], doc_count=1, doc_confidence=doc["confidence"])
+            vocab = self.extract(doc["text"], doc_count=1, doc_confidence=doc["confidence"])
             return (doc["doc_id"], doc["confidence"], vocab)
 
         # Submit all docs to thread pool
