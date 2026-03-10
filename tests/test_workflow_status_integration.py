@@ -1,5 +1,5 @@
 """
-Integration tests for workflow status UI components (Session 148).
+Integration tests for workflow status UI components.
 
 Tests the integration between workflow_status.py and the UI components
 in dynamic_output.py and main_window.py.
@@ -48,7 +48,6 @@ class TestDynamicOutputWidgetWorkflowMethods:
         config = dynamic_output_widget._tab_status_config
         assert config.vocab_enabled is True
         assert config.qa_enabled is True
-        assert config.summary_enabled is False
 
     def test_set_workflow_phase_updates_phase(self, dynamic_output_widget):
         """set_workflow_phase should update the internal phase."""
@@ -87,21 +86,16 @@ class TestDynamicOutputWidgetWorkflowMethods:
         qa_text = dynamic_output_widget._qa_status_label.cget("text")
         assert "Q&A is disabled" in qa_text
 
-    def test_set_tab_status_config_updates_summary(self, dynamic_output_widget):
-        """set_tab_status_config should update summary_enabled."""
+    def test_set_tab_status_config_summary_kwarg_ignored(self, dynamic_output_widget):
+        """set_tab_status_config with summary_enabled kwarg should not crash."""
+        # Backward compatibility: summary_enabled kwarg is accepted via **kwargs
         dynamic_output_widget.set_tab_status_config(summary_enabled=True)
-        assert dynamic_output_widget._tab_status_config.summary_enabled is True
-
-        # Check that label no longer shows disabled message
-        summary_text = dynamic_output_widget._summary_status_label.cget("text")
-        assert "Summary generation is disabled" not in summary_text
+        # No crash = pass
 
     def test_set_tab_status_config_partial_update(self, dynamic_output_widget):
         """set_tab_status_config with None should preserve existing values."""
         # Set initial state
-        dynamic_output_widget.set_tab_status_config(
-            vocab_enabled=False, qa_enabled=False, summary_enabled=True
-        )
+        dynamic_output_widget.set_tab_status_config(vocab_enabled=False, qa_enabled=False)
 
         # Update only one value
         dynamic_output_widget.set_tab_status_config(qa_enabled=True)
@@ -110,7 +104,6 @@ class TestDynamicOutputWidgetWorkflowMethods:
         config = dynamic_output_widget._tab_status_config
         assert config.vocab_enabled is False  # Preserved
         assert config.qa_enabled is True  # Updated
-        assert config.summary_enabled is True  # Preserved
 
     def test_show_qa_content_hides_status_label(self, dynamic_output_widget):
         """show_qa_content should hide status label and show panel."""
@@ -126,8 +119,6 @@ class TestDynamicOutputWidgetWorkflowMethods:
         dynamic_output_widget.show_qa_status()
 
         # Status label should be visible
-        # Note: In Tk, after grid_remove + grid, the widget is mapped
-        # We verify the panel is hidden
         assert not dynamic_output_widget._qa_panel.winfo_ismapped()
 
     def test_show_summary_content_hides_status_label(self, dynamic_output_widget):
@@ -184,11 +175,10 @@ class TestWorkflowPhaseTransitions:
         """Transition to SUMMARY_RUNNING."""
         from src.ui.workflow_status import WorkflowPhase
 
-        dynamic_output_widget.set_tab_status_config(summary_enabled=True)
         dynamic_output_widget.set_workflow_phase(WorkflowPhase.SUMMARY_RUNNING)
 
         summary_text = dynamic_output_widget._summary_status_label.cget("text")
-        assert "Generating summary" in summary_text
+        assert "AI summary" in summary_text or "Generating" in summary_text
 
     def test_to_complete(self, dynamic_output_widget):
         """Transition to COMPLETE."""
@@ -257,21 +247,6 @@ class TestConfigAndPhaseInteraction:
             dynamic_output_widget.set_workflow_phase(phase)
             qa_text = dynamic_output_widget._qa_status_label.cget("text")
             assert "Q&A is disabled" in qa_text
-
-    def test_disabled_summary_ignores_phase(self, dynamic_output_widget):
-        """When Summary is disabled, status should show disabled regardless of phase."""
-        from src.ui.workflow_status import WorkflowPhase
-
-        dynamic_output_widget.set_tab_status_config(summary_enabled=False)
-
-        for phase in [
-            WorkflowPhase.IDLE,
-            WorkflowPhase.VOCAB_RUNNING,
-            WorkflowPhase.SUMMARY_RUNNING,
-        ]:
-            dynamic_output_widget.set_workflow_phase(phase)
-            summary_text = dynamic_output_widget._summary_status_label.cget("text")
-            assert "Summary generation is disabled" in summary_text
 
     def test_enabling_qa_updates_to_current_phase(self, dynamic_output_widget):
         """Enabling Q&A should show message for current phase."""

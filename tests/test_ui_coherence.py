@@ -47,10 +47,10 @@ class TestActualUIElements:
         text = _read("src/ui/window_layout.py")
         assert 'text="Ask Questions"' in text
 
-    def test_summary_checkbox(self):
-        """Summary checkbox says 'Generate Summary'."""
+    def test_summary_checkbox_removed(self):
+        """Summary checkbox was removed (key sentences are automatic)."""
         text = _read("src/ui/window_layout.py")
-        assert 'text="Generate Summary"' in text
+        assert 'text="Generate Summary"' not in text
 
     def test_results_tab_names(self):
         """Results tabs are 'Vocabulary', 'Questions', 'Summary'."""
@@ -181,6 +181,7 @@ class TestSettingsTooltipCoherence:
     """Settings tooltips reference actual UI elements."""
 
     def test_summary_gpu_tooltip_exists(self):
-        """Summary GPU override tooltip describes GPU requirement."""
+        """AI-Generated Summary tooltip describes key sentences and GPU requirement."""
         text = _read("src/ui/settings/settings_registry.py")
-        assert "Summary generation is a long-running task" in text
+        assert "AI-Generated Summary" in text
+        assert "Key sentences" in text

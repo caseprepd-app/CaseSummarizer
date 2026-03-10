@@ -1909,25 +1909,23 @@ def _register_all_settings():
     SettingsRegistry.register(
         SettingDefinition(
             key="summary_gpu_override",
-            label="Summary generation",
+            label="AI-Generated Summary",
             category="AI Model",
             setting_type=SettingType.DROPDOWN,
             tooltip=lambda: (
-                "Summary generation is a long-running task that processes all "
-                "document chunks through the LLM. Without a dedicated GPU, this "
-                "can take several hours.\n\n"
-                "• Require GPU: Only enable the Summary checkbox if a dedicated "
-                "GPU is detected. Without a GPU, the checkbox is grayed out "
-                "with an explanation.\n"
-                "• Allow without GPU: Enable the Summary checkbox regardless of "
-                "GPU availability. Use this if you're willing to wait several "
-                "hours for the summary to complete.\n\n"
+                "Optional LLM-generated summary shown above Key Sentences.\n\n"
+                "Key sentences (fast, deterministic) always appear after Q&A indexing.\n"
+                "This setting adds an AI-generated narrative summary on top.\n\n"
+                "• Disabled (default): Only key sentences are shown.\n"
+                "• Enabled (requires GPU): Runs the LLM summary after Q&A.\n"
+                "  Requires a dedicated GPU — on CPU, the 2K context window\n"
+                "  produces poor results and takes hours.\n\n"
                 f"Current status: {_get_gpu_status_for_tooltip()}"
             ),
-            default="auto",
+            default="no",
             options=[
-                ("Require GPU (recommended)", "auto"),
-                ("Allow without GPU", "yes"),
+                ("Disabled (default)", "no"),
+                ("Enabled (requires GPU)", "yes"),
             ],
             getter=lambda: prefs.get_summary_gpu_override_mode(),
             setter=lambda v: prefs.set_summary_gpu_override_mode(v),

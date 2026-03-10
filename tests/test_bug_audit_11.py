@@ -59,8 +59,6 @@ def _make_main_window_stub():
     stub.qa_check.get.return_value = True
     stub.vocab_check = MagicMock()
     stub.vocab_check.get.return_value = True
-    stub.summary_check = MagicMock()
-    stub.summary_check.get.return_value = False
     stub.export_all_btn = MagicMock()
     stub._export_all_visible = False
     stub._settings_dialog_open = False

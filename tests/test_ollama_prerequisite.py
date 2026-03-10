@@ -20,9 +20,7 @@ def _make_window():
     win.vocab_check = MagicMock()
     win.qa_check = MagicMock()
     win.ask_default_questions_check = MagicMock()
-    win.summary_check = MagicMock()
     win._set_qa_tooltip = MagicMock()
-    win._set_summary_tooltip = MagicMock()
     return win
 
 
@@ -114,43 +112,6 @@ class TestQaOllamaGate:
 
 
 # =========================================================================
-# Summary checkbox gating
-# =========================================================================
-
-
-class TestSummaryOllamaGate:
-    """Test that Summary checkbox is disabled when Ollama is not ready."""
-
-    def test_disabled_when_ollama_not_ready(self):
-        """Summary checkbox disabled with Ollama tooltip when not connected."""
-        win = _make_window()
-        win.model_manager.is_model_loaded.return_value = False
-        win.model_manager.is_connected = False
-
-        win._update_summary_checkbox_state()
-
-        win.summary_check.deselect.assert_called()
-        win.summary_check.configure.assert_called_with(state="disabled")
-        tooltip_text = win._set_summary_tooltip.call_args[0][0]
-        assert "not running" in tooltip_text
-
-    @patch("src.user_preferences.get_user_preferences")
-    def test_falls_through_when_ollama_ready(self, mock_prefs_fn):
-        """Summary checkbox proceeds to GPU check when Ollama is connected."""
-        win = _make_window()
-        win.model_manager.is_model_loaded.return_value = True
-
-        mock_prefs = MagicMock()
-        mock_prefs.is_summary_allowed.return_value = (True, "")
-        mock_prefs_fn.return_value = mock_prefs
-
-        win._update_summary_checkbox_state()
-
-        # Should have reached the "allowed" branch
-        win.summary_check.configure.assert_called_with(state="normal")
-
-
-# =========================================================================
 # get_model_param_count utility
 # =========================================================================
 
@@ -202,7 +163,6 @@ class TestSmallModelWarning:
         """8B+ model should not trigger warning."""
         win = _make_window()
         win.qa_check.get.return_value = True
-        win.summary_check.get.return_value = False
         mock_prefs = MagicMock()
         mock_prefs.get.return_value = "llama3:8b"
         mock_prefs.get_model_param_count.return_value = 8.0
@@ -217,7 +177,6 @@ class TestSmallModelWarning:
         """No warning when neither Q&A nor Summary is enabled."""
         win = _make_window()
         win.qa_check.get.return_value = False
-        win.summary_check.get.return_value = False
         mock_prefs = MagicMock()
         mock_prefs_fn.return_value = mock_prefs
 
@@ -231,7 +190,6 @@ class TestSmallModelWarning:
         """No warning when user previously dismissed it."""
         win = _make_window()
         win.qa_check.get.return_value = True
-        win.summary_check.get.return_value = False
         mock_prefs = MagicMock()
         mock_prefs.has_dismissed_small_model_warning.return_value = True
         mock_prefs_fn.return_value = mock_prefs
@@ -244,7 +202,6 @@ class TestSmallModelWarning:
         """No warning when model name can't be parsed (benefit of the doubt)."""
         win = _make_window()
         win.qa_check.get.return_value = True
-        win.summary_check.get.return_value = False
         mock_prefs = MagicMock()
         mock_prefs.get.return_value = "custom-model"
         mock_prefs.get_model_param_count.return_value = None
@@ -259,7 +216,6 @@ class TestSmallModelWarning:
         """Summary with 12B model should not trigger warning."""
         win = _make_window()
         win.qa_check.get.return_value = False
-        win.summary_check.get.return_value = True
         mock_prefs = MagicMock()
         mock_prefs.get.return_value = "gemma3:12b"
         mock_prefs.get_model_param_count.return_value = 12.0

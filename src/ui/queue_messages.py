@@ -59,6 +59,9 @@ class MessageType:
     NER_COMPLETE = "ner_complete"
     QA_READY = "qa_ready"
 
+    # Key Sentences (extractive summary via K-means clustering)
+    KEY_SENTENCES_RESULT = "key_sentences_result"
+
     # Progressive Vocabulary Loading
     PARTIAL_VOCAB_COMPLETE = "partial_vocab_complete"  # BM25 + RAKE results before NER
     NER_PROGRESS = "ner_progress"  # NER chunk progress update
@@ -383,6 +386,16 @@ class QueueMessage:
                 "total_chunks": total_chunks,
             },
         )
+
+    @staticmethod
+    def key_sentences_result(sentences: list) -> tuple[str, list]:
+        """
+        Create key sentences result message.
+
+        Args:
+            sentences: List of KeySentence objects (or serializable dicts)
+        """
+        return (MessageType.KEY_SENTENCES_RESULT, sentences)
 
     @staticmethod
     def extraction_started() -> tuple[str, None]:

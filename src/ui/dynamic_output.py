@@ -388,7 +388,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
         self._update_tab_status_messages()
         logger.debug("Workflow phase set to: %s", phase.name)
 
-    def set_tab_status_config(self, vocab_enabled=None, qa_enabled=None, summary_enabled=None):
+    def set_tab_status_config(self, vocab_enabled=None, qa_enabled=None, **kwargs):
         """
         Update which features are enabled and refresh tab status messages.
 
@@ -397,21 +397,17 @@ class DynamicOutputWidget(ctk.CTkFrame):
         Args:
             vocab_enabled: Whether vocabulary extraction is enabled (or None to keep current)
             qa_enabled: Whether Q&A is enabled (or None to keep current)
-            summary_enabled: Whether summary generation is enabled (or None to keep current)
         """
         if vocab_enabled is not None:
             self._tab_status_config.vocab_enabled = vocab_enabled
         if qa_enabled is not None:
             self._tab_status_config.qa_enabled = qa_enabled
-        if summary_enabled is not None:
-            self._tab_status_config.summary_enabled = summary_enabled
 
         self._update_tab_status_messages()
         logger.debug(
-            "Tab status config updated: vocab=%s, qa=%s, summary=%s",
+            "Tab status config updated: vocab=%s, qa=%s",
             self._tab_status_config.vocab_enabled,
             self._tab_status_config.qa_enabled,
-            self._tab_status_config.summary_enabled,
         )
 
     def show_qa_content(self):
@@ -435,6 +431,42 @@ class DynamicOutputWidget(ctk.CTkFrame):
         self.summary_text_display.grid_remove()
         self._summary_status_label.grid()
         self._update_tab_status_messages()
+
+    def update_key_sentences(self, sentences: list[dict]):
+        """
+        Display key sentences in the Summary tab.
+
+        Formats sentences as a numbered list with source file attribution.
+        If an LLM summary is already displayed, key sentences appear below it.
+
+        Args:
+            sentences: List of dicts with 'text', 'source_file', 'position', 'score'.
+        """
+        if not sentences:
+            return
+
+        self._key_sentences = sentences
+
+        # Build formatted text
+        parts = ["KEY SENTENCES\n", "=" * 50, "\n\n"]
+        for i, sent in enumerate(sentences, 1):
+            text = sent.get("text", "")
+            source = sent.get("source_file", "")
+            parts.append(f' {i:2d}. "{text}"\n')
+            parts.append(f"     — {source}\n\n")
+
+        key_text = "".join(parts)
+
+        # If summary textbox already has LLM content, append below it
+        existing = self.summary_text_display.get("0.0", "end").strip()
+        if existing:
+            self.summary_text_display.insert("end", f"\n\n{key_text}")
+        else:
+            self.summary_text_display.delete("0.0", "end")
+            self.summary_text_display.insert("0.0", key_text)
+
+        self.show_summary_content()
+        logger.debug("Displayed %d key sentences in Summary tab", len(sentences))
 
     def show_document_preview(self, result):
         """

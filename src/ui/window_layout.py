@@ -35,7 +35,6 @@ class WindowLayoutMixin:
     - self._select_files (callback method)
     - self._clear_files (callback method)
     - self._update_generate_button_state (callback method)
-    - self._on_summary_checked (callback method)
     - self._perform_tasks (callback method)
     - self._on_stop_clicked (callback method)
     - self._ask_followup (callback method)
@@ -47,7 +46,7 @@ class WindowLayoutMixin:
     - self.banner_frame, self.banner_label, self.setup_corpus_btn
     - self.main_frame, self.left_panel, self.right_panel
     - self.file_table, self.add_files_btn, self.clear_files_btn
-    - self.qa_check, self.vocab_check, self.summary_check, self.generate_btn, self.stop_btn
+    - self.qa_check, self.vocab_check, self.generate_btn, self.stop_btn
     - self.output_display, self.followup_frame, self.followup_entry, self.followup_btn
     - self.status_frame, self.status_label, self.timer_label
     - self.ollama_status_frame, self.ollama_status_dot, self.ollama_status_label
@@ -246,14 +245,6 @@ class WindowLayoutMixin:
         )
         self.ask_default_questions_check.pack(anchor="w", pady=(0, 2), padx=(20, 0))
         self.ask_default_questions_check.select()  # ON by default
-
-        # Summary checkbox (default OFF, with warning tooltip)
-        self.summary_check = ctk.CTkCheckBox(
-            task_frame, text="Generate Summary", command=self._on_summary_checked
-        )
-        self.summary_check.pack(anchor="w", pady=2)
-        # OFF by default - no select()
-        # Tooltip set by _setup_summary_tooltip() in MainWindow.__init__
 
         # "Perform N Tasks" button
         self.generate_btn = ctk.CTkButton(

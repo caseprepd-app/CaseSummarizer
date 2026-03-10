@@ -42,6 +42,7 @@ from .document_summarizer import (
     DocumentSummarizer,
     ProgressiveDocumentSummarizer,
 )
+from .key_sentences import KeySentence, extract_key_sentences
 
 # Multi-document orchestration
 from .multi_document_orchestrator import MultiDocumentOrchestrator
@@ -55,6 +56,9 @@ __all__ = [
     "DocumentSummarizer",
     # Result types
     "DocumentSummaryResult",
+    # Key sentences (extractive)
+    "KeySentence",
+    "extract_key_sentences",
     # Multi-document orchestration
     "MultiDocumentOrchestrator",
     "MultiDocumentSummaryResult",

@@ -289,57 +289,67 @@ class UserPreferencesManager:
 
     def get_summary_gpu_override_mode(self) -> str:
         """
-        Get Summary GPU override mode.
+        Get AI-Generated Summary mode.
 
         Returns:
-            str: "auto" (require GPU), "yes" (allow without GPU)
+            str: "no" (disabled, default), "yes" (enabled), or "auto" (legacy)
         """
-        value = self._preferences.get("summary_gpu_override", "auto")
-        return value if value in ("auto", "yes") else "auto"
+        value = self._preferences.get("summary_gpu_override", "no")
+        return value if value in ("no", "yes", "auto") else "no"
 
     def set_summary_gpu_override_mode(self, mode: str) -> None:
         """
-        Set Summary GPU override mode.
+        Set AI-Generated Summary mode.
 
         Args:
-            mode: "auto" (require GPU) or "yes" (allow without GPU)
+            mode: "no" (disabled) or "yes" (enabled, requires GPU)
         """
-        if mode not in ("auto", "yes"):
-            raise ValueError(f"Invalid mode: {mode}, must be 'auto' or 'yes'")
+        if mode not in ("no", "yes", "auto"):
+            raise ValueError(f"Invalid mode: {mode}, must be 'no', 'yes', or 'auto'")
         self._preferences["summary_gpu_override"] = mode
         self._save_preferences()
 
     def is_summary_allowed(self) -> tuple[bool, str]:
         """
-        Check if summary generation is allowed based on GPU availability and settings.
+        Check if AI-generated summary is enabled and allowed.
+
+        The AI summary is disabled by default. When enabled via Settings,
+        it also requires a dedicated GPU to produce useful results.
 
         Returns:
             Tuple of (allowed: bool, reason: str)
             - If allowed, reason is empty
-            - If not allowed, reason explains why (for tooltip)
+            - If not allowed, reason explains why
         """
         mode = self.get_summary_gpu_override_mode()
 
-        # User allowed summary without GPU
-        if mode == "yes":
-            return True, ""
+        # Default: disabled
+        if mode == "no":
+            return False, "AI summary disabled. Enable in Settings > AI Model."
 
-        # "auto" mode - check GPU availability
+        # User explicitly enabled — check GPU
+        if mode == "yes":
+            from src.core.utils.gpu_detector import has_dedicated_gpu
+
+            if has_dedicated_gpu():
+                return True, ""
+            else:
+                from src.services import AIService
+
+                gpu_status = AIService().get_gpu_status_text()
+                return False, (
+                    f"AI summary is enabled but requires a dedicated GPU.\n\n"
+                    f"{gpu_status}\n\n"
+                    "Without a GPU, the small context window (2K tokens)\n"
+                    "produces poor legal summaries and takes hours."
+                )
+
+        # Legacy "auto" mode — check GPU availability
         from src.core.utils.gpu_detector import has_dedicated_gpu
 
         if has_dedicated_gpu():
             return True, ""
-        else:
-            from src.services import AIService
-
-            gpu_status = AIService().get_gpu_status_text()
-            return False, (
-                f"Summary generation is strongly recommended only with\n"
-                f"a dedicated GPU.\n\n"
-                f"{gpu_status}\n\n"
-                "Without a GPU, summary generation can take several hours.\n\n"
-                "To enable: Settings > AI Model > 'Summary generation'"
-            )
+        return False, "AI summary disabled (no GPU detected)."
 
     # =========================================================================
     # Enhanced Summary Mode (Two-Pass Extraction)
@@ -616,8 +626,10 @@ class UserPreferencesManager:
                 raise ValueError(f"{key} must be 0.0-2.0, got {value}")
         # Summary GPU override validation
         elif key == "summary_gpu_override":
-            if value not in ("auto", "yes"):
-                raise ValueError(f"summary_gpu_override must be 'auto' or 'yes', got {value}")
+            if value not in ("no", "yes", "auto"):
+                raise ValueError(
+                    f"summary_gpu_override must be 'no', 'yes', or 'auto', got {value}"
+                )
         # Enhanced summary mode validation
         elif key == "summary_enhanced_mode":
             if value not in ("auto", "yes", "no"):

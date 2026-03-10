@@ -82,6 +82,7 @@ def worker_process_main(command_queue, result_queue):
         "embeddings": None,
         "vector_store_path": None,
         "chunk_scores": None,
+        "documents": None,
         "active_worker": None,
         "auto_qa_worker": None,
         "ask_default_questions": True,
@@ -214,6 +215,9 @@ def _run_extraction(args, internal_queue, state):
 
     # Save checkbox state so trigger_default_qa can check it later
     state["ask_default_questions"] = args.get("ask_default_questions", True)
+
+    # Save documents for key sentences extraction (triggered at qa_ready)
+    state["documents"] = args.get("documents")
 
     worker = ProgressiveExtractionWorker(
         documents=args["documents"],
@@ -416,6 +420,9 @@ def _forward_message(msg_type, data, internal_queue, result_queue, state):
         }
         result_queue.put(("qa_ready", forwarded_data))
 
+        # Spawn key sentences extraction as fire-and-forget daemon thread
+        _spawn_key_sentences(state, internal_queue)
+
     elif msg_type == "trigger_default_qa":
         # Skip if user unchecked the default questions checkbox
         if not state.get("ask_default_questions", True):
@@ -468,3 +475,45 @@ def _forward_message(msg_type, data, internal_queue, result_queue, state):
                 e,
                 traceback.format_exc(),
             )
+
+
+def _spawn_key_sentences(state, internal_queue):
+    """
+    Spawn a daemon thread to extract key sentences after Q&A indexing.
+
+    Fire-and-forget — key sentences are a side effect of Q&A indexing,
+    not a tracked task. Uses the embeddings model already loaded in state.
+
+    Args:
+        state: shared subprocess state (must have 'embeddings' and 'documents')
+        internal_queue: Queue to put the result on
+    """
+    embeddings = state.get("embeddings")
+    documents = state.get("documents")
+
+    if not embeddings or not documents:
+        logger.debug("Skipping key sentences: no embeddings or documents")
+        return
+
+    def _extract():
+        try:
+            from src.core.summarization.key_sentences import extract_key_sentences
+
+            results = extract_key_sentences(documents, embeddings)
+            # Serialize KeySentence dataclasses to dicts for pickling across processes
+            serialized = [
+                {
+                    "text": ks.text,
+                    "source_file": ks.source_file,
+                    "position": ks.position,
+                    "score": ks.score,
+                }
+                for ks in results
+            ]
+            internal_queue.put(("key_sentences_result", serialized))
+            logger.debug("Key sentences extracted: %d sentences", len(serialized))
+        except Exception as e:
+            logger.error("Key sentences extraction failed: %s", e, exc_info=True)
+
+    thread = threading.Thread(target=_extract, daemon=True, name="key-sentences")
+    thread.start()

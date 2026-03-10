@@ -158,14 +158,12 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         self._update_generate_button_state()
         self._update_default_questions_label()  # Set initial question count
         self._update_qa_checkbox_state()  # Set Q&A checkbox based on model size
-        self._update_summary_checkbox_state()  # Set Summary checkbox based on GPU/settings
         self._restore_task_checkbox_states()  # Restore user's checkbox preferences
 
         # Initialize tab status config to match checkbox states
         self.output_display.set_tab_status_config(
             vocab_enabled=self.vocab_check.get(),
             qa_enabled=self.qa_check.get(),
-            summary_enabled=self.summary_check.get(),
         )
 
         # Initialize drag-and-drop support
@@ -378,7 +376,6 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         self._update_model_display()
         self._update_ollama_status()
         self._update_qa_checkbox_state()  # Refresh Q&A checkbox for model size
-        self._update_summary_checkbox_state()  # Refresh Summary checkbox
 
     # =========================================================================
     # Corpus Management
@@ -993,9 +990,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
 
             # Vocabulary extraction is complete — mark task done
             self._completed_tasks.add("vocab")
-            if self._pending_tasks.get("summary"):
-                self._start_summary_task()
-            elif self._all_tasks_complete():
+            if self._all_tasks_complete():
                 self._finalize_tasks()
 
         elif msg_type == "qa_ready":
@@ -1086,6 +1081,12 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
                 self._completed_tasks.add("qa")
             if self._all_tasks_complete():
                 self._finalize_tasks()
+
+        elif msg_type == "key_sentences_result":
+            # Key sentences extracted via K-means clustering (fire-and-forget)
+            if data:
+                self.output_display.update_key_sentences(data)
+                logger.debug("Key sentences displayed: %d sentences", len(data))
 
         elif msg_type == "qa_followup_result":
             # Route panel followup results via event (avoids queue race condition)
@@ -1209,8 +1210,6 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             count += 1
         if self.vocab_check.get():
             count += 1
-        if self.summary_check.get():
-            count += 1
         return count
 
     def _update_generate_button_state(self):
@@ -1260,34 +1259,10 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             else:
                 parts.append("Q&A")
 
-        # Summary task
-        if self.summary_check.get():
-            parts.append("Summary (slow)")
-
         # Build preview text
         preview = "Will run: " + ", ".join(parts) if parts else "Select tasks above"
 
         self.task_preview_label.configure(text=preview)
-
-    def _on_summary_checked(self):
-        """Handle summary checkbox toggle - show warning if enabling."""
-        if self.summary_check.get():
-            # Show warning dialog
-            result = messagebox.askyesno(
-                "Summary Warning",
-                "Summary generation can take several hours without a dedicated GPU.\n\n"
-                "For quick case familiarization, Q&A is recommended instead.\n\n"
-                "Continue with summary?",
-                icon="warning",
-            )
-            if not result:
-                self.summary_check.deselect()
-
-        # Update tab status messages
-        self.output_display.set_tab_status_config(summary_enabled=self.summary_check.get())
-
-        self._update_generate_button_state()
-        self._save_task_checkbox_states()
 
     def _load_default_question_count(self) -> tuple[int, int]:
         """
@@ -1333,7 +1308,6 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             prefs.set("task_extract_vocab", self.vocab_check.get())
             prefs.set("task_ask_questions", self.qa_check.get())
             prefs.set("task_default_questions", self.ask_default_questions_check.get())
-            prefs.set("task_generate_summary", self.summary_check.get())
         except Exception as e:
             logger.warning("Could not save task checkbox states: %s", e)
 
@@ -1354,10 +1328,6 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         # Restore default questions checkbox
         if not prefs.get("task_default_questions", True):
             self.ask_default_questions_check.deselect()
-
-        # Restore summary checkbox (default OFF)
-        if prefs.get("task_generate_summary", False):
-            self.summary_check.select()
 
         # Refresh dependent states after restoring
         self._update_generate_button_state()
@@ -1460,72 +1430,6 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         # Create new tooltip
         self._qa_tooltip_hide = create_tooltip(self.qa_check, text)
 
-    def _update_summary_checkbox_state(self):
-        """
-        Update Summary checkbox state based on Ollama readiness and GPU.
-
-        Precedence:
-        - If Ollama is not connected or has no model: disable
-        - If no dedicated GPU and setting is "auto": disable with tooltip
-        - If setting is "yes": enable regardless of GPU
-        - If GPU detected: enable
-        """
-        # Check Ollama connection first
-        ollama_ready, ollama_reason = self._is_ollama_ready()
-        if not ollama_ready:
-            self.summary_check.deselect()
-            self.summary_check.configure(state="disabled")
-            self._set_summary_tooltip(ollama_reason)
-            return
-
-        from src.user_preferences import get_user_preferences
-
-        prefs = get_user_preferences()
-        allowed, reason = prefs.is_summary_allowed()
-
-        if allowed:
-            # GPU detected or user overrode the requirement
-            self.summary_check.configure(state="normal")
-            self._set_summary_tooltip(
-                "Summary generation can take several hours without\n"
-                "a dedicated GPU.\n\n"
-                "For quick case familiarization, Q&A is recommended."
-            )
-        else:
-            # No GPU and setting is "auto" - disable checkbox
-            self.summary_check.deselect()
-            self.summary_check.configure(state="disabled")
-            self._set_summary_tooltip(reason)
-
-        from src.services import AIService
-
-        ai_svc = AIService()
-        logger.debug(
-            "Summary checkbox: allowed=%s, has_gpu=%s",
-            allowed,
-            ai_svc.has_dedicated_gpu(),
-        )
-
-    def _set_summary_tooltip(self, text: str):
-        """
-        Update the tooltip for the Summary checkbox.
-
-        Args:
-            text: New tooltip text to display
-        """
-        from src.ui.tooltip_helper import create_tooltip
-
-        # Remove existing tooltip bindings
-        if hasattr(self, "_summary_tooltip_hide") and self._summary_tooltip_hide:
-            try:
-                self.summary_check.unbind("<Enter>")
-                self.summary_check.unbind("<Leave>")
-            except Exception as e:
-                logger.debug("Failed to unbind summary tooltip: %s", e)
-
-        # Create new tooltip
-        self._summary_tooltip_hide = create_tooltip(self.summary_check, text)
-
     def _check_small_model_warning(self) -> bool:
         """
         Show a one-time warning if the user's model has < 8B parameters.
@@ -1537,8 +1441,8 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
 
         prefs = get_user_preferences()
 
-        # Only warn if Q&A or Summary is enabled
-        if not self.qa_check.get() and not self.summary_check.get():
+        # Only warn if Q&A is enabled (Summary checkbox removed)
+        if not self.qa_check.get():
             return True
 
         # Already dismissed - don't show again
@@ -1756,10 +1660,9 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         # Get selected options
         do_qa = self.qa_check.get()
         do_vocab = self.vocab_check.get()
-        do_summary = self.summary_check.get()
 
         # Track pending tasks
-        self._pending_tasks = {"vocab": do_vocab, "qa": do_qa, "summary": do_summary}
+        self._pending_tasks = {"vocab": do_vocab, "qa": do_qa}
         self._completed_tasks = set()
         self._qa_ready = False
         self._qa_answering_active = False
@@ -1781,8 +1684,6 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             self.output_display.set_workflow_phase(WorkflowPhase.VOCAB_RUNNING)
         elif do_qa:
             self.output_display.set_workflow_phase(WorkflowPhase.QA_INDEXING)
-        elif do_summary:
-            self.output_display.set_workflow_phase(WorkflowPhase.SUMMARY_RUNNING)
 
         # Use progressive extraction for vocabulary (includes Q&A indexing)
         if do_vocab:
@@ -1790,8 +1691,6 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         elif do_qa:
             # Q&A only (without vocabulary) - use legacy Q&A task
             self._start_qa_task()
-        elif do_summary:
-            self._start_summary_task()
         else:
             self._on_tasks_complete(True, "No tasks selected")
 
@@ -1967,11 +1866,35 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         else:
             self.set_status("Q&A complete. No answers found — try asking different questions.")
 
-        # Continue to next task
-        if self._pending_tasks.get("summary"):
-            self._start_summary_task()
-        else:
-            self._finalize_tasks()
+        # Check if LLM summary is enabled (buried setting)
+        self._maybe_start_llm_summary()
+
+        self._finalize_tasks()
+
+    def _maybe_start_llm_summary(self):
+        """
+        Start LLM summary if the buried setting is enabled and GPU is available.
+
+        This is triggered after Q&A completes. The LLM summary is optional —
+        key sentences always appear regardless.
+        """
+        from src.user_preferences import get_user_preferences
+
+        prefs = get_user_preferences()
+        allowed, reason = prefs.is_summary_allowed()
+        if not allowed:
+            logger.debug("LLM summary not started: %s", reason)
+            return
+
+        # Check Ollama readiness
+        ollama_ready, _ = self._is_ollama_ready()
+        if not ollama_ready:
+            logger.debug("LLM summary not started: Ollama not ready")
+            return
+
+        logger.info("LLM summary enabled via settings — starting")
+        self._pending_tasks["summary"] = True
+        self._start_summary_task()
 
     def _start_summary_task(self):
         """Start summary generation using MultiDocSummaryWorker."""
@@ -2373,7 +2296,6 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         self._update_model_display()
         self._update_ollama_status()
         self._update_qa_checkbox_state()  # Refresh Q&A checkbox for model size
-        self._update_summary_checkbox_state()  # Refresh Summary checkbox
         self.refresh_default_questions_label()  # Update question count after settings change
 
         # Prompt restart if font size changed

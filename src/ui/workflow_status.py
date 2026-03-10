@@ -31,7 +31,6 @@ class TabStatusConfig:
 
     vocab_enabled: bool = True
     qa_enabled: bool = True
-    summary_enabled: bool = False
 
 
 def get_qa_tab_status(phase: WorkflowPhase, config: TabStatusConfig) -> str:
@@ -91,6 +90,8 @@ def get_summary_tab_status(phase: WorkflowPhase, config: TabStatusConfig) -> str
     """
     Get the status message to display in the Summary tab.
 
+    Key sentences auto-generate after Q&A indexing — no user action needed.
+
     Args:
         phase: Current workflow phase
         config: Which features are enabled
@@ -98,54 +99,27 @@ def get_summary_tab_status(phase: WorkflowPhase, config: TabStatusConfig) -> str
     Returns:
         Status message string for the Summary tab placeholder area
     """
-    if not config.summary_enabled:
-        return (
-            "Summary generation is disabled.\n\n"
-            "Enable 'Generate Summary' in the options panel to create document summaries."
-        )
-
     if phase == WorkflowPhase.IDLE:
-        # Build message based on what will run before summary
-        prereqs = []
-        if config.vocab_enabled:
-            prereqs.append("vocabulary extraction")
-        if config.qa_enabled:
-            prereqs.append("Q&A indexing")
-
-        if prereqs:
-            prereq_text = " and ".join(prereqs)
-            return f"Summary will run after {prereq_text}.\n\nClick 'Process Documents' to begin."
-        else:
-            return "Summary will run when processing begins.\n\nClick 'Process Documents' to begin."
+        return "Key sentences will appear here after documents are processed."
 
     if phase == WorkflowPhase.EXTRACTING_DOCS:
-        return (
-            "Extracting text from documents...\n\nSummary generation will begin after extraction."
-        )
+        return "Extracting text from documents..."
 
     if phase == WorkflowPhase.VOCAB_RUNNING:
-        if config.qa_enabled:
-            return (
-                "Vocabulary extraction in progress...\n\n"
-                "Summary will run after vocabulary and Q&A complete."
-            )
-        else:
-            return (
-                "Vocabulary extraction in progress...\n\n"
-                "Summary will run after vocabulary extraction completes."
-            )
+        return (
+            "Vocabulary extraction in progress...\n\nKey sentences will follow after Q&A indexing."
+        )
 
     if phase == WorkflowPhase.QA_INDEXING:
-        return "Q&A indexing in progress...\n\nSummary will run after Q&A completes."
+        return "Building search index... Key sentences will follow."
 
     if phase == WorkflowPhase.QA_ANSWERING:
-        return "Answering questions...\n\nSummary will run after Q&A completes."
+        return "Answering questions... Key sentences will appear shortly."
 
     if phase == WorkflowPhase.SUMMARY_RUNNING:
-        return "Generating summary...\n\nThis may take several minutes for large documents."
+        return "Generating AI summary...\n\nThis may take several minutes for large documents."
 
     if phase == WorkflowPhase.COMPLETE:
-        # This shouldn't be shown if we have a summary, but just in case
         return "Processing complete."
 
     return ""
