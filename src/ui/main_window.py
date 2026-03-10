@@ -120,6 +120,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         # so _all_tasks_complete / _finalize_tasks never hit AttributeError)
         self._pending_tasks: dict = {}
         self._completed_tasks: set = set()
+        self._exporting_all = False  # Re-entrancy guard for export-all
 
         # Follow-up polling timeout counter (BUG 1 fix)
         self._followup_poll_count: int = 0
@@ -2394,7 +2395,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         Opens a save dialog offering HTML, Word, and PDF formats. Gathers
         score-filtered vocab, answered Q&A, and summary text into one document.
         """
-        if getattr(self, "_exporting_all", False):
+        if self._exporting_all:
             return
         self._exporting_all = True
 

@@ -69,6 +69,8 @@ class QAPanel(ctk.CTkFrame):
 
         # Results storage
         self._results: list[QAResult] = []
+        self._exporting_qa = False  # Re-entrancy guard for QA export
+        self._edit_dialog_open = False  # Re-entrancy guard for edit dialog
 
         # Configure grid
         self.grid_columnconfigure(0, weight=1)
@@ -354,7 +356,7 @@ class QAPanel(ctk.CTkFrame):
 
     def _on_edit_click(self):
         """Handle Edit Questions button click."""
-        if getattr(self, "_edit_dialog_open", False):
+        if self._edit_dialog_open:
             return
         if self.on_edit_questions:
             self._edit_dialog_open = True
@@ -378,7 +380,7 @@ class QAPanel(ctk.CTkFrame):
         Args:
             format_key: One of "csv", "txt", "word", "pdf", "html"
         """
-        if getattr(self, "_exporting_qa", False):
+        if self._exporting_qa:
             return
         self._exporting_qa = True
 

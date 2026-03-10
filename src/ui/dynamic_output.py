@@ -152,6 +152,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
 
         # Dialog-open guards (prevent opening duplicate dialogs)
         self._dialog_open: dict[str, bool] = {}
+        self._exporting_vocab = False  # Re-entrancy guard for vocab export
 
         # Filter widgets for vocabulary table
         self.filter_frame = None
@@ -2479,7 +2480,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
         Args:
             format_key: One of "csv", "txt", "word", "pdf", "html"
         """
-        if getattr(self, "_exporting_vocab", False):
+        if self._exporting_vocab:
             return
         self._exporting_vocab = True
 
