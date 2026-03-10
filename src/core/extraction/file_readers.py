@@ -84,6 +84,7 @@ class FileReaders:
                 "text": text,
                 "method": "direct_read",
                 "confidence": int(confidence),
+                "page_count": 1,
                 "status": "success",
                 "error_message": None,
             }
@@ -93,6 +94,7 @@ class FileReaders:
                 "text": None,
                 "method": None,
                 "confidence": 0,
+                "page_count": 0,
                 "status": "error",
                 "error_message": f"Failed to read text file: {e!s}",
             }
@@ -136,6 +138,7 @@ class FileReaders:
                 "text": text,
                 "method": "rtf_extraction",
                 "confidence": int(confidence),
+                "page_count": 1,
                 "status": "success",
                 "error_message": None,
             }
@@ -145,6 +148,7 @@ class FileReaders:
                 "text": None,
                 "method": None,
                 "confidence": 0,
+                "page_count": 0,
                 "status": "error",
                 "error_message": f"Failed to read RTF file: {e!s}",
             }

@@ -268,7 +268,8 @@ def _merge_reversed_name_groups(groups: dict[str, list]) -> dict[str, list]:
         # first names tend to be shorter than last names)
         def sort_key(k):
             entry_count = len(groups[k])
-            first_word_len = len(k.split()[0]) if k.split() else 0
+            words = k.split()
+            first_word_len = len(words[0]) if words else 0
             return (-entry_count, first_word_len)
 
         keys.sort(key=sort_key)

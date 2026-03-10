@@ -290,6 +290,7 @@ class RawTextExtractor:
                 "text": None,
                 "method": None,
                 "confidence": 0,
+                "page_count": None,
             }
 
     def _process_pdf(self, file_path: Path) -> dict:
