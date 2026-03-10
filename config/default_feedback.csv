@@ -20,3 +20,7 @@ timestamp,document_id,term,feedback,is_person,algorithms,NER_detection,RAKE_dete
 2026-03-09T14:05:37.792589,unknown,edematous,1,0,NER,True,False,False,False,False,False,1,86.3,7,223282,0.0,0.0,0.0,0.0,1,1.0,0.9400000000000001,0.94,0.0,1.0,0,1,17220
 2026-03-09T14:05:50.005513,unknown,fibular,1,0,NER,True,False,False,False,False,False,1,78.6,2,251907,0.0,0.0,0.0,0.0,1,1.0,0.94,0.94,0.0,1.0,0,1,17220
 2026-03-09T14:05:53.458657,unknown,Frittola,1,1,"MedicalNER,YAKE,NER",True,False,False,False,True,True,3,100.0,38,0,0.0,0.012354,0.0,0.0,1,1.0,0.94,0.94,0.0,1.0,0,1,17220
+2026-03-09T20:38:54.883110,unknown,p q,-1,1,"RAKE,NER",True,True,False,False,False,False,2,100.0,7,0,0.0,0.0,2.517851231853218,0.0,1,1.0,0.96,0.96,0.0,1.0,0,1,31388
+2026-03-09T20:39:11.995234,unknown,Madeleine Fils-Aime (Nurse.),1,1,NER,True,False,False,False,False,False,1,100.0,16,0,0.0,0.0,0.0,0.0,1,1.0,0.96,0.96,0.0,1.0,0,1,31388
+2026-03-09T20:39:18.001038,unknown,I. He's,-1,1,NER,True,False,False,False,False,False,1,95.4,1,0,0.0,0.0,0.0,0.0,1,1.0,0.96,0.96,0.0,1.0,0,1,31388
+2026-03-09T20:39:47.014322,unknown,Joe,-1,1,NER,True,False,False,False,False,False,1,65.4,1,2147,0.0,0.0,0.0,0.0,1,1.0,0.96,0.96,0.0,1.0,0,1,31388
