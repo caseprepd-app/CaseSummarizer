@@ -57,7 +57,7 @@ class TestVocabularyServiceExtract:
 
         svc = VocabularyService()
         mock_ext = MagicMock()
-        mock_ext.extract.return_value = [{"Term": "plaintiff"}]
+        mock_ext.extract.return_value = ([{"Term": "plaintiff"}], [])
         svc._extractor = mock_ext
 
         result = svc.extract_vocabulary("The plaintiff filed a motion.")

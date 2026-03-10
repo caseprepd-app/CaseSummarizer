@@ -521,7 +521,7 @@ class TestQAResultPickling:
             ("status_error", "Minor issue"),
             ("file_processed", {"filename": "test.pdf", "status": "success"}),
             ("processing_finished", [{"filename": "test.pdf"}]),
-            ("ner_complete", [{"term": "defendant"}]),
+            ("ner_complete", {"vocab": [{"term": "defendant"}], "filtered": []}),
             ("qa_ready", {"vector_store_path": "/tmp/vs", "chunk_count": 10}),
             ("qa_progress", (1, 5, "What happened?")),
             ("extraction_started", None),
@@ -624,7 +624,7 @@ class TestQueueMessageFactory:
             QueueMessage.qa_progress(1, 5, "Question?"),
             QueueMessage.qa_complete([]),
             QueueMessage.qa_error("Error"),
-            QueueMessage.ner_complete([]),
+            QueueMessage.ner_complete([], []),
             QueueMessage.qa_ready(
                 vector_store_path="/tmp/vs",
                 embeddings=None,  # Real embeddings not picklable, but None is

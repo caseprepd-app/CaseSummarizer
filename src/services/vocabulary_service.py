@@ -60,7 +60,7 @@ class VocabularyService:
             logger.debug("Empty text provided, returning empty list")
             return []
 
-        result = self.extractor.extract(text)
+        result, _filtered = self.extractor.extract(text)
 
         logger.debug("Extracted %s terms", len(result))
 

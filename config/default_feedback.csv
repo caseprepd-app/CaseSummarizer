@@ -24,3 +24,8 @@ timestamp,document_id,term,feedback,is_person,algorithms,NER_detection,RAKE_dete
 2026-03-09T20:39:11.995234,unknown,Madeleine Fils-Aime (Nurse.),1,1,NER,True,False,False,False,False,False,1,100.0,16,0,0.0,0.0,0.0,0.0,1,1.0,0.96,0.96,0.0,1.0,0,1,31388
 2026-03-09T20:39:18.001038,unknown,I. He's,-1,1,NER,True,False,False,False,False,False,1,95.4,1,0,0.0,0.0,0.0,0.0,1,1.0,0.96,0.96,0.0,1.0,0,1,31388
 2026-03-09T20:39:47.014322,unknown,Joe,-1,1,NER,True,False,False,False,False,False,1,65.4,1,2147,0.0,0.0,0.0,0.0,1,1.0,0.96,0.96,0.0,1.0,0,1,31388
+2026-03-09T21:59:51.008361,unknown,p p p,-1,1,"NER,RAKE",True,True,False,False,False,False,2,100.0,131,0,0.0,0.0,8.606896551724137,0.0,1,1.0,0.95,0.95,0.0,1.0,0,1,33736
+2026-03-09T21:59:58.230034,unknown,John Appell,1,1,NER,True,False,False,False,False,False,1,95.4,80,0,0.0,0.0,0.0,0.0,1,1.0,0.95,0.95,0.0,1.0,0,1,33736
+2026-03-09T22:00:12.410308,unknown,150K. Kilograms,-1,1,NER,True,False,False,False,False,False,1,87.4,1,0,0.0,0.0,0.0,0.0,1,1.0,0.95,0.95,0.0,1.0,0,1,33736
+2026-03-09T22:00:20.309996,unknown,Mhp,-1,1,NER,True,False,False,False,False,False,1,65.4,1,42110,0.0,0.0,0.0,0.0,1,1.0,0.95,0.95,0.0,1.0,0,1,33736
+2026-03-09T22:28:52.358582,unknown,Edwin Richter,1,1,"NER,MedicalNER,RAKE",True,True,False,False,True,False,3,100.0,7,0,0.0,0.0,3.7333333333333334,0.0,1,1.0,0.95,0.95,0.0,1.0,0,1,33736

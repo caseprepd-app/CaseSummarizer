@@ -83,13 +83,12 @@ def test_algorithms_initialized(extractor):
 
 def test_extract(extractor):
     """Test full extraction pipeline."""
-    # Session 23: Test text updated to have terms appear twice (except PERSON)
-    # PERSON entities are exempt from minimum occurrence filter - they can appear just once
+    # All terms (including PERSON) must appear at least twice to pass min_occurrences=2 filter.
     # Session 57: Removed cardiomyopathy expectation - RAKE min_score=2.0 filters single words
     # (single words score 1.0 in RAKE), and NER only extracts named entities, not medical terms
-    test_text = "The plaintiff, Mr. John Doe, presented with cardiomyopathy. The cardiomyopathy was severe. He visited Dr. Jane Smith at Mayo Clinic for treatment. She referred him to Mayo Clinic's cardiology department. The court delivered its verdict."
+    test_text = "The plaintiff, Mr. John Doe, presented with cardiomyopathy. The cardiomyopathy was severe. He visited Dr. Jane Smith at Mayo Clinic for treatment. Jane Smith referred him to Mayo Clinic's cardiology department. John Doe was satisfied with the care. The court delivered its verdict."
 
-    vocabulary = extractor.extract(test_text)
+    vocabulary, filtered_terms = extractor.extract(test_text)
 
     # Session 52: Changed from Type to Is Person (binary flag)
     # Expected terms with Is Person flag and Role/Relevance
@@ -131,7 +130,7 @@ def test_extract_deduplication(extractor):
     # Session 57: Updated test to use named entities (which NER extracts) instead of
     # single-word medical terms (which RAKE filters due to min_score=2.0 threshold)
     test_text_dup = "Dr. John Smith examined the patient. John Smith recommended surgery. Later, John Smith reviewed the results."
-    vocabulary_dup = extractor.extract(test_text_dup)
+    vocabulary_dup, _filtered = extractor.extract(test_text_dup)
 
     # Expected: "John Smith" should appear only once despite multiple mentions
     found_john_smith = next(
@@ -147,8 +146,8 @@ def test_extract_deduplication(extractor):
 
 def test_quality_score_range(extractor):
     """Test that quality scores are in valid range."""
-    test_text = "Dr. John Smith diagnosed the patient with cardiomyopathy at Memorial Hospital. The cardiomyopathy was severe."
-    vocabulary = extractor.extract(test_text)
+    test_text = "Dr. John Smith diagnosed the patient with cardiomyopathy at Memorial Hospital. The cardiomyopathy was severe. John Smith recommended follow-up."
+    vocabulary, _filtered = extractor.extract(test_text)
 
     for term in vocabulary:
         score = term["Quality Score"]
@@ -157,8 +156,8 @@ def test_quality_score_range(extractor):
 
 def test_sources_column(extractor):
     """Test that Sources column tracks algorithm provenance (Session 25)."""
-    test_text = "Dr. Smith and Dr. Jones consulted on the adenocarcinoma diagnosis. The adenocarcinoma was confirmed."
-    vocabulary = extractor.extract(test_text)
+    test_text = "Dr. Smith and Dr. Jones consulted on the adenocarcinoma diagnosis. The adenocarcinoma was confirmed. Dr. Smith and Dr. Jones agreed on the treatment plan."
+    vocabulary, _filtered = extractor.extract(test_text)
 
     for term in vocabulary:
         sources = term.get("Sources", "")

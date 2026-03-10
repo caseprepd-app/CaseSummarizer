@@ -738,8 +738,13 @@ class ProgressiveExtractionWorker(BaseWorker):
                 status_callback=on_algo_status,
             )
 
-        logger.info("Phase 1 complete: %s terms from local algorithms", len(ner_results))
-        self.ui_queue.put(QueueMessage.ner_complete(ner_results))
+        ner_results, filtered_terms = ner_results
+        logger.info(
+            "Phase 1 complete: %s terms from local algorithms, %s filtered",
+            len(ner_results),
+            len(filtered_terms),
+        )
+        self.ui_queue.put(QueueMessage.ner_complete(ner_results, filtered_terms))
 
         # Signal extraction complete (re-enables feedback buttons)
         self.ui_queue.put(QueueMessage.extraction_complete())
@@ -748,7 +753,7 @@ class ProgressiveExtractionWorker(BaseWorker):
 
         self.send_progress(90, f"Complete: {len(ner_results)} terms extracted")
 
-        # ===== PHASE 2: Q&A Indexing (Fast - ~10-30 seconds) =====
+        # ===== PHASE 2: Q&A Indexing (CPU-only can take 15+ minutes) =====
         # Run in parallel thread
         # Reset Q&A phase state for this execution
         self._qa_succeeded.clear()
@@ -772,8 +777,7 @@ class ProgressiveExtractionWorker(BaseWorker):
             else:
                 self.send_progress(
                     100,
-                    f"Q&A index still building ({wait_minutes}m elapsed, "
-                    "typically takes 1-5 minutes)...",
+                    f"Q&A index still building ({wait_minutes}m elapsed)...",
                 )
             qa_thread.join(timeout=QA_JOIN_TIMEOUT_SECONDS)
             wait_count += 1

@@ -287,28 +287,30 @@ class TestNERCompleteHandler:
         stub = _make_stub()
         stub._pending_tasks = {"vocab": True, "qa": False, "summary": False}
         terms = [{"term": "John Smith"}, {"term": "plaintiff"}]
-        _call_handler(stub, "ner_complete", terms)
-        stub.output_display.update_outputs.assert_called_once_with(vocab_csv_data=terms)
+        _call_handler(stub, "ner_complete", {"vocab": terms, "filtered": []})
+        stub.output_display.update_outputs.assert_called_once_with(
+            vocab_csv_data=terms, filtered_vocab_data=[]
+        )
 
     def test_sets_extraction_source_ner(self):
         """ner_complete sets extraction source to 'ner'."""
         stub = _make_stub()
         stub._pending_tasks = {"vocab": True, "qa": False, "summary": False}
-        _call_handler(stub, "ner_complete", [{"term": "a"}])
+        _call_handler(stub, "ner_complete", {"vocab": [{"term": "a"}], "filtered": []})
         stub.output_display.set_extraction_source.assert_called_once_with("ner")
 
     def test_marks_vocab_completed(self):
         """ner_complete adds 'vocab' to _completed_tasks."""
         stub = _make_stub()
         stub._pending_tasks = {"vocab": True, "qa": False, "summary": False}
-        _call_handler(stub, "ner_complete", [{"term": "a"}])
+        _call_handler(stub, "ner_complete", {"vocab": [{"term": "a"}], "filtered": []})
         assert "vocab" in stub._completed_tasks
 
     def test_status_mentions_search_index_when_qa_pending(self):
         """ner_complete shows search index message when Q&A is pending."""
         stub = _make_stub()
         stub._pending_tasks = {"vocab": True, "qa": True, "summary": False}
-        _call_handler(stub, "ner_complete", [{"term": "a"}])
+        _call_handler(stub, "ner_complete", {"vocab": [{"term": "a"}], "filtered": []})
         call_args = stub.set_status.call_args[0][0]
         assert "search index" in call_args.lower() or "index" in call_args.lower()
 
@@ -316,7 +318,7 @@ class TestNERCompleteHandler:
         """ner_complete shows completion message when no Q&A pending."""
         stub = _make_stub()
         stub._pending_tasks = {"vocab": True, "qa": False, "summary": False}
-        _call_handler(stub, "ner_complete", [{"term": "a"}])
+        _call_handler(stub, "ner_complete", {"vocab": [{"term": "a"}], "filtered": []})
         call_args = stub.set_status.call_args[0][0]
         assert "complete" in call_args.lower()
 
@@ -656,7 +658,9 @@ class TestMessageSequences:
         _call_handler(stub, "partial_vocab_complete", [{"term": "a"}])
         stub.output_display.set_extraction_source.assert_called_with("partial")
 
-        _call_handler(stub, "ner_complete", [{"term": "a"}, {"term": "b"}])
+        _call_handler(
+            stub, "ner_complete", {"vocab": [{"term": "a"}, {"term": "b"}], "filtered": []}
+        )
         stub.output_display.set_extraction_source.assert_called_with("ner")
 
         _call_handler(stub, "extraction_complete", None)
@@ -696,7 +700,7 @@ class TestMessageSequences:
         stub._pending_tasks = {"vocab": True, "qa": True, "summary": False}
 
         # NER complete first - should mark vocab done
-        _call_handler(stub, "ner_complete", [{"term": "a"}])
+        _call_handler(stub, "ner_complete", {"vocab": [{"term": "a"}], "filtered": []})
         assert "vocab" in stub._completed_tasks
 
     def test_error_during_extraction_resets_state(self):

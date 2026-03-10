@@ -129,7 +129,7 @@ class TestForwarderMessageSequence:
         mock_embeddings = MagicMock()
         messages = [
             ("extraction_started", None),
-            ("ner_complete", [{"term": "defendant"}]),
+            ("ner_complete", {"vocab": [{"term": "defendant"}], "filtered": []}),
             ("extraction_complete", None),
             (
                 "qa_ready",
@@ -374,7 +374,7 @@ class TestFullExtractionSequence:
         messages = [
             ("extraction_started", None),
             ("progress", (10, "Phase 1: Running NER...")),
-            ("ner_complete", [{"term": "defendant"}]),
+            ("ner_complete", {"vocab": [{"term": "defendant"}], "filtered": []}),
             ("extraction_complete", None),
             ("progress", (20, "Phase 2: Building Q&A index...")),
             (
@@ -507,7 +507,7 @@ class TestHandlerStateTransitions:
         stub = _make_window_stub()
         stub._pending_tasks = {"vocab": True, "qa": False, "summary": False}
 
-        self._simulate_handler(stub, "ner_complete", [])
+        self._simulate_handler(stub, "ner_complete", {"vocab": [], "filtered": []})
 
         assert "vocab" in stub._completed_tasks
         assert self._all_tasks_complete(stub)
@@ -518,7 +518,7 @@ class TestHandlerStateTransitions:
         stub._pending_tasks = {"vocab": True, "qa": True, "summary": False}
 
         # Phase 1: NER
-        self._simulate_handler(stub, "ner_complete", [])
+        self._simulate_handler(stub, "ner_complete", {"vocab": [], "filtered": []})
         assert not stub._qa_answering_active
 
         # Phase 2: Q&A index ready
@@ -545,7 +545,7 @@ class TestHandlerStateTransitions:
         stub = _make_window_stub()
         stub._pending_tasks = {"vocab": True, "qa": True, "summary": True}
 
-        self._simulate_handler(stub, "ner_complete", [])
+        self._simulate_handler(stub, "ner_complete", {"vocab": [], "filtered": []})
         self._simulate_handler(stub, "qa_ready", {"chunk_count": 10})
         self._simulate_handler(stub, "trigger_default_qa_started", None)
 
@@ -566,7 +566,7 @@ class TestHandlerStateTransitions:
         stub = _make_window_stub()
         stub._pending_tasks = {"vocab": True, "qa": True, "summary": False}
 
-        self._simulate_handler(stub, "ner_complete", [])
+        self._simulate_handler(stub, "ner_complete", {"vocab": [], "filtered": []})
         self._simulate_handler(stub, "qa_error", {"error": "Indexing failed"})
 
         assert "qa" in stub._completed_tasks
@@ -602,7 +602,7 @@ class TestHandlerStateTransitions:
         stub = _make_window_stub()
         stub._pending_tasks = {"vocab": True, "qa": True, "summary": False}
 
-        self._simulate_handler(stub, "ner_complete", [])
+        self._simulate_handler(stub, "ner_complete", {"vocab": [], "filtered": []})
         self._simulate_handler(stub, "qa_ready", {})
         self._simulate_handler(stub, "trigger_default_qa_started", None)
 

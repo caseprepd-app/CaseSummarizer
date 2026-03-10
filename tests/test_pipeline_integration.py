@@ -111,10 +111,11 @@ class TestPreprocessingToVocabulary:
             medical_terms_path=None,
         )
 
-        vocab_data = extractor.extract(DEPOSITION_TEXT, doc_count=1)
+        vocab_data, filtered_terms = extractor.extract(DEPOSITION_TEXT, doc_count=1)
 
         # Should return a list of dicts
         assert isinstance(vocab_data, list)
+        assert isinstance(filtered_terms, list)
         assert len(vocab_data) > 0
 
         # Each entry should have the required columns
@@ -158,7 +159,7 @@ class TestFullPipelineIntegration:
             exclude_list_path=None,
             medical_terms_path=None,
         )
-        vocab_data = vocab_extractor.extract(preprocessed, doc_count=1)
+        vocab_data, _filtered = vocab_extractor.extract(preprocessed, doc_count=1)
 
         # Verify end-to-end results
         assert isinstance(vocab_data, list)

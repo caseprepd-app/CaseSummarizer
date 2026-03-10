@@ -357,8 +357,12 @@ class VocabularyExtractor:
             doc_count,
             doc_confidence,
         )
-        vocabulary = self._post_process(merged_terms, text, doc_count, doc_confidence)
-        logger.debug("After post-process: %s terms", len(vocabulary))
+        vocabulary, filtered_terms = self._post_process(
+            merged_terms, text, doc_count, doc_confidence
+        )
+        logger.debug(
+            "After post-process: %s terms, %s filtered", len(vocabulary), len(filtered_terms)
+        )
 
         # 4. Run vocabulary filter chain
         # Consolidates: name dedup, artifact filter, name regularizer,
@@ -378,7 +382,7 @@ class VocabularyExtractor:
         # 8. Sort vocabulary based on configured method
         vocabulary = self._sort_vocabulary(vocabulary)
 
-        return vocabulary
+        return vocabulary, filtered_terms
 
     def extract_progressive(
         self,
@@ -463,7 +467,9 @@ class VocabularyExtractor:
             if partial_callback is not None and all_results:
                 logger.debug("Sending partial results (BM25+RAKE)...")
                 partial_merged = self.merger.merge(all_results)
-                partial_vocab = self._post_process(partial_merged, text, doc_count, doc_confidence)
+                partial_vocab, _partial_filtered = self._post_process(
+                    partial_merged, text, doc_count, doc_confidence
+                )
                 # Apply lightweight filter chain (skip rarity filter for partial results)
                 # BM25 and RAKE find common keyphrases that rarity filter removes
                 from src.core.vocabulary.filters import create_partial_results_filter_chain
@@ -505,7 +511,9 @@ class VocabularyExtractor:
         merged_terms = self.merger.merge(all_results)
         logger.debug("After merge: %s unique terms", len(merged_terms))
 
-        vocabulary = self._post_process(merged_terms, text, doc_count, doc_confidence)
+        vocabulary, filtered_terms = self._post_process(
+            merged_terms, text, doc_count, doc_confidence
+        )
 
         # Apply filter chain
         from src.core.vocabulary.filters import create_optimized_filter_chain
@@ -520,7 +528,7 @@ class VocabularyExtractor:
         )
 
         vocabulary = self._sort_vocabulary(vocabulary)
-        return vocabulary
+        return vocabulary, filtered_terms
 
     def _run_algorithms_parallel(self, text: str) -> list:
         """
@@ -633,9 +641,13 @@ class VocabularyExtractor:
         full_text: str,
         doc_count: int,
         doc_confidence: float = 100.0,
-    ) -> list[dict[str, str]]:
+    ) -> tuple[list[dict[str, str]], list[dict[str, str]]]:
         """
         Post-process merged terms: categorize, detect roles, add definitions.
+
+        Terms that fail frequency filters are collected into a separate
+        filtered list instead of being discarded, so the UI can show them
+        in a collapsed "Filtered" section.
 
         Args:
             merged_terms: List of MergedTerm from merger
@@ -644,15 +656,21 @@ class VocabularyExtractor:
             doc_confidence: Average/min confidence of source documents (0-100)
 
         Returns:
-            Final vocabulary list with all metadata
+            (vocabulary, filtered_terms) — both are list[dict]
         """
         vocabulary = []
+        filtered_terms = []
         seen_terms = set()
         # Estimate total pages across all docs (~3500 chars per transcript page)
         estimated_pages = max(len(full_text) // 3500, 1) * doc_count
         frequency_threshold = estimated_pages * 5
         # Total unique terms for ML occurrence_ratio feature
         total_unique_terms = len(merged_terms)
+
+        # Read min occurrences once (user pref with config fallback)
+        min_occurrences = get_user_preferences().get(
+            "vocab_min_occurrences", VOCABULARY_MIN_OCCURRENCES
+        )
 
         # Track iteration count for periodic GIL yield
         iteration_count = 0
@@ -667,18 +685,6 @@ class VocabularyExtractor:
             # Determine if NER detected this as a Person entity
             # This is the only reliable type information we track
             is_person = merged.final_type == "Person"
-
-            # Frequency filtering (Person names exempt - they're always relevant)
-            if not is_person and merged.frequency > frequency_threshold:
-                continue
-
-            # Minimum occurrence filtering (Person names exempt)
-            # Read from user preferences with config fallback
-            min_occurrences = get_user_preferences().get(
-                "vocab_min_occurrences", VOCABULARY_MIN_OCCURRENCES
-            )
-            if not is_person and merged.frequency < min_occurrences:
-                continue
 
             # Detect role/relevance using profession-specific profile
             role_relevance = self._get_role_relevance(term, is_person, full_text)
@@ -722,7 +728,6 @@ class VocabularyExtractor:
                 VF.QUALITY_SCORE: base_quality_score,
                 VF.OCCURRENCES: merged.frequency,
                 VF.GOOGLE_RARITY_RANK: frequency_rank,
-                # "Definition": self._get_definition(term, is_person),  # Removed: see Phase 4 comment
                 VF.SOURCES: ",".join(merged.sources),  # Keep for backward compatibility
                 # Per-algorithm detection flags
                 VF.NER: VF.YES if "NER" in sources_upper else VF.NO,
@@ -757,15 +762,24 @@ class VocabularyExtractor:
             final_quality_score = self._apply_ml_boost(term_data, base_quality_score)
             term_data[VF.QUALITY_SCORE] = final_quality_score
 
-            vocabulary.append(term_data)
             seen_terms.add(lower_term)
+
+            # Frequency filters — divert to filtered list instead of discarding
+            if merged.frequency > frequency_threshold:
+                term_data[VF.FILTER_REASON] = "too frequent"
+                filtered_terms.append(term_data)
+            elif merged.frequency < min_occurrences:
+                term_data[VF.FILTER_REASON] = "below min occurrences"
+                filtered_terms.append(term_data)
+            else:
+                vocabulary.append(term_data)
 
             # Yield GIL every 50 terms to keep GUI responsive
             iteration_count += 1
             if iteration_count % 50 == 0:
                 time.sleep(0)
 
-        return vocabulary
+        return vocabulary, filtered_terms
 
     def _get_role_relevance(self, term: str, is_person: bool, full_text: str) -> str:
         """Get role/relevance description for a term."""
@@ -1223,10 +1237,10 @@ class VocabularyExtractor:
             progress_callback: Optional callback(current, total, doc_id)
 
         Returns:
-            Merged vocabulary list[dict] with proper # Docs tracking.
+            (vocabulary, filtered_terms) — both are list[dict]
         """
         if not documents:
-            return []
+            return [], []
 
         # Single doc — no merge needed, just run normally
         if len(documents) == 1:
@@ -1244,8 +1258,10 @@ class VocabularyExtractor:
 
         def _extract_single(doc):
             """Extract vocab from one document (runs in worker thread)."""
-            vocab = self.extract(doc["text"], doc_count=1, doc_confidence=doc["confidence"])
-            return (doc["doc_id"], doc["confidence"], vocab)
+            vocab, filtered = self.extract(
+                doc["text"], doc_count=1, doc_confidence=doc["confidence"]
+            )
+            return (doc["doc_id"], doc["confidence"], vocab, filtered)
 
         # Submit all docs to thread pool
         per_doc_results = []
@@ -1265,8 +1281,21 @@ class VocabularyExtractor:
 
         strategy.shutdown()
 
-        # Merge all doc results
-        return self._merge_multi_doc_results(per_doc_results, len(documents))
+        # Collect filtered terms from all documents (simple dedup by term name)
+        all_filtered = []
+        seen_filtered = set()
+        for _doc_id, _conf, _vocab, filtered in per_doc_results:
+            for term_data in filtered:
+                lower = term_data.get(VF.TERM, "").lower()
+                if lower not in seen_filtered:
+                    seen_filtered.add(lower)
+                    all_filtered.append(term_data)
+
+        # Merge main vocab results (uses only the vocab portion)
+        vocab_results = [(doc_id, conf, vocab) for doc_id, conf, vocab, _f in per_doc_results]
+        merged_vocab = self._merge_multi_doc_results(vocab_results, len(documents))
+
+        return merged_vocab, all_filtered
 
     def _merge_multi_doc_results(self, per_doc_results, total_docs):
         """

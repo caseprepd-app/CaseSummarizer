@@ -52,6 +52,9 @@ class VF:
     FREQUENCY = "Frequency"
     CONFIDENCE = "Confidence"
 
+    # --- Filtered terms ---
+    FILTER_REASON = "Filter Reason"
+
     # --- Standard values ---
     YES = "Yes"
     NO = "No"

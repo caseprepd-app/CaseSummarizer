@@ -963,9 +963,17 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             # candidates need post-processing. The final merged results come with ner_complete.
 
         elif msg_type == "ner_complete":
-            term_count = len(data) if data else 0
-            logger.debug("NER complete: %s terms - displaying immediately", term_count)
-            self.output_display.update_outputs(vocab_csv_data=data)
+            vocab_data = data.get("vocab", []) if isinstance(data, dict) else data
+            filtered_data = data.get("filtered", []) if isinstance(data, dict) else []
+            term_count = len(vocab_data)
+            logger.debug(
+                "NER complete: %s terms, %s filtered - displaying",
+                term_count,
+                len(filtered_data),
+            )
+            self.output_display.update_outputs(
+                vocab_csv_data=vocab_data, filtered_vocab_data=filtered_data
+            )
             self.output_display.set_extraction_source("ner")
 
             # Vocab results are now visible — transition Q&A tab from

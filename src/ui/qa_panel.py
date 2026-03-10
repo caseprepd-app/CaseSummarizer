@@ -354,8 +354,14 @@ class QAPanel(ctk.CTkFrame):
 
     def _on_edit_click(self):
         """Handle Edit Questions button click."""
+        if getattr(self, "_edit_dialog_open", False):
+            return
         if self.on_edit_questions:
-            self.on_edit_questions()
+            self._edit_dialog_open = True
+            try:
+                self.on_edit_questions()
+            finally:
+                self._edit_dialog_open = False
         else:
             messagebox.showinfo(
                 "Edit Questions",

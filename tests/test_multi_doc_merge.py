@@ -441,28 +441,29 @@ class TestExtractDocuments:
 
     def test_empty_documents_returns_empty(self, extractor):
         """No documents -> empty result."""
-        result = extractor.extract_documents([])
-        assert result == []
+        vocab, filtered = extractor.extract_documents([])
+        assert vocab == []
+        assert filtered == []
 
     def test_single_doc_calls_extract(self, extractor):
         """Single document should call extract() directly, not parallel merge."""
         fake_vocab = [_make_term_dict(term="test")]
 
-        with patch.object(extractor, "extract", return_value=fake_vocab) as mock_extract:
-            result = extractor.extract_documents(
+        with patch.object(extractor, "extract", return_value=(fake_vocab, [])) as mock_extract:
+            vocab, filtered = extractor.extract_documents(
                 [{"text": "some text", "doc_id": "doc1", "confidence": 95.0}],
             )
 
         mock_extract.assert_called_once()
-        assert result == fake_vocab
+        assert vocab == fake_vocab
 
     def test_multi_doc_calls_merge(self, extractor):
         """Multiple documents should invoke parallel extraction and merge."""
         fake_vocab = [_make_term_dict(term="test", occurrences=3)]
 
         # Mock extract() to return fake vocab for each doc
-        with patch.object(extractor, "extract", return_value=fake_vocab):
-            result = extractor.extract_documents(
+        with patch.object(extractor, "extract", return_value=(fake_vocab, [])):
+            result, filtered = extractor.extract_documents(
                 [
                     {"text": "text one", "doc_id": "doc1", "confidence": 95.0},
                     {"text": "text two", "doc_id": "doc2", "confidence": 90.0},
@@ -479,7 +480,7 @@ class TestExtractDocuments:
         fake_vocab = [_make_term_dict(term="test")]
         callback = MagicMock()
 
-        with patch.object(extractor, "extract", return_value=fake_vocab):
+        with patch.object(extractor, "extract", return_value=(fake_vocab, [])):
             extractor.extract_documents(
                 [
                     {"text": "text one", "doc_id": "doc1", "confidence": 95.0},
@@ -504,10 +505,10 @@ class TestExtractDocuments:
 
         def fake_extract(text, doc_count=1, doc_confidence=100.0):
             call_count[0] += 1
-            return vocab1 if call_count[0] == 1 else vocab2
+            return (vocab1, []) if call_count[0] == 1 else (vocab2, [])
 
         with patch.object(extractor, "extract", side_effect=fake_extract):
-            result = extractor.extract_documents(
+            result, _filtered = extractor.extract_documents(
                 [
                     {"text": "text one", "doc_id": "doc1", "confidence": 95.0},
                     {"text": "text two", "doc_id": "doc2", "confidence": 90.0},

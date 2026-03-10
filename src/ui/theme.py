@@ -481,6 +481,13 @@ VOCAB_TABLE_TAGS = {
     "found_llm": {"foreground": COLORS["algo_llm"]},
     "oddrow": {"background": COLORS["row_odd"], "foreground": COLORS["row_text"]},
     "evenrow": {"background": COLORS["row_even"], "foreground": COLORS["row_text"]},
+    # Muted rows for filtered/lesser terms section
+    "filtered_oddrow": {"background": COLORS["row_odd"], "foreground": "#888888"},
+    "filtered_evenrow": {"background": COLORS["row_even"], "foreground": "#888888"},
+    "filtered_rated_up_session": {"foreground": COLORS["success"]},
+    "filtered_rated_up_loaded": {"foreground": COLORS["success_light"]},
+    "filtered_rated_down_session": {"foreground": COLORS["danger"]},
+    "filtered_rated_down_loaded": {"foreground": COLORS["danger_light"]},
 }
 
 

@@ -67,6 +67,7 @@ class CorpusDialog(BaseModalDialog):
         self.registry = self._vocab_service.get_corpus_registry()
         self._selected_corpus: str | None = None
         self._corpus_path = None  # Set when corpus is selected
+        self._operation_in_progress = False  # Re-entrancy guard for corpus ops
 
         # Build UI
         self._create_ui()
@@ -478,6 +479,16 @@ class CorpusDialog(BaseModalDialog):
 
     def _new_corpus(self):
         """Create a new corpus."""
+        if self._operation_in_progress:
+            return
+        self._operation_in_progress = True
+        try:
+            self._new_corpus_impl()
+        finally:
+            self._operation_in_progress = False
+
+    def _new_corpus_impl(self):
+        """Implementation of _new_corpus, guarded by _operation_in_progress."""
         # Simple input dialog
         dialog = ctk.CTkInputDialog(text="Enter name for new corpus:", title="New Corpus")
         name = dialog.get_input()
@@ -506,6 +517,16 @@ class CorpusDialog(BaseModalDialog):
 
     def _delete_corpus(self):
         """Delete the selected corpus."""
+        if self._operation_in_progress:
+            return
+        self._operation_in_progress = True
+        try:
+            self._delete_corpus_impl()
+        finally:
+            self._operation_in_progress = False
+
+    def _delete_corpus_impl(self):
+        """Implementation of _delete_corpus, guarded by _operation_in_progress."""
         if not self._selected_corpus:
             messagebox.showwarning("No Selection", "Please select a corpus to delete.")
             return
@@ -533,6 +554,16 @@ class CorpusDialog(BaseModalDialog):
 
     def _combine_corpora(self):
         """Combine selected corpora into a new one."""
+        if self._operation_in_progress:
+            return
+        self._operation_in_progress = True
+        try:
+            self._combine_corpora_impl()
+        finally:
+            self._operation_in_progress = False
+
+    def _combine_corpora_impl(self):
+        """Implementation of _combine_corpora, guarded by _operation_in_progress."""
         # For now, just use all corpora
         corpora = self.registry.list_corpora()
         if len(corpora) < 2:
@@ -600,6 +631,16 @@ class CorpusDialog(BaseModalDialog):
 
     def _add_files(self):
         """Add files to the selected corpus."""
+        if self._operation_in_progress:
+            return
+        self._operation_in_progress = True
+        try:
+            self._add_files_impl()
+        finally:
+            self._operation_in_progress = False
+
+    def _add_files_impl(self):
+        """Implementation of _add_files, guarded by _operation_in_progress."""
         if not self._selected_corpus:
             messagebox.showwarning("No Corpus", "Please select or create a corpus first.")
             return
@@ -678,6 +719,16 @@ class CorpusDialog(BaseModalDialog):
 
     def _preprocess_all(self):
         """Preprocess all pending documents."""
+        if self._operation_in_progress:
+            return
+        self._operation_in_progress = True
+        try:
+            self._preprocess_all_impl()
+        finally:
+            self._operation_in_progress = False
+
+    def _preprocess_all_impl(self):
+        """Implementation of _preprocess_all, guarded by _operation_in_progress."""
         if not self._corpus_path:
             return
 
@@ -696,6 +747,16 @@ class CorpusDialog(BaseModalDialog):
 
     def _remove_files(self):
         """Remove selected documents from corpus."""
+        if self._operation_in_progress:
+            return
+        self._operation_in_progress = True
+        try:
+            self._remove_files_impl()
+        finally:
+            self._operation_in_progress = False
+
+    def _remove_files_impl(self):
+        """Implementation of _remove_files, guarded by _operation_in_progress."""
         selection = self.doc_tree.selection()
         if not selection:
             messagebox.showwarning("No Selection", "Please select documents to remove.")

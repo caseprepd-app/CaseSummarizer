@@ -514,10 +514,11 @@ class TestProgressiveExtractionWorkerQueueMessages:
         from src.ui.queue_messages import QueueMessage
 
         vocab_data = [{"term": "Smith", "type": "Person"}]
-        msg = QueueMessage.ner_complete(vocab_data)
+        filtered = [{"term": "x", "type": "Technical"}]
+        msg = QueueMessage.ner_complete(vocab_data, filtered)
         assert isinstance(msg, tuple)
         assert msg[0] == "ner_complete"
-        assert msg[1] == vocab_data
+        assert msg[1] == {"vocab": vocab_data, "filtered": filtered}
 
     def test_processing_worker_empty_files_sends_finished(self):
         """ProcessingWorker with 0 files sends processing_finished immediately."""
