@@ -348,12 +348,18 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         prefs = get_user_preferences()
         old_model = prefs.get("ollama_model", self.model_manager.model_name)
 
+        dialog = None
         try:
             dialog = SettingsDialog(parent=self, initial_tab="AI Model")
             dialog.wait_window()
         except Exception as e:
             logger.warning("Failed to open settings dialog: %s", e)
             self.set_status_error("Settings dialog failed to open. Try again.")
+            if dialog is not None:
+                try:
+                    dialog.destroy()
+                except Exception:
+                    pass
         finally:
             self._settings_dialog_open = False
 
@@ -454,12 +460,18 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
 
         from src.ui.settings import SettingsDialog
 
+        dialog = None
         try:
             dialog = SettingsDialog(parent=self, initial_tab="Corpus")
             dialog.wait_window()
         except Exception as e:
             logger.warning("Failed to open settings dialog: %s", e)
             self.set_status_error("Settings dialog failed to open. Try again.")
+            if dialog is not None:
+                try:
+                    dialog.destroy()
+                except Exception:
+                    pass
         finally:
             self._settings_dialog_open = False
 
@@ -2332,12 +2344,18 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         prefs = get_user_preferences()
         font_size_before = prefs.get("font_size", "medium")
 
+        dialog = None
         try:
             dialog = SettingsDialog(parent=self)
             dialog.wait_window()
         except Exception as e:
             logger.warning("Failed to open settings dialog: %s", e)
             self.set_status_error("Settings dialog failed to open. Try again.")
+            if dialog is not None:
+                try:
+                    dialog.destroy()
+                except Exception:
+                    pass
         finally:
             self._settings_dialog_open = False
 

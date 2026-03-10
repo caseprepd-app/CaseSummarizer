@@ -109,7 +109,7 @@ class CorpusSettingsWidget(ctk.CTkFrame):
             edu_frame,
             text="✓ 100% local and offline - never leaves your machine",
             font=FONTS["body"],
-            text_color=(COLORS["success"], COLORS["success_light"]),
+            text_color=COLORS["success"],
             anchor="w",
         )
         check1.pack(anchor="w", padx=15, pady=(0, 2))
@@ -118,7 +118,7 @@ class CorpusSettingsWidget(ctk.CTkFrame):
             edu_frame,
             text="✓ Powers the BM25 vocabulary algorithm",
             font=FONTS["body"],
-            text_color=(COLORS["success"], COLORS["success_light"]),
+            text_color=COLORS["success"],
             anchor="w",
         )
         check2.pack(anchor="w", padx=15, pady=(0, 10))
@@ -196,13 +196,13 @@ class CorpusSettingsWidget(ctk.CTkFrame):
             if doc_count >= CORPUS_MIN_DOCUMENTS:
                 self.bm25_status_label.configure(
                     text=f"• BM25 Algorithm: ✓ Active ({doc_count}/{CORPUS_MIN_DOCUMENTS}+ documents)",
-                    text_color=(COLORS["success"], COLORS["success_light"]),
+                    text_color=COLORS["success"],
                 )
             else:
                 needed = CORPUS_MIN_DOCUMENTS - doc_count
                 self.bm25_status_label.configure(
                     text=f"• BM25 Algorithm: ○ Inactive (need {needed} more documents)",
-                    text_color=(COLORS["warning"], COLORS["warning"]),
+                    text_color=COLORS["warning"],
                 )
 
         except Exception as e:

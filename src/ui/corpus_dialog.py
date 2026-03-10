@@ -133,7 +133,7 @@ class CorpusDialog(BaseModalDialog):
             privacy_frame,
             text="✓ 100% local and offline - never leaves your machine",
             font=FONTS["body"],
-            text_color=(COLORS["success"], COLORS["success_light"]),
+            text_color=COLORS["success"],
         )
         check1.pack(anchor="w")
 
@@ -145,7 +145,7 @@ class CorpusDialog(BaseModalDialog):
             link_frame,
             text="✓ Powers the BM25 vocabulary algorithm",
             font=FONTS["body"],
-            text_color=(COLORS["success"], COLORS["success_light"]),
+            text_color=COLORS["success"],
         )
         check2.pack(side="left")
 
