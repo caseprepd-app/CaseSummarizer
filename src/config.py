@@ -282,32 +282,10 @@ OCR_PREPROCESSING_ENABLED = True  # Enable image preprocessing before OCR
 OCR_DENOISE_STRENGTH = _d("ocr_denoise_strength")
 OCR_ENABLE_CLAHE = _d("ocr_enable_clahe")
 
-# AI Model Configuration
-OLLAMA_API_BASE = "http://localhost:11434"  # Default Ollama API endpoint
-OLLAMA_MODEL_NAME = ""  # No default — user selects via Ollama GUI, app persists last choice
-OLLAMA_MODEL_FALLBACK = ""  # No fallback — user must select a model
-OLLAMA_TIMEOUT_SECONDS = _d("ollama_timeout_seconds")
+# Queue timeout for multiprocessing operations
 QUEUE_TIMEOUT_SECONDS = 2.0  # Timeout for multiprocessing queue operations
 
 GPU_DETECTION_TIMEOUT = 15  # Seconds for GPU/VRAM detection via WMI
-
-# Ollama Streaming Heartbeat Timeouts
-# Max silence (seconds) between streaming chunks before assuming Ollama crashed.
-# The longest legitimate gap is time-to-first-token (prompt eval + cold model load).
-OLLAMA_STREAM_READ_TIMEOUT_GPU = 300  # 5 min max silence between chunks (GPU)
-OLLAMA_STREAM_READ_TIMEOUT_CPU = 900  # 15 min max silence between chunks (CPU-only)
-
-# Ollama Model Keep-Alive
-# Controls how long Ollama keeps a model loaded in VRAM after the last request.
-OLLAMA_KEEP_ALIVE_ACTIVE = "-1"  # Keep model in VRAM indefinitely during processing
-OLLAMA_KEEP_ALIVE_UNLOAD = 0  # Unload immediately when processing complete
-
-# Context Window Configuration
-# Dynamically set based on GPU VRAM via user preferences.
-# This constant is only used as a fallback if user preferences are unavailable.
-# Actual context size is determined by: user_preferences.get_effective_context_size()
-# which auto-detects optimal size based on VRAM (4K-64K range).
-OLLAMA_CONTEXT_WINDOW = 4000  # Fallback default (conservative, CPU-safe)
 
 # --- New Model Configuration System ---
 MODEL_CONFIG_FILE = BUNDLED_CONFIG_DIR / "models.yaml"

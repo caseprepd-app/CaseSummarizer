@@ -7,7 +7,7 @@ The vocabulary display uses an Excel-like Treeview with frozen headers
 and right-click context menu for excluding terms from future extractions.
 
 Tab navigation uses CTkTabview with three persistent tabs:
-"Vocabulary" | "Questions" | "Summary". Tab switching uses frame
+"Vocabulary" | "Search" | "Key Sentences". Tab switching uses frame
 stacking (tkraise) with no widget recreation; all content is preserved
 across tab switches (scroll position, state).
 
@@ -87,15 +87,15 @@ class DynamicOutputWidget(ctk.CTkFrame):
         self.grid_columnconfigure(0, weight=1)
         self.grid_rowconfigure(0, weight=1)  # Tab view gets all space
 
-        # Create tabview with three tabs: Vocabulary, Questions, Summary
+        # Create tabview with tabs: Document, Vocabulary, Search, Key Sentences
         self.tabview = ctk.CTkTabview(self)
         self.tabview.grid(row=0, column=0, sticky="nsew", padx=5, pady=5)
 
         # Create tabs — Document first (matches pipeline flow: input → results)
         self.tabview.add("Document")
         self.tabview.add("Vocabulary")
-        self.tabview.add("Questions")
-        self.tabview.add("Summary")
+        self.tabview.add("Search")
+        self.tabview.add("Key Sentences")
 
         # Bind tab change to show/hide appropriate button bar
         self.tabview.configure(command=self._on_tab_changed)
@@ -105,10 +105,10 @@ class DynamicOutputWidget(ctk.CTkFrame):
         self.tabview.tab("Document").grid_rowconfigure(0, weight=1)
         self.tabview.tab("Vocabulary").grid_columnconfigure(0, weight=1)
         self.tabview.tab("Vocabulary").grid_rowconfigure(0, weight=1)
-        self.tabview.tab("Questions").grid_columnconfigure(0, weight=1)
-        self.tabview.tab("Questions").grid_rowconfigure(0, weight=1)
-        self.tabview.tab("Summary").grid_columnconfigure(0, weight=1)
-        self.tabview.tab("Summary").grid_rowconfigure(0, weight=1)
+        self.tabview.tab("Search").grid_columnconfigure(0, weight=1)
+        self.tabview.tab("Search").grid_rowconfigure(0, weight=1)
+        self.tabview.tab("Key Sentences").grid_columnconfigure(0, weight=1)
+        self.tabview.tab("Key Sentences").grid_rowconfigure(0, weight=1)
 
         # Document Tab: Preview panel for extracted text
         from src.ui.document_preview_panel import DocumentPreviewPanel
@@ -176,7 +176,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
         # Q&A Tab: Status placeholder (shown when no results) + Q&A panel
         # See: https://github.com/TomSchimansky/CustomTkinter/issues/1508
         self._qa_status_label = ctk.CTkLabel(
-            self.tabview.tab("Questions"),
+            self.tabview.tab("Search"),
             text="",
             font=FONTS["body"],
             text_color=COLORS["text_secondary"],
@@ -185,13 +185,13 @@ class DynamicOutputWidget(ctk.CTkFrame):
         )
         self._qa_status_label.grid(row=0, column=0, sticky="nsew", padx=20, pady=50)
 
-        self._qa_panel = QAPanel(self.tabview.tab("Questions"))
+        self._qa_panel = QAPanel(self.tabview.tab("Search"))
         self._qa_panel.grid(row=0, column=0, sticky="nsew")
         self._qa_panel.grid_remove()  # Hidden initially, shown when results arrive
 
         # Summary Tab: Status placeholder (shown when no summary) + textbox
         self._summary_status_label = ctk.CTkLabel(
-            self.tabview.tab("Summary"),
+            self.tabview.tab("Key Sentences"),
             text="",
             font=FONTS["body"],
             text_color=COLORS["text_secondary"],
@@ -200,19 +200,21 @@ class DynamicOutputWidget(ctk.CTkFrame):
         )
         self._summary_status_label.grid(row=1, column=0, sticky="nsew", padx=20, pady=50)
 
-        self.summary_text_display = ctk.CTkTextbox(self.tabview.tab("Summary"), wrap="word")
+        self.summary_text_display = ctk.CTkTextbox(self.tabview.tab("Key Sentences"), wrap="word")
         self.summary_text_display.grid(row=1, column=0, sticky="nsew", padx=5, pady=5)
         self.summary_text_display.grid_remove()  # Hidden initially, shown when summary arrives
 
         # Inline find bar for Summary tab (hidden by default)
         from src.ui.text_find_bar import TextFindBar
 
-        self._summary_find_bar = TextFindBar(self.tabview.tab("Summary"), self.summary_text_display)
+        self._summary_find_bar = TextFindBar(
+            self.tabview.tab("Key Sentences"), self.summary_text_display
+        )
         self._summary_find_bar.grid(row=0, column=0, sticky="ew", padx=5, pady=(2, 0))
         self._summary_find_bar.grid_remove()
 
         # Summary tab row 1 (textbox) expands
-        self.tabview.tab("Summary").grid_rowconfigure(1, weight=1)
+        self.tabview.tab("Key Sentences").grid_rowconfigure(1, weight=1)
 
         # Initialize tab status messages
         self._update_tab_status_messages()
@@ -262,8 +264,8 @@ class DynamicOutputWidget(ctk.CTkFrame):
         # Internal storage for outputs
         self._outputs = {
             "Names & Vocabulary": [],  # Primary output - people + terms
-            "Questions": [],  # Q&A results (replaces "Q&A Results")
-            "Summary": "",  # Combined summary (replaces "Meta-Summary")
+            "Search": [],  # Q&A results (replaces "Q&A Results")
+            "Key Sentences": "",  # Combined summary (replaces "Meta-Summary")
             # Backward compatibility keys
             "Meta-Summary": "",
             "Rare Word List (CSV)": [],
@@ -313,9 +315,9 @@ class DynamicOutputWidget(ctk.CTkFrame):
             active_tab = self.tabview.get()
             if active_tab == "Document":
                 self._document_panel.show_find_bar()
-            elif active_tab == "Questions":
+            elif active_tab == "Search":
                 self._qa_panel.show_find_bar()
-            elif active_tab == "Summary":
+            elif active_tab == "Key Sentences":
                 self._summary_find_bar.show()
             # Names & Vocab tab has its own filter bar — no-op
             return "break"
@@ -506,12 +508,12 @@ class DynamicOutputWidget(ctk.CTkFrame):
         # Show/hide main window's follow-up frame based on tab
         main_window = self.winfo_toplevel()
         if hasattr(main_window, "followup_frame"):
-            if current_tab == "Questions":
+            if current_tab == "Search":
                 main_window.followup_frame.grid(row=2, column=0, sticky="ew", padx=10, pady=(0, 10))
             else:
                 main_window.followup_frame.grid_remove()
 
-        if current_tab in ("Questions", "Document"):
+        if current_tab in ("Search", "Document"):
             # Hide shared button bar - QAPanel has its own, Document is read-only
             self.button_frame.grid_remove()
         else:
@@ -1145,8 +1147,8 @@ class DynamicOutputWidget(ctk.CTkFrame):
         # Clear internal data storage (must match __init__ structure)
         self._outputs = {
             "Names & Vocabulary": [],  # Primary output
-            "Questions": [],  # Q&A results
-            "Summary": "",  # Combined summary
+            "Search": [],  # Q&A results
+            "Key Sentences": "",  # Combined summary
             # Backward compatibility keys
             "Meta-Summary": "",
             "Rare Word List (CSV)": [],
@@ -1208,15 +1210,15 @@ class DynamicOutputWidget(ctk.CTkFrame):
         if names_vocab_data is not None:
             self._outputs["Names & Vocabulary"] = names_vocab_data
         if summary_text:
-            self._outputs["Summary"] = summary_text
+            self._outputs["Key Sentences"] = summary_text
         if extraction_source:
             self._extraction_source = extraction_source
 
         # Legacy support
         if meta_summary:
             self._outputs["Meta-Summary"] = meta_summary
-            if not self._outputs.get("Summary"):
-                self._outputs["Summary"] = meta_summary
+            if not self._outputs.get("Key Sentences"):
+                self._outputs["Key Sentences"] = meta_summary
         if vocab_csv_data is not None:
             self._outputs["Rare Word List (CSV)"] = vocab_csv_data
             if self._outputs.get("Names & Vocabulary") is None:
@@ -1225,7 +1227,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
             self._document_summaries.update(document_summaries)
         if qa_results is not None:
             self._outputs["Q&A Results"] = qa_results
-            self._outputs["Questions"] = qa_results
+            self._outputs["Search"] = qa_results
         if filtered_vocab_data is not None:
             self._filtered_vocab_data_raw = filtered_vocab_data
 
@@ -1246,13 +1248,13 @@ class DynamicOutputWidget(ctk.CTkFrame):
             self._display_filtered_section(self._filtered_vocab_data_raw)
             self._update_progress_badge(self._extraction_source)
 
-        # Q&A tab
-        qa_data = self._outputs.get("Questions") or self._outputs.get("Q&A Results")
+        # Search tab
+        qa_data = self._outputs.get("Search") or self._outputs.get("Q&A Results")
         if qa_data:
             self._display_qa_results(qa_data)
 
-        # Summary tab
-        summary = self._outputs.get("Summary") or self._outputs.get("Meta-Summary")
+        # Key Sentences tab
+        summary = self._outputs.get("Key Sentences") or self._outputs.get("Meta-Summary")
         if summary:
             self.summary_text_display.delete("0.0", "end")
             self.summary_text_display.insert("0.0", summary)
@@ -1276,8 +1278,8 @@ class DynamicOutputWidget(ctk.CTkFrame):
             current_tab = self.tabview.get()
             has_qa = bool(qa_data)
             has_summary = bool(summary) or bool(self._document_summaries)
-            stay_on_current = (current_tab == "Questions" and has_qa) or (
-                current_tab == "Summary" and has_summary
+            stay_on_current = (current_tab == "Search" and has_qa) or (
+                current_tab == "Key Sentences" and has_summary
             )
             if not stay_on_current:
                 self.tabview.set("Vocabulary")
@@ -2375,12 +2377,12 @@ class DynamicOutputWidget(ctk.CTkFrame):
         if current_tab == "Vocabulary":
             data = self._get_filtered_vocab_data()
             return self._build_vocab_csv(data)
-        elif current_tab == "Questions":
+        elif current_tab == "Search":
             # Get export content from QAPanel if available
             if self._qa_panel is not None:
                 return self._qa_panel.get_export_content()
             return ""
-        elif current_tab == "Summary":
+        elif current_tab == "Key Sentences":
             # Return text from summary display
             return self.summary_text_display.get("0.0", "end").strip()
         return ""
@@ -2416,7 +2418,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
                 main_window.set_status(
                     f"Copied {len(filtered_data)} terms to clipboard", duration_ms=5000
                 )
-            elif current_tab == "Summary":
+            elif current_tab == "Key Sentences":
                 main_window.set_status("Copied summary to clipboard", duration_ms=5000)
         else:
             messagebox.showwarning("Empty", "No content to copy.")
@@ -2436,10 +2438,10 @@ class DynamicOutputWidget(ctk.CTkFrame):
         if current_tab == "Vocabulary":
             default_filename = "names_vocabulary.csv"
             filetypes = [("CSV Files", "*.csv"), ("All Files", "*.*")]
-        elif current_tab == "Questions":
+        elif current_tab == "Search":
             default_filename = "qa_results.txt"
             filetypes = [("Text Files", "*.txt"), ("All Files", "*.*")]
-        elif current_tab == "Summary":
+        elif current_tab == "Key Sentences":
             default_filename = "summary.txt"
             filetypes = [("Text Files", "*.txt"), ("All Files", "*.*")]
 
@@ -2497,9 +2499,9 @@ class DynamicOutputWidget(ctk.CTkFrame):
                 main_window.set_status(
                     f"Saved {len(filtered_data)} terms to {filename}", duration_ms=5000
                 )
-            elif current_tab == "Questions":
+            elif current_tab == "Search":
                 main_window.set_status(f"Saved Q&A results to {filename}", duration_ms=5000)
-            elif current_tab == "Summary":
+            elif current_tab == "Key Sentences":
                 main_window.set_status(f"Saved summary to {filename}", duration_ms=5000)
 
     def _export_vocab(self, format_key: str):

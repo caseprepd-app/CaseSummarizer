@@ -36,7 +36,7 @@ def _make_main_window_stub():
     stub._qa_answering_active = False
     stub._qa_results = []
     stub._qa_results_lock = threading.Lock()
-    stub._pending_tasks = {"vocab": True, "qa": True, "summary": False}
+    stub._pending_tasks = {"vocab": True, "qa": True}
     stub._completed_tasks = set()
     stub._vector_store_path = None
     stub.processing_results = [{"filename": "test.pdf"}]
@@ -55,8 +55,6 @@ def _make_main_window_stub():
     stub.generate_btn = MagicMock()
     stub.add_files_btn = MagicMock()
     stub.task_preview_label = MagicMock()
-    stub.qa_check = MagicMock()
-    stub.qa_check.get.return_value = True
     stub.vocab_check = MagicMock()
     stub.vocab_check.get.return_value = True
     stub.export_all_btn = MagicMock()
@@ -298,27 +296,6 @@ class TestBug6CrashRecoveryFollowup:
 
 class TestBug7DialogExceptions:
     """Dialog exceptions should log warning and show status error."""
-
-    def test_settings_dialog_error_logs_warning(self):
-        """_open_model_settings catches dialog error and sets status error."""
-        stub = _make_main_window_stub()
-        stub.model_manager = MagicMock()
-        stub.model_manager.model_name = "test-model"
-
-        from src.ui.main_window import MainWindow
-
-        with (
-            patch("src.user_preferences.get_user_preferences") as mock_prefs,
-            patch(
-                "src.ui.settings.settings_dialog.SettingsDialog",
-                side_effect=RuntimeError("Widget error"),
-            ),
-        ):
-            mock_prefs.return_value = MagicMock()
-            mock_prefs.return_value.get.return_value = "test-model"
-            MainWindow._open_model_settings(stub)
-
-        stub.set_status_error.assert_called_with("Settings dialog failed to open. Try again.")
 
     def test_corpus_dialog_error_logs_warning(self):
         """_open_corpus_dialog catches dialog error and sets status error."""

@@ -12,7 +12,7 @@ Covers:
 
 import threading
 from pathlib import Path
-from unittest.mock import MagicMock, call
+from unittest.mock import MagicMock
 
 from src.ui.main_window import MainWindow
 
@@ -300,113 +300,4 @@ class TestResizeInitState:
 # ===========================================================================
 
 
-class TestBatchedSummaryInsertion:
-    """Test that document summaries are inserted with a single .insert() call."""
-
-    def _make_mock_output(self):
-        """Create a mock DynamicOutputWidget with attributes for _refresh_tabs."""
-        from src.ui.dynamic_output import DynamicOutputWidget
-
-        w = DynamicOutputWidget.__new__(DynamicOutputWidget)
-        w._outputs = {}
-        w._document_summaries = {}
-        w._extraction_source = None
-        w.summary_text_display = MagicMock()
-        w.tabview = MagicMock()
-        w.tabview.get.return_value = "Summary"
-        w._qa_status_label = MagicMock()
-        w._summary_status_label = MagicMock()
-        w._workflow_phase = MagicMock()
-        w.winfo_toplevel = MagicMock()
-        w.show_summary_content = MagicMock()
-        w._display_csv = MagicMock()
-        w._display_qa_results = MagicMock()
-        w._update_progress_badge = MagicMock()
-        return w
-
-    def _call_refresh(self, w):
-        """Call _refresh_tabs on the mock widget."""
-        from src.ui.dynamic_output import DynamicOutputWidget
-
-        DynamicOutputWidget._refresh_tabs(w)
-
-    def test_single_insert_for_multiple_documents(self):
-        """Multiple document summaries should use exactly one .insert() call."""
-        w = self._make_mock_output()
-        w._outputs = {"Summary": "Overall summary text."}
-        w._document_summaries = {
-            "complaint.pdf": "The plaintiff alleges negligence.",
-            "answer.pdf": "The defendant denies all claims.",
-            "motion.pdf": "Motion for summary judgment.",
-        }
-
-        self._call_refresh(w)
-
-        # Summary tab: one delete + one insert for main summary + one insert for docs
-        insert_calls = w.summary_text_display.insert.call_args_list
-
-        # First insert: the main summary at "0.0"
-        assert insert_calls[0] == call("0.0", "Overall summary text.")
-
-        # Second insert: all document summaries batched into one call at "end"
-        doc_insert = insert_calls[1]
-        assert doc_insert[0][0] == "end"
-        inserted_text = doc_insert[0][1]
-
-        # Verify it's a single string containing all documents
-        assert "INDIVIDUAL DOCUMENT SUMMARIES" in inserted_text
-        assert "complaint.pdf:" in inserted_text
-        assert "answer.pdf:" in inserted_text
-        assert "motion.pdf:" in inserted_text
-        assert "The plaintiff alleges negligence." in inserted_text
-
-        # Only 2 insert calls total (main summary + batched docs)
-        assert len(insert_calls) == 2
-
-    def test_no_insert_when_no_document_summaries(self):
-        """No doc summary insert when _document_summaries is empty."""
-        w = self._make_mock_output()
-        w._outputs = {"Summary": "Overall summary."}
-        w._document_summaries = {}
-
-        self._call_refresh(w)
-
-        insert_calls = w.summary_text_display.insert.call_args_list
-        # Only the main summary insert
-        assert len(insert_calls) == 1
-        assert insert_calls[0] == call("0.0", "Overall summary.")
-
-    def test_document_summaries_sorted_alphabetically(self):
-        """Document summaries should appear in alphabetical order."""
-        w = self._make_mock_output()
-        w._outputs = {}
-        w._document_summaries = {
-            "zebra.pdf": "Z summary",
-            "alpha.pdf": "A summary",
-            "middle.pdf": "M summary",
-        }
-
-        self._call_refresh(w)
-
-        insert_calls = w.summary_text_display.insert.call_args_list
-        assert len(insert_calls) == 1  # Only the batched doc insert (no main summary)
-        inserted_text = insert_calls[0][0][1]
-
-        # Verify alphabetical order
-        alpha_pos = inserted_text.index("alpha.pdf")
-        middle_pos = inserted_text.index("middle.pdf")
-        zebra_pos = inserted_text.index("zebra.pdf")
-        assert alpha_pos < middle_pos < zebra_pos
-
-    def test_batched_text_has_separator_and_header(self):
-        """Batched insert should contain separator lines and header."""
-        w = self._make_mock_output()
-        w._outputs = {}
-        w._document_summaries = {"doc.pdf": "Summary content"}
-
-        self._call_refresh(w)
-
-        inserted_text = w.summary_text_display.insert.call_args_list[0][0][1]
-        assert "=" * 50 in inserted_text
-        assert "INDIVIDUAL DOCUMENT SUMMARIES" in inserted_text
-        assert "doc.pdf:\nSummary content" in inserted_text
+# TestBatchedSummaryInsertion removed — LLM summary display deprecated

@@ -82,10 +82,6 @@ class TestDynamicOutputWidgetWorkflowMethods:
         dynamic_output_widget.set_tab_status_config(qa_enabled=False)
         assert dynamic_output_widget._tab_status_config.qa_enabled is False
 
-        # Check that label shows disabled message
-        qa_text = dynamic_output_widget._qa_status_label.cget("text")
-        assert "Q&A is disabled" in qa_text
-
     def test_set_tab_status_config_summary_kwarg_ignored(self, dynamic_output_widget):
         """set_tab_status_config with summary_enabled kwarg should not crash."""
         # Backward compatibility: summary_enabled kwarg is accepted via **kwargs
@@ -169,16 +165,7 @@ class TestWorkflowPhaseTransitions:
         dynamic_output_widget.set_workflow_phase(WorkflowPhase.QA_ANSWERING)
 
         qa_text = dynamic_output_widget._qa_status_label.cget("text")
-        assert "Answering questions" in qa_text
-
-    def test_to_summary_running(self, dynamic_output_widget):
-        """Transition to SUMMARY_RUNNING."""
-        from src.ui.workflow_status import WorkflowPhase
-
-        dynamic_output_widget.set_workflow_phase(WorkflowPhase.SUMMARY_RUNNING)
-
-        summary_text = dynamic_output_widget._summary_status_label.cget("text")
-        assert "AI summary" in summary_text or "Generating" in summary_text
+        assert "Running searches" in qa_text
 
     def test_to_complete(self, dynamic_output_widget):
         """Transition to COMPLETE."""
@@ -233,31 +220,11 @@ class TestStatusLabelVisibility:
 class TestConfigAndPhaseInteraction:
     """Test interaction between config changes and phase changes."""
 
-    def test_disabled_qa_ignores_phase(self, dynamic_output_widget):
-        """When Q&A is disabled, status should show disabled regardless of phase."""
+    def test_phase_change_updates_qa_message(self, dynamic_output_widget):
+        """Changing phase should update the search tab message."""
         from src.ui.workflow_status import WorkflowPhase
 
-        dynamic_output_widget.set_tab_status_config(qa_enabled=False)
-
-        for phase in [
-            WorkflowPhase.IDLE,
-            WorkflowPhase.VOCAB_RUNNING,
-            WorkflowPhase.QA_ANSWERING,
-        ]:
-            dynamic_output_widget.set_workflow_phase(phase)
-            qa_text = dynamic_output_widget._qa_status_label.cget("text")
-            assert "Q&A is disabled" in qa_text
-
-    def test_enabling_qa_updates_to_current_phase(self, dynamic_output_widget):
-        """Enabling Q&A should show message for current phase."""
-        from src.ui.workflow_status import WorkflowPhase
-
-        # Start with Q&A disabled in VOCAB_RUNNING phase
-        dynamic_output_widget.set_tab_status_config(qa_enabled=False)
         dynamic_output_widget.set_workflow_phase(WorkflowPhase.VOCAB_RUNNING)
-
-        # Enable Q&A - should now show vocab running message
-        dynamic_output_widget.set_tab_status_config(qa_enabled=True)
         qa_text = dynamic_output_widget._qa_status_label.cget("text")
         assert "Vocabulary extraction in progress" in qa_text
 

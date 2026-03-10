@@ -226,17 +226,6 @@ class TestSettingsDialogGuard:
         # Verify no dialog-related calls happened
         stub._refresh_corpus_dropdown.assert_not_called()
 
-    def test_open_model_settings_rejects_when_open(self):
-        """Double-click on model configure is ignored."""
-        stub = _make_stub()
-        stub._settings_dialog_open = True
-
-        from src.ui.main_window import MainWindow
-
-        MainWindow._open_model_settings(stub)
-
-        stub._refresh_corpus_dropdown.assert_not_called()
-
     def test_open_corpus_dialog_rejects_when_open(self):
         """Double-click on manage corpus is ignored."""
         stub = _make_stub()

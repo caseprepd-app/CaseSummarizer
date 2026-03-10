@@ -10,7 +10,7 @@ Covers:
 - Q&A constants (qa_constants.py)
 """
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 # ============================================================================
 # A. Answer Generator — Extraction Mode
@@ -22,10 +22,10 @@ class TestAnswerGeneratorExtraction:
 
     def test_init_extraction_mode(self):
         """Creates generator in extraction mode."""
-        from src.core.qa.answer_generator import AnswerGenerator, AnswerMode
+        from src.core.qa.answer_generator import AnswerGenerator
 
         gen = AnswerGenerator(mode="extraction")
-        assert gen.mode == AnswerMode.EXTRACTION
+        assert gen is not None
 
     def test_empty_context_returns_unanswered(self):
         """Empty context returns unanswered text."""
@@ -98,31 +98,13 @@ class TestAnswerGeneratorExtraction:
         assert gen._clean_sentence("Hello world.") == "Hello world."
         assert gen._clean_sentence("Hello world!") == "Hello world!"
 
-    def test_set_mode(self):
-        """Mode can be changed after initialization."""
-        from src.core.qa.answer_generator import AnswerGenerator, AnswerMode
-
-        gen = AnswerGenerator(mode="extraction")
-        gen.set_mode("ollama")
-        assert gen.mode == AnswerMode.OLLAMA
-
-
-class TestAnswerGeneratorOllamaFallback:
-    """Tests for Ollama mode fallback behavior."""
-
-    def test_ollama_not_connected_falls_back(self):
-        """Falls back to extraction when Ollama isn't running."""
+    def test_set_mode_is_noop(self):
+        """set_mode is a no-op (always extraction)."""
         from src.core.qa.answer_generator import AnswerGenerator
 
-        gen = AnswerGenerator(mode="ollama")
-        gen._ollama_manager = MagicMock()
-        gen._ollama_manager.is_connected = False
-
-        context = "The plaintiff is John Smith. He filed a personal injury complaint."
-        answer = gen.generate("Who is the plaintiff in this case?", context)
-        # Should fall back to extraction and find relevant content
-        assert len(answer) > 0
-        assert answer != "No relevant information found in the documents."
+        gen = AnswerGenerator(mode="extraction")
+        gen.set_mode("ollama")  # Should not crash
+        # Always uses extraction regardless
 
 
 # ============================================================================

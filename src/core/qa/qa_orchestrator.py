@@ -1,19 +1,19 @@
 """
-Q&A Orchestrator for CasePrepd.
+Semantic Search Orchestrator for CasePrepd.
 
-Coordinates the Q&A process: loading questions, performing vector search,
-and generating answers. Manages the list of QAResult objects for display
-and export.
+Coordinates the search process: loading questions, performing vector search,
+and generating answers via extraction. Manages the list of QAResult objects
+for display and export.
 
 Architecture:
 - Loads default questions from qa_questions.yaml
 - Uses QARetriever for FAISS similarity search
-- Uses AnswerGenerator for answer generation (extraction or Ollama)
+- Uses AnswerGenerator for extraction-based answer generation
 - Tracks include_in_export flag for selective export
 
 Integration:
 - Used by QAWorker for background processing
-- Results displayed in QAPanel UI widget
+- Results displayed in Search tab UI widget
 - Exportable to TXT with checkbox-based selection
 """
 
@@ -68,7 +68,7 @@ class QAResult:
     """
 
     question: str
-    quick_answer: str = ""  # AI-synthesized answer from Ollama
+    quick_answer: str = ""  # Extraction-based answer from retrieved chunks
     citation: str = ""  # Raw retrieved text from BM25+/vector search
     include_in_export: bool = True
     source_summary: str = ""
@@ -161,26 +161,26 @@ class QAOrchestrator:
         questions_path: Path | None = None,
     ):
         """
-        Initialize Q&A orchestrator.
+        Initialize semantic search orchestrator.
 
         Args:
             vector_store_path: Path to FAISS index directory
             embeddings: HuggingFaceEmbeddings model for query encoding
-            answer_mode: "extraction" (fast, from context) or "ollama" (LLM-generated)
+            answer_mode: Ignored (kept for backward compat). Always uses extraction.
             questions_path: Path to questions YAML (default: config/qa_questions.yaml)
         """
         self.vector_store_path = Path(vector_store_path)
         self.embeddings = embeddings
-        self.answer_mode = answer_mode
+        self.answer_mode = "extraction"
         self.questions_path = questions_path or DEFAULT_QUESTIONS_PATH
 
         # Initialize retriever
         self.retriever = QARetriever(self.vector_store_path, self.embeddings)
 
-        # Initialize answer generator (lazy import to avoid circular deps)
+        # Initialize answer generator (extraction mode only)
         from src.core.qa.answer_generator import AnswerGenerator
 
-        self.answer_generator = AnswerGenerator(mode=answer_mode)
+        self.answer_generator = AnswerGenerator()
 
         # Results storage
         self.results: list[QAResult] = []
@@ -193,7 +193,6 @@ class QAOrchestrator:
         self._load_questions()
 
         logger.debug("Initialized with %d questions", len(self._questions))
-        logger.debug("Answer mode: %s", answer_mode)
 
     def _load_questions(self) -> None:
         """Load question definitions from YAML config."""
@@ -318,7 +317,7 @@ class QAOrchestrator:
 
         Produces CSV-style output with:
         - citation: Raw text from BM25+/vector retrieval (always populated)
-        - quick_answer: AI-synthesized answer from Ollama (or fallback)
+        - quick_answer: Extraction-based answer from retrieved chunks
         - verification: Hallucination verification result (if enabled)
 
         Args:
@@ -355,8 +354,7 @@ class QAOrchestrator:
         has_quality_context = retrieval_result.context and best_score >= RETRIEVAL_CONFIDENCE_GATE
 
         if has_quality_context:
-            # Quick Answer: AI-synthesized from Ollama (generated first, no dependency on citation)
-            # Always try Ollama mode for quick_answer, regardless of configured answer_mode
+            # Quick Answer: extraction-based from retrieved chunks
             quick_answer = self._generate_quick_answer(question, retrieval_result.context)
 
             # Citation: focused ~250-char excerpt via embedding similarity
@@ -527,16 +525,14 @@ class QAOrchestrator:
 
     def _generate_quick_answer(self, question: str, context: str) -> str:
         """
-        Generate a quick AI-synthesized answer using Ollama.
-
-        Falls back to extraction if Ollama is unavailable.
+        Generate a quick answer via keyword-based sentence extraction.
 
         Args:
             question: The question to answer
             context: Retrieved document context
 
         Returns:
-            Synthesized answer string
+            Extracted answer string
         """
         # Use the configured answer generator
         answer = self.answer_generator.generate(question, context)
@@ -623,7 +619,7 @@ class QAOrchestrator:
         if not exportable:
             return ""
 
-        lines = ["=" * 60, "DOCUMENT Q&A SUMMARY", "=" * 60, ""]
+        lines = ["=" * 60, "DOCUMENT SEMANTIC SEARCH RESULTS", "=" * 60, ""]
 
         for i, result in enumerate(exportable, 1):
             lines.append(f"Q{i}: {result.question}")

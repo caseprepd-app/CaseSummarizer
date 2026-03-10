@@ -61,27 +61,25 @@ class TestQAResult:
 class TestAnswerGenerator:
     """Tests for AnswerGenerator class."""
 
-    def test_initialization_with_extraction_mode(self):
-        """AnswerGenerator should initialize with extraction mode."""
-        from src.core.qa import AnswerGenerator, AnswerMode
+    def test_initialization(self):
+        """AnswerGenerator should initialize (always extraction mode)."""
+        from src.core.qa import AnswerGenerator
 
-        generator = AnswerGenerator(mode="extraction")
+        generator = AnswerGenerator()
+        # Should not crash; mode param is ignored for backward compat
 
-        assert generator.mode == AnswerMode.EXTRACTION
-
-    def test_initialization_with_ollama_mode(self):
-        """AnswerGenerator should initialize with ollama mode."""
-        from src.core.qa import AnswerGenerator, AnswerMode
+    def test_initialization_with_mode_param_ignored(self):
+        """AnswerGenerator accepts mode param but ignores it."""
+        from src.core.qa import AnswerGenerator
 
         generator = AnswerGenerator(mode="ollama")
-
-        assert generator.mode == AnswerMode.OLLAMA
+        # Should not crash; mode is ignored
 
     def test_generate_returns_message_for_empty_context(self):
         """generate() should return appropriate message for empty context."""
         from src.core.qa import AnswerGenerator
 
-        generator = AnswerGenerator(mode="extraction")
+        generator = AnswerGenerator()
         result = generator.generate("Who is the plaintiff?", "")
 
         assert "No relevant information" in result
@@ -90,7 +88,7 @@ class TestAnswerGenerator:
         """Extraction mode should find relevant sentences from context."""
         from src.core.qa import AnswerGenerator
 
-        generator = AnswerGenerator(mode="extraction")
+        generator = AnswerGenerator()
 
         context = """
         The plaintiff John Smith filed this lawsuit on January 15, 2024.
@@ -107,7 +105,7 @@ class TestAnswerGenerator:
         """Extraction mode should handle case with no keyword matches."""
         from src.core.qa import AnswerGenerator
 
-        generator = AnswerGenerator(mode="extraction")
+        generator = AnswerGenerator()
 
         context = "This document contains no relevant party information."
 
@@ -144,15 +142,12 @@ class TestAnswerGenerator:
         # Should not split at "Dr." or "Jan."
         assert len(sentences) == 2
 
-    def test_set_mode_changes_mode(self):
-        """set_mode should change the generation mode."""
-        from src.core.qa import AnswerGenerator, AnswerMode
+    def test_set_mode_is_noop(self):
+        """set_mode is a no-op for backward compatibility."""
+        from src.core.qa import AnswerGenerator
 
-        generator = AnswerGenerator(mode="extraction")
-        assert generator.mode == AnswerMode.EXTRACTION
-
-        generator.set_mode("ollama")
-        assert generator.mode == AnswerMode.OLLAMA
+        generator = AnswerGenerator()
+        generator.set_mode("ollama")  # Should not crash
 
 
 class TestQAOrchestrator:
@@ -263,7 +258,7 @@ questions:
 
             text = orchestrator.export_to_text()
 
-            assert "DOCUMENT Q&A SUMMARY" in text
+            assert "DOCUMENT SEMANTIC SEARCH RESULTS" in text
             assert "Q1: What type of case is this?" in text
             assert "Quick Answer: This is a civil personal injury case." in text
             assert "[Source: complaint.pdf]" in text

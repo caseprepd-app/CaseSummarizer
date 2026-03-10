@@ -29,3 +29,27 @@ timestamp,document_id,term,feedback,is_person,algorithms,NER_detection,RAKE_dete
 2026-03-09T22:00:12.410308,unknown,150K. Kilograms,-1,1,NER,True,False,False,False,False,False,1,87.4,1,0,0.0,0.0,0.0,0.0,1,1.0,0.95,0.95,0.0,1.0,0,1,33736
 2026-03-09T22:00:20.309996,unknown,Mhp,-1,1,NER,True,False,False,False,False,False,1,65.4,1,42110,0.0,0.0,0.0,0.0,1,1.0,0.95,0.95,0.0,1.0,0,1,33736
 2026-03-09T22:28:52.358582,unknown,Edwin Richter,1,1,"NER,MedicalNER,RAKE",True,True,False,False,True,False,3,100.0,7,0,0.0,0.0,3.7333333333333334,0.0,1,1.0,0.95,0.95,0.0,1.0,0,1,33736
+2026-03-10T09:09:28.421585,unknown,Keenan,1,1,"NER,YAKE",True,False,False,False,False,True,2,99.5,67,30890,0.0,0.001501,0.0,0.0,1,1.0,0.95,0.95,0.0,1.0,0,1,26011
+2026-03-10T09:09:31.653579,unknown,Savik,1,1,"NER,YAKE",True,False,False,False,False,True,2,96.2,21,0,0.0,0.011292,0.0,0.0,1,1.0,0.95,0.95,0.0,1.0,0,1,26011
+2026-03-10T09:09:35.509885,unknown,Donnie Sherwood,1,1,"NER,RAKE",True,True,False,False,False,False,2,95.4,6,0,0.0,0.0,3.7142857142857144,0.0,1,1.0,0.9499999999999998,0.95,0.0,1.0,0,1,26011
+2026-03-10T09:09:35.997644,unknown,Matthew Guzowski,1,1,NER,True,False,False,False,False,False,1,95.0,38,0,0.0,0.0,0.0,0.0,1,1.0,0.95,0.95,0.0,1.0,0,1,26011
+2026-03-10T09:10:00.159275,unknown,VHB,-1,0,"MedicalNER,NER",True,False,False,False,True,False,2,68.6,2,187459,0.0,0.0,0.0,0.0,1,1.0,0.95,0.95,0.0,1.0,0,1,26011
+2026-03-10T09:10:18.109437,unknown,Kwartler,1,1,"NER,YAKE",True,False,False,False,False,True,2,96.9,19,0,0.0,0.013068,0.0,0.0,1,1.0,0.9500000000000001,0.95,0.0,1.0,0,1,26011
+2026-03-10T09:10:18.666787,unknown,Levi,1,1,"MedicalNER,YAKE,NER",True,False,False,False,True,True,3,99.1,42,14032,0.0,0.006934,0.0,0.0,1,1.0,0.95,0.95,0.0,1.0,0,1,26011
+2026-03-10T10:23:06.118337,unknown,Louis Rose,1,1,"YAKE,NER,RAKE",True,True,False,False,False,True,3,93.2,9,0,0.0,0.032278,3.2,0.0,1,1.0,0.9499999999999998,0.95,0.0,1.0,0,1,14026
+2026-03-10T10:23:45.817230,unknown,Torres,1,1,"YAKE,NER,RAKE",True,True,False,False,False,True,3,94.6,12,15031,0.0,0.032162,2.0,0.0,1,1.0,0.9499999999999998,0.95,0.0,1.0,0,1,14026
+2026-03-10T10:23:47.193962,unknown,tendinosis,1,0,"MedicalNER,NER",True,False,False,False,True,False,2,98.8,12,0,0.0,0.0,0.0,0.0,1,1.0,0.9499999999999998,0.95,0.0,1.0,0,1,14026
+2026-03-10T10:23:55.676385,unknown,labral tears,1,0,RAKE,False,True,False,False,False,False,1,72.4,3,0,0.0,0.0,3.658333333333333,0.0,1,1.0,0.9499999999999998,0.95,0.0,1.0,0,1,14026
+2026-03-10T10:24:08.937731,unknown,mucoid,1,0,NER,True,False,False,False,False,False,1,79.8,3,199437,0.0,0.0,0.0,0.0,1,1.0,0.9499999999999998,0.95,0.0,1.0,0,1,14026
+2026-03-10T10:24:28.399059,unknown,Hawkin,1,1,"MedicalNER,NER",True,False,False,False,True,False,2,88.9,2,219889,0.0,0.0,0.0,0.0,1,1.0,0.95,0.95,0.0,1.0,0,1,14026
+2026-03-10T10:24:37.205027,unknown,crepitus,1,0,NER,True,False,False,False,False,False,1,84.4,3,0,0.0,0.0,0.0,0.0,1,1.0,0.9499999999999998,0.95,0.0,1.0,0,1,14026
+2026-03-10T10:24:41.443912,unknown,traumatically,-1,0,NER,True,False,False,False,False,False,1,84.9,2,0,0.0,0.0,0.0,0.0,1,1.0,0.95,0.95,0.0,1.0,0,1,14026
+2026-03-10T10:53:42.280435,unknown,normal,-1,0,YAKE,False,False,False,False,False,True,1,52.3,1,1457,0.0,0.026138,0.0,0.0,1,1.0,0.95,0.95,0.0,1.0,0,1,14026
+2026-03-10T10:53:45.684654,unknown,questions,-1,0,YAKE,False,False,False,False,False,True,1,50.7,1,496,0.0,0.035042,0.0,0.0,1,1.0,0.95,0.95,0.0,1.0,0,1,14026
+2026-03-10T10:53:50.848224,unknown,ago,-1,0,YAKE,False,False,False,False,False,True,1,50.6,1,807,0.0,0.048706,0.0,0.0,1,1.0,0.95,0.95,0.0,1.0,0,1,14026
+2026-03-10T10:53:59.996371,unknown,witness Plaintiff,-1,0,YAKE,False,False,False,False,False,True,1,70.8,1,0,0.0,0.05663,0.0,0.0,1,1.0,0.95,0.95,0.0,1.0,0,1,14026
+2026-03-10T10:54:04.462586,unknown,weeks,-1,0,YAKE,False,False,False,False,False,True,1,53.3,1,1094,0.0,0.059874,0.0,0.0,1,1.0,0.95,0.95,0.0,1.0,0,1,14026
+2026-03-10T10:54:12.217539,unknown,middle,-1,0,NER,True,False,False,False,False,False,1,51.9,1,1140,0.0,0.0,0.0,0.0,1,1.0,0.95,0.95,0.0,1.0,0,1,14026
+2026-03-10T10:54:26.364635,unknown,adult,-1,0,NER,True,False,False,False,False,False,1,46.5,1,820,0.0,0.0,0.0,0.0,1,1.0,0.95,0.95,0.0,1.0,0,1,14026
+2026-03-10T12:34:58.556321,unknown,Victor Mosquera,1,1,"NER,YAKE,RAKE",True,True,False,False,False,True,3,99.5,23,0,0.0,0.003373,4.333694474539545,0.0,1,1.0,0.95,0.95,0.0,1.0,0,1,19876
+2026-03-10T12:35:08.973431,unknown,Michael Garcia,1,1,"NER,YAKE,RAKE",True,True,False,False,False,True,3,92.0,15,0,0.0,0.024225,4.368421052631579,0.0,1,1.0,0.95,0.95,0.0,1.0,0,1,19876

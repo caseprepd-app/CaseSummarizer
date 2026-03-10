@@ -161,8 +161,8 @@ class TestActiveWorkerLock:
             r'(def _run_\w+\(.*?\n(?:.*?\n)*?.*?state\["active_worker"\]\s*=.*?\n)',
             src,
         )
-        # At least process_files, extraction, qa, summary set active_worker
-        assert len(run_funcs) >= 4, f"Expected >=4 _run_* functions, found {len(run_funcs)}"
+        # At least process_files, extraction, qa set active_worker
+        assert len(run_funcs) >= 3, f"Expected >=3 _run_* functions, found {len(run_funcs)}"
         for func_body in run_funcs:
             assert "worker_lock" in func_body, (
                 f"_run_* function missing worker_lock:\n{func_body[:120]}"

@@ -929,12 +929,6 @@ class TestWindowLayoutScaling:
         src = self._get_method_source("_create_header")
         assert "scale_value(50)" in src
 
-    def test_configure_button_scaled(self):
-        """Configure button dimensions are scaled."""
-        src = self._get_method_source("_create_header")
-        assert "scale_value(75)" in src
-        assert "scale_value(28)" in src
-
     def test_settings_button_scaled(self):
         """Settings button width is scaled."""
         src = self._get_method_source("_create_header")
@@ -1075,10 +1069,3 @@ class TestSettingsRegistryChanges:
         """settings_registry no longer imports FONT_SIZE_OPTIONS."""
         source = _read_source("src/ui/settings/settings_registry.py")
         assert "FONT_SIZE_OPTIONS" not in source
-
-    def test_education_dialog_geometry_scaled(self):
-        """The LLM education dialog uses scale_value for geometry."""
-        source = _read_source("src/ui/settings/settings_registry.py")
-        assert 'geometry("550x580")' not in source
-        assert "scale_value(550)" in source
-        assert "scale_value(580)" in source

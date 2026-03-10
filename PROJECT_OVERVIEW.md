@@ -27,10 +27,8 @@ Build a **100% offline, private, commercial Windows desktop application** for co
 2. **Technical vocabulary** — medical terms, legal terminology, unusual words for prep
 
 ### Secondary Output (Default ON)
-3. **Ask Questions of Your Documents** — Ask questions, get answers with source citations. Results serve as handoff documents for colleagues.
-
-### Optional Output (Default OFF)
-4. **AI-generated summaries** — Comprehensive case synthesis. Off by default due to 30+ minute processing time.
+3. **Semantic Search** — Search your documents by meaning, get answers with source citations. Uses FAISS vector search + cross-encoder reranking (fully local, no LLM). Results serve as handoff documents for colleagues.
+4. **Key Sentences** — Automatically extracted representative sentences via K-means clustering (no LLM required).
 
 ---
 
@@ -44,8 +42,7 @@ Build a **100% offline, private, commercial Windows desktop application** for co
 | **16GB RAM minimum** | AI models and vector stores need memory headroom |
 | **Commercial licensing** | App will be sold; all dependencies must allow commercial use |
 | **Handle poor-quality scans** | Many legal documents are OCR'd with errors |
-| **Standalone installer** | All assets bundled with installer — no post-install downloads (except Ollama) |
-| **Ollama user-managed** | User installs Ollama separately and chooses their own LLM models |
+| **Standalone installer** | All assets bundled with installer — no post-install downloads |
 
 ---
 
@@ -56,7 +53,7 @@ Build a **100% offline, private, commercial Windows desktop application** for co
 | Case prep time | < 30 minutes from documents to ready |
 | Name extraction accuracy | > 95% of parties/witnesses identified |
 | Vocabulary usefulness | Technical terms a layperson would need defined |
-| Question answer quality | Answers cite specific document sources |
+| Semantic search quality | Results cite specific document sources |
 | OCR error filtering | False positives (typos, scan artifacts) filtered out |
 
 ---
@@ -67,15 +64,14 @@ Build a **100% offline, private, commercial Windows desktop application** for co
 |-----------|------------|---------|
 | Language | Python 3.11+ | — |
 | UI Framework | CustomTkinter | MIT |
-| Local AI | Ollama (any GGUF model) | MIT |
 | OCR | Tesseract via pytesseract | Apache 2.0 |
 | PDF Parsing | pdfplumber | MIT |
 | NER | spaCy (en_core_web_lg) | MIT |
 | Vector Search | FAISS | MIT |
 | Embeddings | sentence-transformers | Apache 2.0 |
 | Token Counting | tiktoken | MIT |
-
-**Default AI Model:** Gemma models (Google's terms allow commercial use with attribution).
+| Reranking | sentence-transformers (CrossEncoder) | Apache 2.0 |
+| Clustering | scikit-learn (K-means) | BSD |
 
 ---
 
@@ -85,8 +81,8 @@ Build a **100% offline, private, commercial Windows desktop application** for co
 1. FILE INGEST      → User selects documents (PDF, TXT, RTF)
 2. PRE-PROCESSING   → App extracts text, provides OCR confidence scores
 3. FILE SELECTION   → User reviews quality scores, chooses which to include
-4. AI PROCESSING    → Extraction, question indexing, optional summarization
-5. OUTPUT DISPLAY   → Vocabulary table, Questions panel, optional Summary
+4. AI PROCESSING    → Extraction, semantic search indexing, key sentence extraction
+5. OUTPUT DISPLAY   → Vocabulary table, Search panel, Key Sentences
 ```
 
 The status bar keeps users informed of progress through each pipeline stage.

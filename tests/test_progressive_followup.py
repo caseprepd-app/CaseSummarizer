@@ -183,36 +183,7 @@ class TestGenerateAnswerForResult:
 # ---------------------------------------------------------------------------
 
 
-class TestOllamaUnavailable:
-    """Test that Ollama disconnected returns clear message, not extraction."""
-
-    def test_returns_unavailable_text_not_extraction(self):
-        from src.core.qa.answer_generator import AnswerGenerator
-        from src.core.qa.qa_constants import OLLAMA_UNAVAILABLE_TEXT
-
-        gen = AnswerGenerator(mode="ollama")
-        gen._ollama_manager = MagicMock()
-        gen._ollama_manager.is_connected = False
-
-        result = gen.generate("Who is the plaintiff?", "Some context about John Smith.")
-
-        assert result == OLLAMA_UNAVAILABLE_TEXT
-
-    def test_generation_error_still_falls_back_to_extraction(self):
-        """When Ollama IS connected but errors out, extraction fallback still works."""
-        from src.core.qa.answer_generator import AnswerGenerator
-        from src.core.qa.qa_constants import OLLAMA_UNAVAILABLE_TEXT
-
-        gen = AnswerGenerator(mode="ollama")
-        gen._ollama_manager = MagicMock()
-        gen._ollama_manager.is_connected = True
-        gen._ollama_manager.generate_text.side_effect = RuntimeError("connection lost")
-
-        result = gen.generate("Who is the plaintiff?", "John Smith filed the lawsuit.")
-
-        # Should NOT be the unavailable text -- should be extraction fallback
-        assert result != OLLAMA_UNAVAILABLE_TEXT
-        assert len(result) > 0
+# TestOllamaUnavailable removed — Ollama integration deprecated
 
 
 # ---------------------------------------------------------------------------
@@ -255,17 +226,7 @@ class TestQAServicePassthrough:
 
         assert "retrieval" in texts
         assert "generation" in texts
-        assert "ollama_unavailable" in texts
         assert all(isinstance(v, str) for v in texts.values())
-
-    def test_is_ollama_connected_returns_bool(self):
-        from src.services.qa_service import QAService
-
-        svc = QAService()
-        mock_mgr = MagicMock()
-        mock_mgr.is_connected = False
-        with patch("src.services.ai_service.AIService.get_ollama_manager", return_value=mock_mgr):
-            assert svc.is_ollama_connected() is False
 
 
 # ---------------------------------------------------------------------------

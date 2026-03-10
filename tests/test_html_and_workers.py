@@ -337,23 +337,3 @@ class TestProcessingWorker:
 # ============================================================================
 # MultiDocSummaryWorker init
 # ============================================================================
-
-
-class TestMultiDocSummaryWorker:
-    """Tests for MultiDocSummaryWorker initialization."""
-
-    def test_init(self):
-        from src.services.workers import MultiDocSummaryWorker
-
-        docs = [{"filename": "test.txt", "extracted_text": "hello"}]
-        params = {"summary_length": 200, "meta_length": 500}
-        worker = MultiDocSummaryWorker(docs, Queue(), params)
-        assert worker.documents == docs
-        assert worker.ai_params == params
-
-    def test_stop_sets_event(self):
-        from src.services.workers import MultiDocSummaryWorker
-
-        worker = MultiDocSummaryWorker([], Queue(), {})
-        worker.stop()
-        assert worker.is_stopped

@@ -38,7 +38,7 @@ class MessageType:
     # Vocabulary extraction
     VOCAB_CSV_GENERATED = "vocab_csv_generated"
 
-    # Summarization
+    # Summarization (deprecated — kept for backward compat with tests)
     SUMMARY_RESULT = "summary_result"
     MULTI_DOC_RESULT = "multi_doc_result"
     META_SUMMARY_GENERATED = "meta_summary_generated"

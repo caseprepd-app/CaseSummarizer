@@ -7,12 +7,9 @@ Covers gaps identified after the bug audit:
 3. clear_rating cache consistency on file write failure (Fix 5)
 4. safe_replace retry on PermissionError (Fix 6)
 5. DefaultQuestionsManager.replace_all() (Fix 7)
-6. chunk_scores injection in _run_summary (Fix 9)
 """
 
 import os
-import threading
-from queue import Queue
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -491,107 +488,3 @@ class TestReplaceAll:
         assert manager.get_total_count() > 0  # Has defaults
         manager.replace_all([])
         assert manager.get_total_count() == 0
-
-
-# =========================================================================
-# Fix 9: chunk_scores injection in _run_summary
-# =========================================================================
-
-
-class TestChunkScoresInjection:
-    """Tests for _run_summary injecting chunk_scores from subprocess state."""
-
-    def _make_state(self, chunk_scores=None):
-        """Create a subprocess state dict."""
-        return {
-            "embeddings": None,
-            "vector_store_path": "/tmp/test",
-            "chunk_scores": chunk_scores,
-            "active_worker": None,
-            "shutdown": threading.Event(),
-            "worker_lock": threading.Lock(),
-        }
-
-    def test_injects_chunk_scores_from_state(self):
-        """_run_summary injects chunk_scores from state into ai_params."""
-        from src.worker_process import _run_summary
-
-        mock_scores = MagicMock(name="ChunkScores")
-        state = self._make_state(chunk_scores=mock_scores)
-        internal_q = Queue()
-
-        args = {
-            "documents": [{"filename": "doc1", "extracted_text": "text"}],
-            "ai_params": {"model_name": "test-model"},
-        }
-
-        with patch("src.services.workers.MultiDocSummaryWorker") as MockWorker:
-            mock_worker = MagicMock()
-            MockWorker.return_value = mock_worker
-            _run_summary(args, internal_q, state)
-
-        # Verify chunk_scores was injected into ai_params
-        call_kwargs = MockWorker.call_args[1]
-        assert call_kwargs["ai_params"]["chunk_scores"] is mock_scores
-
-    def test_does_not_override_explicit_chunk_scores(self):
-        """_run_summary does not override chunk_scores already in ai_params."""
-        from src.worker_process import _run_summary
-
-        explicit_scores = MagicMock(name="ExplicitScores")
-        state_scores = MagicMock(name="StateScores")
-        state = self._make_state(chunk_scores=state_scores)
-        internal_q = Queue()
-
-        args = {
-            "documents": [{"filename": "doc1", "extracted_text": "text"}],
-            "ai_params": {"model_name": "test", "chunk_scores": explicit_scores},
-        }
-
-        with patch("src.services.workers.MultiDocSummaryWorker") as MockWorker:
-            mock_worker = MagicMock()
-            MockWorker.return_value = mock_worker
-            _run_summary(args, internal_q, state)
-
-        call_kwargs = MockWorker.call_args[1]
-        assert call_kwargs["ai_params"]["chunk_scores"] is explicit_scores
-
-    def test_no_injection_when_state_has_no_scores(self):
-        """_run_summary does not inject when state has no chunk_scores."""
-        from src.worker_process import _run_summary
-
-        state = self._make_state(chunk_scores=None)
-        internal_q = Queue()
-
-        args = {
-            "documents": [{"filename": "doc1", "extracted_text": "text"}],
-            "ai_params": {"model_name": "test"},
-        }
-
-        with patch("src.services.workers.MultiDocSummaryWorker") as MockWorker:
-            mock_worker = MagicMock()
-            MockWorker.return_value = mock_worker
-            _run_summary(args, internal_q, state)
-
-        call_kwargs = MockWorker.call_args[1]
-        assert "chunk_scores" not in call_kwargs["ai_params"]
-
-    def test_worker_started_with_correct_documents(self):
-        """_run_summary passes documents correctly to the worker."""
-        from src.worker_process import _run_summary
-
-        state = self._make_state()
-        internal_q = Queue()
-        docs = [{"filename": "a.pdf", "extracted_text": "doc a content"}]
-
-        args = {"documents": docs, "ai_params": {"model_name": "test"}}
-
-        with patch("src.services.workers.MultiDocSummaryWorker") as MockWorker:
-            mock_worker = MagicMock()
-            MockWorker.return_value = mock_worker
-            _run_summary(args, internal_q, state)
-
-        call_kwargs = MockWorker.call_args[1]
-        assert call_kwargs["documents"] is docs
-        assert call_kwargs["ui_queue"] is internal_q
-        mock_worker.start.assert_called_once()

@@ -17,7 +17,6 @@ Architecture:
 """
 
 import logging
-import re
 import threading
 import time
 from pathlib import Path
@@ -26,7 +25,6 @@ from tkinter import filedialog, messagebox
 import customtkinter as ctk
 
 from src.ui.styles import initialize_all_styles
-from src.ui.tooltip_manager import tooltip_manager
 from src.ui.window_layout import WindowLayoutMixin
 
 logger = logging.getLogger(__name__)
@@ -38,9 +36,6 @@ try:
     HAS_DND = True
 except ImportError:
     HAS_DND = False
-
-# Pre-compile regex at module level (after all imports)
-_MODEL_PARAM_PATTERN = re.compile(r":(\d+\.?\d*)b")
 
 # Placeholder text shown in Q&A panel while a follow-up answer is pending
 PENDING_ANSWER_TEXT = "Answer pending..."
@@ -93,11 +88,8 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         self.bind("<Configure>", self._on_configure)
 
         # Managers (via service layer for pipeline architecture)
-        from src.services import AIService, VocabularyService
+        from src.services import VocabularyService
 
-        ai_service = AIService()
-        self.model_manager = ai_service.get_ollama_manager()
-        self.prompt_template_manager = ai_service.get_prompt_template_manager()
         self.corpus_registry = VocabularyService().get_corpus_registry()
 
         # Shutdown guard — prevents after() callbacks on destroyed widgets
@@ -157,225 +149,21 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         self._refresh_corpus_dropdown()
         self._update_generate_button_state()
         self._update_default_questions_label()  # Set initial question count
-        self._update_qa_checkbox_state()  # Set Q&A checkbox based on model size
         self._restore_task_checkbox_states()  # Restore user's checkbox preferences
 
         # Initialize tab status config to match checkbox states
         self.output_display.set_tab_status_config(
             vocab_enabled=self.vocab_check.get(),
-            qa_enabled=self.qa_check.get(),
         )
 
         # Initialize drag-and-drop support
         self._setup_drag_drop()
 
         # Startup checks and status updates
-        self._check_ollama_service()
-        self._update_ollama_status()
-        self._update_model_display()
         self._check_corpus_limit()  # Check if corpus exceeds doc limit
 
         dnd_status = "enabled" if HAS_DND else "disabled (tkinterdnd2 not installed)"
         logger.debug("Initialized with two-panel layout, drag-drop %s", dnd_status)
-
-    # =========================================================================
-    # Ollama Status & Model Display
-    # =========================================================================
-
-    def _update_ollama_status(self):
-        """
-        Update the Ollama status indicator in the status bar.
-
-        Shows green dot if connected, red dot if disconnected.
-        Adds tooltip with troubleshooting info when disconnected.
-        """
-        from src.ui.theme import COLORS
-
-        if self.model_manager.is_connected:
-            # Connected - green dot
-            self.ollama_status_dot.configure(text_color=COLORS["success"])
-            self.ollama_status_label.configure(text="Ollama")
-            # Remove tooltip bindings
-            self._clear_ollama_tooltip()
-        else:
-            # Disconnected - red dot
-            self.ollama_status_dot.configure(text_color=COLORS["danger"])
-            self.ollama_status_label.configure(text="Ollama (disconnected)")
-            # Add tooltip with troubleshooting info
-            self._setup_ollama_tooltip()
-
-        status = "connected" if self.model_manager.is_connected else "disconnected"
-        logger.debug("Ollama status: %s", status)
-
-    def _is_ollama_ready(self) -> tuple:
-        """
-        Check if Ollama is connected and has a model loaded.
-
-        Returns:
-            (bool, str): (ready, reason). If not ready, reason explains why.
-        """
-        if not self.model_manager.is_model_loaded():
-            if not self.model_manager.is_connected:
-                return (
-                    False,
-                    "Ollama is not running.\n\n"
-                    "To fix:\n"
-                    "- Ensure Ollama is installed (ollama.ai)\n"
-                    "- Run 'ollama serve' in a terminal\n"
-                    "- Restart this app or open Settings to reconnect",
-                )
-            return (
-                False,
-                "No Ollama model configured.\n\nTo fix: Settings > Model > select a model",
-            )
-        return (True, "")
-
-    def _setup_ollama_tooltip(self):
-        from src.ui.theme import COLORS
-
-        """Set up hover tooltip for disconnected Ollama status."""
-        tooltip_text = (
-            "Ollama is not running.\n\n"
-            "To fix:\n"
-            "• Ensure Ollama is installed (ollama.ai)\n"
-            "• Run 'ollama serve' in a terminal\n"
-            "• Check if port 11434 is available"
-        )
-
-        def show_tooltip(event):
-            # Close any existing tooltip first via global manager
-            tooltip_manager.close_active()
-
-            # Create tooltip window
-            self._ollama_tooltip = tooltip = ctk.CTkToplevel(self)
-            tooltip.wm_overrideredirect(True)
-            tooltip.wm_geometry(f"+{event.x_root + 10}+{event.y_root + 10}")
-
-            label = ctk.CTkLabel(
-                tooltip,
-                text=tooltip_text,
-                font=("Segoe UI", 10),
-                fg_color=COLORS["tooltip_bg"],
-                corner_radius=6,
-                padx=10,
-                pady=8,
-                justify="left",
-            )
-            label.pack()
-
-            # Register with global manager
-            tooltip_manager.register(tooltip, owner=self.ollama_status_dot)
-
-        def hide_tooltip(event):
-            if hasattr(self, "_ollama_tooltip") and self._ollama_tooltip:
-                # Unregister from global manager
-                tooltip_manager.unregister(self._ollama_tooltip)
-                self._ollama_tooltip.destroy()
-                self._ollama_tooltip = None
-
-        # Bind to both dot and label
-        self.ollama_status_dot.bind("<Enter>", show_tooltip)
-        self.ollama_status_dot.bind("<Leave>", hide_tooltip)
-        self.ollama_status_label.bind("<Enter>", show_tooltip)
-        self.ollama_status_label.bind("<Leave>", hide_tooltip)
-
-    def _clear_ollama_tooltip(self):
-        """Remove tooltip bindings when Ollama is connected."""
-        # Unbind events
-        self.ollama_status_dot.unbind("<Enter>")
-        self.ollama_status_dot.unbind("<Leave>")
-        self.ollama_status_label.unbind("<Enter>")
-        self.ollama_status_label.unbind("<Leave>")
-
-        # Destroy any existing tooltip
-        if hasattr(self, "_ollama_tooltip") and self._ollama_tooltip:
-            # Unregister from global manager
-            tooltip_manager.unregister(self._ollama_tooltip)
-            self._ollama_tooltip.destroy()
-            self._ollama_tooltip = None
-
-    def _update_model_display(self):
-        """
-        Update the model display in the header.
-
-        Shows model name and parameter count (e.g., "gemma3:1b (1B params)").
-        """
-        model_name = self.model_manager.model_name
-
-        # Format display text with parameter count if available
-        display_text = self._format_model_display(model_name)
-        self.model_name_label.configure(text=display_text)
-
-        logger.debug("Model display updated: %s", display_text)
-
-    def _format_model_display(self, model_name: str) -> str:
-        """
-        Format model name with parameter count for display.
-
-        Args:
-            model_name: Raw model name (e.g., "gemma3:1b", "llama3.2:3b")
-
-        Returns:
-            Formatted string (e.g., "gemma3:1b (1B params)")
-        """
-        if not model_name:
-            return "No model selected"
-
-        # Extract parameter count from model name if present
-        # Common patterns: gemma3:1b, llama3.2:3b, mistral:7b
-        param_info = ""
-        name_lower = model_name.lower()
-
-        # Look for parameter patterns using pre-compiled regex
-        param_match = _MODEL_PARAM_PATTERN.search(name_lower)
-        if param_match:
-            param_size = param_match.group(1)
-            param_info = f" ({param_size}B params)"
-
-        return f"{model_name}{param_info}"
-
-    def _open_model_settings(self):
-        """Open the settings dialog directly to the AI Model tab."""
-        if getattr(self, "_settings_dialog_open", False):
-            return
-        self._settings_dialog_open = True
-
-        from src.ui.settings.settings_dialog import SettingsDialog
-        from src.user_preferences import get_user_preferences
-
-        # Capture current model to detect changes
-        prefs = get_user_preferences()
-        old_model = prefs.get("ollama_model", self.model_manager.model_name)
-
-        dialog = None
-        try:
-            dialog = SettingsDialog(parent=self, initial_tab="AI Model")
-            dialog.wait_window()
-        except Exception as e:
-            logger.warning("Failed to open settings dialog: %s", e)
-            self.set_status_error("Settings dialog failed to open. Try again.")
-            if dialog is not None:
-                try:
-                    dialog.destroy()
-                except Exception:
-                    pass
-        finally:
-            self._settings_dialog_open = False
-
-        # Check if model changed and reload if needed
-        new_model = prefs.get("ollama_model", self.model_manager.model_name)
-        if new_model and new_model != old_model:
-            try:
-                self.model_manager.load_model(new_model)
-                logger.info("Model changed: %s -> %s", old_model, new_model)
-            except Exception as e:
-                logger.warning("Failed to load model %s: %s", new_model, e)
-
-        # Refresh UI after settings change
-        self._refresh_corpus_dropdown()
-        self._update_model_display()
-        self._update_ollama_status()
-        self._update_qa_checkbox_state()  # Refresh Q&A checkbox for model size
 
     # =========================================================================
     # Corpus Management
@@ -669,11 +457,12 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             self.followup_btn.configure(state="disabled")
             self.followup_entry.configure(
                 state="disabled",
-                placeholder_text="Ask questions here after Q&A task completes...",
+                placeholder_text="Search your documents after processing completes...",
                 placeholder_text_color=COLORS["placeholder_golden"],
             )
         self._update_generate_button_state()
         self._update_session_stats()  # Clear stats display
+        self._update_doc_count_badge()
         self.set_status("Files cleared")
 
     def _on_file_selected(self, filename):
@@ -719,6 +508,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         # Update UI state
         self._update_generate_button_state()
         self._update_session_stats()
+        self._update_doc_count_badge()
         self.set_status(f"Removed {filename}")
         logger.debug("Removed file: %s (%d files remain)", filename, len(self.selected_files))
 
@@ -892,9 +682,9 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             # Don't overwrite completion status with stale progress messages
             if not self._processing_active:
                 return
-            # Append Q&A status note if index is ready but answers haven't appeared yet
-            if self._qa_ready and "question" not in message.lower() and "Q&A" not in message:
-                message = f"{message} (answering questions...)"
+            # Append search status note if index is ready but answers haven't appeared yet
+            if self._qa_ready and "question" not in message.lower() and "Search" not in message:
+                message = f"{message} (searching documents...)"
             self.set_status(message)
 
         elif msg_type == "file_processed":
@@ -1018,7 +808,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             # Truncate at word boundary to avoid mid-word cuts
             if len(error_msg) > 80:
                 error_msg = error_msg[:77].rsplit(" ", 1)[0] + "..."
-            self.set_status_error(f"Q&A unavailable: {error_msg}")
+            self.set_status_error(f"Search unavailable: {error_msg}")
             # Q&A won't be available but vocab extraction can continue
             self._qa_answering_active = False
             self._qa_failed = True
@@ -1026,7 +816,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             if hasattr(self, "followup_entry"):
                 self.followup_entry.configure(
                     state="disabled",
-                    placeholder_text="Q&A unavailable \u2014 search index failed to build.",
+                    placeholder_text="Search unavailable \u2014 index failed to build.",
                     placeholder_text_color=COLORS["placeholder_red"],
                 )
             if hasattr(self, "followup_btn"):
@@ -1074,7 +864,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
                 self._qa_results = qa_results
             if qa_results:
                 self.output_display.update_outputs(qa_results=qa_results)
-                self.set_status(f"Default questions answered: {len(qa_results)} responses")
+                self.set_status(f"Default searches complete: {len(qa_results)} responses")
             self.followup_btn.configure(state="normal")
             self._qa_answering_active = False
             if self._pending_tasks.get("qa"):
@@ -1097,9 +887,6 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             else:
                 logger.debug("Followup result received but no panel waiting")
 
-        elif msg_type == "multi_doc_result":
-            self._on_summary_complete(data)
-
         elif msg_type == "command_ack":
             cmd = data.get("cmd", "unknown") if isinstance(data, dict) else data
             logger.debug("Worker acknowledged command: %s", cmd)
@@ -1110,42 +897,6 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         else:
             # Log unhandled messages for debugging
             logger.debug("Unhandled message type: %s", msg_type)
-
-    def _on_summary_complete(self, result):
-        """Handle multi-document summary result from worker."""
-        logger.debug(
-            "Summary complete: %s processed, %s failed",
-            result.documents_processed,
-            result.documents_failed,
-        )
-
-        # Extract individual summaries as dict[filename, summary_text]
-        individual_summaries = {}
-        for filename, doc_result in result.individual_summaries.items():
-            if doc_result.success:
-                individual_summaries[filename] = doc_result.summary
-            else:
-                individual_summaries[filename] = f"[Error: {doc_result.error_message}]"
-
-        # Display results
-        self.output_display.update_outputs(
-            meta_summary=result.meta_summary,
-            document_summaries=individual_summaries,
-        )
-
-        self._completed_tasks.add("summary")
-
-        if result.documents_failed > 0:
-            self.set_status(
-                f"Summary complete: {result.documents_processed} succeeded, "
-                f"{result.documents_failed} failed"
-            )
-        else:
-            self.set_status(
-                f"Summary complete: {result.documents_processed} document(s) summarized"
-            )
-
-        self._finalize_tasks()
 
     def _on_preprocessing_complete(self, results: list[dict]):
         """Handle preprocessing completion."""
@@ -1198,16 +949,15 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         else:
             self.set_status(status)
         self._update_session_stats()  # Show document stats
+        self._update_doc_count_badge()
 
     # =========================================================================
     # Task Execution
     # =========================================================================
 
     def _get_task_count(self) -> int:
-        """Get the number of selected tasks."""
-        count = 0
-        if self.qa_check.get():
-            count += 1
+        """Get the number of selected tasks. Semantic Search always runs."""
+        count = 1  # Semantic Search always on
         if self.vocab_check.get():
             count += 1
         return count
@@ -1222,9 +972,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         task_count = self._get_task_count()
         has_files = len(self.processing_results) > 0
 
-        if task_count == 0:
-            self.generate_btn.configure(text="Select Tasks", state="disabled")
-        elif not has_files:
+        if not has_files:
             self.generate_btn.configure(text=f"Add Files ({task_count} tasks)", state="disabled")
         elif task_count == 1:
             self.generate_btn.configure(text="Perform 1 Task", state="normal")
@@ -1239,28 +987,16 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         Update the task preview label to show what will run.
 
         Shows a concise preview like:
-        "Will run: Vocabulary (NER), Q&A (6 questions)"
+        "Will run: Semantic Search (always), Vocabulary (NER)"
         """
-        parts = []
+        parts = ["Semantic Search (always)"]
 
         # Vocabulary task
         if self.vocab_check.get():
             parts.append("Vocabulary (NER)")
 
-        # Q&A task
-        if self.qa_check.get():
-            if self.ask_default_questions_check.get():
-                enabled, _total = self._load_default_question_count()
-                if enabled > 0:
-                    q_word = "question" if enabled == 1 else "questions"
-                    parts.append(f"Q&A ({enabled} {q_word})")
-                else:
-                    parts.append("Q&A")
-            else:
-                parts.append("Q&A")
-
         # Build preview text
-        preview = "Will run: " + ", ".join(parts) if parts else "Select tasks above"
+        preview = "Will run: " + ", ".join(parts)
 
         self.task_preview_label.configure(text=preview)
 
@@ -1286,17 +1022,17 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
     def _update_default_questions_label(self):
         """Update checkbox text with current enabled question count."""
         enabled, total = self._load_default_question_count()
-        question_word = "question" if enabled == 1 else "questions"
+        search_word = "search" if enabled == 1 else "searches"
 
         if enabled == total:
             # All questions enabled - simple display
             self.ask_default_questions_check.configure(
-                text=f"Ask {enabled:,} default {question_word}"
+                text=f"Run {enabled:,} default {search_word}"
             )
         else:
             # Some questions disabled - show enabled/total
             self.ask_default_questions_check.configure(
-                text=f"Ask {enabled:,}/{total:,} default {question_word}"
+                text=f"Run {enabled:,}/{total:,} default {search_word}"
             )
 
     def _save_task_checkbox_states(self):
@@ -1306,7 +1042,6 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
 
             prefs = get_user_preferences()
             prefs.set("task_extract_vocab", self.vocab_check.get())
-            prefs.set("task_ask_questions", self.qa_check.get())
             prefs.set("task_default_questions", self.ask_default_questions_check.get())
         except Exception as e:
             logger.warning("Could not save task checkbox states: %s", e)
@@ -1321,17 +1056,12 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         if not prefs.get("task_extract_vocab", True):
             self.vocab_check.deselect()
 
-        # Restore Q&A checkbox
-        if not prefs.get("task_ask_questions", True):
-            self.qa_check.deselect()
-
         # Restore default questions checkbox
         if not prefs.get("task_default_questions", True):
             self.ask_default_questions_check.deselect()
 
         # Refresh dependent states after restoring
         self._update_generate_button_state()
-        self._update_default_questions_checkbox_state()
 
     def _on_default_questions_toggled(self):
         """Handle default questions checkbox state change."""
@@ -1341,197 +1071,6 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
 
         state = "enabled" if self.ask_default_questions_check.get() else "disabled"
         logger.debug("Default questions %s", state)
-
-    def _on_qa_check_changed(self):
-        """Handle Q&A checkbox state change."""
-        self._update_generate_button_state()
-        self._update_default_questions_checkbox_state()
-        self._save_task_checkbox_states()
-
-        # Update tab status messages
-        self.output_display.set_tab_status_config(qa_enabled=self.qa_check.get())
-
-        state = "enabled" if self.qa_check.get() else "disabled"
-        logger.debug("Q&A %s", state)
-
-    def _update_default_questions_checkbox_state(self):
-        """
-        Update default questions sub-checkbox based on Q&A checkbox state.
-
-        When Q&A is unchecked:
-        - Disable the default questions checkbox
-        - Auto-uncheck it (since we won't be asking questions)
-
-        When Q&A is checked:
-        - Enable the default questions checkbox
-        """
-        if self.qa_check.get():
-            # Q&A is enabled - allow user to toggle default questions
-            self.ask_default_questions_check.configure(state="normal")
-        else:
-            # Q&A is disabled - disable and uncheck default questions
-            self.ask_default_questions_check.deselect()
-            self.ask_default_questions_check.configure(state="disabled")
-
-    # =========================================================================
-    # Q&A Checkbox State Management (Model Size Requirements)
-    # =========================================================================
-
-    def _update_qa_checkbox_state(self):
-        """
-        Update Q&A checkbox state based on Ollama readiness.
-
-        If Ollama is not connected or has no model: disable.
-        Otherwise: enable. Small-model warning is handled at run time
-        via _check_small_model_warning().
-
-        Called at startup and when model changes.
-        """
-        ollama_ready, ollama_reason = self._is_ollama_ready()
-        if not ollama_ready:
-            self.qa_check.deselect()
-            self.qa_check.configure(state="disabled")
-            self._set_qa_tooltip(ollama_reason)
-            self._update_default_questions_checkbox_state()
-            return
-
-        self.qa_check.configure(state="normal")
-        self._set_qa_tooltip("")
-        logger.debug("Q&A checkbox: enabled (Ollama ready)")
-
-    def _set_qa_tooltip(self, text: str):
-        """
-        Update the tooltip for the Q&A checkbox.
-
-        Args:
-            text: New tooltip text to display (empty to remove)
-        """
-        if not text:
-            # Remove tooltip if no text
-            if hasattr(self, "_qa_tooltip_hide") and self._qa_tooltip_hide:
-                try:
-                    self.qa_check.unbind("<Enter>")
-                    self.qa_check.unbind("<Leave>")
-                except Exception as e:
-                    logger.debug("Failed to unbind QA tooltip: %s", e)
-                self._qa_tooltip_hide = None
-            return
-
-        from src.ui.tooltip_helper import create_tooltip
-
-        # Remove existing tooltip bindings
-        if hasattr(self, "_qa_tooltip_hide") and self._qa_tooltip_hide:
-            try:
-                self.qa_check.unbind("<Enter>")
-                self.qa_check.unbind("<Leave>")
-            except Exception as e:
-                logger.debug("Failed to unbind QA tooltip: %s", e)
-
-        # Create new tooltip
-        self._qa_tooltip_hide = create_tooltip(self.qa_check, text)
-
-    def _check_small_model_warning(self) -> bool:
-        """
-        Show a one-time warning if the user's model has < 8B parameters.
-
-        Called before processing when Q&A or Summary is enabled.
-        Returns True to proceed, False to cancel.
-        """
-        from src.user_preferences import get_user_preferences
-
-        prefs = get_user_preferences()
-
-        # Only warn if Q&A is enabled (Summary checkbox removed)
-        if not self.qa_check.get():
-            return True
-
-        # Already dismissed - don't show again
-        if prefs.has_dismissed_small_model_warning():
-            return True
-
-        # Check model size
-        model_name = prefs.get("ollama_model", "")
-        param_count = prefs.get_model_param_count(model_name)
-
-        # Can't parse size or large enough - no warning needed
-        if param_count is None or param_count >= 8:
-            return True
-
-        # Show modal warning dialog
-        import customtkinter as ctk
-
-        from src.ui.theme import COLORS, FONTS
-
-        result = {"proceed": False}
-
-        dialog = ctk.CTkToplevel(self)
-        dialog.title("Small Model Detected")
-        dialog.geometry("450x250")
-        dialog.resizable(False, False)
-        dialog.grab_set()
-
-        # Center on screen
-        dialog.update_idletasks()
-        x = (dialog.winfo_screenwidth() - 450) // 2
-        y = (dialog.winfo_screenheight() - 250) // 2
-        dialog.geometry(f"+{x}+{y}")
-
-        frame = ctk.CTkFrame(dialog, fg_color="transparent")
-        frame.pack(fill="both", expand=True, padx=20, pady=20)
-
-        title = ctk.CTkLabel(
-            frame,
-            text="Small Model Detected",
-            font=FONTS["heading"],
-        )
-        title.pack(pady=(0, 10))
-
-        body = ctk.CTkLabel(
-            frame,
-            text=(
-                f"Your current model ({model_name}) has {param_count}B parameters.\n\n"
-                "We recommend models with 8B+ parameters for reliable\n"
-                "Q&A and summary results with legal documents.\n\n"
-                "Smaller models may produce inaccurate or\n"
-                "hallucinated information."
-            ),
-            justify="left",
-            anchor="w",
-        )
-        body.pack(fill="x", pady=(0, 15))
-
-        btn_frame = ctk.CTkFrame(frame, fg_color="transparent")
-        btn_frame.pack(fill="x")
-
-        def on_continue():
-            result["proceed"] = True
-            prefs.dismiss_small_model_warning()
-            dialog.destroy()
-
-        def on_cancel():
-            dialog.destroy()
-
-        cancel_btn = ctk.CTkButton(
-            btn_frame,
-            text="Cancel",
-            command=on_cancel,
-            width=100,
-            fg_color=COLORS["btn_secondary"],
-        )
-        cancel_btn.pack(side="left", padx=(0, 10))
-
-        continue_btn = ctk.CTkButton(
-            btn_frame,
-            text="Continue Anyway",
-            command=on_continue,
-            width=140,
-        )
-        continue_btn.pack(side="right")
-
-        dialog.protocol("WM_DELETE_WINDOW", on_cancel)
-        dialog.wait_window()
-
-        return result["proceed"]
 
     def _on_vocab_check_changed(self):
         """Handle Vocabulary checkbox state change."""
@@ -1608,7 +1147,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
                 p = extraction_stats.get("person_count", 0)
                 ext_parts.append(f"{v} terms ({p} persons)")
             if extraction_stats.get("qa_count", 0) > 0:
-                ext_parts.append(f"{extraction_stats['qa_count']} Q&A")
+                ext_parts.append(f"{extraction_stats['qa_count']} searches")
             if extraction_stats.get("processing_time"):
                 t = extraction_stats["processing_time"]
                 if t >= 60:
@@ -1624,24 +1163,13 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         logger.debug("Session stats: %s", stats_text.replace(chr(10), " | "))
 
     def _perform_tasks(self):
-        """Execute the selected tasks using progressive three-phase architecture."""
-        from src.ui.theme import COLORS
-
+        """Execute the selected tasks. Semantic Search always runs."""
         if self._processing_active:
             logger.warning("_perform_tasks called while already processing — ignored")
             return
 
         if not self.processing_results:
             messagebox.showwarning("No Files", "Please add files first.")
-            return
-
-        task_count = self._get_task_count()
-        if task_count == 0:
-            messagebox.showwarning("No Tasks", "Please select at least one task.")
-            return
-
-        # One-time warning for small models with Q&A or Summary
-        if not self._check_small_model_warning():
             return
 
         # Disable controls during processing
@@ -1657,42 +1185,30 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         # Start timer
         self._start_timer()
 
-        # Get selected options
-        do_qa = self.qa_check.get()
+        # Get selected options (search is always on)
         do_vocab = self.vocab_check.get()
 
         # Track pending tasks
-        self._pending_tasks = {"vocab": do_vocab, "qa": do_qa}
+        self._pending_tasks = {"vocab": do_vocab, "qa": True}
         self._completed_tasks = set()
         self._qa_ready = False
         self._qa_answering_active = False
         self._qa_failed = False
-
-        # Disable Q&A entry when Q&A task is not selected
-        if not do_qa and hasattr(self, "followup_entry"):
-            self.followup_entry.configure(
-                state="disabled",
-                placeholder_text="Q&A task not selected \u2014 enable it in tasks (checkboxes) to ask questions.",
-                placeholder_text_color=COLORS["placeholder_red"],
-            )
-            self.followup_btn.configure(state="disabled")
 
         # Set initial workflow phase for tab status messages
         from src.ui.workflow_status import WorkflowPhase
 
         if do_vocab:
             self.output_display.set_workflow_phase(WorkflowPhase.VOCAB_RUNNING)
-        elif do_qa:
+        else:
             self.output_display.set_workflow_phase(WorkflowPhase.QA_INDEXING)
 
         # Use progressive extraction for vocabulary (includes Q&A indexing)
         if do_vocab:
             self._start_progressive_extraction()
-        elif do_qa:
-            # Q&A only (without vocabulary) - use legacy Q&A task
-            self._start_qa_task()
         else:
-            self._on_tasks_complete(True, "No tasks selected")
+            # Search only (without vocabulary) - use legacy Q&A task
+            self._start_qa_task()
 
     # =========================================================================
     # Stop / Cancel
@@ -1826,10 +1342,8 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         self._poll_queue()
 
     def _start_qa_task(self):
-        """Start Q&A task via worker subprocess."""
-        self.set_status(
-            "Questions and answers: Loading embeddings model (this may take a moment)..."
-        )
+        """Start Semantic Search task via worker subprocess."""
+        self.set_status("Semantic Search: Loading embeddings model (this may take a moment)...")
 
         # Send run_qa command to worker subprocess
         # The subprocess handles embeddings loading and vector store creation
@@ -1855,7 +1369,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         # Display results using update_outputs
         if qa_results:
             self.output_display.update_outputs(qa_results=qa_results)
-            self.set_status(f"Questions and answers: {len(qa_results)} questions answered")
+            self.set_status(f"Semantic Search: {len(qa_results)} questions answered")
             # Enable follow-up question controls
             self.followup_btn.configure(state="normal")
             self.followup_entry.configure(
@@ -1864,91 +1378,11 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
                 placeholder_text_color="white",
             )
         else:
-            self.set_status("Q&A complete. No answers found — try asking different questions.")
-
-        # Check if LLM summary is enabled (buried setting)
-        self._maybe_start_llm_summary()
+            self.set_status(
+                "Semantic Search complete. No answers found — try asking different questions."
+            )
 
         self._finalize_tasks()
-
-    def _maybe_start_llm_summary(self):
-        """
-        Start LLM summary if the buried setting is enabled and GPU is available.
-
-        This is triggered after Q&A completes. The LLM summary is optional —
-        key sentences always appear regardless.
-        """
-        from src.user_preferences import get_user_preferences
-
-        prefs = get_user_preferences()
-        allowed, reason = prefs.is_summary_allowed()
-        if not allowed:
-            logger.debug("LLM summary not started: %s", reason)
-            return
-
-        # Check Ollama readiness
-        ollama_ready, _ = self._is_ollama_ready()
-        if not ollama_ready:
-            logger.debug("LLM summary not started: Ollama not ready")
-            return
-
-        logger.info("LLM summary enabled via settings — starting")
-        self._pending_tasks["summary"] = True
-        self._start_summary_task()
-
-    def _start_summary_task(self):
-        """Start summary generation using MultiDocSummaryWorker."""
-        from src.ui.workflow_status import WorkflowPhase
-        from src.user_preferences import get_user_preferences
-
-        self.output_display.set_workflow_phase(WorkflowPhase.SUMMARY_RUNNING)
-
-        # Gather documents from processing results
-        valid_docs = [
-            {
-                "filename": d.get("filename", f"doc_{i}"),
-                "extracted_text": d.get("preprocessed_text") or d.get("extracted_text", ""),
-            }
-            for i, d in enumerate(self.processing_results)
-            if d.get("preprocessed_text") or d.get("extracted_text")
-        ]
-
-        if not valid_docs:
-            logger.warning("No documents with text available for summary")
-            self.set_status("Summary skipped: no document text available")
-            self._completed_tasks.add("summary")
-            self._finalize_tasks()
-            return
-
-        # Build AI params from user preferences
-        prefs = get_user_preferences()
-        ai_params = {
-            "model_name": prefs.get("ollama_model", self.model_manager.model_name),
-            "summary_length": 200,
-            "meta_length": 500,
-        }
-
-        doc_count = len(valid_docs)
-        self.set_status(f"Generating summary for {doc_count} document(s)...")
-        logger.debug("Starting summary worker for %s documents", doc_count)
-
-        # Send summary command to worker subprocess
-        logger.debug(
-            "Sending summary: %d doc(s), model=%s",
-            doc_count,
-            ai_params.get("model_name", "?"),
-        )
-        self._worker_manager.send_command(
-            "summary",
-            {
-                "documents": valid_docs,
-                "ai_params": ai_params,
-            },
-        )
-
-        # Ensure polling is active to receive worker messages
-        if not self._queue_poll_id:
-            self._queue_poll_id = self.after(33, self._poll_queue)
 
     def _all_tasks_complete(self) -> bool:
         """Check if all pending tasks are truly complete."""
@@ -1992,8 +1426,8 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         self.clear_files_btn.configure(state="normal")
         self._update_generate_button_state()
 
-        # Enable follow-up if Q&A was run and succeeded
-        if self.qa_check.get() and success and not self._qa_failed:
+        # Enable follow-up if search succeeded
+        if success and not self._qa_failed:
             self.followup_btn.configure(state="normal")
 
         # Show Export All button after successful processing
@@ -2051,14 +1485,13 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         # Check prerequisites (vector_store_path tracked locally, embeddings in subprocess)
         if not self._vector_store_path or not self._qa_ready:
             messagebox.showwarning(
-                "Questions Not Ready",
-                "Question system is not initialized yet.\n\n"
-                "To ask questions:\n"
+                "Search Not Ready",
+                "Search system is not initialized yet.\n\n"
+                "To search your documents:\n"
                 "1. Add document files\n"
-                "2. Ensure the 'Ask Questions' checkbox is checked\n"
-                "3. Click 'Perform Tasks'\n"
-                "4. Wait for the search index to finish building\n\n"
-                "The question system will be ready once the vector index is built.",
+                "2. Click 'Perform Tasks'\n"
+                "3. Wait for the search index to finish building\n\n"
+                "The search system will be ready once the vector index is built.",
             )
             return
 
@@ -2095,7 +1528,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             self._pending_followup_index = len(self._qa_results) - 1
         self.output_display.update_outputs(qa_results=list(self._qa_results))
         # Switch to Q&A tab so user sees the pending question
-        self.output_display.tabview.set("Questions")
+        self.output_display.tabview.set("Search")
 
         # Send follow-up command to worker subprocess
         logger.debug("Sending followup: %.80s", question)
@@ -2293,9 +1726,6 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
 
         # Refresh UI after settings change
         self._refresh_corpus_dropdown()
-        self._update_model_display()
-        self._update_ollama_status()
-        self._update_qa_checkbox_state()  # Refresh Q&A checkbox for model size
         self.refresh_default_questions_label()  # Update question count after settings change
 
         # Prompt restart if font size changed
@@ -2430,7 +1860,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             if vocab_data:
                 parts.append(f"{len(vocab_data)} terms")
             if qa_results:
-                parts.append(f"{len(qa_results)} Q&A")
+                parts.append(f"{len(qa_results)} searches")
             if summary_text:
                 parts.append("summary")
             self.set_status(f"Exported {' + '.join(parts)} to {filename}", duration_ms=5000)
@@ -2606,26 +2036,6 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
     # Startup Checks
     # =========================================================================
 
-    def _check_ollama_service(self):
-        """Check if Ollama service is running on startup."""
-        try:
-            self.model_manager.health_check()
-            logger.debug("Ollama service is accessible")
-        except Exception as e:
-            logger.debug("Ollama service not accessible: %s", e)
-
-            # Show warning
-            from src.config import APP_NAME
-
-            messagebox.showwarning(
-                "Ollama Not Found",
-                "Ollama service is not running.\n\n"
-                f"{APP_NAME} requires Ollama for Q&A and summaries.\n\n"
-                "To install: Visit https://ollama.ai\n"
-                "To start: Run 'ollama serve' in a terminal\n\n"
-                "Vocabulary extraction will still work without Ollama.",
-            )
-
     def _check_corpus_limit(self):
         """Check if corpus exceeds the maximum document limit on startup."""
         try:
@@ -2650,6 +2060,19 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
                 )
         except Exception as e:
             logger.debug("Error checking corpus limit: %s", e)
+
+    # =========================================================================
+    # Document Count Badge
+    # =========================================================================
+
+    def _update_doc_count_badge(self):
+        """Update the document count badge in the header."""
+        count = len(self.processing_results)
+        if count == 0:
+            self.doc_count_label.configure(text="")
+        else:
+            label = "document" if count == 1 else "documents"
+            self.doc_count_label.configure(text=f"\U0001f4c4 {count} {label} loaded")
 
     # =========================================================================
     # Cleanup

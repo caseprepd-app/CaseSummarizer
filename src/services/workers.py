@@ -3,7 +3,6 @@ Background Workers Module
 
 Contains threading and multiprocessing workers for document processing:
 - ProcessingWorker: Document extraction thread (with parallel processing)
-- MultiDocSummaryWorker: Hierarchical summarization worker
 - ProgressiveExtractionWorker: NER + Q&A extraction worker
 
 Performance Optimizations:
@@ -28,7 +27,7 @@ from src.core.parallel import (
     ThreadPoolStrategy,
 )
 from src.core.vocabulary import VocabularyExtractor
-from src.ui.base_worker import BaseWorker, CleanupWorker
+from src.ui.base_worker import BaseWorker
 from src.ui.queue_messages import QueueMessage
 
 logger = logging.getLogger(__name__)
@@ -249,40 +248,39 @@ class QAWorker(BaseWorker):
         vector_store_path: Path,
         embeddings,
         ui_queue: Queue,
-        answer_mode: str = "ollama",
+        answer_mode: str = "extraction",
         questions: list[str] | None = None,
         use_default_questions: bool = False,
     ):
         """
-        Initialize Q&A worker.
+        Initialize semantic search worker.
 
         Args:
             vector_store_path: Path to FAISS index directory
             embeddings: HuggingFaceEmbeddings model
             ui_queue: Queue for UI communication
-            answer_mode: "extraction" or "ollama"
+            answer_mode: Ignored (kept for backward compat). Always uses extraction.
             questions: Custom questions to ask (None = use defaults from YAML)
             use_default_questions: If True, load questions from qa_default_questions.txt
         """
         super().__init__(ui_queue)
         self.vector_store_path = Path(vector_store_path)
         self.embeddings = embeddings
-        self.answer_mode = answer_mode
+        self.answer_mode = "extraction"
         self.custom_questions = questions
         self.use_default_questions = use_default_questions
         self.results: list = []
 
     def execute(self):
-        """Execute Q&A in background thread."""
+        """Execute semantic search in background thread."""
         from src.core.qa import QAOrchestrator
 
-        logger.debug("Starting Q&A with mode: %s", self.answer_mode)
+        logger.debug("Starting semantic search")
 
         # Initialize orchestrator
         orchestrator = QAOrchestrator(
             vector_store_path=self.vector_store_path,
             embeddings=self.embeddings,
-            answer_mode=self.answer_mode,
         )
 
         # Determine which questions to ask and whether they are default questions
@@ -316,13 +314,9 @@ class QAWorker(BaseWorker):
         self, orchestrator, questions: list[str], is_default: bool, total: int
     ) -> list:
         """
-        Process Q&A questions, using parallelization when beneficial.
+        Process search questions sequentially.
 
-        Uses ThreadPoolStrategy to process 2-4 questions concurrently.
-        Falls back to sequential execution when:
-        - Only 1 question to ask
-        - Ollama is unavailable (answer_mode != "ollama")
-
+        Extraction mode is fast enough that parallelization is unnecessary.
         Results are streamed to UI as they complete via qa_result messages.
 
         Args:
@@ -334,266 +328,23 @@ class QAWorker(BaseWorker):
         Returns:
             List of QAResult objects in original question order
         """
-        import os
-        import threading
+        logger.debug("Processing %s question(s) sequentially", len(questions))
+        results = []
+        for i, question in enumerate(questions):
+            self.check_cancelled()
 
-        from src.core.parallel.executor_strategy import ThreadPoolStrategy
-        from src.core.parallel.task_runner import ParallelTaskRunner
-        from src.system_resources import get_optimal_workers
-
-        # Decide whether to parallelize
-        # Skip for single question or non-Ollama mode (extraction is fast enough)
-        cpu_count = os.cpu_count() or 1
-        use_parallel = (
-            len(questions) > 1
-            and cpu_count > 1
-            and self.answer_mode == "ollama"  # Ollama benefits from parallelization
-        )
-
-        if not use_parallel:
-            # Sequential fallback
-            logger.debug("Processing %s question(s) sequentially", len(questions))
-            results = []
-            for i, question in enumerate(questions):
-                self.check_cancelled()
-
-                # Report progress
-                truncated_q = question[:50] + "..." if len(question) > 50 else question
-                self.ui_queue.put(QueueMessage.qa_progress(i, total, truncated_q))
-
-                result = orchestrator._ask_single_question(
-                    question, is_followup=False, is_default=is_default
-                )
-                results.append(result)
-                self.ui_queue.put(QueueMessage.qa_result(result))
-                logger.debug("Q%s/%s complete: %s chars", i + 1, total, len(result.answer))
-
-            return results
-
-        # Parallel execution
-        # Limit workers to avoid overloading Ollama (typically 2-4)
-        workers = min(
-            len(questions), get_optimal_workers(task_ram_gb=2.0, max_workers=4, min_workers=2)
-        )
-        logger.debug("Processing %s questions in parallel (%s workers)", len(questions), workers)
-
-        # Track completion for progress reporting
-        completed_count = [0]  # Using list for mutable in closure
-        count_lock = threading.Lock()
-        results_dict = {}  # Store results by index for ordering
-        results_lock = threading.Lock()  # Thread-safe dict access
-
-        def ask_question(args):
-            """Worker function to ask a single question."""
-            idx, question = args
-
-            # Check cancellation
-            if self._stop_event.is_set():
-                return (idx, None)
+            # Report progress
+            truncated_q = question[:50] + "..." if len(question) > 50 else question
+            self.ui_queue.put(QueueMessage.qa_progress(i, total, truncated_q))
 
             result = orchestrator._ask_single_question(
                 question, is_followup=False, is_default=is_default
             )
-            return (idx, result)
+            results.append(result)
+            self.ui_queue.put(QueueMessage.qa_result(result))
+            logger.debug("Q%s/%s complete: %s chars", i + 1, total, len(result.answer))
 
-        strategy = ThreadPoolStrategy(max_workers=workers)
-
-        try:
-            # Build items: (task_id, (index, question))
-            items = [(f"Q{i + 1}", (i, q)) for i, q in enumerate(questions)]
-
-            def on_complete(task_id: str, result):
-                """Callback when question completes - stream to UI."""
-                idx, qa_result = result
-                if qa_result is None:
-                    return  # Cancelled
-
-                # Thread-safe completion tracking
-                with count_lock:
-                    completed_count[0] += 1
-                    count = completed_count[0]
-
-                # Store result for ordered return (thread-safe)
-                with results_lock:
-                    results_dict[idx] = qa_result
-
-                # Stream result to UI
-                self.ui_queue.put(QueueMessage.qa_result(qa_result))
-
-                # Progress update
-                truncated_q = (
-                    questions[idx][:50] + "..." if len(questions[idx]) > 50 else questions[idx]
-                )
-                self.ui_queue.put(QueueMessage.qa_progress(count - 1, total, truncated_q))
-
-                logger.debug("Q%s/%s complete: %s chars", idx + 1, total, len(qa_result.answer))
-
-            runner = ParallelTaskRunner(strategy=strategy, on_task_complete=on_complete)
-            task_results = runner.run(ask_question, items)
-
-            # Handle any failures
-            for task_result in task_results:
-                if not task_result.success:
-                    logger.warning("Question %s failed: %s", task_result.task_id, task_result.error)
-
-            # Return results in original order (thread-safe read)
-            with results_lock:
-                ordered_results = [results_dict.get(i) for i in range(len(questions))]
-            final_results = [r for r in ordered_results if r is not None]
-
-            # Log if any questions failed/were cancelled
-            failed_count = len(ordered_results) - len(final_results)
-            if failed_count > 0:
-                logger.debug("%s/%s questions returned no result", failed_count, len(questions))
-
-            return final_results
-
-        finally:
-            strategy.shutdown(wait=True)
-
-
-class MultiDocSummaryWorker(CleanupWorker):
-    """
-    Background worker for multi-document hierarchical summarization.
-
-    Uses MultiDocumentOrchestrator to process multiple documents in parallel
-    with a map-reduce approach:
-    1. Map: Each document summarized via ProgressiveDocumentSummarizer
-    2. Reduce: Individual summaries combined into meta-summary
-
-    This worker runs in a background thread to keep the UI responsive
-    during potentially long summarization operations.
-
-    Attributes:
-        documents: List of document dicts with 'filename' and 'extracted_text'.
-        ui_queue: Queue for communication with the main UI thread.
-        ai_params: AI parameters (summary_length, meta_length, etc.).
-        strategy: ExecutorStrategy for parallel processing.
-    """
-
-    def __init__(
-        self,
-        documents: list[dict],
-        ui_queue: Queue,
-        ai_params: dict,
-        strategy: ExecutorStrategy = None,
-    ):
-        """
-        Initialize the multi-document summary worker.
-
-        Args:
-            documents: List of document dicts with 'filename' and 'extracted_text'.
-            ui_queue: Queue for UI communication.
-            ai_params: Dict with 'summary_length', 'meta_length', 'model_name', etc.
-            strategy: ExecutorStrategy for parallel execution. Defaults to
-                     ThreadPoolStrategy with PARALLEL_MAX_WORKERS.
-        """
-        super().__init__(ui_queue)
-        self.documents = documents
-        self.ai_params = ai_params
-        self.strategy = strategy or ThreadPoolStrategy(max_workers=PARALLEL_MAX_WORKERS)
-        self._orchestrator = None
-
-    def stop(self):
-        """Signal the worker to stop processing."""
-        super().stop()
-        if self._orchestrator:
-            self._orchestrator.stop()
-        self.strategy.shutdown(wait=False, cancel_futures=True)
-
-    def execute(self):
-        """Execute multi-document summarization in background thread."""
-        doc_count = len(self.documents)
-        logger.debug("Starting summarization of %s documents", doc_count)
-
-        # Import here to avoid circular imports
-        from src.core.ai import OllamaModelManager
-        from src.core.summarization import (
-            MultiDocumentOrchestrator,
-            ProgressiveDocumentSummarizer,
-        )
-
-        # Initialize components
-        model_manager = OllamaModelManager()
-
-        # Load specified model if provided
-        model_name = self.ai_params.get("model_name")
-        if model_name:
-            model_manager.load_model(model_name)
-
-        # Extract preset_id from ai_params (set by main_window from user selection)
-        preset_id = self.ai_params.get("preset_id", "factual-summary")
-        logger.debug("Using preset_id: %s", preset_id)
-
-        # Create prompt builder for thread-through focus areas
-        # This builder extracts focus from the user's template and threads
-        # it through all stages of the summarization pipeline
-        from src.core.prompting import MultiDocStagePromptBuilder
-
-        prompt_adapter = MultiDocStagePromptBuilder(
-            template_manager=model_manager.prompt_template_manager, model_manager=model_manager
-        )
-
-        # Resolve enhanced mode and chunk scores
-        from src.user_preferences import get_user_preferences
-
-        prefs = get_user_preferences()
-        enhanced_mode = prefs.is_enhanced_summary_enabled()
-        chunk_scores = self.ai_params.get("chunk_scores")
-
-        if enhanced_mode:
-            logger.debug("Enhanced summary mode enabled (two-pass extraction)")
-
-        doc_summarizer = ProgressiveDocumentSummarizer(
-            model_manager,
-            prompt_adapter=prompt_adapter,
-            preset_id=preset_id,
-            chunk_scores=chunk_scores,
-            enhanced_mode=enhanced_mode,
-        )
-
-        self._orchestrator = MultiDocumentOrchestrator(
-            document_summarizer=doc_summarizer,
-            model_manager=model_manager,
-            strategy=self.strategy,
-            prompt_adapter=prompt_adapter,
-            preset_id=preset_id,
-        )
-
-        # Progress callback to UI
-        def on_progress(percent: int, message: str):
-            self.send_progress(percent, message)
-
-        # Get parameters
-        summary_length = self.ai_params.get("summary_length", 200)
-        meta_length = self.ai_params.get("meta_length", 500)
-
-        # Execute summarization
-        result = self._orchestrator.summarize_documents(
-            documents=self.documents,
-            max_words_per_document=summary_length,
-            max_meta_summary_words=meta_length,
-            progress_callback=on_progress,
-            ui_queue=self.ui_queue,
-        )
-
-        # Send result to UI
-        if not self.is_stopped:
-            self.ui_queue.put(QueueMessage.multi_doc_result(result))
-            logger.info(
-                "Completed: %s documents, %s failed, %.1fs",
-                result.documents_processed,
-                result.documents_failed,
-                result.total_processing_time_seconds,
-            )
-        else:
-            logger.debug("Processing cancelled by user")
-            self.ui_queue.put(QueueMessage.error("Multi-document summarization cancelled."))
-
-    def _cleanup(self):
-        """Clean up strategy and memory."""
-        self.strategy.shutdown(wait=False)
-        super()._cleanup()  # Calls gc.collect()
+        return results
 
 
 class ProgressiveExtractionWorker(BaseWorker):

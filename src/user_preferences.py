@@ -224,7 +224,7 @@ class UserPreferencesManager:
         Resolves "auto" mode using GPU VRAM detection.
 
         Returns:
-            int: Context window size (num_ctx) for Ollama API calls
+            int: Context window size in tokens
         """
         mode = self.get_context_size_mode()
         if isinstance(mode, int):
@@ -252,149 +252,6 @@ class UserPreferencesManager:
 
         context_size = self.get_effective_context_size()
         return get_optimal_chunk_sizes(context_size)
-
-    # =========================================================================
-    # Small Model Warning
-    # =========================================================================
-
-    def get_model_param_count(self, model_name: str):
-        """
-        Extract parameter count from an Ollama model name.
-
-        Args:
-            model_name: Ollama model name (e.g., "llama3.2:3b", "gemma2:9b")
-
-        Returns:
-            float or None: Parameter count in billions, or None if unparseable
-        """
-        import re
-
-        match = re.search(r":(\d+\.?\d*)b", model_name.lower())
-        if match:
-            return float(match.group(1))
-        return None
-
-    def has_dismissed_small_model_warning(self) -> bool:
-        """Check if the user has dismissed the small-model warning popup."""
-        return bool(self._preferences.get("small_model_warning_dismissed", False))
-
-    def dismiss_small_model_warning(self) -> None:
-        """Record that the user dismissed the small-model warning popup."""
-        self._preferences["small_model_warning_dismissed"] = True
-        self._save_preferences()
-
-    # =========================================================================
-    # Summary GPU Requirements
-    # =========================================================================
-
-    def get_summary_gpu_override_mode(self) -> str:
-        """
-        Get AI-Generated Summary mode.
-
-        Returns:
-            str: "no" (disabled, default), "yes" (enabled), or "auto" (legacy)
-        """
-        value = self._preferences.get("summary_gpu_override", "no")
-        return value if value in ("no", "yes", "auto") else "no"
-
-    def set_summary_gpu_override_mode(self, mode: str) -> None:
-        """
-        Set AI-Generated Summary mode.
-
-        Args:
-            mode: "no" (disabled) or "yes" (enabled, requires GPU)
-        """
-        if mode not in ("no", "yes", "auto"):
-            raise ValueError(f"Invalid mode: {mode}, must be 'no', 'yes', or 'auto'")
-        self._preferences["summary_gpu_override"] = mode
-        self._save_preferences()
-
-    def is_summary_allowed(self) -> tuple[bool, str]:
-        """
-        Check if AI-generated summary is enabled and allowed.
-
-        The AI summary is disabled by default. When enabled via Settings,
-        it also requires a dedicated GPU to produce useful results.
-
-        Returns:
-            Tuple of (allowed: bool, reason: str)
-            - If allowed, reason is empty
-            - If not allowed, reason explains why
-        """
-        mode = self.get_summary_gpu_override_mode()
-
-        # Default: disabled
-        if mode == "no":
-            return False, "AI summary disabled. Enable in Settings > AI Model."
-
-        # User explicitly enabled — check GPU
-        if mode == "yes":
-            from src.core.utils.gpu_detector import has_dedicated_gpu
-
-            if has_dedicated_gpu():
-                return True, ""
-            else:
-                from src.services import AIService
-
-                gpu_status = AIService().get_gpu_status_text()
-                return False, (
-                    f"AI summary is enabled but requires a dedicated GPU.\n\n"
-                    f"{gpu_status}\n\n"
-                    "Without a GPU, the small context window (2K tokens)\n"
-                    "produces poor legal summaries and takes hours."
-                )
-
-        # Legacy "auto" mode — check GPU availability
-        from src.core.utils.gpu_detector import has_dedicated_gpu
-
-        if has_dedicated_gpu():
-            return True, ""
-        return False, "AI summary disabled (no GPU detected)."
-
-    # =========================================================================
-    # Enhanced Summary Mode (Two-Pass Extraction)
-    # =========================================================================
-
-    def get_summary_enhanced_mode(self) -> str:
-        """
-        Get enhanced summary mode (two-pass extraction).
-
-        Returns:
-            str: "auto" (enable if GPU detected), "yes" (always), or "no" (standard only)
-        """
-        value = self._preferences.get("summary_enhanced_mode", "auto")
-        return value if value in ("auto", "yes", "no") else "auto"
-
-    def set_summary_enhanced_mode(self, mode: str) -> None:
-        """
-        Set enhanced summary mode.
-
-        Args:
-            mode: "auto", "yes", or "no"
-        """
-        if mode not in ("auto", "yes", "no"):
-            raise ValueError(f"Invalid mode: {mode}, must be 'auto', 'yes', or 'no'")
-        self._preferences["summary_enhanced_mode"] = mode
-        self._save_preferences()
-
-    def is_enhanced_summary_enabled(self) -> bool:
-        """
-        Check if enhanced (two-pass) summarization is enabled.
-
-        Resolves "auto" mode using GPU detection.
-
-        Returns:
-            bool: True if two-pass extraction should be used
-        """
-        mode = self.get_summary_enhanced_mode()
-        if mode == "yes":
-            return True
-        elif mode == "no":
-            return False
-        else:  # "auto" - use GPU detection
-            from src.core.utils.gpu_detector import has_dedicated_gpu
-
-            return has_dedicated_gpu()
 
     # =========================================================================
     # Logging Level Settings
@@ -500,9 +357,6 @@ class UserPreferencesManager:
         elif key == "phrase_rarity_threshold":
             if not isinstance(value, (int, float)) or value < 0.1 or value > 0.9:
                 raise ValueError(f"phrase_rarity_threshold must be 0.1-0.9, got {value}")
-        elif key == "ollama_model":
-            if not isinstance(value, str) or not value:
-                raise ValueError("ollama_model must be a non-empty string")
         elif key == "vocab_min_occurrences":
             if not isinstance(value, int) or value < 1 or value > 5:
                 raise ValueError(f"vocab_min_occurrences must be 1-5, got {value}")
@@ -535,13 +389,6 @@ class UserPreferencesManager:
         elif key == "corpus_was_ever_ready":
             if not isinstance(value, bool):
                 raise ValueError(f"corpus_was_ever_ready must be boolean, got {value}")
-        # LLM context window size validation
-        elif key == "llm_context_size":
-            valid_sizes = [2048, 4000, 8000, 16000, 32000, 48000, 64000]
-            if value != "auto" and value not in valid_sizes:
-                raise ValueError(
-                    f"llm_context_size must be 'auto' or one of {valid_sizes}, got {value}"
-                )
         # Column visibility validation
         elif key == "vocab_column_visibility":
             if not isinstance(value, dict):
@@ -624,18 +471,6 @@ class UserPreferencesManager:
         elif key in ("retrieval_weight_faiss", "retrieval_weight_bm25"):
             if not isinstance(value, (int, float)) or value < 0.0 or value > 2.0:
                 raise ValueError(f"{key} must be 0.0-2.0, got {value}")
-        # Summary GPU override validation
-        elif key == "summary_gpu_override":
-            if value not in ("no", "yes", "auto"):
-                raise ValueError(
-                    f"summary_gpu_override must be 'no', 'yes', or 'auto', got {value}"
-                )
-        # Enhanced summary mode validation
-        elif key == "summary_enhanced_mode":
-            if value not in ("auto", "yes", "no"):
-                raise ValueError(
-                    f"summary_enhanced_mode must be 'auto', 'yes', or 'no', got {value}"
-                )
         # Active corpus validation
         elif key == "active_corpus":
             if not isinstance(value, str) or not value.strip():

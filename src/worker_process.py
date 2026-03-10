@@ -49,10 +49,6 @@ def _summarize_command_args(cmd_type, args):
     elif cmd_type == "followup":
         q = args.get("question", "")
         parts.append(f"question='{q[:80]}'")
-    elif cmd_type == "summary":
-        parts.append(f"docs={len(args.get('documents', []))}")
-        ai = args.get("ai_params", {})
-        parts.append(f"model={ai.get('model_name', '?')}")
     else:
         parts.append(f"keys={list(args.keys())}")
     return ", ".join(parts)
@@ -187,8 +183,6 @@ def _dispatch_command(cmd_type, args, internal_queue, state):
         _run_qa(args, internal_queue, state)
     elif cmd_type == "followup":
         _run_followup(args, internal_queue, state)
-    elif cmd_type == "summary":
-        _run_summary(args, internal_queue, state)
     else:
         logger.warning("Unknown command: %s", cmd_type)
         internal_queue.put(("error", f"Unknown command: {cmd_type}"))
@@ -274,13 +268,10 @@ def _run_followup(args, internal_queue, state):
     def do_followup():
         try:
             from src.core.qa import QAOrchestrator
-            from src.user_preferences import get_user_preferences
 
-            prefs = get_user_preferences()
             orchestrator = QAOrchestrator(
                 vector_store_path=vector_store_path,
                 embeddings=embeddings,
-                answer_mode=prefs.get("qa_answer_mode", "ollama"),
             )
             result = orchestrator.ask_followup(question)
             logger.debug("Follow-up answered: %d chars", len(result.answer) if result else 0)
@@ -292,26 +283,6 @@ def _run_followup(args, internal_queue, state):
     thread = threading.Thread(target=do_followup, daemon=True, name="followup")
     thread.start()
     # Don't track as active_worker -- followups are lightweight
-
-
-def _run_summary(args, internal_queue, state):
-    """Spawn MultiDocSummaryWorker for document summarization."""
-    from src.services.workers import MultiDocSummaryWorker
-
-    ai_params = args.get("ai_params", {})
-    # Inject chunk_scores from subprocess state (saved during qa_ready)
-    if "chunk_scores" not in ai_params and state.get("chunk_scores"):
-        ai_params["chunk_scores"] = state["chunk_scores"]
-
-    worker = MultiDocSummaryWorker(
-        documents=args["documents"],
-        ui_queue=internal_queue,
-        ai_params=ai_params,
-    )
-    with state["worker_lock"]:
-        state["active_worker"] = worker
-    worker.start()
-    logger.debug("Worker thread started: %s (thread: %s)", type(worker).__name__, worker.name)
 
 
 def _stop_active_worker(state):
@@ -437,18 +408,15 @@ def _forward_message(msg_type, data, internal_queue, result_queue, state):
         # Spawn QAWorker using saved state
         try:
             from src.services.workers import QAWorker
-            from src.user_preferences import get_user_preferences
 
             embeddings = state.get("embeddings")
             vector_store_path = data.get("vector_store_path") or state.get("vector_store_path")
 
             if embeddings and vector_store_path:
-                prefs = get_user_preferences()
                 qa_worker = QAWorker(
                     vector_store_path=vector_store_path,
                     embeddings=embeddings,
                     ui_queue=internal_queue,
-                    answer_mode=prefs.get("qa_answer_mode", "ollama"),
                     questions=None,
                     use_default_questions=True,
                 )

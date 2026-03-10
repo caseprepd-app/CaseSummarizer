@@ -359,42 +359,6 @@ class TestCombinedHtmlBuilder:
 
 
 # ---------------------------------------------------------------------------
-# MultiDocumentOrchestrator
-# ---------------------------------------------------------------------------
-
-
-class TestMultiDocumentOrchestrator:
-    """MultiDocumentOrchestrator coordinates multi-doc summarization."""
-
-    def test_init_with_mocks(self):
-        from src.core.summarization.multi_document_orchestrator import (
-            MultiDocumentOrchestrator,
-        )
-
-        mock_summarizer = MagicMock()
-        mock_model_manager = MagicMock()
-        orch = MultiDocumentOrchestrator(
-            document_summarizer=mock_summarizer,
-            model_manager=mock_model_manager,
-        )
-        assert orch is not None
-
-    def test_stop_sets_event(self):
-        from src.core.summarization.multi_document_orchestrator import (
-            MultiDocumentOrchestrator,
-        )
-
-        mock_summarizer = MagicMock()
-        mock_model_manager = MagicMock()
-        orch = MultiDocumentOrchestrator(
-            document_summarizer=mock_summarizer,
-            model_manager=mock_model_manager,
-        )
-        orch.stop()
-        assert orch._stop_event.is_set()
-
-
-# ---------------------------------------------------------------------------
 # ExportService combined export
 # ---------------------------------------------------------------------------
 

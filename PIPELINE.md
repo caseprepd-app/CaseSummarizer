@@ -48,20 +48,17 @@
 │  STAGE 5: ANALYSIS (three parallel paths - NO CROSS-TALK)           │
 │                                                                     │
 │  ┌─────────────────┐ ┌─────────────────┐ ┌─────────────────┐        │
-│  │ VOCABULARY      │ │ Q&A             │ │ SUMMARIZATION   │        │
+│  │ VOCABULARY      │ │ SEMANTIC SEARCH │ │ KEY SENTENCES   │        │
 │  │ src/core/       │ │ src/core/qa/    │ │ src/core/       │        │
 │  │ vocabulary/     │ │ src/core/       │ │ summarization/  │        │
 │  │                 │ │ vector_store/   │ │                 │        │
-│  │ TEXT FLOW:      │ │ src/core/       │ │ - Map-reduce    │        │
-│  │ Full text →     │ │ retrieval/      │ │ - Focus thread  │        │
-│  │ NER,RAKE,BM25   │ │                 │ │                 │        │
-│  │                 │ │ - Index build   │ │                 │        │
-│  │ Chunks → LLM*   │ │ - Retrieval     │ │                 │        │
-│  │ *intentional    │ │ - Answer gen    │ │                 │        │
-│  │                 │ │                 │ │                 │        │
-│  │ Backend Filter: │ │                 │ │                 │        │
-│  │ - Name dedup    │ │                 │ │                 │        │
-│  │ - Artifact filt │ │                 │ │                 │        │
+│  │ TEXT FLOW:      │ │ src/core/       │ │ - K-means       │        │
+│  │ Full text →     │ │ retrieval/      │ │   clustering    │        │
+│  │ NER,RAKE,BM25   │ │                 │ │ - No LLM needed │        │
+│  │                 │ │ - FAISS index   │ │                 │        │
+│  │ Backend Filter: │ │ - Vector search │ │                 │        │
+│  │ - Name dedup    │ │ - Cross-encoder │ │                 │        │
+│  │ - Artifact filt │ │   reranking     │ │                 │        │
 │  │ - Rarity filter │ │                 │ │                 │        │
 │  │ - ML scoring    │ │                 │ │                 │        │
 │  └────────┬────────┘ └────────┬────────┘ └────────┬────────┘        │
@@ -80,7 +77,7 @@
 │  SERVICES LAYER                             src/services/           │
 │  - DocumentService (stages 1-4)                                     │
 │  - VocabularyService (stage 5a)                                     │
-│  - QAService (stage 5b)                                             │
+│  - QAService / Semantic Search (stage 5b)                            │
 │  - ExportService (stage 6)                                          │
 │  PURPOSE: Only interface between UI and Core                        │
 └─────────────────────────────────┬───────────────────────────────────┘
@@ -105,8 +102,8 @@
 | `src/core/preprocessing/` | `src/config.py`, `src/core/config/`, stdlib |
 | `src/core/chunking/` | `src/config.py`, `src/core/config/`, stdlib |
 | `src/core/vocabulary/` | stages 1-4, `src/core/ai/`, config, stdlib |
-| `src/core/qa/` | stages 1-4, `src/core/ai/`, config, stdlib |
-| `src/core/summarization/` | stages 1-4, `src/core/ai/`, config, stdlib |
+| `src/core/qa/` | stages 1-4, config, stdlib |
+| `src/core/summarization/` | stages 1-4, config, stdlib |
 | `src/core/export/` | stages 1-5, config, stdlib |
 | `src/services/` | `src/core/*`, config |
 | `src/ui/` | `src/services/`, `src/config.py`, `src/ui/*` |
@@ -126,8 +123,7 @@
 ```
 src/config.py              # Global settings
 src/core/config/           # YAML loading utilities  
-src/core/ai/               # Ollama interface
-src/core/prompting/        # Prompt templates
+src/core/ai/               # AI utilities (embeddings, reranking)
 src/utils/                 # Pure utility functions
 ```
 
@@ -179,14 +175,9 @@ This is enforced by design - a text hash is logged to verify consistency.
 ```
 preprocessed_text
     ├── Vocabulary Path: Full text → NER/RAKE/BM25 (identical input)
-    ├── LLM Extraction: UnifiedChunks → Ollama (by design - better for LLMs)
-    └── Q&A Path: UnifiedChunks → Vector search
+    ├── Semantic Search: UnifiedChunks → FAISS vector index
+    └── Key Sentences: UnifiedChunks → K-means clustering
 ```
-
-The LLM extraction path intentionally uses chunks because:
-- Ollama has limited context windows
-- Chunking provides better extraction quality for LLMs
-- Results are reconciled with NER output for comprehensive coverage
 
 ## How to Check Compliance
 

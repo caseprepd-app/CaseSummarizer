@@ -42,10 +42,10 @@ class TestActualUIElements:
         text = _read("src/ui/window_layout.py")
         assert 'text="Extract Vocabulary"' in text
 
-    def test_qa_checkbox(self):
-        """Q&A checkbox says 'Ask Questions'."""
+    def test_no_qa_checkbox(self):
+        """Semantic search is always-on; no 'Ask Questions' checkbox."""
         text = _read("src/ui/window_layout.py")
-        assert 'text="Ask Questions"' in text
+        assert 'text="Ask Questions"' not in text
 
     def test_summary_checkbox_removed(self):
         """Summary checkbox was removed (key sentences are automatic)."""
@@ -53,11 +53,11 @@ class TestActualUIElements:
         assert 'text="Generate Summary"' not in text
 
     def test_results_tab_names(self):
-        """Results tabs are 'Vocabulary', 'Questions', 'Summary'."""
+        """Results tabs are 'Vocabulary', 'Search', 'Key Sentences'."""
         text = _read("src/ui/dynamic_output.py")
         assert '"Vocabulary"' in text
-        assert '"Questions"' in text
-        assert '"Summary"' in text
+        assert '"Search"' in text
+        assert '"Key Sentences"' in text
 
 
 # =========================================================================
@@ -84,18 +84,19 @@ class TestHelpDialogCoherence:
         """Step 3 checkbox matches actual label 'Extract Vocabulary'."""
         assert "- Extract Vocabulary" in self.text
 
-    def test_step3_checkbox_ask_questions(self):
-        """Step 3 checkbox matches actual label 'Ask Questions'."""
-        assert "- Ask Questions" in self.text
+    def test_step3_checkbox_semantic_search(self):
+        """Step 3 checkbox matches actual label 'Semantic Search'."""
+        assert "- Semantic Search" in self.text
 
-    def test_step3_checkbox_generate_summary(self):
-        """Step 3 matches actual label 'Generate Summary'."""
-        assert "- Generate Summary" in self.text
+    def test_step3_no_generate_summary(self):
+        """No 'Generate Summary' checkbox (key sentences are automatic)."""
+        assert "- Generate Summary" not in self.text
 
     def test_step3_no_stale_checkbox_names(self):
         """No old checkbox names from dead code."""
         assert "Extract Names & Vocabulary" not in self.text
         assert "Enable Q&A" not in self.text
+        assert "- Ask Questions" not in self.text
 
     def test_step4_perform_tasks_button(self):
         """Step 4 references 'Perform Tasks' not 'Generate Outputs'."""
@@ -180,8 +181,7 @@ class TestQAPanelCoherence:
 class TestSettingsTooltipCoherence:
     """Settings tooltips reference actual UI elements."""
 
-    def test_summary_gpu_tooltip_exists(self):
-        """AI-Generated Summary tooltip describes key sentences and GPU requirement."""
+    def test_no_ai_model_settings_category(self):
+        """AI Model settings category was removed (no Ollama integration)."""
         text = _read("src/ui/settings/settings_registry.py")
-        assert "AI-Generated Summary" in text
-        assert "Key sentences" in text
+        assert "AI Model" not in text

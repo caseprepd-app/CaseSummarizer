@@ -88,7 +88,10 @@ def _run_forwarder_with_messages(messages, state=None, timeout=5):
 def _make_window_stub():
     """Create a minimal MainWindow state stub for handler testing."""
     stub = MagicMock()
-    stub._pending_tasks = {"vocab": True, "qa": True, "summary": False}
+    stub._pending_tasks = {
+        "vocab": True,
+        "qa": True,
+    }
     stub._completed_tasks = set()
     stub._qa_answering_active = False
     stub._qa_failed = False
@@ -492,9 +495,6 @@ class TestHandlerStateTransitions:
         elif msg_type == "ner_complete":
             stub._completed_tasks.add("vocab")
 
-        elif msg_type == "multi_doc_result":
-            stub._completed_tasks.add("summary")
-
     def _all_tasks_complete(self, stub):
         """Check if all pending tasks are truly complete."""
         for task_name, is_pending in stub._pending_tasks.items():
@@ -505,7 +505,10 @@ class TestHandlerStateTransitions:
     def test_vocab_only_flow(self):
         """Vocab only: ner_complete -> finalize."""
         stub = _make_window_stub()
-        stub._pending_tasks = {"vocab": True, "qa": False, "summary": False}
+        stub._pending_tasks = {
+            "vocab": True,
+            "qa": False,
+        }
 
         self._simulate_handler(stub, "ner_complete", {"vocab": [], "filtered": []})
 
@@ -515,7 +518,10 @@ class TestHandlerStateTransitions:
     def test_vocab_plus_qa_flow(self):
         """Vocab+Q&A: qa_ready -> trigger -> answering -> qa_complete -> finalize."""
         stub = _make_window_stub()
-        stub._pending_tasks = {"vocab": True, "qa": True, "summary": False}
+        stub._pending_tasks = {
+            "vocab": True,
+            "qa": True,
+        }
 
         # Phase 1: NER
         self._simulate_handler(stub, "ner_complete", {"vocab": [], "filtered": []})
@@ -540,31 +546,13 @@ class TestHandlerStateTransitions:
         assert "qa" in stub._completed_tasks
         assert self._all_tasks_complete(stub)
 
-    def test_vocab_qa_summary_flow(self):
-        """Vocab+Q&A+Summary: all three must complete before finalization."""
-        stub = _make_window_stub()
-        stub._pending_tasks = {"vocab": True, "qa": True, "summary": True}
-
-        self._simulate_handler(stub, "ner_complete", {"vocab": [], "filtered": []})
-        self._simulate_handler(stub, "qa_ready", {"chunk_count": 10})
-        self._simulate_handler(stub, "trigger_default_qa_started", None)
-
-        # Vocab done, Q&A still active, summary not started
-        assert not self._all_tasks_complete(stub)
-
-        # Q&A completes
-        self._simulate_handler(stub, "qa_complete", [])
-        # Summary still pending
-        assert not self._all_tasks_complete(stub)
-
-        # Summary completes
-        self._simulate_handler(stub, "multi_doc_result", MagicMock())
-        assert self._all_tasks_complete(stub)
-
     def test_qa_error_still_allows_finalization(self):
         """Q&A error should mark Q&A as complete so finalization isn't blocked."""
         stub = _make_window_stub()
-        stub._pending_tasks = {"vocab": True, "qa": True, "summary": False}
+        stub._pending_tasks = {
+            "vocab": True,
+            "qa": True,
+        }
 
         self._simulate_handler(stub, "ner_complete", {"vocab": [], "filtered": []})
         self._simulate_handler(stub, "qa_error", {"error": "Indexing failed"})
@@ -584,7 +572,10 @@ class TestHandlerStateTransitions:
     def test_qa_ready_does_not_mark_complete(self):
         """qa_ready should NOT add 'qa' to completed_tasks (the old bug)."""
         stub = _make_window_stub()
-        stub._pending_tasks = {"vocab": True, "qa": True, "summary": False}
+        stub._pending_tasks = {
+            "vocab": True,
+            "qa": True,
+        }
 
         self._simulate_handler(stub, "qa_ready", {"chunk_count": 42})
         assert "qa" not in stub._completed_tasks
@@ -600,7 +591,10 @@ class TestHandlerStateTransitions:
     def test_vocab_complete_before_qa_complete(self):
         """Vocab completing before Q&A should NOT allow premature finalization."""
         stub = _make_window_stub()
-        stub._pending_tasks = {"vocab": True, "qa": True, "summary": False}
+        stub._pending_tasks = {
+            "vocab": True,
+            "qa": True,
+        }
 
         self._simulate_handler(stub, "ner_complete", {"vocab": [], "filtered": []})
         self._simulate_handler(stub, "qa_ready", {})
@@ -615,7 +609,10 @@ class TestHandlerStateTransitions:
     def test_qa_complete_before_vocab_complete_impossible(self):
         """With NER marking vocab done, Q&A can't complete before vocab in practice."""
         stub = _make_window_stub()
-        stub._pending_tasks = {"vocab": True, "qa": True, "summary": False}
+        stub._pending_tasks = {
+            "vocab": True,
+            "qa": True,
+        }
 
         # Simulate Q&A completing first (unlikely but should be handled)
         self._simulate_handler(stub, "qa_ready", {})
@@ -863,27 +860,6 @@ class TestCommandDispatchIntegration:
             MockQAWorker.assert_called_once()
             mock_worker_instance.start.assert_called_once()
             assert state["active_worker"] is mock_worker_instance
-
-    def test_summary_command_spawns_worker(self):
-        """summary command should spawn MultiDocSummaryWorker."""
-        from src.worker_process import _dispatch_command
-
-        internal_q = Queue()
-        state = {"active_worker": None, "worker_lock": threading.Lock()}
-
-        with patch("src.services.workers.MultiDocSummaryWorker") as MockWorker:
-            mock_instance = MagicMock()
-            MockWorker.return_value = mock_instance
-
-            _dispatch_command(
-                "summary",
-                {"documents": [{"filename": "test.pdf"}], "ai_params": {}},
-                internal_q,
-                state,
-            )
-
-            MockWorker.assert_called_once()
-            mock_instance.start.assert_called_once()
 
     def test_new_command_stops_previous_worker(self):
         """Dispatching a new command should stop the active worker first."""

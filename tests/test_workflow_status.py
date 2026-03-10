@@ -24,7 +24,6 @@ class TestWorkflowPhase:
             "VOCAB_RUNNING",
             "QA_INDEXING",
             "QA_ANSWERING",
-            "SUMMARY_RUNNING",
             "COMPLETE",
         ]
         actual_phases = [p.name for p in WorkflowPhase]
@@ -56,14 +55,7 @@ class TestTabStatusConfig:
 
 
 class TestQATabStatus:
-    """Test Q&A tab status messages."""
-
-    def test_qa_disabled_message(self):
-        """When Q&A is disabled, show appropriate message."""
-        config = TabStatusConfig(qa_enabled=False)
-        msg = get_qa_tab_status(WorkflowPhase.IDLE, config)
-        assert "Q&A is disabled" in msg
-        assert "Enable" in msg
+    """Test Search tab status messages."""
 
     def test_idle_with_vocab_enabled(self):
         """When idle with vocab enabled, mention vocab will run first."""
@@ -84,34 +76,27 @@ class TestQATabStatus:
         config = TabStatusConfig(qa_enabled=True)
         msg = get_qa_tab_status(WorkflowPhase.EXTRACTING_DOCS, config)
         assert "Extracting" in msg
-        assert "Q&A will begin" in msg
+        assert "Semantic search will begin" in msg
 
     def test_vocab_running_phase(self):
         """During vocab extraction, show vocab status."""
         config = TabStatusConfig(qa_enabled=True)
         msg = get_qa_tab_status(WorkflowPhase.VOCAB_RUNNING, config)
         assert "Vocabulary extraction in progress" in msg
-        assert "Q&A indexing will begin" in msg
+        assert "Search indexing will begin" in msg
 
     def test_qa_indexing_phase(self):
-        """During Q&A indexing, show indexing status."""
+        """During search indexing, show indexing status."""
         config = TabStatusConfig(qa_enabled=True)
         msg = get_qa_tab_status(WorkflowPhase.QA_INDEXING, config)
         assert "building search index from your documents" in msg
 
     def test_qa_answering_phase(self):
-        """During Q&A answering, show answering status."""
+        """During search answering, show answering status."""
         config = TabStatusConfig(qa_enabled=True)
         msg = get_qa_tab_status(WorkflowPhase.QA_ANSWERING, config)
-        assert "Answering questions" in msg
+        assert "Running searches" in msg
         assert "Results will appear" in msg
-
-    def test_summary_running_phase(self):
-        """During summary generation, show Q&A results available."""
-        config = TabStatusConfig(qa_enabled=True)
-        msg = get_qa_tab_status(WorkflowPhase.SUMMARY_RUNNING, config)
-        assert "Summary generation in progress" in msg
-        assert "Q&A results" in msg
 
     def test_complete_phase(self):
         """When complete, show follow-up message."""
@@ -122,7 +107,7 @@ class TestQATabStatus:
 
 
 class TestSummaryTabStatus:
-    """Test Summary tab status messages (key sentences mode)."""
+    """Test Key Sentences tab status messages."""
 
     def test_idle_shows_key_sentences_message(self):
         """When idle, show key sentences will appear message."""
@@ -145,22 +130,16 @@ class TestSummaryTabStatus:
         assert "Key sentences" in msg
 
     def test_qa_indexing_phase(self):
-        """During Q&A indexing, show building index message."""
+        """During search indexing, show building index message."""
         config = TabStatusConfig()
         msg = get_summary_tab_status(WorkflowPhase.QA_INDEXING, config)
         assert "search index" in msg.lower() or "Building" in msg
 
     def test_qa_answering_phase(self):
-        """During Q&A answering, mention key sentences coming soon."""
+        """During search answering, mention key sentences coming soon."""
         config = TabStatusConfig()
         msg = get_summary_tab_status(WorkflowPhase.QA_ANSWERING, config)
-        assert "Key sentences" in msg or "Answering" in msg
-
-    def test_summary_running_phase(self):
-        """During AI summary generation, show generating status."""
-        config = TabStatusConfig()
-        msg = get_summary_tab_status(WorkflowPhase.SUMMARY_RUNNING, config)
-        assert "AI summary" in msg or "Generating" in msg
+        assert "Key sentences" in msg or "searches" in msg
 
     def test_complete_phase(self):
         """When complete, show complete message."""
@@ -186,9 +165,8 @@ class TestStatusMessageConsistency:
             msg = get_summary_tab_status(phase, config)
             assert msg, f"Empty message for Summary phase {phase.name}"
 
-    def test_disabled_qa_messages_consistent(self):
-        """When Q&A is disabled, message should be consistent regardless of phase."""
-        qa_config = TabStatusConfig(qa_enabled=False)
-        qa_messages = {get_qa_tab_status(p, qa_config) for p in WorkflowPhase}
-        # All disabled messages should be the same
-        assert len(qa_messages) == 1, "Q&A disabled message varies by phase"
+    def test_idle_message_mentions_process_documents(self):
+        """IDLE phase should mention 'Process Documents' button."""
+        config = TabStatusConfig()
+        msg = get_qa_tab_status(WorkflowPhase.IDLE, config)
+        assert "Process Documents" in msg

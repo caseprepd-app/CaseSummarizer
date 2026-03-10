@@ -2,7 +2,7 @@
 Tests for 6 MEDIUM-priority coverage gaps.
 
 Covers:
-1. src/core/prompting/config.py — PromptConfig loading, filtering, get(), singleton
+1. (removed — prompting deprecated)
 2. src/config.py — get_count_bin(), get_count_bin_features(), load_model_configs()
 3. src/core/extraction/ocr_processor.py — process_image(), Tesseract path detection
 4. src/services/workers.py — worker execute() signatures, QueueMessage generation
@@ -18,111 +18,8 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 # ---------------------------------------------------------------------------
-# 1. PromptConfig tests
+# 1. PromptConfig tests — REMOVED (src/core/prompting/ deprecated)
 # ---------------------------------------------------------------------------
-
-
-class TestPromptConfig:
-    """Tests for PromptConfig: loading, filtering, get(), singleton."""
-
-    def test_load_params_missing_file_returns_defaults(self, tmp_path):
-        """When prompt_parameters.json does not exist, _load_params returns defaults."""
-        with patch(
-            "src.core.prompting.config.PROMPT_PARAMS_FILE",
-            tmp_path / "nonexistent.json",
-        ):
-            from src.core.prompting.config import PromptConfig
-
-            config = PromptConfig()
-            # Should have "summary" and "generation" keys from defaults
-            assert "summary" in config._params
-            assert "generation" in config._params
-            # Should contain expected default keys
-            assert "word_count_tolerance" in config._params["summary"]
-
-    def test_filter_comments_removes_underscore_keys(self):
-        """_filter_comments strips keys starting with '_' recursively."""
-        from src.core.prompting.config import PromptConfig
-
-        config = PromptConfig.__new__(PromptConfig)
-        data = {
-            "_comment": "this should be removed",
-            "summary": {
-                "_note": "also removed",
-                "word_count_tolerance": 25,
-            },
-            "generation": {"top_p": 0.95},
-        }
-        filtered = config._filter_comments(data)
-        assert "_comment" not in filtered
-        assert "_note" not in filtered["summary"]
-        assert filtered["summary"]["word_count_tolerance"] == 25
-        assert filtered["generation"]["top_p"] == 0.95
-
-    def test_filter_comments_handles_lists(self):
-        """_filter_comments recursively handles lists containing dicts."""
-        from src.core.prompting.config import PromptConfig
-
-        config = PromptConfig.__new__(PromptConfig)
-        data = {"items": [{"_hidden": True, "value": 1}, {"value": 2}]}
-        filtered = config._filter_comments(data)
-        assert "_hidden" not in filtered["items"][0]
-        assert filtered["items"][0]["value"] == 1
-
-    def test_get_nested_key_traversal(self):
-        """get() traverses nested keys and returns correct value."""
-        from src.core.prompting.config import PromptConfig
-
-        config = PromptConfig.__new__(PromptConfig)
-        config._params = {
-            "summary": {"word_count_tolerance": 30, "temperature": 0.5},
-            "generation": {"top_p": 0.85},
-        }
-        assert config.get("summary", "word_count_tolerance") == 30
-        assert config.get("generation", "top_p") == 0.85
-
-    def test_get_missing_key_returns_default(self):
-        """get() returns default when key path does not exist."""
-        from src.core.prompting.config import PromptConfig
-
-        config = PromptConfig.__new__(PromptConfig)
-        config._params = {"summary": {"temperature": 0.3}}
-        assert config.get("summary", "nonexistent_key", default=42) == 42
-        assert config.get("missing_section", "key", default="fallback") == "fallback"
-
-    def test_get_word_count_range(self):
-        """get_word_count_range returns (target - tolerance, target + tolerance)."""
-        from src.core.prompting.config import PromptConfig
-
-        config = PromptConfig.__new__(PromptConfig)
-        config._params = {"summary": {"word_count_tolerance": 20}}
-        low, high = config.get_word_count_range(200)
-        assert low == 180
-        assert high == 220
-
-    def test_get_prompt_config_singleton(self):
-        """get_prompt_config() returns the same instance on repeated calls."""
-        from src.core.prompting import config as prompt_config_module
-
-        # Reset the singleton
-        prompt_config_module._prompt_config = None
-        try:
-            first = prompt_config_module.get_prompt_config()
-            second = prompt_config_module.get_prompt_config()
-            assert first is second
-        finally:
-            # Clean up
-            prompt_config_module._prompt_config = None
-
-    def test_load_params_invalid_json_returns_defaults(self, tmp_path):
-        """When JSON file is corrupted, _load_params returns defaults."""
-        bad_file = tmp_path / "bad.json"
-        bad_file.write_text("{invalid json!!", encoding="utf-8")
-        with patch("src.core.prompting.config.PROMPT_PARAMS_FILE", bad_file):
-            from src.core.prompting.config import PromptConfig
-
-            config = PromptConfig()
-            assert "summary" in config._params
 
 
 # ---------------------------------------------------------------------------
@@ -476,15 +373,6 @@ class TestWorkerSignatures:
 
         assert hasattr(QAWorker, "execute")
         sig = inspect.signature(QAWorker.execute)
-        params = [p for p in sig.parameters if p != "self"]
-        assert params == []
-
-    def test_multi_doc_summary_worker_has_execute(self):
-        """MultiDocSummaryWorker has execute() method with no required args."""
-        from src.services.workers import MultiDocSummaryWorker
-
-        assert hasattr(MultiDocSummaryWorker, "execute")
-        sig = inspect.signature(MultiDocSummaryWorker.execute)
         params = [p for p in sig.parameters if p != "self"]
         assert params == []
 

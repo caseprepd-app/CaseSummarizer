@@ -124,22 +124,22 @@ class HelpDialog(BaseModalDialog):
 
         text = f"""WHAT IS {APP_NAME.upper()}?
 
-{APP_NAME} is a 100% offline document processor designed specifically for court reporters. It helps you prepare for depositions and trials by extracting names, technical vocabulary, and answering questions about your case documents.
+{APP_NAME} is a 100% offline document processor designed specifically for court reporters. It helps you prepare for depositions and trials by extracting names, technical vocabulary, and searching your case documents.
 
 WHY OFFLINE?
 
-Legal documents contain sensitive PII (Personally Identifiable Information) and PHI (Protected Health Information). {APP_NAME} ensures your documents NEVER leave your computer. All AI processing happens locally using Ollama, so there's no cloud, no data transmission, and no privacy concerns.
+Legal documents contain sensitive PII (Personally Identifiable Information) and PHI (Protected Health Information). {APP_NAME} ensures your documents NEVER leave your computer. All processing happens locally on your machine, so there's no cloud, no data transmission, and no privacy concerns.
 
 WHAT DOES IT DO?
 
 1. VOCABULARY EXTRACTION
    Automatically identifies names (parties, witnesses, doctors, attorneys) and technical terms (medical, legal, specialized vocabulary) that you'll need to know for accurate transcription.
 
-2. QUESTION ANSWERING
+2. SEMANTIC SEARCH
    Ask questions about your documents and get answers with source citations. Perfect for quickly finding specific information or creating handoff documents for colleagues.
 
-3. CASE SUMMARIZATION (Optional)
-   Generate comprehensive summaries that synthesize information across all your case documents. Takes longer but provides a complete case overview.
+3. KEY SENTENCES
+   Automatically extracts the most important sentences from your case documents, giving you a quick overview of the key facts and details.
 
 WHO IS IT FOR?
 
@@ -152,8 +152,7 @@ Court reporters who need to:
 SYSTEM REQUIREMENTS
 
 - Windows PC with 16GB+ RAM
-- Ollama installed and running (see Help > Ollama Setup Guide)
-- ~4GB disk space for AI models
+- ~2GB disk space
 - No internet required after initial setup"""
 
         content.insert("1.0", text)
@@ -193,8 +192,7 @@ Files are automatically checked for inclusion. You can uncheck any files you wan
 STEP 3: CHOOSE YOUR TASKS
 Select which tasks to run using the checkboxes:
 - Extract Vocabulary (recommended, fast)
-- Ask Questions (recommended, builds searchable index)
-- Generate Summary (optional, can take hours without GPU)
+- Semantic Search (recommended, builds searchable index)
 
 STEP 4: PROCESS
 Click "Perform Tasks". Processing time depends on:
@@ -205,10 +203,10 @@ Click "Perform Tasks". Processing time depends on:
 You'll see progress updates as it works.
 
 STEP 5: REVIEW & EXPORT
-Results appear in three tabs:
+Results appear in tabs:
 - Vocabulary: Table of extracted terms
-- Questions: Q&A results and follow-up input
-- Summary: Generated case summary (if enabled)
+- Semantic Search: Search results and follow-up input
+- Key Sentences: Important sentences extracted from your documents
 
 Export your results to Word, PDF, CSV, or other formats.
 
@@ -252,17 +250,13 @@ Use the thumbs up/down buttons to rate terms. {APP_NAME} learns your preferences
 
 ---
 
-QUESTION ANSWERING
+SEMANTIC SEARCH
 
 Default Questions:
 {APP_NAME} comes with pre-configured questions common to legal cases. You can customize these in Settings > Q&A tab.
 
 Follow-Up Questions:
-After processing, type any question in the input box at the bottom of the Q&A tab. {APP_NAME} searches your documents and provides answers with source citations.
-
-Answer Modes:
-- Extraction Mode (fast): Finds the most relevant sentences directly
-- AI Mode (slower): Synthesizes natural-language answers using Ollama
+After processing, type any question in the input box at the bottom of the Semantic Search tab. {APP_NAME} searches your documents and provides answers with source citations.
 
 ---
 
@@ -310,7 +304,7 @@ Tip: Configure which columns appear in exports via Settings > Vocabulary."""
         content.grid(row=0, column=0, sticky="nsew", padx=5, pady=5)
         tab.grid_rowconfigure(0, weight=1)
 
-        text = f"""TIPS FOR BEST RESULTS
+        text = """TIPS FOR BEST RESULTS
 
 DOCUMENT QUALITY
 - Digital PDFs work best (text can be selected)
@@ -323,7 +317,7 @@ VOCABULARY EXTRACTION
 - Use the filter box to search for specific terms
 - Build your corpus over time for better case-specific detection
 
-QUESTION ANSWERING
+SEMANTIC SEARCH
 - Be specific in your questions for better answers
 - Use follow-up questions to drill down into details
 - Check the source citations to verify answers
@@ -331,27 +325,15 @@ QUESTION ANSWERING
 PERFORMANCE
 - Close other programs during processing for faster results
 - Larger documents take longer - be patient
-- Summary generation is the slowest task (hours without GPU)
-- If you have a GPU, {APP_NAME} will use it automatically
-
-OLLAMA TIPS
-- Make sure Ollama is running before starting {APP_NAME}
-- Models with 8B+ parameters recommended for Q&A and summaries
-- Check Settings > AI Model for model selection
-- For setup help: Help menu > Ollama Setup Guide
 
 TROUBLESHOOTING
-
-"Ollama not connected"
-- Make sure Ollama is running (check system tray)
-- For detailed help: Help menu > Ollama Setup Guide
 
 Poor vocabulary results?
 - Check document quality (OCR confidence)
 - Rate more terms to train the model
+
 Processing seems stuck?
 - Large documents take time - check the progress indicator
-- Summary generation can take several hours without a GPU
 - System resources are shown in the bottom status bar"""
 
         content.insert("1.0", text)

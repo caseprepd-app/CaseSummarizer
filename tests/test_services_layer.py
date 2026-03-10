@@ -251,42 +251,7 @@ class TestAIServiceSingleton:
         assert svc2._ollama_manager == "sentinel"  # Not reset
 
 
-class TestAIServiceOllama:
-    """AIService Ollama integration."""
-
-    def test_get_ollama_manager_lazy_loads(self):
-        from src.services.ai_service import AIService
-
-        svc = AIService()
-        assert svc._ollama_manager is None
-
-        with patch("src.core.ai.OllamaModelManager") as mock_cls:
-            mock_cls.return_value = MagicMock()
-            mgr = svc.get_ollama_manager()
-            assert mgr is not None
-            mock_cls.assert_called_once()
-
-    def test_check_ollama_connection(self):
-        from src.services.ai_service import AIService
-
-        svc = AIService()
-        mock_mgr = MagicMock()
-        mock_mgr.check_connection.return_value = True
-        svc._ollama_manager = mock_mgr
-
-        assert svc.check_ollama_connection() is True
-
-    def test_get_available_models(self):
-        from src.services.ai_service import AIService
-
-        svc = AIService()
-        mock_mgr = MagicMock()
-        mock_mgr.get_available_models.return_value = [{"name": "gemma3:1b"}]
-        svc._ollama_manager = mock_mgr
-
-        models = svc.get_available_models()
-        assert len(models) == 1
-        assert models[0]["name"] == "gemma3:1b"
+# TestAIServiceOllama removed — Ollama integration deprecated
 
 
 class TestAIServiceGPU:

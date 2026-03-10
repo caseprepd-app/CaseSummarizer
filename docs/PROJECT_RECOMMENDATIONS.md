@@ -39,35 +39,43 @@ Only **34 observations** (14 good, 20 bad). The ML model needs 30 minimum to act
 ### 7. ~~Undo/Correct Vocabulary Feedback~~ ✅ Already Working
 Clicking Keep/Skip toggles the rating on; clicking the same box again sets `feedback=0` which calls `_delete_feedback_from_csv()` and removes the row entirely. The CSV always mirrors the GUI state. Rapid-click safe: toggle decision reads from in-memory cache (instant), CSV writes are under `_file_lock`, and deleting a nonexistent row is a no-op.
 
-### 8. Summary Section-Level or Quick Mode
+### 8. Extractive Summary for CPU-Only Users
+Summary is disabled on CPU-only machines (small local models at 2K context can't produce useful legal summaries). An extractive alternative could fill the gap:
+- Use TF-IDF or TextRank to score and select the most important sentences — no LLM needed
+- Fast (seconds, not hours), works on any hardware, no Ollama dependency
+- For legal docs where exact wording matters, extractive summaries may be more trustworthy than a small model's paraphrase
+- Could coexist alongside the existing LLM summary as a "Quick Summary" option
+- Libraries to evaluate: sumy, pytextrank, or a custom TF-IDF sentence ranker
+
+### 9. Summary Section-Level or Quick Mode (GPU users)
 Summary is all-or-nothing: off (0 minutes) or on (30+ minutes). Options to consider:
 - Quick summary mode (single pass, shorter, ~5 minutes)
 - Per-document summaries vs. multi-document synthesis
 - Partial results shown as they're generated (progressive display is in the engine but may not be surfaced in the UI)
 
-### 9. Default Export Folder Preference
+### 10. Default Export Folder Preference
 Every export opens a file picker starting from wherever. No setting for a default export directory. Court reporters working on many cases would benefit from a configurable default folder.
 
-### 10. ✅ Dark/Light Theme Toggle — Implemented
+### 11. ✅ Dark/Light Theme Toggle — Implemented
 All colors converted to (light, dark) tuples. Theme dropdown in Settings > Appearance (Dark/Light/System). Light mode uses off-white palette with eye-catching attention colors. Live switching via reinitialize_styles().
 
 ---
 
 ## Small Changes (Polish & Bugs)
 
-### 11. Dead Export in `__init__.py` ✅
+### 12. Dead Export in `__init__.py` ✅
 Removed `"filter_typo_variants"` from `src/core/vocabulary/__init__.py` `__all__` — it referenced a function that didn't exist.
 
-### 12. ExportService Return Type Annotations ✅
+### 13. ExportService Return Type Annotations ✅
 Fixed all 10 export methods: `-> bool` changed to `-> tuple[bool, str | None]` with matching docstrings.
 
-### 13. Score Floor Filtering TODO
+### 14. Score Floor Filtering TODO
 `src/ui/dynamic_output.py` has `# TODO: Test score floor filtering for both GUI display and CSV export`. This is the only TODO in the codebase — needs verification and the TODO removed.
 
-### 14. Keyboard Shortcuts for Vocabulary Rating
+### 15. Keyboard Shortcuts for Vocabulary Rating
 No keyboard shortcut for keep/skip on the selected vocabulary term. Power users rating 100+ terms per case would benefit from a quick keyboard workflow (e.g., `K` for keep, `S` for skip, arrow keys to navigate).
 
-### 15. Word Count / Document Stats ✅
+### 16. Word Count / Document Stats ✅
 After extraction, show summary statistics (total word count, page count, document lengths) in the left panel document table area. Gives users a sense of scale and helps catch extraction errors.
 
 ---

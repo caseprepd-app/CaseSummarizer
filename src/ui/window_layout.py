@@ -29,7 +29,6 @@ class WindowLayoutMixin:
     This mixin expects the following attributes to be defined:
     - self (ctk.CTk window instance)
     - self._open_settings (callback method)
-    - self._open_model_settings (callback method)
     - self._on_corpus_changed (callback method)
     - self._open_corpus_dialog (callback method)
     - self._select_files (callback method)
@@ -41,15 +40,14 @@ class WindowLayoutMixin:
 
     And expects to create these widget references:
     - self.header_frame, self.title_label, self.settings_btn
-    - self.model_display_frame, self.model_name_label, self.model_configure_btn
+    - self.doc_count_frame, self.doc_count_label
     - self.corpus_frame, self.corpus_dropdown, self.manage_corpus_btn
     - self.banner_frame, self.banner_label, self.setup_corpus_btn
     - self.main_frame, self.left_panel, self.right_panel
     - self.file_table, self.add_files_btn, self.clear_files_btn
-    - self.qa_check, self.vocab_check, self.generate_btn, self.stop_btn
+    - self.vocab_check, self.generate_btn, self.stop_btn
     - self.output_display, self.followup_frame, self.followup_entry, self.followup_btn
     - self.status_frame, self.status_label, self.timer_label
-    - self.ollama_status_frame, self.ollama_status_dot, self.ollama_status_label
     """
 
     def _create_header(self):
@@ -69,28 +67,17 @@ class WindowLayoutMixin:
         )
         self.title_label.pack(side="left", padx=15, pady=10)
 
-        # Model display frame (after title, normal prominence)
-        self.model_display_frame = ctk.CTkFrame(self.header_frame, **FRAME_STYLES["transparent"])
-        self.model_display_frame.pack(side="left", padx=(20, 10), pady=10)
+        # Document count badge (after title)
+        self.doc_count_frame = ctk.CTkFrame(self.header_frame, **FRAME_STYLES["transparent"])
+        self.doc_count_frame.pack(side="left", padx=(20, 10), pady=10)
 
-        model_icon_label = ctk.CTkLabel(self.model_display_frame, text="🤖", font=FONTS["body"])
-        model_icon_label.pack(side="left", padx=(0, 5))
-
-        self.model_name_label = ctk.CTkLabel(
-            self.model_display_frame, text="Loading...", font=FONTS["body"]
+        self.doc_count_label = ctk.CTkLabel(
+            self.doc_count_frame,
+            text="",
+            font=FONTS["body"],
+            text_color=COLORS["text_secondary"],
         )
-        self.model_name_label.pack(side="left", padx=(0, 8))
-
-        self.model_configure_btn = ctk.CTkButton(
-            self.model_display_frame,
-            text="Configure",
-            width=scale_value(75),
-            height=scale_value(28),
-            font=FONTS["small"],
-            fg_color=("gray70", "gray30"),
-            command=self._open_model_settings,
-        )
-        self.model_configure_btn.pack(side="left")
+        self.doc_count_label.pack(side="left")
 
         # Settings button (right)
         self.settings_btn = ctk.CTkButton(
@@ -223,27 +210,20 @@ class WindowLayoutMixin:
         task_frame = ctk.CTkFrame(self.left_panel, **FRAME_STYLES["transparent"])
         task_frame.grid(row=6, column=0, sticky="ew", padx=10, pady=0)
 
-        # Vocabulary checkbox (default ON) - moved to first position
+        # Vocabulary checkbox (default ON)
         self.vocab_check = ctk.CTkCheckBox(
             task_frame, text="Extract Vocabulary", command=self._on_vocab_check_changed
         )
         self.vocab_check.pack(anchor="w", pady=2)
         self.vocab_check.select()  # ON by default
 
-        # Q&A checkbox (default ON)
-        self.qa_check = ctk.CTkCheckBox(
-            task_frame, text="Ask Questions", command=self._on_qa_check_changed
-        )
-        self.qa_check.pack(anchor="w", pady=2)
-        self.qa_check.select()  # ON by default
-
-        # Default questions sub-checkbox (indented under Q&A)
+        # Default searches checkbox (semantic search always runs; this controls default questions)
         self.ask_default_questions_check = ctk.CTkCheckBox(
             task_frame,
-            text="Ask default questions",
+            text="Run default searches",
             command=self._on_default_questions_toggled,
         )
-        self.ask_default_questions_check.pack(anchor="w", pady=(0, 2), padx=(20, 0))
+        self.ask_default_questions_check.pack(anchor="w", pady=(0, 2))
         self.ask_default_questions_check.select()  # ON by default
 
         # "Perform N Tasks" button
@@ -322,7 +302,7 @@ class WindowLayoutMixin:
 
         self.followup_entry = ctk.CTkEntry(
             self.followup_frame,
-            placeholder_text="Ask questions here after Q&A task completes...",
+            placeholder_text="Search your documents after processing completes...",
             placeholder_text_color=COLORS["placeholder_golden"],
             height=scale_value(35),
             state="disabled",
@@ -364,26 +344,6 @@ class WindowLayoutMixin:
             text_color=COLORS["text_secondary"],
         )
         self.status_label.pack(side="left", padx=10, pady=5)
-
-        # Ollama status indicator (small, less prominent)
-        self.ollama_status_frame = ctk.CTkFrame(self.status_frame, **FRAME_STYLES["transparent"])
-        self.ollama_status_frame.pack(side="left", padx=(15, 0), pady=5)
-
-        self.ollama_status_dot = ctk.CTkLabel(
-            self.ollama_status_frame,
-            text="●",
-            font=FONTS["small"],
-            text_color=COLORS["text_secondary"],  # Default gray until checked
-        )
-        self.ollama_status_dot.pack(side="left", padx=(0, 3))
-
-        self.ollama_status_label = ctk.CTkLabel(
-            self.ollama_status_frame,
-            text="Ollama",
-            font=FONTS["tiny"],
-            text_color=COLORS["text_secondary"],
-        )
-        self.ollama_status_label.pack(side="left")
 
         # Determinate progress bar - shows actual percentage during processing
         self.progress_bar = ctk.CTkProgressBar(

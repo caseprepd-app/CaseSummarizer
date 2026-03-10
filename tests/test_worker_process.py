@@ -482,37 +482,6 @@ class TestQAResultPickling:
         assert unpickled.skip == [False, True, False]
         assert unpickled.skip_reason[1] == "redundant with chunk 0"
 
-    def test_multi_doc_result_roundtrip(self):
-        """MultiDocumentSummaryResult should survive pickle."""
-        from src.core.summarization.result_types import (
-            DocumentSummaryResult,
-            MultiDocumentSummaryResult,
-        )
-
-        result = MultiDocumentSummaryResult(
-            individual_summaries={
-                "doc1.pdf": DocumentSummaryResult(
-                    filename="doc1.pdf",
-                    summary="Summary of doc1.",
-                    word_count=4,
-                    chunk_count=1,
-                    processing_time_seconds=1.0,
-                    success=True,
-                ),
-            },
-            meta_summary="Combined summary.",
-            total_processing_time_seconds=5.2,
-            documents_processed=1,
-            documents_failed=0,
-            document_order=["doc1.pdf"],
-        )
-
-        pickled = pickle.dumps(result)
-        unpickled = pickle.loads(pickled)
-
-        assert unpickled.meta_summary == "Combined summary."
-        assert unpickled.documents_processed == 1
-
     def test_queue_message_tuples_picklable(self):
         """All standard queue message formats should be picklable."""
         messages = [

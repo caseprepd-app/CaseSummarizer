@@ -1,12 +1,11 @@
 # CasePrepd
 
-100% offline, private document processing for court reporters. Extracts names, vocabulary, and answers questions from legal documents without any data leaving your computer.
+100% offline, private document processing for court reporters. Extracts names, vocabulary, key sentences, and supports semantic search across legal documents without any data leaving your computer.
 
 ## Requirements
 
 - Python 3.11+
-- Ollama running at `http://localhost:11434`
-- ~4GB disk space for spaCy model
+- ~4GB disk space for spaCy model + embedding models
 
 ## Installation
 

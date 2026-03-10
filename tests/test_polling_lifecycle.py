@@ -19,7 +19,10 @@ import pytest
 def _make_window_stub():
     """Create a stub with the same state attributes as MainWindow."""
     stub = MagicMock()
-    stub._pending_tasks = {"vocab": True, "qa": True, "summary": False}
+    stub._pending_tasks = {
+        "vocab": True,
+        "qa": True,
+    }
     stub._completed_tasks = set()
     stub._qa_answering_active = False
     stub._qa_failed = False
@@ -68,7 +71,10 @@ class TestAllTasksComplete:
     def test_ignores_non_pending_tasks(self):
         """Tasks with is_pending=False are not required to be in completed_tasks."""
         stub = _make_window_stub()
-        stub._pending_tasks = {"vocab": True, "qa": False, "summary": False}
+        stub._pending_tasks = {
+            "vocab": True,
+            "qa": False,
+        }
         stub._completed_tasks = {"vocab"}
         assert self._call(stub) is True
 
@@ -118,7 +124,10 @@ class TestFinalizeTasksGuard:
     def test_defers_when_qa_pending_not_started(self):
         """_finalize_tasks defers when Q&A is pending but not yet started."""
         stub = _make_window_stub()
-        stub._pending_tasks = {"vocab": True, "qa": True, "summary": False}
+        stub._pending_tasks = {
+            "vocab": True,
+            "qa": True,
+        }
         stub._completed_tasks = {"vocab"}
         stub._qa_answering_active = False
         assert self._finalize(stub) == "deferred"
@@ -126,7 +135,10 @@ class TestFinalizeTasksGuard:
     def test_proceeds_when_qa_pending_and_completed(self):
         """_finalize_tasks proceeds when Q&A is pending and already completed."""
         stub = _make_window_stub()
-        stub._pending_tasks = {"vocab": True, "qa": True, "summary": False}
+        stub._pending_tasks = {
+            "vocab": True,
+            "qa": True,
+        }
         stub._completed_tasks = {"vocab", "qa"}
         stub._qa_answering_active = False
         assert self._finalize(stub) == "finalized"
@@ -141,7 +153,10 @@ class TestFinalizeTasksGuard:
     def test_proceeds_when_qa_failed_even_if_not_completed(self):
         """_finalize_tasks proceeds when Q&A failed (don't wait for trigger_default_qa)."""
         stub = _make_window_stub()
-        stub._pending_tasks = {"vocab": True, "qa": True, "summary": False}
+        stub._pending_tasks = {
+            "vocab": True,
+            "qa": True,
+        }
         stub._completed_tasks = {"vocab", "qa"}  # qa_error already added it
         stub._qa_failed = True
         assert self._finalize(stub) == "finalized"
@@ -149,7 +164,10 @@ class TestFinalizeTasksGuard:
     def test_proceeds_when_qa_not_pending(self):
         """_finalize_tasks proceeds when Q&A was not a pending task."""
         stub = _make_window_stub()
-        stub._pending_tasks = {"vocab": True, "qa": False, "summary": False}
+        stub._pending_tasks = {
+            "vocab": True,
+            "qa": False,
+        }
         stub._completed_tasks = {"vocab"}
         stub._qa_answering_active = False
         assert self._finalize(stub) == "finalized"
@@ -257,7 +275,10 @@ class TestQAHandlerBehavior:
     def test_qa_complete_skips_non_pending_qa(self):
         """If Q&A wasn't a pending task, don't add to completed."""
         stub = _make_window_stub()
-        stub._pending_tasks = {"vocab": True, "qa": False, "summary": False}
+        stub._pending_tasks = {
+            "vocab": True,
+            "qa": False,
+        }
         stub._qa_answering_active = True
         self._simulate_qa_complete(stub)
         assert "qa" not in stub._completed_tasks
@@ -437,7 +458,10 @@ class TestTaskCombinationFlows:
     def test_vocab_only_finalizes_immediately(self):
         """Vocab-only: _finalize_tasks proceeds because _qa_answering_active=False."""
         stub = _make_window_stub()
-        stub._pending_tasks = {"vocab": True, "qa": False, "summary": False}
+        stub._pending_tasks = {
+            "vocab": True,
+            "qa": False,
+        }
         stub._completed_tasks = {"vocab"}
         stub._qa_answering_active = False
         assert self._all_tasks_complete(stub) is True
@@ -445,7 +469,10 @@ class TestTaskCombinationFlows:
     def test_vocab_plus_qa_defers_during_answering(self):
         """Vocab+Q&A: finalization deferred while Q&A answering is active."""
         stub = _make_window_stub()
-        stub._pending_tasks = {"vocab": True, "qa": True, "summary": False}
+        stub._pending_tasks = {
+            "vocab": True,
+            "qa": True,
+        }
         stub._completed_tasks = {"vocab"}
         stub._qa_answering_active = True
         assert self._all_tasks_complete(stub) is False
@@ -453,25 +480,11 @@ class TestTaskCombinationFlows:
     def test_vocab_plus_qa_completes_after_answering(self):
         """Vocab+Q&A: finalization proceeds after Q&A answering completes."""
         stub = _make_window_stub()
-        stub._pending_tasks = {"vocab": True, "qa": True, "summary": False}
+        stub._pending_tasks = {
+            "vocab": True,
+            "qa": True,
+        }
         stub._completed_tasks = {"vocab", "qa"}
-        stub._qa_answering_active = False
-        assert self._all_tasks_complete(stub) is True
-
-    def test_all_three_tasks_waits_for_all(self):
-        """Vocab+Q&A+Summary: must wait for all three."""
-        stub = _make_window_stub()
-        stub._pending_tasks = {"vocab": True, "qa": True, "summary": True}
-        stub._completed_tasks = {"vocab", "qa"}
-        stub._qa_answering_active = False
-        # Summary not complete yet
-        assert self._all_tasks_complete(stub) is False
-
-    def test_all_three_tasks_complete(self):
-        """Vocab+Q&A+Summary: all done -> finalize."""
-        stub = _make_window_stub()
-        stub._pending_tasks = {"vocab": True, "qa": True, "summary": True}
-        stub._completed_tasks = {"vocab", "qa", "summary"}
         stub._qa_answering_active = False
         assert self._all_tasks_complete(stub) is True
 
@@ -503,15 +516,15 @@ class TestVocabCompleteQARace:
     def _simulate_vocab_complete(self, stub):
         """Simulate the ner_complete handler's finalization path."""
         stub._completed_tasks.add("vocab")
-        if stub._pending_tasks.get("summary"):
-            return "started_summary"
-        else:
-            return self._finalize(stub)
+        return self._finalize(stub)
 
     def test_vocab_complete_does_not_finalize_when_qa_pending(self):
         """Vocab complete should not finalize when Q&A is pending but not started."""
         stub = _make_window_stub()
-        stub._pending_tasks = {"vocab": True, "qa": True, "summary": False}
+        stub._pending_tasks = {
+            "vocab": True,
+            "qa": True,
+        }
         stub._completed_tasks = set()
         stub._qa_answering_active = False
         result = self._simulate_vocab_complete(stub)
@@ -521,7 +534,10 @@ class TestVocabCompleteQARace:
     def test_full_sequence_vocab_then_qa(self):
         """Integration: vocab defers, then Q&A starts, then Q&A completes."""
         stub = _make_window_stub()
-        stub._pending_tasks = {"vocab": True, "qa": True, "summary": False}
+        stub._pending_tasks = {
+            "vocab": True,
+            "qa": True,
+        }
         stub._completed_tasks = set()
         stub._qa_answering_active = False
 
@@ -549,7 +565,10 @@ class TestVocabCompleteQARace:
     def test_vocab_complete_finalizes_when_qa_not_pending(self):
         """Vocab complete should finalize normally when Q&A is not pending."""
         stub = _make_window_stub()
-        stub._pending_tasks = {"vocab": True, "qa": False, "summary": False}
+        stub._pending_tasks = {
+            "vocab": True,
+            "qa": False,
+        }
         stub._completed_tasks = set()
         stub._qa_answering_active = False
         result = self._simulate_vocab_complete(stub)

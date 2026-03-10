@@ -124,7 +124,6 @@ class QAService:
             self._orchestrator = QAOrchestrator(
                 vector_store_path=self._vector_store_path,
                 embeddings=self._embeddings,
-                answer_mode="ollama",
             )
 
             self._is_ready = True
@@ -299,7 +298,7 @@ class QAService:
 
         return get_span_category(hallucination_prob)
 
-    def create_orchestrator(self, vector_store_path=None, embeddings=None, answer_mode="ollama"):
+    def create_orchestrator(self, vector_store_path=None, embeddings=None, **kwargs):
         """
         Create a new QAOrchestrator instance.
 
@@ -308,7 +307,7 @@ class QAService:
         Args:
             vector_store_path: Path to vector store directory.
             embeddings: Embeddings model instance.
-            answer_mode: "ollama" or "retrieval_only".
+            **kwargs: Ignored (absorbs legacy answer_mode param).
 
         Returns:
             QAOrchestrator instance.
@@ -318,7 +317,6 @@ class QAService:
         return QAOrchestrator(
             vector_store_path=vector_store_path,
             embeddings=embeddings,
-            answer_mode=answer_mode,
         )
 
     def retrieve_for_followup(self, orchestrator, question: str):
@@ -347,26 +345,14 @@ class QAService:
         """
         return orchestrator.generate_answer_for_result(result)
 
-    def is_ollama_connected(self) -> bool:
-        """
-        Check whether Ollama is currently reachable.
-
-        Returns:
-            True if Ollama responds to a connection check
-        """
-        from src.services import AIService
-
-        return AIService().get_ollama_manager().is_connected
-
     def get_placeholder_texts(self) -> dict[str, str]:
         """
         Get placeholder text constants for progressive display.
 
         Returns:
-            Dict with keys: retrieval, generation, ollama_unavailable
+            Dict with keys: retrieval, generation
         """
         from src.core.qa.qa_constants import (
-            OLLAMA_UNAVAILABLE_TEXT,
             PENDING_GENERATION_TEXT,
             PENDING_RETRIEVAL_TEXT,
         )
@@ -374,7 +360,6 @@ class QAService:
         return {
             "retrieval": PENDING_RETRIEVAL_TEXT,
             "generation": PENDING_GENERATION_TEXT,
-            "ollama_unavailable": OLLAMA_UNAVAILABLE_TEXT,
         }
 
     def get_qa_result_class(self):

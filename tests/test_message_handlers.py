@@ -22,7 +22,10 @@ def _make_stub():
     stub._qa_answering_active = False
     stub._qa_results = []
     stub._qa_results_lock = threading.Lock()
-    stub._pending_tasks = {"vocab": True, "qa": True, "summary": False}
+    stub._pending_tasks = {
+        "vocab": True,
+        "qa": True,
+    }
     stub._completed_tasks = set()
     stub._vector_store_path = None
     stub.processing_results = []
@@ -77,25 +80,25 @@ class TestProgressHandler:
         stub._qa_ready = True
         _call_handler(stub, "progress", (75, "LLM chunk 3/5"))
         call_args = stub.set_status.call_args[0][0]
-        assert "(answering questions...)" in call_args
+        assert "(searching documents...)" in call_args
 
-    def test_no_qa_note_when_message_mentions_question(self):
-        """Don't append Q&A note if message already mentions questions."""
+    def test_no_search_note_when_message_mentions_question(self):
+        """Don't append search note if message already mentions questions."""
         stub = _make_stub()
         stub._processing_active = True
         stub._qa_ready = True
         _call_handler(stub, "progress", (75, "Answering question 2/5"))
         call_args = stub.set_status.call_args[0][0]
-        assert "(answering questions...)" not in call_args
+        assert "(searching documents...)" not in call_args
 
-    def test_no_qa_note_when_message_mentions_qa(self):
-        """Don't append Q&A note if message already mentions Q&A."""
+    def test_no_search_note_when_message_mentions_search(self):
+        """Don't append search note if message already mentions Search."""
         stub = _make_stub()
         stub._processing_active = True
         stub._qa_ready = True
-        _call_handler(stub, "progress", (75, "Q&A indexing..."))
+        _call_handler(stub, "progress", (75, "Search indexing..."))
         call_args = stub.set_status.call_args[0][0]
-        assert "(answering questions...)" not in call_args
+        assert "(searching documents...)" not in call_args
 
 
 # ---------------------------------------------------------------------------
@@ -285,7 +288,10 @@ class TestNERCompleteHandler:
     def test_updates_vocab_display(self):
         """ner_complete updates output display with NER results."""
         stub = _make_stub()
-        stub._pending_tasks = {"vocab": True, "qa": False, "summary": False}
+        stub._pending_tasks = {
+            "vocab": True,
+            "qa": False,
+        }
         terms = [{"term": "John Smith"}, {"term": "plaintiff"}]
         _call_handler(stub, "ner_complete", {"vocab": terms, "filtered": []})
         stub.output_display.update_outputs.assert_called_once_with(
@@ -295,21 +301,30 @@ class TestNERCompleteHandler:
     def test_sets_extraction_source_ner(self):
         """ner_complete sets extraction source to 'ner'."""
         stub = _make_stub()
-        stub._pending_tasks = {"vocab": True, "qa": False, "summary": False}
+        stub._pending_tasks = {
+            "vocab": True,
+            "qa": False,
+        }
         _call_handler(stub, "ner_complete", {"vocab": [{"term": "a"}], "filtered": []})
         stub.output_display.set_extraction_source.assert_called_once_with("ner")
 
     def test_marks_vocab_completed(self):
         """ner_complete adds 'vocab' to _completed_tasks."""
         stub = _make_stub()
-        stub._pending_tasks = {"vocab": True, "qa": False, "summary": False}
+        stub._pending_tasks = {
+            "vocab": True,
+            "qa": False,
+        }
         _call_handler(stub, "ner_complete", {"vocab": [{"term": "a"}], "filtered": []})
         assert "vocab" in stub._completed_tasks
 
     def test_status_mentions_search_index_when_qa_pending(self):
         """ner_complete shows search index message when Q&A is pending."""
         stub = _make_stub()
-        stub._pending_tasks = {"vocab": True, "qa": True, "summary": False}
+        stub._pending_tasks = {
+            "vocab": True,
+            "qa": True,
+        }
         _call_handler(stub, "ner_complete", {"vocab": [{"term": "a"}], "filtered": []})
         call_args = stub.set_status.call_args[0][0]
         assert "search index" in call_args.lower() or "index" in call_args.lower()
@@ -317,7 +332,10 @@ class TestNERCompleteHandler:
     def test_status_shows_complete_when_vocab_only(self):
         """ner_complete shows completion message when no Q&A pending."""
         stub = _make_stub()
-        stub._pending_tasks = {"vocab": True, "qa": False, "summary": False}
+        stub._pending_tasks = {
+            "vocab": True,
+            "qa": False,
+        }
         _call_handler(stub, "ner_complete", {"vocab": [{"term": "a"}], "filtered": []})
         call_args = stub.set_status.call_args[0][0]
         assert "complete" in call_args.lower()
@@ -399,7 +417,10 @@ class TestQAErrorHandler:
     def test_triggers_finalization_when_all_complete(self):
         """qa_error triggers finalization if all other tasks are done."""
         stub = _make_stub()
-        stub._pending_tasks = {"vocab": True, "qa": True, "summary": False}
+        stub._pending_tasks = {
+            "vocab": True,
+            "qa": True,
+        }
         stub._completed_tasks = {"vocab"}
         stub._all_tasks_complete = MagicMock(return_value=True)
         _call_handler(stub, "qa_error", {"error": "fail"})
@@ -596,7 +617,10 @@ class TestQACompleteHandler:
     def test_triggers_finalization_when_all_complete(self):
         """qa_complete triggers finalization when all tasks are done."""
         stub = _make_stub()
-        stub._pending_tasks = {"vocab": True, "qa": True, "summary": False}
+        stub._pending_tasks = {
+            "vocab": True,
+            "qa": True,
+        }
         stub._completed_tasks = {"vocab"}
         stub._all_tasks_complete = MagicMock(return_value=True)
         _call_handler(stub, "qa_complete", [MagicMock()])
@@ -608,22 +632,6 @@ class TestQACompleteHandler:
         stub._all_tasks_complete = MagicMock(return_value=False)
         _call_handler(stub, "qa_complete", None)
         assert stub._qa_results == []
-
-
-# ---------------------------------------------------------------------------
-# multi_doc_result handler
-# ---------------------------------------------------------------------------
-
-
-class TestMultiDocResultHandler:
-    """Tests for 'multi_doc_result' message handler."""
-
-    def test_delegates_to_summary_complete(self):
-        """multi_doc_result delegates to _on_summary_complete."""
-        stub = _make_stub()
-        result = MagicMock()
-        _call_handler(stub, "multi_doc_result", result)
-        stub._on_summary_complete.assert_called_once_with(result)
 
 
 # ---------------------------------------------------------------------------
@@ -697,7 +705,10 @@ class TestMessageSequences:
     def test_vocab_plus_qa_finalization_order(self):
         """Vocab+Q&A: ner_complete before qa_complete marks vocab done."""
         stub = _make_stub()
-        stub._pending_tasks = {"vocab": True, "qa": True, "summary": False}
+        stub._pending_tasks = {
+            "vocab": True,
+            "qa": True,
+        }
 
         # NER complete first - should mark vocab done
         _call_handler(stub, "ner_complete", {"vocab": [{"term": "a"}], "filtered": []})

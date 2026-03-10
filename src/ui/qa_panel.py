@@ -89,7 +89,7 @@ class QAPanel(ctk.CTkFrame):
         header = ctk.CTkFrame(self, **FRAME_STYLES["transparent"])
         header.grid(row=0, column=0, sticky="ew", padx=5, pady=(5, 0))
 
-        title = ctk.CTkLabel(header, text="Questions & Answers", font=FONTS["heading"])
+        title = ctk.CTkLabel(header, text="Semantic Search Results", font=FONTS["heading"])
         title.pack(side="left")
 
         self.info_label = ctk.CTkLabel(
@@ -141,13 +141,11 @@ class QAPanel(ctk.CTkFrame):
         button_frame = ctk.CTkFrame(self, **FRAME_STYLES["transparent"])
         button_frame.grid(row=2, column=0, sticky="ew", padx=5, pady=5)
 
-        # Edit Questions button
+        # Edit Searches button
         self.edit_btn = ctk.CTkButton(
-            button_frame, text="Edit Questions", command=self._on_edit_click, width=130
+            button_frame, text="Edit Searches", command=self._on_edit_click, width=130
         )
         self.edit_btn.pack(side="left", padx=(0, 5))
-
-        # "Ask More Questions" is handled by the follow-up input at bottom of main window
 
         # Copy to Clipboard button
         self.copy_btn = ctk.CTkButton(
@@ -411,8 +409,8 @@ class QAPanel(ctk.CTkFrame):
 
         if not exportable:
             messagebox.showwarning(
-                "No Q&A Selected",
-                "Select at least one Q&A pair to export.\n\n"
+                "No Results Selected",
+                "Select at least one search result to export.\n\n"
                 "Use 'Select All' or click individual results to include them.",
             )
             return
@@ -425,9 +423,9 @@ class QAPanel(ctk.CTkFrame):
         filepath = filedialog.asksaveasfilename(
             defaultextension=ext,
             filetypes=filetypes,
-            initialfile=f"document_questions{ext}",
+            initialfile=f"document_search_results{ext}",
             initialdir=initial_dir,
-            title="Export Q&A Results",
+            title="Export Search Results",
         )
 
         if not filepath:

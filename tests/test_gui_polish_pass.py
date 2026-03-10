@@ -55,12 +55,12 @@ class TestDefaultQuestionsLabel:
         self.text = _read("src/ui/window_layout.py")
 
     def test_no_zero_count_in_initial_label(self):
-        """Label does NOT say 'Ask 0 default questions'."""
-        assert "Ask 0 default questions" not in self.text
+        """Label does NOT say 'Run 0 default searches'."""
+        assert "Run 0 default searches" not in self.text
 
     def test_generic_initial_label(self):
-        """Label says 'Ask default questions' (count set later at runtime)."""
-        assert 'text="Ask default questions"' in self.text
+        """Label says 'Run default searches' (count set later at runtime)."""
+        assert 'text="Run default searches"' in self.text
 
 
 # =========================================================================
@@ -133,7 +133,7 @@ class TestQAPanelDeadCodeRemoved:
 
 
 class TestTabNameRenames:
-    """Tab names are 'Vocabulary', 'Questions', 'Summary'."""
+    """Tab names are 'Vocabulary', 'Search', 'Key Sentences'."""
 
     @pytest.fixture(autouse=True)
     def _load(self):
@@ -143,34 +143,34 @@ class TestTabNameRenames:
         """'Vocabulary' tab is added."""
         assert 'tabview.add("Vocabulary")' in self.dyn
 
-    def test_questions_tab_exists(self):
-        """'Questions' tab is added."""
-        assert 'tabview.add("Questions")' in self.dyn
+    def test_search_tab_exists(self):
+        """'Search' tab is added."""
+        assert 'tabview.add("Search")' in self.dyn
 
-    def test_summary_tab_exists(self):
-        """'Summary' tab is added."""
-        assert 'tabview.add("Summary")' in self.dyn
+    def test_key_sentences_tab_exists(self):
+        """'Key Sentences' tab is added."""
+        assert 'tabview.add("Key Sentences")' in self.dyn
 
     def test_no_old_names_and_vocab_tab(self):
         """Old 'Names & Vocab' tab name is gone."""
         assert '"Names & Vocab"' not in self.dyn
 
-    def test_no_old_ask_questions_tab(self):
-        """Old 'Ask Questions' tab name is gone."""
-        assert '"Ask Questions"' not in self.dyn
+    def test_no_old_questions_tab(self):
+        """Old 'Questions' tab name is gone."""
+        assert '"Questions"' not in self.dyn
 
     def test_main_window_uses_new_tab_name(self):
-        """main_window.py references 'Questions' tab, not 'Ask Questions'."""
+        """main_window.py references 'Search' tab."""
         mw = _read("src/ui/main_window.py")
-        assert 'tabview.set("Questions")' in mw
-        assert 'tabview.set("Ask Questions")' not in mw
+        assert 'tabview.set("Search")' in mw
+        assert 'tabview.set("Questions")' not in mw
 
     def test_help_dialog_uses_new_tab_names(self):
         """Help dialog references new tab names."""
         help_text = _read("src/ui/help_about_dialogs.py")
         assert "- Vocabulary:" in help_text
-        assert "- Questions:" in help_text
-        assert "- Names & Vocab:" not in help_text
+        assert "- Semantic Search:" in help_text
+        assert "- Questions:" not in help_text
 
 
 # =========================================================================

@@ -377,75 +377,7 @@ class TestDiagnoseMLColumnValidation:
 # Category 5: None-safety - verify safe access
 # =========================================================================
 
-
-class TestFocusExtractorNoneSafety:
-    """Test focus_extractor handles missing/non-string emphasis."""
-
-    def setup_method(self):
-        """Clear the class-level cache before each test."""
-        from src.core.prompting.focus_extractor import AIFocusExtractor
-
-        AIFocusExtractor._cache.clear()
-
-    def test_extract_focus_with_missing_emphasis_key(self):
-        """extract_focus should not crash if emphasis key is missing from AI result."""
-        from src.core.prompting.focus_extractor import AIFocusExtractor
-
-        mock_manager = MagicMock()
-        extractor = AIFocusExtractor(mock_manager)
-
-        with patch.object(extractor, "_extract_via_ai", return_value={"instructions": "test"}):
-            result = extractor.extract_focus("template text A", "test_preset")
-            assert result is not None
-
-    def test_extract_focus_with_none_emphasis(self):
-        """extract_focus should not crash if emphasis is None."""
-        from src.core.prompting.focus_extractor import AIFocusExtractor
-
-        mock_manager = MagicMock()
-        extractor = AIFocusExtractor(mock_manager)
-
-        with patch.object(
-            extractor,
-            "_extract_via_ai",
-            return_value={"emphasis": None, "instructions": "test"},
-        ):
-            result = extractor.extract_focus("template text B", "test_preset2")
-            assert result is not None
-
-    def test_extract_focus_with_long_emphasis(self):
-        """extract_focus should truncate long emphasis in logs without crashing."""
-        from src.core.prompting.focus_extractor import AIFocusExtractor
-
-        mock_manager = MagicMock()
-        extractor = AIFocusExtractor(mock_manager)
-
-        long_emphasis = "A" * 100
-        with patch.object(
-            extractor,
-            "_extract_via_ai",
-            return_value={"emphasis": long_emphasis, "instructions": "test"},
-        ):
-            result = extractor.extract_focus("template text C", "test_preset3")
-            # The result should be the full dict from _extract_via_ai
-            assert result is not None
-            assert result.get("emphasis") == long_emphasis
-
-    def test_extract_focus_with_short_emphasis(self):
-        """extract_focus should work with short emphasis strings."""
-        from src.core.prompting.focus_extractor import AIFocusExtractor
-
-        mock_manager = MagicMock()
-        extractor = AIFocusExtractor(mock_manager)
-
-        with patch.object(
-            extractor,
-            "_extract_via_ai",
-            return_value={"emphasis": "short", "instructions": "test"},
-        ):
-            result = extractor.extract_focus("template text D", "test_preset4")
-            assert result is not None
-            assert result.get("emphasis") == "short"
+# TestFocusExtractorNoneSafety removed — src/core/prompting/ deprecated
 
 
 class TestLayoutAnalyzerNoneReturn:
