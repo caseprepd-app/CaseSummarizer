@@ -318,11 +318,12 @@ class VocabularyService:
         manager = self.get_corpus_manager()
         return manager.is_corpus_disabled()
 
-    def explain_term_score(self, term_data: dict, max_reasons: int = 5) -> dict | None:
+    def explain_term_score(self, term_data: dict, max_reasons: int = 6) -> dict | None:
         """
-        Explain why the ML model scored a vocabulary term the way it did.
+        Explain why the scoring system rated a vocabulary term the way it did.
 
-        Returns per-feature contributions in plain English.
+        Combines top factors from Rules, LR, and RF (when active),
+        deduplicated by feature. Returns up to 6 unique reasons.
 
         Args:
             term_data: Term data dictionary (same format as vocab table rows)

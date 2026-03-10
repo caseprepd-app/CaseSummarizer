@@ -1,8 +1,11 @@
 """
-Tests for score_explainer.py — per-term ML score explanations.
+Tests for score_explainer.py — per-term score explanations.
 
-Tests the explain_score() function that provides human-readable
-explanations for why the ML model scored a term a certain way.
+Tests the explain_score() function and its component extractors:
+- LR contributions (coefficient x scaled value)
+- RF contributions (importance x |scaled value|, when ensemble active)
+- Rules contributions (which quality rules fired)
+- Merge/dedup logic across all three
 """
 
 from unittest.mock import MagicMock, patch
@@ -19,11 +22,12 @@ def _make_term_data(term="Dr. Smith", occurrences=10, algorithms="ner bm25", is_
         "is_person": is_person,
         "total_word_count": 5000,
         "source_doc_confidence": 95,
+        "rarity_rank": 0,
     }
 
 
 def _make_mock_learner(is_trained=True, is_ensemble=False, n_features=53):
-    """Create a mock learner with LR model."""
+    """Create a mock learner with LR model (and optionally RF)."""
     learner = MagicMock()
     learner.is_trained = is_trained
     learner.is_ensemble = is_ensemble
@@ -40,15 +44,30 @@ def _make_mock_learner(is_trained=True, is_ensemble=False, n_features=53):
         scaler = MagicMock()
         scaler.transform.return_value = np.random.randn(1, n_features)
         learner._scaler = scaler
+
+        # Mock RF model (only used when is_ensemble=True)
+        if is_ensemble:
+            rf_model = MagicMock()
+            rf_model.feature_importances_ = np.random.rand(n_features)
+            rf_model.feature_importances_ /= rf_model.feature_importances_.sum()
+            learner._rf_model = rf_model
+        else:
+            learner._rf_model = None
     else:
         learner._lr_model = None
         learner._scaler = None
+        learner._rf_model = None
 
     return learner
 
 
+# ---------------------------------------------------------------------------
+# Main explain_score function
+# ---------------------------------------------------------------------------
+
+
 class TestExplainScore:
-    """Tests for the explain_score function."""
+    """Tests for the explain_score orchestrator."""
 
     @patch("src.core.vocabulary.score_explainer.get_meta_learner")
     def test_returns_none_when_not_trained(self, mock_get_learner):
@@ -98,16 +117,41 @@ class TestExplainScore:
         assert result["direction"] == "skip"
 
     @patch("src.core.vocabulary.score_explainer.get_meta_learner")
-    def test_reasons_sorted_by_absolute_contribution(self, mock_get_learner):
-        """Reasons are sorted by absolute contribution, highest first."""
+    def test_reasons_are_3_tuples(self, mock_get_learner):
+        """Each reason is a (label, value, source) 3-tuple."""
         from src.core.vocabulary.score_explainer import explain_score
 
         mock_get_learner.return_value = _make_mock_learner()
         result = explain_score(_make_term_data())
 
-        if result and result["reasons"]:
-            contribs = [abs(c) for _, c in result["reasons"]]
-            assert contribs == sorted(contribs, reverse=True)
+        for reason in result["reasons"]:
+            assert len(reason) == 3
+            label, value, source = reason
+            assert isinstance(label, str)
+            assert isinstance(value, float)
+            assert source in ("LR", "RF", "Rules")
+
+    @patch("src.core.vocabulary.score_explainer.get_meta_learner")
+    def test_reasons_include_rules_source(self, mock_get_learner):
+        """At least one reason should come from Rules (term has rarity_rank=0)."""
+        from src.core.vocabulary.score_explainer import explain_score
+
+        mock_get_learner.return_value = _make_mock_learner()
+        result = explain_score(_make_term_data())
+
+        sources = {reason[2] for reason in result["reasons"]}
+        assert "Rules" in sources
+
+    @patch("src.core.vocabulary.score_explainer.get_meta_learner")
+    def test_reasons_include_lr_source(self, mock_get_learner):
+        """At least one reason should come from LR."""
+        from src.core.vocabulary.score_explainer import explain_score
+
+        mock_get_learner.return_value = _make_mock_learner()
+        result = explain_score(_make_term_data())
+
+        sources = {reason[2] for reason in result["reasons"]}
+        assert "LR" in sources
 
     @patch("src.core.vocabulary.score_explainer.get_meta_learner")
     def test_max_reasons_respected(self, mock_get_learner):
@@ -127,7 +171,6 @@ class TestExplainScore:
 
         mock_get_learner.return_value = _make_mock_learner(is_ensemble=False)
         result = explain_score(_make_term_data())
-
         assert result["model_status"] == "lr"
 
     @patch("src.core.vocabulary.score_explainer.get_meta_learner")
@@ -137,36 +180,162 @@ class TestExplainScore:
 
         mock_get_learner.return_value = _make_mock_learner(is_ensemble=True)
         result = explain_score(_make_term_data())
-
         assert result["model_status"] == "ensemble"
 
     @patch("src.core.vocabulary.score_explainer.get_meta_learner")
-    def test_reasons_are_tuples_of_str_and_float(self, mock_get_learner):
-        """Each reason is a (str, float) tuple."""
+    def test_ensemble_includes_rf_source(self, mock_get_learner):
+        """When ensemble is active, reasons should include RF contributions."""
         from src.core.vocabulary.score_explainer import explain_score
 
-        mock_get_learner.return_value = _make_mock_learner()
+        mock_get_learner.return_value = _make_mock_learner(is_ensemble=True)
         result = explain_score(_make_term_data())
 
-        for label, contrib in result["reasons"]:
-            assert isinstance(label, str)
-            assert isinstance(contrib, float)
+        sources = {reason[2] for reason in result["reasons"]}
+        assert "RF" in sources
 
-    @patch("src.core.vocabulary.score_explainer.get_meta_learner")
-    def test_negligible_contributions_filtered(self, mock_get_learner):
-        """Contributions with abs value < 0.01 are filtered out."""
-        from src.core.vocabulary.score_explainer import explain_score
 
-        learner = _make_mock_learner()
-        # Set all coefficients to near-zero
-        learner._lr_model.coef_ = np.full((1, 53), 0.001)
-        learner._scaler.transform.return_value = np.full((1, 53), 0.001)
-        mock_get_learner.return_value = learner
+# ---------------------------------------------------------------------------
+# Merge / dedup logic
+# ---------------------------------------------------------------------------
 
-        result = explain_score(_make_term_data())
-        assert result is not None
-        # All contributions should be ~0.000001, filtered out
-        assert len(result["reasons"]) == 0
+
+class TestMergeContributions:
+    """Tests for the _merge_contributions dedup logic."""
+
+    def test_dedup_removes_duplicate_feature_keys(self):
+        """Same feature_key from different sources is shown only once."""
+        from src.core.vocabulary.score_explainer import Contribution, _merge_contributions
+
+        lr = [Contribution("log_count", "Appears frequently", 0.5, "LR")]
+        rf = [Contribution("log_count", "Appears frequently", 0.3, "RF")]
+        rules = [Contribution("word_log_rarity_score", "Rare word (+20)", 20.0, "Rules")]
+
+        merged = _merge_contributions(lr, rf, rules)
+        keys = [c.feature_key for c in merged]
+
+        # log_count should appear only once (from LR, which comes first)
+        assert keys.count("log_count") == 1
+        assert "word_log_rarity_score" in keys
+
+    def test_interleave_gives_each_source_fair_share(self):
+        """All three sources get representation when features are unique."""
+        from src.core.vocabulary.score_explainer import Contribution, _merge_contributions
+
+        lr = [
+            Contribution("has_ner", "Found by NER", 0.5, "LR"),
+            Contribution("log_count", "Frequent", 0.3, "LR"),
+        ]
+        rf = [
+            Contribution("is_person", "Person name", 0.4, "RF"),
+            Contribution("has_rake", "Found by RAKE", 0.2, "RF"),
+        ]
+        rules = [
+            Contribution("word_log_rarity_score", "Rare (+20)", 20.0, "Rules"),
+            Contribution("_rule_multi_algo", "2 algos (+4)", 4.0, "Rules"),
+        ]
+
+        merged = _merge_contributions(lr, rf, rules)
+        sources = [c.source for c in merged]
+
+        # All 6 unique features should be present
+        assert len(merged) == 6
+        # Each source should contribute
+        assert "LR" in sources
+        assert "RF" in sources
+        assert "Rules" in sources
+
+    def test_empty_rf_when_no_ensemble(self):
+        """When RF list is empty, only LR and Rules contribute."""
+        from src.core.vocabulary.score_explainer import Contribution, _merge_contributions
+
+        lr = [Contribution("has_ner", "Found by NER", 0.5, "LR")]
+        rules = [Contribution("log_count", "Appears 10 times (+18)", 18.0, "Rules")]
+
+        merged = _merge_contributions(lr, [], rules)
+        sources = {c.source for c in merged}
+
+        assert "RF" not in sources
+        assert "LR" in sources
+        assert "Rules" in sources
+
+
+# ---------------------------------------------------------------------------
+# Rules evaluator
+# ---------------------------------------------------------------------------
+
+
+class TestEvaluateRules:
+    """Tests for the rules-based contribution evaluator."""
+
+    def test_occurrence_boost_fires(self):
+        """Terms with multiple occurrences get an occurrence boost."""
+        from src.core.vocabulary.score_explainer_rules import evaluate_rules
+
+        results = evaluate_rules(_make_term_data(occurrences=10))
+        keys = [r.feature_key for r in results]
+        assert "log_count" in keys
+
+    def test_rare_word_boost_fires(self):
+        """Terms not in Google dataset get a rarity boost."""
+        from src.core.vocabulary.score_explainer_rules import evaluate_rules
+
+        results = evaluate_rules(_make_term_data())
+        keys = [r.feature_key for r in results]
+        assert "word_log_rarity_score" in keys
+
+    def test_person_name_boost_fires(self):
+        """Person names get a person boost rule."""
+        from src.core.vocabulary.score_explainer_rules import evaluate_rules
+
+        results = evaluate_rules(_make_term_data(is_person=1))
+        keys = [r.feature_key for r in results]
+        assert "is_person" in keys
+
+    def test_multi_algo_boost_fires(self):
+        """Terms found by 2+ algorithms get multi-algo boost."""
+        from src.core.vocabulary.score_explainer_rules import evaluate_rules
+
+        results = evaluate_rules(_make_term_data(algorithms="ner bm25"))
+        keys = [r.feature_key for r in results]
+        assert "_rule_multi_algo" in keys
+
+    def test_artifact_penalty_all_caps(self):
+        """All-caps terms get an artifact penalty."""
+        from src.core.vocabulary.score_explainer_rules import evaluate_rules
+
+        results = evaluate_rules(_make_term_data(term="PLAINTIFF"))
+        keys = [r.feature_key for r in results]
+        assert "is_all_caps" in keys
+
+    def test_artifact_penalty_single_letter(self):
+        """Single letter terms get a heavy penalty."""
+        from src.core.vocabulary.score_explainer_rules import evaluate_rules
+
+        results = evaluate_rules(_make_term_data(term="Q", is_person=0))
+        penalties = [r for r in results if r.points < 0]
+        keys = [r.feature_key for r in penalties]
+        assert "is_single_letter" in keys
+
+    def test_sorted_by_absolute_points(self):
+        """Results are sorted by absolute point value descending."""
+        from src.core.vocabulary.score_explainer_rules import evaluate_rules
+
+        results = evaluate_rules(_make_term_data())
+        points = [abs(r.points) for r in results]
+        assert points == sorted(points, reverse=True)
+
+    def test_trailing_punctuation_penalty(self):
+        """Terms ending with punctuation get a penalty."""
+        from src.core.vocabulary.score_explainer_rules import evaluate_rules
+
+        results = evaluate_rules(_make_term_data(term="Smith:", is_person=0))
+        keys = [r.feature_key for r in results]
+        assert "has_trailing_punctuation" in keys
+
+
+# ---------------------------------------------------------------------------
+# VocabularyService passthrough
+# ---------------------------------------------------------------------------
 
 
 class TestVocabularyServiceExplain:

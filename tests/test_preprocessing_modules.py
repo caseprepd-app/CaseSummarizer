@@ -197,6 +197,268 @@ class TestTitlePageRemover:
         # Should not remove more than 50% of a large doc
         assert len(result.text) >= len(text) * 0.45
 
+    # -- Proceedings detection (mid-page content preservation) -------
+
+    def _make_proceedings_block(self):
+        """Helper: a realistic block of transcript Q/A (>= 5 prose lines)."""
+        return (
+            "Q. Can you state your name for the record?\n"
+            "A. My name is John Doe.\n"
+            "Q. And where do you currently reside?\n"
+            "A. I live at 123 Main Street in Brooklyn, New York.\n"
+            "Q. What is your occupation?\n"
+            "A. I am a civil engineer.\n"
+        )
+
+    def test_proceedings_qa_preserved_on_title_page(self):
+        """Q/A content at bottom of a title page is kept."""
+        title_top = (
+            "SUPREME COURT OF THE STATE OF NEW YORK\n"
+            "COUNTY OF KINGS\n"
+            "Index No. 123456/2024\n"
+            "JOHN DOE, Plaintiff,\n"
+            "-against-\n"
+            "JANE SMITH, Defendant.\n"
+            "APPEARANCES:\n"
+            "ATTORNEY FOR PLAINTIFF\n"
+        )
+        text = title_top + self._make_proceedings_block() + "\f" + "Q. Next?\nA. Yes."
+        result = self._make().process(text)
+
+        # The Q/A lines from the title page must survive
+        assert "Q. Can you state your name" in result.text
+        assert "A. My name is John Doe" in result.text
+        assert result.metadata["pages_removed"] >= 1
+
+    def test_full_title_page_still_removed(self):
+        """A pure title page with no proceedings is fully removed."""
+        title = (
+            "SUPREME COURT OF THE STATE OF NEW YORK\n"
+            "COUNTY OF KINGS\n"
+            "Index No. 123456/2024\n"
+            "JOHN DOE, Plaintiff,\n"
+            "-against-\n"
+            "JANE SMITH, Defendant.\n"
+            "DEPOSITION OF JOHN DOE\n"
+        )
+        content = "Q. What happened?\nA. I slipped and fell on the sidewalk."
+        text = title + "\f" + content
+        result = self._make().process(text)
+
+        assert "SUPREME COURT" not in result.text
+        assert "Q. What happened?" in result.text
+
+    def test_speaker_label_triggers_proceedings(self):
+        """Speaker labels with 5 content lines ahead are detected."""
+        title_top = (
+            "SUPREME COURT OF THE STATE OF NEW YORK\n"
+            "Index No. 123456/2024\n"
+            "PLAINTIFF, -against- DEFENDANT.\n"
+            "APPEARANCES:\n"
+            "ATTORNEY FOR PLAINTIFF\n"
+        )
+        proceedings = (
+            "THE CLERK: Calling case number one on the calendar.\n"
+            "THE COURT: Good morning, are the parties ready to proceed?\n"
+            "Q. Please state your name for the record.\n"
+            "A. My name is Jane Doe and I reside in Brooklyn.\n"
+            "Q. And what is your current occupation?\n"
+            "A. I am a registered nurse at the hospital.\n"
+        )
+        text = title_top + proceedings + "\f" + "Q. What happened next?"
+        result = self._make().process(text)
+
+        assert "THE CLERK: Calling case" in result.text
+        assert "THE COURT: Good morning" in result.text
+
+    def test_mixed_case_general_lines_need_5_prose_ahead(self):
+        """General content lines require 5 prose lines ahead for confirmation."""
+        title_top = (
+            "SUPREME COURT OF THE STATE OF NEW YORK\n"
+            "DEPOSITION OF JOHN DOE\n"
+            "APPEARANCES:\n"
+            "ATTORNEY FOR PLAINTIFF\n"
+        )
+        # 6 general-heuristic prose lines (1 candidate + 5 look-ahead)
+        proceedings = (
+            "The following proceedings were held before the Honorable Judge.\n"
+            "All parties present and accounted for in the courtroom.\n"
+            "The court reporter was duly sworn to take the record.\n"
+            "The witness was called and placed under oath by the clerk.\n"
+            "Counsel for plaintiff indicated they were ready to proceed.\n"
+            "The court asked both sides to identify themselves for the record.\n"
+        )
+        text = title_top + proceedings + "\f" + "More content here."
+        result = self._make().process(text)
+
+        assert "following proceedings were held" in result.text
+
+    def test_general_lines_rejected_without_enough_lookahead(self):
+        """Only 2 general prose lines is NOT enough — needs 5."""
+        title_top = (
+            "SUPREME COURT OF THE STATE OF NEW YORK\n"
+            "DEPOSITION OF JOHN DOE\n"
+            "APPEARANCES:\n"
+            "ATTORNEY FOR PLAINTIFF\n"
+        )
+        # Only 2 general prose lines — not enough for general lookahead
+        almost = (
+            "The following proceedings were held before the court.\n"
+            "All parties present and accounted for today.\n"
+        )
+        text = title_top + almost + "\f" + "Q. Name?\nA. John."
+        result = self._make().process(text)
+
+        # Should NOT detect proceedings on the title page (not enough lookahead)
+        # The entire title page is removed; content starts on page 2
+        assert "Q. Name?" in result.text
+
+    def test_qa_lines_need_5_content_ahead(self):
+        """Q/A lines use the same 5-line look-ahead as all content lines."""
+        title_top = (
+            "SUPREME COURT OF THE STATE OF NEW YORK\n"
+            "Index No. 123456/2024\n"
+            "JOHN DOE, Plaintiff,\n"
+            "-against-\n"
+            "JANE SMITH, Defendant.\n"
+            "APPEARANCES:\n"
+        )
+        proceedings = (
+            "Q. State your name for the record please.\n"
+            "A. My name is John Doe from Brooklyn.\n"
+            "Q. Where do you currently reside sir?\n"
+            "A. I live at one two three Main Street.\n"
+            "Q. What is your current occupation?\n"
+            "A. I am a civil engineer at a firm.\n"
+        )
+        text = title_top + proceedings + "\f" + "Q. What happened next?"
+        result = self._make().process(text)
+
+        assert "Q. State your name" in result.text
+
+    def test_short_title_names_not_mistaken_for_content(self):
+        """Short lines like attorney names should not trigger proceedings."""
+        title = (
+            "SUPREME COURT OF THE STATE OF NEW YORK\n"
+            "Index No. 123456/2024\n"
+            "JOHN DOE, Plaintiff,\n"
+            "-against-\n"
+            "JANE SMITH, Defendant.\n"
+            "JOHN T. SMITH, ESQ.\n"
+            "Attorney for Plaintiff\n"
+        )
+        content = "Q. What happened?\nA. I slipped and fell."
+        text = title + "\f" + content
+        result = self._make().process(text)
+
+        # Title page should be fully removed (attorney name is not proceedings)
+        assert "JOHN T. SMITH" not in result.text
+        assert "Q. What happened?" in result.text
+
+    def test_double_spaced_content_detected(self):
+        """Content lines separated by blank lines (double spacing) are adjacent."""
+        title_top = (
+            "SUPREME COURT OF THE STATE OF NEW YORK\n"
+            "DEPOSITION OF JOHN DOE\n"
+            "APPEARANCES:\n"
+            "ATTORNEY FOR PLAINTIFF\n"
+        )
+        # Double-spaced: blank lines between content lines (skipped by look-ahead)
+        proceedings = (
+            "THE CLERK: This hearing will now come to order.\n"
+            "\n"
+            "THE COURT: Good morning, counsel, are you ready to proceed?\n"
+            "\n"
+            "Q. Please state your name for the record.\n"
+            "\n"
+            "A. My name is Jane Doe and I live in Manhattan.\n"
+            "\n"
+            "Q. What is your current occupation and employer?\n"
+            "\n"
+            "A. I am a software engineer at a technology company.\n"
+        )
+        text = title_top + proceedings + "\f" + "Q. What happened next?"
+        result = self._make().process(text)
+
+        assert "THE CLERK: This hearing" in result.text
+
+    def test_all_caps_title_lines_not_content(self):
+        """ALL-CAPS lines that are long should not be detected as content."""
+        remover = self._make()
+        assert not remover._is_content_line("SUPREME COURT OF THE STATE OF NEW YORK")
+        assert not remover._is_content_line("ATTORNEY FOR THE PLAINTIFF JOHN DOE")
+        assert not remover._is_content_line("JOHN DOE")
+        assert not remover._is_content_line("")
+
+    def test_mostly_caps_line_rejected(self):
+        """Lines where 75%+ words start uppercase are rejected as content."""
+        remover = self._make()
+        # All-caps or heavily capitalized lines
+        assert not remover._is_content_line("BY: STEVEN D. ATESHOGLOU, Esq.")
+        assert not remover._is_content_line("MELVILLE, NEW YORK 11747")
+        assert not remover._is_content_line("SUPREME COURT OF THE STATE OF NEW YORK")
+        # Mixed-case with enough lowercase IS content (protected by look-ahead)
+        assert remover._is_content_line("Attorneys for the City of New York")
+
+    def test_is_content_line_positive_cases(self):
+        """Lines with 4+ words and mixed capitalization are content."""
+        remover = self._make()
+        assert remover._is_content_line("Q. What happened on that day?")
+        assert remover._is_content_line("A. I fell on the sidewalk.")
+        assert remover._is_content_line("THE CLERK: Calling the next case on the calendar.")
+        assert remover._is_content_line("The following proceedings were held in open court.")
+
+    def test_attorney_listing_not_detected_as_proceedings(self):
+        """Appearance-page attorney blocks don't trigger proceedings."""
+        title_top = (
+            "SUPREME COURT OF THE STATE OF NEW YORK\n"
+            "Index No. 123456/2024\n"
+            "PLAINTIFF, -against- DEFENDANT.\n"
+            "APPEARANCES:\n"
+        )
+        attorneys = (
+            "Attorneys for the City of New York\n"
+            "Wall Street New York, New York 10005\n"
+            "BY: STEVEN D. ATESHOGLOU, Esq.\n"
+            "Attorneys for Con Edison\n"
+            "55 Washington Street, suite 720\n"
+            "BY: ANDREW SHOWERS, ESQ.\n"
+        )
+        text = title_top + attorneys + "\f" + "Q. Name?\nA. John."
+        result = self._make().process(text)
+
+        # Title page should be fully removed (attorney listings are not prose)
+        assert "ATESHOGLOU" not in result.text
+        assert "Q. Name?" in result.text
+
+    def test_proceedings_stop_further_page_removal(self):
+        """Once proceedings are found, no more pages are checked/removed."""
+        title1 = (
+            "SUPREME COURT\nIndex No. 123\nPLAINTIFF, -against- DEFENDANT.\n"
+            "DEPOSITION OF JOHN DOE\n"
+        )
+        # Page 2: appearances with Q/A proceedings at bottom
+        title2_top = "APPEARANCES:\nATTORNEY FOR PLAINTIFF\nJOHN SMITH, ESQ.\n"
+        title2_proceedings = (
+            "Q. Good morning, can you state your full name?\n"
+            "A. My name is John Doe, and I live in Brooklyn.\n"
+            "Q. What is your date of birth please sir?\n"
+            "A. I was born on January first nineteen sixty five.\n"
+            "Q. And what is your current occupation?\n"
+            "A. I am a retired construction worker from Queens.\n"
+        )
+        # Page 3: would also score as title if checked (but shouldn't be)
+        page3 = (
+            "SUPREME COURT\nIndex No. 999\n"
+            "This page has title patterns but should not be removed.\n"
+        )
+        text = title1 + "\f" + title2_top + title2_proceedings + "\f" + page3
+        result = self._make().process(text)
+
+        # Page 3 must be kept (proceedings found on page 2 stops removal)
+        assert "should not be removed" in result.text
+        assert "Q. Good morning" in result.text
+
 
 # ---------------------------------------------------------------------------
 # PageBoundaryCleaner

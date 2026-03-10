@@ -1,25 +1,48 @@
 """
 Score Explanation for Vocabulary Terms.
 
-Computes per-feature contributions to the ML score using logistic regression
-coefficients. Returns human-readable explanations for the top factors
-influencing a term's score.
+Combines explanations from all three scoring components:
+1. Rules-based quality scorer — which rules fired and their point impact
+2. Logistic Regression — per-feature coefficient x scaled value contributions
+3. Random Forest (when ensemble active) — globally important features
+   weighted by per-term relevance
 
-Used by the "Why this score?" right-click menu item in the vocabulary table.
+Returns a deduplicated list of the top contributing factors from all models,
+interleaved so each model gets fair representation. Because the ML models
+retrain on new user feedback, the top factors can shift between sessions.
 """
 
 import logging
-from typing import Any
+from typing import Any, NamedTuple
+
+import numpy as np
 
 from src.core.vocabulary.preference_learner import get_meta_learner
 from src.core.vocabulary.preference_learner_features import FEATURE_NAMES, extract_features
+from src.core.vocabulary.score_explainer_rules import evaluate_rules
 
 logger = logging.getLogger(__name__)
 
-# Human-readable labels for features, grouped for clarity.
-# Positive phrasing = pushes toward "keep", negative = pushes toward "skip".
+
+class Contribution(NamedTuple):
+    """A single factor's contribution to the term's score.
+
+    Attributes:
+        feature_key: Dedup key matching ML feature names where applicable
+        label: Human-readable explanation
+        value: Signed contribution (positive = toward keep)
+        source: Model component: "LR", "RF", or "Rules"
+    """
+
+    feature_key: str
+    label: str
+    value: float
+    source: str
+
+
+# Human-readable labels for ML features.
+# (positive_reason, negative_reason) — used by both LR and RF explanations.
 _FEATURE_LABELS: dict[str, tuple[str, str]] = {
-    # (positive_reason, negative_reason)
     # Count/frequency
     "count_bin_1": ("Appears only once", "Appears only once"),
     "count_bin_2_3": ("Appears 2-3 times", "Appears 2-3 times"),
@@ -86,24 +109,151 @@ _FEATURE_LABELS: dict[str, tuple[str, str]] = {
 }
 
 
-def explain_score(term_data: dict[str, Any], max_reasons: int = 5) -> dict[str, Any] | None:
-    """
-    Explain why a term received its ML score.
+def _label_for_feature(name: str, direction_positive: bool) -> str:
+    """Get the human-readable label for a feature based on contribution direction."""
+    labels = _FEATURE_LABELS.get(name, (name, name))
+    return labels[0] if direction_positive else labels[1]
 
-    Computes per-feature contributions by multiplying the logistic regression
-    coefficients by the scaled feature values. Returns the top positive and
-    negative contributors in plain English.
+
+# ---------------------------------------------------------------------------
+# Per-model contribution extractors
+# ---------------------------------------------------------------------------
+
+
+def _get_lr_contributions(lr_model: Any, X_scaled: np.ndarray) -> list[Contribution]:
+    """
+    Per-feature contributions from Logistic Regression.
+
+    Each contribution = LR coefficient x scaled feature value.
+    Positive = pushes toward "keep", negative = pushes toward "skip".
+
+    Args:
+        lr_model: Trained LogisticRegression model
+        X_scaled: Scaled feature vector (1, n_features)
+
+    Returns:
+        List of Contribution sorted by |value| descending
+    """
+    coefficients = lr_model.coef_[0]
+    contributions = coefficients * X_scaled[0]
+
+    result = []
+    for name, contrib in zip(FEATURE_NAMES, contributions, strict=True):
+        if abs(contrib) < 0.01:
+            continue  # Skip negligible contributions
+        label = _label_for_feature(name, contrib > 0)
+        result.append(Contribution(name, label, float(contrib), "LR"))
+
+    result.sort(key=lambda c: abs(c.value), reverse=True)
+    return result
+
+
+def _get_rf_contributions(
+    rf_model: Any, X_scaled: np.ndarray, lr_coefs: np.ndarray
+) -> list[Contribution]:
+    """
+    Per-feature contributions from Random Forest (approximation).
+
+    RF doesn't have per-instance coefficients like LR. We approximate
+    per-term relevance as: feature_importance x |scaled_value|.
+    Direction (sign) is inferred from LR coefficient x scaled value,
+    since LR and RF generally agree on feature direction.
+
+    Args:
+        rf_model: Trained RandomForestClassifier model
+        X_scaled: Scaled feature vector (1, n_features)
+        lr_coefs: LR coefficients for direction inference
+
+    Returns:
+        List of Contribution sorted by |value| descending
+    """
+    importances = rf_model.feature_importances_
+    scaled_values = X_scaled[0]
+
+    # Per-term relevance: global importance x how extreme this term's value is
+    relevance = importances * np.abs(scaled_values)
+
+    # Direction: use sign of (LR coefficient x scaled value) as proxy
+    signs = np.sign(lr_coefs * scaled_values)
+
+    result = []
+    for i, name in enumerate(FEATURE_NAMES):
+        if relevance[i] < 0.001:
+            continue  # Skip negligible relevance
+        direction_positive = signs[i] >= 0
+        label = _label_for_feature(name, direction_positive)
+        signed_value = float(relevance[i]) * (1.0 if direction_positive else -1.0)
+        result.append(Contribution(name, label, signed_value, "RF"))
+
+    result.sort(key=lambda c: abs(c.value), reverse=True)
+    return result
+
+
+# ---------------------------------------------------------------------------
+# Merge and deduplicate
+# ---------------------------------------------------------------------------
+
+_PER_SOURCE = 2  # Top N contributions from each model component
+
+
+def _merge_contributions(
+    lr: list[Contribution],
+    rf: list[Contribution],
+    rules: list[Contribution],
+) -> list[Contribution]:
+    """
+    Merge top contributions from each model, deduplicating by feature_key.
+
+    Interleaves contributions round-robin (LR#1, RF#1, Rules#1, LR#2, ...)
+    so each model gets fair representation. Skips any feature_key already
+    seen from an earlier model. Returns 4-6 unique contributions.
+
+    Args:
+        lr: LR contributions sorted by |value|
+        rf: RF contributions sorted by |value| (empty if no ensemble)
+        rules: Rules contributions sorted by |points|
+
+    Returns:
+        Deduplicated list of Contribution, interleaved by source
+    """
+    seen_keys: set[str] = set()
+    merged: list[Contribution] = []
+
+    # Interleave: take rank-0 from each source, then rank-1, etc.
+    sources = [lr[:_PER_SOURCE], rf[:_PER_SOURCE], rules[:_PER_SOURCE]]
+    for rank in range(_PER_SOURCE):
+        for source_list in sources:
+            if rank < len(source_list):
+                contrib = source_list[rank]
+                if contrib.feature_key not in seen_keys:
+                    seen_keys.add(contrib.feature_key)
+                    merged.append(contrib)
+
+    return merged
+
+
+# ---------------------------------------------------------------------------
+# Main entry point
+# ---------------------------------------------------------------------------
+
+
+def explain_score(term_data: dict[str, Any], max_reasons: int = 6) -> dict[str, Any] | None:
+    """
+    Explain why a term received its score.
+
+    Collects the top 2 contributing factors from each model component
+    (LR, RF, Rules), deduplicates by feature key, and returns a merged
+    list. The factors can shift between sessions as the ML models retrain.
 
     Args:
         term_data: Term data dictionary (same format as vocab table rows)
-        max_reasons: Maximum number of reasons to return (default 5)
+        max_reasons: Maximum number of reasons to return (default 6)
 
     Returns:
         Dict with keys:
             - score: float, the ML probability (0-1)
             - direction: str, "keep" or "skip"
-            - reasons: list of (label: str, contribution: float) tuples,
-              sorted by absolute contribution descending
+            - reasons: list of (label, value, source) tuples
             - model_status: str, "lr" or "ensemble"
         Returns None if the model is not trained.
     """
@@ -117,43 +267,42 @@ def explain_score(term_data: dict[str, Any], max_reasons: int = 5) -> dict[str, 
         return None
 
     try:
+        # Extract and scale features for this term
         features = extract_features(term_data)
         X = features.reshape(1, -1)
         X_scaled = scaler.transform(X)
 
-        # LR coefficients: positive = pushes toward class 1 (keep)
-        coefficients = lr_model.coef_[0]
-        intercept = lr_model.intercept_[0]
+        # --- Collect contributions from each model component ---
 
-        # Per-feature contribution = coefficient * scaled_value
-        contributions = coefficients * X_scaled[0]
+        # 1. Logistic Regression: coefficient x scaled value (always available)
+        lr_contribs = _get_lr_contributions(lr_model, X_scaled)
 
-        # Build labeled contributions
-        labeled = []
-        for i, (name, contrib) in enumerate(zip(FEATURE_NAMES, contributions, strict=True)):
-            if abs(contrib) < 0.01:
-                continue  # Skip negligible contributions
-            labels = _FEATURE_LABELS.get(name, (name, name))
-            if contrib > 0:
-                label = labels[0]  # Positive reason
-            else:
-                label = labels[1]  # Negative reason
-            labeled.append((label, float(contrib)))
+        # 2. Random Forest: importance x |scaled value| (only when ensemble active)
+        rf_contribs: list[Contribution] = []
+        if learner.is_ensemble and learner._rf_model is not None:
+            rf_contribs = _get_rf_contributions(learner._rf_model, X_scaled, lr_model.coef_[0])
 
-        # Sort by absolute contribution (most impactful first)
-        labeled.sort(key=lambda x: abs(x[1]), reverse=True)
-        top_reasons = labeled[:max_reasons]
+        # 3. Rules: which rules fired for this term's data
+        rule_results = evaluate_rules(term_data)
+        rules_contribs = [
+            Contribution(r.feature_key, r.label, r.points, "Rules") for r in rule_results
+        ]
 
-        # Get the actual prediction
+        # --- Merge top 2 from each, deduplicated ---
+        merged = _merge_contributions(lr_contribs, rf_contribs, rules_contribs)
+
+        # Build reasons list: (label, value, source)
+        reasons = [(c.label, c.value, c.source) for c in merged[:max_reasons]]
+
+        # Get overall prediction
         prob = learner.predict_preference(term_data)
         direction = "keep" if prob >= 0.5 else "skip"
-
         model_status = "ensemble" if learner.is_ensemble else "lr"
 
         return {
             "score": prob,
             "direction": direction,
-            "reasons": top_reasons,
+            "reasons": reasons,
             "model_status": model_status,
         }
     except Exception:
