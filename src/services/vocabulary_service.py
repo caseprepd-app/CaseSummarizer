@@ -318,6 +318,24 @@ class VocabularyService:
         manager = self.get_corpus_manager()
         return manager.is_corpus_disabled()
 
+    def explain_term_score(self, term_data: dict, max_reasons: int = 5) -> dict | None:
+        """
+        Explain why the ML model scored a vocabulary term the way it did.
+
+        Returns per-feature contributions in plain English.
+
+        Args:
+            term_data: Term data dictionary (same format as vocab table rows)
+            max_reasons: Maximum number of reasons to return
+
+        Returns:
+            Dict with score, direction, reasons, model_status.
+            None if the model is not trained.
+        """
+        from src.core.vocabulary.score_explainer import explain_score
+
+        return explain_score(term_data, max_reasons=max_reasons)
+
     def get_corpus_disabled_reason(self) -> str | None:
         """
         Get the reason why the corpus is disabled.

@@ -1811,6 +1811,43 @@ class DynamicOutputWidget(ctk.CTkFrame):
                 state="disabled",
             )
 
+        # --- Why this score? ---
+        self._add_score_explanation_menu_item(term_data)
+
+    def _add_score_explanation_menu_item(self, term_data: dict):
+        """
+        Add "Why this score?" menu item if the ML model is trained.
+
+        Args:
+            term_data: Term dict for the selected row
+        """
+        from src.services.vocabulary_service import VocabularyService
+
+        explanation = VocabularyService().explain_term_score(term_data)
+        if explanation is not None:
+            term_name = term_data.get("Term", "Unknown")
+            self.context_menu.add_command(
+                label="Why this score?",
+                command=lambda: self._show_score_explanation(term_name, explanation),
+            )
+        else:
+            self.context_menu.add_command(
+                label="Why this score?",
+                state="disabled",
+            )
+
+    def _show_score_explanation(self, term_name: str, explanation: dict):
+        """
+        Open the ScoreExplanationDialog.
+
+        Args:
+            term_name: Display name of the term
+            explanation: Dict from score_explainer.explain_score()
+        """
+        from src.ui.score_explanation_dialog import ScoreExplanationDialog
+
+        ScoreExplanationDialog(self, term_name, explanation)
+
     def _show_alternatives_dialog(self, term_data: dict):
         """
         Open the AlternativesDialog for a term.
