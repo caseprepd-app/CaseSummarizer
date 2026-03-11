@@ -189,16 +189,15 @@ STEP 2: REVIEW FILE QUALITY
 
 Files are automatically checked for inclusion. You can uncheck any files you want to exclude.
 
-STEP 3: CHOOSE YOUR TASKS
-Select which tasks to run using the checkboxes:
-- Extract Vocabulary (recommended, fast)
-- Semantic Search (recommended, builds searchable index)
+STEP 3: PROCESS
+Click "Process Documents". This runs:
+- Vocabulary extraction (named entities)
+- Semantic search indexing (builds searchable passages)
+- Key excerpts (representative passages)
 
-STEP 4: PROCESS
-Click "Perform Tasks". Processing time depends on:
-- Number and size of documents
-- Tasks selected
-- Your computer's speed
+Optionally check "Run default searches" to auto-run your saved questions.
+
+Processing time depends on document size and your computer's speed.
 
 You'll see progress updates as it works.
 

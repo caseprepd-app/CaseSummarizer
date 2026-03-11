@@ -45,7 +45,7 @@ class WindowLayoutMixin:
     - self.banner_frame, self.banner_label, self.setup_corpus_btn
     - self.main_frame, self.left_panel, self.right_panel
     - self.file_table, self.add_files_btn, self.clear_files_btn
-    - self.vocab_check, self.generate_btn, self.stop_btn
+    - self.ask_default_questions_check, self.generate_btn, self.stop_btn
     - self.output_display, self.followup_frame, self.followup_entry, self.followup_btn
     - self.status_frame, self.status_label, self.timer_label
     """
@@ -203,39 +203,29 @@ class WindowLayoutMixin:
         separator = ctk.CTkFrame(self.left_panel, height=1, fg_color=COLORS["text_disabled"])
         separator.grid(row=4, column=0, sticky="ew", padx=10, pady=(8, 2))
 
-        # Task checkboxes section
-        task_header = ctk.CTkLabel(self.left_panel, text="TASKS", font=FONTS["body_bold"])
-        task_header.grid(row=5, column=0, sticky="w", padx=10, pady=(8, 5))
+        # Options section
+        options_frame = ctk.CTkFrame(self.left_panel, **FRAME_STYLES["transparent"])
+        options_frame.grid(row=5, column=0, sticky="ew", padx=10, pady=(8, 0))
 
-        task_frame = ctk.CTkFrame(self.left_panel, **FRAME_STYLES["transparent"])
-        task_frame.grid(row=6, column=0, sticky="ew", padx=10, pady=0)
-
-        # Vocabulary checkbox (default ON)
-        self.vocab_check = ctk.CTkCheckBox(
-            task_frame, text="Extract Vocabulary", command=self._on_vocab_check_changed
-        )
-        self.vocab_check.pack(anchor="w", pady=2)
-        self.vocab_check.select()  # ON by default
-
-        # Default searches checkbox (semantic search always runs; this controls default questions)
+        # Default searches checkbox (vocab + search + key excerpts always run)
         self.ask_default_questions_check = ctk.CTkCheckBox(
-            task_frame,
+            options_frame,
             text="Run default searches",
             command=self._on_default_questions_toggled,
         )
-        self.ask_default_questions_check.pack(anchor="w", pady=(0, 2))
+        self.ask_default_questions_check.pack(anchor="w", pady=2)
         self.ask_default_questions_check.select()  # ON by default
 
-        # "Perform N Tasks" button
+        # "Process Documents" button
         self.generate_btn = ctk.CTkButton(
             self.left_panel,
-            text="Perform 2 Tasks",
+            text="Process Documents",
             font=FONTS["heading"],
             height=scale_value(40),
             corner_radius=6,
             command=self._perform_tasks,
         )
-        self.generate_btn.grid(row=7, column=0, sticky="ew", padx=10, pady=(15, 5))
+        self.generate_btn.grid(row=6, column=0, sticky="ew", padx=10, pady=(15, 5))
 
         # Stop button (hidden by default, shown during processing)
         self.stop_btn = ctk.CTkButton(
@@ -248,17 +238,6 @@ class WindowLayoutMixin:
             command=self._on_stop_clicked,
         )
         # Same grid position as generate_btn — only one visible at a time
-
-        # Task preview label - shows what will run
-        self.task_preview_label = ctk.CTkLabel(
-            self.left_panel,
-            text="",
-            font=FONTS["small"],
-            text_color=COLORS["text_secondary"],
-            wraplength=280,  # Fixed width suitable for left panel (approx 300px)
-            justify="left",
-        )
-        self.task_preview_label.grid(row=8, column=0, sticky="w", padx=10, pady=(0, 10))
 
     def _create_right_panel(self):
         """Create the right panel with results display."""

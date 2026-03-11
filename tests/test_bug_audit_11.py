@@ -54,9 +54,6 @@ def _make_main_window_stub():
     stub.ask_default_questions_check.get.return_value = True
     stub.generate_btn = MagicMock()
     stub.add_files_btn = MagicMock()
-    stub.task_preview_label = MagicMock()
-    stub.vocab_check = MagicMock()
-    stub.vocab_check.get.return_value = True
     stub.export_all_btn = MagicMock()
     stub._export_all_visible = False
     stub._settings_dialog_open = False

@@ -723,22 +723,16 @@ class TestPreprocessingActiveFlag:
         w.after.assert_not_called()
 
     def test_button_enables_after_preprocessing(self):
-        """_update_generate_button_state should enable button after preprocessing.
-
-        This is the actual bug: _processing_active stayed True after preprocessing,
-        causing the early return at the top of _update_generate_button_state.
-        """
+        """_update_generate_button_state should enable button after preprocessing."""
         from src.ui.main_window import MainWindow
 
         w = MagicMock()
         w._processing_active = False
         w.processing_results = [{"status": "success"}]
-        w._get_task_count = MagicMock(return_value=2)
 
         MainWindow._update_generate_button_state(w)
 
-        # Button should be enabled with "Perform 2 Tasks"
-        w.generate_btn.configure.assert_called_with(text="Perform 2 Tasks", state="normal")
+        w.generate_btn.configure.assert_called_with(text="Process Documents", state="normal")
 
     def test_button_disabled_during_task_execution(self):
         """_update_generate_button_state should disable button during _processing_active."""

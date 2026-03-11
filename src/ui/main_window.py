@@ -149,13 +149,8 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         # Initialize state
         self._refresh_corpus_dropdown()
         self._update_generate_button_state()
-        self._update_default_questions_label()  # Set initial question count
+        self._update_default_questions_label()  # Set initial question count + grey out
         self._restore_task_checkbox_states()  # Restore user's checkbox preferences
-
-        # Initialize tab status config to match checkbox states
-        self.output_display.set_tab_status_config(
-            vocab_enabled=self.vocab_check.get(),
-        )
 
         # Initialize drag-and-drop support
         self._setup_drag_drop()
@@ -960,50 +955,18 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
     # Task Execution
     # =========================================================================
 
-    def _get_task_count(self) -> int:
-        """Get the number of selected tasks. Semantic Search always runs."""
-        count = 1  # Semantic Search always on
-        if self.vocab_check.get():
-            count += 1
-        return count
-
     def _update_generate_button_state(self):
-        """Update the generate button text and state."""
+        """Update the generate button state based on whether files are loaded."""
         if self._processing_active:
             self.generate_btn.configure(state="disabled")
-            self.task_preview_label.configure(text="")
             return
 
-        task_count = self._get_task_count()
         has_files = len(self.processing_results) > 0
 
         if not has_files:
-            self.generate_btn.configure(text=f"Add Files ({task_count} tasks)", state="disabled")
-        elif task_count == 1:
-            self.generate_btn.configure(text="Perform 1 Task", state="normal")
+            self.generate_btn.configure(text="Process Documents", state="disabled")
         else:
-            self.generate_btn.configure(text=f"Perform {task_count} Tasks", state="normal")
-
-        # Update task preview label
-        self._update_task_preview()
-
-    def _update_task_preview(self):
-        """
-        Update the task preview label to show what will run.
-
-        Shows a concise preview like:
-        "Will run: Semantic Search (always), Vocabulary (NER)"
-        """
-        parts = ["Semantic Search (always)"]
-
-        # Vocabulary task
-        if self.vocab_check.get():
-            parts.append("Vocabulary (NER)")
-
-        # Build preview text
-        preview = "Will run: " + ", ".join(parts)
-
-        self.task_preview_label.configure(text=preview)
+            self.generate_btn.configure(text="Process Documents", state="normal")
 
     def _load_default_question_count(self) -> tuple[int, int]:
         """
@@ -1025,68 +988,51 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             return (0, 0)
 
     def _update_default_questions_label(self):
-        """Update checkbox text with current enabled question count."""
+        """Update checkbox text and state based on enabled question count."""
         enabled, total = self._load_default_question_count()
         search_word = "search" if enabled == 1 else "searches"
 
-        if enabled == total:
-            # All questions enabled - simple display
+        if enabled == 0:
+            # No default searches configured — grey out checkbox
             self.ask_default_questions_check.configure(
-                text=f"Run {enabled:,} default {search_word}"
+                text="No default searches configured", state="disabled"
+            )
+            self.ask_default_questions_check.deselect()
+        elif enabled == total:
+            self.ask_default_questions_check.configure(
+                text=f"Run {enabled:,} default {search_word}", state="normal"
             )
         else:
-            # Some questions disabled - show enabled/total
             self.ask_default_questions_check.configure(
-                text=f"Run {enabled:,}/{total:,} default {search_word}"
+                text=f"Run {enabled:,}/{total:,} default {search_word}", state="normal"
             )
 
     def _save_task_checkbox_states(self):
-        """Save task checkbox states to user preferences for persistence."""
+        """Save default questions checkbox state to user preferences."""
         try:
             from src.user_preferences import get_user_preferences
 
             prefs = get_user_preferences()
-            prefs.set("task_extract_vocab", self.vocab_check.get())
             prefs.set("task_default_questions", self.ask_default_questions_check.get())
         except Exception as e:
             logger.warning("Could not save task checkbox states: %s", e)
 
     def _restore_task_checkbox_states(self):
-        """Restore task checkbox states from user preferences."""
+        """Restore default questions checkbox state from user preferences."""
         from src.user_preferences import get_user_preferences
 
         prefs = get_user_preferences()
 
-        # Restore vocab checkbox
-        if not prefs.get("task_extract_vocab", True):
-            self.vocab_check.deselect()
-
-        # Restore default questions checkbox
         if not prefs.get("task_default_questions", True):
             self.ask_default_questions_check.deselect()
 
-        # Refresh dependent states after restoring
         self._update_generate_button_state()
 
     def _on_default_questions_toggled(self):
         """Handle default questions checkbox state change."""
-        # Just update button state - no other action needed here
-        self._update_generate_button_state()
         self._save_task_checkbox_states()
-
         state = "enabled" if self.ask_default_questions_check.get() else "disabled"
         logger.debug("Default questions %s", state)
-
-    def _on_vocab_check_changed(self):
-        """Handle Vocabulary checkbox state change."""
-        self._update_generate_button_state()
-        self._save_task_checkbox_states()
-
-        # Update tab status messages
-        self.output_display.set_tab_status_config(vocab_enabled=self.vocab_check.get())
-
-        state = "enabled" if self.vocab_check.get() else "disabled"
-        logger.debug("Vocabulary extraction %s", state)
 
     def refresh_default_questions_label(self):
         """Refresh the default questions checkbox label. Called after editing questions."""
@@ -1168,7 +1114,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         logger.debug("Session stats: %s", stats_text.replace(chr(10), " | "))
 
     def _perform_tasks(self):
-        """Execute the selected tasks. Semantic Search always runs."""
+        """Execute document processing: vocabulary, semantic search, and key excerpts."""
         if self._processing_active:
             logger.warning("_perform_tasks called while already processing — ignored")
             return
@@ -1184,37 +1130,23 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         self.add_files_btn.configure(state="disabled")
         self.clear_files_btn.configure(state="disabled")
 
-        # Hide task preview - status bar now shows progress
-        self.task_preview_label.configure(text="")
-
         # Start timer
         self._start_timer()
 
-        # Get selected options (search is always on)
-        do_vocab = self.vocab_check.get()
-
-        # Track pending tasks
-        self._pending_tasks = {"vocab": do_vocab, "qa": True}
+        # Track pending tasks (vocab + search always run)
+        self._pending_tasks = {"vocab": True, "qa": True}
         self._completed_tasks = set()
         self._qa_ready = False
         self._qa_answering_active = False
         self._qa_failed = False
         self._key_sentences_pending = False
 
-        # Set initial workflow phase for tab status messages
+        # Set initial workflow phase
         from src.ui.workflow_status import WorkflowPhase
 
-        if do_vocab:
-            self.output_display.set_workflow_phase(WorkflowPhase.VOCAB_RUNNING)
-        else:
-            self.output_display.set_workflow_phase(WorkflowPhase.QA_INDEXING)
+        self.output_display.set_workflow_phase(WorkflowPhase.VOCAB_RUNNING)
 
-        # Use progressive extraction for vocabulary (includes Q&A indexing)
-        if do_vocab:
-            self._start_progressive_extraction()
-        else:
-            # Search only (without vocabulary) - use legacy Q&A task
-            self._start_qa_task()
+        self._start_progressive_extraction()
 
     # =========================================================================
     # Stop / Cancel
@@ -1257,12 +1189,12 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
     def _show_stop_button(self):
         """Swap generate button for stop button during processing."""
         self.generate_btn.grid_remove()
-        self.stop_btn.grid(row=7, column=0, sticky="ew", padx=10, pady=(15, 5))
+        self.stop_btn.grid(row=6, column=0, sticky="ew", padx=10, pady=(15, 5))
 
     def _hide_stop_button(self):
         """Swap stop button back to generate button after processing ends."""
         self.stop_btn.grid_remove()
-        self.generate_btn.grid(row=7, column=0, sticky="ew", padx=10, pady=(15, 5))
+        self.generate_btn.grid(row=6, column=0, sticky="ew", padx=10, pady=(15, 5))
 
     # =========================================================================
     # Progressive Extraction

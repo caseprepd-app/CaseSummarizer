@@ -464,22 +464,25 @@ class DynamicOutputWidget(ctk.CTkFrame):
         self.summary_text_display.configure(state="normal")
         self.summary_text_display.delete("0.0", "end")
 
+        total = len(sentences)
         for i, sent in enumerate(sentences, 1):
             text = sent.get("text", "")
             source = sent.get("source_file", "")
 
-            # Excerpt header
-            self.summary_text_display.insert("end", f"Excerpt {i}:\n", "question")
-            self.summary_text_display.insert("end", f"{text}\n\n", "citation")
+            # Card header with position context
+            self.summary_text_display.insert("end", f"[ Excerpt {i} of {total} ]\n", "question")
+
+            # Excerpt body with breathing room
+            self.summary_text_display.insert("end", f"\n{text}\n\n", "citation")
 
             # Source attribution
-            self.summary_text_display.insert("end", "Source:\n", "label")
-            self.summary_text_display.insert("end", f"{source}\n\n", "source")
+            if source:
+                self.summary_text_display.insert("end", f"Source: {source}\n", "source")
 
-            # Separator between sentences (except after last one)
-            if i < len(sentences):
-                separator = "─" * 80 + "\n\n"
-                self.summary_text_display.insert("end", separator, "separator")
+            # Generous spacing between cards
+            if i < total:
+                self.summary_text_display.insert("end", "\n")
+                self.summary_text_display.insert("end", "─" * 60 + "\n\n\n", "separator")
 
         self.summary_text_display.configure(state="disabled")
         self.show_summary_content()

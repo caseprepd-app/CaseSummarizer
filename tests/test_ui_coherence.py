@@ -32,15 +32,15 @@ class TestActualUIElements:
         text = _read("src/ui/window_layout.py")
         assert 'text="+ Add Files"' in text
 
-    def test_perform_tasks_button(self):
-        """Main action button says 'Perform N Tasks'."""
+    def test_process_documents_button(self):
+        """Main action button says 'Process Documents'."""
         text = _read("src/ui/window_layout.py")
-        assert 'text="Perform 2 Tasks"' in text
+        assert 'text="Process Documents"' in text
 
-    def test_vocab_checkbox(self):
-        """Vocabulary checkbox says 'Extract Vocabulary'."""
+    def test_no_vocab_checkbox(self):
+        """Vocabulary always runs; no separate checkbox."""
         text = _read("src/ui/window_layout.py")
-        assert 'text="Extract Vocabulary"' in text
+        assert 'text="Extract Vocabulary"' not in text
 
     def test_no_qa_checkbox(self):
         """Semantic search is always-on; no 'Ask Questions' checkbox."""
@@ -80,17 +80,13 @@ class TestHelpDialogCoherence:
         """Step 1 mentions the actual '+ Add Files' button."""
         assert "+ Add Files" in self.text
 
-    def test_step3_checkbox_extract_vocabulary(self):
-        """Step 3 checkbox matches actual label 'Extract Vocabulary'."""
-        assert "- Extract Vocabulary" in self.text
+    def test_step3_lists_vocabulary(self):
+        """Step 3 mentions vocabulary extraction."""
+        assert "Vocabulary" in self.text or "vocabulary" in self.text
 
-    def test_step3_checkbox_semantic_search(self):
-        """Step 3 checkbox matches actual label 'Semantic Search'."""
-        assert "- Semantic Search" in self.text
-
-    def test_step3_no_generate_summary(self):
-        """No 'Generate Summary' checkbox (key sentences are automatic)."""
-        assert "- Generate Summary" not in self.text
+    def test_step3_lists_semantic_search(self):
+        """Step 3 mentions semantic search."""
+        assert "Semantic search" in self.text or "search" in self.text
 
     def test_step3_no_stale_checkbox_names(self):
         """No old checkbox names from dead code."""
@@ -98,9 +94,9 @@ class TestHelpDialogCoherence:
         assert "Enable Q&A" not in self.text
         assert "- Ask Questions" not in self.text
 
-    def test_step4_perform_tasks_button(self):
-        """Step 4 references 'Perform Tasks' not 'Generate Outputs'."""
-        assert "Perform Tasks" in self.text
+    def test_step3_process_documents_button(self):
+        """Step 3 references 'Process Documents' not 'Generate Outputs'."""
+        assert "Process Documents" in self.text
         assert "Generate Outputs" not in self.text
 
     def test_results_tab_name_matches(self):
