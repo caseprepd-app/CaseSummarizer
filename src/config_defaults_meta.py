@@ -425,7 +425,7 @@ DESCRIPTIONS = {
     "retrieval_chunk_size": {
         "label": "Retrieval chunk size (chars)",
         "tooltip": (
-            "Characters per chunk for Q&A retrieval indexing.\n"
+            "Characters per chunk for search retrieval indexing.\n"
             "Smaller chunks = more precise retrieval but more fragments.\n\n"
             "Default: 500 characters\n\n"
             "Increase: Larger context per chunk (fewer, broader chunks).\n"
@@ -476,12 +476,12 @@ DESCRIPTIONS = {
         ),
     },
     # =======================================================================
-    # Q&A Retrieval
+    # Search Retrieval
     # =======================================================================
     "qa_retrieval_k": {
         "label": "Chunks to retrieve",
         "tooltip": (
-            "Number of document chunks retrieved for each Q&A question.\n"
+            "Number of document chunks retrieved for each search query.\n"
             "More chunks = broader search but more noise.\n\n"
             "Default: 20 chunks\n\n"
             "Increase: Cast wider net (better recall, more noise).\n"
@@ -492,7 +492,7 @@ DESCRIPTIONS = {
     "qa_max_tokens": {
         "label": "Maximum answer length (tokens)",
         "tooltip": (
-            "Maximum tokens for generated Q&A answers.\n"
+            "Maximum tokens for generated search answers.\n"
             "Controls how long answers can be.\n\n"
             "Default: 750 tokens (~500 words)\n\n"
             "Increase: Allow longer, more detailed answers.\n"
@@ -501,21 +501,21 @@ DESCRIPTIONS = {
         ),
     },
     "qa_temperature": {
-        "label": "Q&A answer temperature",
+        "label": "Search answer temperature",
         "tooltip": (
-            "Creativity/randomness for Q&A answer generation.\n"
+            "Creativity/randomness for search answer generation.\n"
             "Lower values produce more factual, consistent answers.\n\n"
             "Default: 0.1\n\n"
             "Increase: More varied phrasing (risk of less accuracy).\n"
             "Decrease: More deterministic, factual answers.\n\n"
-            "For legal Q&A, 0.0-0.2 is recommended."
+            "For legal documents, 0.0-0.2 is recommended."
         ),
     },
     "qa_similarity_threshold": {
         "label": "Chunk relevance threshold",
         "tooltip": (
             "Minimum relevance score (0-1) for a chunk to be considered\n"
-            "relevant to the question.\n\n"
+            "relevant to the search query.\n\n"
             "Default: 0.5\n\n"
             "Increase: Only use highly relevant chunks (may miss context).\n"
             "Decrease: Include marginally relevant chunks (more context\n"
@@ -525,7 +525,7 @@ DESCRIPTIONS = {
     "retrieval_enable_bm25": {
         "label": "Enable BM25+ retrieval",
         "tooltip": (
-            "Use BM25+ lexical (keyword) search for Q&A chunk retrieval.\n"
+            "Use BM25+ lexical (keyword) search for chunk retrieval.\n"
             "Finds chunks containing exact query terms.\n\n"
             "Default: Enabled\n\n"
             "Enabled: Better for specific terminology lookups.\n"
@@ -537,7 +537,7 @@ DESCRIPTIONS = {
     "retrieval_enable_faiss": {
         "label": "Enable FAISS retrieval",
         "tooltip": (
-            "Use FAISS semantic (embedding) search for Q&A chunk retrieval.\n"
+            "Use FAISS semantic (embedding) search for chunk retrieval.\n"
             "Finds conceptually related chunks even without exact word matches.\n\n"
             "Default: Enabled\n\n"
             "Enabled: Better for conceptual questions and paraphrasing.\n"
@@ -561,7 +561,7 @@ DESCRIPTIONS = {
         "label": "Chunks kept after reranking",
         "tooltip": (
             "Number of top chunks to keep after cross-encoder reranking.\n"
-            "These are the chunks actually sent to the LLM for answering.\n\n"
+            "These are the chunks used for generating the answer.\n\n"
             "Default: 5 chunks\n\n"
             "Increase: More context for the LLM (may exceed context window).\n"
             "Decrease: Fewer, most-relevant chunks only.\n\n"
@@ -572,7 +572,7 @@ DESCRIPTIONS = {
         "label": "Chunk minimum relevance score",
         "tooltip": (
             "Minimum merged relevance score (0-1) for a chunk to be included\n"
-            "in Q&A context. Chunks scoring below this are filtered out.\n\n"
+            "in search context. Chunks scoring below this are filtered out.\n\n"
             "Default: 0.10\n\n"
             "Increase: Stricter filtering, only highly relevant chunks.\n"
             "Decrease: Include more marginally relevant chunks.\n\n"
@@ -583,13 +583,13 @@ DESCRIPTIONS = {
     "retrieval_confidence_gate": {
         "label": "Retrieval confidence gate",
         "tooltip": (
-            "Minimum best-chunk score needed to attempt answering a question.\n"
-            "If no chunk scores above this, the question is treated as\n"
+            "Minimum best-chunk score needed to attempt answering a query.\n"
+            "If no chunk scores above this, the query is treated as\n"
             "unanswerable for the current documents.\n\n"
             "Default: 0.15\n\n"
-            "Increase: More conservative — refuses more questions.\n"
+            "Increase: More conservative — refuses more queries.\n"
             "Decrease: Attempts answers even with weak evidence.\n\n"
-            "This prevents the system from generating bogus answers when\n"
+            "This prevents the system from showing bogus answers when\n"
             "the document doesn't contain relevant information."
         ),
     },
@@ -622,7 +622,7 @@ DESCRIPTIONS = {
         "tooltip": (
             "Target character length for the focused citation excerpt.\n"
             "Uses embedding similarity to find the best window in the\n"
-            "top retrieval chunk that matches the question.\n\n"
+            "top retrieval chunk that matches the query.\n\n"
             "Default: 1250 characters (~250 words)\n\n"
             "Increase: Longer excerpt with more surrounding context.\n"
             "Decrease: Shorter, more focused excerpt."
@@ -634,7 +634,7 @@ DESCRIPTIONS = {
     "hallucination_verification_enabled": {
         "label": "Hallucination verification",
         "tooltip": (
-            "Run hallucination detection on Q&A answers to identify\n"
+            "Run hallucination detection on search answers to identify\n"
             "potentially unsupported claims.\n\n"
             "Default: Enabled\n\n"
             "Enabled: Answers are color-coded by reliability. Adds ~100-200ms.\n"
@@ -654,12 +654,12 @@ DESCRIPTIONS = {
         ),
     },
     # =======================================================================
-    # Q&A Export
+    # Search Export
     # =======================================================================
     "qa_export_confidence_floor": {
-        "label": "Q&A export retrieval floor",
+        "label": "Search export retrieval floor",
         "tooltip": (
-            "Minimum FAISS retrieval confidence (0-1) for a Q&A answer\n"
+            "Minimum FAISS retrieval confidence (0-1) for a search result\n"
             "to be included in exports. This measures how relevant the\n"
             "retrieved document chunks were to the question.\n\n"
             "Both this AND the verification floor must be met.\n\n"
@@ -669,10 +669,10 @@ DESCRIPTIONS = {
         ),
     },
     "qa_export_verification_floor": {
-        "label": "Q&A export verification floor",
+        "label": "Search export verification floor",
         "tooltip": (
             "Minimum hallucination verification reliability (0-1) for\n"
-            "a Q&A answer to be included in exports. This measures how\n"
+            "a search result to be included in exports. This measures how\n"
             "well the answer is supported by the source text.\n\n"
             "Both this AND the retrieval floor must be met.\n\n"
             "Default: 0.80 (80%)\n\n"

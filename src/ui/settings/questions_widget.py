@@ -1,20 +1,19 @@
 """
-Default Questions Widget for Settings Dialog.
+Default Searches Widget for Settings Dialog.
 
-Widget for managing default Q&A questions with checkboxes.
+Widget for managing default semantic searches with checkboxes.
 Changes are buffered locally and only persisted when the dialog's
 Save button is clicked.
 
 Layout:
     ┌─────────────────────────────────────────────────────────────┐
-    │  Default Questions                                       ⓘ  │
+    │  Default Searches                                        ⓘ  │
     ├─────────────────────────────────────────────────────────────┤
-    │  ☑ What is this case about?                            [✕] │
-    │  ☑ What are the main allegations?                      [✕] │
-    │  ☐ Who are the plaintiffs?                             [✕] │
+    │  ☑ What injuries were sustained?                       [✕] │
+    │  ☑ What warnings were given?                           [✕] │
     │  ...                                                        │
     ├─────────────────────────────────────────────────────────────┤
-    │  [+ Add Question]                                           │
+    │  [+ Add Search]                                             │
     └─────────────────────────────────────────────────────────────┘
 """
 
@@ -26,7 +25,7 @@ from src.ui.theme import FONTS
 
 class DefaultQuestionsWidget(ctk.CTkFrame):
     """
-    Widget for managing default Q&A questions with checkboxes.
+    Widget for managing default semantic searches with checkboxes.
 
     All changes are buffered locally. The dialog calls get_value()
     on Save to retrieve the buffer, which is then persisted via the
@@ -66,25 +65,25 @@ class DefaultQuestionsWidget(ctk.CTkFrame):
         header_frame.grid(row=0, column=0, sticky="ew", pady=(0, 5))
 
         header_label = ctk.CTkLabel(
-            header_frame, text="Default Questions", font=FONTS["heading_sm"], anchor="w"
+            header_frame, text="Default Searches", font=FONTS["heading_sm"], anchor="w"
         )
         header_label.pack(side="left", padx=(0, 5))
 
         tooltip = TooltipIcon(
             header_frame,
             tooltip_text=(
-                "Questions that are automatically asked after document processing.\n\n"
-                "• Check/uncheck to enable/disable questions\n"
-                "• Click '✕' to delete a question\n"
-                "• Click '+ Add Question' to add new questions\n\n"
-                "Disabled questions are saved but won't be asked."
+                "Searches that are automatically run after document processing.\n\n"
+                "• Check/uncheck to enable/disable searches\n"
+                "• Click '✕' to delete a search\n"
+                "• Click '+ Add Search' to add new searches\n\n"
+                "Disabled searches are saved but won't run."
             ),
         )
         tooltip.pack(side="left")
 
         # Guidance text
         guidance_text = (
-            "Tip: Ask one specific question at a time about facts stated in the documents.\n\n"
+            "Tip: Search for one specific topic at a time about facts in the documents.\n\n"
             'Good: "What injuries were sustained?", "What warnings were given?"\n'
             'Avoid: "What is this case about?", "When and where did the accident happen?"'
         )
@@ -113,7 +112,7 @@ class DefaultQuestionsWidget(ctk.CTkFrame):
 
         self.add_btn = ctk.CTkButton(
             add_frame,
-            text="+ Add Question",
+            text="+ Add Search",
             command=self._add_question,
             width=140,
             height=28,
@@ -176,8 +175,8 @@ class DefaultQuestionsWidget(ctk.CTkFrame):
             self._buffer[index]["enabled"] = var.get()
 
     def _add_question(self):
-        """Show dialog to add a new question to the buffer."""
-        dialog = ctk.CTkInputDialog(text="Enter a new question:", title="Add Question")
+        """Show dialog to add a new search to the buffer."""
+        dialog = ctk.CTkInputDialog(text="Enter a new search:", title="Add Search")
         text = dialog.get_input()
 
         if text and text.strip():
@@ -185,14 +184,14 @@ class DefaultQuestionsWidget(ctk.CTkFrame):
             self._rebuild_ui()
 
     def _edit_question(self, index: int):
-        """Show dialog to edit a question in the buffer."""
+        """Show dialog to edit a search in the buffer."""
         if index >= len(self._buffer):
             return
 
         current_text = self._buffer[index]["text"]
         display_text = current_text[:60] + "..." if len(current_text) > 60 else current_text
         dialog = ctk.CTkInputDialog(
-            text=f'Current: "{display_text}"\n\nEnter new text:', title="Edit Question"
+            text=f'Current: "{display_text}"\n\nEnter new text:', title="Edit Search"
         )
         text = dialog.get_input()
 
@@ -201,7 +200,7 @@ class DefaultQuestionsWidget(ctk.CTkFrame):
             self._rebuild_ui()
 
     def _delete_question(self, index: int):
-        """Delete a question from the buffer after confirmation."""
+        """Delete a search from the buffer after confirmation."""
         from tkinter import messagebox
 
         if index >= len(self._buffer):
@@ -210,7 +209,7 @@ class DefaultQuestionsWidget(ctk.CTkFrame):
         question_text = self._buffer[index]["text"]
         display_text = question_text[:50] + "..." if len(question_text) > 50 else question_text
 
-        if messagebox.askyesno("Delete Question", f'Delete this question?\n\n"{display_text}"'):
+        if messagebox.askyesno("Delete Search", f'Delete this search?\n\n"{display_text}"'):
             self._buffer.pop(index)
             self._rebuild_ui()
 

@@ -349,14 +349,14 @@ DEFAULTS = {
         "category": "Chunking",
     },
     # =======================================================================
-    # Q&A Retrieval
+    # Search Retrieval
     # =======================================================================
     "qa_retrieval_k": {
         "value": 20,
         "min": 5,
         "max": 50,
         "type": "int",
-        "category": "Q&A Retrieval",
+        "category": "Search Retrieval",
     },
     "qa_max_tokens": {
         "value": 750,
@@ -364,7 +364,7 @@ DEFAULTS = {
         "max": 2000,
         "step": 50,
         "type": "int",
-        "category": "Q&A Retrieval",
+        "category": "Search Retrieval",
     },
     "qa_temperature": {
         "value": 0.1,
@@ -372,7 +372,7 @@ DEFAULTS = {
         "max": 1.0,
         "step": 0.05,
         "type": "float",
-        "category": "Q&A Retrieval",
+        "category": "Search Retrieval",
     },
     "qa_similarity_threshold": {
         "value": 0.5,
@@ -380,29 +380,29 @@ DEFAULTS = {
         "max": 0.9,
         "step": 0.05,
         "type": "float",
-        "category": "Q&A Retrieval",
+        "category": "Search Retrieval",
     },
     "retrieval_enable_bm25": {
         "value": True,
         "type": "bool",
-        "category": "Q&A Retrieval",
+        "category": "Search Retrieval",
     },
     "retrieval_enable_faiss": {
         "value": True,
         "type": "bool",
-        "category": "Q&A Retrieval",
+        "category": "Search Retrieval",
     },
     "reranking_enabled": {
         "value": True,
         "type": "bool",
-        "category": "Q&A Retrieval",
+        "category": "Search Retrieval",
     },
     "reranker_top_k": {
         "value": 5,
         "min": 3,
         "max": 20,
         "type": "int",
-        "category": "Q&A Retrieval",
+        "category": "Search Retrieval",
     },
     "retrieval_min_score": {
         "value": 0.10,
@@ -410,7 +410,7 @@ DEFAULTS = {
         "max": 0.5,
         "step": 0.01,
         "type": "float",
-        "category": "Q&A Retrieval",
+        "category": "Search Retrieval",
     },
     "retrieval_confidence_gate": {
         "value": 0.15,
@@ -418,7 +418,7 @@ DEFAULTS = {
         "max": 0.5,
         "step": 0.01,
         "type": "float",
-        "category": "Q&A Retrieval",
+        "category": "Search Retrieval",
     },
     "retrieval_multi_algo_bonus": {
         "value": 0.1,
@@ -426,7 +426,7 @@ DEFAULTS = {
         "max": 0.3,
         "step": 0.01,
         "type": "float",
-        "category": "Q&A Retrieval",
+        "category": "Search Retrieval",
     },
     "faiss_relevance_floor": {
         "value": 0.10,
@@ -434,7 +434,7 @@ DEFAULTS = {
         "max": 0.5,
         "step": 0.01,
         "type": "float",
-        "category": "Q&A Retrieval",
+        "category": "Search Retrieval",
     },
     "qa_citation_max_chars": {
         "value": 1250,
@@ -442,7 +442,7 @@ DEFAULTS = {
         "max": 5000,
         "step": 250,
         "type": "int",
-        "category": "Q&A Retrieval",
+        "category": "Search Retrieval",
     },
     # =======================================================================
     # Answer Quality
@@ -461,7 +461,7 @@ DEFAULTS = {
         "category": "Answer Quality",
     },
     # =======================================================================
-    # Q&A Export
+    # Search Export
     # =======================================================================
     "qa_export_confidence_floor": {
         "value": 0.40,
@@ -469,7 +469,7 @@ DEFAULTS = {
         "max": 1.0,
         "step": 0.05,
         "type": "float",
-        "category": "Q&A Export",
+        "category": "Search Export",
     },
     "qa_export_verification_floor": {
         "value": 0.80,
@@ -477,7 +477,7 @@ DEFAULTS = {
         "max": 1.0,
         "step": 0.05,
         "type": "float",
-        "category": "Q&A Export",
+        "category": "Search Export",
     },
 }
 

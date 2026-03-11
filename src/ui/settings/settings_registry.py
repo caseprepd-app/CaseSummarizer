@@ -239,7 +239,7 @@ def _register_all_settings():
             setting_type=SettingType.SPINBOX,
             tooltip=(
                 "Adjust the font size used throughout the application,\n"
-                "including table rows (vocabulary, Q&A, documents).\n\n"
+                "including table rows (vocabulary, search, documents).\n\n"
                 "Enter a point offset (positive = larger, negative = smaller).\n"
                 "Examples: +4 for high-DPI screens, -2 for compact layout.\n\n"
                 "Requires restart to take effect."
@@ -1236,22 +1236,22 @@ def _register_all_settings():
     )
 
     # ===================================================================
-    # Q&A TAB
+    # SEARCH TAB
     # ===================================================================
 
     # ===================================================================
-    # Q&A RETRIEVAL WEIGHTS
+    # SEARCH RETRIEVAL WEIGHTS
     # ===================================================================
 
     SettingsRegistry.register(
         SettingDefinition(
             key="retrieval_weight_faiss",
             label="Semantic search weight (FAISS)",
-            category="Q&A",
+            category="Search",
             setting_type=SettingType.SLIDER,
             tooltip=(
                 "Weight for semantic (FAISS) search when retrieving document context "
-                "for Q&A answers.\n\n"
+                "for search results.\n\n"
                 "Semantic search understands meaning and concepts. Phrasing is "
                 "forgiving — asking 'Who are the parties?' can find passages about "
                 "'plaintiff and defendant' even without those exact words.\n\n"
@@ -1271,11 +1271,11 @@ def _register_all_settings():
         SettingDefinition(
             key="retrieval_weight_bm25",
             label="Exact match weight (BM25+)",
-            category="Q&A",
+            category="Search",
             setting_type=SettingType.SLIDER,
             tooltip=(
                 "Weight for exact-match (BM25+) search when retrieving document "
-                "context for Q&A answers.\n\n"
+                "context for search results.\n\n"
                 "BM25+ favors exact text matches — it finds passages containing "
                 "the precise words in your question. Best for specific legal terms, "
                 "names, and dates.\n\n"
@@ -1291,8 +1291,7 @@ def _register_all_settings():
         )
     )
 
-    # Custom widget for default questions management
-    # (Replaces the old "Edit Default Questions" YAML editor button)
+    # Custom widget for default searches management
     def _create_default_questions_widget(parent):
         """Factory function to create the DefaultQuestionsWidget."""
         from src.ui.settings.questions_widget import DefaultQuestionsWidget
@@ -1311,13 +1310,13 @@ def _register_all_settings():
     SettingsRegistry.register(
         SettingDefinition(
             key="qa_default_questions",
-            label="Default Questions",
-            category="Q&A",
+            label="Default Searches",
+            category="Search",
             setting_type=SettingType.CUSTOM,
             tooltip=(
-                "Manage the questions that are automatically asked after document "
-                "processing. Enable/disable individual questions using checkboxes. "
-                "Add new questions or edit existing ones."
+                "Manage the searches that are automatically run after document "
+                "processing. Enable/disable individual searches using checkboxes. "
+                "Add new searches or edit existing ones."
             ),
             default=None,
             setter=_save_default_questions,
@@ -1526,7 +1525,7 @@ def _register_all_settings():
                 "Affects:\n"
                 "• Vocabulary extraction: Up to 4 algorithms run in parallel\n"
                 "• LLM extraction: Up to 3 document chunks processed at once\n"
-                "• Q&A: Up to 4 questions answered simultaneously\n\n"
+                "• Search: Up to 4 queries answered simultaneously\n\n"
                 "Lower values keep your computer responsive during processing. "
                 "Higher values finish faster but may cause slowdowns."
             ),
@@ -1540,7 +1539,7 @@ def _register_all_settings():
     )
 
     # ===================================================================
-    # Q&A EXPORT TAB
+    # SEARCH EXPORT TAB
     # ===================================================================
 
     from src.config import QA_EXPORT_CONFIDENCE_FLOOR, QA_EXPORT_VERIFICATION_FLOOR
@@ -1549,10 +1548,10 @@ def _register_all_settings():
         SettingDefinition(
             key="qa_export_confidence_floor",
             label="Retrieval confidence floor",
-            category="Q&A Export",
+            category="Search Export",
             setting_type=SettingType.SLIDER,
             tooltip=(
-                "Minimum FAISS retrieval confidence (0-1) for a Q&A answer\n"
+                "Minimum FAISS retrieval confidence (0-1) for a search result\n"
                 "to be included in exports. This measures how relevant the\n"
                 "retrieved document chunks were to the question.\n\n"
                 "Both this AND the verification floor must be met.\n\n"
@@ -1571,11 +1570,11 @@ def _register_all_settings():
         SettingDefinition(
             key="qa_export_verification_floor",
             label="Verification reliability floor",
-            category="Q&A Export",
+            category="Search Export",
             setting_type=SettingType.SLIDER,
             tooltip=(
                 "Minimum hallucination verification reliability (0-1) for\n"
-                "a Q&A answer to be included in exports. This measures how\n"
+                "a search result to be included in exports. This measures how\n"
                 "well the answer is supported by the source text.\n\n"
                 "Both this AND the retrieval floor must be met.\n\n"
                 "Default: 0.80 (80%)"

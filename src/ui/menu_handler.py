@@ -114,12 +114,6 @@ def create_menus(window, select_files_callback, show_settings_callback, quit_cal
         label="Getting Started...",
         command=lambda: HelpDialog(window),
     )
-    help_menu.add_command(
-        label="Ollama Setup Guide",
-        command=lambda: __import__("webbrowser").open(
-            "https://sites.google.com/view/caseprepd/ollama-instructions"
-        ),
-    )
     help_menu.add_separator()
     from src.config import APP_NAME
 
