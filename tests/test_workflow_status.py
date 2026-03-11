@@ -99,11 +99,11 @@ class TestQATabStatus:
         assert "Results will appear" in msg
 
     def test_complete_phase(self):
-        """When complete, show follow-up message."""
+        """When complete, show search-ready message."""
         config = TabStatusConfig(qa_enabled=True)
         msg = get_qa_tab_status(WorkflowPhase.COMPLETE, config)
         assert "Processing complete" in msg
-        assert "follow-up" in msg
+        assert "search" in msg.lower()
 
 
 class TestSummaryTabStatus:

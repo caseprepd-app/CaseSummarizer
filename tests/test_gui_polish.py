@@ -713,6 +713,7 @@ class TestPreprocessingActiveFlag:
         w._processing_active = False
         w._preprocessing_active = False
         w._qa_answering_active = False
+        w._key_sentences_pending = False
         w._queue_poll_id = None
         w._qa_results_lock = MagicMock()
         w._qa_results = []

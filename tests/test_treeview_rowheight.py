@@ -310,9 +310,9 @@ class TestSettingsTooltipUpdate:
         source = _read_source("src/ui/settings/settings_registry.py")
         idx = source.index('key="font_size_offset"')
         block = source[idx : idx + 600]
-        # Should mention vocabulary, Q&A, and documents tables
+        # Should mention vocabulary, search, and documents tables
         assert "vocabulary" in block.lower()
-        assert "q&a" in block.lower() or "qa" in block.lower()
+        assert "search" in block.lower()
         assert "document" in block.lower()
 
 

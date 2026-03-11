@@ -40,6 +40,7 @@ from src.ui.theme import (
     COLORS,
     FONTS,
     FRAME_STYLES,
+    QA_TEXT_TAGS,
     VOCAB_TABLE_TAGS,
     get_color,
     resolve_tags,
@@ -200,9 +201,19 @@ class DynamicOutputWidget(ctk.CTkFrame):
         )
         self._summary_status_label.grid(row=1, column=0, sticky="nsew", padx=20, pady=50)
 
-        self.summary_text_display = ctk.CTkTextbox(self.tabview.tab("Key Sentences"), wrap="word")
+        self.summary_text_display = ctk.CTkTextbox(
+            self.tabview.tab("Key Sentences"),
+            wrap="word",
+            font=FONTS["body"],
+            fg_color=COLORS["bg_darker"],
+            text_color=COLORS["text_primary"],
+        )
         self.summary_text_display.grid(row=1, column=0, sticky="nsew", padx=5, pady=5)
-        self.summary_text_display.grid_remove()  # Hidden initially, shown when summary arrives
+        self.summary_text_display.grid_remove()  # Hidden initially, shown when results arrive
+
+        # Configure text tags for card-style formatting (same as Search tab)
+        for tag_name, tag_config in resolve_tags(QA_TEXT_TAGS).items():
+            self.summary_text_display.tag_config(tag_name, cnf=tag_config)
 
         # Inline find bar for Summary tab (hidden by default)
         from src.ui.text_find_bar import TextFindBar
@@ -436,10 +447,10 @@ class DynamicOutputWidget(ctk.CTkFrame):
 
     def update_key_sentences(self, sentences: list[dict]):
         """
-        Display key sentences in the Summary tab.
+        Display key sentences in the Key Sentences tab with card-style formatting.
 
-        Formats sentences as a numbered list with source file attribution.
-        If an LLM summary is already displayed, key sentences appear below it.
+        Each sentence is displayed as a styled card with source attribution,
+        visually consistent with the Search tab layout.
 
         Args:
             sentences: List of dicts with 'text', 'source_file', 'position', 'score'.
@@ -449,26 +460,30 @@ class DynamicOutputWidget(ctk.CTkFrame):
 
         self._key_sentences = sentences
 
-        # Build formatted text
-        parts = ["KEY SENTENCES\n", "=" * 50, "\n\n"]
+        # Clear and insert with styled tags
+        self.summary_text_display.configure(state="normal")
+        self.summary_text_display.delete("0.0", "end")
+
         for i, sent in enumerate(sentences, 1):
             text = sent.get("text", "")
             source = sent.get("source_file", "")
-            parts.append(f' {i:2d}. "{text}"\n')
-            parts.append(f"     — {source}\n\n")
 
-        key_text = "".join(parts)
+            # Sentence header
+            self.summary_text_display.insert("end", f"Sentence {i}:\n", "question")
+            self.summary_text_display.insert("end", f"{text}\n\n", "citation")
 
-        # If summary textbox already has LLM content, append below it
-        existing = self.summary_text_display.get("0.0", "end").strip()
-        if existing:
-            self.summary_text_display.insert("end", f"\n\n{key_text}")
-        else:
-            self.summary_text_display.delete("0.0", "end")
-            self.summary_text_display.insert("0.0", key_text)
+            # Source attribution
+            self.summary_text_display.insert("end", "Source:\n", "label")
+            self.summary_text_display.insert("end", f"{source}\n\n", "source")
 
+            # Separator between sentences (except after last one)
+            if i < len(sentences):
+                separator = "─" * 80 + "\n\n"
+                self.summary_text_display.insert("end", separator, "separator")
+
+        self.summary_text_display.configure(state="disabled")
         self.show_summary_content()
-        logger.debug("Displayed %d key sentences in Summary tab", len(sentences))
+        logger.debug("Displayed %d key sentences in Key Sentences tab", len(sentences))
 
     def show_document_preview(self, result):
         """

@@ -1,16 +1,16 @@
 """
-Q&A Panel Widget for CasePrepd.
+Semantic Search Panel Widget for CasePrepd.
 
-Displays Q&A results in plain text format:
-- Question: The question asked
-- Answer: AI-synthesized answer from Ollama
-- Citation: Raw text excerpts from BM25+/vector retrieval
-- Source: Formatted source metadata (document names, sections)
+Displays search results in plain text format:
+- Search query text
+- Relevance score (cross-encoder)
+- Retrieved passages from documents
+- Source file attribution
 
 Features:
 - Plain text scrollable display (full text, no truncation)
 - Include/exclude toggles for export (Select All/Deselect All)
-- Export to CSV or TXT
+- Export to CSV, TXT, Word, PDF, HTML
 """
 
 import csv
@@ -33,18 +33,16 @@ from src.ui.theme import BUTTON_STYLES, COLORS, FONTS, FRAME_STYLES, QA_TEXT_TAG
 
 class QAPanel(ctk.CTkFrame):
     """
-    Q&A display panel with plain text layout.
+    Semantic search display panel with plain text layout.
 
     Features:
     - Plain text display with full content (no truncation)
     - Include/exclude controls for export (Select All/Deselect All)
-    - Export to CSV or TXT
+    - Export to CSV, TXT, Word, PDF, HTML
+
     Example:
         panel = QAPanel(parent)
         panel.display_results(qa_results)
-
-        # Handle follow-up questions
-        panel.set_followup_callback(lambda q: orchestrator.ask_followup(q))
     """
 
     def __init__(
@@ -188,7 +186,7 @@ class QAPanel(ctk.CTkFrame):
 
     def display_results(self, results: list[QAResult]):
         """
-        Display Q&A results as plain text with verification highlighting.
+        Display search results as plain text with relevance scores.
 
         Args:
             results: List of QAResult objects to display
@@ -199,67 +197,30 @@ class QAPanel(ctk.CTkFrame):
         self.text_display.configure(state="normal")
         self.text_display.delete("1.0", "end")
 
-        # Track if any results have verification (for legend)
-        has_verification = any(r.verification is not None for r in results)
-
-        # Format and insert each Q&A pair
         for i, result in enumerate(results, 1):
-            # Question number and text - use different tag for defaults
+            # Search header with relevance score on the same line
             question_tag = "question_default" if result.is_default_question else "question"
-            self.text_display.insert("end", f"Search {i}:\n", question_tag)
+            self.text_display.insert("end", f"Search {i}:", question_tag)
+            if result.confidence > 0:
+                relevance_pct = int(result.confidence * 100)
+                self.text_display.insert("end", f"  [Relevance: {relevance_pct}%]", "score_detail")
+            self.text_display.insert("end", "\n")
             self.text_display.insert("end", f"{result.question}\n\n", "answer")
 
-            # Answer section with verification if available
-            self.text_display.insert("end", "Answer:\n", "label")
+            # Retrieved passages
+            self.text_display.insert("end", "Relevant Passages:\n", "label")
+            passage_text = result.citation if result.citation else "(no results found)"
+            self.text_display.insert("end", f"{passage_text}\n\n", "citation")
 
-            # Track if answer was rejected (used to hide citation/source)
-            answer_rejected = False
+            # Source attribution
+            self.text_display.insert("end", "Source:\n", "label")
+            source_text = result.source_summary if result.source_summary else "(source unknown)"
+            self.text_display.insert("end", f"{source_text}\n\n", "source")
 
-            if result.verification:
-                # Show retrieval score then reliability header (same font weight)
-                retrieval_pct = int(result.confidence * 100)
-                self.text_display.insert("end", f"[Retrieval: {retrieval_pct}%]\n", "score_detail")
-                self._insert_reliability_header(result.verification)
-
-                if result.verification.answer_rejected:
-                    # Show rejection message in unreliable color
-                    self.text_display.insert(
-                        "end", f"{result.quick_answer}\n\n", "verify_unreliable"
-                    )
-                    answer_rejected = True
-                else:
-                    # Show color-coded verified answer
-                    self._insert_verified_answer(result.verification)
-            else:
-                # No verification - show plain answer with retrieval score
-                if result.confidence > 0:
-                    retrieval_pct = int(result.confidence * 100)
-                    self.text_display.insert(
-                        "end", f"[Retrieval: {retrieval_pct}%]\n", "score_detail"
-                    )
-                self.text_display.insert("end", f"{result.quick_answer}\n\n", "answer")
-
-            # Only show citation and source if answer was NOT rejected
-            # (showing citation for rejected answers is confusing - implies content exists but is hidden)
-            if not answer_rejected:
-                # Citation label and text
-                self.text_display.insert("end", "Citation:\n", "label")
-                citation_text = result.citation if result.citation else "(no citation available)"
-                self.text_display.insert("end", f"{citation_text}\n\n", "citation")
-
-                # Source label and text
-                self.text_display.insert("end", "Source:\n", "label")
-                source_text = result.source_summary if result.source_summary else "(source unknown)"
-                self.text_display.insert("end", f"{source_text}\n\n", "source")
-
-            # Separator between Q&A pairs (except after last one)
+            # Separator between results (except after last one)
             if i < len(results):
                 separator = "─" * 80 + "\n\n"
                 self.text_display.insert("end", separator, "separator")
-
-        # Show verification legend at bottom if any results were verified
-        if has_verification:
-            self._insert_verification_legend()
 
         # Make read-only
         self.text_display.configure(state="disabled")
@@ -268,81 +229,7 @@ class QAPanel(ctk.CTkFrame):
         included = sum(1 for r in results if r.include_in_export)
         self.info_label.configure(text=f"{included}/{len(results)} selected for export")
 
-        logger.debug("Displaying %s results in plain text format", len(results))
-
-    def _insert_reliability_header(self, verification):
-        """
-        Insert bold reliability score header before the answer.
-
-        Args:
-            verification: VerificationResult with overall_reliability score
-        """
-        from src.services import QAService
-
-        reliability_pct = int(verification.overall_reliability * 100)
-        level = QAService().get_reliability_level(verification.overall_reliability)
-
-        # Map level to tag and label
-        tag_map = {
-            "high": ("reliability_high", "HIGH"),
-            "medium": ("reliability_medium", "MEDIUM"),
-            "low": ("reliability_low", "LOW - REJECTED"),
-        }
-        tag, label = tag_map.get(level, ("reliability_medium", "UNKNOWN"))
-
-        self.text_display.insert("end", f"[Reliability: {reliability_pct}% - {label}]\n", tag)
-
-    def _insert_verified_answer(self, verification):
-        """
-        Insert answer text with span-level color coding based on hallucination probability.
-
-        Args:
-            verification: VerificationResult with spans and probabilities
-        """
-        from src.services import QAService
-
-        qa_svc = QAService()
-        for span in verification.spans:
-            category = qa_svc.get_span_category(span.hallucination_prob)
-            tag = f"verify_{category}"
-            self.text_display.insert("end", span.text, tag)
-
-        self.text_display.insert("end", "\n\n")
-
-    def _insert_verification_legend(self):
-        """Insert color legend and score explanations at bottom of display."""
-        self.text_display.insert("end", "\n")
-        self.text_display.insert("end", "─" * 80 + "\n", "separator")
-        self.text_display.insert("end", "Verification Legend: ", "legend_label")
-
-        # Legend items with their tags
-        legend_items = [
-            ("Verified ", "verify_verified"),
-            ("Uncertain ", "verify_uncertain"),
-            ("Suspicious ", "verify_suspicious"),
-            ("Unreliable ", "verify_unreliable"),
-            ("Hallucinated", "verify_hallucinated"),
-        ]
-
-        for label, tag in legend_items:
-            self.text_display.insert("end", label, tag)
-            self.text_display.insert("end", " ", "answer")  # Space between items
-
-        self.text_display.insert("end", "\n\n", "answer")
-
-        # Score explanations
-        self.text_display.insert(
-            "end",
-            "Reliability = How well the answer is supported by the source text "
-            "(anti-hallucination check)\n",
-            "score_detail",
-        )
-        self.text_display.insert(
-            "end",
-            "Retrieval = How semantically relevant the retrieved document "
-            "chunks are to the search query\n",
-            "score_detail",
-        )
+        logger.debug("Displaying %s search results", len(results))
 
     def _set_all_include(self, include: bool):
         """Set include_in_export for all results."""
@@ -458,13 +345,13 @@ class QAPanel(ctk.CTkFrame):
                 main_window = self.winfo_toplevel()
                 if hasattr(main_window, "set_status"):
                     filename = os.path.basename(filepath)
-                    pair_word = "pair" if len(exportable) == 1 else "pairs"
+                    result_word = "result" if len(exportable) == 1 else "results"
                     main_window.set_status(
-                        f"Exported {len(exportable)} Q&A {pair_word} to {filename}",
+                        f"Exported {len(exportable)} search {result_word} to {filename}",
                         duration_ms=5000,
                     )
                 logger.debug(
-                    "Exported %s Q&A pairs to %s: %s", len(exportable), format_key, filepath
+                    "Exported %s search results to %s: %s", len(exportable), format_key, filepath
                 )
             else:
                 detail = f"\n\n{error_detail}" if error_detail else ""
@@ -531,13 +418,11 @@ class QAPanel(ctk.CTkFrame):
         writer = csv.writer(output)
 
         # Header row
-        writer.writerow(["Question", "Quick Answer", "Citation", "Source"])
+        writer.writerow(["Search Query", "Relevant Passages", "Source"])
 
         # Data rows
         for result in results:
-            writer.writerow(
-                [result.question, result.quick_answer, result.citation, result.source_summary]
-            )
+            writer.writerow([result.question, result.citation, result.source_summary])
 
         return output.getvalue()
 
@@ -551,13 +436,12 @@ class QAPanel(ctk.CTkFrame):
         Returns:
             Formatted text string
         """
-        lines = ["=" * 60, "DOCUMENT QUESTIONS & ANSWERS", "=" * 60, ""]
+        lines = ["=" * 60, "SEMANTIC SEARCH RESULTS", "=" * 60, ""]
 
         for i, result in enumerate(results, 1):
-            lines.append(f"Q{i}: {result.question}")
-            lines.append(f"Quick Answer: {result.quick_answer}")
+            lines.append(f"Search {i}: {result.question}")
             lines.append("")
-            lines.append(f"Citation: {result.citation}")
+            lines.append(f"Relevant Passages: {result.citation}")
             if result.source_summary:
                 lines.append(f"   [Source: {result.source_summary}]")
             lines.append("")
@@ -577,16 +461,17 @@ class QAPanel(ctk.CTkFrame):
 
         if not exportable:
             messagebox.showwarning(
-                "No Q&A Selected",
-                "Select at least one Q&A pair to copy.\n\nUse 'Select All' to select all results.",
+                "No Results Selected",
+                "Select at least one search result to copy.\n\n"
+                "Use 'Select All' to select all results.",
             )
             return
 
         # Format for clipboard (readable text format)
         lines = []
-        for _i, result in enumerate(exportable, 1):
-            lines.append(f"Q: {result.question}")
-            lines.append(f"A: {result.quick_answer}")
+        for i, result in enumerate(exportable, 1):
+            lines.append(f"Search {i}: {result.question}")
+            lines.append(f"{result.citation}")
             if result.source_summary:
                 lines.append(f"   [Source: {result.source_summary}]")
             lines.append("")
@@ -613,12 +498,13 @@ class QAPanel(ctk.CTkFrame):
             # Status bar confirmation
             main_window = self.winfo_toplevel()
             if hasattr(main_window, "set_status"):
-                pair_word = "pair" if len(exportable) == 1 else "pairs"
+                result_word = "result" if len(exportable) == 1 else "results"
                 main_window.set_status(
-                    f"Copied {len(exportable)} Q&A {pair_word} to clipboard", duration_ms=5000
+                    f"Copied {len(exportable)} search {result_word} to clipboard",
+                    duration_ms=5000,
                 )
 
-            logger.debug("Copied %s Q&A pairs to clipboard", len(exportable))
+            logger.debug("Copied %s search results to clipboard", len(exportable))
 
         except Exception as e:
             messagebox.showerror("Copy Failed", f"Could not copy to clipboard:\n{e}")
