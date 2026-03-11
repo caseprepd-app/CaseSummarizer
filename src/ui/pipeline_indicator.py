@@ -1,7 +1,7 @@
 """
 Pipeline Step Indicator Widget
 
-Horizontal strip showing pipeline progression: Extract > Vocab > Q&A > Summary.
+Horizontal strip showing pipeline progression: Extract > Vocab > Search > Key Excerpts.
 Each step has visual states: pending, active, done, skipped.
 """
 
@@ -10,7 +10,7 @@ import customtkinter as ctk
 from src.ui.theme import COLORS, FONTS
 
 # Step display names
-PIPELINE_STEPS = ["Extract", "Vocabulary", "Q&A", "Summary"]
+PIPELINE_STEPS = ["Extract", "Vocabulary", "Search", "Key Excerpts"]
 
 
 class PipelineIndicator(ctk.CTkFrame):

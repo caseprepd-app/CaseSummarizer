@@ -1,9 +1,9 @@
 """
-CharacterSanitizer: Clean extracted text for AI model processing.
+CharacterSanitizer: Clean extracted text for downstream processing.
 
 This module (Step 2.5 of the document pipeline) sanitizes text extracted from
-PDFs and OCR, removing/fixing problematic characters that cause Ollama and other
-AI models to fail or produce garbled output.
+PDFs and OCR, removing/fixing problematic characters that cause embedding models
+and NLP pipelines to fail or produce garbled output.
 
 Problems addressed:
 1. Mojibake (encoding corruption): ñêcessary → necessary
@@ -411,7 +411,7 @@ class CharacterSanitizer:
         for log_entry in sanitizer.get_log():
             print(f"  - {log_entry}")
 
-        # Use cleaned text for AI processing
-        summary = ollama_model.generate(cleaned_text)
+        # Use cleaned text for downstream processing
+        embeddings = model.encode(cleaned_text)
         """
         )

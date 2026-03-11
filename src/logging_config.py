@@ -46,12 +46,11 @@ LOG_CATEGORIES: dict[str, tuple[str, ...]] = {
         "src.core.vocabulary.feedback_manager",
         "src.core.vocabulary.canonical_scorer",
     ),
-    "LLM / Ollama": (
+    "AI / Embeddings": (
         "src.core.ai",
-        "src.core.prompting",
         "src.services.ai_service",
     ),
-    "Q&A & Retrieval": (
+    "Search & Retrieval": (
         "src.core.qa",
         "src.core.retrieval",
         "src.core.vector_store",

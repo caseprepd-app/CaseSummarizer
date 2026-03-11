@@ -90,7 +90,7 @@ def get_optimal_workers(
     The calculation considers:
     1. User's resource usage percentage (25-100%)
     2. Available CPU cores
-    3. Available RAM (each Ollama request uses ~2GB)
+    3. Available RAM (each worker uses ~2GB)
 
     The final worker count is the minimum of:
     - CPU-based limit: cores * (resource_pct / 100)
@@ -98,7 +98,7 @@ def get_optimal_workers(
     - Hard maximum: max_workers
 
     Args:
-        task_ram_gb: Estimated RAM per worker (default 2GB for Ollama)
+        task_ram_gb: Estimated RAM per worker (default 2GB)
         max_workers: Hard upper limit on workers
         min_workers: Minimum workers regardless of resources
 

@@ -12,7 +12,7 @@ Architecture (Hybrid Retrieval):
 
 Integration:
 - Used by QAWorker in background thread
-- Provides context to Ollama for answer generation
+- Provides context for search result citation extraction
 """
 
 import hashlib
@@ -387,7 +387,7 @@ class QARetriever:
         # Reserve tokens for: system prompt (~200 tokens), question (~30 tokens),
         # formatting (~70 tokens), and LLM output (qa_max_tokens from config).
         # Previous formula (80% for context) overflowed on small context windows,
-        # causing Ollama to truncate the system instructions from the prompt.
+        # causing prompt template overflow on small context windows.
         from src.config_defaults import get_default
         from src.core.qa.qa_constants import (
             COMPACT_PROMPT_THRESHOLD,

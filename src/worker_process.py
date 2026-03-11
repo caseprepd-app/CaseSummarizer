@@ -208,10 +208,10 @@ def _run_extraction(args, internal_queue, state):
     from src.services.workers import ProgressiveExtractionWorker
 
     # Save checkbox state so trigger_default_qa can check it later
-    state["ask_default_questions"] = args.get("ask_default_questions", True)
-
-    # Save documents for key sentences extraction (triggered at qa_ready)
-    state["documents"] = args.get("documents")
+    with state["worker_lock"]:
+        state["ask_default_questions"] = args.get("ask_default_questions", True)
+        # Save documents for key excerpts extraction (triggered at qa_ready)
+        state["documents"] = args.get("documents")
 
     worker = ProgressiveExtractionWorker(
         documents=args["documents"],
@@ -374,13 +374,14 @@ def _forward_message(msg_type, data, internal_queue, result_queue, state):
     """
     if msg_type == "qa_ready":
         # Save embeddings and vector store path in subprocess state
-        state["embeddings"] = data.get("embeddings")
-        state["vector_store_path"] = data.get("vector_store_path")
-        state["chunk_scores"] = data.get("chunk_scores")
-        # Save chunk data for key excerpts extraction
-        state["chunk_texts"] = data.get("chunk_texts")
-        state["chunk_metadata"] = data.get("chunk_metadata")
-        state["chunk_embeddings"] = data.get("chunk_embeddings")
+        with state["worker_lock"]:
+            state["embeddings"] = data.get("embeddings")
+            state["vector_store_path"] = data.get("vector_store_path")
+            state["chunk_scores"] = data.get("chunk_scores")
+            # Save chunk data for key excerpts extraction
+            state["chunk_texts"] = data.get("chunk_texts")
+            state["chunk_metadata"] = data.get("chunk_metadata")
+            state["chunk_embeddings"] = data.get("chunk_embeddings")
         logger.debug(
             "Saved embeddings and vector_store_path in subprocess state (path=%s, chunks=%s)",
             data.get("vector_store_path"),
@@ -463,16 +464,17 @@ def _spawn_key_sentences(state, internal_queue):
         state: shared subprocess state (must have chunk data from qa_ready)
         internal_queue: Queue to put the result on
     """
-    chunk_texts = state.get("chunk_texts")
-    chunk_metadata = state.get("chunk_metadata")
-    chunk_embeddings = state.get("chunk_embeddings")
+    with state["worker_lock"]:
+        chunk_texts = state.get("chunk_texts")
+        chunk_metadata = state.get("chunk_metadata")
+        chunk_embeddings = state.get("chunk_embeddings")
+        documents = state.get("documents") or []
 
     if not chunk_texts or chunk_embeddings is None:
         logger.debug("Skipping key excerpts: no chunk data available")
         return
 
     # Estimate total pages from document data
-    documents = state.get("documents") or []
     total_pages = sum(d.get("page_count", 0) for d in documents)
 
     def _extract():

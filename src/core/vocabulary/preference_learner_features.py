@@ -244,7 +244,8 @@ def extract_features(term_data: dict[str, Any]) -> np.ndarray:
         if total_unique_terms > 0:
             freq_per_1k_words = occurrences / max(total_unique_terms / 1000.0, 0.1)
         else:
-            freq_per_1k_words = occurrences / 0.1  # Conservative fallback
+            # No word count data: estimate as if 1K total words (conservative)
+            freq_per_1k_words = float(occurrences)
 
     # === ALGORITHM SOURCE FEATURES ===
     # Split into a set to avoid substring false positives

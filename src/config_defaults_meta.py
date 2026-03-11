@@ -397,16 +397,6 @@ DESCRIPTIONS = {
             "low temperature produces very consistent output."
         ),
     },
-    "ollama_timeout_seconds": {
-        "label": "LLM timeout (seconds)",
-        "tooltip": (
-            "Maximum time to wait for the LLM to generate a response.\n"
-            "Long documents or complex prompts may need more time.\n\n"
-            "Default: 54000 seconds (15 hours)\n\n"
-            "Large models on CPU-only systems can take hours.\n"
-            "Decrease only if you want to fail faster when LLM is stuck."
-        ),
-    },
     "summary_length_tolerance": {
         "label": "Summary length tolerance",
         "tooltip": (

@@ -76,7 +76,7 @@ for directory in [APPDATA_DIR, MODELS_DIR, CACHE_DIR, LOGS_DIR, CONFIG_DIR, DATA
 
 # Feedback and ML Configuration
 FEEDBACK_DIR = DATA_DIR / "feedback"
-MODELS_ML_DIR = DATA_DIR / "models"  # ML models (separate from Ollama models)
+MODELS_ML_DIR = DATA_DIR / "models"  # ML models (vocab meta-learner, etc.)
 VOCAB_MODEL_PATH = MODELS_ML_DIR / "vocab_meta_learner.pkl"
 
 # Two-file feedback system:

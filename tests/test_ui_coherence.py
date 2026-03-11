@@ -124,10 +124,10 @@ class TestHelpDialogCoherence:
 class TestErrorMessageCoherence:
     """Error/warning messages reference actual UI elements."""
 
-    def test_questions_not_ready_references_perform_tasks(self):
-        """'Questions Not Ready' dialog references 'Perform Tasks' button."""
+    def test_questions_not_ready_references_process_documents(self):
+        """'Search Not Ready' dialog references 'Process Documents' button."""
         text = _read("src/ui/main_window.py")
-        assert "Click 'Perform Tasks'" in text
+        assert "Click 'Process Documents'" in text
 
     def test_questions_not_ready_no_phantom_status(self):
         """No reference to phantom 'Questions and answers ready' status."""

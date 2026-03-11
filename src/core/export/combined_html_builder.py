@@ -2,7 +2,7 @@
 Combined Tabbed HTML Export Builder.
 
 Generates a single self-contained HTML file with dynamic tabs for
-Vocabulary, Q&A, and Summary sections. Only renders tabs that have data.
+Vocabulary, Search, and Key Excerpts sections. Only renders tabs that have data.
 
 Each tab has its own controls (search, filter, sort, print).
 JavaScript is scoped to prevent cross-tab interference.
@@ -26,7 +26,7 @@ def build_combined_html(
     include_verification: bool = True,
 ) -> str:
     """
-    Build a tabbed HTML document combining Vocabulary, Q&A, and Summary.
+    Build a tabbed HTML document combining Vocabulary, Search, and Key Excerpts.
 
     Only includes tabs for sections that have data. The first available
     tab is active by default.
@@ -36,7 +36,7 @@ def build_combined_html(
         qa_results: List of QAResult objects (already filtered to answered only)
         summary_text: Summary text string
         visible_columns: Columns to show initially in vocab table
-        include_verification: Whether to show verification badges in Q&A
+        include_verification: Whether to show verification badges in search results
 
     Returns:
         Complete HTML document as string
@@ -51,7 +51,7 @@ def build_combined_html(
     if has_vocab:
         tabs.append(("vocab", "Vocabulary", _build_vocab_section(vocab_data, visible_columns)))
     if has_qa:
-        tabs.append(("qa", "Q&A", _build_qa_section(qa_results, include_verification)))
+        tabs.append(("qa", "Search", _build_qa_section(qa_results, include_verification)))
     if has_summary:
         tabs.append(("summary", "Summary", _build_summary_section(summary_text)))
 
@@ -199,14 +199,14 @@ def _build_vocab_section(vocab_data: list[dict], visible_columns: list[str] | No
 
 def _build_qa_section(qa_results: list, include_verification: bool) -> str:
     """
-    Build the Q&A tab HTML content.
+    Build the Search tab HTML content.
 
     Args:
         qa_results: List of QAResult objects
         include_verification: Whether to show verification badges
 
     Returns:
-        HTML fragment for the Q&A section
+        HTML fragment for the search section
     """
     has_verification = False
     items = []
@@ -289,7 +289,7 @@ def _build_qa_section(qa_results: list, include_verification: bool) -> str:
             <button onclick="toggleAllQA(true)">Expand All</button>
             <button onclick="toggleAllQA(false)" class="secondary">Collapse All</button>
             <button onclick="window.print()">Print</button>
-            <span class="count-display" id="qa-count">{len(qa_results)} Q&amp;A pairs</span>
+            <span class="count-display" id="qa-count">{len(qa_results)} search results</span>
         </div>
         <div id="qa-container">
 {items_html}
@@ -747,7 +747,7 @@ COMBINED_HTML_TEMPLATE = """<!DOCTYPE html>
             }});
 
             document.getElementById('qa-count').textContent =
-                'Showing ' + visibleCount + ' of ' + items.length + ' Q&A pairs';
+                'Showing ' + visibleCount + ' of ' + items.length + ' search results';
         }}
 
         function toggleQAItem(header) {{

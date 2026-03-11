@@ -1,8 +1,8 @@
 """
 Tests for progressive follow-up display (retrieval before generation).
 
-Session 87: Verifies the split retrieval/generation flow, Ollama
-unavailable messaging, and backward compatibility.
+Session 87: Verifies the split retrieval/generation flow
+and backward compatibility.
 """
 
 import queue
@@ -31,12 +31,11 @@ class TestPlaceholderConstants:
         assert PENDING_GENERATION_TEXT
         assert isinstance(PENDING_GENERATION_TEXT, str)
 
-    def test_ollama_unavailable_text(self):
-        from src.core.qa.qa_constants import OLLAMA_UNAVAILABLE_TEXT
+    def test_ollama_unavailable_text_removed(self):
+        """OLLAMA_UNAVAILABLE_TEXT was removed (Ollama integration removed Mar 2026)."""
+        import src.core.qa.qa_constants as consts
 
-        assert OLLAMA_UNAVAILABLE_TEXT
-        assert "Ollama" in OLLAMA_UNAVAILABLE_TEXT
-        assert "Settings" in OLLAMA_UNAVAILABLE_TEXT
+        assert not hasattr(consts, "OLLAMA_UNAVAILABLE_TEXT")
 
 
 # ---------------------------------------------------------------------------

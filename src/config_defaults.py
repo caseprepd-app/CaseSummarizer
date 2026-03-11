@@ -289,14 +289,6 @@ DEFAULTS = {
         "type": "float",
         "category": "LLM Generation",
     },
-    "ollama_timeout_seconds": {
-        "value": 54000,
-        "min": 60,
-        "max": 54000,
-        "step": 60,
-        "type": "int",
-        "category": "LLM Generation",
-    },
     "summary_length_tolerance": {
         "value": 0.20,
         "min": 0.05,

@@ -1,7 +1,7 @@
 """
 Smart Preprocessing Pipeline Module
 
-Provides text preprocessing for legal documents before AI summarization.
+Provides text preprocessing for legal documents before downstream processing.
 Each preprocessor is a standalone class that can be enabled/disabled independently.
 
 Pipeline Architecture:
@@ -18,7 +18,7 @@ Usage:
     # Or customize which preprocessors to use:
     pipeline = PreprocessingPipeline(preprocessors=[
         LineNumberRemover(),
-        QAConverter(),
+        HeaderFooterRemover(),
     ])
     cleaned_text = pipeline.process(raw_text)
 """
@@ -34,7 +34,7 @@ from src.core.preprocessing.transcript_cleaner import TranscriptCleaner
 
 # Mapping from setting key to preprocessor class name
 # Note: Coreference resolution runs in UnifiedChunker before chunking,
-# so it only affects Q&A and summarization, not vocabulary extraction.
+# so it only affects search and key excerpts, not vocabulary extraction.
 _SETTING_TO_PREPROCESSOR = {
     "preprocess_title_pages": "Title Page Remover",
     "preprocess_index_pages": "Index Page Remover",
@@ -56,10 +56,9 @@ def create_default_pipeline(settings: dict | None = None) -> PreprocessingPipeli
     4. LineNumberRemover - Removes line numbers from margins
     5. PageBoundaryCleaner - Cleans collapsed page boundary artifacts
     6. TranscriptCleaner - Removes page numbers, certification, index pages
-    7. QAConverter - Converts Q./A. notation to readable format
 
     Note: Coreference resolution runs in UnifiedChunker (before chunking),
-    affecting only Q&A and summarization.
+    affecting only search and key excerpts.
 
     Args:
         settings: Optional dict of preprocessing toggle settings.

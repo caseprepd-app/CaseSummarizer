@@ -48,7 +48,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
     Layout:
     - Header row: App title, corpus dropdown, settings button
     - Warning banner: Shown when no corpus configured
-    - Left panel: Session documents + task checkboxes + "Perform N Tasks" button
+    - Left panel: Session documents + options + "Process Documents" button
     - Right panel: Results display with output type selector
     - Status bar: Status text + corpus info + processing timer
 
@@ -1427,7 +1427,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
                 "Search system is not initialized yet.\n\n"
                 "To search your documents:\n"
                 "1. Add document files\n"
-                "2. Click 'Perform Tasks'\n"
+                "2. Click 'Process Documents'\n"
                 "3. Wait for the search index to finish building\n\n"
                 "The search system will be ready once the vector index is built.",
             )

@@ -129,7 +129,7 @@ class TestPipelineIndicator:
     def test_initial_state_all_pending(self):
         """All steps should start as pending."""
         indicator = self._make_indicator()
-        for step in ["Extract", "Vocabulary", "Q&A", "Summary"]:
+        for step in ["Extract", "Vocabulary", "Search", "Key Excerpts"]:
             assert indicator._step_states[step] == "pending"
 
     def test_set_step_active(self):
@@ -153,8 +153,8 @@ class TestPipelineIndicator:
     def test_set_step_skipped(self):
         """Setting a step to skipped should update its state."""
         indicator = self._make_indicator()
-        indicator.set_step_state("Q&A", "skipped")
-        assert indicator._step_states["Q&A"] == "skipped"
+        indicator.set_step_state("Search", "skipped")
+        assert indicator._step_states["Search"] == "skipped"
 
     def test_set_enabled_steps(self):
         """set_enabled_steps should mark enabled as pending, rest as skipped."""
@@ -163,18 +163,18 @@ class TestPipelineIndicator:
 
         assert indicator._step_states["Extract"] == "pending"
         assert indicator._step_states["Vocabulary"] == "pending"
-        assert indicator._step_states["Q&A"] == "skipped"
-        assert indicator._step_states["Summary"] == "skipped"
+        assert indicator._step_states["Search"] == "skipped"
+        assert indicator._step_states["Key Excerpts"] == "skipped"
 
     def test_set_enabled_steps_all(self):
         """Enabling all steps should set all to pending."""
         indicator = self._make_indicator()
         # First set some to skipped
-        indicator.set_step_state("Q&A", "skipped")
+        indicator.set_step_state("Search", "skipped")
         # Now enable all
-        indicator.set_enabled_steps(["Extract", "Vocabulary", "Q&A", "Summary"])
+        indicator.set_enabled_steps(["Extract", "Vocabulary", "Search", "Key Excerpts"])
 
-        for step in ["Extract", "Vocabulary", "Q&A", "Summary"]:
+        for step in ["Extract", "Vocabulary", "Search", "Key Excerpts"]:
             assert indicator._step_states[step] == "pending"
 
     def test_reset(self):
@@ -182,11 +182,11 @@ class TestPipelineIndicator:
         indicator = self._make_indicator()
         indicator.set_step_state("Extract", "done")
         indicator.set_step_state("Vocabulary", "active")
-        indicator.set_step_state("Q&A", "skipped")
+        indicator.set_step_state("Search", "skipped")
 
         indicator.reset()
 
-        for step in ["Extract", "Vocabulary", "Q&A", "Summary"]:
+        for step in ["Extract", "Vocabulary", "Search", "Key Excerpts"]:
             assert indicator._step_states[step] == "pending"
 
     def test_set_invalid_step_no_error(self):
@@ -199,15 +199,15 @@ class TestPipelineIndicator:
         """Verify the expected pipeline step names."""
         from src.ui.pipeline_indicator import PIPELINE_STEPS
 
-        assert PIPELINE_STEPS == ["Extract", "Vocabulary", "Q&A", "Summary"]
+        assert PIPELINE_STEPS == ["Extract", "Vocabulary", "Search", "Key Excerpts"]
 
     def test_state_transitions(self):
         """Test a typical pipeline progression."""
         indicator = self._make_indicator()
 
         # Start: Enable vocab + Q&A
-        indicator.set_enabled_steps(["Extract", "Vocabulary", "Q&A"])
-        assert indicator._step_states["Summary"] == "skipped"
+        indicator.set_enabled_steps(["Extract", "Vocabulary", "Search"])
+        assert indicator._step_states["Key Excerpts"] == "skipped"
 
         # Extract starts
         indicator.set_step_state("Extract", "active")
@@ -221,13 +221,13 @@ class TestPipelineIndicator:
 
         # Vocabulary done, Q&A starts
         indicator.set_step_state("Vocabulary", "done")
-        indicator.set_step_state("Q&A", "active")
+        indicator.set_step_state("Search", "active")
         assert indicator._step_states["Vocabulary"] == "done"
-        assert indicator._step_states["Q&A"] == "active"
+        assert indicator._step_states["Search"] == "active"
 
         # Q&A done
-        indicator.set_step_state("Q&A", "done")
-        assert indicator._step_states["Q&A"] == "done"
+        indicator.set_step_state("Search", "done")
+        assert indicator._step_states["Search"] == "done"
 
 
 # =========================================================================

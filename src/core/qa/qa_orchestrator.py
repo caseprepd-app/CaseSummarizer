@@ -53,12 +53,12 @@ class QAResult:
 
     CSV-style output with three main columns:
     - Question: The question that was asked
-    - Quick Answer: AI-synthesized answer from Ollama (concise, readable)
+    - Quick Answer: Reserved (always empty since LLM removal, Mar 2026)
     - Citation: Raw text excerpts from document retrieval (source material)
 
     Attributes:
         question: The question that was asked
-        quick_answer: Ollama-generated synthesized answer (or fallback message)
+        quick_answer: Always empty (LLM answer generation removed Mar 2026)
         citation: Raw retrieved text excerpts from BM25+/vector search
         include_in_export: Whether to include this Q&A in export (default: True)
         source_summary: Human-readable source citation (e.g., "complaint.pdf, page 3")
