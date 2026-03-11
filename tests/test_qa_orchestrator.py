@@ -63,21 +63,21 @@ class TestAnswerGenerator:
 
     def test_initialization(self):
         """AnswerGenerator should initialize (always extraction mode)."""
-        from src.core.qa import AnswerGenerator
+        from src.core.qa.answer_generator import AnswerGenerator
 
         generator = AnswerGenerator()
         # Should not crash; mode param is ignored for backward compat
 
     def test_initialization_with_mode_param_ignored(self):
         """AnswerGenerator accepts mode param but ignores it."""
-        from src.core.qa import AnswerGenerator
+        from src.core.qa.answer_generator import AnswerGenerator
 
         generator = AnswerGenerator(mode="ollama")
         # Should not crash; mode is ignored
 
     def test_generate_returns_message_for_empty_context(self):
         """generate() should return appropriate message for empty context."""
-        from src.core.qa import AnswerGenerator
+        from src.core.qa.answer_generator import AnswerGenerator
 
         generator = AnswerGenerator()
         result = generator.generate("Who is the plaintiff?", "")
@@ -86,7 +86,7 @@ class TestAnswerGenerator:
 
     def test_extraction_mode_extracts_from_context(self):
         """Extraction mode should find relevant sentences from context."""
-        from src.core.qa import AnswerGenerator
+        from src.core.qa.answer_generator import AnswerGenerator
 
         generator = AnswerGenerator()
 
@@ -103,7 +103,7 @@ class TestAnswerGenerator:
 
     def test_extraction_mode_handles_no_matches(self):
         """Extraction mode should handle case with no keyword matches."""
-        from src.core.qa import AnswerGenerator
+        from src.core.qa.answer_generator import AnswerGenerator
 
         generator = AnswerGenerator()
 
@@ -116,7 +116,7 @@ class TestAnswerGenerator:
 
     def test_keyword_extraction_filters_stopwords(self):
         """_extract_keywords should filter common stopwords."""
-        from src.core.qa import AnswerGenerator
+        from src.core.qa.answer_generator import AnswerGenerator
 
         generator = AnswerGenerator()
 
@@ -131,7 +131,7 @@ class TestAnswerGenerator:
 
     def test_split_sentences_handles_abbreviations(self):
         """_split_sentences should handle common abbreviations."""
-        from src.core.qa import AnswerGenerator
+        from src.core.qa.answer_generator import AnswerGenerator
 
         generator = AnswerGenerator()
 
@@ -144,7 +144,7 @@ class TestAnswerGenerator:
 
     def test_set_mode_is_noop(self):
         """set_mode is a no-op for backward compatibility."""
-        from src.core.qa import AnswerGenerator
+        from src.core.qa.answer_generator import AnswerGenerator
 
         generator = AnswerGenerator()
         generator.set_mode("ollama")  # Should not crash

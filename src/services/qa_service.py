@@ -268,36 +268,6 @@ class QAService:
 
         return get_default_questions_manager()
 
-    def get_reliability_level(self, probability: float) -> str:
-        """
-        Get reliability level string for a probability value.
-
-        Used for displaying verification results with color coding.
-
-        Args:
-            probability: Hallucination probability (0-1).
-
-        Returns:
-            Reliability level string (e.g., "verified", "uncertain").
-        """
-        from src.core.qa.verification_config import get_reliability_level
-
-        return get_reliability_level(probability)
-
-    def get_span_category(self, hallucination_prob: float) -> str:
-        """
-        Get span category for color coding verification results.
-
-        Args:
-            hallucination_prob: Hallucination probability (0-1).
-
-        Returns:
-            Category string for CSS styling.
-        """
-        from src.core.qa.verification_config import get_span_category
-
-        return get_span_category(hallucination_prob)
-
     def create_orchestrator(self, vector_store_path=None, embeddings=None, **kwargs):
         """
         Create a new QAOrchestrator instance.

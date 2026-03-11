@@ -877,11 +877,11 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
                 self._finalize_tasks()
 
         elif msg_type == "key_sentences_result":
-            # Key sentences extracted via K-means clustering
+            # Key excerpts extracted via K-means clustering on chunk embeddings
             self._key_sentences_pending = False
             if data:
                 self.output_display.update_key_sentences(data)
-                logger.debug("Key sentences displayed: %d sentences", len(data))
+                logger.debug("Key excerpts displayed: %d passages", len(data))
 
         elif msg_type == "qa_followup_result":
             # Route panel followup results via event (avoids queue race condition)

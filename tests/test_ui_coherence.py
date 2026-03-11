@@ -53,11 +53,11 @@ class TestActualUIElements:
         assert 'text="Generate Summary"' not in text
 
     def test_results_tab_names(self):
-        """Results tabs are 'Vocabulary', 'Search', 'Key Sentences'."""
+        """Results tabs are 'Vocabulary', 'Search', 'Key Excerpts'."""
         text = _read("src/ui/dynamic_output.py")
         assert '"Vocabulary"' in text
         assert '"Search"' in text
-        assert '"Key Sentences"' in text
+        assert '"Key Excerpts"' in text
 
 
 # =========================================================================

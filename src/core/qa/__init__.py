@@ -6,7 +6,7 @@ Q&A-related from this package:
 
     from src.core.qa import (
         # Orchestration
-        QAOrchestrator, QAResult, AnswerGenerator,
+        QAOrchestrator, QAResult,
         # Vector Store
         VectorStoreBuilder, QARetriever,
         # Retrieval Algorithms
@@ -17,7 +17,7 @@ Architecture:
     ┌─────────────────────────────────────────────────────────────┐
     │  src.core.qa (this package) - Unified Q&A API               │
     ├─────────────────────────────────────────────────────────────┤
-    │  QAOrchestrator → AnswerGenerator → QARetriever            │
+    │  QAOrchestrator → QARetriever                              │
     │                                          ↓                  │
     │  src.core.vector_store: VectorStoreBuilder                 │
     │                                          ↓                  │
@@ -25,13 +25,12 @@ Architecture:
     └─────────────────────────────────────────────────────────────┘
 
 Components by layer:
-- Orchestration: QAOrchestrator, AnswerGenerator, QAResult
+- Orchestration: QAOrchestrator, QAResult
 - Storage: VectorStoreBuilder (creates indexes), QARetriever (queries indexes)
 - Retrieval: HybridRetriever, ChunkMerger (BM25+ and FAISS algorithms)
 """
 
 # Core Q&A orchestration
-from src.core.qa.answer_generator import AnswerGenerator
 from src.core.qa.default_questions_manager import (
     DefaultQuestion,
     DefaultQuestionsManager,
@@ -58,7 +57,6 @@ from src.core.vector_store import (
 
 __all__ = [
     "AlgorithmRetrievalResult",
-    "AnswerGenerator",
     "BaseRetrievalAlgorithm",
     "ChunkMerger",
     "DefaultQuestion",

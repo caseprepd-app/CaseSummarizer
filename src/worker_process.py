@@ -377,13 +377,17 @@ def _forward_message(msg_type, data, internal_queue, result_queue, state):
         state["embeddings"] = data.get("embeddings")
         state["vector_store_path"] = data.get("vector_store_path")
         state["chunk_scores"] = data.get("chunk_scores")
+        # Save chunk data for key excerpts extraction
+        state["chunk_texts"] = data.get("chunk_texts")
+        state["chunk_metadata"] = data.get("chunk_metadata")
+        state["chunk_embeddings"] = data.get("chunk_embeddings")
         logger.debug(
             "Saved embeddings and vector_store_path in subprocess state (path=%s, chunks=%s)",
             data.get("vector_store_path"),
             data.get("chunk_count", "?"),
         )
 
-        # Forward qa_ready WITHOUT embeddings (not picklable)
+        # Forward qa_ready WITHOUT embeddings/chunk data (not picklable or too large)
         forwarded_data = {
             "vector_store_path": data.get("vector_store_path"),
             "chunk_count": data.get("chunk_count", 0),
@@ -391,7 +395,7 @@ def _forward_message(msg_type, data, internal_queue, result_queue, state):
         }
         result_queue.put(("qa_ready", forwarded_data))
 
-        # Spawn key sentences extraction as fire-and-forget daemon thread
+        # Spawn key excerpts extraction as fire-and-forget daemon thread
         _spawn_key_sentences(state, internal_queue)
 
     elif msg_type == "trigger_default_qa":
@@ -447,27 +451,43 @@ def _forward_message(msg_type, data, internal_queue, result_queue, state):
 
 def _spawn_key_sentences(state, internal_queue):
     """
-    Spawn a daemon thread to extract key sentences after Q&A indexing.
+    Spawn a daemon thread to extract key excerpts after Q&A indexing.
 
-    Fire-and-forget — key sentences are a side effect of Q&A indexing,
-    not a tracked task. Uses the embeddings model already loaded in state.
+    Uses pre-computed chunk embeddings from the vector store builder —
+    no re-splitting or re-embedding needed.
+
+    Fire-and-forget — key excerpts are a side effect of Q&A indexing,
+    not a tracked task.
 
     Args:
-        state: shared subprocess state (must have 'embeddings' and 'documents')
+        state: shared subprocess state (must have chunk data from qa_ready)
         internal_queue: Queue to put the result on
     """
-    embeddings = state.get("embeddings")
-    documents = state.get("documents")
+    chunk_texts = state.get("chunk_texts")
+    chunk_metadata = state.get("chunk_metadata")
+    chunk_embeddings = state.get("chunk_embeddings")
 
-    if not embeddings or not documents:
-        logger.debug("Skipping key sentences: no embeddings or documents")
+    if not chunk_texts or chunk_embeddings is None:
+        logger.debug("Skipping key excerpts: no chunk data available")
         return
+
+    # Estimate total pages from document data
+    documents = state.get("documents") or []
+    total_pages = sum(d.get("page_count", 0) for d in documents)
 
     def _extract():
         try:
-            from src.core.summarization.key_sentences import extract_key_sentences
+            import numpy as np
 
-            results = extract_key_sentences(documents, embeddings)
+            from src.core.summarization.key_sentences import extract_key_passages
+
+            embeddings_array = np.array(chunk_embeddings, dtype=np.float32)
+            results = extract_key_passages(
+                chunk_texts=chunk_texts,
+                chunk_embeddings=embeddings_array,
+                chunk_metadata=chunk_metadata,
+                total_pages=total_pages,
+            )
             # Serialize KeySentence dataclasses to dicts for pickling across processes
             serialized = [
                 {
@@ -479,9 +499,9 @@ def _spawn_key_sentences(state, internal_queue):
                 for ks in results
             ]
             internal_queue.put(("key_sentences_result", serialized))
-            logger.debug("Key sentences extracted: %d sentences", len(serialized))
+            logger.debug("Key excerpts extracted: %d passages", len(serialized))
         except Exception as e:
-            logger.error("Key sentences extraction failed: %s", e, exc_info=True)
+            logger.error("Key excerpts extraction failed: %s", e, exc_info=True)
 
-    thread = threading.Thread(target=_extract, daemon=True, name="key-sentences")
+    thread = threading.Thread(target=_extract, daemon=True, name="key-excerpts")
     thread.start()

@@ -1094,13 +1094,6 @@ def _register_all_settings():
             "in some transcript formats.",
         ),
         (
-            "preprocess_qa_notation",
-            "Convert Q/A notation",
-            "Convert shorthand Q./A. notation to readable 'Question:'/'Answer:' "
-            "format.\n\n"
-            "Makes transcript dialogue easier to read in summaries.",
-        ),
-        (
             "preprocess_coreference",
             "Resolve pronoun references",
             "Replace pronouns (he, she, they) with the names they refer to.\n\n"

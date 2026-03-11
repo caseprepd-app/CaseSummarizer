@@ -2,14 +2,17 @@
 Semantic Search Orchestrator for CasePrepd.
 
 Coordinates the search process: loading questions, performing vector search,
-and generating answers via extraction. Manages the list of QAResult objects
+and extracting citation excerpts. Manages the list of QAResult objects
 for display and export.
 
 Architecture:
 - Loads default questions from qa_questions.yaml
 - Uses QARetriever for FAISS similarity search
-- Uses AnswerGenerator for extraction-based answer generation
+- Extracts focused citation excerpts via embedding similarity
 - Tracks include_in_export flag for selective export
+
+Note: AnswerGenerator and HallucinationVerifier were removed (Mar 2026).
+quick_answer is always empty; citation contains the retrieved excerpt.
 
 Integration:
 - Used by QAWorker for background processing
@@ -23,12 +26,10 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from src.config import (
-    HALLUCINATION_VERIFICATION_ENABLED,
     RETRIEVAL_CONFIDENCE_GATE,
 )
 from src.core.config import load_yaml_with_fallback
 from src.core.qa.qa_constants import (
-    PENDING_GENERATION_TEXT,
     UNANSWERED_TEXT,
 )
 from src.core.vector_store.qa_retriever import QARetriever, RetrievalResult
@@ -36,7 +37,7 @@ from src.core.vector_store.qa_retriever import QARetriever, RetrievalResult
 logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
-    from src.core.qa.hallucination_verifier import VerificationResult
+    pass
 
 # Default questions YAML path (relative to this file: src/core/qa/ -> config/)
 DEFAULT_QUESTIONS_PATH = Path(__file__).parent.parent.parent.parent / "config" / "qa_questions.yaml"
@@ -68,7 +69,7 @@ class QAResult:
     """
 
     question: str
-    quick_answer: str = ""  # Extraction-based answer from retrieved chunks
+    quick_answer: str = ""  # Deprecated — always empty string
     citation: str = ""  # Raw retrieved text from BM25+/vector search
     include_in_export: bool = True
     source_summary: str = ""
@@ -76,7 +77,7 @@ class QAResult:
     retrieval_time_ms: float = 0.0
     is_followup: bool = False
     is_default_question: bool = False  # Marks questions from default list
-    verification: "VerificationResult | None" = None  # Hallucination verification result
+    verification: None = None  # Deprecated — kept for backward compat
 
     @property
     def answer(self) -> str:
@@ -92,16 +93,11 @@ class QAResult:
 
     @property
     def is_exportable(self) -> bool:
-        """Whether this result meets quality thresholds for export.
-
-        Both retrieval confidence AND verification reliability must meet
-        their respective configurable floors. This ensures two independent
-        signals confirm the answer quality.
-        """
+        """Whether this result meets quality thresholds for export."""
         import math
 
-        from src.config import QA_EXPORT_CONFIDENCE_FLOOR, QA_EXPORT_VERIFICATION_FLOOR
-        from src.core.qa.qa_constants import REJECTION_TEXT, UNANSWERED_TEXT
+        from src.config import QA_EXPORT_CONFIDENCE_FLOOR
+        from src.core.qa.qa_constants import UNANSWERED_TEXT
 
         # Filter NaN or non-finite confidence
         if not math.isfinite(self.confidence):
@@ -109,16 +105,9 @@ class QAResult:
         # Filter unanswered
         if self.confidence == 0.0 and self.quick_answer == UNANSWERED_TEXT:
             return False
-        # Filter rejected answers
-        if self.quick_answer == REJECTION_TEXT:
-            return False
         # Retrieval confidence must meet floor
         if self.confidence < QA_EXPORT_CONFIDENCE_FLOOR:
             return False
-        # Verification reliability must meet floor (if verification ran)
-        if self.verification:
-            return self.verification.overall_reliability >= QA_EXPORT_VERIFICATION_FLOOR
-        # No verification available — fall back to retrieval confidence only
         return True
 
 
@@ -177,16 +166,8 @@ class QAOrchestrator:
         # Initialize retriever
         self.retriever = QARetriever(self.vector_store_path, self.embeddings)
 
-        # Initialize answer generator (extraction mode only)
-        from src.core.qa.answer_generator import AnswerGenerator
-
-        self.answer_generator = AnswerGenerator()
-
         # Results storage
         self.results: list[QAResult] = []
-
-        # Hallucination verifier (lazy-loaded on first use)
-        self._verifier = None
 
         # Load questions
         self._questions: list[QuestionDef] = []
@@ -347,17 +328,12 @@ class QAOrchestrator:
                 retrieval_result.retrieval_time_ms,
             )
 
-        verification = None
-
         # Check if retrieval quality is sufficient to attempt answering
         best_score = max((s.relevance_score for s in retrieval_result.sources), default=0.0)
         has_quality_context = retrieval_result.context and best_score >= RETRIEVAL_CONFIDENCE_GATE
 
         if has_quality_context:
-            # Quick Answer: extraction-based from retrieved chunks
-            quick_answer = self._generate_quick_answer(question, retrieval_result.context)
-
-            # Citation: focused ~250-char excerpt via embedding similarity
+            # Citation: focused excerpt via embedding similarity
             from src.config import QA_CITATION_MAX_CHARS
             from src.core.qa.citation_excerpt import extract_citation_excerpt
 
@@ -367,15 +343,6 @@ class QAOrchestrator:
                 embeddings=self.embeddings,
                 max_chars=QA_CITATION_MAX_CHARS,
             )
-
-            # Run hallucination verification if enabled
-            if HALLUCINATION_VERIFICATION_ENABLED and quick_answer:
-                verification = self._verify_answer(quick_answer, retrieval_result.context, question)
-                # If answer is rejected, replace with rejection message
-                if verification and verification.answer_rejected:
-                    from src.core.qa.verification_config import REJECTION_MESSAGE
-
-                    quick_answer = REJECTION_MESSAGE
 
             source_summary = self.retriever.get_relevant_sources_summary(retrieval_result)
             confidence = self._calculate_confidence(retrieval_result)
@@ -388,21 +355,19 @@ class QAOrchestrator:
                     RETRIEVAL_CONFIDENCE_GATE,
                 )
             citation = "No relevant excerpts found in documents."
-            quick_answer = UNANSWERED_TEXT
             source_summary = ""
             confidence = 0.0
 
         return QAResult(
             question=question,
-            quick_answer=quick_answer,
+            quick_answer="",
             citation=citation,
-            include_in_export=has_quality_context,  # Unanswered questions default to unchecked
+            include_in_export=has_quality_context,
             source_summary=source_summary,
             confidence=confidence,
             retrieval_time_ms=retrieval_result.retrieval_time_ms,
             is_followup=is_followup,
             is_default_question=is_default,
-            verification=verification,
         )
 
     def retrieve_for_question(self, question: str, is_followup: bool = True) -> QAResult:
@@ -453,7 +418,7 @@ class QAOrchestrator:
 
             result = QAResult(
                 question=question,
-                quick_answer=PENDING_GENERATION_TEXT,
+                quick_answer="",
                 citation=citation,
                 include_in_export=True,
                 source_summary=source_summary,
@@ -461,8 +426,6 @@ class QAOrchestrator:
                 retrieval_time_ms=retrieval_result.retrieval_time_ms,
                 is_followup=is_followup,
             )
-            # Stash raw context for phase 2 generation
-            result._retrieval_context = retrieval_result.context
         else:
             if retrieval_result.context and best_score < RETRIEVAL_CONFIDENCE_GATE:
                 logger.debug(
@@ -480,85 +443,23 @@ class QAOrchestrator:
                 is_followup=is_followup,
                 include_in_export=False,
             )
-            result._retrieval_context = None
 
         return result
 
     def generate_answer_for_result(self, result: QAResult) -> QAResult:
         """
-        Phase 2 of split follow-up flow: generate answer for a partial result.
+        Phase 2 of split follow-up flow.
 
-        Takes a QAResult from retrieve_for_question(), calls the answer
-        generator and verification, then fills in quick_answer.
+        No-op — answer generation and verification were removed.
+        Kept for backward compatibility with the split follow-up flow.
 
         Args:
-            result: Partial QAResult with _retrieval_context set
+            result: QAResult from retrieve_for_question()
 
         Returns:
-            Updated QAResult with final quick_answer and verification
+            The same QAResult unchanged
         """
-        context = getattr(result, "_retrieval_context", None)
-        if not context:
-            logger.debug("No retrieval context on result, returning as-is")
-            return result
-
-        # Generate answer
-        quick_answer = self._generate_quick_answer(result.question, context)
-
-        # Run hallucination verification if enabled
-        verification = None
-        if HALLUCINATION_VERIFICATION_ENABLED and quick_answer:
-            verification = self._verify_answer(quick_answer, context, result.question)
-            if verification and verification.answer_rejected:
-                from src.core.qa.verification_config import REJECTION_MESSAGE
-
-                quick_answer = REJECTION_MESSAGE
-
-        result.quick_answer = quick_answer
-        result.verification = verification
-
-        # Clean up stashed context
-        if hasattr(result, "_retrieval_context"):
-            del result._retrieval_context
-
         return result
-
-    def _generate_quick_answer(self, question: str, context: str) -> str:
-        """
-        Generate a quick answer via keyword-based sentence extraction.
-
-        Args:
-            question: The question to answer
-            context: Retrieved document context
-
-        Returns:
-            Extracted answer string
-        """
-        # Use the configured answer generator
-        answer = self.answer_generator.generate(question, context)
-        return answer
-
-    def _verify_answer(self, answer: str, context: str, question: str):
-        """
-        Run hallucination verification on the generated answer.
-
-        Uses LettuceDetect to identify potentially hallucinated spans.
-        Lazy-loads the verifier on first use (~150MB model download).
-
-        Args:
-            answer: Generated answer to verify
-            context: Retrieved context (source documents)
-            question: Original question
-
-        Returns:
-            VerificationResult with spans and reliability score
-        """
-        if self._verifier is None:
-            from src.core.qa.hallucination_verifier import HallucinationVerifier
-
-            self._verifier = HallucinationVerifier()
-
-        return self._verifier.verify(answer, context, question)
 
     def _calculate_confidence(self, retrieval_result: RetrievalResult) -> float:
         """

@@ -4,6 +4,43 @@ Technical research decisions with sources. Newest entries at the top.
 
 ---
 
+## Chunking Strategy: Recursive Sentence Splitting Replaces Semantic Chunking (March 2026)
+
+**Question:** Should we keep semantic chunking (LangChain SemanticChunker with gradient breakpoints) or switch to simpler recursive sentence splitting?
+
+**Background:** The app originally used semantic chunking with `all-MiniLM-L6-v2` (22MB) to detect embedding-based breakpoints. After removing the local LLM (Ollama), chunk sizes (target 700 tokens, max 1000) were optimized for LLM context windows but no longer needed for that purpose.
+
+**Research findings:**
+
+| Source | Year | Finding |
+|--------|------|---------|
+| Vecta Benchmark | Feb 2026 | Recursive 512-token = **69% accuracy**, Semantic = **54%** |
+| NAACL 2025 Findings | 2025 | Fixed 200-word chunks match or beat semantic across tasks |
+| RAG Performance Paradox | 2026 | Simpler chunking strategies outperform complex AI-driven methods |
+| Firecrawl | 2026 | Practical defaults: 256-512 tokens, 10-20% overlap |
+| Cohere | 2025 | For transcripts: split on speaker turns, keep one speaker's content together |
+
+**Decision:** Replace SemanticChunker with recursive sentence splitting using NUPunkt (legal-aware). Reduce chunk sizes from 700/1000 to 200/350 tokens. Add 20-token overlap (~10% of target). Add transcript-aware speaker-turn boundary detection.
+
+**What was removed:**
+- `SemanticChunker` import and initialization (no longer loads `all-MiniLM-L6-v2` for chunking)
+- `_init_semantic_chunker()` method
+- `_semantic_chunk()` method (replaced by existing `_split_at_sentences()`)
+
+**What was added:**
+- Token overlap between chunks (configurable, default 20 tokens)
+- `transcript_boundaries.py` — injects `\n\n` at speaker turns
+- Key Excerpts — reuses chunk embeddings from FAISS instead of re-splitting/re-embedding
+
+**Sources:**
+- https://www.runvecta.com/blog/we-benchmarked-7-chunking-strategies-most-advice-was-wrong
+- https://aclanthology.org/2025.icnlsp-1.15.pdf
+- https://ragaboutit.com/the-2026-rag-performance-paradox-why-simpler-chunking-strategies-are-outperforming-complex-ai-driven-methods/
+- https://www.firecrawl.dev/blog/best-chunking-strategies-rag
+- https://docs.cohere.com/page/chunking-strategies
+
+---
+
 ## Tesseract OCR: Windows Install Locations (February 2026)
 
 **Question:** Where does Tesseract install on Windows, and which paths should we check when it's not on PATH?

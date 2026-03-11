@@ -491,8 +491,8 @@ INDEX_ESTIMATED_CHARS_PER_LINE = 60  # For estimating line count from chars
 INDEX_PAGE_REF_DIVISOR = 2  # Divide page refs by this for density calc
 INDEX_CHAR_WINDOW_SIZE = 2000  # Character window size for char-based detection
 
-# Semantic Chunker Embedding Model
-# Used by UnifiedChunker for semantic text splitting
+# Semantic Chunker Embedding Model (DEPRECATED — semantic chunking removed)
+# Kept for backward compatibility with deprecated KeyBERT algorithm
 SEMANTIC_CHUNKER_EMBEDDING_MODEL = "all-MiniLM-L6-v2"
 
 # GUI Display Limits for Vocabulary Table
@@ -692,26 +692,23 @@ FAISS_RELEVANCE_FLOOR = _d("faiss_relevance_floor")
 QA_CITATION_MAX_CHARS = _d("qa_citation_max_chars")
 
 # ============================================================================
-# Unified Semantic Chunking Configuration
+# Unified Chunking Configuration (Recursive Sentence Splitting)
 # ============================================================================
-# Single chunking pass for all downstream consumers (LLM extraction + Q&A indexing)
-# Uses semantic chunking with token enforcement via tiktoken
+# Single chunking pass for all downstream consumers (search indexing + key excerpts)
+# Uses recursive sentence splitting with overlap via NUPunkt legal-aware splitter
 #
-# Based on RAG research (2024-2025), chunk sizes are FIXED and do NOT
-# scale with context window. What scales is how many chunks fit in the context.
+# Replaced semantic chunking (Mar 2026) based on research:
+# - Vecta Feb 2026: Recursive 512-token = 69% accuracy, Semantic = 54%
+# - NAACL 2025: Fixed 200-word chunks match or beat semantic across tasks
+# - Simpler recursive/fixed splitting + overlap outperforms semantic for retrieval
 #
-# Research findings:
-# - Optimal chunk size: 400-1024 tokens regardless of context window
-# - Chroma research: 200-400 tokens for best precision
-# - arXiv study: 512-1024 tokens for analytical queries
-# - Key insight: Larger context = more chunks retrieved, not bigger chunks
-#
-# See gpu_detector.get_optimal_chunk_sizes() for the research-based values.
+# See RESEARCH_LOG.md for full citations and decision rationale.
 
 # Token limits for chunk sizing (research-based fixed values)
 UNIFIED_CHUNK_MIN_TOKENS = _d("unified_chunk_min_tokens")
 UNIFIED_CHUNK_TARGET_TOKENS = _d("unified_chunk_target_tokens")
 UNIFIED_CHUNK_MAX_TOKENS = _d("unified_chunk_max_tokens")
+UNIFIED_CHUNK_OVERLAP_TOKENS = _d("unified_chunk_overlap_tokens")
 
 # tiktoken encoding for token counting
 # cl100k_base is compatible with most modern models (GPT-3.5+, Claude, Llama)
@@ -770,8 +767,8 @@ HALLUCINATION_MODEL_LOCAL_PATH = BUNDLED_MODELS_DIR / "tinylettuce-ettin-68m-en"
 EMBEDDING_MODEL_NAME = "nomic-ai/nomic-embed-text-v1.5"
 EMBEDDING_MODEL_LOCAL_PATH = BUNDLED_MODELS_DIR / "embeddings" / "nomic-embed-text-v1.5"
 
-# Semantic chunker embedding model (used by UnifiedChunker for text splitting)
-# all-MiniLM-L6-v2 (22MB) — lightweight model for detecting semantic boundaries
+# Semantic chunker embedding model (DEPRECATED — semantic chunking removed)
+# Kept for backward compatibility with deprecated KeyBERT algorithm
 SEMANTIC_CHUNKER_MODEL_LOCAL_PATH = BUNDLED_MODELS_DIR / "embeddings" / "all-MiniLM-L6-v2"
 
 # HuggingFace cache directory (used if bundled model not found)

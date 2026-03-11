@@ -445,34 +445,48 @@ DESCRIPTIONS = {
         ),
     },
     "unified_chunk_min_tokens": {
-        "label": "LLM chunk minimum tokens",
+        "label": "Chunk minimum tokens",
         "tooltip": (
-            "Minimum tokens per chunk sent to the LLM for processing.\n"
-            "Prevents creating fragments too small to be useful.\n\n"
-            "Default: 400 tokens\n\n"
+            "Minimum tokens per chunk. Chunks smaller than this are\n"
+            "merged with their neighbor.\n\n"
+            "Default: 80 tokens\n\n"
             "Increase: Larger minimum chunks (fewer, bigger pieces).\n"
-            "Decrease: Allow smaller chunks (more granular processing)."
+            "Decrease: Allow smaller chunks (more granular retrieval).\n\n"
+            "Research (2025-2026): 200-word fixed chunks match or beat\n"
+            "semantic chunking for retrieval tasks."
         ),
     },
     "unified_chunk_target_tokens": {
-        "label": "LLM chunk target tokens",
+        "label": "Chunk target tokens",
         "tooltip": (
-            "Ideal token count per chunk for LLM processing.\n"
-            "The chunker aims for this size when splitting documents.\n\n"
-            "Default: 700 tokens\n\n"
-            "Increase: Larger chunks (more context per LLM call).\n"
-            "Decrease: Smaller chunks (more calls, less context each).\n\n"
-            "Research: 500-800 tokens optimal for mixed queries."
+            "Ideal token count per chunk. The splitter aims for this\n"
+            "size when splitting documents at sentence boundaries.\n\n"
+            "Default: 200 tokens\n\n"
+            "Increase: Larger chunks (more context per passage).\n"
+            "Decrease: Smaller chunks (more precise retrieval).\n\n"
+            "Research (2025-2026): 200-512 tokens optimal for retrieval."
         ),
     },
     "unified_chunk_max_tokens": {
-        "label": "LLM chunk maximum tokens",
+        "label": "Chunk maximum tokens",
         "tooltip": (
             "Maximum tokens per chunk. Chunks exceeding this are split.\n\n"
-            "Default: 1000 tokens\n\n"
-            "Increase: Allow very large chunks (may hurt retrieval precision).\n"
+            "Default: 350 tokens\n\n"
+            "Increase: Allow larger chunks (more context, less precision).\n"
             "Decrease: Enforce smaller chunks (better precision, more splits).\n\n"
-            "Research: >1024 tokens hurts retrieval precision."
+            "Research: Keeping chunks under 512 tokens maximizes precision."
+        ),
+    },
+    "unified_chunk_overlap_tokens": {
+        "label": "Chunk overlap tokens",
+        "tooltip": (
+            "Number of tokens from the end of each chunk to repeat at\n"
+            "the start of the next chunk. Prevents information loss\n"
+            "at chunk boundaries.\n\n"
+            "Default: 20 tokens (~10% of target)\n\n"
+            "Increase: Better boundary coverage (more redundancy).\n"
+            "Decrease: Less redundancy (risk of split context).\n\n"
+            "Typical: 10-20% of target chunk size."
         ),
     },
     # =======================================================================

@@ -59,7 +59,7 @@ class MessageType:
     NER_COMPLETE = "ner_complete"
     QA_READY = "qa_ready"
 
-    # Key Sentences (extractive summary via K-means clustering)
+    # Key Excerpts (representative passages via K-means clustering on chunk embeddings)
     KEY_SENTENCES_RESULT = "key_sentences_result"
 
     # Progressive Vocabulary Loading
@@ -330,6 +330,9 @@ class QueueMessage:
         embeddings: Any,
         chunk_count: int,
         chunk_scores: Any = None,
+        chunk_texts: list[str] | None = None,
+        chunk_metadata: list[dict] | None = None,
+        chunk_embeddings: Any = None,
     ) -> tuple[str, dict]:
         """
         Create Q&A ready message (Phase 2).
@@ -338,7 +341,10 @@ class QueueMessage:
             vector_store_path: Path to vector store
             embeddings: HuggingFaceEmbeddings instance
             chunk_count: Number of chunks indexed
-            chunk_scores: Optional ChunkScores for redundancy skipping in summarization
+            chunk_scores: Optional ChunkScores for redundancy skipping
+            chunk_texts: Chunk text strings for key excerpts extraction
+            chunk_metadata: Chunk metadata dicts (source_file, chunk_num)
+            chunk_embeddings: Pre-computed chunk embeddings for key excerpts
         """
         return (
             MessageType.QA_READY,
@@ -347,6 +353,9 @@ class QueueMessage:
                 "embeddings": embeddings,
                 "chunk_count": chunk_count,
                 "chunk_scores": chunk_scores,
+                "chunk_texts": chunk_texts,
+                "chunk_metadata": chunk_metadata,
+                "chunk_embeddings": chunk_embeddings,
             },
         )
 

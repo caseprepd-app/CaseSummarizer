@@ -1,17 +1,27 @@
 """
-Unified Semantic Chunker with Token Enforcement
+Unified Recursive Sentence Chunker with Token Enforcement
+
+Replaced semantic chunking (Mar 2026) with recursive sentence splitting.
+
+Research findings supporting this change:
+- Vecta Feb 2026 benchmark: Recursive 512-token = 69% accuracy, Semantic = 54%
+  https://www.runvecta.com/blog/we-benchmarked-7-chunking-strategies-most-advice-was-wrong
+- NAACL 2025: Fixed 200-word chunks match or beat semantic chunking
+  https://aclanthology.org/2025.icnlsp-1.15.pdf
+- 2026 RAG Performance Paradox: Simpler strategies outperform complex AI-driven methods
+  https://ragaboutit.com/the-2026-rag-performance-paradox-why-simpler-chunking-strategies-are-outperforming-complex-ai-driven-methods/
+- Firecrawl 2026: Practical defaults 256-512 tokens, 10-20% overlap
+  https://www.firecrawl.dev/blog/best-chunking-strategies-rag
+- Cohere: For transcripts, split on speaker turns, keep one speaker's content together
+  https://docs.cohere.com/page/chunking-strategies
 
 This module provides a single chunking service that:
-1. Uses semantic chunking (LangChain SemanticChunker with gradient breakpoints)
-2. Enforces token limits using tiktoken for accurate counting
-3. Caches chunks in memory for reuse by all downstream consumers
-
-Based on RAG research (2024-2025), chunk sizes are FIXED at 300-1000
-tokens regardless of context window. Larger context = more chunks retrieved,
-not bigger chunks. Research sources:
-- Chroma: 200-400 tokens for best precision
-- arXiv: 512-1024 tokens for analytical queries
-- Firecrawl: 400-512 tokens as starting point
+1. Resolves coreferences (pronouns → names) for self-contained chunks
+2. Injects paragraph breaks at speaker-turn boundaries (transcript-aware)
+3. Splits text at sentence boundaries using NUPunkt legal-aware splitter
+4. Carries forward overlap tokens between chunks for boundary context
+5. Enforces min/max token limits (merge undersized, split oversized)
+6. Caches chunks in memory for reuse by all downstream consumers
 """
 
 import hashlib
@@ -22,38 +32,25 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 import tiktoken
-from langchain_community.document_loaders import PyPDFLoader
-from langchain_core.documents import Document
-from langchain_experimental.text_splitter import SemanticChunker
-from langchain_huggingface import HuggingFaceEmbeddings
 
 from src.config import (
-    SEMANTIC_CHUNKER_EMBEDDING_MODEL,
-    SEMANTIC_CHUNKER_MODEL_LOCAL_PATH,
     UNIFIED_CHUNK_ENCODING,
     UNIFIED_CHUNK_MAX_TOKENS,
     UNIFIED_CHUNK_MIN_TOKENS,
+    UNIFIED_CHUNK_OVERLAP_TOKENS,
     UNIFIED_CHUNK_TARGET_TOKENS,
 )
 
 logger = logging.getLogger(__name__)
 
-# Chunk token limits (should match config.py defaults).
-# The embedding model (nomic-embed-text-v1.5) has an 8,192-token context window,
-# so even the max chunk size (1000 tokens) fits comfortably within that limit.
-# Chunks are sized for retrieval quality, not to fill the embedding window.
-DEFAULT_MIN_TOKENS = UNIFIED_CHUNK_MIN_TOKENS  # Fallback: 300
-DEFAULT_TARGET_TOKENS = UNIFIED_CHUNK_TARGET_TOKENS  # Fallback: 700
-DEFAULT_MAX_TOKENS = UNIFIED_CHUNK_MAX_TOKENS  # Fallback: 1000
+# Chunk token limits from config
+DEFAULT_MIN_TOKENS = UNIFIED_CHUNK_MIN_TOKENS
+DEFAULT_TARGET_TOKENS = UNIFIED_CHUNK_TARGET_TOKENS
+DEFAULT_MAX_TOKENS = UNIFIED_CHUNK_MAX_TOKENS
+DEFAULT_OVERLAP_TOKENS = UNIFIED_CHUNK_OVERLAP_TOKENS
 
 # tiktoken encoding from config
-TIKTOKEN_ENCODING = UNIFIED_CHUNK_ENCODING  # Fallback: "cl100k_base"
-
-# Resolve semantic chunker model: prefer bundled, fall back to HF download
-if SEMANTIC_CHUNKER_MODEL_LOCAL_PATH.exists():
-    _SEMANTIC_CHUNKER_MODEL = str(SEMANTIC_CHUNKER_MODEL_LOCAL_PATH)
-else:
-    _SEMANTIC_CHUNKER_MODEL = SEMANTIC_CHUNKER_EMBEDDING_MODEL
+TIKTOKEN_ENCODING = UNIFIED_CHUNK_ENCODING
 
 
 @dataclass
@@ -61,7 +58,7 @@ class UnifiedChunk:
     """
     Represents a single text chunk with token-aware metadata.
 
-    Used by both LLM extraction and Q&A indexing systems.
+    Used by both search indexing and key excerpts systems.
     """
 
     chunk_num: int
@@ -85,18 +82,19 @@ class UnifiedChunk:
 
 class UnifiedChunker:
     """
-    Unified semantic chunker with token enforcement.
+    Unified recursive sentence chunker with token enforcement.
 
     Features:
-    - Semantic chunking using embedding-based breakpoint detection
-    - Token counting via tiktoken for accurate LLM context fit
+    - Recursive sentence splitting using NUPunkt legal-aware boundaries
+    - Speaker-turn boundary detection for court transcripts
+    - Token-based overlap between chunks for boundary context
+    - Token counting via tiktoken for accurate sizing
     - Post-processing to enforce min/max token constraints
     - Caching of chunks for reuse by multiple consumers
 
     Usage:
         chunker = UnifiedChunker()
         chunks = chunker.chunk_text(document_text, source_file="complaint.pdf")
-        # Chunks are now available for both LLM extraction and Q&A indexing
     """
 
     def __init__(
@@ -104,6 +102,7 @@ class UnifiedChunker:
         min_tokens: int = DEFAULT_MIN_TOKENS,
         target_tokens: int = DEFAULT_TARGET_TOKENS,
         max_tokens: int = DEFAULT_MAX_TOKENS,
+        overlap_tokens: int = DEFAULT_OVERLAP_TOKENS,
         tiktoken_encoding: str = TIKTOKEN_ENCODING,
         apply_coreference: bool = True,
     ):
@@ -114,12 +113,14 @@ class UnifiedChunker:
             min_tokens: Minimum tokens per chunk (smaller chunks get merged)
             target_tokens: Target token count for ideal chunks
             max_tokens: Maximum tokens per chunk (larger chunks get split)
+            overlap_tokens: Tokens to carry forward between chunks
             tiktoken_encoding: Encoding name for tiktoken (default: cl100k_base)
-            apply_coreference: Whether to resolve pronouns before chunking (default: True)
+            apply_coreference: Whether to resolve pronouns before chunking
         """
         self.min_tokens = min_tokens
         self.target_tokens = target_tokens
         self.max_tokens = max_tokens
+        self.overlap_tokens = overlap_tokens
         self.apply_coreference = apply_coreference
 
         # Initialize tiktoken encoder
@@ -130,9 +131,6 @@ class UnifiedChunker:
             logger.error("Failed to initialize tiktoken: %s", e, exc_info=True)
             raise
 
-        # Initialize semantic chunker components
-        self._init_semantic_chunker()
-
         # Coreference resolver (lazy-loaded on first use)
         self._coref_resolver = None
 
@@ -142,27 +140,6 @@ class UnifiedChunker:
         # Cache for token counts to avoid repeated encoding
         self._token_count_cache: dict[str, int] = {}
 
-    def _init_semantic_chunker(self):
-        """Initialize LangChain semantic chunking components."""
-        logger.debug("Initializing semantic chunker components...")
-        init_start = time.time()
-
-        try:
-            # Use bundled model if available, otherwise fall back to HF download
-            self.embeddings = HuggingFaceEmbeddings(
-                model_name=_SEMANTIC_CHUNKER_MODEL, model_kwargs={"device": "cpu"}
-            )
-            self.semantic_chunker = SemanticChunker(
-                self.embeddings, breakpoint_threshold_type="gradient"
-            )
-            logger.debug(
-                "%s took %.2fs", "Semantic chunker initialization", time.time() - init_start
-            )
-        except Exception as e:
-            logger.error("Failed to initialize semantic chunker: %s", e, exc_info=True)
-            self.embeddings = None
-            self.semantic_chunker = None
-
     def _get_coref_resolver(self):
         """
         Lazy-load coreference resolver on first use.
@@ -171,7 +148,6 @@ class UnifiedChunker:
             CoreferenceResolver instance, or None if unavailable
         """
         if self._coref_resolver is None:
-            # Lazy import to avoid circular dependencies
             from src.core.preprocessing.coreference_resolver import CoreferenceResolver
 
             self._coref_resolver = CoreferenceResolver()
@@ -183,7 +159,7 @@ class UnifiedChunker:
         Resolve pronouns to named antecedents in text.
 
         Runs coreference resolution on full document text before chunking.
-        This improves Q&A retrieval by making chunks self-contained
+        This improves retrieval by making chunks self-contained
         (e.g., "He testified..." becomes "Dr. Smith testified...").
 
         Args:
@@ -215,8 +191,6 @@ class UnifiedChunker:
         """
         Count tokens in text using tiktoken with caching.
 
-        Uses hash(text) as cache key which accounts for the full content.
-
         Args:
             text: Text to count tokens for
 
@@ -225,11 +199,9 @@ class UnifiedChunker:
         """
         cache_key = hash(text)
 
-        # Check cache
         if cache_key in self._token_count_cache:
             return self._token_count_cache[cache_key]
 
-        # Calculate and cache
         count = len(self.encoder.encode(text))
         self._token_count_cache[cache_key] = count
         return count
@@ -241,7 +213,7 @@ class UnifiedChunker:
         use_cache: bool = True,
     ) -> list[UnifiedChunk]:
         """
-        Chunk text using semantic boundaries with token enforcement.
+        Chunk text using sentence boundaries with token enforcement and overlap.
 
         Args:
             text: Full document text to chunk
@@ -252,7 +224,6 @@ class UnifiedChunker:
             List of UnifiedChunk objects
         """
         start_time = time.time()
-        # Use deterministic hash instead of non-deterministic hash()
         text_hash = hashlib.sha256(text.encode()).hexdigest()[:16]
         cache_key = f"{source_file or 'unknown'}_{text_hash}"
 
@@ -267,29 +238,27 @@ class UnifiedChunker:
             return []
 
         # Step 0: Coreference resolution (before chunking)
-        # Resolves pronouns to named entities so chunks are self-contained
-        # e.g., "He testified..." becomes "Dr. Smith testified..."
         text = self._resolve_coreferences(text)
+
+        # Step 1: Inject speaker-turn boundaries for transcripts
+        from src.core.chunking.transcript_boundaries import inject_speaker_boundaries
+
+        text = inject_speaker_boundaries(text)
 
         total_tokens = self.count_tokens(text)
         logger.info(
             "Starting unified chunking: %s tokens, %s words", total_tokens, len(text.split())
         )
 
-        # Step 1: Semantic chunking
-        if self.semantic_chunker:
-            raw_chunks = self._semantic_chunk(text)
-        else:
-            # Fallback to paragraph-based chunking
-            raw_chunks = self._paragraph_chunk(text)
+        # Step 2: Sentence-based splitting
+        raw_chunks = self._split_at_sentences(text, self.target_tokens)
+        logger.debug("Initial sentence splitting produced %s chunks", len(raw_chunks))
 
-        logger.debug("Initial semantic chunking produced %s chunks", len(raw_chunks))
-
-        # Step 2: Token enforcement (split oversized, merge undersized)
+        # Step 3: Token enforcement (split oversized, merge undersized)
         enforced_chunks = self._enforce_token_limits(raw_chunks)
         logger.debug("After token enforcement: %s chunks", len(enforced_chunks))
 
-        # Step 3: Convert to UnifiedChunk objects
+        # Step 4: Convert to UnifiedChunk objects
         final_chunks = []
         for i, chunk_text in enumerate(enforced_chunks):
             token_count = self.count_tokens(chunk_text)
@@ -327,27 +296,9 @@ class UnifiedChunker:
 
         return final_chunks
 
-    def _semantic_chunk(self, text: str) -> list[str]:
-        """
-        Apply semantic chunking to split text at meaningful boundaries.
-
-        Returns:
-            List of text strings (raw chunks before token enforcement)
-        """
-        try:
-            # Create a Document for LangChain
-            doc = Document(page_content=text)
-            semantic_docs = self.semantic_chunker.split_documents([doc])
-            return [d.page_content for d in semantic_docs]
-        except Exception as e:
-            logger.error(
-                "Semantic chunking failed: %s, falling back to paragraph chunking", e, exc_info=True
-            )
-            return self._paragraph_chunk(text)
-
     def _paragraph_chunk(self, text: str) -> list[str]:
         """
-        Fallback paragraph-based chunking when semantic chunking fails.
+        Fallback paragraph-based chunking.
 
         Splits on double newlines (paragraph boundaries).
         """
@@ -370,7 +321,6 @@ class UnifiedChunker:
             token_count = self.count_tokens(chunk)
 
             if token_count > self.max_tokens:
-                # Split at sentence boundaries
                 sub_chunks = self._split_at_sentences(chunk, self.target_tokens)
                 split_chunks.extend(sub_chunks)
             else:
@@ -386,6 +336,8 @@ class UnifiedChunker:
         Split text at sentence boundaries to reach target token count.
 
         Uses NUPunkt legal-aware sentence boundary detection.
+        Carries forward overlap_tokens from the end of each chunk
+        into the start of the next chunk for boundary context.
         """
         from src.core.utils.sentence_splitter import split_sentences
 
@@ -414,8 +366,15 @@ class UnifiedChunker:
             # Check if adding this sentence exceeds target
             if current_tokens + sentence_tokens > target_tokens and current_chunk:
                 chunks.append(" ".join(current_chunk))
-                current_chunk = [sentence]
-                current_tokens = sentence_tokens
+
+                # Overlap: carry forward last N tokens worth of sentences
+                if self.overlap_tokens > 0:
+                    overlap_chunk, overlap_tokens = self._get_overlap_sentences(current_chunk)
+                    current_chunk = overlap_chunk + [sentence]
+                    current_tokens = overlap_tokens + sentence_tokens
+                else:
+                    current_chunk = [sentence]
+                    current_tokens = sentence_tokens
             else:
                 current_chunk.append(sentence)
                 current_tokens += sentence_tokens
@@ -425,6 +384,30 @@ class UnifiedChunker:
             chunks.append(" ".join(current_chunk))
 
         return chunks
+
+    def _get_overlap_sentences(self, sentences: list[str]) -> tuple[list[str], int]:
+        """
+        Get trailing sentences from a chunk for overlap into the next chunk.
+
+        Walks backward through sentences until overlap_tokens is reached.
+
+        Args:
+            sentences: List of sentences in the completed chunk
+
+        Returns:
+            Tuple of (overlap_sentences, overlap_token_count)
+        """
+        overlap = []
+        token_count = 0
+
+        for sentence in reversed(sentences):
+            sent_tokens = self.count_tokens(sentence)
+            if token_count + sent_tokens > self.overlap_tokens and overlap:
+                break
+            overlap.insert(0, sentence)
+            token_count += sent_tokens
+
+        return overlap, token_count
 
     def _merge_small_chunks(self, chunks: list[str]) -> list[str]:
         """
@@ -466,7 +449,6 @@ class UnifiedChunker:
 
         Returns section name if detected, None otherwise.
         """
-        # Common legal document section patterns
         patterns = [
             r"^(?:FIRST|SECOND|THIRD|FOURTH|FIFTH)\s+(?:CAUSE\s+OF\s+ACTION|CLAIM)",
             r"^(?:COUNT|CLAIM)\s+(?:ONE|TWO|THREE|FOUR|FIVE|[IVX]+|\d+)",
@@ -474,13 +456,13 @@ class UnifiedChunker:
             r"^(?:INTRODUCTION|BACKGROUND|STATEMENT\s+OF\s+FACTS)",
             r"^(?:ALLEGATIONS|AFFIRMATIVE\s+DEFENSES)",
             r"^(?:DIRECT|CROSS|REDIRECT)\s+EXAMINATION",
-            r"^Q\.\s+",  # Q&A format in depositions
+            r"^Q\.\s+",
         ]
 
         for pattern in patterns:
             match = re.search(pattern, text[:200], re.IGNORECASE | re.MULTILINE)
             if match:
-                return match.group(0)[:50]  # Limit section name length
+                return match.group(0)[:50]
 
         return None
 
@@ -490,14 +472,12 @@ class UnifiedChunker:
 
         Args:
             file_path: Path to the PDF file
-            source_file: Optional source filename for metadata (uses file_path.name if not provided)
+            source_file: Optional source filename for metadata
 
         Returns:
             List of UnifiedChunk objects
         """
-        if not self.semantic_chunker:
-            logger.error("Semantic chunker not initialized. Cannot chunk PDF.")
-            return []
+        from langchain_community.document_loaders import PyPDFLoader
 
         source = source_file or file_path.name
 
@@ -505,11 +485,9 @@ class UnifiedChunker:
             loader = PyPDFLoader(str(file_path))
             documents = loader.load()
 
-            # Combine all pages into single text
             full_text = "\n\n".join(doc.page_content for doc in documents)
             logger.debug("Loaded %s pages from PDF: %s", len(documents), source)
 
-            # Use standard text chunking
             return self.chunk_text(full_text, source_file=source)
 
         except Exception as e:
@@ -541,13 +519,12 @@ def create_unified_chunker(
     Factory function to create a UnifiedChunker instance.
 
     If token sizes are not provided, uses optimal fixed sizes based on RAG research.
-    Chunk sizes are FIXED at 300-1000 tokens (research-based optimal range).
 
     Args:
         min_tokens: Minimum tokens per chunk (auto-scaled if None)
         target_tokens: Target token count (auto-scaled if None)
         max_tokens: Maximum tokens per chunk (auto-scaled if None)
-        apply_coreference: Whether to resolve pronouns before chunking (default: True)
+        apply_coreference: Whether to resolve pronouns before chunking
 
     Returns:
         Configured UnifiedChunker instance

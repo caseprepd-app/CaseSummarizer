@@ -29,7 +29,6 @@ from src.core.preprocessing.header_footer_remover import HeaderFooterRemover
 from src.core.preprocessing.index_page_remover import IndexPageRemover
 from src.core.preprocessing.line_number_remover import LineNumberRemover
 from src.core.preprocessing.page_boundary_cleaner import PageBoundaryCleaner
-from src.core.preprocessing.qa_converter import QAConverter
 from src.core.preprocessing.title_page_remover import TitlePageRemover
 from src.core.preprocessing.transcript_cleaner import TranscriptCleaner
 
@@ -43,7 +42,6 @@ _SETTING_TO_PREPROCESSOR = {
     "preprocess_line_numbers": "Line Number Remover",
     "preprocess_page_boundaries": "Page Boundary Cleaner",
     "preprocess_transcript_artifacts": "Transcript Cleaner",
-    "preprocess_qa_notation": "QA Converter",
 }
 
 
@@ -78,7 +76,6 @@ def create_default_pipeline(settings: dict | None = None) -> PreprocessingPipeli
         LineNumberRemover(),
         PageBoundaryCleaner(),
         TranscriptCleaner(),
-        QAConverter(),
     ]
 
     # Apply settings toggles if provided
@@ -102,7 +99,6 @@ __all__ = [
     "LineNumberRemover",
     "PageBoundaryCleaner",
     "PreprocessingPipeline",
-    "QAConverter",
     "TitlePageRemover",
     "TranscriptCleaner",
     "create_default_pipeline",

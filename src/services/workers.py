@@ -14,6 +14,7 @@ Workers are orchestration, not UI display.
 """
 
 import logging
+import random
 import threading
 from pathlib import Path
 from queue import Queue
@@ -614,11 +615,13 @@ class ProgressiveExtractionWorker(BaseWorker):
             )
 
             def on_index_progress(current, total):
-                self.ui_queue.put(
-                    QueueMessage.progress(
-                        26, f"Building search index ({current}/{total} passages)..."
-                    )
-                )
+                from src.ui.silly_messages import get_silly_message
+
+                msg = f"Building search index ({current}/{total} passages)..."
+                # Higher silly message rate for incremental progress (15% vs 4%)
+                if random.randint(1, 7) == 1:
+                    msg = get_silly_message()
+                self.ui_queue.put(QueueMessage.progress(26, msg))
 
             builder = VectorStoreBuilder()
             result = builder.create_from_unified_chunks(
@@ -654,12 +657,21 @@ class ProgressiveExtractionWorker(BaseWorker):
                 logger.debug("Phase 2: Cancelled — discarding qa_ready/trigger_default_qa")
                 return
 
+            # Extract chunk texts and metadata for key excerpts (reuses embeddings)
+            chunk_texts = [c.text for c in all_chunks]
+            chunk_metadata = [
+                {"source_file": c.source_file, "chunk_num": c.chunk_num} for c in all_chunks
+            ]
+
             self.ui_queue.put(
                 QueueMessage.qa_ready(
                     vector_store_path=result.persist_dir,
                     embeddings=self.embeddings,
                     chunk_count=result.chunk_count,
                     chunk_scores=chunk_scores,
+                    chunk_texts=chunk_texts,
+                    chunk_metadata=chunk_metadata,
+                    chunk_embeddings=result.chunk_embeddings,
                 )
             )
 

@@ -179,7 +179,7 @@ class TestBug6ExcInfoTrue:
     def test_unified_chunker_has_exc_info(self):
         """unified_chunker logger.error calls include exc_info=True."""
         source = _read_source("core/chunking/unified_chunker.py")
-        assert source.count("exc_info=True") >= 4
+        assert source.count("exc_info=True") >= 2
 
     def test_config_model_load_has_exc_info(self):
         """config.py model config error includes exc_info=True."""

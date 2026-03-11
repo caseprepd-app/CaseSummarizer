@@ -7,7 +7,7 @@ The vocabulary display uses an Excel-like Treeview with frozen headers
 and right-click context menu for excluding terms from future extractions.
 
 Tab navigation uses CTkTabview with three persistent tabs:
-"Vocabulary" | "Search" | "Key Sentences". Tab switching uses frame
+"Vocabulary" | "Search" | "Key Excerpts". Tab switching uses frame
 stacking (tkraise) with no widget recreation; all content is preserved
 across tab switches (scroll position, state).
 
@@ -88,7 +88,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
         self.grid_columnconfigure(0, weight=1)
         self.grid_rowconfigure(0, weight=1)  # Tab view gets all space
 
-        # Create tabview with tabs: Document, Vocabulary, Search, Key Sentences
+        # Create tabview with tabs: Document, Vocabulary, Search, Key Excerpts
         self.tabview = ctk.CTkTabview(self)
         self.tabview.grid(row=0, column=0, sticky="nsew", padx=5, pady=5)
 
@@ -96,7 +96,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
         self.tabview.add("Document")
         self.tabview.add("Vocabulary")
         self.tabview.add("Search")
-        self.tabview.add("Key Sentences")
+        self.tabview.add("Key Excerpts")
 
         # Bind tab change to show/hide appropriate button bar
         self.tabview.configure(command=self._on_tab_changed)
@@ -108,8 +108,8 @@ class DynamicOutputWidget(ctk.CTkFrame):
         self.tabview.tab("Vocabulary").grid_rowconfigure(0, weight=1)
         self.tabview.tab("Search").grid_columnconfigure(0, weight=1)
         self.tabview.tab("Search").grid_rowconfigure(0, weight=1)
-        self.tabview.tab("Key Sentences").grid_columnconfigure(0, weight=1)
-        self.tabview.tab("Key Sentences").grid_rowconfigure(0, weight=1)
+        self.tabview.tab("Key Excerpts").grid_columnconfigure(0, weight=1)
+        self.tabview.tab("Key Excerpts").grid_rowconfigure(0, weight=1)
 
         # Document Tab: Preview panel for extracted text
         from src.ui.document_preview_panel import DocumentPreviewPanel
@@ -192,7 +192,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
 
         # Summary Tab: Status placeholder (shown when no summary) + textbox
         self._summary_status_label = ctk.CTkLabel(
-            self.tabview.tab("Key Sentences"),
+            self.tabview.tab("Key Excerpts"),
             text="",
             font=FONTS["body"],
             text_color=COLORS["text_secondary"],
@@ -202,7 +202,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
         self._summary_status_label.grid(row=1, column=0, sticky="nsew", padx=20, pady=50)
 
         self.summary_text_display = ctk.CTkTextbox(
-            self.tabview.tab("Key Sentences"),
+            self.tabview.tab("Key Excerpts"),
             wrap="word",
             font=FONTS["body"],
             fg_color=COLORS["bg_darker"],
@@ -219,13 +219,13 @@ class DynamicOutputWidget(ctk.CTkFrame):
         from src.ui.text_find_bar import TextFindBar
 
         self._summary_find_bar = TextFindBar(
-            self.tabview.tab("Key Sentences"), self.summary_text_display
+            self.tabview.tab("Key Excerpts"), self.summary_text_display
         )
         self._summary_find_bar.grid(row=0, column=0, sticky="ew", padx=5, pady=(2, 0))
         self._summary_find_bar.grid_remove()
 
         # Summary tab row 1 (textbox) expands
-        self.tabview.tab("Key Sentences").grid_rowconfigure(1, weight=1)
+        self.tabview.tab("Key Excerpts").grid_rowconfigure(1, weight=1)
 
         # Initialize tab status messages
         self._update_tab_status_messages()
@@ -276,7 +276,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
         self._outputs = {
             "Names & Vocabulary": [],  # Primary output - people + terms
             "Search": [],  # Q&A results (replaces "Q&A Results")
-            "Key Sentences": "",  # Combined summary (replaces "Meta-Summary")
+            "Key Excerpts": "",  # Combined summary (replaces "Meta-Summary")
             # Backward compatibility keys
             "Meta-Summary": "",
             "Rare Word List (CSV)": [],
@@ -328,7 +328,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
                 self._document_panel.show_find_bar()
             elif active_tab == "Search":
                 self._qa_panel.show_find_bar()
-            elif active_tab == "Key Sentences":
+            elif active_tab == "Key Excerpts":
                 self._summary_find_bar.show()
             # Names & Vocab tab has its own filter bar — no-op
             return "break"
@@ -447,7 +447,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
 
     def update_key_sentences(self, sentences: list[dict]):
         """
-        Display key sentences in the Key Sentences tab with card-style formatting.
+        Display key excerpts in the Key Excerpts tab with card-style formatting.
 
         Each sentence is displayed as a styled card with source attribution,
         visually consistent with the Search tab layout.
@@ -468,8 +468,8 @@ class DynamicOutputWidget(ctk.CTkFrame):
             text = sent.get("text", "")
             source = sent.get("source_file", "")
 
-            # Sentence header
-            self.summary_text_display.insert("end", f"Sentence {i}:\n", "question")
+            # Excerpt header
+            self.summary_text_display.insert("end", f"Excerpt {i}:\n", "question")
             self.summary_text_display.insert("end", f"{text}\n\n", "citation")
 
             # Source attribution
@@ -483,7 +483,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
 
         self.summary_text_display.configure(state="disabled")
         self.show_summary_content()
-        logger.debug("Displayed %d key sentences in Key Sentences tab", len(sentences))
+        logger.debug("Displayed %d key excerpts in Key Excerpts tab", len(sentences))
 
     def show_document_preview(self, result):
         """
@@ -1163,7 +1163,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
         self._outputs = {
             "Names & Vocabulary": [],  # Primary output
             "Search": [],  # Q&A results
-            "Key Sentences": "",  # Combined summary
+            "Key Excerpts": "",  # Combined summary
             # Backward compatibility keys
             "Meta-Summary": "",
             "Rare Word List (CSV)": [],
@@ -1225,15 +1225,15 @@ class DynamicOutputWidget(ctk.CTkFrame):
         if names_vocab_data is not None:
             self._outputs["Names & Vocabulary"] = names_vocab_data
         if summary_text:
-            self._outputs["Key Sentences"] = summary_text
+            self._outputs["Key Excerpts"] = summary_text
         if extraction_source:
             self._extraction_source = extraction_source
 
         # Legacy support
         if meta_summary:
             self._outputs["Meta-Summary"] = meta_summary
-            if not self._outputs.get("Key Sentences"):
-                self._outputs["Key Sentences"] = meta_summary
+            if not self._outputs.get("Key Excerpts"):
+                self._outputs["Key Excerpts"] = meta_summary
         if vocab_csv_data is not None:
             self._outputs["Rare Word List (CSV)"] = vocab_csv_data
             if self._outputs.get("Names & Vocabulary") is None:
@@ -1268,8 +1268,8 @@ class DynamicOutputWidget(ctk.CTkFrame):
         if qa_data:
             self._display_qa_results(qa_data)
 
-        # Key Sentences tab
-        summary = self._outputs.get("Key Sentences") or self._outputs.get("Meta-Summary")
+        # Key Excerpts tab
+        summary = self._outputs.get("Key Excerpts") or self._outputs.get("Meta-Summary")
         if summary:
             self.summary_text_display.delete("0.0", "end")
             self.summary_text_display.insert("0.0", summary)
@@ -1294,7 +1294,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
             has_qa = bool(qa_data)
             has_summary = bool(summary) or bool(self._document_summaries)
             stay_on_current = (current_tab == "Search" and has_qa) or (
-                current_tab == "Key Sentences" and has_summary
+                current_tab == "Key Excerpts" and has_summary
             )
             if not stay_on_current:
                 self.tabview.set("Vocabulary")
@@ -2397,7 +2397,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
             if self._qa_panel is not None:
                 return self._qa_panel.get_export_content()
             return ""
-        elif current_tab == "Key Sentences":
+        elif current_tab == "Key Excerpts":
             # Return text from summary display
             return self.summary_text_display.get("0.0", "end").strip()
         return ""
@@ -2433,8 +2433,8 @@ class DynamicOutputWidget(ctk.CTkFrame):
                 main_window.set_status(
                     f"Copied {len(filtered_data)} terms to clipboard", duration_ms=5000
                 )
-            elif current_tab == "Key Sentences":
-                main_window.set_status("Copied key sentences to clipboard", duration_ms=5000)
+            elif current_tab == "Key Excerpts":
+                main_window.set_status("Copied key excerpts to clipboard", duration_ms=5000)
         else:
             messagebox.showwarning("Empty", "No content to copy.")
 
@@ -2456,7 +2456,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
         elif current_tab == "Search":
             default_filename = "qa_results.txt"
             filetypes = [("Text Files", "*.txt"), ("All Files", "*.*")]
-        elif current_tab == "Key Sentences":
+        elif current_tab == "Key Excerpts":
             default_filename = "summary.txt"
             filetypes = [("Text Files", "*.txt"), ("All Files", "*.*")]
 
@@ -2516,8 +2516,8 @@ class DynamicOutputWidget(ctk.CTkFrame):
                 )
             elif current_tab == "Search":
                 main_window.set_status(f"Saved search results to {filename}", duration_ms=5000)
-            elif current_tab == "Key Sentences":
-                main_window.set_status(f"Saved key sentences to {filename}", duration_ms=5000)
+            elif current_tab == "Key Excerpts":
+                main_window.set_status(f"Saved key excerpts to {filename}", duration_ms=5000)
 
     def _export_vocab(self, format_key: str):
         """

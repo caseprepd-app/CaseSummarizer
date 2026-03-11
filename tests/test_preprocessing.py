@@ -8,10 +8,10 @@ from src.core.preprocessing import (
     HeaderFooterRemover,
     LineNumberRemover,
     PreprocessingPipeline,
-    QAConverter,
     TitlePageRemover,
     create_default_pipeline,
 )
+from src.deprecated.qa_converter import QAConverter
 
 
 class TestLineNumberRemover:
@@ -354,13 +354,12 @@ class TestPreprocessingPipeline:
         """Should create pipeline with multiple preprocessors."""
         pipeline = create_default_pipeline()
 
-        # 7 preprocessors: TitlePage, IndexPage, HeaderFooter, LineNumber, PageBoundary, Transcript, QA
-        assert len(pipeline.preprocessors) == 7
+        # 6 preprocessors: TitlePage, IndexPage, HeaderFooter, LineNumber, PageBoundary, Transcript
+        assert len(pipeline.preprocessors) == 6
         assert any(p.name == "Index Page Remover" for p in pipeline.preprocessors)
         assert any(p.name == "Line Number Remover" for p in pipeline.preprocessors)
         assert any(p.name == "Page Boundary Cleaner" for p in pipeline.preprocessors)
         assert any(p.name == "Transcript Cleaner" for p in pipeline.preprocessors)
-        assert any(p.name == "Q/A Converter" for p in pipeline.preprocessors)
 
     def test_pipeline_processes_in_order(self):
         """Should process text through all preprocessors in order."""
@@ -368,9 +367,8 @@ class TestPreprocessingPipeline:
         text = "1  Q.  Good morning.\n2  A.  Good morning."
         result = pipeline.process(text)
 
-        # Line numbers removed AND Q/A converted
-        assert "Question:" in result
-        assert "Answer:" in result
+        # Line numbers removed, Q/A notation preserved (QAConverter removed)
+        assert "Q." in result or "Good morning." in result
         assert "1  Q." not in result
 
     def test_pipeline_tracks_total_changes(self):
@@ -379,8 +377,8 @@ class TestPreprocessingPipeline:
         text = "1  Q.  What happened?\n2  A.  I saw it."
         pipeline.process(text)
 
-        # Should have changes from both LineNumberRemover and QAConverter
-        assert pipeline.total_changes >= 4  # 2 line numbers + 2 Q/A conversions
+        # Should have changes from LineNumberRemover (QAConverter removed)
+        assert pipeline.total_changes >= 2  # 2 line numbers
 
     def test_disabled_preprocessors_skipped(self):
         """Should skip disabled preprocessors."""
@@ -418,4 +416,4 @@ class TestPreprocessingPipeline:
 
         stats = pipeline.get_stats()
         assert isinstance(stats, dict)
-        assert any("Q/A Converter" in name for name in stats)
+        assert any("Transcript Cleaner" in name for name in stats)

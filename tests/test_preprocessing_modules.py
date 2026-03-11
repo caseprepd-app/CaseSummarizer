@@ -11,7 +11,7 @@ class TestQAConverter:
     """QAConverter transforms Q/A markers into full labels."""
 
     def _make(self):
-        from src.core.preprocessing.qa_converter import QAConverter
+        from src.deprecated.qa_converter import QAConverter
 
         return QAConverter()
 

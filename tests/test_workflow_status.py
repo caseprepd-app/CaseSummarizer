@@ -107,13 +107,13 @@ class TestQATabStatus:
 
 
 class TestSummaryTabStatus:
-    """Test Key Sentences tab status messages."""
+    """Test Key Excerpts tab status messages."""
 
-    def test_idle_shows_key_sentences_message(self):
-        """When idle, show key sentences will appear message."""
+    def test_idle_shows_key_excerpts_message(self):
+        """When idle, show key excerpts will appear message."""
         config = TabStatusConfig()
         msg = get_summary_tab_status(WorkflowPhase.IDLE, config)
-        assert "Key sentences" in msg
+        assert "Key excerpts" in msg
         assert "processed" in msg
 
     def test_extracting_docs_phase(self):
@@ -123,11 +123,11 @@ class TestSummaryTabStatus:
         assert "Extracting" in msg
 
     def test_vocab_running_phase(self):
-        """During vocab extraction, mention key sentences will follow."""
+        """During vocab extraction, mention key excerpts will follow."""
         config = TabStatusConfig()
         msg = get_summary_tab_status(WorkflowPhase.VOCAB_RUNNING, config)
         assert "Vocabulary extraction" in msg
-        assert "Key sentences" in msg
+        assert "Key excerpts" in msg
 
     def test_qa_indexing_phase(self):
         """During search indexing, show building index message."""
@@ -136,10 +136,10 @@ class TestSummaryTabStatus:
         assert "search index" in msg.lower() or "Building" in msg
 
     def test_qa_answering_phase(self):
-        """During search answering, mention key sentences coming soon."""
+        """During search answering, mention key excerpts coming soon."""
         config = TabStatusConfig()
         msg = get_summary_tab_status(WorkflowPhase.QA_ANSWERING, config)
-        assert "Key sentences" in msg or "searches" in msg
+        assert "Key excerpts" in msg or "searches" in msg
 
     def test_complete_phase(self):
         """When complete, show complete message."""

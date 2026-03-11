@@ -1,17 +1,15 @@
 """
-Key Sentences Extraction via K-Means Clustering
+Key Excerpts Extraction via K-Means Clustering
 
-Extracts the most representative sentences from a document set using
+Extracts the most representative passages from a document set using
 semantic embeddings and K-means clustering. Each cluster represents a
-distinct topic; the sentence closest to each centroid is selected.
+distinct topic; the passage closest to each centroid is selected.
 
-Algorithm:
-1. Split documents into sentences (nupunkt, legal-aware)
-2. Filter out short/long/boilerplate sentences
-3. Embed all sentences using the already-loaded embedding model
-4. 3-voter ensemble picks optimal K from the embeddings themselves
-5. K-means cluster into K groups, select closest to each centroid
-6. Return sentences in document-position order
+Two modes:
+- extract_key_passages(): Reuses pre-computed chunk embeddings from FAISS
+  (no re-splitting or re-embedding). Preferred.
+- extract_key_sentences(): Legacy — re-splits and re-embeds from scratch.
+  Kept for backward compatibility.
 
 No new dependencies — uses scikit-learn KMeans already in the venv.
 """
@@ -65,6 +63,80 @@ def compute_sentence_count(total_pages: int) -> int:
     """
     k = max(5, total_pages // 5)
     return min(k, 15)
+
+
+def extract_key_passages(
+    chunk_texts: list[str],
+    chunk_embeddings: np.ndarray,
+    chunk_metadata: list[dict],
+    n: int | None = None,
+    total_pages: int = 0,
+) -> list[KeySentence]:
+    """
+    Extract the most representative passages from pre-computed chunk data.
+
+    Reuses chunk embeddings from FAISS vector store — no re-splitting or
+    re-embedding needed. Chunks (after recursive sentence splitting) naturally
+    contain speaker turns and Q&A context.
+
+    Args:
+        chunk_texts: List of chunk text strings
+        chunk_embeddings: (num_chunks, embedding_dim) array from FAISS builder
+        chunk_metadata: List of dicts with 'source_file' and 'chunk_num'
+        n: Number of key passages. If None, auto-scales with page count.
+        total_pages: Total pages across all documents (for auto-scaling K).
+
+    Returns:
+        List of KeySentence objects sorted by chunk position.
+    """
+    if not chunk_texts or len(chunk_embeddings) == 0:
+        logger.warning("No chunk data for key passages extraction")
+        return []
+
+    embeddings_array = np.array(chunk_embeddings, dtype=np.float32)
+    logger.debug("Key passages: %d chunks provided", len(chunk_texts))
+
+    # Filter out very short chunks (< 3 words)
+    valid_indices = []
+    for i, text in enumerate(chunk_texts):
+        if len(text.split()) >= 3:
+            valid_indices.append(i)
+
+    if not valid_indices:
+        logger.warning("No valid chunks after filtering")
+        return []
+
+    filtered_texts = [chunk_texts[i] for i in valid_indices]
+    filtered_embeddings = embeddings_array[valid_indices]
+    filtered_metadata = [chunk_metadata[i] for i in valid_indices]
+
+    # Determine K — use 3-voter ensemble or explicit override
+    if n is None:
+        from src.core.summarization.k_selection import select_k
+
+        fallback_k = compute_sentence_count(total_pages)
+        n = select_k(filtered_embeddings, fallback_k)
+    n = min(n, len(filtered_texts))
+
+    # Cluster and select
+    selected_indices = _cluster_and_select(filtered_embeddings, n)
+
+    # Build result sorted by chunk position
+    results = []
+    for idx in selected_indices:
+        meta = filtered_metadata[idx]
+        results.append(
+            KeySentence(
+                text=filtered_texts[idx],
+                source_file=meta.get("source_file", "unknown"),
+                position=meta.get("chunk_num", idx),
+                score=0.0,
+            )
+        )
+
+    results.sort(key=lambda s: s.position)
+    logger.debug("Key passages: returning %d passages", len(results))
+    return results
 
 
 def extract_key_sentences(

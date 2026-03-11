@@ -56,7 +56,6 @@ class DocumentService:
                 "preprocess_line_numbers",
                 "preprocess_page_boundaries",
                 "preprocess_transcript_artifacts",
-                "preprocess_qa_notation",
             ]
             return {k: prefs.get(k, True) for k in keys}
         except Exception as e:

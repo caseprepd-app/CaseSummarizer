@@ -891,20 +891,11 @@ class TestSemanticChunkerModelBundling:
         finally:
             sys.path.pop(0)
 
-    def test_unified_chunker_uses_bundled_path(self):
-        """UnifiedChunker resolves to bundled model path when available."""
-        from src.config import SEMANTIC_CHUNKER_MODEL_LOCAL_PATH
+    def test_unified_chunker_no_longer_uses_semantic_model(self):
+        """UnifiedChunker no longer loads a separate semantic chunker model."""
+        import src.core.chunking.unified_chunker as uc
 
-        with patch.object(
-            type(SEMANTIC_CHUNKER_MODEL_LOCAL_PATH),
-            "exists",
-            return_value=True,
-        ):
-            # Re-evaluate the module-level variable
-            import src.core.chunking.unified_chunker as uc
-
-            # The module should prefer local path when it exists
-            assert hasattr(uc, "_SEMANTIC_CHUNKER_MODEL")
+        assert not hasattr(uc, "_SEMANTIC_CHUNKER_MODEL")
 
 
 # ============================================================================

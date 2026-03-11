@@ -85,13 +85,12 @@ def mock_orchestrator():
 class TestRetrieveForQuestion:
     """Test QAOrchestrator.retrieve_for_question() (phase 1)."""
 
-    def test_returns_partial_result_with_placeholder_answer(self, mock_orchestrator):
+    def test_returns_result_with_empty_answer(self, mock_orchestrator):
         orch, _, _ = mock_orchestrator
-        from src.core.qa.qa_constants import PENDING_GENERATION_TEXT
 
         result = orch.retrieve_for_question("Who is the plaintiff?")
 
-        assert result.quick_answer == PENDING_GENERATION_TEXT
+        assert result.quick_answer == ""
         assert result.is_followup is True
 
     def test_citation_is_populated(self, mock_orchestrator):
@@ -116,14 +115,6 @@ class TestRetrieveForQuestion:
 
         assert result.source_summary == "complaint.pdf, page 1"
 
-    def test_stashes_retrieval_context(self, mock_orchestrator):
-        orch, _, _ = mock_orchestrator
-
-        result = orch.retrieve_for_question("Who is the plaintiff?")
-
-        assert hasattr(result, "_retrieval_context")
-        assert result._retrieval_context is not None
-
     def test_low_quality_retrieval_returns_unanswered(self, mock_orchestrator):
         """When retrieval quality is below gate, return unanswered immediately."""
         orch, mock_retriever, _ = mock_orchestrator
@@ -138,40 +129,28 @@ class TestRetrieveForQuestion:
         result = orch.retrieve_for_question("Something irrelevant?")
 
         assert result.quick_answer == UNANSWERED_TEXT
-        assert result._retrieval_context is None
         assert result.confidence == 0.0
 
 
 class TestGenerateAnswerForResult:
-    """Test QAOrchestrator.generate_answer_for_result() (phase 2)."""
+    """Test QAOrchestrator.generate_answer_for_result() is a no-op."""
 
-    def test_fills_in_quick_answer(self, mock_orchestrator):
-        orch, _, mock_gen = mock_orchestrator
-        mock_gen.generate.return_value = "John Smith is the plaintiff."
-
-        partial = orch.retrieve_for_question("Who is the plaintiff?")
-        final = orch.generate_answer_for_result(partial)
-
-        assert final.quick_answer == "John Smith is the plaintiff."
-
-    def test_cleans_up_retrieval_context(self, mock_orchestrator):
+    def test_returns_result_unchanged(self, mock_orchestrator):
+        """generate_answer_for_result is a no-op (answer generation removed)."""
         orch, _, _ = mock_orchestrator
 
         partial = orch.retrieve_for_question("Who is the plaintiff?")
-        assert hasattr(partial, "_retrieval_context")
-
         final = orch.generate_answer_for_result(partial)
 
-        assert not hasattr(final, "_retrieval_context")
+        assert final is partial  # Same object, unchanged
 
-    def test_no_context_returns_as_is(self, mock_orchestrator):
-        """If _retrieval_context is None, return result unchanged."""
+    def test_unanswered_returns_as_is(self, mock_orchestrator):
+        """Unanswered results pass through unchanged."""
         orch, _, _ = mock_orchestrator
         from src.core.qa.qa_constants import UNANSWERED_TEXT
         from src.core.qa.qa_orchestrator import QAResult
 
         result = QAResult(question="test", quick_answer=UNANSWERED_TEXT)
-        result._retrieval_context = None
 
         returned = orch.generate_answer_for_result(result)
 
@@ -235,25 +214,23 @@ class TestQAServicePassthrough:
 
 
 class TestAskSingleQuestionUnchanged:
-    """Verify _ask_single_question still works as before (not broken)."""
+    """Verify _ask_single_question still works (answer generation removed)."""
 
-    def test_ask_single_question_returns_full_result(self, mock_orchestrator):
-        orch, _, mock_gen = mock_orchestrator
-        mock_gen.generate.return_value = "The answer is 42."
+    def test_ask_single_question_returns_result(self, mock_orchestrator):
+        orch, _, _ = mock_orchestrator
 
         result = orch._ask_single_question("What is the answer?", is_followup=True)
 
-        assert result.quick_answer == "The answer is 42."
+        assert result.quick_answer == ""  # No answer generation
         assert result.citation  # populated
         assert result.is_followup is True
 
     def test_ask_followup_still_works(self, mock_orchestrator):
-        orch, _, mock_gen = mock_orchestrator
-        mock_gen.generate.return_value = "Follow-up answer."
+        orch, _, _ = mock_orchestrator
 
         result = orch.ask_followup("Follow-up question?")
 
-        assert result.quick_answer == "Follow-up answer."
+        assert result.quick_answer == ""  # No answer generation
         assert result in orch.results
 
 
@@ -267,20 +244,11 @@ class TestFollowupThreadMessages:
 
     def test_successful_flow_sends_retrieval_then_success(self):
         """Thread should send retrieval_done then success."""
-        from src.core.qa.qa_constants import PENDING_GENERATION_TEXT
         from src.core.qa.qa_orchestrator import QAResult
 
         partial = QAResult(
             question="test",
-            quick_answer=PENDING_GENERATION_TEXT,
-            citation="Some citation",
-            is_followup=True,
-        )
-        partial._retrieval_context = "raw context"
-
-        final = QAResult(
-            question="test",
-            quick_answer="The real answer.",
+            quick_answer="",
             citation="Some citation",
             is_followup=True,
         )
@@ -294,9 +262,8 @@ class TestFollowupThreadMessages:
             mock_svc = MockSvc.return_value
             mock_svc.create_orchestrator.return_value = MagicMock()
             mock_svc.retrieve_for_followup.return_value = partial
-            mock_svc.generate_answer_for_followup.return_value = final
-            mock_svc.get_placeholder_texts.return_value = {"ollama_unavailable": "unavail"}
-            MockPrefs.return_value.get.return_value = "ollama"
+            mock_svc.generate_answer_for_followup.return_value = partial
+            MockPrefs.return_value.get.return_value = "extraction"
 
             # Simulate the followup thread body from main_window
             def run():
@@ -308,21 +275,13 @@ class TestFollowupThreadMessages:
                 orchestrator = qa_service.create_orchestrator(
                     vector_store_path="fake",
                     embeddings=MagicMock(),
-                    answer_mode=prefs.get("qa_answer_mode", "ollama"),
+                    answer_mode=prefs.get("qa_answer_mode", "extraction"),
                 )
                 p = qa_service.retrieve_for_followup(orchestrator, "test")
                 result_queue.put(("retrieval_done", p))
 
-                if p._retrieval_context is None:
-                    result_queue.put(("success", p))
-                    return
-
                 f = qa_service.generate_answer_for_followup(orchestrator, p)
-                ollama_text = qa_service.get_placeholder_texts()["ollama_unavailable"]
-                if f.quick_answer == ollama_text:
-                    result_queue.put(("no_ollama", f))
-                else:
-                    result_queue.put(("success", f))
+                result_queue.put(("success", f))
 
             t = threading.Thread(target=run)
             t.start()

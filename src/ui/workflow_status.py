@@ -1,7 +1,7 @@
 """
 Workflow Status Messages for Tab Displays
 
-Provides centralized status message logic for Search and Key Sentences tabs.
+Provides centralized status message logic for Search and Key Excerpts tabs.
 These messages reflect workflow progress, avoiding duplication between tabs
 and the status bar (DRY principle).
 
@@ -84,19 +84,19 @@ def get_qa_tab_status(phase: WorkflowPhase, config: TabStatusConfig) -> str:
 
 def get_summary_tab_status(phase: WorkflowPhase, config: TabStatusConfig) -> str:
     """
-    Get the status message to display in the Key Sentences tab.
+    Get the status message to display in the Key Excerpts tab.
 
-    Key sentences auto-generate after search indexing — no user action needed.
+    Key excerpts auto-generate after search indexing — no user action needed.
 
     Args:
         phase: Current workflow phase
         config: Which features are enabled
 
     Returns:
-        Status message string for the Key Sentences tab placeholder area
+        Status message string for the Key Excerpts tab placeholder area
     """
     if phase == WorkflowPhase.IDLE:
-        return "Key sentences will appear here after documents are processed."
+        return "Key excerpts will appear here after documents are processed."
 
     if phase == WorkflowPhase.EXTRACTING_DOCS:
         return "Extracting text from documents..."
@@ -104,14 +104,14 @@ def get_summary_tab_status(phase: WorkflowPhase, config: TabStatusConfig) -> str
     if phase == WorkflowPhase.VOCAB_RUNNING:
         return (
             "Vocabulary extraction in progress...\n\n"
-            "Key sentences will follow after search indexing."
+            "Key excerpts will follow after search indexing."
         )
 
     if phase == WorkflowPhase.QA_INDEXING:
-        return "Building search index... Key sentences will follow."
+        return "Building search index... Key excerpts will follow."
 
     if phase == WorkflowPhase.QA_ANSWERING:
-        return "Running searches... Key sentences will appear shortly."
+        return "Running searches... Key excerpts will appear shortly."
 
     if phase == WorkflowPhase.COMPLETE:
         return "Processing complete."

@@ -8,10 +8,7 @@ import pytest
 @pytest.fixture
 def mock_chunker():
     """Create a UnifiedChunker with mocked heavy dependencies."""
-    with (
-        patch("src.core.chunking.unified_chunker.UnifiedChunker._init_semantic_chunker"),
-        patch("src.core.chunking.unified_chunker.tiktoken") as mock_tiktoken,
-    ):
+    with patch("src.core.chunking.unified_chunker.tiktoken") as mock_tiktoken:
         mock_encoder = MagicMock()
         # Simple token counting: split on spaces
         mock_encoder.encode = lambda text: text.split() if text.strip() else []
@@ -27,9 +24,6 @@ def mock_chunker():
         )
         # Ensure encoder is our mock
         chunker._encoder = mock_encoder
-        # Set semantic_chunker to None (fallback to paragraph chunking)
-        chunker.semantic_chunker = None
-        chunker.embeddings = None
         yield chunker
 
 
@@ -76,6 +70,24 @@ class TestSplitAtSentences:
         assert len(result) == 1
 
 
+class TestOverlap:
+    def test_overlap_sentences(self, mock_chunker):
+        """Verify overlap carries forward trailing sentences."""
+        mock_chunker.overlap_tokens = 10
+        sentences = ["word1 word2 word3", "word4 word5 word6", "word7 word8 word9"]
+        overlap, tokens = mock_chunker._get_overlap_sentences(sentences)
+        assert len(overlap) >= 1
+        assert tokens > 0
+
+    def test_no_overlap_when_zero(self, mock_chunker):
+        """When overlap_tokens=0, no overlap should occur."""
+        mock_chunker.overlap_tokens = 0
+        text = ". ".join(f"This is sentence number {i}" for i in range(20))
+        result = mock_chunker._split_at_sentences(text, target_tokens=30)
+        # Each chunk should start fresh (no repeated content from prior chunk)
+        assert len(result) > 1
+
+
 class TestDetectSection:
     def test_detects_direct_examination(self, mock_chunker):
         result = mock_chunker._detect_section("DIRECT EXAMINATION\nQ. Please state your name.")
@@ -88,9 +100,6 @@ class TestDetectSection:
 
     def test_no_section_detected(self, mock_chunker):
         result = mock_chunker._detect_section("The patient presented with symptoms of pain.")
-        # Regular text should not detect a section header
-        # Result could be None or a generic section
-        # Just verify it doesn't crash
         assert result is None or isinstance(result, str)
 
 

@@ -133,7 +133,7 @@ class TestQAPanelDeadCodeRemoved:
 
 
 class TestTabNameRenames:
-    """Tab names are 'Vocabulary', 'Search', 'Key Sentences'."""
+    """Tab names are 'Vocabulary', 'Search', 'Key Excerpts'."""
 
     @pytest.fixture(autouse=True)
     def _load(self):
@@ -147,9 +147,9 @@ class TestTabNameRenames:
         """'Search' tab is added."""
         assert 'tabview.add("Search")' in self.dyn
 
-    def test_key_sentences_tab_exists(self):
-        """'Key Sentences' tab is added."""
-        assert 'tabview.add("Key Sentences")' in self.dyn
+    def test_key_excerpts_tab_exists(self):
+        """'Key Excerpts' tab is added."""
+        assert 'tabview.add("Key Excerpts")' in self.dyn
 
     def test_no_old_names_and_vocab_tab(self):
         """Old 'Names & Vocab' tab name is gone."""

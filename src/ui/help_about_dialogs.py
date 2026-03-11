@@ -206,7 +206,7 @@ STEP 5: REVIEW & EXPORT
 Results appear in tabs:
 - Vocabulary: Table of extracted terms
 - Semantic Search: Search results and follow-up input
-- Key Sentences: Important sentences extracted from your documents
+- Key Excerpts: Representative passages extracted from your documents
 
 Export your results to Word, PDF, CSV, or other formats.
 
