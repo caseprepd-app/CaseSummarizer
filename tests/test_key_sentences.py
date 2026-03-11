@@ -315,8 +315,8 @@ class TestExtractKeySentences:
         results = extract_key_sentences(docs, model, n=5)
         assert results == []
 
-    def test_auto_k_scaling(self):
-        """When n is None, K should scale with page count."""
+    def test_auto_k_uses_voter(self):
+        """When n is None, K is chosen by 3-voter ensemble, not page count."""
         # Create a document with many sentences
         sentences = [
             f"Sentence number {i} contains enough words to pass the filter easily."
@@ -326,9 +326,10 @@ class TestExtractKeySentences:
             {
                 "filename": "big.pdf",
                 "preprocessed_text": " ".join(sentences),
-                "page_count": 75,  # Should give K = 15 (75/5 = 15, capped at 15)
+                "page_count": 75,
             }
         ]
         model = self._make_mock_model()
-        results = extract_key_sentences(docs, model)  # n=None
-        assert len(results) == 15
+        results = extract_key_sentences(docs, model)  # n=None, voter picks K
+        # Voter determines K from content, not page count
+        assert 2 <= len(results) <= 15

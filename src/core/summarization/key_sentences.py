@@ -9,8 +9,8 @@ Algorithm:
 1. Split documents into sentences (nupunkt, legal-aware)
 2. Filter out short/long/boilerplate sentences
 3. Embed all sentences using the already-loaded embedding model
-4. K-means cluster into K groups (K scales with document length)
-5. Select the sentence closest to each cluster centroid
+4. 3-voter ensemble picks optimal K from the embeddings themselves
+5. K-means cluster into K groups, select closest to each centroid
 6. Return sentences in document-position order
 
 No new dependencies — uses scikit-learn KMeans already in the venv.
@@ -120,11 +120,6 @@ def extract_key_sentences(
         logger.warning("No valid sentences after filtering")
         return []
 
-    # Determine K
-    if n is None:
-        n = compute_sentence_count(total_pages)
-    n = min(n, len(filtered))
-
     # Embed all filtered sentences
     texts = [s["text"] for s in filtered]
     try:
@@ -133,6 +128,14 @@ def extract_key_sentences(
     except Exception as e:
         logger.error("Key sentences embedding failed: %s", e, exc_info=True)
         return []
+
+    # Determine K — use 3-voter ensemble or explicit override
+    if n is None:
+        from src.core.summarization.k_selection import select_k
+
+        fallback_k = compute_sentence_count(total_pages)
+        n = select_k(embeddings_array, fallback_k)
+    n = min(n, len(filtered))
 
     # Cluster and select
     selected_indices = _cluster_and_select(embeddings_array, n)
