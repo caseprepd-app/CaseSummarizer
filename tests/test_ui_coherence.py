@@ -167,10 +167,10 @@ class TestQAPanelCoherence:
         text = _read("src/ui/qa_panel.py")
         assert "Edit Default Questions" not in text
 
-    def test_edit_questions_points_to_settings_qa(self):
-        """Fallback message directs to Settings > Q&A."""
+    def test_edit_questions_points_to_settings_search(self):
+        """Fallback message directs to Settings > Search."""
         text = _read("src/ui/qa_panel.py")
-        assert "Settings > Q&A" in text
+        assert "Settings > Search" in text
 
 
 # =========================================================================

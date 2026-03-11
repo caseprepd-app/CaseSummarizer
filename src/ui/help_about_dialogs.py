@@ -136,7 +136,7 @@ WHAT DOES IT DO?
    Automatically identifies names (parties, witnesses, doctors, attorneys) and technical terms (medical, legal, specialized vocabulary) that you'll need to know for accurate transcription.
 
 2. SEMANTIC SEARCH
-   Ask questions about your documents and get answers with source citations. Perfect for quickly finding specific information or creating handoff documents for colleagues.
+   Search your documents by meaning and get answers with source citations. Perfect for quickly finding specific information or creating handoff documents for colleagues.
 
 3. KEY SENTENCES
    Automatically extracts the most important sentences from your case documents, giving you a quick overview of the key facts and details.
@@ -252,11 +252,11 @@ Use the thumbs up/down buttons to rate terms. {APP_NAME} learns your preferences
 
 SEMANTIC SEARCH
 
-Default Questions:
-{APP_NAME} comes with pre-configured questions common to legal cases. You can customize these in Settings > Q&A tab.
+Default Searches:
+{APP_NAME} comes with pre-configured searches common to legal cases. You can customize these in Settings > Search tab.
 
-Follow-Up Questions:
-After processing, type any question in the input box at the bottom of the Semantic Search tab. {APP_NAME} searches your documents and provides answers with source citations.
+Follow-Up Searches:
+After processing, type any search in the input box at the bottom of the Search tab. {APP_NAME} searches your documents and provides answers with source citations.
 
 ---
 
@@ -318,8 +318,8 @@ VOCABULARY EXTRACTION
 - Build your corpus over time for better case-specific detection
 
 SEMANTIC SEARCH
-- Be specific in your questions for better answers
-- Use follow-up questions to drill down into details
+- Be specific in your searches for better results
+- Use follow-up searches to drill down into details
 - Check the source citations to verify answers
 
 PERFORMANCE

@@ -206,7 +206,7 @@ class QAPanel(ctk.CTkFrame):
         for i, result in enumerate(results, 1):
             # Question number and text - use different tag for defaults
             question_tag = "question_default" if result.is_default_question else "question"
-            self.text_display.insert("end", f"Question {i}:\n", question_tag)
+            self.text_display.insert("end", f"Search {i}:\n", question_tag)
             self.text_display.insert("end", f"{result.question}\n\n", "answer")
 
             # Answer section with verification if available
@@ -340,7 +340,7 @@ class QAPanel(ctk.CTkFrame):
         self.text_display.insert(
             "end",
             "Retrieval = How semantically relevant the retrieved document "
-            "chunks are to the question\n",
+            "chunks are to the search query\n",
             "score_detail",
         )
 
@@ -353,7 +353,7 @@ class QAPanel(ctk.CTkFrame):
         self.display_results(self._results)
 
     def _on_edit_click(self):
-        """Handle Edit Questions button click."""
+        """Handle Edit Searches button click."""
         if self._edit_dialog_open:
             return
         if self.on_edit_questions:
@@ -364,8 +364,8 @@ class QAPanel(ctk.CTkFrame):
                 self._edit_dialog_open = False
         else:
             messagebox.showinfo(
-                "Edit Questions",
-                "You can edit default questions in Settings > Q&A",
+                "Edit Searches",
+                "You can edit default searches in Settings > Search",
             )
 
     def _export_qa(self, format_key: str):

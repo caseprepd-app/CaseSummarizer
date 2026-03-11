@@ -82,17 +82,17 @@ class TestProgressHandler:
         call_args = stub.set_status.call_args[0][0]
         assert "(searching documents...)" in call_args
 
-    def test_no_search_note_when_message_mentions_question(self):
-        """Don't append search note if message already mentions questions."""
+    def test_no_search_note_when_message_mentions_search(self):
+        """Don't append search note if message already mentions search."""
         stub = _make_stub()
         stub._processing_active = True
         stub._qa_ready = True
-        _call_handler(stub, "progress", (75, "Answering question 2/5"))
+        _call_handler(stub, "progress", (75, "Running search 2/5..."))
         call_args = stub.set_status.call_args[0][0]
         assert "(searching documents...)" not in call_args
 
-    def test_no_search_note_when_message_mentions_search(self):
-        """Don't append search note if message already mentions Search."""
+    def test_no_search_note_when_message_contains_search_capitalized(self):
+        """Don't append search note if message already mentions Search (capitalized)."""
         stub = _make_stub()
         stub._processing_active = True
         stub._qa_ready = True
@@ -368,7 +368,7 @@ class TestQAReadyHandler:
         stub.followup_btn.configure.assert_called_with(state="normal")
         stub.followup_entry.configure.assert_any_call(
             state="normal",
-            placeholder_text="Type your question here...",
+            placeholder_text="Search your documents...",
             placeholder_text_color="white",
         )
 
@@ -476,7 +476,7 @@ class TestTriggerDefaultQAStartedHandler:
         _call_handler(stub, "trigger_default_qa_started", {})
         stub.set_status.assert_called_once()
         msg = stub.set_status.call_args[0][0]
-        assert "question" in msg.lower()
+        assert "search" in msg.lower()
 
 
 # ---------------------------------------------------------------------------
@@ -502,12 +502,12 @@ class TestQAProgressHandler:
         assert "2/3" in call_args
 
     def test_last_question(self):
-        """qa_progress shows 'Answered N/N' on the last question."""
+        """qa_progress shows 'Completed N/N searches' on the last question."""
         stub = _make_stub()
         _call_handler(stub, "qa_progress", (4, 5, "Last question"))
         call_args = stub.set_status.call_args[0][0]
         assert "5/5" in call_args
-        assert "Answered" in call_args
+        assert "Completed" in call_args
 
 
 # ---------------------------------------------------------------------------

@@ -57,7 +57,7 @@ class QAQuestionEditor(BaseModalDialog):
         """
         super().__init__(
             parent=parent,
-            title="Edit Default Questions",
+            title="Edit Default Searches",
             width=700,
             height=500,
             min_width=500,
@@ -90,12 +90,12 @@ class QAQuestionEditor(BaseModalDialog):
         header = ctk.CTkFrame(self, fg_color="transparent")
         header.grid(row=0, column=0, sticky="ew", padx=10, pady=(10, 5))
 
-        title = ctk.CTkLabel(header, text="Default Questions", font=FONTS["heading_lg"])
+        title = ctk.CTkLabel(header, text="Default Searches", font=FONTS["heading_lg"])
         title.pack(side="left")
 
         description = ctk.CTkLabel(
             header,
-            text="These questions are asked automatically for every document.",
+            text="These searches run automatically for every document.",
             font=FONTS["small"],
             text_color=COLORS["text_secondary"],
         )
@@ -119,7 +119,7 @@ class QAQuestionEditor(BaseModalDialog):
         # Configure columns
         self.question_tree.heading("num", text="#", anchor="w")
         self.question_tree.heading("category", text="Category", anchor="w")
-        self.question_tree.heading("question", text="Question", anchor="w")
+        self.question_tree.heading("question", text="Search", anchor="w")
 
         self.question_tree.column("num", width=40, stretch=False)
         self.question_tree.column("category", width=120, stretch=False)
@@ -140,7 +140,7 @@ class QAQuestionEditor(BaseModalDialog):
         edit_frame.grid(row=2, column=0, sticky="ew", padx=10, pady=5)
 
         self.add_btn = ctk.CTkButton(
-            edit_frame, text="+ Add Question", command=self._add_question, width=120
+            edit_frame, text="+ Add Search", command=self._add_question, width=120
         )
         self.add_btn.pack(side="left", padx=(0, 5))
 
@@ -237,7 +237,7 @@ class QAQuestionEditor(BaseModalDialog):
         self._original_questions = copy.deepcopy(self._questions)
 
         self._refresh_list()
-        self.status_label.configure(text=f"{len(self._questions)} questions loaded")
+        self.status_label.configure(text=f"{len(self._questions)} searches loaded")
 
     def _refresh_list(self):
         """Refresh the Treeview with current questions."""
@@ -250,34 +250,34 @@ class QAQuestionEditor(BaseModalDialog):
 
     def _add_question(self):
         """Add a new question."""
-        dialog = QuestionEditDialog(self, title="Add Question")
+        dialog = QuestionEditDialog(self, title="Add Search")
         self.wait_window(dialog)
 
         if dialog.result:
             self._questions.append(dialog.result)
             self._has_changes = True
             self._refresh_list()
-            self.status_label.configure(text="Question added (unsaved)")
+            self.status_label.configure(text="Search added (unsaved)")
 
     def _edit_selected(self):
         """Edit the selected question."""
         selection = self.question_tree.selection()
         if not selection:
-            messagebox.showinfo("Select Question", "Please select a question to edit.")
+            messagebox.showinfo("Select Search", "Please select a search to edit.")
             return
 
         try:
             index = int(selection[0])
             question = self._questions[index]
 
-            dialog = QuestionEditDialog(self, title="Edit Question", question=question)
+            dialog = QuestionEditDialog(self, title="Edit Search", question=question)
             self.wait_window(dialog)
 
             if dialog.result:
                 self._questions[index] = dialog.result
                 self._has_changes = True
                 self._refresh_list()
-                self.status_label.configure(text="Question edited (unsaved)")
+                self.status_label.configure(text="Search edited (unsaved)")
 
         except (ValueError, IndexError):
             logger.debug("Invalid selection in edit: %s", selection)
@@ -288,10 +288,10 @@ class QAQuestionEditor(BaseModalDialog):
         """Delete the selected question."""
         selection = self.question_tree.selection()
         if not selection:
-            messagebox.showinfo("Select Question", "Please select a question to delete.")
+            messagebox.showinfo("Select Search", "Please select a search to delete.")
             return
 
-        if not messagebox.askyesno("Confirm Delete", "Delete this question?"):
+        if not messagebox.askyesno("Confirm Delete", "Delete this search?"):
             return
 
         try:
@@ -299,7 +299,7 @@ class QAQuestionEditor(BaseModalDialog):
             del self._questions[index]
             self._has_changes = True
             self._refresh_list()
-            self.status_label.configure(text="Question deleted (unsaved)")
+            self.status_label.configure(text="Search deleted (unsaved)")
 
         except (ValueError, IndexError):
             logger.debug("Invalid selection in delete: %s", selection)
@@ -354,8 +354,8 @@ class QAQuestionEditor(BaseModalDialog):
         """Reset questions to default values."""
         if not messagebox.askyesno(
             "Reset to Defaults",
-            "This will restore the original default questions.\n\n"
-            "Your custom questions will be lost. Continue?",
+            "This will restore the original default searches.\n\n"
+            "Your custom searches will be lost. Continue?",
         ):
             return
 
@@ -502,7 +502,7 @@ class QuestionEditDialog(ctk.CTkToplevel):
         self.category_entry.insert(0, self._question.get("category", "General"))
 
         # Question text
-        question_label = ctk.CTkLabel(self, text="Question:")
+        question_label = ctk.CTkLabel(self, text="Search query:")
         question_label.grid(row=2, column=0, sticky="w", padx=20, pady=(10, 5))
 
         self.question_entry = ctk.CTkTextbox(self, height=100, width=440)
@@ -529,7 +529,7 @@ class QuestionEditDialog(ctk.CTkToplevel):
         """Save and close dialog."""
         text = self.question_entry.get("0.0", "end").strip()
         if not text:
-            messagebox.showwarning("Required", "Please enter a question.")
+            messagebox.showwarning("Required", "Please enter a search query.")
             return
 
         self.result = {

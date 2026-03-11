@@ -106,6 +106,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         self._qa_ready = False  # Q&A becomes available after indexing
         self._qa_answering_active = False  # True while default Q&A questions are being answered
         self._qa_failed = False  # True when Q&A indexing fails (embedding model error, etc.)
+        self._key_sentences_pending = False  # True after qa_ready until key_sentences_result
         self._worker_ready_retries = 0  # Auto-retry counter for worker startup
 
         # Task tracking defaults (normally set in _perform_tasks, but init here
@@ -451,6 +452,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         self._qa_ready = False
         self._qa_answering_active = False
         self._qa_failed = False
+        self._key_sentences_pending = False
         self._qa_results.clear()
         self._vector_store_path = None
         if hasattr(self, "followup_btn"):
@@ -649,6 +651,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             self.set_status_error("Worker process crashed. Results may be incomplete.")
             self._preprocessing_active = False
             self._qa_answering_active = False
+            self._key_sentences_pending = False
             # Reset Q&A state so stale session data doesn't persist
             self._qa_ready = False
             self._qa_failed = False
@@ -666,8 +669,8 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
                 self._on_tasks_complete(False, "Worker process crashed")
             any_active = False
 
-        # Continue polling while processing is active or we got messages
-        if any_active or messages:
+        # Continue polling while processing is active, key sentences pending, or we got messages
+        if any_active or self._key_sentences_pending or messages:
             self._queue_poll_id = self.after(33, self._poll_queue)  # ~30fps
         else:
             self._queue_poll_id = None
@@ -683,7 +686,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             if not self._processing_active:
                 return
             # Append search status note if index is ready but answers haven't appeared yet
-            if self._qa_ready and "question" not in message.lower() and "Search" not in message:
+            if self._qa_ready and "search" not in message.lower():
                 message = f"{message} (searching documents...)"
             self.set_status(message)
 
@@ -789,15 +792,16 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             self._vector_store_path = data.get("vector_store_path")
             # Embeddings stay in worker subprocess (not picklable)
             self._qa_ready = True
+            self._key_sentences_pending = True  # Daemon thread extracting in subprocess
             # Enable question input whenever Q&A index is ready
             self.followup_btn.configure(state="normal")
             self.followup_entry.configure(
                 state="normal",
-                placeholder_text="Type your question here...",
+                placeholder_text="Search your documents...",
                 placeholder_text_color="white",
             )
             self.set_status(
-                f"Search index ready ({chunk_count} passages). Preparing to answer questions..."
+                f"Search index ready ({chunk_count} passages). Running default searches..."
             )
 
         elif msg_type == "qa_error":
@@ -831,7 +835,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             self._qa_answering_active = True
             if not self.ask_default_questions_check.get():
                 logger.debug("Default questions disabled, skipping display update")
-                self.set_status("Ready. Type a question below to search your documents.")
+                self.set_status("Ready. Type a search below to query your documents.")
             else:
                 # Update workflow phase for tab status
                 from src.ui.workflow_status import WorkflowPhase
@@ -845,9 +849,9 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             answered = current + 1
             logger.debug("Q&A progress: %s/%s", answered, total)
             if answered < total:
-                self.set_status(f"Answering question {answered + 1}/{total}...")
+                self.set_status(f"Running search {answered + 1}/{total}...")
             else:
-                self.set_status(f"Answered {answered}/{total} questions")
+                self.set_status(f"Completed {answered}/{total} searches")
 
         elif msg_type == "qa_result":
             # Individual Q&A result - add to results and update display
@@ -873,7 +877,8 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
                 self._finalize_tasks()
 
         elif msg_type == "key_sentences_result":
-            # Key sentences extracted via K-means clustering (fire-and-forget)
+            # Key sentences extracted via K-means clustering
+            self._key_sentences_pending = False
             if data:
                 self.output_display.update_key_sentences(data)
                 logger.debug("Key sentences displayed: %d sentences", len(data))
@@ -1194,6 +1199,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         self._qa_ready = False
         self._qa_answering_active = False
         self._qa_failed = False
+        self._key_sentences_pending = False
 
         # Set initial workflow phase for tab status messages
         from src.ui.workflow_status import WorkflowPhase
@@ -1222,7 +1228,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         result = messagebox.askyesno(
             "Stop Processing",
             "Are you sure you want to stop?\n\n"
-            "Completed results (vocabulary, answered questions) will be kept,\n"
+            "Completed results (vocabulary, search results) will be kept,\n"
             "but any work still in progress will be lost.",
             icon="warning",
         )
@@ -1369,17 +1375,17 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         # Display results using update_outputs
         if qa_results:
             self.output_display.update_outputs(qa_results=qa_results)
-            self.set_status(f"Semantic Search: {len(qa_results)} questions answered")
+            self.set_status(f"Semantic Search: {len(qa_results)} searches completed")
             # Enable follow-up question controls
             self.followup_btn.configure(state="normal")
             self.followup_entry.configure(
                 state="normal",
-                placeholder_text="Type your question here...",
+                placeholder_text="Search your documents...",
                 placeholder_text_color="white",
             )
         else:
             self.set_status(
-                "Semantic Search complete. No answers found — try asking different questions."
+                "Semantic Search complete. No results found — try different search terms."
             )
 
         self._finalize_tasks()
@@ -1628,11 +1634,11 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
                             self._qa_results.pop(pending_idx)
                     self._pending_followup_index = None
                     self.output_display.update_outputs(qa_results=list(self._qa_results))
-                self.set_status_error("Follow-up question could not be answered")
-                messagebox.showerror("Error", "Failed to process follow-up question")
+                self.set_status_error("Follow-up search could not be completed")
+                messagebox.showerror("Error", "Failed to process follow-up search")
         except Exception as e:
             logger.debug("Error processing follow-up result: %s", e)
-            self.set_status_error("Follow-up error. Try rephrasing your question.")
+            self.set_status_error("Follow-up error. Try rephrasing your search.")
             messagebox.showerror("Error", f"Error displaying result: {e!s}")
 
     def _ask_followup_for_qa_panel(self, question: str):

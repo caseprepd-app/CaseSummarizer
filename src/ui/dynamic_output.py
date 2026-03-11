@@ -2419,7 +2419,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
                     f"Copied {len(filtered_data)} terms to clipboard", duration_ms=5000
                 )
             elif current_tab == "Key Sentences":
-                main_window.set_status("Copied summary to clipboard", duration_ms=5000)
+                main_window.set_status("Copied key sentences to clipboard", duration_ms=5000)
         else:
             messagebox.showwarning("Empty", "No content to copy.")
 
@@ -2500,9 +2500,9 @@ class DynamicOutputWidget(ctk.CTkFrame):
                     f"Saved {len(filtered_data)} terms to {filename}", duration_ms=5000
                 )
             elif current_tab == "Search":
-                main_window.set_status(f"Saved Q&A results to {filename}", duration_ms=5000)
+                main_window.set_status(f"Saved search results to {filename}", duration_ms=5000)
             elif current_tab == "Key Sentences":
-                main_window.set_status(f"Saved summary to {filename}", duration_ms=5000)
+                main_window.set_status(f"Saved key sentences to {filename}", duration_ms=5000)
 
     def _export_vocab(self, format_key: str):
         """

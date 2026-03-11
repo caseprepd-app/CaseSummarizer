@@ -53,3 +53,6 @@ timestamp,document_id,term,feedback,is_person,algorithms,NER_detection,RAKE_dete
 2026-03-10T10:54:26.364635,unknown,adult,-1,0,NER,True,False,False,False,False,False,1,46.5,1,820,0.0,0.0,0.0,0.0,1,1.0,0.95,0.95,0.0,1.0,0,1,14026
 2026-03-10T12:34:58.556321,unknown,Victor Mosquera,1,1,"NER,YAKE,RAKE",True,True,False,False,False,True,3,99.5,23,0,0.0,0.003373,4.333694474539545,0.0,1,1.0,0.95,0.95,0.0,1.0,0,1,19876
 2026-03-10T12:35:08.973431,unknown,Michael Garcia,1,1,"NER,YAKE,RAKE",True,True,False,False,False,True,3,92.0,15,0,0.0,0.024225,4.368421052631579,0.0,1,1.0,0.95,0.95,0.0,1.0,0,1,19876
+2026-03-11T10:01:09.025460,unknown,Resorts World Casino,1,0,NER,True,False,False,False,False,False,1,53.8,1,0,0.0,0.0,0.0,0.0,1,1.0,0.95,0.95,0.0,1.0,0,1,15414
+2026-03-11T10:36:07.635102,unknown,g A,-1,1,NER,True,False,False,False,False,False,1,67.4,3,0,0.0,0.0,0.0,0.0,1,0.5,0.9499999999999998,0.95,0.0,1.0,0,2,18354
+2026-03-11T10:37:32.038489,unknown,Mui,1,1,"YAKE,NER,MedicalNER",True,False,False,False,True,True,3,99.2,57,51551,0.0,0.00462,0.0,0.0,1,1.0,0.95,0.95,0.0,1.0,0,1,4978

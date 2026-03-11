@@ -77,7 +77,7 @@ def get_qa_tab_status(phase: WorkflowPhase, config: TabStatusConfig) -> str:
         return "Running searches...\n\nResults will appear below as they complete."
 
     if phase == WorkflowPhase.COMPLETE:
-        return "Processing complete.\n\nAsk follow-up questions using the input below."
+        return "Processing complete.\n\nUse the search bar below to query your documents."
 
     return ""
 
