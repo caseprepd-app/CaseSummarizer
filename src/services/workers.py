@@ -403,7 +403,7 @@ class ProgressiveExtractionWorker(BaseWorker):
         self.medical_terms_path = medical_terms_path
         self.user_exclude_path = user_exclude_path
         self.doc_confidence = doc_confidence  # OCR quality for ML feature
-        # Cross-thread state for Q&A phase (Phase 2)
+        # Cross-thread state for search indexing phase (Phase 2)
         self._qa_succeeded = threading.Event()
         self._qa_error_lock = threading.Lock()
         self._qa_error_msg: str | None = None
@@ -505,16 +505,16 @@ class ProgressiveExtractionWorker(BaseWorker):
 
         self.send_progress(90, f"Complete: {len(ner_results)} terms extracted")
 
-        # ===== PHASE 2: Q&A Indexing (CPU-only can take 15+ minutes) =====
+        # ===== PHASE 2: Search Indexing (CPU-only can take 15+ minutes) =====
         # Run in parallel thread
-        # Reset Q&A phase state for this execution
+        # Reset search indexing phase state for this execution
         self._qa_succeeded.clear()
         with self._qa_error_lock:
             self._qa_error_msg = None
         qa_thread = threading.Thread(target=self._build_vector_store, daemon=False)
         qa_thread.start()
 
-        # Wait for Q&A thread with periodic status updates (CPU embeddings can take 5+ minutes)
+        # Wait for search index thread with periodic status updates (CPU embeddings can take 5+ minutes)
         # Using timeout loop instead of indefinite join to keep UI responsive with status updates
         QA_JOIN_TIMEOUT_SECONDS = 30  # Check every 30 seconds
         QA_MAX_WAIT_MINUTES = 60  # Give up after 1 hour
@@ -539,23 +539,23 @@ class ProgressiveExtractionWorker(BaseWorker):
                 "Q&A thread still running after %d minutes, continuing without waiting",
                 QA_MAX_WAIT_MINUTES,
             )
-            self.send_progress(100, "Q&A index taking too long, proceeding without it...")
+            self.send_progress(100, "Search index taking too long, proceeding without it...")
             self.ui_queue.put(
                 QueueMessage.status_error(
-                    "Q&A search index timed out. Q&A tab may not work for this session."
+                    "Search index timed out. Search tab may not work for this session."
                 )
             )
-            self.ui_queue.put(QueueMessage.qa_error("Q&A index timed out"))
+            self.ui_queue.put(QueueMessage.qa_error("Search index timed out"))
         elif not self._qa_succeeded.is_set():
             # Thread exited but didn't signal success -- it crashed
             with self._qa_error_lock:
                 error_detail = self._qa_error_msg or "unknown error"
-            logger.error("Q&A thread failed: %s", error_detail)
-            self.send_progress(100, "Q&A indexing failed, vocabulary results still available.")
+            logger.error("Search index thread failed: %s", error_detail)
+            self.send_progress(100, "Search indexing failed, vocabulary results still available.")
             self.ui_queue.put(QueueMessage.qa_error(f"Q&A thread failed: {error_detail}"))
 
     def _build_vector_store(self):
-        """Build vector store for Q&A (Phase 2) - runs in parallel thread."""
+        """Build vector store for search (Phase 2) - runs in parallel thread."""
         try:
             logger.debug("Phase 2: Building vector store...")
             self.ui_queue.put(QueueMessage.progress(20, "Phase 2: Building Q&A index..."))
@@ -580,17 +580,15 @@ class ProgressiveExtractionWorker(BaseWorker):
 
                 self.embeddings = get_embeddings_model()
 
-            # CHUNKING SITE 1 of 2: Q&A vector store (per-document, with source attribution)
+            # CHUNKING SITE 1 of 2: Search vector store (per-document, with source attribution)
             #
             # Chunks each document separately so each chunk retains its source_file for
-            # citation in Q&A answers. Coreference resolution (pronoun -> name replacement)
+            # citation in search results. Coreference resolution (pronoun -> name replacement)
             # runs inside chunk_text() on the full document text BEFORE splitting, so each
             # chunk is self-contained (e.g., "He testified" becomes "Dr. Smith testified").
             #
-            # This same text gets chunked again by the summarizer (Site 3) if summary is
-            # enabled. That duplication is intentional and acceptable -- summary is rarely
-            # enabled, and the bottleneck is LLM calls (minutes), not chunking (seconds).
-            # Sharing chunks across phases would require cross-thread plumbing for minimal gain.
+            # Single chunking pass: chunks are reused for search indexing, vocabulary
+            # extraction, and key excerpts (via FAISS embeddings).
             self.ui_queue.put(
                 QueueMessage.progress(24, "Splitting documents into searchable passages...")
             )

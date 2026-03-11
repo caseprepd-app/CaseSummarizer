@@ -3,7 +3,7 @@ Text Utility Functions
 
 Common text processing functions used across the application.
 
-Includes preprocessing integration for AI summary preparation.
+Includes preprocessing integration for document text preparation.
 """
 
 import logging

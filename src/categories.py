@@ -1,7 +1,7 @@
 """
 Shared Categories Configuration for CasePrepd.
 
-Provides unified category definitions used by both NER and LLM extraction.
+Provides unified category definitions used by NER-based vocabulary extraction.
 This ensures consistent categorization across all extraction methods.
 
 Usage:

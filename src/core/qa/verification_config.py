@@ -2,7 +2,7 @@
 Hallucination Verification Configuration.
 
 Thresholds for classifying spans based on hallucination probability
-and computing display styles. Used by HallucinationVerifier and QAPanel.
+and computing display styles. Used by QAPanel for search result display.
 
 Note: All threshold values are imported from src/config.py (single source of truth).
 This module provides convenience functions for threshold lookups.

@@ -371,7 +371,7 @@ DESCRIPTIONS = {
         ),
     },
     # =======================================================================
-    # LLM Generation
+    # Legacy LLM Generation (consumed only by src/deprecated/ code)
     # =======================================================================
     "summary_temperature": {
         "label": "Summary temperature",

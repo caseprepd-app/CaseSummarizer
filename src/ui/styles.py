@@ -182,7 +182,7 @@ def _configure_vocab_treeview_style(style: ttk.Style, sf: float, font_offset: in
 
 
 def _configure_qa_table_style(style: ttk.Style, sf: float, font_offset: int) -> None:
-    """Configure style for Q&A results table (QAPanel)."""
+    """Configure style for search results table (Search Panel)."""
     from src.ui.theme import get_color
 
     font_size = max(8, int(10 * sf) + font_offset)

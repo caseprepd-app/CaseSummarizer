@@ -1,5 +1,5 @@
 """
-Vector Store Builder for CasePrepd Q&A System.
+Vector Store Builder for CasePrepd Semantic Search System.
 
 Creates FAISS-based vector stores from processed document chunks.
 Uses file-based persistence for standalone Windows distribution.
@@ -9,13 +9,12 @@ Architecture:
 - Creates FAISS index using HuggingFaceEmbeddings (reuses existing)
 - Saves index as files (index.faiss + index.pkl) - no database required
 - Supports create_from_unified_chunks() for UnifiedChunk objects
-- Unified chunks are shared with LLM extraction for efficiency
-- Single chunking pass serves both Q&A indexing and vocabulary extraction
+- Single chunking pass serves both search indexing and vocabulary extraction
 
 Integration:
 - Called from worker subprocess after document extraction completes
 - Runs in background thread to avoid UI blocking
-- Signals UI via queue when vector store is ready for Q&A
+- Signals UI via queue when vector store is ready for search
 """
 
 import hashlib
@@ -362,7 +361,7 @@ class VectorStoreBuilder:
                     continue
 
                 # Apply preprocessing to remove line numbers, headers/footers, etc.
-                # This improves Q&A quality by removing noise from citations
+                # This improves search quality by removing noise from citations
                 text = self._preprocess_text(text)
                 if not text.strip():
                     continue

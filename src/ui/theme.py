@@ -36,7 +36,7 @@ FONTS = {
     "small": ("Segoe UI", 11),  # Secondary text, labels
     "small_bold": ("Segoe UI", 11, "bold"),  # Small headers
     "tiny": ("Segoe UI", 10),  # Status bar, system monitor
-    # Q&A Panel specific (used in tag_config with cnf={})
+    # Search Panel specific (used in tag_config with cnf={})
     "qa_question": ("Segoe UI", 13, "bold"),  # Question text
     "qa_question_default": ("Segoe UI", 13, "bold italic"),  # Default questions
     "qa_label": ("Segoe UI", 11, "bold"),  # "Answer:", "Sources:" labels
@@ -204,8 +204,8 @@ COLORS = {
     "warning": ("#e6a800", "#ffc107"),  # Warning (yellow) — darker on light bg
     "danger": ("#c62828", "#dc3545"),  # Error/skip (red) — deeper on light bg
     "danger_light": ("#e57373", "#f5a9b0"),  # Light red (loaded feedback)
-    "info": ("#0d7a8a", "#17a2b8"),  # Info/LLM (blue)
-    # Q&A Panel text tags
+    "info": ("#0d7a8a", "#17a2b8"),  # Info (blue)
+    # Search Panel text tags
     "qa_question": ("#1565c0", "#5dade2"),  # Question text (blue)
     "qa_question_default": ("#5b86a7", "#7dacd6"),  # Default question (muted blue)
     "qa_answer": ("#1a3a5c", "#aed6f1"),  # Answer text
@@ -218,7 +218,7 @@ COLORS = {
     "algo_ner": ("#1565c0", "#7ec8e3"),  # NER only (blue)
     "algo_rake": ("#7b1fa2", "#c792ea"),  # RAKE only (purple)
     "algo_bm25": ("#e67e22", "#ffb347"),  # BM25 only (orange)
-    "algo_llm": ("#00838f", "#4dd0e1"),  # LLM only (cyan)
+    "algo_llm": ("#00838f", "#4dd0e1"),  # Reserved (cyan)
     # Table rows
     "row_odd": ("#f0f0f0", "#2b2b2b"),  # Odd row
     "row_even": ("#e4e4e4", "#353535"),  # Even row
@@ -227,8 +227,8 @@ COLORS = {
     # Output pane
     "output_pane": ("#e8e8e8", "#1a1a2e"),
     # Progress/status
-    "progress_partial": ("#cc8800", "#ffaa00"),  # NER only (orange)
-    "progress_complete": ("#1b7a2f", "#00cc66"),  # NER + LLM (green)
+    "progress_partial": ("#cc8800", "#ffaa00"),  # Partial progress (orange)
+    "progress_complete": ("#1b7a2f", "#00cc66"),  # Complete (green)
     # Status bar
     "status_error": ("#c75000", "#f0932b"),  # Orange — visible but not alarming
     "status_bar_bg": ("#d8d8e8", "#1a1a2e"),  # Matches output pane
@@ -274,8 +274,8 @@ COLORS = {
     "tree_file_heading_bg": ("#c0c5c8", "#565b5e"),
     "tree_file_heading_hover": ("#b0b5b8", "#6c757d"),
     # Placeholder text (attention-grabbing)
-    "placeholder_golden": ("#b07800", "#E8A838"),  # Disabled Q&A entry
-    "placeholder_red": ("#c62828", "#E05555"),  # Q&A failure/unavailable
+    "placeholder_golden": ("#b07800", "#E8A838"),  # Disabled search entry
+    "placeholder_red": ("#c62828", "#E05555"),  # Search failure/unavailable
     # Corpus dropdown error
     "corpus_error_text": ("#c62828", "#e07070"),  # Red — no corpora available
     # Separator
@@ -430,7 +430,7 @@ LABEL_STYLES = {
 
 
 # =============================================================================
-# Q&A TEXT TAGS
+# SEARCH TEXT TAGS
 # =============================================================================
 # Used with CTkTextbox.tag_config(name, cnf={...})
 # IMPORTANT: Must use cnf={} parameter, not keyword arguments

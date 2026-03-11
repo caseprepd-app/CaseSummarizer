@@ -292,7 +292,7 @@ class ExportService:
         include_verification: bool = True,
     ) -> tuple[bool, str | None]:
         """
-        Export vocabulary, Q&A, and summary to a single tabbed HTML file.
+        Export vocabulary and search results to a single tabbed HTML file.
 
         Args:
             vocab_data: List of vocabulary dicts (score-filtered)
@@ -300,7 +300,7 @@ class ExportService:
             summary_text: Summary text string
             file_path: Output file path (.html)
             visible_columns: Columns to show initially in vocab table
-            include_verification: Include verification badges in Q&A
+            include_verification: Include verification badges in search results
 
         Returns:
             (True, None) if successful, (False, error_detail) otherwise
@@ -338,7 +338,7 @@ class ExportService:
         summary_text: str = "",
     ) -> tuple[bool, str | None]:
         """
-        Export vocabulary, Q&A, and summary to a single Word document.
+        Export vocabulary and search results to a single Word document.
 
         Args:
             vocab_data: List of vocabulary dicts
@@ -381,7 +381,7 @@ class ExportService:
         summary_text: str = "",
     ) -> tuple[bool, str | None]:
         """
-        Export vocabulary, Q&A, and summary to a single PDF document.
+        Export vocabulary and search results to a single PDF document.
 
         Args:
             vocab_data: List of vocabulary dicts

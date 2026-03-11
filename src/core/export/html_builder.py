@@ -461,7 +461,7 @@ def export_vocabulary_html(
 
 
 # ============================================================================
-# Q&A HTML Builder
+# Search Results HTML Builder
 # ============================================================================
 
 QA_HTML_TEMPLATE = """<!DOCTYPE html>

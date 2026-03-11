@@ -271,7 +271,7 @@ DEFAULTS = {
         "category": "Document Reading",
     },
     # =======================================================================
-    # LLM Generation
+    # Legacy LLM Generation (consumed only by src/deprecated/ code)
     # =======================================================================
     "summary_temperature": {
         "value": 0.3,

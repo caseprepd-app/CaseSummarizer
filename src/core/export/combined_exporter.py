@@ -63,7 +63,7 @@ def export_combined(
         export_vocabulary(vocab_data, builder, include_vocab_details)
         builder.add_paragraph("")  # Spacer after table
 
-    # Section 3: Q&A
+    # Section 3: Search Results
     if qa_results:
         export_qa_results(qa_results, builder, include_qa_verification)
 

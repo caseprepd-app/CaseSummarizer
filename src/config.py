@@ -324,23 +324,16 @@ DEFAULT_SUMMARY_WORDS = 200
 MIN_SUMMARY_WORDS = 100
 MAX_SUMMARY_WORDS = 500
 
-# Summary Generation Parameters (defaults for PromptConfig)
-SUMMARY_WORD_COUNT_TOLERANCE = 20  # Absolute word tolerance (+/- from target)
-SUMMARY_SLIDER_INCREMENT = 50  # UI slider step size
+# Legacy LLM Generation Parameters (consumed only by src/deprecated/ code)
+SUMMARY_WORD_COUNT_TOLERANCE = 20
+SUMMARY_SLIDER_INCREMENT = 50
 SUMMARY_TEMPERATURE = _d("summary_temperature")
-
-# LLM Generation Parameters
 LLM_TOP_P = _d("llm_top_p")
-LLM_TOKENS_PER_WORD = 1.5  # Estimate for token budget calculation
-LLM_TOKEN_BUFFER_MULTIPLIER = 1.3  # Safety buffer to prevent mid-sentence cutoffs
-
-# LLM Response Settings
-LLM_EXTRACTOR_MAX_TOKENS = 1000  # Maximum tokens for LLM response
-
-# Summary Length Enforcement Settings
-# When a generated summary exceeds target by more than TOLERANCE, it will be condensed
+LLM_TOKENS_PER_WORD = 1.5
+LLM_TOKEN_BUFFER_MULTIPLIER = 1.3
+LLM_EXTRACTOR_MAX_TOKENS = 1000
 SUMMARY_LENGTH_TOLERANCE = _d("summary_length_tolerance")
-SUMMARY_MAX_CONDENSE_ATTEMPTS = 3  # Maximum condensation attempts before returning best effort
+SUMMARY_MAX_CONDENSE_ATTEMPTS = 3
 
 # Vocabulary Extractor Data Files
 LEGAL_EXCLUDE_LIST_PATH = BUNDLED_CONFIG_DIR / "legal_exclude.txt"
@@ -621,7 +614,7 @@ RESIZE_DEBOUNCE_MS = 100
 ERROR_DISPLAY_MAX_CHARS = 200
 
 # ============================================================================
-# Q&A / Vector Search Configuration (RAG-based Q&A)
+# Semantic Search / Vector Store Configuration
 # ============================================================================
 
 # Vector Store Settings
@@ -629,7 +622,7 @@ ERROR_DISPLAY_MAX_CHARS = 200
 VECTOR_STORE_DIR = APPDATA_DIR / "vector_stores"
 VECTOR_STORE_DIR.mkdir(parents=True, exist_ok=True)
 
-# Q&A Retrieval Settings
+# Search Retrieval Settings
 # Set to None to retrieve ALL chunks (searches entire document corpus)
 # Set to a number to limit retrieval to top-K chunks
 QA_RETRIEVAL_K = _d("qa_retrieval_k")
@@ -637,19 +630,19 @@ QA_MAX_TOKENS = _d("qa_max_tokens")
 QA_TEMPERATURE = _d("qa_temperature")
 QA_SIMILARITY_THRESHOLD = _d("qa_similarity_threshold")
 
-# Q&A Context Window
-# Dynamically set to match LLM context window based on GPU VRAM.
+# Search Context Window
+# Controls how much retrieved context is passed to the prompt template.
 # See qa_retriever._get_effective_qa_context_window() for the dynamic logic.
 # This constant is a FALLBACK value used if user preferences are unavailable.
-QA_CONTEXT_WINDOW = 4096  # Fallback tokens for RAG context
+QA_CONTEXT_WINDOW = 4096  # Fallback tokens for retrieval context
 
 # Chat History Settings
-QA_CONVERSATION_CONTEXT_PAIRS = 3  # Include last N Q&A pairs in follow-up questions
+QA_CONVERSATION_CONTEXT_PAIRS = 3  # Include last N search pairs in follow-up searches
 
 # ============================================================================
 # Hybrid Retrieval Configuration (BM25+ Integration)
 # ============================================================================
-# Multi-algorithm retrieval for Q&A - mirrors vocabulary extraction architecture
+# Multi-algorithm retrieval for search - mirrors vocabulary extraction architecture
 
 # Algorithm weights for weighted RRF merging (scale each algorithm's rank contribution)
 # Higher weight = more influence on final ranking
@@ -717,10 +710,10 @@ UNIFIED_CHUNK_ENCODING = "cl100k_base"
 # ============================================================================
 # Hallucination Verification Configuration
 # ============================================================================
-# Uses LettuceDetect to verify Q&A answers against source documents
+# Uses LettuceDetect to verify search answers against source documents
 # Identifies potentially hallucinated spans with color-coded reliability
 
-# Enable/disable hallucination verification for Q&A answers
+# Enable/disable hallucination verification for search answers
 # When enabled, adds ~100-200ms per answer
 HALLUCINATION_VERIFICATION_ENABLED = _d("hallucination_verification_enabled")
 
@@ -743,7 +736,7 @@ HALLUCINATION_THRESHOLDS = {
 # Overall answer rejection threshold - reject if reliability below this
 ANSWER_REJECTION_THRESHOLD = _d("answer_rejection_threshold")
 
-# Q&A Export: minimum thresholds to include in exports (both must be met)
+# Search Export: minimum thresholds to include in exports (both must be met)
 QA_EXPORT_CONFIDENCE_FLOOR = _d("qa_export_confidence_floor")
 QA_EXPORT_VERIFICATION_FLOOR = _d("qa_export_verification_floor")
 

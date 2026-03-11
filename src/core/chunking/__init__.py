@@ -1,9 +1,9 @@
 """
 Unified Chunking Module
 
-Provides semantic chunking with token enforcement for:
-- LLM extraction (names + vocabulary)
-- Q&A indexing (FAISS + BM25)
+Provides recursive sentence chunking with token enforcement for:
+- Vocabulary extraction (NER-based)
+- Search indexing (FAISS + BM25)
 
 Single chunking pass serves all downstream consumers.
 """

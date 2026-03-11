@@ -2,7 +2,7 @@
 GPU Detection Utility for CasePrepd.
 
 Detects whether the machine has a dedicated NVIDIA or AMD GPU.
-Used to automatically enable/disable LLM vocabulary extraction.
+Used to configure embedding model device selection and resource allocation.
 
 Uses PyTorch + WMI for reliable cross-vendor detection:
 - PyTorch CUDA for NVIDIA (fast, no CLI needed)

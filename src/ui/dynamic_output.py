@@ -1,7 +1,7 @@
 """
 Dynamic Output Display Widget for CasePrepd
 
-Displays Vocabulary tables, Q&A results, and summaries using tab navigation.
+Displays Vocabulary tables, search results, and key excerpts using tab navigation.
 Provides copy/save functionality for export.
 The vocabulary display uses an Excel-like Treeview with frozen headers
 and right-click context menu for excluding terms from future extractions.
@@ -78,7 +78,7 @@ def _strip_display_prefix(term: str) -> str:
 
 
 class DynamicOutputWidget(ctk.CTkFrame):
-    """Widget to dynamically display Vocabulary, Q&A, or Summary outputs."""
+    """Widget to dynamically display Vocabulary, Search, or Key Excerpts outputs."""
 
     def __init__(self, master, **kwargs):
         # Distinct background color for output pane (slightly different to distinguish)
@@ -174,7 +174,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
         self._workflow_phase = WorkflowPhase.IDLE
         self._tab_status_config = TabStatusConfig()
 
-        # Q&A Tab: Status placeholder (shown when no results) + Q&A panel
+        # Search Tab: Status placeholder (shown when no results) + search panel
         # See: https://github.com/TomSchimansky/CustomTkinter/issues/1508
         self._qa_status_label = ctk.CTkLabel(
             self.tabview.tab("Search"),
@@ -275,7 +275,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
         # Internal storage for outputs
         self._outputs = {
             "Names & Vocabulary": [],  # Primary output - people + terms
-            "Search": [],  # Q&A results (replaces "Q&A Results")
+            "Search": [],  # Semantic search results
             "Key Excerpts": "",  # Combined summary (replaces "Meta-Summary")
             # Backward compatibility keys
             "Meta-Summary": "",
@@ -376,10 +376,10 @@ class DynamicOutputWidget(ctk.CTkFrame):
     # -------------------------------------------------------------------------
 
     def _update_tab_status_messages(self):
-        """Update status labels in Q&A and Summary tabs based on workflow phase and config."""
+        """Update status labels in Search and Key Excerpts tabs based on workflow phase and config."""
         from src.ui.workflow_status import get_qa_tab_status, get_summary_tab_status
 
-        # Update Q&A tab status
+        # Update Search tab status
         qa_status = get_qa_tab_status(self._workflow_phase, self._tab_status_config)
         self._qa_status_label.configure(text=qa_status)
 
@@ -424,12 +424,12 @@ class DynamicOutputWidget(ctk.CTkFrame):
         )
 
     def show_qa_content(self):
-        """Show the Q&A panel and hide the status label (called when results arrive)."""
+        """Show the search panel and hide the status label (called when results arrive)."""
         self._qa_status_label.grid_remove()
         self._qa_panel.grid()
 
     def show_qa_status(self):
-        """Show the Q&A status label and hide the panel (called when clearing or before results)."""
+        """Show the search status label and hide the panel (called when clearing or before results)."""
         self._qa_panel.grid_remove()
         self._qa_status_label.grid()
         self._update_tab_status_messages()
@@ -513,9 +513,9 @@ class DynamicOutputWidget(ctk.CTkFrame):
         """
         Handle tab change to show/hide appropriate button bars.
 
-        Hides the shared button bar when Q&A tab is active (since QAPanel
+        Hides the shared button bar when Search tab is active (since QAPanel
         has its own buttons), shows it for other tabs. Also shows/hides the
-        main window's follow-up input frame so it only appears when the Q&A
+        main window's follow-up input frame so it only appears when the Search
         tab is active. Saves column widths when leaving Names & Vocab tab.
         """
         current_tab = self.tabview.get()
@@ -1165,7 +1165,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
         # Clear internal data storage (must match __init__ structure)
         self._outputs = {
             "Names & Vocabulary": [],  # Primary output
-            "Search": [],  # Q&A results
+            "Search": [],  # Semantic search results
             "Key Excerpts": "",  # Combined summary
             # Backward compatibility keys
             "Meta-Summary": "",
@@ -1277,7 +1277,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
             self.summary_text_display.delete("0.0", "end")
             self.summary_text_display.insert("0.0", summary)
 
-        # Individual document summaries (if any) - append to summary tab
+        # Individual document summaries (if any) - append to key excerpts tab
         # Batch into single .insert() to reduce Tk text widget recalculations
         if self._document_summaries:
             separator = "=" * 50
@@ -1291,7 +1291,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
             self.show_summary_content()
 
         # Only auto-switch to Vocab if user isn't already viewing
-        # another tab that has content (prevents Q&A tab from jumping away)
+        # another tab that has content (prevents Search tab from jumping away)
         if vocab_data:
             current_tab = self.tabview.get()
             has_qa = bool(qa_data)
@@ -1742,11 +1742,11 @@ class DynamicOutputWidget(ctk.CTkFrame):
                 self._qa_panel.set_followup_callback(main_window._ask_followup_for_qa_panel)
                 logger.debug("Follow-up callback connected to MainWindow")
 
-        # Display results and show the Q&A panel (hide status label)
+        # Display results and show the search panel (hide status label)
         self._qa_panel.display_results(results)
         self.show_qa_content()
 
-        logger.debug("Showing %s Q&A results", len(results))
+        logger.debug("Showing %s search results", len(results))
 
     def _async_insert_rows(self, data: list, start_idx: int, end_idx: int):
         """

@@ -12,7 +12,7 @@ Usage:
     export_vocabulary(vocab_data, builder)
     builder.save("vocabulary.docx")
 
-    # Export Q&A to PDF
+    # Export search results to PDF
     builder = PdfDocumentBuilder()
     export_qa_results(qa_results, builder)
     builder.save("qa_results.pdf")

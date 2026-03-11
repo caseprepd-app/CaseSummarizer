@@ -1,7 +1,7 @@
 """
-Shared constants for Q&A module.
+Shared constants for search module.
 
-Avoids circular imports between qa_orchestrator.py and answer_generator.py.
+Prompt templates are used by qa_retriever for context window budget calculation.
 """
 
 UNANSWERED_TEXT = "No relevant information found in the documents."

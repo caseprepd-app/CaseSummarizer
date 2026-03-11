@@ -37,7 +37,7 @@ try:
 except ImportError:
     HAS_DND = False
 
-# Placeholder text shown in Q&A panel while a follow-up answer is pending
+# Placeholder text shown in search panel while a follow-up search is pending
 PENDING_ANSWER_TEXT = "Answer pending..."
 
 
@@ -99,13 +99,13 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         # When worker_manager is provided, all heavy work runs in a subprocess
         self._queue_poll_id: str | None = None
 
-        # Q&A infrastructure (vector_store_path still tracked here for UI checks)
+        # Search infrastructure (vector_store_path still tracked here for UI checks)
         self._vector_store_path = None  # Path to current session's vector store
         self._qa_results: list = []  # Store QAResult objects
         self._qa_results_lock = threading.Lock()  # Thread-safe access
-        self._qa_ready = False  # Q&A becomes available after indexing
-        self._qa_answering_active = False  # True while default Q&A questions are being answered
-        self._qa_failed = False  # True when Q&A indexing fails (embedding model error, etc.)
+        self._qa_ready = False  # Search becomes available after indexing
+        self._qa_answering_active = False  # True while default searches are being answered
+        self._qa_failed = False  # True when search indexing fails (embedding model error, etc.)
         self._key_sentences_pending = False  # True after qa_ready until key_sentences_result
         self._worker_ready_retries = 0  # Auto-retry counter for worker startup
 
@@ -443,7 +443,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         self.processing_results.clear()
         self.file_table.clear()
         self.output_display.clear_document_preview()
-        # Reset Q&A state so old answers don't persist
+        # Reset search state so old results don't persist
         self._qa_ready = False
         self._qa_answering_active = False
         self._qa_failed = False
@@ -647,7 +647,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             self._preprocessing_active = False
             self._qa_answering_active = False
             self._key_sentences_pending = False
-            # Reset Q&A state so stale session data doesn't persist
+            # Reset search state so stale session data doesn't persist
             self._qa_ready = False
             self._qa_failed = False
             self._vector_store_path = None
@@ -698,7 +698,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             messagebox.showerror("Processing Error", str(data))
             # Reset ALL processing flags to prevent stuck UI
             self._preprocessing_active = False
-            # Reset Q&A state so stale session data doesn't persist
+            # Reset search state so stale session data doesn't persist
             self._qa_ready = False
             self._qa_failed = False
             self._vector_store_path = None
@@ -762,9 +762,9 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             )
             self.output_display.set_extraction_source("ner")
 
-            # Vocab results are now visible — transition Q&A tab from
+            # Vocab results are now visible — transition Search tab from
             # "vocab in progress" to "building search index" so users
-            # aren't confused by the vocab tab being done while the Q&A
+            # aren't confused by the vocab tab being done while the Search
             # tab still says vocab is running.
             if not self._qa_ready:
                 from src.ui.workflow_status import WorkflowPhase
@@ -788,7 +788,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             # Embeddings stay in worker subprocess (not picklable)
             self._qa_ready = True
             self._key_sentences_pending = True  # Daemon thread extracting in subprocess
-            # Enable question input whenever Q&A index is ready
+            # Enable search input whenever search index is ready
             self.followup_btn.configure(state="normal")
             self.followup_entry.configure(
                 state="normal",
@@ -808,7 +808,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             if len(error_msg) > 80:
                 error_msg = error_msg[:77].rsplit(" ", 1)[0] + "..."
             self.set_status_error(f"Search unavailable: {error_msg}")
-            # Q&A won't be available but vocab extraction can continue
+            # Search won't be available but vocab extraction can continue
             self._qa_answering_active = False
             self._qa_failed = True
             # Disable follow-up controls with explanatory message
@@ -838,7 +838,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
                 self.output_display.set_workflow_phase(WorkflowPhase.QA_ANSWERING)
                 logger.debug("Default questions worker started in subprocess")
 
-        # Q&A result handlers (messages from default questions worker)
+        # Search result handlers (messages from default searches worker)
         elif msg_type == "qa_progress":
             current, total, _question = data
             answered = current + 1
@@ -849,14 +849,14 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
                 self.set_status(f"Completed {answered}/{total} searches")
 
         elif msg_type == "qa_result":
-            # Individual Q&A result - add to results and update display
+            # Individual search result - add to results and update display
             logger.debug("Q&A result received")
             with self._qa_results_lock:  # Thread-safe access
                 self._qa_results.append(data)
                 self.output_display.update_outputs(qa_results=self._qa_results)
 
         elif msg_type == "qa_complete":
-            # All Q&A questions answered
+            # All default searches answered
             qa_results = data if data else []
             logger.debug("Q&A complete: %s answers", len(qa_results))
             with self._qa_results_lock:  # Thread-safe access
@@ -1300,7 +1300,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         self._poll_queue()
 
     def _on_qa_complete(self, qa_results: list):
-        """Handle Q&A completion."""
+        """Handle search completion."""
         self._completed_tasks.add("qa")
         self._qa_results = qa_results
 
@@ -1404,7 +1404,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             stats["vocab_count"] = len(vocab_data)
             stats["person_count"] = sum(1 for v in vocab_data if v.get(VF.IS_PERSON) == VF.YES)
 
-        # Q&A stats
+        # Search stats
         if self._qa_results:
             stats["qa_count"] = len(self._qa_results)
 
@@ -1415,7 +1415,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         return stats
 
     def _ask_followup(self):
-        """Ask a follow-up question using the Q&A system (async version)."""
+        """Ask a follow-up search using the semantic search system (async version)."""
         question = self.followup_entry.get().strip()
         if not question:
             return
@@ -1450,7 +1450,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             display_q = question
         self.set_status(f"Asking: {display_q}")
 
-        # Show pending result immediately in Q&A panel
+        # Show pending result immediately in search panel
         from src.services import QAService
 
         QAResult = QAService().get_qa_result_class()
@@ -1465,7 +1465,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             self._qa_results.append(pending_result)
             self._pending_followup_index = len(self._qa_results) - 1
         self.output_display.update_outputs(qa_results=list(self._qa_results))
-        # Switch to Q&A tab so user sees the pending question
+        # Switch to Search tab so user sees the pending search
         self.output_display.tabview.set("Search")
 
         # Send follow-up command to worker subprocess
@@ -1706,7 +1706,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         # Gather filtered vocabulary data
         vocab_data = self.output_display._get_filtered_vocab_data()
 
-        # Gather answered Q&A results only
+        # Gather answered search results only
         qa_results = []
         if self._qa_results:
             qa_panel = self.output_display._qa_panel

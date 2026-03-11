@@ -47,7 +47,7 @@ class MessageType:
     VECTOR_STORE_READY = "vector_store_ready"
     VECTOR_STORE_ERROR = "vector_store_error"
 
-    # Q&A
+    # Search
     QA_PROGRESS = "qa_progress"
     QA_RESULT = "qa_result"
     QA_COMPLETE = "qa_complete"
@@ -229,7 +229,7 @@ class QueueMessage:
         return (MessageType.VECTOR_STORE_ERROR, {"error": error})
 
     # =========================================================================
-    # Q&A
+    # Search
     # =========================================================================
 
     @staticmethod

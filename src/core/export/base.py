@@ -94,7 +94,7 @@ class DocumentBuilder(ABC):
 
 
 # Verification color constants (from theme.py)
-# Used for Q&A answer span coloring
+# Used for search answer span coloring
 VERIFICATION_COLORS = {
     "verified": (40, 167, 69),  # Green
     "uncertain": (255, 193, 7),  # Yellow

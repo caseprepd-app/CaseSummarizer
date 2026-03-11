@@ -362,23 +362,23 @@ class QAPanel(ctk.CTkFrame):
             logger.debug("Export error: %s", e)
 
     def _export_to_csv(self):
-        """Export selected Q&A results to CSV file."""
+        """Export selected search results to CSV file."""
         self._export_qa("csv")
 
     def _export_to_txt(self):
-        """Export selected Q&A results to TXT file."""
+        """Export selected search results to TXT file."""
         self._export_qa("txt")
 
     def _export_to_word(self):
-        """Export selected Q&A results to Word document."""
+        """Export selected search results to Word document."""
         self._export_qa("word")
 
     def _export_to_pdf(self):
-        """Export selected Q&A results to PDF document."""
+        """Export selected search results to PDF document."""
         self._export_qa("pdf")
 
     def _export_to_html(self):
-        """Export selected Q&A results to interactive HTML file."""
+        """Export selected search results to interactive HTML file."""
         self._export_qa("html")
 
     def _on_export_format_selected(self, choice: str):

@@ -1,8 +1,8 @@
 """
-Vector Store Package for CasePrepd Q&A System.
+Vector Store Package for CasePrepd Semantic Search System.
 
-Provides FAISS-based vector storage for RAG (Retrieval-Augmented Generation)
-question answering over legal documents.
+Provides FAISS-based vector storage for semantic search
+over legal documents.
 
 Components:
 - VectorStoreBuilder: Creates FAISS indexes from document chunks

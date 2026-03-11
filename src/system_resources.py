@@ -14,7 +14,7 @@ The goal is to allow users to balance processing speed vs. system impact:
 Usage:
     from src.system_resources import get_optimal_workers
 
-    # For LLM extraction (2GB per worker estimate)
+    # For vocabulary extraction (2GB per worker estimate)
     workers = get_optimal_workers(task_ram_gb=2.0)
 
     # For document extraction (0.5GB per worker estimate)

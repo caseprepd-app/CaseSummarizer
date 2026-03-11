@@ -2,8 +2,7 @@
 Model Loading Utilities.
 
 Shared helpers for the bundled-model-first, HuggingFace-fallback loading
-pattern used by faiss_semantic, cross_encoder_reranker, and
-hallucination_verifier.
+pattern used by faiss_semantic and cross_encoder_reranker.
 """
 
 import logging

@@ -261,12 +261,12 @@ class WindowLayoutMixin:
         self.output_display = DynamicOutputWidget(self.right_panel)
         self.output_display.grid(row=1, column=0, sticky="nsew", padx=10, pady=5)
 
-        # Follow-up question input (for Q&A mode)
+        # Follow-up search input (for Search tab)
         # Store as class attribute so it can be shown/hidden based on active tab
         self.followup_frame = ctk.CTkFrame(self.right_panel, fg_color="transparent")
         self.followup_frame.grid(row=2, column=0, sticky="ew", padx=10, pady=(0, 10))
         self.followup_frame.grid_columnconfigure(0, weight=1)
-        # Start hidden - only shown when Q&A tab is active
+        # Start hidden - only shown when Search tab is active
         self.followup_frame.grid_remove()
 
         # Tip label above question input
@@ -295,7 +295,7 @@ class WindowLayoutMixin:
             width=scale_value(60),
             corner_radius=6,
             command=self._ask_followup,
-            state="disabled",  # Enabled after Q&A vector store is built
+            state="disabled",  # Enabled after search vector store is built
         )
         self.followup_btn.grid(row=1, column=1)
 

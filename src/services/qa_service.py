@@ -59,7 +59,7 @@ class QAService:
 
     @property
     def is_ready(self) -> bool:
-        """Check if Q&A service is ready (index built)."""
+        """Check if search service is ready (index built)."""
         return self._is_ready
 
     def build_index(
@@ -212,7 +212,7 @@ class QAService:
         return self._orchestrator.toggle_export(index)
 
     def get_results(self) -> list:
-        """Get all Q&A results."""
+        """Get all search results."""
         if self._orchestrator is None:
             return []
         return self._orchestrator.results

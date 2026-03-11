@@ -1,8 +1,8 @@
 """
-Q&A Package for CasePrepd - Unified API for Question Answering.
+Search Package for CasePrepd - Unified API for Semantic Search.
 
-This is the main entry point for all Q&A functionality. Import everything
-Q&A-related from this package:
+This is the main entry point for all search functionality. Import everything
+search-related from this package:
 
     from src.core.qa import (
         # Orchestration
@@ -15,7 +15,7 @@ Q&A-related from this package:
 
 Architecture:
     ┌─────────────────────────────────────────────────────────────┐
-    │  src.core.qa (this package) - Unified Q&A API               │
+    │  src.core.qa (this package) - Unified Search API              │
     ├─────────────────────────────────────────────────────────────┤
     │  QAOrchestrator → QARetriever                              │
     │                                          ↓                  │
@@ -30,7 +30,7 @@ Components by layer:
 - Retrieval: HybridRetriever, ChunkMerger (BM25+ and FAISS algorithms)
 """
 
-# Core Q&A orchestration
+# Core search orchestration
 from src.core.qa.default_questions_manager import (
     DefaultQuestion,
     DefaultQuestionsManager,

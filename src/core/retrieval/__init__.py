@@ -1,5 +1,5 @@
 """
-Retrieval Package for CasePrepd Q&A System.
+Retrieval Package for CasePrepd Semantic Search System.
 
 Multi-algorithm document retrieval with weighted result merging.
 Mirrors the vocabulary extraction architecture for consistency.
