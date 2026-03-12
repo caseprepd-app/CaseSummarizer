@@ -865,6 +865,14 @@ class VocabularyExtractor:
             else:
                 score += 5  # Single word person = could be noise
 
+            # Penalty for common-word single-name persons (e.g., "Smith", "Brown")
+            # These are real surnames but they rank among the most common English
+            # words (top ~5K of 333K). Court reporters already know these words,
+            # so they're less useful as vocabulary entries. Push them down the
+            # list so rarer, more helpful terms surface first.
+            if not is_multi_word and 0 < frequency_rank < 5000:
+                score -= 10
+
         # Boost for multi-algorithm agreement (non-linear tiers)
         # Terms found by multiple algorithms are more trustworthy
         if algorithm_count == 2:

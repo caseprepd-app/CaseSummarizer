@@ -41,7 +41,13 @@ logger = logging.getLogger(__name__)
 # blocked from single-word absorption. This prevents court reporter surnames
 # like "Park", "Young", "Rose" from being silently merged into multi-word
 # person names that happen to contain the same word.
-COMMON_WORD_ABSORPTION_GATE = 133000
+#
+# Previously 133K (top 40% of 333K vocabulary), which was too aggressive —
+# it blocked names like "Devi" (rank 33K) from absorbing into "Devi
+# Nampiaparampil" even though "devi" isn't a word reporters would know.
+# Lowered to 10K so only genuinely common English words (the/brown/park)
+# block absorption, while uncommon-but-present words pass through.
+COMMON_WORD_ABSORPTION_GATE = 10000
 
 # Patterns to strip from person names (transcript artifacts)
 TRANSCRIPT_ARTIFACT_PATTERNS = [

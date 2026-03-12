@@ -522,8 +522,7 @@ class CorpusDialog(BaseModalDialog):
 
             messagebox.showinfo(
                 "Corpus Created",
-                f'Corpus "{name}" created at:\n\n{path}\n\n'
-                "Add your transcript files to this folder.",
+                f'Corpus "{name}" created at:\n\n{path}',
             )
 
         except ValueError as e:
