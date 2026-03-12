@@ -239,6 +239,20 @@ class WindowLayoutMixin:
         )
         # Same grid position as generate_btn — only one visible at a time
 
+        # Complete button (shown after processing finishes)
+        # TODO: Consider adding useful action on click (e.g. scroll to results,
+        # export prompt, or summary of what was found)
+        self.complete_btn = ctk.CTkButton(
+            self.left_panel,
+            text="Complete",
+            font=FONTS["heading"],
+            height=scale_value(40),
+            corner_radius=6,
+            **BUTTON_STYLES["success"],
+            command=lambda: None,
+        )
+        # Same grid position as generate_btn / stop_btn — only one visible
+
     def _create_right_panel(self):
         """Create the right panel with results display."""
         from src.ui.dynamic_output import DynamicOutputWidget

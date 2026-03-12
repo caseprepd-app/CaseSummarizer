@@ -839,6 +839,8 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
                 self.followup_btn.configure(state="disabled")
             if self._pending_tasks.get("qa"):
                 self._completed_tasks.add("qa")
+            # Key excerpts won't arrive if vector store failed
+            self._completed_tasks.add("key_excerpts")
             if self._all_tasks_complete():
                 self._finalize_tasks()
 
@@ -894,6 +896,9 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             if data:
                 self.output_display.update_key_sentences(data)
                 logger.debug("Key excerpts displayed: %d passages", len(data))
+            self._completed_tasks.add("key_excerpts")
+            if self._all_tasks_complete():
+                self._finalize_tasks()
 
         elif msg_type == "qa_followup_result":
             # Route panel followup results via event (avoids queue race condition)
@@ -977,6 +982,10 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         if self._processing_active:
             self.generate_btn.configure(state="disabled")
             return
+
+        # Ensure complete button is swapped back to generate button
+        if self.complete_btn.winfo_ismapped():
+            self._show_generate_button()
 
         has_files = len(self.processing_results) > 0
 
@@ -1150,8 +1159,8 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         # Start timer
         self._start_timer()
 
-        # Track pending tasks (vocab + search always run)
-        self._pending_tasks = {"vocab": True, "qa": True}
+        # Track pending tasks (vocab + search + key excerpts)
+        self._pending_tasks = {"vocab": True, "qa": True, "key_excerpts": True}
         self._completed_tasks = set()
         self._qa_ready = False
         self._qa_answering_active = False
@@ -1204,13 +1213,19 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         self.set_status(msg)
 
     def _show_stop_button(self):
-        """Swap generate button for stop button during processing."""
+        """Swap generate/complete button for stop button during processing."""
         self.generate_btn.grid_remove()
+        self.complete_btn.grid_remove()
         self.stop_btn.grid(row=6, column=0, sticky="ew", padx=10, pady=(15, 5))
 
     def _hide_stop_button(self):
-        """Swap stop button back to generate button after processing ends."""
+        """Swap stop button to green complete button after processing ends."""
         self.stop_btn.grid_remove()
+        self.complete_btn.grid(row=6, column=0, sticky="ew", padx=10, pady=(15, 5))
+
+    def _show_generate_button(self):
+        """Swap complete button back to generate button."""
+        self.complete_btn.grid_remove()
         self.generate_btn.grid(row=6, column=0, sticky="ew", padx=10, pady=(15, 5))
 
     # =========================================================================
