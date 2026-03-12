@@ -95,6 +95,10 @@ class TextNormalizer:
         """
         logger.debug("Applying text normalization rules")
 
+        # Stage 0: Convert form feeds to paragraph breaks so all
+        # downstream stages see proper line boundaries at page edges.
+        text = text.replace("\f", "\n\n")
+
         # Stage 1: De-hyphenation
         text = self._stage_dehyphenation(text)
 
@@ -407,6 +411,10 @@ class TextNormalizer:
             True if line should be kept
         """
         # Minimum length check
+        # TODO: MIN_LINE_LENGTH (15) is too aggressive for transcripts.
+        # It silently eats short but valid lines like "Q. Yes?", "A. No.",
+        # "THE COURT:", "MR. SMITH:". Consider lowering the threshold or
+        # adding transcript-aware exceptions (Q./A./speaker patterns).
         if len(line) < MIN_LINE_LENGTH:
             # Exception: Allow short legal headers
             return bool(self._is_legal_header(line))

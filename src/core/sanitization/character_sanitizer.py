@@ -311,9 +311,11 @@ class CharacterSanitizer:
             # Control characters (C* category)
             if category[0] == "C":
                 # Special handling for newlines and tabs (preserve if desired)
-                if char in "\n\t":
-                    # Keep newlines/tabs, they're useful for structure
-                    cleaned.append(char)
+                if char in "\n\t\f":
+                    # Keep newlines/tabs/form-feeds — they carry structure.
+                    # Form feeds are converted to newlines so page breaks
+                    # don't collapse into spaces.
+                    cleaned.append("\n" if char == "\f" else char)
                 else:
                     # Remove other control chars (spaces, format chars, etc.)
                     control_removed += 1
