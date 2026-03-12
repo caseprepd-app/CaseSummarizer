@@ -40,6 +40,21 @@ def _d(key: str):
     return factory
 
 
+def _auto_embedding_batch_size() -> int:
+    """Pick embedding batch size based on system RAM."""
+    try:
+        import psutil
+
+        ram_gb = psutil.virtual_memory().total / (1024**3)
+    except Exception:
+        ram_gb = 8  # conservative fallback
+    if ram_gb <= 8:
+        return 8
+    if ram_gb <= 16:
+        return 16
+    return 32
+
+
 logger = logging.getLogger(__name__)
 
 # Debug Mode — controls feedback file routing (developer vs user data)
@@ -564,10 +579,10 @@ VOCABULARY_BATCH_SIZE = 16
 # Controls how many text chunks are sent to the embedding model per forward pass.
 # Higher = faster (fewer Python loop iterations) but more RAM.
 # RAM estimates for nomic-embed-text-v1.5 (137M params) on CPU:
-#   batch_size=2:  ~1.1-1.6 GB  |  batch_size=16: ~1.4-1.9 GB
+#   batch_size=8:  ~1.2-1.7 GB  |  batch_size=16: ~1.4-1.9 GB
 #   batch_size=32: ~1.8-2.3 GB  |  batch_size=64: ~2.5-3.0 GB
-# 16 is safe on 8GB laptops and gives diminishing returns above this on CPU.
-EMBEDDING_BATCH_SIZE = 16
+# Auto-detected from system RAM: ≤8GB→8, 9-16GB→16, 17GB+→32.
+EMBEDDING_BATCH_SIZE = _auto_embedding_batch_size()
 
 # Parallel Processing Configuration
 # Controls concurrent document extraction for multi-file workflows
