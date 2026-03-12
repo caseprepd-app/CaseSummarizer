@@ -148,6 +148,32 @@ def _load_scaled_frequencies() -> dict[str, float]:
         return _scaled_frequencies
 
 
+def _normalize_for_lookup(word: str, original: str = "") -> str:
+    """
+    Normalize a word for frequency dataset lookup.
+
+    Strips apostrophes from all-lowercase words so contractions like
+    "you'll" -> "youll" match the Google dataset. Preserves apostrophes
+    in words that were originally capitalized (e.g. "O'Brien") since
+    those are likely names.
+
+    Args:
+        word: Lowercased word to look up.
+        original: The word before lowering (used to check capitalization).
+            If empty, falls back to checking the word itself.
+
+    Returns:
+        Normalized word suitable for frequency lookup.
+    """
+    if "'" not in word:
+        return word
+    # If we have the original form, check if it was all-lowercase
+    source = original if original else word
+    if source == source.lower():
+        return word.replace("'", "")
+    return word
+
+
 def is_common_word(word: str, top_n: int = 200000) -> bool:
     """
     Check if a word is in the top N most common English words.
@@ -174,7 +200,7 @@ def is_common_word(word: str, top_n: int = 200000) -> bool:
     if not word_lower:
         return True  # Empty = treat as common (filter)
 
-    score = scaled.get(word_lower)
+    score = scaled.get(_normalize_for_lookup(word_lower, original=word))
     if score is None:
         return False  # Unknown word = not common (might be a name)
 
@@ -236,11 +262,11 @@ def calculate_phrase_component_scores(phrase: str, floor: float = 0.0) -> tuple[
 
     if len(words) == 1:
         # Single words are handled by other filters (NER rarity check, stopwords)
-        score = scaled.get(words[0], unknown_score)
+        score = scaled.get(_normalize_for_lookup(words[0]), unknown_score)
         return (score, score, 1)
 
     # Get commonality score for each word
-    scores = [scaled.get(w, unknown_score) for w in words]
+    scores = [scaled.get(_normalize_for_lookup(w), unknown_score) for w in words]
 
     min_score = min(scores)
     mean_score = compute_adjusted_mean(scores, floor)
@@ -278,7 +304,7 @@ def get_phrase_rarity_scores(phrase: str) -> tuple[float, float, int]:
     if not words:
         return (0.0, 0.0, 0)
 
-    scores = [scaled.get(w, unknown_score) for w in words]
+    scores = [scaled.get(_normalize_for_lookup(w), unknown_score) for w in words]
     max_rarity = max(scores)
 
     floor = prefs.get("non_ner_phrase_common_word_floor", NON_NER_PHRASE_COMMON_WORD_FLOOR)
