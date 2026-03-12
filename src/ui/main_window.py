@@ -755,7 +755,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             # Update status bar with NER chunk progress
             chunk_num = data.get("chunk_num", 0)
             total_chunks = data.get("total_chunks", 1)
-            pct = int((chunk_num / total_chunks) * 100)
+            pct = int((chunk_num / max(total_chunks, 1)) * 100)
             from src.config import DEBUG_MODE
 
             if DEBUG_MODE:

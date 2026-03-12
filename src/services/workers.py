@@ -467,12 +467,12 @@ class ProgressiveExtractionWorker(BaseWorker):
 
             def on_ner_progress(chunk_candidates, chunk_num, total_chunks):
                 """Called after each NER chunk completes."""
-                pct = int((chunk_num / total_chunks) * 100)
+                pct = int((chunk_num / max(total_chunks, 1)) * 100)
                 if DEBUG_MODE:
                     msg = f"NER: {pct}% complete (chunk {chunk_num}/{total_chunks})..."
                 else:
                     msg = f"Extracting names... {pct}% complete"
-                self.send_progress(10 + int((chunk_num / total_chunks) * 20), msg)
+                self.send_progress(10 + int((chunk_num / max(total_chunks, 1)) * 20), msg)
                 self.ui_queue.put(
                     QueueMessage.ner_progress(chunk_candidates, chunk_num, total_chunks)
                 )

@@ -180,6 +180,7 @@ class TestVectorStoreBuilderCreateFromUnifiedChunks:
 
     @patch("src.core.vector_store.vector_store_builder.VectorStoreBuilder._save_model_marker")
     @patch("src.core.vector_store.vector_store_builder.VectorStoreBuilder._save_integrity_hash")
+    @patch("src.config.EMBEDDING_BATCH_SIZE", 2)
     def test_progress_callback_is_invoked(self, mock_hash, mock_marker, tmp_path):
         """Progress callback receives (current, total) for each batch."""
         from src.core.vector_store.vector_store_builder import VectorStoreBuilder

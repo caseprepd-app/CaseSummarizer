@@ -211,9 +211,9 @@ class TestAutoQAWorkerLock:
         from src.worker_process import _stop_active_worker
 
         source = inspect.getsource(_stop_active_worker)
-        # Count lock acquisitions — should have at least 3 (active_worker read, clear, auto_qa)
+        # Count lock acquisitions — should have 2 (atomic read+clear for each worker)
         lock_count = source.count('state["worker_lock"]')
-        assert lock_count >= 4, f"Expected >= 4 lock usages, found {lock_count}"
+        assert lock_count >= 2, f"Expected >= 2 lock usages, found {lock_count}"
 
 
 # ============================================================

@@ -289,23 +289,21 @@ def _stop_active_worker(state):
     """Stop the currently active worker, if any."""
     with state["worker_lock"]:
         worker = state.get("active_worker")
+        state["active_worker"] = None
     if worker and hasattr(worker, "is_alive") and worker.is_alive():
         logger.debug("Stopping active worker: %s", type(worker).__name__)
         if hasattr(worker, "stop"):
             worker.stop()
         worker.join(timeout=2.0)
-    with state["worker_lock"]:
-        state["active_worker"] = None
 
     # Also stop auto-spawned QA worker if running
     with state["worker_lock"]:
         auto_qa = state.get("auto_qa_worker")
+        state["auto_qa_worker"] = None
     if auto_qa and hasattr(auto_qa, "is_alive") and auto_qa.is_alive():
         if hasattr(auto_qa, "stop"):
             auto_qa.stop()
         auto_qa.join(timeout=2.0)
-    with state["worker_lock"]:
-        state["auto_qa_worker"] = None
 
 
 def _forwarder_loop(internal_queue, result_queue, command_queue, state):
@@ -414,8 +412,9 @@ def _forward_message(msg_type, data, internal_queue, result_queue, state):
         try:
             from src.services.workers import QAWorker
 
-            embeddings = state.get("embeddings")
-            vector_store_path = data.get("vector_store_path") or state.get("vector_store_path")
+            with state["worker_lock"]:
+                embeddings = state.get("embeddings")
+                vector_store_path = data.get("vector_store_path") or state.get("vector_store_path")
 
             if embeddings and vector_store_path:
                 qa_worker = QAWorker(
