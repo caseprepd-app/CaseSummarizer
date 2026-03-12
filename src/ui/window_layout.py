@@ -283,15 +283,34 @@ class WindowLayoutMixin:
         # Start hidden - only shown when Search tab is active
         self.followup_frame.grid_remove()
 
-        # Tip label above question input
+        # Inline tip + "More Tips" button above query input
+        tip_row = ctk.CTkFrame(self.followup_frame, fg_color="transparent")
+        tip_row.grid(row=0, column=0, columnspan=2, sticky="ew", pady=(0, 4))
+
         tip_label = ctk.CTkLabel(
-            self.followup_frame,
-            text="Tip: Ask one specific question at a time (dates, injuries, warnings) - not broad or compound questions.",
+            tip_row,
+            text="Tip: Search one specific topic at a time using natural phrases.",
             font=FONTS["small"],
             text_color=COLORS["text_secondary"],
             anchor="w",
         )
-        tip_label.grid(row=0, column=0, columnspan=2, sticky="w", pady=(0, 4))
+        tip_label.pack(side="left")
+
+        self._search_tips_btn = ctk.CTkButton(
+            tip_row,
+            text="More Tips",
+            font=FONTS["small"],
+            fg_color="transparent",
+            text_color=COLORS["dialog_link"],
+            hover_color=COLORS["bg_hover"],
+            border_width=1,
+            border_color=COLORS["dialog_link"],
+            width=75,
+            height=20,
+            corner_radius=4,
+            command=self._show_search_tips,
+        )
+        self._search_tips_btn.pack(side="left", padx=(8, 0))
 
         self.followup_entry = ctk.CTkEntry(
             self.followup_frame,
@@ -305,13 +324,19 @@ class WindowLayoutMixin:
 
         self.followup_btn = ctk.CTkButton(
             self.followup_frame,
-            text="Ask",
+            text="Search",
             width=scale_value(60),
             corner_radius=6,
             command=self._ask_followup,
             state="disabled",  # Enabled after search vector store is built
         )
         self.followup_btn.grid(row=1, column=1)
+
+    def _show_search_tips(self):
+        """Open the Search Tips dialog."""
+        from src.ui.help_about_dialogs import SearchTipsDialog
+
+        SearchTipsDialog(self)
 
     def _create_status_bar(self):
         """Create status bar at bottom of window with accent border."""

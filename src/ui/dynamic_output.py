@@ -26,7 +26,7 @@ import io
 import logging
 import os
 import re
-from tkinter import Menu, filedialog, messagebox, ttk
+from tkinter import Menu, filedialog, messagebox
 
 import customtkinter as ctk
 
@@ -41,7 +41,6 @@ from src.ui.theme import (
     FONTS,
     FRAME_STYLES,
     QA_TEXT_TAGS,
-    VOCAB_TABLE_TAGS,
     get_color,
     resolve_tags,
 )
@@ -57,24 +56,10 @@ from src.ui.vocab_table.column_config import (
     DISPLAY_TO_DATA_COLUMN,
     GUI_DISPLAY_COLUMNS,
     ROWS_PER_PAGE,
-    THUMB_DOWN_EMPTY,
-    THUMB_DOWN_FILLED,
-    THUMB_UP_EMPTY,
-    THUMB_UP_FILLED,
     compute_column_widths,
-    truncate_text,
 )
+from src.ui.vocab_table.vocab_treeview import VocabTreeview, strip_display_prefix  # noqa: E402
 from src.user_preferences import get_user_preferences
-
-# Prefix added to potential-duplicate terms in the treeview display
-_LINK_EMOJI_PREFIX = "🔗 "
-
-
-def _strip_display_prefix(term: str) -> str:
-    """Strip the potential-duplicate link emoji prefix from a display term."""
-    if term.startswith(_LINK_EMOJI_PREFIX):
-        return term[len(_LINK_EMOJI_PREFIX) :]
-    return term
 
 
 class DynamicOutputWidget(ctk.CTkFrame):
@@ -139,15 +124,16 @@ class DynamicOutputWidget(ctk.CTkFrame):
         self._balance_hint_dismissed = False
 
         # Names & Vocab Tab: Treeview frame (initially None, created when needed)
-        self.csv_treeview = None
+        self.csv_treeview = None  # Backward compat alias to _main_vocab_tv.widget
         self.treeview_frame = None  # Frame to hold treeview and scrollbars
+        self._main_vocab_tv: VocabTreeview | None = None
 
         # Filtered terms (collapsed section below main vocab table)
-        self._filtered_treeview = None
+        self._filtered_treeview = None  # Backward compat alias to _filtered_vocab_tv.widget
+        self._filtered_vocab_tv: VocabTreeview | None = None
         self._filtered_frame = None  # Outer frame with header + treeview
         self._filtered_header = None  # Clickable expand/collapse header
         self._filtered_inner_frame = None  # Inner frame (hidden when collapsed)
-        self._filtered_item_to_data: dict[str, dict] = {}
         self._filtered_expanded = False
         self._filtered_vocab_data_raw: list[dict] = []  # Raw filtered data
 
@@ -302,11 +288,6 @@ class DynamicOutputWidget(ctk.CTkFrame):
         # Resize event debouncing to prevent glitchiness
         self._resize_after_id = None  # Track pending resize callbacks
         self._batch_insertion_paused = False  # Pause batch insertion during resize
-
-        # Tooltip for potential duplicates
-        self._tooltip = None  # Tooltip window
-        self._tooltip_after_id = None  # Delayed tooltip show
-        self._item_to_data: dict[str, dict] = {}  # Treeview item ID -> term data mapping
 
         # Feedback manager for ML learning
         from src.services import VocabularyService
@@ -1182,17 +1163,17 @@ class DynamicOutputWidget(ctk.CTkFrame):
         self._sort_ascending = True
 
         # Clear treeview data if it exists
-        if self.csv_treeview is not None:
-            self.csv_treeview.delete(*self.csv_treeview.get_children())
+        if self._main_vocab_tv is not None:
+            self._main_vocab_tv.clear()
 
         # Clear filtered section
         if self._filtered_frame is not None:
             self._filtered_frame.destroy()
             self._filtered_frame = None
             self._filtered_treeview = None
+            self._filtered_vocab_tv = None
             self._filtered_header = None
             self._filtered_inner_frame = None
-        self._filtered_item_to_data.clear()
         self._filtered_vocab_data_raw = []
 
         # Force garbage collection
@@ -1420,88 +1401,50 @@ class DynamicOutputWidget(ctk.CTkFrame):
 
         # Create or reconfigure treeview
         if self.csv_treeview is None:
-            self.csv_treeview = ttk.Treeview(
-                self.treeview_frame,
+            self._main_vocab_tv = VocabTreeview(
+                parent=self.treeview_frame,
                 columns=columns,
-                show="headings",
-                style="Vocab.Treeview",
-                selectmode="browse",
+                tag_prefix="",
+                feedback_manager=self._feedback_manager,
+                on_click_callback=self._on_vocab_tv_click,
+                on_right_click_callback=self._on_vocab_tv_right_click,
             )
+            self.csv_treeview = self._main_vocab_tv.widget  # Backward compat
 
-            # Configure column headings and widths
-            # Click-to-sort; saved widths preferred over DPI-aware defaults
+            # Configure column widths: saved widths preferred over DPI-aware defaults
             # stretch=False on ALL columns prevents Tk from recalculating widths
             # on layout events, which was causing user-dragged widths to snap back.
             saved_widths = self._load_column_widths()
             if saved_widths:
-                computed = None  # Use saved widths
+                computed = None
             else:
-                # Compute DPI-aware defaults from font metrics
                 content_font, heading_font = get_vocab_font_specs()
                 available_w = self.treeview_frame.winfo_width()
                 if available_w < 100:
-                    available_w = 900  # Fallback before first layout
+                    available_w = 900
                 computed = compute_column_widths(
                     list(columns), content_font, heading_font, available_w
                 )
 
+            # Build combined widths dict
+            widths = {}
             for col in columns:
                 if saved_widths and col in saved_widths:
-                    col_width = saved_widths[col]
+                    widths[col] = saved_widths[col]
                 elif computed and col in computed:
-                    col_width = computed[col]
-                else:
-                    col_width = COLUMN_CONFIG.get(col, {}).get("width", 100)
-                # Lambda capture col by default argument to avoid closure issue
-                self.csv_treeview.heading(
-                    col, text=col, anchor="w", command=lambda c=col: self._sort_by_column(c)
-                )
-                self.csv_treeview.column(
-                    col,
-                    width=col_width,
-                    minwidth=40,
-                    anchor="w",
-                    stretch=False,
-                )
+                    widths[col] = computed[col]
 
-            # Add vertical scrollbar
-            vsb = ttk.Scrollbar(
-                self.treeview_frame,
-                orient="vertical",
-                command=self.csv_treeview.yview,
-                style="Vocab.Vertical.TScrollbar",
-            )
-            self.csv_treeview.configure(yscrollcommand=vsb.set)
+            self._main_vocab_tv.configure_columns(columns, widths)
+            self._main_vocab_tv.configure_sortable_columns(columns, self._sort_by_column)
 
-            # Add horizontal scrollbar
-            hsb = ttk.Scrollbar(
-                self.treeview_frame,
-                orient="horizontal",
-                command=self.csv_treeview.xview,
-                style="Vocab.Horizontal.TScrollbar",
-            )
-            self.csv_treeview.configure(xscrollcommand=hsb.set)
-
-            # Grid layout (row=1 to make room for filter bar at row=0)
+            # Add scrollbars and grid layout (row=1 for filter bar at row=0)
+            vsb, hsb = self._main_vocab_tv.add_scrollbars(self.treeview_frame)
             self.csv_treeview.grid(row=1, column=0, sticky="nsew")
             vsb.grid(row=1, column=1, sticky="ns")
             hsb.grid(row=2, column=0, sticky="ew")
 
-            # Bind right-click for context menu
-            self.csv_treeview.bind("<Button-3>", self._on_right_click)
-            self.csv_treeview.bind("<Double-1>", self._on_double_click)
-            # Bind left-click for feedback columns
-            self.csv_treeview.bind("<Button-1>", self._on_treeview_click)
-            # Bind hover for potential duplicate tooltip
-            self.csv_treeview.bind("<Motion>", self._on_treeview_hover)
-            self.csv_treeview.bind("<Leave>", self._hide_tooltip)
-
-            # Create context menu
+            # Create shared context menu
             self._create_context_menu()
-
-            # Configure all vocabulary table tags from centralized theme
-            for tag_name, tag_config in resolve_tags(VOCAB_TABLE_TAGS).items():
-                self.csv_treeview.tag_configure(tag_name, **tag_config)
 
         # Cancel any pending async insertion before starting new one
         # Uses a generation counter so old callbacks detect they're stale,
@@ -1513,8 +1456,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
         self._insertion_generation = getattr(self, "_insertion_generation", 0) + 1
 
         # Clear existing data and item mapping
-        self.csv_treeview.delete(*self.csv_treeview.get_children())
-        self._item_to_data.clear()
+        self._main_vocab_tv.clear()
 
         # Calculate how many items to load initially
         initial_load = min(ROWS_PER_PAGE, self._vocab_total_items)
@@ -1535,7 +1477,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
 
         Shows terms excluded by frequency filters in a visually muted treeview.
         Collapsed by default. Uses the same columns and right-click menu as the
-        main table. Filtered items are stored in _item_to_data for shared lookup.
+        main table. Each VocabTreeview instance owns its own item_to_data dict.
 
         Args:
             filtered_data: List of term dicts that were filtered out
@@ -1547,9 +1489,9 @@ class DynamicOutputWidget(ctk.CTkFrame):
             self._filtered_frame.destroy()
             self._filtered_frame = None
             self._filtered_treeview = None
+            self._filtered_vocab_tv = None
             self._filtered_header = None
             self._filtered_inner_frame = None
-            self._filtered_item_to_data.clear()
 
         if not filtered_data:
             # Reset grid weight — main table gets all space
@@ -1627,101 +1569,29 @@ class DynamicOutputWidget(ctk.CTkFrame):
         """Build the treeview for filtered terms (called on first expand)."""
         columns = tuple(self._get_visible_columns())
 
-        self._filtered_treeview = ttk.Treeview(
-            self._filtered_inner_frame,
+        self._filtered_vocab_tv = VocabTreeview(
+            parent=self._filtered_inner_frame,
             columns=columns,
-            show="headings",
-            style="Vocab.Treeview",
-            selectmode="browse",
+            tag_prefix="filtered_",
+            feedback_manager=self._feedback_manager,
+            on_click_callback=self._on_vocab_tv_click,
+            on_right_click_callback=self._on_vocab_tv_right_click,
         )
+        self._filtered_treeview = self._filtered_vocab_tv.widget  # Backward compat
+        self._filtered_vocab_tv.configure_columns(columns)
 
-        # Configure columns to match main table
-        for col in columns:
-            col_width = COLUMN_CONFIG.get(col, {}).get("width", 100)
-            self._filtered_treeview.heading(col, text=col, anchor="w")
-            self._filtered_treeview.column(
-                col, width=col_width, minwidth=40, anchor="w", stretch=False
-            )
-
-        # Scrollbar
-        vsb = ttk.Scrollbar(
-            self._filtered_inner_frame,
-            orient="vertical",
-            command=self._filtered_treeview.yview,
-            style="Vocab.Vertical.TScrollbar",
-        )
-        self._filtered_treeview.configure(yscrollcommand=vsb.set)
-
+        # Add vertical scrollbar only (filtered section is compact)
+        vsb, _hsb = self._filtered_vocab_tv.add_scrollbars(self._filtered_inner_frame)
         self._filtered_treeview.grid(row=0, column=0, sticky="nsew")
         vsb.grid(row=0, column=1, sticky="ns")
 
-        # Bind right-click (shares context menu with main table)
-        self._filtered_treeview.bind("<Button-3>", self._on_right_click)
-        self._filtered_treeview.bind("<Button-1>", self._on_filtered_treeview_click)
-
-        # Configure muted row tags
-        for tag_name, tag_config in resolve_tags(VOCAB_TABLE_TAGS).items():
-            self._filtered_treeview.tag_configure(tag_name, **tag_config)
-
-        # Insert rows with muted styling
-        current_columns = columns
+        # Insert rows using VocabTreeview (handles values, tags, and data mapping)
         for i, item in enumerate(self._filtered_vocab_data_raw):
             if not isinstance(item, dict):
                 continue
-
-            term = item.get(VF.TERM, "")
-            rating = self._feedback_manager.get_rating(term)
-
-            values = []
-            for col in current_columns:
-                if col == VF.KEEP:
-                    values.append(THUMB_UP_FILLED if rating == 1 else THUMB_UP_EMPTY)
-                elif col == VF.SKIP:
-                    values.append(THUMB_DOWN_FILLED if rating == -1 else THUMB_DOWN_EMPTY)
-                elif col == VF.TERM:
-                    values.append(truncate_text(str(term), COLUMN_CONFIG[col]["max_chars"]))
-                elif col in DISPLAY_TO_DATA_COLUMN:
-                    data_col = DISPLAY_TO_DATA_COLUMN[col]
-                    value = item.get(data_col, "")
-                    values.append(truncate_text(str(value), COLUMN_CONFIG[col]["max_chars"]))
-                else:
-                    values.append(
-                        truncate_text(str(item.get(col, "")), COLUMN_CONFIG[col]["max_chars"])
-                    )
-
-            # Muted row tags for filtered items
-            row_bg_tag = "filtered_oddrow" if i % 2 else "filtered_evenrow"
-            rating_source = self._feedback_manager.get_rating_source(term)
-            if rating == 1:
-                tag_key = (
-                    "filtered_rated_up_session"
-                    if rating_source == "session"
-                    else "filtered_rated_up_loaded"
-                )
-                tag = (row_bg_tag, tag_key)
-            elif rating == -1:
-                tag_key = (
-                    "filtered_rated_down_session"
-                    if rating_source == "session"
-                    else "filtered_rated_down_loaded"
-                )
-                tag = (row_bg_tag, tag_key)
-            else:
-                tag = (row_bg_tag,)
-
-            item_id = self._filtered_treeview.insert("", "end", values=tuple(values), tags=tag)
-            # Store in shared mapping so right-click menu works
-            self._item_to_data[item_id] = item
-            self._filtered_item_to_data[item_id] = item
+            self._filtered_vocab_tv.insert_row(item, i, columns)
 
         logger.debug("Filtered section: %s terms displayed", len(self._filtered_vocab_data_raw))
-
-    def _on_filtered_treeview_click(self, event):
-        """Handle left-click on filtered treeview for feedback columns."""
-        if self._filtered_treeview is None:
-            return
-        # Delegate to the same feedback click handler, passing the filtered treeview
-        self._on_treeview_click(event, treeview=self._filtered_treeview)
 
     def _display_qa_results(self, results: list):
         """
@@ -1792,82 +1662,17 @@ class DynamicOutputWidget(ctk.CTkFrame):
 
             for i in range(current_idx, batch_end):
                 item = data[i]
-                rating = 0  # Default no rating
                 if isinstance(item, dict):
-                    # Apply text truncation to prevent row overflow
-                    # Build values for each column, handling feedback columns specially
-                    values = []
-                    term = item.get(VF.TERM, "")
-                    rating = self._feedback_manager.get_rating(term)
-
-                    for col in current_columns:
-                        if col == VF.KEEP:
-                            values.append(THUMB_UP_FILLED if rating == 1 else THUMB_UP_EMPTY)
-                        elif col == VF.SKIP:
-                            values.append(THUMB_DOWN_FILLED if rating == -1 else THUMB_DOWN_EMPTY)
-                        elif col == VF.TERM:
-                            # Special handling for Term column - add 🔗 for potential duplicates
-                            term_display = item.get(VF.TERM, "")
-                            if item.get("_potential_duplicate_of"):
-                                term_display = f"{_LINK_EMOJI_PREFIX}{term_display}"
-                            values.append(
-                                truncate_text(str(term_display), COLUMN_CONFIG[col]["max_chars"])
-                            )
-                        elif col in DISPLAY_TO_DATA_COLUMN:
-                            # Map display column to data field (e.g., "Score" -> "Quality Score")
-                            data_col = DISPLAY_TO_DATA_COLUMN[col]
-                            value = item.get(data_col, "")
-                            values.append(
-                                truncate_text(str(value), COLUMN_CONFIG[col]["max_chars"])
-                            )
-                        else:
-                            values.append(
-                                truncate_text(
-                                    str(item.get(col, "")), COLUMN_CONFIG[col]["max_chars"]
-                                )
-                            )
-
-                    values = tuple(values)
+                    self._main_vocab_tv.insert_row(item, i, current_columns)
                 else:
-                    # Handle list format (legacy) - apply truncation, default empty feedback
-                    raw_values = (
-                        tuple(item) if len(item) >= 4 else tuple(item) + ("",) * (4 - len(item))
-                    )
-                    values = (
-                        *tuple(
-                            truncate_text(str(v), COLUMN_CONFIG[current_columns[j]]["max_chars"])
-                            for j, v in enumerate(raw_values[:4])
-                        ),
-                        THUMB_UP_EMPTY,
-                        THUMB_DOWN_EMPTY,
-                    )
-
-                # Apply tag for row coloring based on existing rating, with alternating backgrounds
-                row_bg_tag = "oddrow" if i % 2 else "evenrow"
-
-                # Row coloring reflects feedback status only:
-                # - Thumbs up (rating=1) -> green
-                # - Thumbs down (rating=-1) -> red
-                # - No feedback (rating=0) -> neutral (just alternating row background)
-                # Distinguishes feedback source (session click vs loaded from dataset)
-                rating_source = self._feedback_manager.get_rating_source(term)
-                if rating == 1:
-                    if rating_source == "session":
-                        tag = (row_bg_tag, "rated_up_session")
-                    else:
-                        tag = (row_bg_tag, "rated_up_loaded")
-                elif rating == -1:
-                    if rating_source == "session":
-                        tag = (row_bg_tag, "rated_down_session")
-                    else:
-                        tag = (row_bg_tag, "rated_down_loaded")
-                else:
-                    # No feedback - neutral coloring (just alternating background)
-                    tag = (row_bg_tag,)
-                item_id = self.csv_treeview.insert("", "end", values=values, tags=tag)
-                # Store mapping for tooltip lookup
-                if isinstance(item, dict):
-                    self._item_to_data[item_id] = item
+                    # Handle list format (legacy) — convert to dict for insert_row
+                    legacy_dict = {}
+                    col_list = list(current_columns)
+                    for j, v in enumerate(item):
+                        if j < len(col_list):
+                            key = DISPLAY_TO_DATA_COLUMN.get(col_list[j], col_list[j])
+                            legacy_dict[key] = v
+                    self._main_vocab_tv.insert_row(legacy_dict, i, current_columns)
 
             current_idx = batch_end
 
@@ -1984,34 +1789,48 @@ class DynamicOutputWidget(ctk.CTkFrame):
         self.context_menu.add_separator()
         self.context_menu.add_command(label="Copy term", command=self._copy_selected_term)
 
-    def _on_right_click(self, event):
+    def _on_vocab_tv_click(self, event, vocab_tv: VocabTreeview):
+        """
+        Callback from VocabTreeview left-click — delegates to feedback handler.
+
+        Args:
+            event: Tkinter event
+            vocab_tv: The VocabTreeview instance that was clicked
+        """
+        self._on_treeview_click(event, vocab_tv=vocab_tv)
+
+    def _on_vocab_tv_right_click(self, event, vocab_tv: VocabTreeview):
+        """
+        Callback from VocabTreeview right-click — shows context menu.
+
+        Args:
+            event: Tkinter event
+            vocab_tv: The VocabTreeview instance that was clicked
+        """
+        self._on_right_click(event, vocab_tv=vocab_tv)
+
+    def _on_right_click(self, event, vocab_tv: VocabTreeview | None = None):
         """Handle right-click on treeview - show column menu for header, context menu for rows."""
-        # Determine which treeview was clicked (main or filtered)
-        treeview = event.widget
-        if treeview not in (self.csv_treeview, self._filtered_treeview):
+        if vocab_tv is None:
             return
 
+        tv = vocab_tv.widget
+
         # Check if click is on header region
-        region = treeview.identify_region(event.x, event.y)
+        region = tv.identify_region(event.x, event.y)
         if region == "heading":
-            # Show column visibility menu
             self._show_column_menu(event)
             return
 
         # Identify the row under cursor
-        item_id = treeview.identify_row(event.y)
+        item_id = tv.identify_row(event.y)
         if item_id:
-            # Select the row
-            treeview.selection_set(item_id)
-            # Get the term value (first column)
-            values = treeview.item(item_id, "values")
+            tv.selection_set(item_id)
+            values = tv.item(item_id, "values")
             if values and len(values) >= 1:
-                self._selected_term = _strip_display_prefix(values[0])
+                self._selected_term = strip_display_prefix(values[0])
+                self._update_alternatives_menu_item(item_id, vocab_tv)
 
-                # Rebuild "View Alternatives" menu item based on term data
-                self._update_alternatives_menu_item(item_id, treeview)
-
-                # Show context menu at cursor position
                 try:
                     self.context_menu.tk_popup(event.x_root, event.y_root)
                 except Exception:
@@ -2019,7 +1838,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
                 finally:
                     self.context_menu.grab_release()
 
-    def _update_alternatives_menu_item(self, item_id: str, tv=None):
+    def _update_alternatives_menu_item(self, item_id: str, vocab_tv: VocabTreeview | None = None):
         """
         Add or update dynamic menu items based on selected term.
 
@@ -2028,7 +1847,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
 
         Args:
             item_id: Treeview item ID for the selected row
-            tv: The treeview widget that was clicked (to pick correct data dict)
+            vocab_tv: The VocabTreeview instance that owns this item
         """
         # Remove existing dynamic items (always at index 3 onward)
         menu_size = self.context_menu.index("end")
@@ -2038,10 +1857,8 @@ class DynamicOutputWidget(ctk.CTkFrame):
             except Exception as e:
                 logger.debug("Context menu cleanup failed: %s", e)
 
-        # Look up the term data from the correct dict based on which treeview
-        is_filtered = tv == self._filtered_treeview if tv else False
-        data_dict = self._filtered_item_to_data if is_filtered else self._item_to_data
-        term_data = data_dict.get(item_id, {})
+        # Look up term data from the VocabTreeview that owns this item
+        term_data = vocab_tv.get_item_data(item_id) if vocab_tv else {}
         alternatives = term_data.get("_alternatives", [])
         is_person = str(term_data.get(VF.IS_PERSON, "")).lower() in ("yes", "true", "1")
         if not is_person:
@@ -2201,20 +2018,6 @@ class DynamicOutputWidget(ctk.CTkFrame):
             "context_viewer",
             lambda: ContextViewerDialog(self, term_data, processing_results),
         )
-
-    def _on_double_click(self, event):
-        """Handle double-click to copy the term."""
-        item_id = self.csv_treeview.identify_row(event.y)
-        if item_id:
-            values = self.csv_treeview.item(item_id, "values")
-            if values and len(values) >= 1:
-                term = _strip_display_prefix(values[0])
-                if term:
-                    try:
-                        self.clipboard_clear()
-                        self.clipboard_append(term)
-                    except Exception as e:
-                        logger.warning("Clipboard copy failed: %s", e)
 
     def _exclude_selected_term(self):
         """Exclude the selected term from future vocabulary extractions."""
@@ -2679,21 +2482,20 @@ class DynamicOutputWidget(ctk.CTkFrame):
         # Reset dropdown to placeholder
         self.export_dropdown.set("Export...")
 
-    def _on_treeview_click(self, event, treeview=None):
+    def _on_treeview_click(self, event, vocab_tv: VocabTreeview | None = None):
         """
         Handle left-click on treeview for feedback columns.
 
         Detects clicks on the Keep or Skip columns and toggles the
         feedback state for that term.
 
-        Column indices are dynamic based on visible columns.
-
         Args:
             event: Tkinter event
-            treeview: Optional treeview override (for filtered section)
+            vocab_tv: The VocabTreeview instance that was clicked
         """
-        # Identify which column and row was clicked
-        tv = treeview or self.csv_treeview
+        if vocab_tv is None:
+            return
+        tv = vocab_tv.widget
         column = tv.identify_column(event.x)
         item_id = tv.identify_row(event.y)
 
@@ -2713,9 +2515,9 @@ class DynamicOutputWidget(ctk.CTkFrame):
 
         # Check if click was on a feedback column
         if column == f"#{keep_idx}":  # Keep column
-            self._toggle_feedback(item_id, +1, tv)
+            self._toggle_feedback(item_id, +1, vocab_tv)
         elif column == f"#{skip_idx}":  # Skip column
-            self._toggle_feedback(item_id, -1, tv)
+            self._toggle_feedback(item_id, -1, vocab_tv)
 
     def _check_corpus_and_warn(self) -> bool:
         """
@@ -2752,7 +2554,9 @@ class DynamicOutputWidget(ctk.CTkFrame):
         )
         return result
 
-    def _toggle_feedback(self, item_id: str, feedback_type: int, tv=None):
+    def _toggle_feedback(
+        self, item_id: str, feedback_type: int, vocab_tv: VocabTreeview | None = None
+    ):
         """
         Toggle feedback state for a vocabulary term.
 
@@ -2762,11 +2566,9 @@ class DynamicOutputWidget(ctk.CTkFrame):
         Args:
             item_id: Treeview item identifier
             feedback_type: +1 for Keep, -1 for Skip
-            tv: Treeview widget that owns this item (avoids ID collision)
+            vocab_tv: VocabTreeview instance that owns this item
         """
         # Block feedback while extraction is in progress
-        # Use non-blocking status message instead of modal dialog
-        # (modal messagebox blocks UI event loop, causing freeze during NER)
         if self._extraction_in_progress:
             main_window = self.winfo_toplevel()
             if hasattr(main_window, "set_status"):
@@ -2778,17 +2580,19 @@ class DynamicOutputWidget(ctk.CTkFrame):
 
         # Warn about missing corpus (once per session)
         if not self._check_corpus_and_warn():
-            return  # User cancelled
+            return
 
-        # Use the treeview passed from the click handler to avoid ID collision
-        # between main and filtered treeviews (both start IDs from I001)
-        if tv is None:
-            tv = self._treeview_for_item(item_id)
-        values = tv.item(item_id, "values")
+        # Resolve VocabTreeview if not passed
+        if vocab_tv is None:
+            vocab_tv = self._vocab_tv_for_item(item_id)
+        if vocab_tv is None:
+            return
+
+        values = vocab_tv.widget.item(item_id, "values")
         if not values or len(values) < 1:
             return
 
-        term = _strip_display_prefix(values[0])  # Term is first column
+        term = strip_display_prefix(values[0])
         current_rating = self._feedback_manager.get_rating(term)
 
         # Toggle logic: if already this rating, clear it; otherwise set it
@@ -2803,17 +2607,14 @@ class DynamicOutputWidget(ctk.CTkFrame):
         success = self._feedback_manager.record_feedback(term_data, new_rating)
 
         if success:
-            # Update the visual display
-            self._update_feedback_display(item_id, new_rating, tv)
+            current_columns = getattr(self, "_current_columns", GUI_DISPLAY_COLUMNS)
+            vocab_tv.update_feedback_display(item_id, new_rating, current_columns)
             action = "Cleared" if new_rating == 0 else "Set"
             logger.debug("%s feedback for '%s': %s", action, term, new_rating)
 
-            # Add skipped terms to user exclusion list
-            # This filters them out of future extractions
             if new_rating == -1:
                 self._add_to_user_exclusion_list(term)
 
-            # Check if feedback is lopsided and show hint if needed
             self._update_balance_hint()
 
     def _update_balance_hint(self):
@@ -2880,165 +2681,18 @@ class DynamicOutputWidget(ctk.CTkFrame):
 
         return None
 
-    def _treeview_for_item(self, item_id: str):
+    def _vocab_tv_for_item(self, item_id: str) -> VocabTreeview | None:
         """
-        Return the treeview that owns a given item ID.
+        Return the VocabTreeview that owns a given item ID.
 
         Args:
             item_id: Treeview item identifier
 
         Returns:
-            The treeview widget (main or filtered)
+            VocabTreeview instance, or None if not found
         """
-        if item_id in self._filtered_item_to_data:
-            return self._filtered_treeview
-        return self.csv_treeview
-
-    def _update_feedback_display(self, item_id: str, rating: int, tv=None):
-        """
-        Update the visual display of feedback icons for a term.
-
-        Args:
-            item_id: Treeview item identifier
-            rating: +1 (Keep filled), -1 (Skip filled), 0 (both empty)
-            tv: Treeview widget that owns this item (avoids ID collision)
-        """
-        if tv is None:
-            tv = self._treeview_for_item(item_id)
-        values = list(tv.item(item_id, "values"))
-
-        # Dynamically find Keep and Skip column indices
-        current_columns = getattr(self, "_current_columns", GUI_DISPLAY_COLUMNS)
-        try:
-            keep_idx = current_columns.index(VF.KEEP)  # 0-based for list access
-            skip_idx = current_columns.index(VF.SKIP)  # 0-based for list access
-        except ValueError:
-            return  # Keep/Skip columns not found
-        except Exception:
-            logger.error("Unexpected error finding feedback columns", exc_info=True)
-            return
-
-        if len(values) <= max(keep_idx, skip_idx):
-            return
-
-        # Preserve the row background tag (oddrow/evenrow) when setting rating tag
-        is_filtered = tv == self._filtered_treeview
-        existing_tags = tv.item(item_id, "tags")
-        bg_candidates = (
-            ("filtered_oddrow", "filtered_evenrow") if is_filtered else ("oddrow", "evenrow")
-        )
-        row_bg_tag = next((t for t in existing_tags if t in bg_candidates), None)
-
-        # Update the icon values at dynamic positions
-        # User clicks always use session tags (darker colors)
-        # Filtered items use filtered_ prefixed tags for muted appearance
-        prefix = "filtered_" if is_filtered else ""
-        if rating == 1:
-            values[keep_idx] = THUMB_UP_FILLED
-            values[skip_idx] = THUMB_DOWN_EMPTY
-            tag = (
-                (row_bg_tag, f"{prefix}rated_up_session")
-                if row_bg_tag
-                else (f"{prefix}rated_up_session",)
-            )
-        elif rating == -1:
-            values[keep_idx] = THUMB_UP_EMPTY
-            values[skip_idx] = THUMB_DOWN_FILLED
-            tag = (
-                (row_bg_tag, f"{prefix}rated_down_session")
-                if row_bg_tag
-                else (f"{prefix}rated_down_session",)
-            )
-        else:  # rating == 0
-            values[keep_idx] = THUMB_UP_EMPTY
-            values[skip_idx] = THUMB_DOWN_EMPTY
-            tag = (row_bg_tag,) if row_bg_tag else ()
-
-        # Update the item with new values and tag for coloring
-        tv.item(item_id, values=tuple(values), tags=tag)
-
-    def _on_treeview_hover(self, event):
-        """
-        Handle mouse hover over treeview rows.
-
-        Shows a tooltip with potential duplicate information when hovering
-        over rows that have been flagged as possible duplicates.
-        """
-        # Cancel any pending tooltip
-        if self._tooltip_after_id:
-            self.after_cancel(self._tooltip_after_id)
-            self._tooltip_after_id = None
-
-        # Identify the row under the cursor
-        item_id = self.csv_treeview.identify_row(event.y)
-        if not item_id:
-            self._hide_tooltip(None)
-            return
-
-        # Get term data from our mapping
-        term_data = self._item_to_data.get(item_id)
-        if not term_data:
-            self._hide_tooltip(None)
-            return
-
-        # Check if this term has a potential duplicate
-        duplicate_of = term_data.get("_potential_duplicate_of")
-        if not duplicate_of:
-            self._hide_tooltip(None)
-            return
-
-        # Show tooltip after a short delay (300ms)
-        tooltip_text = f"Possible duplicate: {duplicate_of}"
-        self._tooltip_after_id = self.after(
-            300,
-            lambda: self._show_tooltip(tooltip_text, event.x_root + 15, event.y_root + 10),
-        )
-
-    def _show_tooltip(self, text: str, x: int, y: int):
-        """
-        Display a tooltip window at the specified screen coordinates.
-
-        Args:
-            text: The text to display in the tooltip
-            x: Screen x-coordinate for tooltip position
-            y: Screen y-coordinate for tooltip position
-        """
-        # Hide any existing tooltip first
-        self._hide_tooltip(None)
-
-        # Create tooltip as a toplevel window
-        self._tooltip = ctk.CTkToplevel(self)
-        self._tooltip.wm_overrideredirect(True)  # No window decorations
-        self._tooltip.wm_geometry(f"+{x}+{y}")
-
-        # Prevent tooltip from taking focus
-        self._tooltip.attributes("-topmost", True)
-
-        # Create tooltip label with styling
-        label = ctk.CTkLabel(
-            self._tooltip,
-            text=text,
-            fg_color=COLORS["tooltip_bg"],
-            text_color=COLORS["tooltip_fg"],
-            corner_radius=4,
-            padx=8,
-            pady=4,
-        )
-        label.pack()
-
-    def _hide_tooltip(self, event):
-        """
-        Hide and destroy the tooltip window.
-
-        Args:
-            event: The event that triggered hiding (can be None)
-        """
-        # Cancel any pending tooltip show
-        if self._tooltip_after_id:
-            self.after_cancel(self._tooltip_after_id)
-            self._tooltip_after_id = None
-
-        # Destroy existing tooltip
-        if self._tooltip:
-            self._tooltip.destroy()
-            self._tooltip = None
+        if self._filtered_vocab_tv and self._filtered_vocab_tv.has_item(item_id):
+            return self._filtered_vocab_tv
+        if self._main_vocab_tv and self._main_vocab_tv.has_item(item_id):
+            return self._main_vocab_tv
+        return None

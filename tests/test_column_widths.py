@@ -432,21 +432,21 @@ class TestStretchFalseOnAllColumns:
     """Verify stretch=False is set on all columns (no snap-back)."""
 
     def test_no_stretch_true_in_column_config(self):
-        """No stretch=True in the _display_csv column configuration."""
-        source = _read_source("src/ui/dynamic_output.py")
+        """No stretch=True in the VocabTreeview column configuration."""
+        source = _read_source("src/ui/vocab_table/vocab_treeview.py")
         # Find the column configuration block
-        assert "stretch=False," in source
+        assert "stretch=False" in source
         # The old pattern should be gone
         assert 'stretch=col == "Term"' not in source
 
     def test_all_stretch_calls_are_false(self):
-        """Every stretch= assignment in dynamic_output.py is False."""
+        """Every stretch= assignment in vocab_treeview.py is False."""
         import re
 
-        source = _read_source("src/ui/dynamic_output.py")
+        source = _read_source("src/ui/vocab_table/vocab_treeview.py")
         stretches = re.findall(r"stretch=(\S+)", source)
         for val in stretches:
-            assert val.rstrip(",") == "False", f"Found stretch={val}"
+            assert val.rstrip(",)") == "False", f"Found stretch={val}"
 
 
 class TestSaveCapRaised:

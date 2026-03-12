@@ -3,6 +3,7 @@ Vocabulary Table Components.
 
 This package contains the components for the vocabulary table display:
 - column_config: Column registry and display constants
+- vocab_treeview: Self-contained treeview widget with item-data mapping
 """
 
 from src.ui.vocab_table.column_config import (
@@ -38,5 +39,9 @@ __all__ = [
     "THUMB_DOWN_FILLED",
     "THUMB_UP_EMPTY",
     "THUMB_UP_FILLED",
+    "VocabTreeview",
+    "strip_display_prefix",
     "truncate_text",
 ]
+
+from src.ui.vocab_table.vocab_treeview import VocabTreeview, strip_display_prefix

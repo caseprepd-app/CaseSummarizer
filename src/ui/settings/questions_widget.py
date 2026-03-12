@@ -82,9 +82,9 @@ class DefaultQuestionsWidget(BaseSettingsWidget):
 
         # Guidance text
         guidance_text = (
-            "Tip: Search for one specific topic at a time about facts in the documents.\n\n"
-            'Good: "What injuries were sustained?", "What warnings were given?"\n'
-            'Avoid: "What is this case about?", "When and where did the accident happen?"'
+            "Tip: Search for one specific topic at a time. Use natural phrases.\n\n"
+            'Good: "injuries sustained by the plaintiff", "warnings given before the accident"\n'
+            'Avoid: "what is this case about", "injuries and warnings and timeline"'
         )
         guidance_label = ctk.CTkLabel(
             self,

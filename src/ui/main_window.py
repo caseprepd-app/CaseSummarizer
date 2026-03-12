@@ -1489,7 +1489,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
 
         # Clear entry and disable controls while processing
         self.followup_entry.delete(0, "end")
-        self.followup_btn.configure(state="disabled", text="Asking...")
+        self.followup_btn.configure(state="disabled", text="Searching...")
         self.followup_entry.configure(state="disabled")
 
         # Truncate at word boundary to avoid mid-word cuts
@@ -1497,7 +1497,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             display_q = question[:57].rsplit(" ", 1)[0] + "..."
         else:
             display_q = question
-        self.set_status(f"Asking: {display_q}")
+        self.set_status(f"Searching: {display_q}")
 
         # Show pending result immediately in search panel
         from src.services import QAService
@@ -1537,9 +1537,9 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             logger.warning("Follow-up polling timed out after %d polls", self._followup_poll_count)
             self._followup_pending = False
             self._followup_poll_count = 0
-            self.followup_btn.configure(state="normal", text="Ask")
+            self.followup_btn.configure(state="normal", text="Search")
             self.followup_entry.configure(state="normal")
-            self.set_status_error("Follow-up timed out — worker may have crashed")
+            self.set_status_error("Search timed out — worker may have crashed")
             return
 
         # Check for qa_followup_result in subprocess messages
@@ -1583,7 +1583,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         # Got a result - re-enable controls
         self._followup_pending = False
         self._followup_poll_count = 0
-        self.followup_btn.configure(state="normal", text="Ask")
+        self.followup_btn.configure(state="normal", text="Search")
         self.followup_entry.configure(state="normal")
         self.followup_entry.focus()
 

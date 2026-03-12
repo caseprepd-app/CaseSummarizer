@@ -395,3 +395,83 @@ class AboutDialog(BaseModalDialog):
             width=100,
         )
         close_btn.grid(row=5, column=0, pady=(15, 20))
+
+
+class SearchTipsDialog(BaseModalDialog):
+    """
+    Dialog with research-based tips for effective semantic search.
+
+    Opened from the 'Search Tips' button near the search bar.
+    """
+
+    def __init__(self, parent):
+        """
+        Initialize the Search Tips dialog.
+
+        Args:
+            parent: Parent window
+        """
+        super().__init__(
+            parent=parent,
+            title="Semantic Search Tips",
+            width=500,
+            height=420,
+            resizable=False,
+        )
+        self._create_ui()
+
+    def _create_ui(self):
+        """Build the dialog UI with scrollable search tips."""
+        self.grid_columnconfigure(0, weight=1)
+        self.grid_rowconfigure(1, weight=1)
+
+        title = ctk.CTkLabel(
+            self,
+            text="Tips for Better Local Semantic Search Results",
+            font=FONTS["heading"],
+        )
+        title.grid(row=0, column=0, padx=20, pady=(15, 10))
+
+        scroll = ctk.CTkScrollableFrame(self, fg_color="transparent")
+        scroll.grid(row=1, column=0, padx=15, pady=5, sticky="nsew")
+        scroll.grid_columnconfigure(0, weight=1)
+
+        tips = [
+            (
+                "One topic per search",
+                "Search for one specific topic at a time.\n"
+                'Good: "injuries sustained by the plaintiff"\n'
+                'Avoid: "injuries and warnings and timeline"',
+            ),
+            (
+                "Use natural language",
+                "Write phrases, not keyword lists. The engine matches meaning.\n"
+                'Good: "warnings given before the accident"\n'
+                'Avoid: "warning accident before"',
+            ),
+            (
+                "Be specific",
+                "Narrow queries get more relevant results.\n"
+                'Good: "medical treatment after the fall"\n'
+                'Avoid: "what happened"',
+            ),
+            (
+                "Try different phrasings",
+                "Synonyms and different angles surface different passages.\n"
+                "Rephrase if results aren't what you expected.",
+            ),
+            (
+                "Check multiple results",
+                "The top result isn't always the best — scan a few and\n"
+                "check the source citations to verify context.",
+            ),
+        ]
+
+        for i, (heading, body) in enumerate(tips):
+            h = ctk.CTkLabel(scroll, text=heading, font=FONTS["heading_sm"], anchor="w")
+            h.grid(row=i * 2, column=0, sticky="w", pady=(8 if i else 0, 2))
+            b = ctk.CTkLabel(scroll, text=body, font=FONTS["body"], anchor="w", justify="left")
+            b.grid(row=i * 2 + 1, column=0, sticky="w", padx=(10, 0))
+
+        ok_btn = ctk.CTkButton(self, text="OK", command=self.close, width=100)
+        ok_btn.grid(row=2, column=0, pady=(10, 15))
