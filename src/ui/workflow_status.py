@@ -22,6 +22,7 @@ class WorkflowPhase(Enum):
     QA_INDEXING = auto()  # Search index being built
     QA_ANSWERING = auto()  # Search queries being answered
     COMPLETE = auto()  # All processing complete
+    COMPLETE_WITH_ERRORS = auto()  # Processing finished but some tasks failed
 
 
 @dataclass
@@ -79,6 +80,12 @@ def get_qa_tab_status(phase: WorkflowPhase, config: TabStatusConfig) -> str:
     if phase == WorkflowPhase.COMPLETE:
         return "Processing complete.\n\nUse the search bar below to query your documents."
 
+    if phase == WorkflowPhase.COMPLETE_WITH_ERRORS:
+        return (
+            "Search unavailable \u2014 embedding model failed to load.\n\n"
+            "Check Settings or run: python scripts/download_models.py"
+        )
+
     return ""
 
 
@@ -115,5 +122,8 @@ def get_summary_tab_status(phase: WorkflowPhase, config: TabStatusConfig) -> str
 
     if phase == WorkflowPhase.COMPLETE:
         return "Processing complete."
+
+    if phase == WorkflowPhase.COMPLETE_WITH_ERRORS:
+        return "Key excerpts unavailable \u2014 search index failed to build."
 
     return ""

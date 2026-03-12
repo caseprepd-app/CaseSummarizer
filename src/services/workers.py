@@ -573,7 +573,7 @@ class ProgressiveExtractionWorker(BaseWorker):
                 logger.debug("Loading embeddings model...")
                 self.ui_queue.put(
                     QueueMessage.progress(
-                        22, "Loading AI language model (first time may be slow)..."
+                        22, "Loading semantic search model (first time may be slow)..."
                     )
                 )
                 from src.core.retrieval.algorithms.faiss_semantic import get_embeddings_model

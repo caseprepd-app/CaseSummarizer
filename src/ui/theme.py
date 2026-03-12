@@ -359,6 +359,10 @@ BUTTON_STYLES = {
         "fg_color": COLORS["success"],
         "hover_color": COLORS["success"],
     },
+    "warning": {
+        "fg_color": COLORS["warning"],
+        "hover_color": COLORS["warning"],
+    },
     "caution": {
         "fg_color": ("#6a3a9e", "#7744aa"),
         "hover_color": ("#8650b8", "#9955cc"),

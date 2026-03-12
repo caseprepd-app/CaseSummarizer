@@ -2710,9 +2710,9 @@ class DynamicOutputWidget(ctk.CTkFrame):
 
         # Check if click was on a feedback column
         if column == f"#{keep_idx}":  # Keep column
-            self._toggle_feedback(item_id, +1)
+            self._toggle_feedback(item_id, +1, tv)
         elif column == f"#{skip_idx}":  # Skip column
-            self._toggle_feedback(item_id, -1)
+            self._toggle_feedback(item_id, -1, tv)
 
     def _check_corpus_and_warn(self) -> bool:
         """
@@ -2749,7 +2749,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
         )
         return result
 
-    def _toggle_feedback(self, item_id: str, feedback_type: int):
+    def _toggle_feedback(self, item_id: str, feedback_type: int, tv=None):
         """
         Toggle feedback state for a vocabulary term.
 
@@ -2759,6 +2759,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
         Args:
             item_id: Treeview item identifier
             feedback_type: +1 for Keep, -1 for Skip
+            tv: Treeview widget that owns this item (avoids ID collision)
         """
         # Block feedback while extraction is in progress
         # Use non-blocking status message instead of modal dialog
@@ -2776,8 +2777,10 @@ class DynamicOutputWidget(ctk.CTkFrame):
         if not self._check_corpus_and_warn():
             return  # User cancelled
 
-        # Get the term from the row (check which treeview owns this item)
-        tv = self._treeview_for_item(item_id)
+        # Use the treeview passed from the click handler to avoid ID collision
+        # between main and filtered treeviews (both start IDs from I001)
+        if tv is None:
+            tv = self._treeview_for_item(item_id)
         values = tv.item(item_id, "values")
         if not values or len(values) < 1:
             return
@@ -2798,7 +2801,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
 
         if success:
             # Update the visual display
-            self._update_feedback_display(item_id, new_rating)
+            self._update_feedback_display(item_id, new_rating, tv)
             action = "Cleared" if new_rating == 0 else "Set"
             logger.debug("%s feedback for '%s': %s", action, term, new_rating)
 
@@ -2888,15 +2891,17 @@ class DynamicOutputWidget(ctk.CTkFrame):
             return self._filtered_treeview
         return self.csv_treeview
 
-    def _update_feedback_display(self, item_id: str, rating: int):
+    def _update_feedback_display(self, item_id: str, rating: int, tv=None):
         """
         Update the visual display of feedback icons for a term.
 
         Args:
             item_id: Treeview item identifier
             rating: +1 (Keep filled), -1 (Skip filled), 0 (both empty)
+            tv: Treeview widget that owns this item (avoids ID collision)
         """
-        tv = self._treeview_for_item(item_id)
+        if tv is None:
+            tv = self._treeview_for_item(item_id)
         values = list(tv.item(item_id, "values"))
 
         # Dynamically find Keep and Skip column indices
@@ -2914,7 +2919,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
             return
 
         # Preserve the row background tag (oddrow/evenrow) when setting rating tag
-        is_filtered = item_id in self._filtered_item_to_data
+        is_filtered = tv == self._filtered_treeview
         existing_tags = tv.item(item_id, "tags")
         bg_candidates = (
             ("filtered_oddrow", "filtered_evenrow") if is_filtered else ("oddrow", "evenrow")

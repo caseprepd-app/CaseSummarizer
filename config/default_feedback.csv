@@ -76,3 +76,15 @@ timestamp,document_id,term,feedback,is_person,algorithms,NER_detection,RAKE_dete
 2026-03-12T09:25:10.005453,unknown,Hansraj,1,1,"BM25, NER, YAKE",True,False,True,False,False,True,3,76.2,331,0,0.0,0.00067,0.0,24.3576,2,0.6666666666666666,0.9461933534743202,0.95,0.0050000000000000044,1.0,0,3,69605
 2026-03-12T09:25:39.330708,unknown,Brown,-1,1,NER,True,False,False,False,False,False,1,63.6,6,1267,0.0,0.0,0.0,0.0,1,0.3333333333333333,0.9499999999999998,0.95,0.0,1.0,0,3,33753
 2026-03-12T09:32:01.538827,unknown,De Moura,1,1,"NER, RAKE",True,True,False,False,False,False,2,97.6,61,0,0.0,0.0,4.4,0.0,2,0.6666666666666666,0.95,0.95,0.0,1.0,0,3,71718
+2026-03-12T16:10:15.244746,unknown,Bob,-1,1,NER,True,False,False,False,False,False,1,57.4,2,1922,0.0,0.0,0.0,0.0,1,1.0,0.94,0.94,0.0,1.0,0,1,28880
+2026-03-12T16:10:18.707018,unknown,couldn't,-1,0,BM25,False,False,True,False,False,False,1,70.1,8,0,0.0,0.0,0.0,19.5686,1,1.0,0.94,0.94,0.0,1.0,0,1,28880
+2026-03-12T16:10:27.361348,unknown,Mario Osorio,1,1,"NER,YAKE,RAKE",True,True,False,False,False,True,3,99.3,51,0,0.0,0.000518,3.2781954887218046,0.0,1,1.0,0.94,0.94,0.0,1.0,0,1,28880
+2026-03-12T16:10:38.976943,unknown,David Bressler,1,1,"NER,YAKE",True,False,False,False,False,True,2,90.0,3,0,0.0,0.02158,0.0,0.0,1,1.0,0.94,0.94,0.0,1.0,0,1,28880
+2026-03-12T16:10:50.272031,unknown,they're,-1,0,BM25,False,False,True,False,False,False,1,75.3,19,0,0.0,0.0,0.0,22.3841,1,1.0,0.94,0.94,0.0,1.0,0,1,28880
+2026-03-12T16:10:51.632566,unknown,you'll,-1,0,BM25,False,False,True,False,False,False,1,73.9,8,0,0.0,0.0,0.0,19.5686,1,1.0,0.94,0.94,0.0,1.0,0,1,28880
+2026-03-12T16:32:18.595871,unknown,conferenced,-1,0,"NER,YAKE,BM25",True,False,True,False,False,True,3,67.8,3,308261,0.0,0.824155,0.0,17.7406,1,1.0,0.91,0.91,0.0,1.0,0,1,386
+2026-03-12T16:32:29.416451,unknown,Lavery,1,1,"NER,YAKE,BM25",True,False,True,False,False,True,3,58.7,11,63903,0.0,0.065468,0.0,23.4039,1,1.0,0.91,0.91,0.0,1.0,0,1,386
+2026-03-12T16:32:42.292571,unknown,allowed,-1,0,BM25,False,False,True,False,False,False,1,37.8,1,1845,0.0,0.0,0.0,2.7328,1,1.0,0.91,0.91,0.0,1.0,0,1,386
+2026-03-12T16:32:58.790065,unknown,record,-1,0,YAKE,False,False,False,False,False,True,1,38.9,1,781,0.0,0.208763,0.0,0.0,1,1.0,0.91,0.91,0.0,1.0,0,1,386
+2026-03-12T16:34:11.308039,unknown,fault,-1,0,BM25,False,False,True,False,False,False,1,39.7,1,5044,0.0,0.0,0.0,17.7406,1,1.0,0.91,0.91,0.0,1.0,0,1,386
+2026-03-12T16:36:31.418581,unknown,affirmative,-1,0,BM25,False,False,True,False,False,False,1,41.7,1,11585,0.0,0.0,0.0,17.7406,1,1.0,0.91,0.91,0.0,1.0,0,1,386

@@ -25,6 +25,7 @@ class TestWorkflowPhase:
             "QA_INDEXING",
             "QA_ANSWERING",
             "COMPLETE",
+            "COMPLETE_WITH_ERRORS",
         ]
         actual_phases = [p.name for p in WorkflowPhase]
         assert actual_phases == expected_phases

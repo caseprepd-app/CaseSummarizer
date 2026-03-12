@@ -113,6 +113,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         # so _all_tasks_complete / _finalize_tasks never hit AttributeError)
         self._pending_tasks: dict = {}
         self._completed_tasks: set = set()
+        self._failed_tasks: set = set()
         self._exporting_all = False  # Re-entrancy guard for export-all
 
         # Follow-up polling timeout counter (BUG 1 fix)
@@ -838,9 +839,9 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             if hasattr(self, "followup_btn"):
                 self.followup_btn.configure(state="disabled")
             if self._pending_tasks.get("qa"):
-                self._completed_tasks.add("qa")
+                self._failed_tasks.add("qa")
             # Key excerpts won't arrive if vector store failed
-            self._completed_tasks.add("key_excerpts")
+            self._failed_tasks.add("key_excerpts")
             if self._all_tasks_complete():
                 self._finalize_tasks()
 
@@ -1162,6 +1163,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         # Track pending tasks (vocab + search + key excerpts)
         self._pending_tasks = {"vocab": True, "qa": True, "key_excerpts": True}
         self._completed_tasks = set()
+        self._failed_tasks = set()
         self._qa_ready = False
         self._qa_answering_active = False
         self._qa_failed = False
@@ -1218,9 +1220,15 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         self.complete_btn.grid_remove()
         self.stop_btn.grid(row=6, column=0, sticky="ew", padx=10, pady=(15, 5))
 
-    def _hide_stop_button(self):
-        """Swap stop button to green complete button after processing ends."""
+    def _hide_stop_button(self, partial: bool = False):
+        """Swap stop button to complete/incomplete button after processing ends."""
+        from src.ui.theme import BUTTON_STYLES
+
         self.stop_btn.grid_remove()
+        if partial:
+            self.complete_btn.configure(text="Incomplete", **BUTTON_STYLES["warning"])
+        else:
+            self.complete_btn.configure(text="Complete", **BUTTON_STYLES["success"])
         self.complete_btn.grid(row=6, column=0, sticky="ew", padx=10, pady=(15, 5))
 
     def _show_generate_button(self):
@@ -1355,9 +1363,9 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         self._finalize_tasks()
 
     def _all_tasks_complete(self) -> bool:
-        """Check if all pending tasks are truly complete."""
+        """Check if all pending tasks are done (completed or failed)."""
         for task_name, is_pending in self._pending_tasks.items():
-            if is_pending and task_name not in self._completed_tasks:
+            if is_pending and task_name not in self._completed_tasks | self._failed_tasks:
                 return False
         return not self._qa_answering_active
 
@@ -1372,24 +1380,33 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             return
         # Guard against race: Q&A is pending but trigger_default_qa_started
         # hasn't arrived yet (subprocess is still building the index).
-        qa_pending_not_started = self._pending_tasks.get("qa") and "qa" not in self._completed_tasks
+        done = self._completed_tasks | self._failed_tasks
+        qa_pending_not_started = self._pending_tasks.get("qa") and "qa" not in done
         if qa_pending_not_started and not self._qa_failed:
             logger.debug("Deferring finalization: Q&A pending but not yet started")
             return
         completed = len(self._completed_tasks)
-        self._on_tasks_complete(True, f"Completed {completed} task(s)")
+        failed = len(self._failed_tasks)
+        if failed:
+            msg = f"Completed {completed} task(s), {failed} failed"
+            self._on_tasks_complete(True, msg, partial=True)
+        else:
+            self._on_tasks_complete(True, f"Completed {completed} task(s)")
 
-    def _on_tasks_complete(self, success: bool, message: str):
+    def _on_tasks_complete(self, success: bool, message: str, partial: bool = False):
         """Handle task completion."""
         self._stop_timer()
         self._processing_active = False
-        self._hide_stop_button()
+        self._hide_stop_button(partial=partial)
         self.output_display.set_extraction_in_progress(False)
 
         # Update workflow phase for tab status
         from src.ui.workflow_status import WorkflowPhase
 
-        self.output_display.set_workflow_phase(WorkflowPhase.COMPLETE)
+        if partial:
+            self.output_display.set_workflow_phase(WorkflowPhase.COMPLETE_WITH_ERRORS)
+        else:
+            self.output_display.set_workflow_phase(WorkflowPhase.COMPLETE)
 
         # Re-enable controls
         self.add_files_btn.configure(state="normal")
