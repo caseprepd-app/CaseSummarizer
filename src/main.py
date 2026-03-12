@@ -23,6 +23,13 @@ import multiprocessing
 
 multiprocessing.freeze_support()  # Must run before ANY subprocess code in frozen builds
 
+# On Windows, force multiprocessing to use pythonw.exe (no console window)
+# to prevent blank CLI windows appearing alongside the GUI.
+if sys.platform == "win32":
+    _pythonw = os.path.join(os.path.dirname(sys.executable), "pythonw.exe")
+    if os.path.exists(_pythonw):
+        multiprocessing.set_executable(_pythonw)
+
 # ============================================================
 # Splash subprocess check: in frozen builds, the main exe
 # spawns itself with _CASEPREPD_SPLASH=1 env var. Detect that

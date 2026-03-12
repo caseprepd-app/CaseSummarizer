@@ -1318,6 +1318,78 @@ def _register_all_settings():
     )
 
     # ===================================================================
+    # COREFERENCE RESOLUTION (Search tab)
+    # ===================================================================
+
+    SettingsRegistry.register(
+        SettingDefinition(
+            key="coreference_enabled",
+            label="Enable pronoun resolution",
+            category="Search",
+            setting_type=SettingType.CHECKBOX,
+            tooltip=(
+                "Replaces pronouns (he, she, they) with the names they refer to "
+                "before building the search index.\n\n"
+                "This adds significant processing time (tens of minutes for large "
+                "documents) for only a modest improvement: search excerpts may be "
+                "slightly more readable when pronouns are resolved. Results are "
+                "imperfect — some replacements will be wrong.\n\n"
+                "Recommended: OFF for most users. Only enable if you need the "
+                "clearest possible excerpt text and can tolerate longer processing."
+            ),
+            default=False,
+            getter=lambda: prefs.get("coreference_enabled", False),
+            setter=lambda v: prefs.set("coreference_enabled", v),
+        )
+    )
+
+    SettingsRegistry.register(
+        SettingDefinition(
+            key="coreference_max_chars",
+            label="Max document size (characters)",
+            category="Search",
+            setting_type=SettingType.SLIDER,
+            tooltip=(
+                "Skip pronoun resolution for documents larger than this many "
+                "characters. Larger documents take dramatically longer because "
+                "the AI model's processing time grows with text size.\n\n"
+                "200,000 characters is roughly 100 pages of transcript.\n\n"
+                "Documents exceeding this limit will be chunked normally "
+                "without pronoun resolution."
+            ),
+            default=200_000,
+            min_value=50_000,
+            max_value=500_000,
+            step=50_000,
+            getter=lambda: prefs.get("coreference_max_chars", 200_000),
+            setter=lambda v: prefs.set("coreference_max_chars", int(v)),
+        )
+    )
+
+    SettingsRegistry.register(
+        SettingDefinition(
+            key="coreference_chunk_size",
+            label="Processing chunk size (characters)",
+            category="Search",
+            setting_type=SettingType.SLIDER,
+            tooltip=(
+                "Size of text chunks sent to the pronoun resolution model. "
+                "Smaller chunks process faster but may miss pronouns that refer "
+                "to names mentioned further back in the text.\n\n"
+                "15,000 characters (about 8 pages) is a good balance of speed "
+                "and accuracy. Larger values are slower but may catch more "
+                "distant pronoun references."
+            ),
+            default=15_000,
+            min_value=5_000,
+            max_value=50_000,
+            step=5_000,
+            getter=lambda: prefs.get("coreference_chunk_size", 15_000),
+            setter=lambda v: prefs.set("coreference_chunk_size", int(v)),
+        )
+    )
+
+    # ===================================================================
     # EXPORT TAB
     # ===================================================================
 

@@ -425,3 +425,38 @@ class SettingsDialog(BaseModalDialog):
             logging_widget.dropdown.configure(
                 command=lambda v: on_level_change(logging_widget.value_map.get(v))
             )
+
+        # Link coreference toggle to max chars and chunk size sliders
+        coref_toggle = self.widgets.get("coreference_enabled")
+        coref_max_chars = self.widgets.get("coreference_max_chars")
+        coref_chunk_size = self.widgets.get("coreference_chunk_size")
+
+        if coref_toggle and coref_max_chars and coref_chunk_size:
+            dependents = [coref_max_chars, coref_chunk_size]
+
+            def _set_coref_dependents_state(enabled):
+                """Enable or disable coreference sub-settings."""
+                state = "normal" if enabled else "disabled"
+                alpha = 1.0 if enabled else 0.4
+                for widget in dependents:
+                    widget.slider.configure(state=state)
+                    widget.label_widget.configure(
+                        text_color=COLORS["text_primary"] if enabled else COLORS["text_secondary"]
+                    )
+                    widget.value_label.configure(
+                        text_color=COLORS["text_primary"] if enabled else COLORS["text_secondary"]
+                    )
+
+            # Set initial state
+            _set_coref_dependents_state(coref_toggle.get_value())
+
+            # Wire up change handler
+            original_coref_change = coref_toggle.on_change
+
+            def on_coref_toggle(value):
+                _set_coref_dependents_state(value)
+                if original_coref_change:
+                    original_coref_change(value)
+
+            coref_toggle.on_change = on_coref_toggle
+            coref_toggle.checkbox.configure(command=lambda: on_coref_toggle(coref_toggle.var.get()))

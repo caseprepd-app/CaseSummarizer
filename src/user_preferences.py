@@ -385,6 +385,16 @@ class UserPreferencesManager:
         elif key == "non_ner_phrase_common_word_floor":
             if not isinstance(value, (int, float)) or value < 0.05 or value > 0.30:
                 raise ValueError(f"non_ner_phrase_common_word_floor must be 0.05-0.30, got {value}")
+        # Coreference resolution settings
+        elif key == "coreference_enabled":
+            if not isinstance(value, bool):
+                raise ValueError(f"coreference_enabled must be boolean, got {value}")
+        elif key == "coreference_max_chars":
+            if not isinstance(value, (int, float)) or value < 50_000 or value > 500_000:
+                raise ValueError(f"coreference_max_chars must be 50000-500000, got {value}")
+        elif key == "coreference_chunk_size":
+            if not isinstance(value, (int, float)) or value < 5_000 or value > 50_000:
+                raise ValueError(f"coreference_chunk_size must be 5000-50000, got {value}")
         # Corpus ready transition flag
         elif key == "corpus_was_ever_ready":
             if not isinstance(value, bool):

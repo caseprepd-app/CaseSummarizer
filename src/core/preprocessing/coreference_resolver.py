@@ -36,8 +36,11 @@ _PRONOUNS = {
     "theirs",
 }
 
-# Max text size per processing chunk (50KB, same pattern as NER)
-_MAX_CHUNK_SIZE = 50_000
+# Default max text size per processing chunk
+_DEFAULT_CHUNK_SIZE = 15_000
+
+# Default max document size — skip coreference for very large documents
+_DEFAULT_MAX_CHARS = 200_000
 
 
 class CoreferenceResolver(BasePreprocessor):
@@ -180,6 +183,23 @@ class CoreferenceResolver(BasePreprocessor):
 
         return result, len(replacements), replacements
 
+    def _get_settings(self) -> tuple[int, int]:
+        """
+        Read coreference settings from user preferences.
+
+        Returns:
+            Tuple of (max_chars, chunk_size) from preferences or defaults.
+        """
+        try:
+            from src.user_preferences import get_user_preferences
+
+            prefs = get_user_preferences()
+            max_chars = int(prefs.get("coreference_max_chars", _DEFAULT_MAX_CHARS))
+            chunk_size = int(prefs.get("coreference_chunk_size", _DEFAULT_CHUNK_SIZE))
+            return max_chars, chunk_size
+        except Exception:
+            return _DEFAULT_MAX_CHARS, _DEFAULT_CHUNK_SIZE
+
     def process(self, text: str) -> PreprocessingResult:
         """
         Replace pronouns with their resolved antecedents throughout the text.
@@ -193,14 +213,25 @@ class CoreferenceResolver(BasePreprocessor):
         if not text:
             return PreprocessingResult(text=text, changes_made=0)
 
+        max_chars, chunk_size = self._get_settings()
+
+        # Skip coreference for documents exceeding max size
+        if len(text) > max_chars:
+            logger.info(
+                "Skipping coreference: document size %d chars exceeds limit %d",
+                len(text),
+                max_chars,
+            )
+            return PreprocessingResult(text=text, changes_made=0)
+
         if not self._ensure_model():
             return PreprocessingResult(text=text, changes_made=0)
 
         # Process in chunks for large documents
-        if len(text) <= _MAX_CHUNK_SIZE:
+        if len(text) <= chunk_size:
             resolved, count, replacements = self._resolve_text(text)
         else:
-            resolved, count, replacements = self._process_in_chunks(text)
+            resolved, count, replacements = self._process_in_chunks(text, chunk_size)
 
         if count > 0:
             # Log a few examples for transparency
@@ -221,12 +252,13 @@ class CoreferenceResolver(BasePreprocessor):
             },
         )
 
-    def _process_in_chunks(self, text: str) -> tuple[str, int, list[dict]]:
+    def _process_in_chunks(self, text: str, chunk_size: int) -> tuple[str, int, list[dict]]:
         """
         Process large text in paragraph-boundary chunks.
 
         Args:
-            text: Text exceeding _MAX_CHUNK_SIZE.
+            text: Text exceeding chunk_size.
+            chunk_size: Max characters per processing chunk.
 
         Returns:
             Tuple of (resolved_text, total_count, all_replacements).
@@ -237,7 +269,7 @@ class CoreferenceResolver(BasePreprocessor):
         current_chunk = ""
 
         for part in paragraphs:
-            if len(current_chunk) + len(part) > _MAX_CHUNK_SIZE and current_chunk:
+            if len(current_chunk) + len(part) > chunk_size and current_chunk:
                 chunks.append(current_chunk)
                 current_chunk = part
             else:
