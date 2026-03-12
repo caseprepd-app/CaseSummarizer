@@ -88,3 +88,8 @@ timestamp,document_id,term,feedback,is_person,algorithms,NER_detection,RAKE_dete
 2026-03-12T16:32:58.790065,unknown,record,-1,0,YAKE,False,False,False,False,False,True,1,38.9,1,781,0.0,0.208763,0.0,0.0,1,1.0,0.91,0.91,0.0,1.0,0,1,386
 2026-03-12T16:34:11.308039,unknown,fault,-1,0,BM25,False,False,True,False,False,False,1,39.7,1,5044,0.0,0.0,0.0,17.7406,1,1.0,0.91,0.91,0.0,1.0,0,1,386
 2026-03-12T16:36:31.418581,unknown,affirmative,-1,0,BM25,False,False,True,False,False,False,1,41.7,1,11585,0.0,0.0,0.0,17.7406,1,1.0,0.91,0.91,0.0,1.0,0,1,386
+2026-03-12T18:15:02.341171,unknown,d. X-rays,-1,1,NER,True,False,False,False,False,False,1,60.3,2,0,0.0,0.0,0.0,0.0,1,0.3333333333333333,0.9,0.9,0.0,1.0,0,3,11301
+2026-03-12T18:15:23.334704,unknown,JO-MARK,1,0,"BM25, NER, YAKE",True,False,True,False,False,True,3,63.4,20,0,0.0,0.018603,0.0,22.6236,1,0.3333333333333333,0.9,0.9,0.0,1.0,0,3,11301
+2026-03-12T18:15:46.674262,unknown,Stacey Gorny,1,1,"NER, RAKE, YAKE",True,True,False,False,False,True,3,97.5,29,0,0.0,0.006144,4.0,0.0,2,0.6666666666666666,0.9006896551724138,0.9,0.0050000000000000044,1.0,0,3,14624
+2026-03-12T18:15:55.568369,unknown,answering,-1,0,"BM25,YAKE,NER",True,False,True,False,False,True,3,65.6,36,8475,0.0,0.007309,0.0,24.5754,1,1.0,0.8999999999999999,0.9,0.0,1.0,0,1,2237
+2026-03-12T18:16:05.069862,unknown,paragraphs,-1,0,"BM25,YAKE",False,False,True,False,False,True,2,62.8,17,9382,0.0,0.019668,0.0,24.1147,1,1.0,0.9,0.9,0.0,1.0,0,1,2237

@@ -2009,7 +2009,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
                 self._selected_term = _strip_display_prefix(values[0])
 
                 # Rebuild "View Alternatives" menu item based on term data
-                self._update_alternatives_menu_item(item_id)
+                self._update_alternatives_menu_item(item_id, treeview)
 
                 # Show context menu at cursor position
                 try:
@@ -2019,7 +2019,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
                 finally:
                     self.context_menu.grab_release()
 
-    def _update_alternatives_menu_item(self, item_id: str):
+    def _update_alternatives_menu_item(self, item_id: str, tv=None):
         """
         Add or update dynamic menu items based on selected term.
 
@@ -2028,6 +2028,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
 
         Args:
             item_id: Treeview item ID for the selected row
+            tv: The treeview widget that was clicked (to pick correct data dict)
         """
         # Remove existing dynamic items (always at index 3 onward)
         menu_size = self.context_menu.index("end")
@@ -2037,8 +2038,10 @@ class DynamicOutputWidget(ctk.CTkFrame):
             except Exception as e:
                 logger.debug("Context menu cleanup failed: %s", e)
 
-        # Look up the term data
-        term_data = self._item_to_data.get(item_id, {})
+        # Look up the term data from the correct dict based on which treeview
+        is_filtered = tv == self._filtered_treeview if tv else False
+        data_dict = self._filtered_item_to_data if is_filtered else self._item_to_data
+        term_data = data_dict.get(item_id, {})
         alternatives = term_data.get("_alternatives", [])
         is_person = str(term_data.get(VF.IS_PERSON, "")).lower() in ("yes", "true", "1")
         if not is_person:
