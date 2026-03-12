@@ -68,8 +68,6 @@ hidden_imports = [
 
     "sklearn.neighbors._partition_nodes",
     "sklearn.tree._utils",
-    # ONNX Runtime
-    "onnxruntime",
 ]
 
 # ── Collect submodules for large packages ──────────────────────────────
@@ -83,7 +81,6 @@ packages_to_collect = [
     "langchain_community",
     "langchain_text_splitters",
     "customtkinter",
-    "onnxruntime",
     "transformers",
     "huggingface_hub",
     "tokenizers",
@@ -138,7 +135,7 @@ added_data.extend(pkg_data)
 
 # ── Collect dynamic libraries ──────────────────────────────────────────
 added_binaries = []
-binary_packages = ["onnxruntime", "torch", "tokenizers", "thinc", "sklearn"]
+binary_packages = ["torch", "tokenizers", "thinc", "sklearn"]
 
 for pkg in binary_packages:
     try:

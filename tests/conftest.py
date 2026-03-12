@@ -5,12 +5,73 @@ Resets module-level singletons before every test so that no test
 inherits leftover state from a previous test.
 
 IMPORTANT: Tests must be run with the project venv activated (.venv\\Scripts\\activate).
-The system Python (3.13) differs from the venv Python (3.11) and is missing project
+The system Python (3.13) differs from the venv Python (3.12) and is missing project
 dependencies. Running with the wrong interpreter causes ModuleNotFoundError for
 packages like nupunkt, lettucedetect, and tkinterdnd2.
 """
 
 import pytest
+
+# ---------------------------------------------------------------------------
+# Progress milestones — writes to stderr so output is live even with -q
+# Prints every 10% plus timestamps so you can tell if tests are hung
+# ---------------------------------------------------------------------------
+
+
+class ProgressMilestones:
+    """Prints progress every ~10% to stderr with timestamps."""
+
+    def __init__(self):
+        """Initialize progress tracker."""
+        self.total = 0
+        self.count = 0
+        self.next_pct = 10
+        self.start_time = None
+        self.last_test = ""
+
+    def pytest_collection_modifyitems(self, items):
+        """Record total test count and start time after collection."""
+        import time
+
+        self.total = len(items)
+        self.start_time = time.time()
+        self._log(f"Collected {self.total} tests")
+
+    def pytest_runtest_logreport(self, report):
+        """Print a milestone line when crossing each 10% boundary."""
+        if report.when != "call" or self.total == 0:
+            return
+        self.count += 1
+        self.last_test = report.nodeid
+        pct = (self.count * 100) // self.total
+        if pct >= self.next_pct:
+            elapsed = self._elapsed()
+            self._log(
+                f"~{self.next_pct}% ({self.count}/{self.total}) "
+                f"[{elapsed}] last: {report.nodeid.split('::')[-1]}"
+            )
+            self.next_pct += 10
+
+    def _elapsed(self):
+        """Return elapsed time as M:SS string."""
+        import time
+
+        if self.start_time is None:
+            return "0:00"
+        secs = int(time.time() - self.start_time)
+        return f"{secs // 60}:{secs % 60:02d}"
+
+    def _log(self, msg):
+        """Write directly to stderr to bypass pytest capture."""
+        import sys
+
+        sys.stderr.write(f">>> {msg}\n")
+        sys.stderr.flush()
+
+
+def pytest_configure(config):
+    """Register the progress milestone plugin."""
+    config.pluginmanager.register(ProgressMilestones(), "progress_milestones")
 
 
 @pytest.fixture(autouse=True)

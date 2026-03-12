@@ -286,6 +286,7 @@ class TestNoAbsolutePathsInTests:
             "C:/Users/noahc",
             "/home/noahc",
             "Dropbox/Not Work",
+            "Dropbox/NotWork",
         ]
         problems = []
         for test_file in test_dir.glob("test_*.py"):

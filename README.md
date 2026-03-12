@@ -4,7 +4,7 @@
 
 ## Requirements
 
-- Python 3.11+
+- Python 3.12+
 - ~4GB disk space for spaCy model + embedding models
 
 ## Installation
@@ -21,6 +21,7 @@ python -m venv .venv
 
 # Install dependencies
 pip install -r requirements.txt
+pip install -r requirements-dev.txt  # for testing/linting
 
 # Download spaCy model
 python -m spacy download en_core_web_lg
@@ -31,7 +32,7 @@ python -m spacy download en_core_web_lg
 Entry point: `src/main.py`
 
 **Important:** The system PATH Python may be 3.13, but the project requires
-3.11 via `.venv`. Always activate the venv first, or run directly with
+3.12 via `.venv`. Always activate the venv first, or run directly with
 `.venv/Scripts/python`.
 
 ```bash
@@ -79,7 +80,7 @@ The developer dataset is never deleted — it just gets increasingly outweighed 
 ## Tests
 
 **Important:** Always activate the virtual environment before running tests.
-The project uses Python 3.11 in `.venv`, but your system PATH may point to a
+The project uses Python 3.12 in `.venv`, but your system PATH may point to a
 different Python (e.g. 3.13). Running tests with the wrong Python causes
 misleading failures — packages like `nupunkt`, `lettucedetect`, and
 `tkinterdnd2` will appear missing even though they're installed in the venv.
@@ -89,7 +90,7 @@ misleading failures — packages like `nupunkt`, `lettucedetect`, and
 .venv\Scripts\activate
 
 # Verify you're using the venv Python
-python --version   # Should show 3.11.x
+python --version   # Should show 3.12.x
 
 # Quick tests (skip slow integration tests)
 python -m pytest tests/ -v -m "not slow"

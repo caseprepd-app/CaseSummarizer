@@ -9,6 +9,9 @@ F-coref: 78.5% F1 on OntoNotes, 16x faster than LingMess, ~350MB model.
 
 Uses spaCy + fastcoref integration. Model is loaded lazily on first use.
 Falls back gracefully if fastcoref is not installed.
+
+Note: fastcoref is unmaintained (last update May 2023). A compatibility
+patch is applied at import time for transformers 5.x support.
 """
 
 import logging
@@ -72,6 +75,19 @@ class CoreferenceResolver(BasePreprocessor):
 
         try:
             import spacy
+
+            # Patch: fastcoref is unmaintained (May 2023) and breaks with
+            # transformers 5.x which renamed _tied_weights_keys to
+            # all_tied_weights_keys. FCorefModel doesn't tie any weights,
+            # so empty values are safe.
+            # See: https://github.com/huggingface/transformers/issues/43646
+            #      https://github.com/huggingface/transformers/issues/43883
+            from fastcoref.modeling import FCorefModel
+
+            if not hasattr(FCorefModel, "all_tied_weights_keys"):
+                FCorefModel._tied_weights_keys = []
+                FCorefModel.all_tied_weights_keys = {}
+
             from fastcoref import spacy_component  # noqa: F401 — registers the pipe
 
             from src.config import (

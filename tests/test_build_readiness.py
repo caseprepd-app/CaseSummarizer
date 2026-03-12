@@ -179,7 +179,6 @@ HIDDEN_IMPORTS_NON_UI = [
     "sklearn.utils._cython_blas",
     "sklearn.neighbors._partition_nodes",
     "sklearn.tree._utils",
-    "onnxruntime",
 ]
 
 
@@ -217,11 +216,10 @@ class TestHiddenImportsComplete:
 # ============================================================================
 # P1 - DLL-Heavy Package Loading
 # ============================================================================
-# Spec collects DLLs from onnxruntime, torch, tokenizers, thinc, sklearn.
+# Spec collects DLLs from torch, tokenizers, thinc, sklearn.
 # If DLLs are missing, these packages import but fail on first use.
 
 DLL_HEAVY_PACKAGES = [
-    ("onnxruntime", "InferenceSession"),
     ("torch", "Tensor"),
     ("tokenizers", "Tokenizer"),
     ("thinc.api", "Config"),
