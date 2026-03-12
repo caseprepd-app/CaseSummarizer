@@ -20,18 +20,17 @@ Example:
             ...
 """
 
-from abc import ABC, abstractmethod
+from abc import abstractmethod
 from dataclasses import dataclass, field
 from typing import Any
+
+from src.core.base_component import BaseNamedComponent
 
 
 @dataclass
 class DocumentChunk:
     """
     A chunk of document text for indexing and retrieval.
-
-    This is the input format for retrieval algorithms - documents are
-    pre-chunked and passed to each algorithm for indexing.
 
     Attributes:
         text: The chunk text content
@@ -61,9 +60,6 @@ class DocumentChunk:
 class RetrievedChunk:
     """
     A chunk retrieved by a single algorithm.
-
-    This represents a single retrieval result from one algorithm. Multiple
-    algorithms may retrieve the same chunk, which will be merged later.
 
     Attributes:
         chunk_id: Reference to the original DocumentChunk
@@ -97,9 +93,6 @@ class AlgorithmRetrievalResult:
     """
     Result from running a retrieval algorithm.
 
-    Contains all chunks retrieved by a single algorithm run,
-    plus metadata about the processing.
-
     Attributes:
         chunks: List of retrieved chunks, sorted by relevance
         processing_time_ms: Time taken to retrieve (for performance tracking)
@@ -117,21 +110,13 @@ class AlgorithmRetrievalResult:
         return len(self.chunks)
 
 
-class BaseRetrievalAlgorithm(ABC):
+class BaseRetrievalAlgorithm(BaseNamedComponent):
     """
     Abstract base class for document retrieval algorithms.
 
-    All algorithms must implement:
-    - index_documents(): Build the search index from document chunks
-    - retrieve(): Find relevant chunks for a query
-    - is_indexed: Property indicating if the index is ready
-
-    The orchestrator will run multiple algorithms and merge their results
-    using weighted combination.
+    Inherits name, enabled, get_config(), and __repr__ from BaseNamedComponent.
 
     Class Attributes:
-        name: Human-readable algorithm name (for logging and ML tracking)
-        enabled: Whether this algorithm is active (can be toggled at runtime)
         weight: Relative weight for scoring when merging (default 1.0)
 
     Example:
@@ -140,16 +125,13 @@ class BaseRetrievalAlgorithm(ABC):
             weight = 1.0
 
             def index_documents(self, chunks: list[DocumentChunk]) -> None:
-                # Build BM25 index
                 ...
 
             def retrieve(self, query: str, k: int = 5) -> AlgorithmRetrievalResult:
-                # BM25+ retrieval
                 ...
     """
 
     name: str = "BaseAlgorithm"
-    enabled: bool = True
     weight: float = 1.0
 
     @abstractmethod
@@ -157,14 +139,8 @@ class BaseRetrievalAlgorithm(ABC):
         """
         Build search index from document chunks.
 
-        This must be called before retrieve() can be used. The implementation
-        should store the index internally for later retrieval.
-
         Args:
             chunks: List of DocumentChunk objects to index
-
-        Raises:
-            ValueError: If chunks is empty or invalid
         """
         pass
 
@@ -179,37 +155,21 @@ class BaseRetrievalAlgorithm(ABC):
 
         Returns:
             AlgorithmRetrievalResult with ranked chunks and metadata
-
-        Raises:
-            RuntimeError: If index_documents() hasn't been called
         """
         pass
 
     @property
     @abstractmethod
     def is_indexed(self) -> bool:
-        """
-        Check if the index is ready for retrieval.
-
-        Returns:
-            True if index_documents() has been called successfully
-        """
+        """Check if the index is ready for retrieval."""
         pass
 
     def get_config(self) -> dict[str, Any]:
-        """
-        Return algorithm configuration for serialization/logging.
+        """Return algorithm configuration for serialization/logging."""
+        config = super().get_config()
+        config["weight"] = self.weight
+        return config
 
-        Override in subclass to include algorithm-specific settings.
-
-        Returns:
-            Dictionary of configuration values
-        """
-        return {
-            "name": self.name,
-            "enabled": self.enabled,
-            "weight": self.weight,
-        }
-
-    def __repr__(self) -> str:
-        return f"{self.__class__.__name__}(name={self.name!r}, enabled={self.enabled}, weight={self.weight})"
+    def _repr_extras(self) -> dict[str, Any]:
+        """Include weight in repr."""
+        return {"weight": self.weight}

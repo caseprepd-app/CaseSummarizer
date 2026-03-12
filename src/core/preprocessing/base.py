@@ -12,9 +12,11 @@ Design Principles:
 
 import logging
 import time
-from abc import ABC, abstractmethod
+from abc import abstractmethod
 from dataclasses import dataclass, field
 from typing import Any
+
+from src.core.base_component import BaseNamedComponent
 
 logger = logging.getLogger(__name__)
 
@@ -37,16 +39,14 @@ class PreprocessingResult:
     processing_time_ms: float = 0.0
 
 
-class BasePreprocessor(ABC):
+class BasePreprocessor(BaseNamedComponent):
     """
     Abstract base class for text preprocessors.
 
     All preprocessors must implement the `process` method which takes
     text input and returns a PreprocessingResult.
 
-    Attributes:
-        name: Human-readable name for logging
-        enabled: Whether this preprocessor is active
+    Inherits name, enabled, get_config(), and __repr__ from BaseNamedComponent.
 
     Example:
         class MyPreprocessor(BasePreprocessor):
@@ -61,16 +61,11 @@ class BasePreprocessor(ABC):
     """
 
     name: str = "Base Preprocessor"
-    enabled: bool = True
 
     @abstractmethod
     def process(self, text: str) -> PreprocessingResult:
         """
         Apply this preprocessor's specific cleaning step to the input text.
-
-        Each subclass implements one stage of the preprocessing pipeline
-        (e.g., removing headers, cleaning page boundaries, resolving
-        coreferences).
 
         Args:
             text: Raw input text to process
@@ -79,9 +74,6 @@ class BasePreprocessor(ABC):
             PreprocessingResult containing cleaned text and metadata
         """
         pass
-
-    def __repr__(self) -> str:
-        return f"{self.__class__.__name__}(enabled={self.enabled})"
 
 
 class PreprocessingPipeline:

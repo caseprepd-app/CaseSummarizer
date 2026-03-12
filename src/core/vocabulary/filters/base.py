@@ -7,9 +7,11 @@ All vocabulary filters should inherit from BaseVocabularyFilter.
 Design mirrors the preprocessing pipeline pattern from src/core/preprocessing/base.py.
 """
 
-from abc import ABC, abstractmethod
+from abc import abstractmethod
 from dataclasses import dataclass, field
 from typing import Any
+
+from src.core.base_component import BaseNamedComponent
 
 
 @dataclass
@@ -32,16 +34,13 @@ class FilterResult:
     metadata: dict[str, Any] = field(default_factory=dict)
 
 
-class BaseVocabularyFilter(ABC):
+class BaseVocabularyFilter(BaseNamedComponent):
     """
     Abstract base class for vocabulary filters.
 
-    All filters must implement the `filter` method which takes a vocabulary
-    list and returns a FilterResult with the filtered list and statistics.
+    Inherits name, enabled, get_config(), and __repr__ from BaseNamedComponent.
 
-    Attributes:
-        name: Human-readable name for logging
-        enabled: Whether this filter is active
+    Class Attributes:
         priority: Execution order (lower = runs first)
         exempt_persons: If True, person names bypass this filter
 
@@ -60,7 +59,6 @@ class BaseVocabularyFilter(ABC):
     """
 
     name: str = "Base Filter"
-    enabled: bool = True
     priority: int = 50
     exempt_persons: bool = False
 
@@ -94,12 +92,11 @@ class BaseVocabularyFilter(ABC):
 
     def get_config(self) -> dict[str, Any]:
         """Return filter configuration for logging."""
-        return {
-            "name": self.name,
-            "enabled": self.enabled,
-            "priority": self.priority,
-            "exempt_persons": self.exempt_persons,
-        }
+        config = super().get_config()
+        config["priority"] = self.priority
+        config["exempt_persons"] = self.exempt_persons
+        return config
 
-    def __repr__(self) -> str:
-        return f"{self.__class__.__name__}(enabled={self.enabled}, priority={self.priority})"
+    def _repr_extras(self) -> dict[str, Any]:
+        """Include priority in repr."""
+        return {"priority": self.priority}

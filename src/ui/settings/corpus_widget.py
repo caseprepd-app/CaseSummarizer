@@ -26,13 +26,14 @@ import logging
 
 import customtkinter as ctk
 
+from src.ui.settings.base_settings_widget import BaseSettingsWidget
 from src.ui.settings.settings_widgets import TooltipIcon
 from src.ui.theme import COLORS, FONTS
 
 logger = logging.getLogger(__name__)
 
 
-class CorpusSettingsWidget(ctk.CTkFrame):
+class CorpusSettingsWidget(BaseSettingsWidget):
     """
     Widget for corpus management within Settings dialog.
 
@@ -48,15 +49,13 @@ class CorpusSettingsWidget(ctk.CTkFrame):
             parent: Parent widget.
             **kwargs: Additional CTkFrame arguments.
         """
-        super().__init__(parent, fg_color="transparent", **kwargs)
-
         # Get corpus registry via VocabularyService
         from src.services import VocabularyService
 
         vocab_service = VocabularyService()
         self.registry = vocab_service.get_corpus_registry()
 
-        self._setup_ui()
+        super().__init__(parent, **kwargs)
 
     def _setup_ui(self):
         """Create the widget layout."""

@@ -25,6 +25,7 @@ import customtkinter as ctk
 
 logger = logging.getLogger(__name__)
 
+from src.ui.settings.base_settings_widget import BaseSettingsWidget
 from src.ui.theme import FONTS
 
 
@@ -79,7 +80,7 @@ _NEGATIVE_TOOLTIP = (
 )
 
 
-class IndicatorPatternWidget(ctk.CTkFrame):
+class IndicatorPatternWidget(BaseSettingsWidget):
     """
     Settings widget for user-defined vocabulary indicator patterns.
 
@@ -94,8 +95,6 @@ class IndicatorPatternWidget(ctk.CTkFrame):
         Args:
             parent: Parent widget.
         """
-        super().__init__(parent, fg_color="transparent", **kwargs)
-
         from src.user_preferences import get_user_preferences
 
         self._prefs = get_user_preferences()
@@ -124,7 +123,7 @@ class IndicatorPatternWidget(ctk.CTkFrame):
         self._pos_auto_regex = ""
         self._neg_auto_regex = ""
 
-        self._setup_ui()
+        super().__init__(parent, **kwargs)
 
     def _setup_ui(self):
         """Create the widget layout."""

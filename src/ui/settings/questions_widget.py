@@ -19,11 +19,12 @@ Layout:
 
 import customtkinter as ctk
 
+from src.ui.settings.base_settings_widget import BaseSettingsWidget
 from src.ui.settings.settings_widgets import TooltipIcon
 from src.ui.theme import FONTS
 
 
-class DefaultQuestionsWidget(ctk.CTkFrame):
+class DefaultQuestionsWidget(BaseSettingsWidget):
     """
     Widget for managing default semantic searches with checkboxes.
 
@@ -40,8 +41,6 @@ class DefaultQuestionsWidget(ctk.CTkFrame):
             parent: Parent widget.
             **kwargs: Additional CTkFrame arguments.
         """
-        super().__init__(parent, fg_color="transparent", **kwargs)
-
         from src.services import QAService
 
         qa_service = QAService()
@@ -53,7 +52,7 @@ class DefaultQuestionsWidget(ctk.CTkFrame):
         ]
 
         self._checkboxes: list[tuple[ctk.CTkCheckBox, ctk.BooleanVar]] = []
-        self._setup_ui()
+        super().__init__(parent, **kwargs)
 
     def _setup_ui(self):
         """Create the widget layout."""

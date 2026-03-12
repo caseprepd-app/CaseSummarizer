@@ -29,11 +29,12 @@ from typing import ClassVar
 import customtkinter as ctk
 
 from src.config import VF
+from src.ui.settings.base_settings_widget import BaseSettingsWidget
 from src.ui.settings.settings_widgets import TooltipIcon
 from src.ui.theme import COLORS, FONTS
 
 
-class ColumnVisibilityWidget(ctk.CTkFrame):
+class ColumnVisibilityWidget(BaseSettingsWidget):
     """
     Widget for configuring default column visibility in vocabulary table.
 
@@ -69,10 +70,8 @@ class ColumnVisibilityWidget(ctk.CTkFrame):
             parent: Parent widget.
             **kwargs: Additional CTkFrame arguments.
         """
-        super().__init__(parent, fg_color="transparent", **kwargs)
-
         self._checkboxes: dict[str, tuple[ctk.CTkCheckBox, ctk.BooleanVar]] = {}
-        self._setup_ui()
+        super().__init__(parent, **kwargs)
         self._load_values()
 
     def _setup_ui(self):

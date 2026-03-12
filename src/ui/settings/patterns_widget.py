@@ -16,11 +16,12 @@ Layout:
 
 import customtkinter as ctk
 
+from src.ui.settings.base_settings_widget import BaseSettingsWidget
 from src.ui.settings.settings_widgets import TooltipIcon
 from src.ui.theme import FONTS
 
 
-class CustomPatternsWidget(ctk.CTkFrame):
+class CustomPatternsWidget(BaseSettingsWidget):
     """
     Widget for entering custom header/footer patterns.
 
@@ -38,8 +39,6 @@ class CustomPatternsWidget(ctk.CTkFrame):
             tooltip_text: Help text for the tooltip.
             **kwargs: Additional CTkFrame arguments.
         """
-        super().__init__(parent, fg_color="transparent", **kwargs)
-
         from src.user_preferences import get_user_preferences
 
         self._prefs = get_user_preferences()
@@ -48,7 +47,7 @@ class CustomPatternsWidget(ctk.CTkFrame):
         # Load current value
         self._initial_value = self._prefs.get("custom_header_footer_patterns", "")
 
-        self._setup_ui()
+        super().__init__(parent, **kwargs)
 
     def _setup_ui(self):
         """Create the widget layout."""

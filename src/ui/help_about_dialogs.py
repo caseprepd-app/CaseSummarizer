@@ -107,9 +107,15 @@ class HelpDialog(BaseModalDialog):
         )
         close_btn.grid(row=1, column=0)
 
-    def _build_overview_tab(self):
-        """Build the Overview tab content."""
-        tab = self.tabview.tab("Overview")
+    def _build_tab_content(self, tab_name: str, text: str) -> None:
+        """
+        Build a read-only textbox tab with the given content.
+
+        Args:
+            tab_name: Name of the tab to populate.
+            text: Content to display in the tab.
+        """
+        tab = self.tabview.tab(tab_name)
         tab.grid_columnconfigure(0, weight=1)
 
         content = ctk.CTkTextbox(
@@ -122,7 +128,14 @@ class HelpDialog(BaseModalDialog):
         content.grid(row=0, column=0, sticky="nsew", padx=5, pady=5)
         tab.grid_rowconfigure(0, weight=1)
 
-        text = f"""WHAT IS {APP_NAME.upper()}?
+        content.insert("1.0", text)
+        content.configure(state="disabled")
+
+    def _build_overview_tab(self):
+        """Build the Overview tab content."""
+        self._build_tab_content(
+            "Overview",
+            f"""WHAT IS {APP_NAME.upper()}?
 
 {APP_NAME} is a 100% offline document processor designed specifically for court reporters. It helps you prepare for depositions and trials by extracting names, technical vocabulary, and searching your case documents.
 
@@ -153,27 +166,14 @@ SYSTEM REQUIREMENTS
 
 - Windows PC with 16GB+ RAM
 - ~2GB disk space
-- No internet required after initial setup"""
-
-        content.insert("1.0", text)
-        content.configure(state="disabled")
+- No internet required after initial setup""",
+        )
 
     def _build_workflow_tab(self):
         """Build the Workflow tab content."""
-        tab = self.tabview.tab("Workflow")
-        tab.grid_columnconfigure(0, weight=1)
-
-        content = ctk.CTkTextbox(
-            tab,
-            font=FONTS["body"],
-            fg_color=COLORS["bg_darker"],
-            wrap="word",
-            activate_scrollbars=True,
-        )
-        content.grid(row=0, column=0, sticky="nsew", padx=5, pady=5)
-        tab.grid_rowconfigure(0, weight=1)
-
-        text = f"""THE 5-STEP WORKFLOW
+        self._build_tab_content(
+            "Workflow",
+            f"""THE 5-STEP WORKFLOW
 
 STEP 1: SELECT FILES
 Drag files onto the file list, click "+ Add Files", or use Ctrl+O.
@@ -214,27 +214,14 @@ KEYBOARD SHORTCUTS
 Ctrl+O    Select Files
 Ctrl+F    Find in Results
 Ctrl+,    Open Settings
-Ctrl+Q    Exit Application"""
-
-        content.insert("1.0", text)
-        content.configure(state="disabled")
+Ctrl+Q    Exit Application""",
+        )
 
     def _build_features_tab(self):
         """Build the Features tab content."""
-        tab = self.tabview.tab("Features")
-        tab.grid_columnconfigure(0, weight=1)
-
-        content = ctk.CTkTextbox(
-            tab,
-            font=FONTS["body"],
-            fg_color=COLORS["bg_darker"],
-            wrap="word",
-            activate_scrollbars=True,
-        )
-        content.grid(row=0, column=0, sticky="nsew", padx=5, pady=5)
-        tab.grid_rowconfigure(0, weight=1)
-
-        text = f"""VOCABULARY EXTRACTION
+        self._build_tab_content(
+            "Features",
+            f"""VOCABULARY EXTRACTION
 
 How It Works:
 {APP_NAME} uses multiple algorithms to find important terms:
@@ -283,27 +270,14 @@ All results can be exported to:
 - TXT: Plain text
 - HTML: Web-viewable format
 
-Tip: Configure which columns appear in exports via Settings > Vocabulary."""
-
-        content.insert("1.0", text)
-        content.configure(state="disabled")
+Tip: Configure which columns appear in exports via Settings > Vocabulary.""",
+        )
 
     def _build_tips_tab(self):
         """Build the Tips tab content."""
-        tab = self.tabview.tab("Tips")
-        tab.grid_columnconfigure(0, weight=1)
-
-        content = ctk.CTkTextbox(
-            tab,
-            font=FONTS["body"],
-            fg_color=COLORS["bg_darker"],
-            wrap="word",
-            activate_scrollbars=True,
-        )
-        content.grid(row=0, column=0, sticky="nsew", padx=5, pady=5)
-        tab.grid_rowconfigure(0, weight=1)
-
-        text = """TIPS FOR BEST RESULTS
+        self._build_tab_content(
+            "Tips",
+            """TIPS FOR BEST RESULTS
 
 DOCUMENT QUALITY
 - Digital PDFs work best (text can be selected)
@@ -333,10 +307,8 @@ Poor vocabulary results?
 
 Processing seems stuck?
 - Large documents take time - check the progress indicator
-- System resources are shown in the bottom status bar"""
-
-        content.insert("1.0", text)
-        content.configure(state="disabled")
+- System resources are shown in the bottom status bar""",
+        )
 
 
 class AboutDialog(BaseModalDialog):

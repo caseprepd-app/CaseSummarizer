@@ -20,9 +20,11 @@ Example:
             ...
 """
 
-from abc import ABC, abstractmethod
+from abc import abstractmethod
 from dataclasses import dataclass, field
 from typing import Any
+
+from src.core.base_component import BaseNamedComponent
 
 
 @dataclass
@@ -78,7 +80,7 @@ class AlgorithmResult:
         return len(self.candidates)
 
 
-class BaseExtractionAlgorithm(ABC):
+class BaseExtractionAlgorithm(BaseNamedComponent):
     """
     Abstract base class for vocabulary extraction algorithms.
 
@@ -86,9 +88,9 @@ class BaseExtractionAlgorithm(ABC):
     and returns candidate terms. The orchestrator will run multiple algorithms
     and merge their results.
 
+    Inherits name, enabled, get_config(), and __repr__ from BaseNamedComponent.
+
     Class Attributes:
-        name: Human-readable algorithm name (for logging and ML tracking)
-        enabled: Whether this algorithm is active (can be toggled at runtime)
         weight: Relative weight for scoring when merging (default 1.0)
 
     Example:
@@ -102,7 +104,6 @@ class BaseExtractionAlgorithm(ABC):
     """
 
     name: str = "BaseAlgorithm"
-    enabled: bool = True
     weight: float = 1.0
 
     @abstractmethod
@@ -110,39 +111,21 @@ class BaseExtractionAlgorithm(ABC):
         """
         Extract candidate terms from text.
 
-        This is the core method that each algorithm must implement. It should
-        analyze the input text and return all candidate terms found.
-
         Args:
             text: Document text to analyze (may be combined from multiple docs)
-            **kwargs: Algorithm-specific parameters. Common kwargs include:
-                - nlp: Pre-loaded spaCy model (for NER algorithm)
-                - doc_count: Number of source documents (for threshold adjustment)
+            **kwargs: Algorithm-specific parameters.
 
         Returns:
             AlgorithmResult containing candidate terms and processing metadata
-
-        Note:
-            Implementations should be thread-safe if parallel execution is needed.
-            Avoid storing state that could cause race conditions.
         """
         pass
 
     def get_config(self) -> dict[str, Any]:
-        """
-        Return algorithm configuration for serialization/logging.
+        """Return algorithm configuration for serialization/logging."""
+        config = super().get_config()
+        config["weight"] = self.weight
+        return config
 
-        Override in subclass to include algorithm-specific settings
-        (e.g., RAKE phrase length, TF-IDF max features).
-
-        Returns:
-            Dictionary of configuration values
-        """
-        return {
-            "name": self.name,
-            "enabled": self.enabled,
-            "weight": self.weight,
-        }
-
-    def __repr__(self) -> str:
-        return f"{self.__class__.__name__}(name={self.name!r}, enabled={self.enabled}, weight={self.weight})"
+    def _repr_extras(self) -> dict[str, Any]:
+        """Include weight in repr."""
+        return {"weight": self.weight}
