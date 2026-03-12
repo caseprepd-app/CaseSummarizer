@@ -124,7 +124,7 @@ class QAPanel(ctk.CTkFrame):
 
         # Configure text tags for formatting
         # IMPORTANT: CTkTextbox forbids 'font' kwarg in tag_config() - use cnf={} instead
-        # See RESEARCH_LOG.md "Q&A Follow-up Font Scaling Error"
+        # CTkTextbox ignores font size in insert(); must use tag_config() instead
         from src.ui.theme import resolve_tags
 
         for tag_name, tag_config in resolve_tags(QA_TEXT_TAGS).items():

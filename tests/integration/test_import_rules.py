@@ -1,7 +1,7 @@
 """
 Integration tests for import rule verification.
 
-Verifies that the import rules from PIPELINE.md are respected.
+Verifies that the one-way pipeline import rules are respected.
 """
 
 import subprocess
@@ -13,7 +13,7 @@ class TestImportRules:
     """Tests for import rule compliance."""
 
     def test_no_import_violations(self):
-        """Verify import rules from PIPELINE.md are respected."""
+        """Verify one-way pipeline import rules are respected."""
         # Get project root
         project_root = Path(__file__).parent.parent.parent
 

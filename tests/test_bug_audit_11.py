@@ -57,6 +57,7 @@ def _make_main_window_stub():
     stub.export_all_btn = MagicMock()
     stub._export_all_visible = False
     stub._settings_dialog_open = False
+    stub._dialog_open = False
     return stub
 
 
@@ -296,9 +297,10 @@ class TestBug7DialogExceptions:
 
     def test_corpus_dialog_error_logs_warning(self):
         """_open_corpus_dialog catches dialog error and sets status error."""
-        stub = _make_main_window_stub()
-
         from src.ui.main_window import MainWindow
+
+        stub = _make_main_window_stub()
+        stub._open_modal_dialog = MainWindow._open_modal_dialog.__get__(stub)
 
         with patch(
             "src.ui.settings.SettingsDialog",
@@ -306,13 +308,14 @@ class TestBug7DialogExceptions:
         ):
             MainWindow._open_corpus_dialog(stub)
 
-        stub.set_status_error.assert_called_with("Settings dialog failed to open. Try again.")
+        stub.set_status_error.assert_called_with("Dialog failed to open. Try again.")
 
     def test_general_settings_dialog_error_logs_warning(self):
         """_open_settings catches dialog error and sets status error."""
-        stub = _make_main_window_stub()
-
         from src.ui.main_window import MainWindow
+
+        stub = _make_main_window_stub()
+        stub._open_modal_dialog = MainWindow._open_modal_dialog.__get__(stub)
 
         with (
             patch("src.user_preferences.get_user_preferences") as mock_prefs,
@@ -325,7 +328,7 @@ class TestBug7DialogExceptions:
             mock_prefs.return_value.get.return_value = "medium"
             MainWindow._open_settings(stub)
 
-        stub.set_status_error.assert_called_with("Settings dialog failed to open. Try again.")
+        stub.set_status_error.assert_called_with("Dialog failed to open. Try again.")
 
 
 # ===========================================================================

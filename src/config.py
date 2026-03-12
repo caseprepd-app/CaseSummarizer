@@ -690,12 +690,9 @@ QA_CITATION_MAX_CHARS = _d("qa_citation_max_chars")
 # Single chunking pass for all downstream consumers (search indexing + key excerpts)
 # Uses recursive sentence splitting with overlap via NUPunkt legal-aware splitter
 #
-# Replaced semantic chunking (Mar 2026) based on research:
-# - Vecta Feb 2026: Recursive 512-token = 69% accuracy, Semantic = 54%
-# - NAACL 2025: Fixed 200-word chunks match or beat semantic across tasks
-# - Simpler recursive/fixed splitting + overlap outperforms semantic for retrieval
-#
-# See RESEARCH_LOG.md for full citations and decision rationale.
+# Defaults tuned for precision on deposition Q&A (128-token target ≈ one exchange).
+# Research: 128-256 tokens optimal for fact-based retrieval (NVIDIA, Firecrawl 2026).
+# Cross-encoder reranker compensates for smaller chunks; larger chunks dilute relevance.
 
 # Token limits for chunk sizing (research-based fixed values)
 UNIFIED_CHUNK_MIN_TOKENS = _d("unified_chunk_min_tokens")

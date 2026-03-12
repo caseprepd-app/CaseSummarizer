@@ -101,9 +101,6 @@ python -m pytest tests/ -v
 # tests/test_gui_workflow.py
 ```
 
-## Documentation
+## Architecture
 
-- [PROJECT_OVERVIEW.md](PROJECT_OVERVIEW.md) — Goals, constraints, and rationale
-- [ARCHITECTURE.md](docs/ARCHITECTURE.md) — System design, diagrams, components
-- [RESEARCH_LOG.md](docs/RESEARCH_LOG.md) — Library/tool research with decision rationale
-- Run `pydeps src -o deps.svg` to visualize code structure
+Run `pydeps src -o deps.svg` to visualize code structure.

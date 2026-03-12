@@ -110,10 +110,10 @@ class WindowLayoutMixin:
         )
         self.corpus_doc_count_label.pack(side="left", padx=(8, 0))
 
-        # Manage button
+        # Corpus dialog button
         self.manage_corpus_btn = ctk.CTkButton(
             self.corpus_frame,
-            text="Manage",
+            text="Corpus...",
             width=scale_value(70),
             fg_color=("gray70", "gray30"),
             command=self._open_corpus_dialog,

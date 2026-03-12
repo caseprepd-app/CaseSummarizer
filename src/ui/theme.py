@@ -11,7 +11,7 @@ Usage:
     button = ctk.CTkButton(parent, **BUTTON_STYLES["primary"])
 
 IMPORTANT: Use tuple fonts, NOT CTkFont objects, to avoid scaling conflicts
-with CTkTextbox.tag_config(). See RESEARCH_LOG.md "Q&A Follow-up Font Scaling Error".
+with CTkTextbox.tag_config() — CTkTextbox ignores font size in insert().
 """
 
 import customtkinter as ctk

@@ -234,31 +234,48 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         except Exception as e:
             messagebox.showerror("Error", f"Failed to switch corpus: {e}")
 
-    def _open_corpus_dialog(self):
-        """Open Settings dialog to the Corpus tab."""
-        if getattr(self, "_settings_dialog_open", False):
-            return
-        self._settings_dialog_open = True
+    def _open_modal_dialog(self, button, dialog_factory, *, after=None):
+        """
+        Open a blocking modal dialog with button-disable and re-entrancy guards.
 
-        from src.ui.settings import SettingsDialog
+        Args:
+            button: The CTkButton that triggered this — disabled while open.
+            dialog_factory: Callable returning a BaseModalDialog (called inside try).
+            after: Optional callback to run after the dialog closes.
+        """
+        if getattr(self, "_dialog_open", False):
+            return
+        self._dialog_open = True
+        button.configure(state="disabled")
 
         dialog = None
         try:
-            dialog = SettingsDialog(parent=self, initial_tab="Corpus")
+            dialog = dialog_factory()
             dialog.wait_window()
         except Exception as e:
-            logger.warning("Failed to open settings dialog: %s", e)
-            self.set_status_error("Settings dialog failed to open. Try again.")
+            logger.warning("Dialog failed: %s", e)
+            self.set_status_error("Dialog failed to open. Try again.")
             if dialog is not None:
                 try:
                     dialog.destroy()
                 except Exception:
                     pass
         finally:
-            self._settings_dialog_open = False
+            self._dialog_open = False
+            button.configure(state="normal")
 
-        # Refresh after dialog closes
-        self._refresh_corpus_dropdown()
+        if after:
+            after()
+
+    def _open_corpus_dialog(self):
+        """Open Settings dialog to the Corpus tab."""
+        from src.ui.settings import SettingsDialog
+
+        self._open_modal_dialog(
+            self.manage_corpus_btn,
+            lambda: SettingsDialog(parent=self, initial_tab="Corpus"),
+            after=self._refresh_corpus_dropdown,
+        )
 
     # =========================================================================
     # File Management
@@ -1637,42 +1654,28 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
 
     def _open_settings(self):
         """Open the settings dialog."""
-        if getattr(self, "_settings_dialog_open", False):
-            return
-        self._settings_dialog_open = True
-
-        from src.ui.settings.settings_dialog import SettingsDialog
         from src.user_preferences import get_user_preferences
 
         prefs = get_user_preferences()
         font_size_before = prefs.get("font_size", "medium")
 
-        dialog = None
-        try:
-            dialog = SettingsDialog(parent=self)
-            dialog.wait_window()
-        except Exception as e:
-            logger.warning("Failed to open settings dialog: %s", e)
-            self.set_status_error("Settings dialog failed to open. Try again.")
-            if dialog is not None:
-                try:
-                    dialog.destroy()
-                except Exception:
-                    pass
-        finally:
-            self._settings_dialog_open = False
+        def _after_settings():
+            self._refresh_corpus_dropdown()
+            self.refresh_default_questions_label()
+            font_size_after = prefs.get("font_size", "medium")
+            if font_size_after != font_size_before:
+                messagebox.showinfo(
+                    "Restart Required",
+                    "Font size changed. Please restart the application for the new size to take full effect.",
+                )
 
-        # Refresh UI after settings change
-        self._refresh_corpus_dropdown()
-        self.refresh_default_questions_label()  # Update question count after settings change
+        from src.ui.settings.settings_dialog import SettingsDialog
 
-        # Prompt restart if font size changed
-        font_size_after = prefs.get("font_size", "medium")
-        if font_size_after != font_size_before:
-            messagebox.showinfo(
-                "Restart Required",
-                "Font size changed. Please restart the application for the new size to take full effect.",
-            )
+        self._open_modal_dialog(
+            self.settings_btn,
+            lambda: SettingsDialog(parent=self),
+            after=_after_settings,
+        )
 
     # =========================================================================
     # Export All (tabbed HTML)

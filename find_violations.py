@@ -26,7 +26,7 @@ PARALLEL_MODULES = {
 }
 
 # Q&A Subsystem - these modules work together and CAN import each other
-# Per PIPELINE.md, qa/vector_store/retrieval are ONE logical unit
+# qa/vector_store/retrieval are ONE logical unit in the pipeline
 QA_SUBSYSTEM = {
     "src.core.qa",
     "src.core.vector_store",
