@@ -239,13 +239,15 @@ class VectorStoreBuilder:
         # so inner product = cosine similarity, giving scores in [0, 1])
         from langchain_community.vectorstores.utils import DistanceStrategy
 
-        # Embed texts in batches of 2 for progress reporting, then build
+        # Embed texts in batches for progress reporting, then build
         # the FAISS index once from pre-computed embeddings. Each chunk's
         # embedding is independent — batching doesn't affect results.
+        from src.config import EMBEDDING_BATCH_SIZE
+
         texts = [doc.page_content for doc in lc_documents]
         metadatas = [doc.metadata for doc in lc_documents]
         all_embeddings = []
-        batch_size = 2
+        batch_size = EMBEDDING_BATCH_SIZE
         total = len(texts)
 
         for i in range(0, total, batch_size):

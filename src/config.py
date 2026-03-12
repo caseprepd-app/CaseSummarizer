@@ -560,6 +560,15 @@ RAKE_MIN_FREQUENCY = _d("rake_min_frequency")
 # Lower values yield the GIL more often, keeping GUI responsive during NER
 VOCABULARY_BATCH_SIZE = 16
 
+# Embedding batch size for vector store construction
+# Controls how many text chunks are sent to the embedding model per forward pass.
+# Higher = faster (fewer Python loop iterations) but more RAM.
+# RAM estimates for nomic-embed-text-v1.5 (137M params) on CPU:
+#   batch_size=2:  ~1.1-1.6 GB  |  batch_size=16: ~1.4-1.9 GB
+#   batch_size=32: ~1.8-2.3 GB  |  batch_size=64: ~2.5-3.0 GB
+# 16 is safe on 8GB laptops and gives diminishing returns above this on CPU.
+EMBEDDING_BATCH_SIZE = 16
+
 # Parallel Processing Configuration
 # Controls concurrent document extraction for multi-file workflows
 #
