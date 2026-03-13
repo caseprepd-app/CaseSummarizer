@@ -71,11 +71,15 @@ class TestSplitAtSentences:
 
 
 class TestOverlap:
-    def test_overlap_sentences(self, mock_chunker):
-        """Verify overlap carries forward trailing sentences."""
+    def test_overlap_spans(self, mock_chunker):
+        """Verify overlap carries forward trailing spans."""
         mock_chunker.overlap_tokens = 10
-        sentences = ["word1 word2 word3", "word4 word5 word6", "word7 word8 word9"]
-        overlap, tokens = mock_chunker._get_overlap_sentences(sentences)
+        spans = [
+            ("word1 word2 word3", (0, 17)),
+            ("word4 word5 word6", (18, 35)),
+            ("word7 word8 word9", (36, 53)),
+        ]
+        overlap, tokens = mock_chunker._get_overlap_spans(spans)
         assert len(overlap) >= 1
         assert tokens > 0
 

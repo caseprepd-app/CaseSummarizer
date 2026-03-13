@@ -1053,17 +1053,21 @@ class TestSettingsRegistryChanges:
         nearby2 = source[max(0, idx2 - 100) : idx2 + 100]
         assert '"Appearance"' in nearby2
 
-    def test_both_tooltips_mention_restart(self):
-        """Both settings mention restart in their tooltips."""
+    def test_ui_scale_tooltip_mentions_restart(self):
+        """UI scale setting mentions restart (font applies immediately)."""
         source = _read_source("src/ui/settings/settings_registry.py")
-
-        idx1 = source.index('key="font_size_offset"')
-        block1 = source[idx1 : idx1 + 600]
-        assert "restart" in block1.lower()
 
         idx2 = source.index('key="ui_scale_pct"')
         block2 = source[idx2 : idx2 + 900]
         assert "restart" in block2.lower()
+
+    def test_font_applies_immediately(self):
+        """Font size setting applies live (no restart mention)."""
+        source = _read_source("src/ui/settings/settings_registry.py")
+
+        idx1 = source.index('key="font_size_offset"')
+        block1 = source[idx1 : idx1 + 600]
+        assert "restart" not in block1.lower()
 
     def test_no_FONT_SIZE_OPTIONS_import(self):
         """settings_registry no longer imports FONT_SIZE_OPTIONS."""

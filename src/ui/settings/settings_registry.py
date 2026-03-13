@@ -168,6 +168,29 @@ class SettingsRegistry:
         cls._category_order.clear()
 
 
+def _apply_font_delta(widget, delta: int) -> None:
+    """
+    Recursively adjust font sizes on all widgets by delta points.
+
+    Walks the widget tree and updates any widget that has a font
+    configuration. Safe to call on any widget type — silently
+    skips widgets without font support.
+    """
+    try:
+        font = widget.cget("font")
+        if isinstance(font, tuple) and len(font) >= 2:
+            new_size = max(8, font[1] + delta)
+            new_font = (font[0], new_size) + tuple(font[2:])
+            widget.configure(font=new_font)
+    except Exception:
+        pass
+    try:
+        for child in widget.winfo_children():
+            _apply_font_delta(child, delta)
+    except Exception:
+        pass
+
+
 def _register_all_settings():
     """
     Register all CasePrepd settings.
@@ -231,6 +254,28 @@ def _register_all_settings():
 
         reinitialize_styles()
 
+    def _apply_font_change(offset):
+        """Apply font size change immediately to all widgets."""
+        import tkinter as tk
+
+        old_offset = int(prefs.get("font_size_offset", 0) or 0)
+        prefs.set("font_size_offset", offset)
+        new_offset = int(offset)
+
+        from src.ui.theme import scale_fonts
+
+        scale_fonts(new_offset)
+
+        from src.ui.styles import reinitialize_styles
+
+        reinitialize_styles(font_offset=new_offset)
+
+        delta = new_offset - old_offset
+        root = tk._default_root
+        if root and delta != 0:
+            _apply_font_delta(root, delta)
+            root.event_generate("<<FontChanged>>")
+
     SettingsRegistry.register(
         SettingDefinition(
             key="font_size_offset",
@@ -241,14 +286,13 @@ def _register_all_settings():
                 "Adjust the font size used throughout the application,\n"
                 "including table rows (vocabulary, search, documents).\n\n"
                 "Enter a point offset (positive = larger, negative = smaller).\n"
-                "Examples: +4 for high-DPI screens, -2 for compact layout.\n\n"
-                "Requires restart to take effect."
+                "Examples: +4 for high-DPI screens, -2 for compact layout."
             ),
             default=0,
             min_value=-4,
             max_value=10,
             getter=lambda: prefs.get("font_size_offset", 0),
-            setter=lambda v: prefs.set("font_size_offset", v),
+            setter=lambda v: _apply_font_change(v),
         )
     )
 

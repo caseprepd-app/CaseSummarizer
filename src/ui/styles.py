@@ -97,19 +97,25 @@ def initialize_all_styles(scale_factor: float = 1.0, font_offset: int = 0) -> No
     logger.debug("All Treeview styles initialized")
 
 
-def reinitialize_styles() -> None:
+def reinitialize_styles(font_offset: int | None = None) -> None:
     """
-    Re-apply all Treeview styles after a theme mode change.
+    Re-apply all Treeview styles after a theme or font change.
 
-    Uses the same scale_factor and font_offset from the initial call.
     Skips the expensive theme_use("default") since it was already done.
+
+    Args:
+        font_offset: New font offset to apply. If None, reuses last value.
     """
+    global _last_font_offset
     if not _styles_initialized:
         return
 
+    if font_offset is not None:
+        _last_font_offset = font_offset
+
     style = ttk.Style()
     _apply_all_styles(style, _last_scale_factor, _last_font_offset)
-    logger.debug("Treeview styles re-applied for theme change")
+    logger.debug("Treeview styles re-applied (font_offset=%d)", _last_font_offset)
 
 
 def _apply_all_styles(style: ttk.Style, scale_factor: float, font_offset: int) -> None:

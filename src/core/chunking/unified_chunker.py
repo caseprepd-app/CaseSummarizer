@@ -333,78 +333,84 @@ class UnifiedChunker:
 
     def _split_at_sentences(self, text: str, target_tokens: int) -> list[str]:
         """
-        Split text at sentence boundaries to reach target token count.
+        Split text at sentence boundaries, preserving original whitespace.
 
-        Uses NUPunkt legal-aware sentence boundary detection.
-        Carries forward overlap_tokens from the end of each chunk
-        into the start of the next chunk for boundary context.
+        Uses NUPunkt legal-aware sentence boundary detection with character
+        spans so chunks are extracted as substrings of the original text,
+        keeping newlines and formatting intact.
         """
-        from src.core.utils.sentence_splitter import split_sentences
+        from src.core.utils.sentence_splitter import split_sentence_spans
 
-        sentences = split_sentences(text)
+        spans = split_sentence_spans(text)
 
         chunks = []
-        current_chunk = []
+        current_spans = []  # list of (sentence, (start, end))
         current_tokens = 0
 
-        for sentence in sentences:
-            sentence = sentence.strip()
+        for span_item in spans:
+            sentence = span_item[0].strip()
             if not sentence:
                 continue
 
             sentence_tokens = self.count_tokens(sentence)
 
-            # If single sentence exceeds max, include it anyway (rare edge case)
             if sentence_tokens > self.max_tokens:
-                if current_chunk:
-                    chunks.append(" ".join(current_chunk))
-                    current_chunk = []
+                if current_spans:
+                    chunks.append(self._extract_chunk(text, current_spans))
+                    current_spans = []
                     current_tokens = 0
-                chunks.append(sentence)
+                chunks.append(text[span_item[1][0] : span_item[1][1]].strip())
                 continue
 
-            # Check if adding this sentence exceeds target
-            if current_tokens + sentence_tokens > target_tokens and current_chunk:
-                chunks.append(" ".join(current_chunk))
+            if current_tokens + sentence_tokens > target_tokens and current_spans:
+                chunks.append(self._extract_chunk(text, current_spans))
 
-                # Overlap: carry forward last N tokens worth of sentences
                 if self.overlap_tokens > 0:
-                    overlap_chunk, overlap_tokens = self._get_overlap_sentences(current_chunk)
-                    current_chunk = overlap_chunk + [sentence]
+                    overlap, overlap_tokens = self._get_overlap_spans(current_spans)
+                    current_spans = overlap + [span_item]
                     current_tokens = overlap_tokens + sentence_tokens
                 else:
-                    current_chunk = [sentence]
+                    current_spans = [span_item]
                     current_tokens = sentence_tokens
             else:
-                current_chunk.append(sentence)
+                current_spans.append(span_item)
                 current_tokens += sentence_tokens
 
-        # Don't forget the last chunk
-        if current_chunk:
-            chunks.append(" ".join(current_chunk))
+        if current_spans:
+            chunks.append(self._extract_chunk(text, current_spans))
 
         return chunks
 
-    def _get_overlap_sentences(self, sentences: list[str]) -> tuple[list[str], int]:
+    def _extract_chunk(self, text: str, spans: list) -> str:
         """
-        Get trailing sentences from a chunk for overlap into the next chunk.
+        Extract a chunk as a substring of the original text.
 
-        Walks backward through sentences until overlap_tokens is reached.
+        Preserves single newlines (Q/A line breaks) but collapses
+        multi-newline runs (from speaker boundary injection or page joins)
+        down to a single newline for clean display.
+        """
+        first_start = spans[0][1][0]
+        last_end = spans[-1][1][1]
+        chunk = text[first_start:last_end].strip()
+        return re.sub(r"\n{2,}", "\n", chunk)
 
-        Args:
-            sentences: List of sentences in the completed chunk
+    def _get_overlap_spans(self, spans: list) -> tuple[list, int]:
+        """
+        Get trailing spans from a chunk for overlap into the next chunk.
+
+        Walks backward through spans until overlap_tokens is reached.
 
         Returns:
-            Tuple of (overlap_sentences, overlap_token_count)
+            Tuple of (overlap_spans, overlap_token_count)
         """
         overlap = []
         token_count = 0
 
-        for sentence in reversed(sentences):
-            sent_tokens = self.count_tokens(sentence)
+        for span_item in reversed(spans):
+            sent_tokens = self.count_tokens(span_item[0].strip())
             if token_count + sent_tokens > self.overlap_tokens and overlap:
                 break
-            overlap.insert(0, sentence)
+            overlap.insert(0, span_item)
             token_count += sent_tokens
 
         return overlap, token_count

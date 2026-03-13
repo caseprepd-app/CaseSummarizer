@@ -28,7 +28,7 @@ logger = logging.getLogger(__name__)
 
 # Get SemanticResult class from service layer (pipeline architecture)
 SemanticResult = SemanticService().get_semantic_result_class()
-from src.ui.theme import BUTTON_STYLES, COLORS, FONTS, FRAME_STYLES, SEMANTIC_TEXT_TAGS
+from src.ui.theme import BUTTON_STYLES, COLORS, FONTS, FRAME_STYLES
 
 
 class SemanticPanel(ctk.CTkFrame):
@@ -125,10 +125,17 @@ class SemanticPanel(ctk.CTkFrame):
         # Configure text tags for formatting
         # IMPORTANT: CTkTextbox forbids 'font' kwarg in tag_config() - use cnf={} instead
         # CTkTextbox ignores font size in insert(); must use tag_config() instead
-        from src.ui.theme import resolve_tags
+        self._apply_text_tags()
 
-        for tag_name, tag_config in resolve_tags(SEMANTIC_TEXT_TAGS).items():
-            self.text_display.tag_config(tag_name, cnf=tag_config)
+        # Re-apply text tags when font size changes live
+        self.bind("<<FontChanged>>", lambda e: self._apply_text_tags())
+
+    def _apply_text_tags(self):
+        """Apply or re-apply text tags on the search results textbox."""
+        from src.ui.theme import SEMANTIC_TEXT_TAGS, resolve_tags
+
+        for tag_name, tag_conf in resolve_tags(SEMANTIC_TEXT_TAGS).items():
+            self.text_display.tag_config(tag_name, cnf=tag_conf)
 
     def show_find_bar(self):
         """Show the inline find bar (triggered by Ctrl+F)."""

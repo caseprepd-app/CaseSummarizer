@@ -40,9 +40,7 @@ from src.ui.theme import (
     COLORS,
     FONTS,
     FRAME_STYLES,
-    SEMANTIC_TEXT_TAGS,
     get_color,
-    resolve_tags,
 )
 
 # Import column configuration from centralized module
@@ -94,7 +92,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
         self.tabview.tab("Search").grid_columnconfigure(0, weight=1)
         self.tabview.tab("Search").grid_rowconfigure(0, weight=1)
         self.tabview.tab("Key Excerpts").grid_columnconfigure(0, weight=1)
-        self.tabview.tab("Key Excerpts").grid_rowconfigure(0, weight=1)
+        self.tabview.tab("Key Excerpts").grid_rowconfigure(0, weight=0)
 
         # Document Tab: Preview panel for extracted text
         from src.ui.document_preview_panel import DocumentPreviewPanel
@@ -198,8 +196,10 @@ class DynamicOutputWidget(ctk.CTkFrame):
         self.summary_text_display.grid_remove()  # Hidden initially, shown when results arrive
 
         # Configure text tags for card-style formatting (same as Search tab)
-        for tag_name, tag_config in resolve_tags(SEMANTIC_TEXT_TAGS).items():
-            self.summary_text_display.tag_config(tag_name, cnf=tag_config)
+        self._apply_summary_tags()
+
+        # Re-apply text tags when font size changes live
+        self.bind("<<FontChanged>>", lambda e: self._apply_summary_tags())
 
         # Inline find bar for Summary tab (hidden by default)
         from src.ui.text_find_bar import TextFindBar
@@ -414,6 +414,13 @@ class DynamicOutputWidget(ctk.CTkFrame):
         self._semantic_panel.grid_remove()
         self._semantic_status_label.grid()
         self._update_tab_status_messages()
+
+    def _apply_summary_tags(self):
+        """Apply or re-apply text tags on the Key Excerpts textbox."""
+        from src.ui.theme import SEMANTIC_TEXT_TAGS, resolve_tags
+
+        for tag_name, tag_conf in resolve_tags(SEMANTIC_TEXT_TAGS).items():
+            self.summary_text_display.tag_config(tag_name, cnf=tag_conf)
 
     def show_summary_content(self):
         """Show the summary textbox and hide the status label (called when summary arrives)."""
