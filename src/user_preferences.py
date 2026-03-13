@@ -5,7 +5,6 @@ Manages user-specific preferences like default prompts per model.
 
 import json
 import logging
-import threading
 from pathlib import Path
 from typing import Any
 
@@ -551,9 +550,19 @@ class UserPreferencesManager:
         self._save_preferences()
 
 
-# Global instance with lock for thread safety
-_user_prefs = None
-_prefs_lock = threading.Lock()
+from src.services.singleton import SingletonHolder
+
+
+def _create_preferences(preferences_file: Path | None = None):
+    """Factory for the singleton UserPreferencesManager."""
+    if preferences_file is None:
+        from .config import CONFIG_DIR
+
+        preferences_file = CONFIG_DIR / "user_preferences.json"
+    return UserPreferencesManager(preferences_file)
+
+
+_prefs_holder = SingletonHolder(_create_preferences)
 
 
 def get_user_preferences(preferences_file: Path | None = None) -> UserPreferencesManager:
@@ -566,19 +575,7 @@ def get_user_preferences(preferences_file: Path | None = None) -> UserPreference
     Returns:
         UserPreferencesManager: The global preferences instance
     """
-    global _user_prefs
-
-    if _user_prefs is None:
-        with _prefs_lock:
-            if _user_prefs is None:
-                if preferences_file is None:
-                    from .config import CONFIG_DIR
-
-                    preferences_file = CONFIG_DIR / "user_preferences.json"
-
-                _user_prefs = UserPreferencesManager(preferences_file)
-
-    return _user_prefs
+    return _prefs_holder.get(preferences_file)
 
 
 def reset_singleton() -> None:
@@ -588,6 +585,4 @@ def reset_singleton() -> None:
     Next call to get_user_preferences() will create a fresh instance.
     Intended for test isolation -- not for production use.
     """
-    global _user_prefs
-    with _prefs_lock:
-        _user_prefs = None
+    _prefs_holder.reset()

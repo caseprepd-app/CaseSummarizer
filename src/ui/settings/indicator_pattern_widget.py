@@ -127,24 +127,20 @@ class IndicatorPatternWidget(BaseSettingsWidget):
 
     def _setup_ui(self):
         """Create the widget layout."""
-        from src.ui.settings.settings_widgets import TooltipIcon
 
         self.grid_columnconfigure(0, weight=1)
         row = 0
 
         # === Positive indicators section ===
-        pos_header = ctk.CTkFrame(self, fg_color="transparent")
-        pos_header.grid(row=row, column=0, sticky="ew", pady=(0, 2))
+        from src.ui.settings.section_header import SectionHeader
 
-        pos_label = ctk.CTkLabel(
-            pos_header,
-            text="Positive indicators (terms to favor)",
+        pos_header = SectionHeader(
+            self,
+            "Positive indicators (terms to favor)",
+            tooltip_text=_POSITIVE_TOOLTIP,
             font=FONTS["body"],
-            anchor="w",
         )
-        pos_label.pack(side="left", padx=(0, 5))
-
-        TooltipIcon(pos_header, tooltip_text=_POSITIVE_TOOLTIP).pack(side="left")
+        pos_header.grid(row=row, column=0, sticky="ew", pady=(0, 2))
         row += 1
 
         pos_input_frame = ctk.CTkFrame(self, fg_color="transparent")
@@ -171,18 +167,13 @@ class IndicatorPatternWidget(BaseSettingsWidget):
         row += 1
 
         # === Negative indicators section ===
-        neg_header = ctk.CTkFrame(self, fg_color="transparent")
-        neg_header.grid(row=row, column=0, sticky="ew", pady=(0, 2))
-
-        neg_label = ctk.CTkLabel(
-            neg_header,
-            text="Negative indicators (terms to demote)",
+        neg_header = SectionHeader(
+            self,
+            "Negative indicators (terms to demote)",
+            tooltip_text=_NEGATIVE_TOOLTIP,
             font=FONTS["body"],
-            anchor="w",
         )
-        neg_label.pack(side="left", padx=(0, 5))
-
-        TooltipIcon(neg_header, tooltip_text=_NEGATIVE_TOOLTIP).pack(side="left")
+        neg_header.grid(row=row, column=0, sticky="ew", pady=(0, 2))
         row += 1
 
         neg_input_frame = ctk.CTkFrame(self, fg_color="transparent")

@@ -20,7 +20,6 @@ Layout:
 import customtkinter as ctk
 
 from src.ui.settings.base_settings_widget import BaseSettingsWidget
-from src.ui.settings.settings_widgets import TooltipIcon
 from src.ui.theme import FONTS
 
 
@@ -60,16 +59,11 @@ class DefaultQuestionsWidget(BaseSettingsWidget):
         self.grid_rowconfigure(2, weight=1)
 
         # Header row
-        header_frame = ctk.CTkFrame(self, fg_color="transparent")
-        header_frame.grid(row=0, column=0, sticky="ew", pady=(0, 5))
+        from src.ui.settings.section_header import SectionHeader
 
-        header_label = ctk.CTkLabel(
-            header_frame, text="Default Searches", font=FONTS["heading_sm"], anchor="w"
-        )
-        header_label.pack(side="left", padx=(0, 5))
-
-        tooltip = TooltipIcon(
-            header_frame,
+        header = SectionHeader(
+            self,
+            "Default Searches",
             tooltip_text=(
                 "Searches that are automatically run after document processing.\n\n"
                 "• Check/uncheck to enable/disable searches\n"
@@ -78,7 +72,7 @@ class DefaultQuestionsWidget(BaseSettingsWidget):
                 "Disabled searches are saved but won't run."
             ),
         )
-        tooltip.pack(side="left")
+        header.grid(row=0, column=0, sticky="ew", pady=(0, 5))
 
         # Guidance text
         guidance_text = (

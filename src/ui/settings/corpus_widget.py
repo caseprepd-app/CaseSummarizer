@@ -27,7 +27,6 @@ import logging
 import customtkinter as ctk
 
 from src.ui.settings.base_settings_widget import BaseSettingsWidget
-from src.ui.settings.settings_widgets import TooltipIcon
 from src.ui.theme import COLORS, FONTS
 
 logger = logging.getLogger(__name__)
@@ -62,16 +61,11 @@ class CorpusSettingsWidget(BaseSettingsWidget):
         self.grid_columnconfigure(0, weight=1)
 
         # Header with tooltip
-        header_frame = ctk.CTkFrame(self, fg_color="transparent")
-        header_frame.grid(row=0, column=0, sticky="ew", pady=(0, 10))
+        from src.ui.settings.section_header import SectionHeader
 
-        header_label = ctk.CTkLabel(
-            header_frame, text="Corpus Management", font=FONTS["heading"], anchor="w"
-        )
-        header_label.pack(side="left", padx=(0, 5))
-
-        tooltip = TooltipIcon(
-            header_frame,
+        header = SectionHeader(
+            self,
+            "Corpus Management",
             tooltip_text=(
                 "A corpus is your collection of past transcripts used to identify "
                 "case-specific vocabulary.\n\n"
@@ -80,8 +74,9 @@ class CorpusSettingsWidget(BaseSettingsWidget):
                 "rarely in your typical work.\n\n"
                 "Requires 5+ documents to activate. More documents = better results."
             ),
+            font=FONTS["heading"],
         )
-        tooltip.pack(side="left")
+        header.grid(row=0, column=0, sticky="ew", pady=(0, 10))
 
         # Educational section
         edu_frame = ctk.CTkFrame(self, fg_color=("gray90", "gray17"), corner_radius=6)

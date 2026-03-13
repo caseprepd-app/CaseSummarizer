@@ -17,7 +17,6 @@ Layout:
 import customtkinter as ctk
 
 from src.ui.settings.base_settings_widget import BaseSettingsWidget
-from src.ui.settings.settings_widgets import TooltipIcon
 from src.ui.theme import FONTS
 
 
@@ -54,20 +53,15 @@ class CustomPatternsWidget(BaseSettingsWidget):
         self.grid_columnconfigure(0, weight=1)
 
         # Header row
-        header_frame = ctk.CTkFrame(self, fg_color="transparent")
-        header_frame.grid(row=0, column=0, sticky="ew", pady=(0, 5))
+        from src.ui.settings.section_header import SectionHeader
 
-        header_label = ctk.CTkLabel(
-            header_frame,
-            text="Custom patterns to remove (one per line)",
+        header = SectionHeader(
+            self,
+            "Custom patterns to remove (one per line)",
+            tooltip_text=self._tooltip_text,
             font=FONTS["body"],
-            anchor="w",
         )
-        header_label.pack(side="left", padx=(0, 5))
-
-        if self._tooltip_text:
-            tooltip = TooltipIcon(header_frame, tooltip_text=self._tooltip_text)
-            tooltip.pack(side="left")
+        header.grid(row=0, column=0, sticky="ew", pady=(0, 5))
 
         # Text area for patterns
         self._text_area = ctk.CTkTextbox(

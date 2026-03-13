@@ -293,14 +293,14 @@ class TestTokenBudgetThreadSafety:
 
 
 class TestExportServiceThreadSafety:
-    """Bug #14: get_export_service() has a lock."""
+    """Bug #14: get_export_service() uses thread-safe SingletonHolder."""
 
     def test_export_service_lock_exists(self):
-        """The lock variable exists in the module."""
+        """The SingletonHolder lock exists in the module."""
         from src.services import export_service
 
-        assert hasattr(export_service, "_export_service_lock")
-        assert isinstance(export_service._export_service_lock, type(threading.Lock()))
+        assert hasattr(export_service, "_export_holder")
+        assert isinstance(export_service._export_holder._lock, type(threading.Lock()))
 
 
 # ============================================================

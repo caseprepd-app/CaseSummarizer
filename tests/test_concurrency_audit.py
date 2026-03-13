@@ -13,14 +13,14 @@ import threading
 
 
 class TestAIServiceSingleton:
-    """Verify AIService uses double-checked locking."""
+    """Verify AIService uses thread-safe SingletonHolder."""
 
     def test_lock_exists(self):
-        """Module-level lock must exist for thread safety."""
+        """SingletonHolder must have a lock for thread safety."""
         from src.services import ai_service
 
-        assert hasattr(ai_service, "_ai_service_lock")
-        assert isinstance(ai_service._ai_service_lock, type(threading.Lock()))
+        assert hasattr(ai_service, "_ai_holder")
+        assert isinstance(ai_service._ai_holder._lock, type(threading.Lock()))
 
     def test_concurrent_creation_returns_same_instance(self):
         """10 threads creating AIService simultaneously must get the same instance."""
@@ -76,14 +76,14 @@ class TestAIServiceSingleton:
 
 
 class TestUserPrefsSingleton:
-    """Verify get_user_preferences uses double-checked locking."""
+    """Verify get_user_preferences uses thread-safe SingletonHolder."""
 
     def test_lock_exists(self):
-        """Module-level lock must exist for thread safety."""
+        """SingletonHolder must have a lock for thread safety."""
         from src import user_preferences
 
-        assert hasattr(user_preferences, "_prefs_lock")
-        assert isinstance(user_preferences._prefs_lock, type(threading.Lock()))
+        assert hasattr(user_preferences, "_prefs_holder")
+        assert isinstance(user_preferences._prefs_holder._lock, type(threading.Lock()))
 
     def test_concurrent_creation_returns_same_instance(self, tmp_path):
         """10 threads calling get_user_preferences must get the same instance."""

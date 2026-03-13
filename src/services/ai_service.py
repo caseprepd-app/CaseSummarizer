@@ -12,13 +12,15 @@ Usage:
 """
 
 import logging
-import threading
 
 logger = logging.getLogger(__name__)
 
-# Module-level singleton instance with lock for thread safety
-_ai_service_instance = None
-_ai_service_lock = threading.Lock()
+
+def _create_ai_service():
+    """Factory that creates a raw AIService without triggering __new__ recursion."""
+    instance = object.__new__(AIService)
+    instance._initialized = False
+    return instance
 
 
 class AIService:
@@ -26,21 +28,16 @@ class AIService:
     Service layer for AI operations (GPU detection, embeddings).
 
     This is a singleton class - all calls to AIService() return the same instance.
+    Thread safety provided by SingletonHolder.
     """
 
     def __new__(cls):
         """Ensure only one instance of AIService exists (thread-safe)."""
-        global _ai_service_instance
-        if _ai_service_instance is None:
-            with _ai_service_lock:
-                if _ai_service_instance is None:
-                    _ai_service_instance = super().__new__(cls)
-                    _ai_service_instance._initialized = False
-        return _ai_service_instance
+        return _ai_holder.get()
 
     def __init__(self):
         """Initialize the AI service (only runs once due to singleton)."""
-        if self._initialized:
+        if getattr(self, "_initialized", False):
             return
         self._initialized = True
 
@@ -96,6 +93,9 @@ class AIService:
         Next call to AIService() will create a fresh instance.
         Intended for test isolation -- not for production use.
         """
-        global _ai_service_instance
-        with _ai_service_lock:
-            _ai_service_instance = None
+        _ai_holder.reset()
+
+
+from src.services.singleton import SingletonHolder  # noqa: E402
+
+_ai_holder = SingletonHolder(_create_ai_service)

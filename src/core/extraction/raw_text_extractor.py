@@ -3,6 +3,8 @@ Raw Text Extraction Facade.
 
 Provides a unified interface for extracting text from legal documents.
 Delegates to specialized modules for each file format and processing step.
+Internal extraction steps return ExtractionResult; the public
+process_document() method returns a plain dict for UI consumers.
 
 Supported formats: PDF, DOCX, TXT, RTF, PNG, JPG
 
@@ -268,8 +270,10 @@ class RawTextExtractor:
 
         return {"error": None, "file_size": file_size}
 
-    def _extract_by_type(self, file_path: Path) -> dict:
+    def _extract_by_type(self, file_path: Path):
         """Route extraction to appropriate handler based on file type."""
+        from .extraction_result import ExtractionResult
+
         ext = file_path.suffix.lower()
 
         if ext == ".pdf":
@@ -283,17 +287,11 @@ class RawTextExtractor:
         elif ext in [".png", ".jpg", ".jpeg"]:
             return self.file_readers.read_image_file(file_path)
         else:
-            return {
-                "status": "error",
-                "error_message": f"Unsupported file type: {ext}. "
-                f"Supported formats: PDF, DOCX, TXT, RTF, PNG, JPG",
-                "text": None,
-                "method": None,
-                "confidence": 0,
-                "page_count": None,
-            }
+            return ExtractionResult.error(
+                f"Unsupported file type: {ext}. Supported formats: PDF, DOCX, TXT, RTF, PNG, JPG",
+            )
 
-    def _process_pdf(self, file_path: Path) -> dict:
+    def _process_pdf(self, file_path: Path):
         """Process PDF with hybrid extraction, falling back to OCR if needed."""
         import tempfile
 
@@ -318,9 +316,11 @@ class RawTextExtractor:
             if temp_path and temp_path.exists():
                 temp_path.unlink()
 
-    def _process_pdf_inner(self, file_path: Path) -> dict:
+    def _process_pdf_inner(self, file_path: Path):
         """Core PDF processing logic (extracted for portfolio support)."""
         from src.config import MIN_DICTIONARY_CONFIDENCE
+
+        from .extraction_result import ExtractionResult
 
         # Step 0: Pre-scan for scanned pages (fast, avoids unnecessary extraction)
         with Timer("Scanned page pre-detection"):
@@ -329,24 +329,12 @@ class RawTextExtractor:
         if all_scanned:
             logger.debug("All pages are scanned — skipping digital extraction, going to OCR")
             if not self.ocr_allowed:
-                return {
-                    "status": "ocr_skipped",
-                    "error_message": "OCR skipped — Tesseract not installed.",
-                    "text": None,
-                    "method": None,
-                    "confidence": 0,
-                    "page_count": None,
-                }
+                return ExtractionResult.error(
+                    "OCR skipped — Tesseract not installed.",
+                    status="ocr_skipped",
+                )
             with Timer("Full OCR (all scanned)"):
-                ocr_result = self.ocr_processor.process_pdf(file_path)
-            return {
-                "status": ocr_result["status"],
-                "error_message": ocr_result.get("error_message"),
-                "text": ocr_result["text"],
-                "method": ocr_result["method"],
-                "confidence": ocr_result["confidence"],
-                "page_count": ocr_result["page_count"],
-            }
+                return self.ocr_processor.process_pdf(file_path)
 
         from src.config import PDFPLUMBER_SKIP_CONFIDENCE
 
@@ -415,16 +403,10 @@ class RawTextExtractor:
                     "permission": "Permission denied when accessing PDF",
                     "empty": "PDF has no pages or content",
                 }
-                return {
-                    "status": "error",
-                    "error_message": error_messages.get(
-                        error_type, f"Failed to extract PDF text: {error_type}"
-                    ),
-                    "text": None,
-                    "method": None,
-                    "confidence": 0,
-                    "page_count": page_count or secondary_page_count,
-                }
+                return ExtractionResult.error(
+                    error_messages.get(error_type, f"Failed to extract PDF text: {error_type}"),
+                    page_count=page_count or secondary_page_count,
+                )
 
         # Use whichever page count we got
         page_count = page_count or secondary_page_count
@@ -448,28 +430,19 @@ class RawTextExtractor:
                 "Digital text quality insufficient but OCR is disabled. "
                 "Returning low-quality digital text as fallback."
             )
-            return {
-                "status": "ocr_skipped",
-                "error_message": "OCR skipped — Tesseract not installed.",
-                "text": text,
-                "method": method,
-                "confidence": int(confidence),
-                "page_count": page_count,
-            }
+            return ExtractionResult.error(
+                "OCR skipped — Tesseract not installed.",
+                text=text,
+                method=method,
+                confidence=int(confidence),
+                status="ocr_skipped",
+                page_count=page_count,
+            )
 
         if needs_ocr:
             logger.debug("Digital text quality insufficient. Performing OCR...")
             with Timer("OCR Processing"):
-                ocr_result = self.ocr_processor.process_pdf(file_path, page_count)
-
-            return {
-                "status": ocr_result["status"],
-                "error_message": ocr_result.get("error_message"),
-                "text": ocr_result["text"],
-                "method": ocr_result["method"],
-                "confidence": ocr_result["confidence"],
-                "page_count": ocr_result["page_count"],
-            }
+                return self.ocr_processor.process_pdf(file_path, page_count)
 
         # Step 5: Splice OCR text for scanned pages in mixed documents
         if scanned_pages and self.ocr_allowed:
@@ -487,14 +460,12 @@ class RawTextExtractor:
                 confidence = self._calculate_dictionary_confidence(text)
 
         # Digital extraction succeeded
-        return {
-            "status": "success",
-            "error_message": None,
-            "text": text,
-            "method": method,
-            "confidence": int(confidence),
-            "page_count": page_count,
-        }
+        return ExtractionResult.success(
+            text,
+            method,
+            confidence,
+            page_count=page_count,
+        )
 
     @staticmethod
     def _splice_ocr_pages(digital_text: str, ocr_pages: dict[int, str]) -> str:

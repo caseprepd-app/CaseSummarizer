@@ -4,6 +4,8 @@ OCR Processing for Scanned Documents.
 Performs Optical Character Recognition (OCR) on PDF pages or images using
 Tesseract with optional image preprocessing to improve accuracy.
 
+Each public method returns an ExtractionResult.
+
 The preprocessing pipeline can improve OCR accuracy by 20-50% on scanned
 documents by:
     - Correcting orientation (90/180/270 degree rotation)
@@ -107,7 +109,7 @@ class OCRProcessor:
                 OCR_ENABLE_CLAHE,
             )
 
-    def process_pdf(self, file_path: Path, page_count: int | None = None) -> dict:
+    def process_pdf(self, file_path: Path, page_count: int | None = None):
         """
         Perform OCR on a PDF file.
 
@@ -119,13 +121,7 @@ class OCRProcessor:
             page_count: Known page count (for result, if already determined)
 
         Returns:
-            Dict with keys:
-                - text: OCR-extracted text
-                - page_count: Number of pages processed
-                - method: 'ocr' or 'ocr_enhanced' (with preprocessing)
-                - confidence: Dictionary confidence percentage
-                - status: 'success' or 'error'
-                - error_message: Error description if failed
+            ExtractionResult with text, method='ocr'/'ocr_enhanced', confidence.
 
         Example:
             >>> processor = OCRProcessor(DictionaryTextValidator())
@@ -183,19 +179,21 @@ class OCRProcessor:
                 )
 
             # Calculate confidence
+            from .extraction_result import ExtractionResult
+
             confidence = self.dictionary.calculate_confidence(ocr_text)
             logger.debug("OCR confidence: %.1f%%", confidence)
 
-            return {
-                "text": ocr_text,
-                "page_count": page_count or len(images),
-                "method": "ocr_enhanced" if self.preprocessor else "ocr",
-                "confidence": int(confidence),
-                "status": "success",
-                "error_message": None,
-            }
+            return ExtractionResult.success(
+                ocr_text,
+                "ocr_enhanced" if self.preprocessor else "ocr",
+                confidence,
+                page_count=page_count or len(images),
+            )
 
         except Exception as e:
+            from .extraction_result import ExtractionResult
+
             error_msg = str(e)
             if "poppler" in error_msg.lower() or "pdftoppm" in error_msg.lower():
                 error_msg = (
@@ -205,16 +203,9 @@ class OCRProcessor:
             else:
                 error_msg = f"OCR processing failed: {error_msg}"
 
-            return {
-                "text": None,
-                "page_count": page_count,
-                "method": None,
-                "confidence": 0,
-                "status": "error",
-                "error_message": error_msg,
-            }
+            return ExtractionResult.error(error_msg, page_count=page_count)
 
-    def process_pages(self, file_path: Path, page_numbers: list[int], page_count: int) -> dict:
+    def process_pages(self, file_path: Path, page_numbers: list[int], page_count: int):
         """
         Perform OCR on specific pages of a PDF file.
 
@@ -227,12 +218,7 @@ class OCRProcessor:
             page_count: Total page count (for result metadata)
 
         Returns:
-            Dict with keys:
-                - pages: Dict mapping 1-indexed page number to OCR text
-                - method: 'ocr_partial' or 'ocr_partial_enhanced'
-                - confidence: Dictionary confidence percentage of OCR text
-                - status: 'success' or 'error'
-                - error_message: Error description if failed
+            ExtractionResult with pages dict, method, confidence.
         """
         logger.debug(
             "Starting per-page OCR on %s: pages %s",
@@ -282,18 +268,21 @@ class OCRProcessor:
                 pages_text[page_num] = page_text
                 all_ocr_text.append(page_text)
 
+            from .extraction_result import ExtractionResult
+
             combined = "\n".join(all_ocr_text)
             confidence = self.dictionary.calculate_confidence(combined) if combined else 0
 
-            return {
-                "pages": pages_text,
-                "method": "ocr_partial_enhanced" if self.preprocessor else "ocr_partial",
-                "confidence": int(confidence),
-                "status": "success",
-                "error_message": None,
-            }
+            return ExtractionResult.success(
+                combined,
+                "ocr_partial_enhanced" if self.preprocessor else "ocr_partial",
+                confidence,
+                pages=pages_text,
+            )
 
         except Exception as e:
+            from .extraction_result import ExtractionResult
+
             error_msg = str(e)
             if "poppler" in error_msg.lower() or "pdftoppm" in error_msg.lower():
                 error_msg = (
@@ -303,15 +292,9 @@ class OCRProcessor:
             else:
                 error_msg = f"Per-page OCR failed: {error_msg}"
 
-            return {
-                "pages": {},
-                "method": None,
-                "confidence": 0,
-                "status": "error",
-                "error_message": error_msg,
-            }
+            return ExtractionResult.error(error_msg)
 
-    def process_image(self, image) -> dict:
+    def process_image(self, image):
         """
         Perform OCR on a single image (PIL Image object).
 
@@ -319,12 +302,7 @@ class OCRProcessor:
             image: PIL Image object to process
 
         Returns:
-            Dict with keys:
-                - text: OCR-extracted text
-                - method: 'image_ocr'
-                - confidence: Dictionary confidence percentage
-                - status: 'success' or 'error'
-                - error_message: Error description if failed
+            ExtractionResult with text, method='image_ocr', confidence.
 
         Example:
             >>> from PIL import Image
@@ -332,6 +310,8 @@ class OCRProcessor:
             >>> img = Image.open("document.png")
             >>> result = processor.process_image(img)
         """
+        from .extraction_result import ExtractionResult
+
         try:
             import pytesseract
 
@@ -349,31 +329,16 @@ class OCRProcessor:
             text = pytesseract.image_to_string(processed_img)
 
             if not text.strip():
-                return {
-                    "text": None,
-                    "method": "image_ocr",
-                    "confidence": 0,
-                    "status": "error",
-                    "error_message": "Could not extract text from image.",
-                }
+                return ExtractionResult.error(
+                    "Could not extract text from image.",
+                    method="image_ocr",
+                )
 
             # Calculate confidence
             confidence = self.dictionary.calculate_confidence(text)
             logger.debug("Image OCR confidence: %.1f%%", confidence)
 
-            return {
-                "text": text,
-                "method": "image_ocr",
-                "confidence": int(confidence),
-                "status": "success",
-                "error_message": None,
-            }
+            return ExtractionResult.success(text, "image_ocr", confidence)
 
         except Exception as e:
-            return {
-                "text": None,
-                "method": None,
-                "confidence": 0,
-                "status": "error",
-                "error_message": f"Failed to process image: {e!s}",
-            }
+            return ExtractionResult.error(f"Failed to process image: {e!s}")

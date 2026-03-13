@@ -2,7 +2,7 @@
 File Readers for Non-PDF Document Formats.
 
 Provides text extraction for TXT, RTF, DOCX, and image files (PNG/JPG).
-Each reader returns a standardized result dict with text, confidence, and status.
+Each reader returns an ExtractionResult with text, confidence, and status.
 
 Supported formats:
     - TXT: Direct file read (UTF-8)
@@ -18,8 +18,11 @@ Example usage:
     >>> print(result['method'])  # 'direct_read'
 """
 
+from __future__ import annotations
+
 import logging
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from PIL import Image
 
@@ -27,13 +30,16 @@ logger = logging.getLogger(__name__)
 
 from .dictionary_utils import DictionaryTextValidator
 
+if TYPE_CHECKING:
+    from .extraction_result import ExtractionResult
+
 
 class FileReaders:
     """
     Reads text from non-PDF document formats.
 
     Provides a unified interface for extracting text from TXT, RTF, DOCX,
-    and image files. Each method returns a standardized result dict.
+    and image files. Each method returns an ExtractionResult.
 
     Attributes:
         dictionary: DictionaryTextValidator for confidence calculation
@@ -51,7 +57,7 @@ class FileReaders:
         self.dictionary = dictionary
         self.ocr_processor = ocr_processor
 
-    def read_text_file(self, file_path: Path) -> dict:
+    def read_text_file(self, file_path: Path) -> ExtractionResult:
         """
         Read a plain text (.txt) file.
 
@@ -59,18 +65,15 @@ class FileReaders:
             file_path: Path to the text file
 
         Returns:
-            Dict with keys:
-                - text: File contents
-                - method: 'direct_read'
-                - confidence: Dictionary confidence percentage
-                - status: 'success' or 'error'
-                - error_message: Error description if failed
+            ExtractionResult with text, method='direct_read', confidence.
 
         Example:
             >>> readers = FileReaders(DictionaryTextValidator())
             >>> result = readers.read_text_file(Path("notes.txt"))
             >>> print(f"Read {len(result['text'])} characters")
         """
+        from .extraction_result import ExtractionResult
+
         logger.debug("Reading text file: %s", file_path.name)
 
         try:
@@ -80,26 +83,20 @@ class FileReaders:
             confidence = self.dictionary.calculate_confidence(text)
             logger.debug("Text file dictionary confidence: %.1f%%", confidence)
 
-            return {
-                "text": text,
-                "method": "direct_read",
-                "confidence": int(confidence),
-                "page_count": 1,
-                "status": "success",
-                "error_message": None,
-            }
+            return ExtractionResult.success(
+                text,
+                "direct_read",
+                confidence,
+                page_count=1,
+            )
 
         except Exception as e:
-            return {
-                "text": None,
-                "method": None,
-                "confidence": 0,
-                "page_count": 0,
-                "status": "error",
-                "error_message": f"Failed to read text file: {e!s}",
-            }
+            return ExtractionResult.error(
+                f"Failed to read text file: {e!s}",
+                page_count=0,
+            )
 
-    def read_rtf_file(self, file_path: Path) -> dict:
+    def read_rtf_file(self, file_path: Path) -> ExtractionResult:
         """
         Read a Rich Text Format (.rtf) file.
 
@@ -109,17 +106,14 @@ class FileReaders:
             file_path: Path to the RTF file
 
         Returns:
-            Dict with keys:
-                - text: Converted plain text
-                - method: 'rtf_extraction'
-                - confidence: Dictionary confidence percentage
-                - status: 'success' or 'error'
-                - error_message: Error description if failed
+            ExtractionResult with text, method='rtf_extraction', confidence.
 
         Example:
             >>> readers = FileReaders(DictionaryTextValidator())
             >>> result = readers.read_rtf_file(Path("document.rtf"))
         """
+        from .extraction_result import ExtractionResult
+
         logger.debug("Reading RTF file: %s", file_path.name)
 
         try:
@@ -134,26 +128,20 @@ class FileReaders:
             confidence = self.dictionary.calculate_confidence(text)
             logger.debug("RTF dictionary confidence: %.1f%%", confidence)
 
-            return {
-                "text": text,
-                "method": "rtf_extraction",
-                "confidence": int(confidence),
-                "page_count": 1,
-                "status": "success",
-                "error_message": None,
-            }
+            return ExtractionResult.success(
+                text,
+                "rtf_extraction",
+                confidence,
+                page_count=1,
+            )
 
         except Exception as e:
-            return {
-                "text": None,
-                "method": None,
-                "confidence": 0,
-                "page_count": 0,
-                "status": "error",
-                "error_message": f"Failed to read RTF file: {e!s}",
-            }
+            return ExtractionResult.error(
+                f"Failed to read RTF file: {e!s}",
+                page_count=0,
+            )
 
-    def read_docx_file(self, file_path: Path) -> dict:
+    def read_docx_file(self, file_path: Path) -> ExtractionResult:
         """
         Read a Word document (.docx) file.
 
@@ -163,19 +151,15 @@ class FileReaders:
             file_path: Path to the DOCX file
 
         Returns:
-            Dict with keys:
-                - text: Extracted text from paragraphs and tables
-                - method: 'docx_extraction'
-                - confidence: Dictionary confidence percentage
-                - page_count: Approximate page count (from sections)
-                - status: 'success' or 'error'
-                - error_message: Error description if failed
+            ExtractionResult with text, method='docx_extraction', confidence.
 
         Example:
             >>> readers = FileReaders(DictionaryTextValidator())
             >>> result = readers.read_docx_file(Path("report.docx"))
             >>> print(f"Pages: ~{result['page_count']}")
         """
+        from .extraction_result import ExtractionResult
+
         logger.debug("Reading Word document: %s", file_path.name)
 
         try:
@@ -195,38 +179,28 @@ class FileReaders:
                         text += "\n" + " | ".join(row_text)
 
             if not text.strip():
-                return {
-                    "text": None,
-                    "method": None,
-                    "confidence": 0,
-                    "page_count": 0,
-                    "status": "error",
-                    "error_message": "Word document contains no readable text.",
-                }
+                return ExtractionResult.error(
+                    "Word document contains no readable text.",
+                    page_count=0,
+                )
 
             confidence = self.dictionary.calculate_confidence(text)
             logger.debug("DOCX dictionary confidence: %.1f%%", confidence)
 
-            return {
-                "text": text,
-                "method": "docx_extraction",
-                "confidence": int(confidence),
-                "page_count": len(doc.sections) or 1,  # Approximate
-                "status": "success",
-                "error_message": None,
-            }
+            return ExtractionResult.success(
+                text,
+                "docx_extraction",
+                confidence,
+                page_count=len(doc.sections) or 1,
+            )
 
         except Exception as e:
-            return {
-                "text": None,
-                "method": None,
-                "confidence": 0,
-                "page_count": 0,
-                "status": "error",
-                "error_message": f"Failed to read Word document: {e!s}",
-            }
+            return ExtractionResult.error(
+                f"Failed to read Word document: {e!s}",
+                page_count=0,
+            )
 
-    def read_image_file(self, file_path: Path) -> dict:
+    def read_image_file(self, file_path: Path) -> ExtractionResult:
         """
         Read an image file (.png, .jpg, .jpeg) using OCR.
 
@@ -236,45 +210,33 @@ class FileReaders:
             file_path: Path to the image file
 
         Returns:
-            Dict with keys:
-                - text: OCR-extracted text
-                - method: 'image_ocr'
-                - confidence: Dictionary confidence percentage
-                - page_count: Always 1 for images
-                - status: 'success' or 'error'
-                - error_message: Error description if failed
+            ExtractionResult with text, method='image_ocr', confidence.
 
         Example:
             >>> readers = FileReaders(DictionaryTextValidator(), OCRProcessor(DictionaryTextValidator()))
             >>> result = readers.read_image_file(Path("scan.png"))
         """
+        from .extraction_result import ExtractionResult
+
         logger.debug("Reading image file: %s", file_path.name)
 
         if self.ocr_processor is None:
-            return {
-                "text": None,
-                "method": None,
-                "confidence": 0,
-                "page_count": 1,
-                "status": "error",
-                "error_message": "OCR processor not available for image files.",
-            }
+            return ExtractionResult.error(
+                "OCR processor not available for image files.",
+                page_count=1,
+            )
 
         try:
             with Image.open(file_path) as img:
                 result = self.ocr_processor.process_image(img)
 
             # Add page_count to result
-            result["page_count"] = 1
+            result.page_count = 1
 
             return result
 
         except Exception as e:
-            return {
-                "text": None,
-                "method": None,
-                "confidence": 0,
-                "page_count": 1,
-                "status": "error",
-                "error_message": f"Failed to process image: {e!s}",
-            }
+            return ExtractionResult.error(
+                f"Failed to process image: {e!s}",
+                page_count=1,
+            )

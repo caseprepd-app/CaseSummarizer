@@ -30,7 +30,6 @@ import customtkinter as ctk
 
 from src.config import VF
 from src.ui.settings.base_settings_widget import BaseSettingsWidget
-from src.ui.settings.settings_widgets import TooltipIcon
 from src.ui.theme import COLORS, FONTS
 
 
@@ -81,15 +80,11 @@ class ColumnVisibilityWidget(BaseSettingsWidget):
         self.grid_columnconfigure(0, weight=1)
 
         # Header with tooltip
-        header_frame = ctk.CTkFrame(self, fg_color="transparent")
-        header_frame.grid(row=0, column=0, sticky="ew", pady=(0, 10))
+        from src.ui.settings.section_header import SectionHeader
 
-        ctk.CTkLabel(header_frame, text="Default Visible Columns", font=FONTS["heading_sm"]).pack(
-            side="left"
-        )
-
-        tooltip_icon = TooltipIcon(
-            header_frame,
+        header = SectionHeader(
+            self,
+            "Default Visible Columns",
             tooltip_text=(
                 "Choose which columns appear by default in the vocabulary table.\n\n"
                 "You can also toggle columns via:\n"
@@ -98,7 +93,7 @@ class ColumnVisibilityWidget(BaseSettingsWidget):
                 "Changes are saved automatically and persist between sessions."
             ),
         )
-        tooltip_icon.pack(side="left", padx=(5, 0))
+        header.grid(row=0, column=0, sticky="ew", pady=(0, 10))
 
         # Create checkbox groups
         row_idx = 1
