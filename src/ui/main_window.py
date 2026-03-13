@@ -1709,6 +1709,31 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             after=_after_settings,
         )
 
+    def _open_search_settings(self):
+        """Open the settings dialog directly to the Search tab."""
+        from src.user_preferences import get_user_preferences
+
+        prefs = get_user_preferences()
+        font_size_before = prefs.get("font_size", "medium")
+
+        def _after_settings():
+            self._refresh_corpus_dropdown()
+            self.refresh_default_questions_label()
+            font_size_after = prefs.get("font_size", "medium")
+            if font_size_after != font_size_before:
+                messagebox.showinfo(
+                    "Restart Required",
+                    "Font size changed. Please restart the application for the new size to take full effect.",
+                )
+
+        from src.ui.settings.settings_dialog import SettingsDialog
+
+        self._open_modal_dialog(
+            self.set_defaults_btn,
+            lambda: SettingsDialog(parent=self, initial_tab="Search"),
+            after=_after_settings,
+        )
+
     # =========================================================================
     # Export All (tabbed HTML)
     # =========================================================================

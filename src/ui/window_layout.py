@@ -207,14 +207,28 @@ class WindowLayoutMixin:
         options_frame = ctk.CTkFrame(self.left_panel, **FRAME_STYLES["transparent"])
         options_frame.grid(row=5, column=0, sticky="ew", padx=10, pady=(8, 0))
 
-        # Default searches checkbox (vocab + search + key excerpts always run)
+        # Default searches row: checkbox + "Set Defaults" button
+        default_searches_row = ctk.CTkFrame(options_frame, **FRAME_STYLES["transparent"])
+        default_searches_row.pack(anchor="w", fill="x", pady=2)
+
         self.ask_default_questions_check = ctk.CTkCheckBox(
-            options_frame,
+            default_searches_row,
             text="Run default searches",
             command=self._on_default_questions_toggled,
         )
-        self.ask_default_questions_check.pack(anchor="w", pady=2)
+        self.ask_default_questions_check.pack(side="left")
         self.ask_default_questions_check.select()  # ON by default
+
+        self.set_defaults_btn = ctk.CTkButton(
+            default_searches_row,
+            text="Set Defaults",
+            width=90,
+            height=24,
+            font=FONTS["small"],
+            **BUTTON_STYLES["secondary"],
+            command=self._open_search_settings,
+        )
+        self.set_defaults_btn.pack(side="right", padx=(5, 0))
 
         # "Process Documents" button
         self.generate_btn = ctk.CTkButton(
