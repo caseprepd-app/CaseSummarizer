@@ -5,7 +5,7 @@ Covers the rules engine scoring logic:
 - Base score (50 points)
 - Occurrence curve (log-scaled, cap +35)
 - Rarity boost (frequency rank thresholds)
-- Tiered person name boost (+5 / +12 / +15)
+- Tiered person name boost (per-word frequency: +2 to +15)
 - Multi-algorithm agreement tiers (+4 / +8 / +12)
 - Algorithm confidence boost (up to +6)
 - Artifact detection penalties (all caps, leading digit, single letter, trailing punct)
@@ -115,29 +115,48 @@ class TestOccurrenceCurve:
 
 
 class TestPersonBoost:
-    def test_single_common_word_gets_5(self, extractor):
-        """Single common-word person gets +5 (could be noise like 'Will')."""
-        base = _score(extractor, is_person=False, term="Smith", frequency_rank=50000)
-        person = _score(extractor, is_person=True, term="Smith", frequency_rank=50000)
-        assert person - base == pytest.approx(5.0, abs=0.1)
+    def test_single_very_common_word_gets_2(self, extractor):
+        """Single very-common person gets +2 (e.g. 'Brown', rank < 5K)."""
+        base = _score(extractor, is_person=False, term="Brown", frequency_rank=500)
+        person = _score(extractor, is_person=True, term="Brown", frequency_rank=500)
+        assert person - base == pytest.approx(2.0, abs=0.1)
 
-    def test_multi_word_common_gets_12(self, extractor):
-        """Multi-word person with common name gets +12."""
-        base = _score(extractor, is_person=False, term="John Smith", frequency_rank=50000)
-        person = _score(extractor, is_person=True, term="John Smith", frequency_rank=50000)
-        assert person - base == pytest.approx(12.0, abs=0.1)
+    def test_single_moderate_word_gets_4(self, extractor):
+        """Single moderately-common person gets +4 (rank 5K-50K)."""
+        base = _score(extractor, is_person=False, term="Garza", frequency_rank=10000)
+        person = _score(extractor, is_person=True, term="Garza", frequency_rank=10000)
+        assert person - base == pytest.approx(4.0, abs=0.1)
 
-    def test_multi_word_rare_gets_15(self, extractor):
-        """Multi-word person with rare name gets +15."""
-        base = _score(extractor, is_person=False, term="James Comiskey", frequency_rank=0)
-        person = _score(extractor, is_person=True, term="James Comiskey", frequency_rank=0)
-        assert person - base == pytest.approx(15.0, abs=0.1)
-
-    def test_single_rare_word_gets_5(self, extractor):
-        """Single rare-word person still only gets +5 (single word = less certain)."""
+    def test_single_rare_word_gets_8(self, extractor):
+        """Single rare person name gets +8 (not in dataset)."""
         base = _score(extractor, is_person=False, term="Comiskey", frequency_rank=0)
         person = _score(extractor, is_person=True, term="Comiskey", frequency_rank=0)
-        assert person - base == pytest.approx(5.0, abs=0.1)
+        assert person - base == pytest.approx(8.0, abs=0.1)
+
+    def test_multi_word_all_common_gets_6(self, extractor):
+        """Multi-word person with all common words gets +6."""
+        base = _score(extractor, is_person=False, term="John Smith")
+        person = _score(extractor, is_person=True, term="John Smith")
+        assert person - base == pytest.approx(6.0, abs=0.1)
+
+    def test_multi_word_mixed_gets_10(self, extractor):
+        """Multi-word person with mix of common/rare words gets +10."""
+        base = _score(extractor, is_person=False, term="James Comiskey")
+        person = _score(extractor, is_person=True, term="James Comiskey")
+        assert person - base == pytest.approx(10.0, abs=0.1)
+
+    def test_multi_word_all_rare_gets_15(self, extractor):
+        """Multi-word person with all rare words gets +15."""
+        base = _score(extractor, is_person=False, term="Xiomara Bjelkengren")
+        person = _score(extractor, is_person=True, term="Xiomara Bjelkengren")
+        assert person - base == pytest.approx(15.0, abs=0.1)
+
+    def test_multi_word_ignores_initials(self, extractor):
+        """Middle initials (≤2 chars) are ignored for frequency evaluation."""
+        # "Fabiola S. Sorjkazaistan" — skip "S.", evaluate Fabiola + Sorjkazaistan
+        base = _score(extractor, is_person=False, term="Fabiola S. Sorjkazaistan")
+        person = _score(extractor, is_person=True, term="Fabiola S. Sorjkazaistan")
+        assert person - base == pytest.approx(15.0, abs=0.1)
 
     def test_non_person_gets_no_boost(self, extractor):
         """Non-person terms get no person boost."""

@@ -110,6 +110,73 @@ ORGANIZATION_INDICATORS = {
 }
 
 
+# Threshold: words ranked below this in Google 333K are considered "common"
+_NAME_COMMON_RANK_THRESHOLD = 50000
+
+
+def _get_real_name_words(term_words: list[str]) -> list[str]:
+    """Filter out initials, suffixes, and titles from a name.
+
+    Words ≤2 characters after stripping periods are discarded
+    (e.g., "R.", "Jr", "II", "S."). This leaves only substantive
+    name components for frequency evaluation.
+
+    Args:
+        term_words: Split words from the person name term.
+
+    Returns:
+        List of name words longer than 2 chars (stripped of periods).
+    """
+    return [w for w in term_words if len(w.strip(".")) > 2]
+
+
+def _person_multi_word_boost(term_words: list[str], rank_map: dict[str, int]) -> float:
+    """Calculate person boost for multi-word names using per-word frequency.
+
+    Evaluates each substantive name word (>2 chars) against Google 333K
+    to tier the bonus: rare names get more, common names less.
+
+    Args:
+        term_words: Split words from the person name term.
+        rank_map: Google frequency rank map {word: rank}.
+
+    Returns:
+        Point bonus to add to the quality score.
+    """
+    real_words = _get_real_name_words(term_words)
+    if not real_words:
+        # All components are initials/titles — treat as single-word
+        phrase = "".join(term_words).lower().strip(".")
+        rank = rank_map.get(phrase, 0)
+        return _person_single_word_boost(rank)
+    common_count = 0
+    for word in real_words:
+        rank = rank_map.get(word.lower(), 0)
+        if 0 < rank < _NAME_COMMON_RANK_THRESHOLD:
+            common_count += 1
+    if common_count == 0:
+        return 15.0  # All rare — "Xiomara Bjelkengren"
+    if common_count < len(real_words):
+        return 10.0  # Mixed — "Xiomara Smith"
+    return 6.0  # All common — "David Wilson"
+
+
+def _person_single_word_boost(frequency_rank: int) -> float:
+    """Calculate person boost for single-word names.
+
+    Args:
+        frequency_rank: Google 333K rank (0 = not in dataset).
+
+    Returns:
+        Point bonus to add to the quality score.
+    """
+    if frequency_rank == 0 or frequency_rank >= _NAME_COMMON_RANK_THRESHOLD:
+        return 8.0  # Rare — "Bjelkengren"
+    if frequency_rank >= 5000:
+        return 4.0  # Moderate — could be name, could be noise
+    return 2.0  # Very common — "Will", "Brown"
+
+
 class VocabularyExtractor:
     """
     Orchestrates multiple extraction algorithms and produces final vocabulary.
@@ -851,27 +918,16 @@ class VocabularyExtractor:
         elif frequency_rank > 180000:
             score += 10
 
-        # Tiered person name boost
-        # Multi-word rare names are almost certainly real people;
-        # single common words like "Will" or "Grace" deserve less boost.
+        # Tiered person name boost — uses per-word frequency to score
+        # common names ("David Wilson") lower than rare ones ("Xiomara Bjelkengren").
+        # Court reporters already have common names in their steno dictionaries.
         if is_person:
             term_words = term.split() if term else []
-            is_rare = frequency_rank == 0 or frequency_rank > 180000
             is_multi_word = len(term_words) >= 2
-            if is_multi_word and is_rare:
-                score += 15  # Multi-word + rare name = very strong signal
-            elif is_multi_word:
-                score += 12  # Multi-word name = likely real person
+            if is_multi_word:
+                score += _person_multi_word_boost(term_words, self.frequency_rank_map)
             else:
-                score += 5  # Single word person = could be noise
-
-            # Penalty for common-word single-name persons (e.g., "Smith", "Brown")
-            # These are real surnames but they rank among the most common English
-            # words (top ~5K of 333K). Court reporters already know these words,
-            # so they're less useful as vocabulary entries. Push them down the
-            # list so rarer, more helpful terms surface first.
-            if not is_multi_word and 0 < frequency_rank < 5000:
-                score -= 10
+                score += _person_single_word_boost(frequency_rank)
 
         # Boost for multi-algorithm agreement (non-linear tiers)
         # Terms found by multiple algorithms are more trustworthy

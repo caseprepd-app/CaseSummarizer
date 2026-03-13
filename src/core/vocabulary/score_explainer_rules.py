@@ -15,6 +15,25 @@ from typing import Any, NamedTuple
 
 logger = logging.getLogger(__name__)
 
+# Threshold: words ranked below this in Google 333K are considered "common"
+_NAME_COMMON_RANK_THRESHOLD = 50000
+
+# Cached rank map (loaded lazily on first person-boost evaluation)
+_rank_map: dict[str, int] | None = None
+
+
+def _get_rank_map() -> dict[str, int]:
+    """Load and cache Google 333K frequency rank map."""
+    global _rank_map
+    if _rank_map is not None:
+        return _rank_map
+    from src.core.vocabulary.frequency_data import load_raw_frequency_data
+
+    freq = load_raw_frequency_data()
+    sorted_words = sorted(freq.items(), key=lambda x: x[1], reverse=True)
+    _rank_map = {word: rank for rank, (word, _) in enumerate(sorted_words)}
+    return _rank_map
+
 
 class RuleContribution(NamedTuple):
     """A single rule's contribution to the quality score.
@@ -119,20 +138,50 @@ def _eval_rarity_boost(contributions: list[RuleContribution], frequency_rank: in
 def _eval_person_boost(
     contributions: list[RuleContribution], is_person: bool, term: str, frequency_rank: int
 ) -> None:
-    """Tiered person name boost: multi-word rare > multi-word > single word."""
+    """Tiered person name boost using per-word Google frequency lookup.
+
+    Multi-word names are scored by how common their substantive words
+    are (ignoring initials/titles ≤2 chars). Common names score lower
+    since court reporters already have them in steno dictionaries.
+    """
     if not is_person:
         return
     term_words = term.split() if term else []
-    is_rare = frequency_rank == 0 or frequency_rank > 180000
     is_multi = len(term_words) >= 2
-    if is_multi and is_rare:
-        contributions.append(
-            RuleContribution("is_person", "Multi-word rare person name (+15)", 15.0)
-        )
-    elif is_multi:
-        contributions.append(RuleContribution("is_person", "Multi-word person name (+12)", 12.0))
+    if is_multi:
+        boost = _person_multi_word_boost(term_words)
     else:
-        contributions.append(RuleContribution("is_person", "Person name detected (+5)", 5.0))
+        boost = _person_single_word_boost(frequency_rank)
+    contributions.append(
+        RuleContribution("is_person", f"Person name detected (+{boost:.0f})", boost)
+    )
+
+
+def _person_multi_word_boost(term_words: list[str]) -> float:
+    """Calculate person boost for multi-word names via per-word frequency."""
+    real_words = [w for w in term_words if len(w.strip(".")) > 2]
+    if not real_words:
+        return 4.0  # All initials/titles — minimal boost
+    rank_map = _get_rank_map()
+    common_count = 0
+    for word in real_words:
+        rank = rank_map.get(word.lower(), 0)
+        if 0 < rank < _NAME_COMMON_RANK_THRESHOLD:
+            common_count += 1
+    if common_count == 0:
+        return 15.0  # All rare
+    if common_count < len(real_words):
+        return 10.0  # Mixed
+    return 6.0  # All common
+
+
+def _person_single_word_boost(frequency_rank: int) -> float:
+    """Calculate person boost for single-word names."""
+    if frequency_rank == 0 or frequency_rank >= _NAME_COMMON_RANK_THRESHOLD:
+        return 8.0  # Rare
+    if frequency_rank >= 5000:
+        return 4.0  # Moderate
+    return 2.0  # Very common
 
 
 def _eval_multi_algo_boost(contributions: list[RuleContribution], algorithm_count: int) -> None:
