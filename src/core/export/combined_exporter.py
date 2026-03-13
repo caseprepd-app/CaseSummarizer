@@ -1,12 +1,12 @@
 """
 Combined Export Module
 
-Exports vocabulary, Q&A results, and summary in a single document.
+Exports vocabulary, semantic search results, and summary in a single document.
 
 This creates a unified report with:
 1. Summary (if available)
 2. Names & Vocabulary table
-3. Questions & Answers section
+3. Semantic Search Results section
 
 Supports Word (.docx) and PDF formats using the DocumentBuilder pattern.
 """
@@ -14,7 +14,7 @@ Supports Word (.docx) and PDF formats using the DocumentBuilder pattern.
 import logging
 
 from src.core.export.base import DocumentBuilder
-from src.core.export.qa_exporter import export_qa_results
+from src.core.export.semantic_exporter import export_semantic_results
 from src.core.export.vocab_exporter import export_vocabulary
 
 logger = logging.getLogger(__name__)
@@ -22,29 +22,29 @@ logger = logging.getLogger(__name__)
 
 def export_combined(
     vocab_data: list[dict],
-    qa_results: list,
+    semantic_results: list,
     builder: DocumentBuilder,
     include_vocab_details: bool = False,
-    include_qa_verification: bool = True,
+    include_verification: bool = True,
     title: str = "Document Analysis Report",
     summary_text: str = "",
 ) -> None:
     """
-    Export vocabulary, Q&A, and summary to a single document.
+    Export vocabulary, semantic search results, and summary to a single document.
 
     Args:
         vocab_data: List of vocabulary dicts
-        qa_results: List of QAResult objects
+        semantic_results: List of SemanticResult objects
         builder: DocumentBuilder instance (Word or PDF)
         include_vocab_details: Include algorithm columns in vocabulary table
-        include_qa_verification: Include verification coloring in Q&A
+        include_verification: Include verification coloring
         title: Document title
         summary_text: Summary text to include (empty string to skip)
     """
     logger.debug(
-        "Creating combined report: %d terms, %d Q&A pairs, summary=%s",
+        "Creating combined report: %d terms, %d search results, summary=%s",
         len(vocab_data),
-        len(qa_results),
+        len(semantic_results),
         bool(summary_text),
     )
 
@@ -64,8 +64,8 @@ def export_combined(
         builder.add_paragraph("")  # Spacer after table
 
     # Section 3: Search Results
-    if qa_results:
-        export_qa_results(qa_results, builder, include_qa_verification)
+    if semantic_results:
+        export_semantic_results(semantic_results, builder, include_verification)
 
     # Footer note
     builder.add_paragraph("")

@@ -20,40 +20,36 @@ class TestPlaceholderConstants:
     """Test that placeholder text constants exist and are non-empty."""
 
     def test_pending_retrieval_text(self):
-        from src.core.qa.qa_constants import PENDING_RETRIEVAL_TEXT
+        from src.core.semantic.semantic_constants import PENDING_RETRIEVAL_TEXT
 
         assert PENDING_RETRIEVAL_TEXT
         assert isinstance(PENDING_RETRIEVAL_TEXT, str)
 
     def test_pending_generation_text(self):
-        from src.core.qa.qa_constants import PENDING_GENERATION_TEXT
+        from src.core.semantic.semantic_constants import PENDING_GENERATION_TEXT
 
         assert PENDING_GENERATION_TEXT
         assert isinstance(PENDING_GENERATION_TEXT, str)
 
     def test_ollama_unavailable_text_removed(self):
         """OLLAMA_UNAVAILABLE_TEXT was removed (Ollama integration removed Mar 2026)."""
-        import src.core.qa.qa_constants as consts
+        import src.core.semantic.semantic_constants as consts
 
         assert not hasattr(consts, "OLLAMA_UNAVAILABLE_TEXT")
 
 
 # ---------------------------------------------------------------------------
-# QAOrchestrator split methods
+# SemanticOrchestrator split methods
 # ---------------------------------------------------------------------------
 
 
 @pytest.fixture
 def mock_orchestrator():
-    """Create a QAOrchestrator with mocked retriever and answer generator."""
-    with (
-        patch("src.core.qa.qa_orchestrator.QARetriever") as MockRetriever,
-        patch("src.core.qa.answer_generator.AnswerGenerator") as MockGenerator,
-    ):
-        from src.core.qa.qa_orchestrator import QAOrchestrator
+    """Create a SemanticOrchestrator with mocked retriever."""
+    with patch("src.core.semantic.semantic_orchestrator.SemanticRetriever") as MockRetriever:
+        from src.core.semantic.semantic_orchestrator import SemanticOrchestrator
 
         mock_retriever = MockRetriever.return_value
-        mock_generator = MockGenerator.return_value
 
         # Default: retriever returns good context
         mock_source = MagicMock()
@@ -66,23 +62,21 @@ def mock_orchestrator():
         mock_retriever.retrieve_context.return_value = mock_retrieval
         mock_retriever.get_relevant_sources_summary.return_value = "complaint.pdf, page 1"
 
-        mock_generator.generate.return_value = "John Smith is the plaintiff."
-
         # Mock embeddings for citation excerpt
         mock_embeddings = MagicMock()
         mock_embeddings.embed_query.return_value = [0.1] * 384
 
-        orch = QAOrchestrator(
+        orch = SemanticOrchestrator(
             vector_store_path="fake_path",
             embeddings=mock_embeddings,
-            answer_mode="ollama",
+            answer_mode="extraction",
         )
 
-        yield orch, mock_retriever, mock_generator
+        yield orch, mock_retriever, None
 
 
 class TestRetrieveForQuestion:
-    """Test QAOrchestrator.retrieve_for_question() (phase 1)."""
+    """Test SemanticOrchestrator.retrieve_for_question() (phase 1)."""
 
     def test_returns_result_with_empty_answer(self, mock_orchestrator):
         orch, _, _ = mock_orchestrator
@@ -117,7 +111,7 @@ class TestRetrieveForQuestion:
     def test_low_quality_retrieval_returns_unanswered(self, mock_orchestrator):
         """When retrieval quality is below gate, return unanswered immediately."""
         orch, mock_retriever, _ = mock_orchestrator
-        from src.core.qa.qa_constants import UNANSWERED_TEXT
+        from src.core.semantic.semantic_constants import UNANSWERED_TEXT
 
         # Set low relevance score
         mock_source = MagicMock()
@@ -132,7 +126,7 @@ class TestRetrieveForQuestion:
 
 
 class TestGenerateAnswerForResult:
-    """Test QAOrchestrator.generate_answer_for_result() is a no-op."""
+    """Test SemanticOrchestrator.generate_answer_for_result() is a no-op."""
 
     def test_returns_result_unchanged(self, mock_orchestrator):
         """generate_answer_for_result is a no-op (answer generation removed)."""
@@ -146,10 +140,10 @@ class TestGenerateAnswerForResult:
     def test_unanswered_returns_as_is(self, mock_orchestrator):
         """Unanswered results pass through unchanged."""
         orch, _, _ = mock_orchestrator
-        from src.core.qa.qa_constants import UNANSWERED_TEXT
-        from src.core.qa.qa_orchestrator import QAResult
+        from src.core.semantic.semantic_constants import UNANSWERED_TEXT
+        from src.core.semantic.semantic_orchestrator import SemanticResult
 
-        result = QAResult(question="test", quick_answer=UNANSWERED_TEXT)
+        result = SemanticResult(question="test", quick_answer=UNANSWERED_TEXT)
 
         returned = orch.generate_answer_for_result(result)
 
@@ -165,17 +159,17 @@ class TestGenerateAnswerForResult:
 
 
 # ---------------------------------------------------------------------------
-# QAService passthrough methods
+# SemanticService passthrough methods
 # ---------------------------------------------------------------------------
 
 
-class TestQAServicePassthrough:
-    """Test QAService methods that expose the split flow."""
+class TestSemanticServicePassthrough:
+    """Test SemanticService methods that expose the split flow."""
 
     def test_retrieve_for_followup_calls_orchestrator(self):
-        from src.services.qa_service import QAService
+        from src.services.semantic_service import SemanticService
 
-        svc = QAService()
+        svc = SemanticService()
         mock_orch = MagicMock()
         mock_orch.retrieve_for_question.return_value = "partial_result"
 
@@ -185,9 +179,9 @@ class TestQAServicePassthrough:
         assert result == "partial_result"
 
     def test_generate_answer_for_followup_calls_orchestrator(self):
-        from src.services.qa_service import QAService
+        from src.services.semantic_service import SemanticService
 
-        svc = QAService()
+        svc = SemanticService()
         mock_orch = MagicMock()
         mock_orch.generate_answer_for_result.return_value = "final_result"
 
@@ -197,9 +191,9 @@ class TestQAServicePassthrough:
         assert result == "final_result"
 
     def test_get_placeholder_texts_returns_all_keys(self):
-        from src.services.qa_service import QAService
+        from src.services.semantic_service import SemanticService
 
-        svc = QAService()
+        svc = SemanticService()
         texts = svc.get_placeholder_texts()
 
         assert "retrieval" in texts
@@ -243,9 +237,9 @@ class TestFollowupThreadMessages:
 
     def test_successful_flow_sends_retrieval_then_success(self):
         """Thread should send retrieval_done then success."""
-        from src.core.qa.qa_orchestrator import QAResult
+        from src.core.semantic.semantic_orchestrator import SemanticResult
 
-        partial = QAResult(
+        partial = SemanticResult(
             question="test",
             quick_answer="",
             citation="Some citation",
@@ -255,7 +249,7 @@ class TestFollowupThreadMessages:
         result_queue = queue.Queue()
 
         with (
-            patch("src.services.QAService") as MockSvc,
+            patch("src.services.SemanticService") as MockSvc,
             patch("src.user_preferences.get_user_preferences") as MockPrefs,
         ):
             mock_svc = MockSvc.return_value
@@ -266,20 +260,20 @@ class TestFollowupThreadMessages:
 
             # Simulate the followup thread body from main_window
             def run():
-                from src.services import QAService
+                from src.services import SemanticService
                 from src.user_preferences import get_user_preferences
 
-                qa_service = QAService()
+                semantic_service = SemanticService()
                 prefs = get_user_preferences()
-                orchestrator = qa_service.create_orchestrator(
+                orchestrator = semantic_service.create_orchestrator(
                     vector_store_path="fake",
                     embeddings=MagicMock(),
-                    answer_mode=prefs.get("qa_answer_mode", "extraction"),
+                    answer_mode=prefs.get("semantic_answer_mode", "extraction"),
                 )
-                p = qa_service.retrieve_for_followup(orchestrator, "test")
+                p = semantic_service.retrieve_for_followup(orchestrator, "test")
                 result_queue.put(("retrieval_done", p))
 
-                f = qa_service.generate_answer_for_followup(orchestrator, p)
+                f = semantic_service.generate_answer_for_followup(orchestrator, p)
                 result_queue.put(("success", f))
 
             t = threading.Thread(target=run)

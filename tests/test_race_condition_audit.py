@@ -27,7 +27,7 @@ def _make_window_stub():
     stub._FOLLOWUP_TIMEOUT_POLLS = 540_000
     stub._pending_tasks = {}
     stub._completed_tasks = set()
-    stub._qa_answering_active = False
+    stub._semantic_searching_active = False
     stub._processing_active = False
     stub._preprocessing_active = False
     return stub
@@ -220,7 +220,7 @@ class TestInitDefaults:
         for task_name, is_pending in stub._pending_tasks.items():
             if is_pending and task_name not in stub._completed_tasks:
                 assert False, "Should not reach here with empty dict"
-        result = not stub._qa_answering_active
+        result = not stub._semantic_searching_active
         assert result is True
 
 
@@ -234,10 +234,10 @@ class TestWorkerProcessStateInit:
         assert match, "state dict not found in worker_process"
         return match.group(1)
 
-    def test_auto_qa_worker_initialized(self):
-        """auto_qa_worker must be in the initial state dict."""
+    def test_auto_semantic_worker_initialized(self):
+        """auto_semantic_worker must be in the initial state dict."""
         body = self._get_state_keys()
-        assert "auto_qa_worker" in body, "auto_qa_worker not in initial state dict"
+        assert "auto_semantic_worker" in body, "auto_semantic_worker not in initial state dict"
 
     def test_ask_default_questions_initialized(self):
         """ask_default_questions must be in the initial state dict."""

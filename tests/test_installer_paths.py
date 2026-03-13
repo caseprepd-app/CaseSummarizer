@@ -69,14 +69,12 @@ class TestModelPathConstants:
             BUNDLED_MODELS_DIR,
             COREF_MODEL_LOCAL_PATH,
             EMBEDDING_MODEL_LOCAL_PATH,
-            HALLUCINATION_MODEL_LOCAL_PATH,
             RERANKER_MODEL_LOCAL_PATH,
             SEMANTIC_CHUNKER_MODEL_LOCAL_PATH,
             SPACY_MODELS_DIR,
         )
 
         for path in [
-            HALLUCINATION_MODEL_LOCAL_PATH,
             EMBEDDING_MODEL_LOCAL_PATH,
             SEMANTIC_CHUNKER_MODEL_LOCAL_PATH,
             RERANKER_MODEL_LOCAL_PATH,
@@ -248,12 +246,6 @@ class TestDownloadScriptPaths:
 
 class TestModelFallbacks:
     """Tests that models have proper fallback behavior."""
-
-    def test_hallucination_local_only_flag(self):
-        """HALLUCINATION_LOCAL_ONLY is True iff bundled model exists."""
-        from src.config import HALLUCINATION_LOCAL_ONLY, HALLUCINATION_MODEL_LOCAL_PATH
-
-        assert HALLUCINATION_MODEL_LOCAL_PATH.exists() == HALLUCINATION_LOCAL_ONLY
 
     def test_hf_cache_dir_under_models(self):
         """HF_CACHE_DIR is under BUNDLED_MODELS_DIR (not system default)."""

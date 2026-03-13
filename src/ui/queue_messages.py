@@ -48,16 +48,16 @@ class MessageType:
     VECTOR_STORE_ERROR = "vector_store_error"
 
     # Search
-    QA_PROGRESS = "qa_progress"
-    QA_RESULT = "qa_result"
-    QA_COMPLETE = "qa_complete"
-    QA_FOLLOWUP_RESULT = "qa_followup_result"
-    QA_ERROR = "qa_error"
-    TRIGGER_DEFAULT_QA = "trigger_default_qa"
+    SEMANTIC_PROGRESS = "semantic_progress"
+    SEMANTIC_RESULT = "semantic_result"
+    SEMANTIC_COMPLETE = "semantic_complete"
+    SEMANTIC_FOLLOWUP_RESULT = "semantic_followup_result"
+    SEMANTIC_ERROR = "semantic_error"
+    TRIGGER_DEFAULT_SEMANTIC = "trigger_default_semantic"
 
     # Progressive Extraction
     NER_COMPLETE = "ner_complete"
-    QA_READY = "qa_ready"
+    SEMANTIC_READY = "semantic_ready"
 
     # Key Excerpts (representative passages via K-means clustering on chunk embeddings)
     KEY_SENTENCES_RESULT = "key_sentences_result"
@@ -233,68 +233,70 @@ class QueueMessage:
     # =========================================================================
 
     @staticmethod
-    def qa_progress(current: int, total: int, question: str) -> tuple[str, tuple[int, int, str]]:
+    def semantic_progress(
+        current: int, total: int, question: str
+    ) -> tuple[str, tuple[int, int, str]]:
         """
-        Create Q&A progress message.
+        Create semantic search progress message.
 
         Args:
             current: Current question number (1-indexed)
             total: Total number of questions
             question: Current question text
         """
-        return (MessageType.QA_PROGRESS, (current, total, question))
+        return (MessageType.SEMANTIC_PROGRESS, (current, total, question))
 
     @staticmethod
-    def qa_result(result: Any) -> tuple[str, Any]:
+    def semantic_result(result: Any) -> tuple[str, Any]:
         """
-        Create single Q&A result message.
+        Create single semantic search result message.
 
         Args:
-            result: QAResult object
+            result: SemanticResult object
         """
-        return (MessageType.QA_RESULT, result)
+        return (MessageType.SEMANTIC_RESULT, result)
 
     @staticmethod
-    def qa_complete(results: list) -> tuple[str, list]:
+    def semantic_complete(results: list) -> tuple[str, list]:
         """
-        Create Q&A complete message.
+        Create semantic search complete message.
 
         Args:
-            results: List of all QAResult objects
+            results: List of all SemanticResult objects
         """
-        return (MessageType.QA_COMPLETE, results)
+        return (MessageType.SEMANTIC_COMPLETE, results)
 
     @staticmethod
-    def qa_followup_result(result: Any) -> tuple[str, Any]:
+    def semantic_followup_result(result: Any) -> tuple[str, Any]:
         """
-        Create Q&A follow-up result message.
+        Create semantic search follow-up result message.
 
         Args:
-            result: QAResult object for follow-up question
+            result: SemanticResult object for follow-up question
         """
-        return (MessageType.QA_FOLLOWUP_RESULT, result)
+        return (MessageType.SEMANTIC_FOLLOWUP_RESULT, result)
 
     @staticmethod
-    def qa_error(error: str) -> tuple[str, dict]:
+    def semantic_error(error: str) -> tuple[str, dict]:
         """
-        Create Q&A error message.
+        Create semantic search error message.
 
         Args:
             error: Error message
         """
-        return (MessageType.QA_ERROR, {"error": error})
+        return (MessageType.SEMANTIC_ERROR, {"error": error})
 
     @staticmethod
-    def trigger_default_qa(vector_store_path: str, embeddings: Any) -> tuple[str, dict]:
+    def trigger_default_semantic(vector_store_path: str, embeddings: Any) -> tuple[str, dict]:
         """
-        Signal to trigger default Q&A questions.
+        Signal to trigger default semantic searches.
 
         Args:
             vector_store_path: Path to vector store
             embeddings: HuggingFaceEmbeddings instance
         """
         return (
-            MessageType.TRIGGER_DEFAULT_QA,
+            MessageType.TRIGGER_DEFAULT_SEMANTIC,
             {
                 "vector_store_path": vector_store_path,
                 "embeddings": embeddings,
@@ -325,7 +327,7 @@ class QueueMessage:
         )
 
     @staticmethod
-    def qa_ready(
+    def semantic_ready(
         vector_store_path: str,
         embeddings: Any,
         chunk_count: int,
@@ -335,7 +337,7 @@ class QueueMessage:
         chunk_embeddings: Any = None,
     ) -> tuple[str, dict]:
         """
-        Create Q&A ready message (Phase 2).
+        Create semantic search ready message (Phase 2).
 
         Args:
             vector_store_path: Path to vector store
@@ -347,7 +349,7 @@ class QueueMessage:
             chunk_embeddings: Pre-computed chunk embeddings for key excerpts
         """
         return (
-            MessageType.QA_READY,
+            MessageType.SEMANTIC_READY,
             {
                 "vector_store_path": vector_store_path,
                 "embeddings": embeddings,

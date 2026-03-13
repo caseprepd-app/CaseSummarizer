@@ -87,16 +87,16 @@ class TestFollowupEntryDisabled:
 
 
 # =========================================================================
-# 4. Dead code removal from qa_panel.py
+# 4. Dead code removal from semantic_panel.py
 # =========================================================================
 
 
-class TestQAPanelDeadCodeRemoved:
-    """Verify deleted methods are gone from qa_panel.py."""
+class TestSemanticPanelDeadCodeRemoved:
+    """Verify deleted methods are gone from semantic_panel.py."""
 
     @pytest.fixture(autouse=True)
     def _load(self):
-        self.text = _read("src/ui/qa_panel.py")
+        self.text = _read("src/ui/semantic_panel.py")
 
     def test_no_create_followup_pane(self):
         """_create_followup_pane method is removed."""
@@ -183,7 +183,7 @@ class TestStaleCheckboxText:
 
     @pytest.fixture(autouse=True)
     def _load(self):
-        self.text = _read("src/ui/qa_panel.py")
+        self.text = _read("src/ui/semantic_panel.py")
 
     def test_no_old_checkbox_message(self):
         """Old 'Click the checkboxes in the Include column' is gone."""
@@ -194,8 +194,8 @@ class TestStaleCheckboxText:
         assert "Use 'Select All' or click individual results" in self.text
 
     def test_export_helper_has_warning_text(self):
-        """Consolidated _export_qa helper uses the updated warning text."""
-        assert "def _export_qa" in self.text, "_export_qa helper not found"
+        """Consolidated _export_semantic helper uses the updated warning text."""
+        assert "def _export_semantic" in self.text, "_export_semantic helper not found"
         assert "Use 'Select All' or click individual results to include them." in self.text
 
     def test_five_export_delegates_exist(self):
@@ -216,14 +216,14 @@ class TestStaleCheckboxText:
 
 
 class TestStaleCommentCleanup:
-    """Comments referencing deleted QAPanel methods are updated."""
+    """Comments referencing deleted SemanticPanel methods are updated."""
 
     def test_main_window_no_qapanel_submit_followup_ref(self):
-        """main_window.py doesn't reference QAPanel._submit_followup."""
+        """main_window.py doesn't reference SemanticPanel._submit_followup."""
         text = _read("src/ui/main_window.py")
-        assert "QAPanel._submit_followup" not in text
+        assert "SemanticPanel._submit_followup" not in text
 
     def test_main_window_no_qapanel_submit_followup_ref_dup(self):
-        """main_window.py doesn't reference QAPanel._submit_followup (duplicate check)."""
+        """main_window.py doesn't reference SemanticPanel._submit_followup (duplicate check)."""
         text = _read("src/ui/main_window.py")
-        assert "QAPanel._submit_followup" not in text
+        assert "SemanticPanel._submit_followup" not in text

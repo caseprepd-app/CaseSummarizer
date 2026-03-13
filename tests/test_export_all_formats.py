@@ -25,8 +25,8 @@ def _make_stub(filepath="report.html"):
     # Q&A results
     qa = MagicMock()
     qa.is_exportable = True
-    stub._qa_results = [qa]
-    stub.output_display._qa_panel._results = [qa]
+    stub._semantic_results = [qa]
+    stub.output_display._semantic_panel._results = [qa]
 
     # Summary text
     stub.output_display._outputs = {"Summary": "A test summary."}
@@ -128,7 +128,7 @@ class TestExportAllArguments:
     """Correct arguments are passed to each export method."""
 
     def test_word_receives_vocab_qa_and_summary(self, mock_deps):
-        """Word export receives vocab_data, qa_results, file_path, summary_text."""
+        """Word export receives vocab_data, semantic_results, file_path, summary_text."""
         from src.ui.main_window import MainWindow
 
         mock_deps["dialog"].asksaveasfilename.return_value = "/tmp/report.docx"
@@ -138,12 +138,12 @@ class TestExportAllArguments:
 
         call_kwargs = mock_deps["service"].export_combined_to_word.call_args
         assert call_kwargs.kwargs["vocab_data"] == [{"Term": "plaintiff", "Score": "80"}]
-        assert len(call_kwargs.kwargs["qa_results"]) == 1
+        assert len(call_kwargs.kwargs["semantic_results"]) == 1
         assert call_kwargs.kwargs["file_path"] == "/tmp/report.docx"
         assert call_kwargs.kwargs["summary_text"] == "A test summary."
 
     def test_pdf_receives_vocab_qa_and_summary(self, mock_deps):
-        """PDF export receives vocab_data, qa_results, file_path, summary_text."""
+        """PDF export receives vocab_data, semantic_results, file_path, summary_text."""
         from src.ui.main_window import MainWindow
 
         mock_deps["dialog"].asksaveasfilename.return_value = "/tmp/report.pdf"
@@ -153,7 +153,7 @@ class TestExportAllArguments:
 
         call_kwargs = mock_deps["service"].export_combined_to_pdf.call_args
         assert call_kwargs.kwargs["vocab_data"] == [{"Term": "plaintiff", "Score": "80"}]
-        assert len(call_kwargs.kwargs["qa_results"]) == 1
+        assert len(call_kwargs.kwargs["semantic_results"]) == 1
         assert call_kwargs.kwargs["file_path"] == "/tmp/report.pdf"
         assert call_kwargs.kwargs["summary_text"] == "A test summary."
 
@@ -268,7 +268,7 @@ class TestExportAllStatusAndErrors:
 
         stub = _make_stub()
         stub.output_display._get_filtered_vocab_data.return_value = []
-        stub._qa_results = []
+        stub._semantic_results = []
         stub.output_display._outputs = {}
 
         MainWindow._export_all_impl(stub)

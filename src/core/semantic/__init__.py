@@ -4,20 +4,20 @@ Search Package for CasePrepd - Unified API for Semantic Search.
 This is the main entry point for all search functionality. Import everything
 search-related from this package:
 
-    from src.core.qa import (
+    from src.core.semantic import (
         # Orchestration
-        QAOrchestrator, QAResult,
+        SemanticOrchestrator, SemanticResult,
         # Vector Store
-        VectorStoreBuilder, QARetriever,
+        VectorStoreBuilder, SemanticRetriever,
         # Retrieval Algorithms
         HybridRetriever, ChunkMerger,
     )
 
 Architecture:
     ┌─────────────────────────────────────────────────────────────┐
-    │  src.core.qa (this package) - Unified Search API              │
+    │  src.core.semantic (this package) - Unified Search API         │
     ├─────────────────────────────────────────────────────────────┤
-    │  QAOrchestrator → QARetriever                              │
+    │  SemanticOrchestrator → SemanticRetriever                     │
     │                                          ↓                  │
     │  src.core.vector_store: VectorStoreBuilder                 │
     │                                          ↓                  │
@@ -25,19 +25,12 @@ Architecture:
     └─────────────────────────────────────────────────────────────┘
 
 Components by layer:
-- Orchestration: QAOrchestrator, QAResult
-- Storage: VectorStoreBuilder (creates indexes), QARetriever (queries indexes)
+- Orchestration: SemanticOrchestrator, SemanticResult
+- Storage: VectorStoreBuilder (creates indexes), SemanticRetriever (queries indexes)
 - Retrieval: HybridRetriever, ChunkMerger (BM25+ and FAISS algorithms)
 """
 
 # Core search orchestration
-from src.core.qa.default_questions_manager import (
-    DefaultQuestion,
-    DefaultQuestionsManager,
-    get_default_questions_manager,
-)
-from src.core.qa.qa_orchestrator import QAOrchestrator, QAResult
-
 # Hybrid retrieval (re-exported for unified API)
 from src.core.retrieval import (
     AlgorithmRetrievalResult,
@@ -48,10 +41,16 @@ from src.core.retrieval import (
     MergedChunk,
     RetrievedChunk,
 )
+from src.core.semantic.default_questions_manager import (
+    DefaultQuestion,
+    DefaultQuestionsManager,
+    get_default_questions_manager,
+)
+from src.core.semantic.semantic_orchestrator import SemanticOrchestrator, SemanticResult
 
 # Vector store and retrieval (re-exported for unified API)
 from src.core.vector_store import (
-    QARetriever,
+    SemanticRetriever,
     VectorStoreBuilder,
 )
 
@@ -66,9 +65,9 @@ __all__ = [
     "HybridRetriever",
     "MergedChunk",
     # Core orchestration
-    "QAOrchestrator",
-    "QAResult",
-    "QARetriever",
+    "SemanticOrchestrator",
+    "SemanticResult",
+    "SemanticRetriever",
     "RetrievedChunk",
     # Vector store
     "VectorStoreBuilder",

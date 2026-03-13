@@ -2,12 +2,12 @@
 Semantic Search Orchestrator for CasePrepd.
 
 Coordinates the search process: loading questions, performing vector search,
-and extracting citation excerpts. Manages the list of QAResult objects
+and extracting citation excerpts. Manages the list of SemanticResult objects
 for display and export.
 
 Architecture:
-- Loads default questions from qa_questions.yaml
-- Uses QARetriever for FAISS similarity search
+- Loads default questions from semantic_questions.yaml
+- Uses SemanticRetriever for FAISS similarity search
 - Extracts focused citation excerpts via embedding similarity
 - Tracks include_in_export flag for selective export
 
@@ -15,7 +15,7 @@ Note: AnswerGenerator and HallucinationVerifier were removed (Mar 2026).
 quick_answer is always empty; citation contains the retrieved excerpt.
 
 Integration:
-- Used by QAWorker for background processing
+- Used by SemanticWorker for background processing
 - Results displayed in Search tab UI widget
 - Exportable to TXT with checkbox-based selection
 """
@@ -29,25 +29,27 @@ from src.config import (
     RETRIEVAL_CONFIDENCE_GATE,
 )
 from src.core.config import load_yaml_with_fallback
-from src.core.qa.qa_constants import (
+from src.core.semantic.semantic_constants import (
     UNANSWERED_TEXT,
 )
-from src.core.vector_store.qa_retriever import QARetriever, RetrievalResult
+from src.core.vector_store.semantic_retriever import RetrievalResult, SemanticRetriever
 
 logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     pass
 
-# Default questions YAML path (relative to this file: src/core/qa/ -> config/)
-DEFAULT_QUESTIONS_PATH = Path(__file__).parent.parent.parent.parent / "config" / "qa_questions.yaml"
+# Default questions YAML path (relative to this file: src/core/semantic/ -> config/)
+DEFAULT_QUESTIONS_PATH = (
+    Path(__file__).parent.parent.parent.parent / "config" / "semantic_questions.yaml"
+)
 DEFAULT_QUESTIONS_TXT_PATH = (
-    Path(__file__).parent.parent.parent.parent / "config" / "qa_default_questions.txt"
+    Path(__file__).parent.parent.parent.parent / "config" / "semantic_default_questions.txt"
 )
 
 
 @dataclass
-class QAResult:
+class SemanticResult:
     """
     Single question-answer pair with metadata.
 
@@ -60,7 +62,7 @@ class QAResult:
         question: The question that was asked
         quick_answer: Always empty (LLM answer generation removed Mar 2026)
         citation: Raw retrieved text excerpts from BM25+/vector search
-        include_in_export: Whether to include this Q&A in export (default: True)
+        include_in_export: Whether to include this result in export (default: True)
         source_summary: Human-readable source citation (e.g., "complaint.pdf, page 3")
         confidence: Relevance score from vector search (0-1)
         retrieval_time_ms: Time taken for vector search
@@ -77,7 +79,6 @@ class QAResult:
     retrieval_time_ms: float = 0.0
     is_followup: bool = False
     is_default_question: bool = False  # Marks questions from default list
-    verification: None = None  # Deprecated — kept for backward compat
 
     @property
     def answer(self) -> str:
@@ -87,7 +88,7 @@ class QAResult:
     @property
     def is_answered(self) -> bool:
         """Whether this question received a meaningful answer from the documents."""
-        from src.core.qa.qa_constants import UNANSWERED_TEXT
+        from src.core.semantic.semantic_constants import UNANSWERED_TEXT
 
         return not (self.confidence == 0.0 and self.quick_answer == UNANSWERED_TEXT)
 
@@ -96,8 +97,8 @@ class QAResult:
         """Whether this result meets quality thresholds for export."""
         import math
 
-        from src.config import QA_EXPORT_CONFIDENCE_FLOOR
-        from src.core.qa.qa_constants import UNANSWERED_TEXT
+        from src.config import SEMANTIC_EXPORT_CONFIDENCE_FLOOR
+        from src.core.semantic.semantic_constants import UNANSWERED_TEXT
 
         # Filter NaN or non-finite confidence
         if not math.isfinite(self.confidence):
@@ -106,7 +107,7 @@ class QAResult:
         if self.confidence == 0.0 and self.quick_answer == UNANSWERED_TEXT:
             return False
         # Retrieval confidence must meet floor
-        if self.confidence < QA_EXPORT_CONFIDENCE_FLOOR:
+        if self.confidence < SEMANTIC_EXPORT_CONFIDENCE_FLOOR:
             return False
         return True
 
@@ -121,18 +122,18 @@ class QuestionDef:
     question_type: str  # "classification" or "extraction"
 
 
-class QAOrchestrator:
+class SemanticOrchestrator:
     """
-    Coordinates Q&A process: vector search + answer generation.
+    Coordinates semantic search process: vector search + answer generation.
 
-    Manages the full Q&A workflow:
+    Manages the full semantic search workflow:
     1. Load questions from YAML config
     2. For each question, perform vector similarity search
     3. Generate answer from retrieved context
     4. Track results with export flags
 
     Example:
-        orchestrator = QAOrchestrator(vector_store_path, embeddings)
+        orchestrator = SemanticOrchestrator(vector_store_path, embeddings)
         results = orchestrator.run_default_questions()
 
         # User can toggle include_in_export
@@ -156,7 +157,7 @@ class QAOrchestrator:
             vector_store_path: Path to FAISS index directory
             embeddings: HuggingFaceEmbeddings model for query encoding
             answer_mode: Ignored (kept for backward compat). Always uses extraction.
-            questions_path: Path to questions YAML (default: config/qa_questions.yaml)
+            questions_path: Path to questions YAML (default: config/semantic_questions.yaml)
         """
         self.vector_store_path = Path(vector_store_path)
         self.embeddings = embeddings
@@ -164,10 +165,10 @@ class QAOrchestrator:
         self.questions_path = questions_path or DEFAULT_QUESTIONS_PATH
 
         # Initialize retriever
-        self.retriever = QARetriever(self.vector_store_path, self.embeddings)
+        self.retriever = SemanticRetriever(self.vector_store_path, self.embeddings)
 
         # Results storage
-        self.results: list[QAResult] = []
+        self.results: list[SemanticResult] = []
 
         # Load questions
         self._questions: list[QuestionDef] = []
@@ -178,7 +179,7 @@ class QAOrchestrator:
     def _load_questions(self) -> None:
         """Load question definitions from YAML config."""
         config = load_yaml_with_fallback(
-            self.questions_path, fallback={}, log_prefix="[QAOrchestrator]"
+            self.questions_path, fallback={}, log_prefix="[SemanticOrchestrator]"
         )
 
         if not config or "questions" not in config:
@@ -208,7 +209,7 @@ class QAOrchestrator:
             List of enabled question strings
         """
         try:
-            from src.core.qa.default_questions_manager import get_default_questions_manager
+            from src.core.semantic.default_questions_manager import get_default_questions_manager
 
             manager = get_default_questions_manager()
             questions = manager.get_enabled_questions()
@@ -246,7 +247,7 @@ class QAOrchestrator:
         """
         return [q.text for q in self._questions]
 
-    def run_default_questions(self, progress_callback=None) -> list[QAResult]:
+    def run_default_questions(self, progress_callback=None) -> list[SemanticResult]:
         """
         Run all default questions against the document.
 
@@ -254,7 +255,7 @@ class QAOrchestrator:
             progress_callback: Optional callback(current, total) for progress updates
 
         Returns:
-            List of QAResult objects (also stored in self.results)
+            List of SemanticResult objects (also stored in self.results)
         """
         self.results = []
         questions = self.get_default_questions()
@@ -276,7 +277,7 @@ class QAOrchestrator:
 
         return self.results
 
-    def ask_followup(self, question: str) -> QAResult:
+    def ask_followup(self, question: str) -> SemanticResult:
         """
         Ask a single follow-up question.
 
@@ -284,7 +285,7 @@ class QAOrchestrator:
             question: User's follow-up question
 
         Returns:
-            QAResult (also appended to self.results)
+            SemanticResult (also appended to self.results)
         """
         result = self._ask_single_question(question, is_followup=True)
         self.results.append(result)
@@ -292,14 +293,13 @@ class QAOrchestrator:
 
     def _ask_single_question(
         self, question: str, is_followup: bool = False, is_default: bool = False
-    ) -> QAResult:
+    ) -> SemanticResult:
         """
         Ask a single question and generate both quick_answer and citation.
 
         Produces CSV-style output with:
         - citation: Raw text from BM25+/vector retrieval (always populated)
         - quick_answer: Extraction-based answer from retrieved chunks
-        - verification: Hallucination verification result (if enabled)
 
         Args:
             question: The question to ask
@@ -307,7 +307,7 @@ class QAOrchestrator:
             is_default: Whether this question is from the default questions list
 
         Returns:
-            QAResult with quick_answer, citation, verification, and metadata
+            SemanticResult with quick_answer, citation, and metadata
         """
         # Retrieve relevant context (this becomes the citation)
         retrieval_result = self.retriever.retrieve_context(question)
@@ -334,14 +334,14 @@ class QAOrchestrator:
 
         if has_quality_context:
             # Citation: focused excerpt via embedding similarity
-            from src.config import QA_CITATION_MAX_CHARS
-            from src.core.qa.citation_excerpt import extract_citation_excerpt
+            from src.config import SEMANTIC_CITATION_MAX_CHARS
+            from src.core.semantic.citation_excerpt import extract_citation_excerpt
 
             citation = extract_citation_excerpt(
                 context=retrieval_result.context.strip(),
                 question=question,
                 embeddings=self.embeddings,
-                max_chars=QA_CITATION_MAX_CHARS,
+                max_chars=SEMANTIC_CITATION_MAX_CHARS,
             )
 
             source_summary = self.retriever.get_relevant_sources_summary(retrieval_result)
@@ -358,7 +358,7 @@ class QAOrchestrator:
             source_summary = ""
             confidence = 0.0
 
-        return QAResult(
+        return SemanticResult(
             question=question,
             quick_answer="",
             citation=citation,
@@ -370,11 +370,11 @@ class QAOrchestrator:
             is_default_question=is_default,
         )
 
-    def retrieve_for_question(self, question: str, is_followup: bool = True) -> QAResult:
+    def retrieve_for_question(self, question: str, is_followup: bool = True) -> SemanticResult:
         """
         Phase 1 of split follow-up flow: retrieve context only.
 
-        Returns a partial QAResult with citation/source/confidence populated
+        Returns a partial SemanticResult with citation/source/confidence populated
         but quick_answer set to a placeholder. Stashes raw retrieval context
         as _retrieval_context for phase 2.
 
@@ -383,7 +383,7 @@ class QAOrchestrator:
             is_followup: Whether this is a user follow-up (default True)
 
         Returns:
-            Partial QAResult with placeholder answer
+            Partial SemanticResult with placeholder answer
         """
         retrieval_result = self.retriever.retrieve_context(question)
 
@@ -404,19 +404,19 @@ class QAOrchestrator:
         has_quality_context = retrieval_result.context and best_score >= RETRIEVAL_CONFIDENCE_GATE
 
         if has_quality_context:
-            from src.config import QA_CITATION_MAX_CHARS
-            from src.core.qa.citation_excerpt import extract_citation_excerpt
+            from src.config import SEMANTIC_CITATION_MAX_CHARS
+            from src.core.semantic.citation_excerpt import extract_citation_excerpt
 
             citation = extract_citation_excerpt(
                 context=retrieval_result.context.strip(),
                 question=question,
                 embeddings=self.embeddings,
-                max_chars=QA_CITATION_MAX_CHARS,
+                max_chars=SEMANTIC_CITATION_MAX_CHARS,
             )
             source_summary = self.retriever.get_relevant_sources_summary(retrieval_result)
             confidence = self._calculate_confidence(retrieval_result)
 
-            result = QAResult(
+            result = SemanticResult(
                 question=question,
                 quick_answer="",
                 citation=citation,
@@ -433,7 +433,7 @@ class QAOrchestrator:
                     best_score,
                     RETRIEVAL_CONFIDENCE_GATE,
                 )
-            result = QAResult(
+            result = SemanticResult(
                 question=question,
                 quick_answer=UNANSWERED_TEXT,
                 citation="No relevant excerpts found in documents.",
@@ -446,7 +446,7 @@ class QAOrchestrator:
 
         return result
 
-    def generate_answer_for_result(self, result: QAResult) -> QAResult:
+    def generate_answer_for_result(self, result: SemanticResult) -> SemanticResult:
         """
         Phase 2 of split follow-up flow.
 
@@ -454,10 +454,10 @@ class QAOrchestrator:
         Kept for backward compatibility with the split follow-up flow.
 
         Args:
-            result: QAResult from retrieve_for_question()
+            result: SemanticResult from retrieve_for_question()
 
         Returns:
-            The same QAResult unchanged
+            The same SemanticResult unchanged
         """
         return result
 
@@ -468,7 +468,7 @@ class QAOrchestrator:
         Uses average relevance score of retrieved chunks.
 
         Args:
-            retrieval_result: Result from QARetriever
+            retrieval_result: Result from SemanticRetriever
 
         Returns:
             Confidence score (0-1)
@@ -481,12 +481,12 @@ class QAOrchestrator:
         )
         return round(avg_score, 2)
 
-    def get_exportable_results(self) -> list[QAResult]:
+    def get_exportable_results(self) -> list[SemanticResult]:
         """
         Get results where include_in_export is True.
 
         Returns:
-            Filtered list of QAResult objects
+            Filtered list of SemanticResult objects
         """
         return [r for r in self.results if r.include_in_export]
 

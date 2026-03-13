@@ -22,16 +22,16 @@ from tkinter import filedialog, messagebox
 
 import customtkinter as ctk
 
-from src.services import QAService
+from src.services import SemanticService
 
 logger = logging.getLogger(__name__)
 
-# Get QAResult class from service layer (pipeline architecture)
-QAResult = QAService().get_qa_result_class()
-from src.ui.theme import BUTTON_STYLES, COLORS, FONTS, FRAME_STYLES, QA_TEXT_TAGS
+# Get SemanticResult class from service layer (pipeline architecture)
+SemanticResult = SemanticService().get_semantic_result_class()
+from src.ui.theme import BUTTON_STYLES, COLORS, FONTS, FRAME_STYLES, SEMANTIC_TEXT_TAGS
 
 
-class QAPanel(ctk.CTkFrame):
+class SemanticPanel(ctk.CTkFrame):
     """
     Semantic search display panel with plain text layout.
 
@@ -41,24 +41,24 @@ class QAPanel(ctk.CTkFrame):
     - Export to CSV, TXT, Word, PDF, HTML
 
     Example:
-        panel = QAPanel(parent)
-        panel.display_results(qa_results)
+        panel = SemanticPanel(parent)
+        panel.display_results(semantic_results)
     """
 
     def __init__(
         self,
         master,
         on_edit_questions: Callable | None = None,
-        on_ask_followup: Callable[[str], QAResult | None] | None = None,
+        on_ask_followup: Callable[[str], SemanticResult | None] | None = None,
         **kwargs,
     ):
         """
-        Initialize Q&A panel.
+        Initialize semantic search panel.
 
         Args:
             master: Parent widget
             on_edit_questions: Callback when "Edit Questions" is clicked
-            on_ask_followup: Callback(question_text) -> QAResult for follow-ups
+            on_ask_followup: Callback(question_text) -> SemanticResult for follow-ups
         """
         super().__init__(master, **kwargs)
 
@@ -66,8 +66,8 @@ class QAPanel(ctk.CTkFrame):
         self.on_ask_followup = on_ask_followup
 
         # Results storage
-        self._results: list[QAResult] = []
-        self._exporting_qa = False  # Re-entrancy guard for QA export
+        self._results: list[SemanticResult] = []
+        self._exporting_semantic = False  # Re-entrancy guard for semantic export
         self._edit_dialog_open = False  # Re-entrancy guard for edit dialog
 
         # Configure grid
@@ -80,7 +80,7 @@ class QAPanel(ctk.CTkFrame):
         self._create_button_bar()
         # Follow-up input is in the main window, not here
 
-        logger.debug("QAPanel initialized with plain text layout")
+        logger.debug("SemanticPanel initialized with plain text layout")
 
     def _create_header(self):
         """Create header with title and info."""
@@ -127,7 +127,7 @@ class QAPanel(ctk.CTkFrame):
         # CTkTextbox ignores font size in insert(); must use tag_config() instead
         from src.ui.theme import resolve_tags
 
-        for tag_name, tag_config in resolve_tags(QA_TEXT_TAGS).items():
+        for tag_name, tag_config in resolve_tags(SEMANTIC_TEXT_TAGS).items():
             self.text_display.tag_config(tag_name, cnf=tag_config)
 
     def show_find_bar(self):
@@ -184,12 +184,12 @@ class QAPanel(ctk.CTkFrame):
         )
         self.deselect_all_btn.pack(side="right", padx=5)
 
-    def display_results(self, results: list[QAResult]):
+    def display_results(self, results: list[SemanticResult]):
         """
         Display search results as plain text with relevance scores.
 
         Args:
-            results: List of QAResult objects to display
+            results: List of SemanticResult objects to display
         """
         self._results = results
 
@@ -255,9 +255,9 @@ class QAPanel(ctk.CTkFrame):
                 "You can edit default searches in Settings > Search",
             )
 
-    def _export_qa(self, format_key: str):
+    def _export_semantic(self, format_key: str):
         """
-        Export Q&A results in the given format.
+        Export semantic search results in the given format.
 
         Shared boilerplate: filter exportable, empty check, file dialog,
         write, save path, status bar, error handling.
@@ -265,19 +265,19 @@ class QAPanel(ctk.CTkFrame):
         Args:
             format_key: One of "csv", "txt", "word", "pdf", "html"
         """
-        if self._exporting_qa:
+        if self._exporting_semantic:
             return
-        self._exporting_qa = True
+        self._exporting_semantic = True
 
         try:
-            self._export_qa_impl(format_key)
+            self._export_semantic_impl(format_key)
         except Exception:
-            logger.error("Q&A export failed", exc_info=True)
+            logger.error("Semantic export failed", exc_info=True)
         finally:
-            self._exporting_qa = False
+            self._exporting_semantic = False
 
-    def _export_qa_impl(self, format_key: str):
-        """Implementation of _export_qa, guarded by _exporting_qa flag."""
+    def _export_semantic_impl(self, format_key: str):
+        """Implementation of _export_semantic, guarded by _exporting_semantic flag."""
         from pathlib import Path
 
         from src.services import DocumentService, get_export_service
@@ -334,9 +334,9 @@ class QAPanel(ctk.CTkFrame):
             else:
                 export_service = get_export_service()
                 write_fn = {
-                    "word": export_service.export_qa_to_word,
-                    "pdf": export_service.export_qa_to_pdf,
-                    "html": export_service.export_qa_to_html,
+                    "word": export_service.export_semantic_to_word,
+                    "pdf": export_service.export_semantic_to_pdf,
+                    "html": export_service.export_semantic_to_html,
                 }
                 success, error_detail = write_fn[format_key](exportable, filepath)
 
@@ -363,23 +363,23 @@ class QAPanel(ctk.CTkFrame):
 
     def _export_to_csv(self):
         """Export selected search results to CSV file."""
-        self._export_qa("csv")
+        self._export_semantic("csv")
 
     def _export_to_txt(self):
         """Export selected search results to TXT file."""
-        self._export_qa("txt")
+        self._export_semantic("txt")
 
     def _export_to_word(self):
         """Export selected search results to Word document."""
-        self._export_qa("word")
+        self._export_semantic("word")
 
     def _export_to_pdf(self):
         """Export selected search results to PDF document."""
-        self._export_qa("pdf")
+        self._export_semantic("pdf")
 
     def _export_to_html(self):
         """Export selected search results to interactive HTML file."""
-        self._export_qa("html")
+        self._export_semantic("html")
 
     def _on_export_format_selected(self, choice: str):
         """
@@ -399,17 +399,17 @@ class QAPanel(ctk.CTkFrame):
             "HTML": "html",
         }
         if choice in format_map:
-            self._export_qa(format_map[choice])
+            self._export_semantic(format_map[choice])
 
         # Reset dropdown to placeholder
         self.export_dropdown.set("Export...")
 
-    def _format_csv_export(self, results: list[QAResult]) -> str:
+    def _format_csv_export(self, results: list[SemanticResult]) -> str:
         """
         Format results as CSV.
 
         Args:
-            results: List of QAResult objects to export
+            results: List of SemanticResult objects to export
 
         Returns:
             CSV string with headers
@@ -426,12 +426,12 @@ class QAPanel(ctk.CTkFrame):
 
         return output.getvalue()
 
-    def _format_txt_export(self, results: list[QAResult]) -> str:
+    def _format_txt_export(self, results: list[SemanticResult]) -> str:
         """
         Format results for TXT export.
 
         Args:
-            results: List of QAResult objects to export
+            results: List of SemanticResult objects to export
 
         Returns:
             Formatted text string
@@ -452,7 +452,7 @@ class QAPanel(ctk.CTkFrame):
 
     def _copy_to_clipboard(self):
         """
-        Copy selected Q&A results to clipboard.
+        Copy selected semantic search results to clipboard.
 
         Copies in a readable text format suitable for pasting into documents.
         Uses brief button flash + status bar confirmation for better UX.
@@ -517,19 +517,19 @@ class QAPanel(ctk.CTkFrame):
         Used by DynamicOutputWidget for copy/save operations.
 
         Returns:
-            CSV formatted text of selected Q&A pairs
+            CSV formatted text of selected semantic search results
         """
         exportable = [r for r in self._results if r.include_in_export]
         if not exportable:
             return ""
         return self._format_csv_export(exportable)
 
-    def set_followup_callback(self, callback: Callable[[str], QAResult | None]):
+    def set_followup_callback(self, callback: Callable[[str], SemanticResult | None]):
         """
         Set callback for follow-up questions.
 
         Args:
-            callback: Function(question_text) -> QAResult
+            callback: Function(question_text) -> SemanticResult
         """
         self.on_ask_followup = callback
 

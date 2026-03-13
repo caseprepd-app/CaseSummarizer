@@ -19,8 +19,8 @@ class WorkflowPhase(Enum):
     IDLE = auto()  # No processing - waiting for user to click Process
     EXTRACTING_DOCS = auto()  # Document extraction in progress
     VOCAB_RUNNING = auto()  # Vocabulary extraction in progress
-    QA_INDEXING = auto()  # Search index being built
-    QA_ANSWERING = auto()  # Search queries being answered
+    SEMANTIC_INDEXING = auto()  # Search index being built
+    SEMANTIC_SEARCHING = auto()  # Search queries being answered
     COMPLETE = auto()  # All processing complete
     COMPLETE_WITH_ERRORS = auto()  # Processing finished but some tasks failed
 
@@ -30,10 +30,10 @@ class TabStatusConfig:
     """Configuration for what features are enabled."""
 
     vocab_enabled: bool = True
-    qa_enabled: bool = True  # Always True now (semantic search always on)
+    semantic_enabled: bool = True  # Always True now (semantic search always on)
 
 
-def get_qa_tab_status(phase: WorkflowPhase, config: TabStatusConfig) -> str:
+def get_semantic_tab_status(phase: WorkflowPhase, config: TabStatusConfig) -> str:
     """
     Get the status message to display in the Search tab.
 
@@ -68,13 +68,13 @@ def get_qa_tab_status(phase: WorkflowPhase, config: TabStatusConfig) -> str:
             "Search indexing will begin after vocabulary extraction completes."
         )
 
-    if phase == WorkflowPhase.QA_INDEXING:
+    if phase == WorkflowPhase.SEMANTIC_INDEXING:
         return (
             "Preparing semantic search \u2014 building search index from your documents...\n\n"
             "This may take a moment for large documents."
         )
 
-    if phase == WorkflowPhase.QA_ANSWERING:
+    if phase == WorkflowPhase.SEMANTIC_SEARCHING:
         return "Running searches...\n\nResults will appear below as they complete."
 
     if phase == WorkflowPhase.COMPLETE:
@@ -114,10 +114,10 @@ def get_summary_tab_status(phase: WorkflowPhase, config: TabStatusConfig) -> str
             "Key excerpts will follow after search indexing."
         )
 
-    if phase == WorkflowPhase.QA_INDEXING:
+    if phase == WorkflowPhase.SEMANTIC_INDEXING:
         return "Building search index... Key excerpts will follow."
 
-    if phase == WorkflowPhase.QA_ANSWERING:
+    if phase == WorkflowPhase.SEMANTIC_SEARCHING:
         return "Running searches... Key excerpts will appear shortly."
 
     if phase == WorkflowPhase.COMPLETE:

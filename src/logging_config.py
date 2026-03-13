@@ -54,7 +54,7 @@ LOG_CATEGORIES: dict[str, tuple[str, ...]] = {
         "src.core.qa",
         "src.core.retrieval",
         "src.core.vector_store",
-        "src.services.qa_service",
+        "src.services.semantic_service",
     ),
     "Key Excerpts": ("src.core.summarization",),
     "Export": (

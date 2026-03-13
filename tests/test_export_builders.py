@@ -439,8 +439,8 @@ class MockVerification:
 
 
 @dataclass
-class MockQAResult:
-    """Mock QAResult for export testing."""
+class MockSemanticResult:
+    """Mock SemanticResult for export testing."""
 
     question: str
     quick_answer: str
@@ -450,16 +450,16 @@ class MockQAResult:
 
 
 class TestQAExportViaBuilder:
-    """Tests for export_qa_results() with Word and PDF builders."""
+    """Tests for export_semantic_results() with Word and PDF builders."""
 
     def test_word_qa_export(self, tmp_path):
         """Q&A export to Word creates valid file."""
-        from src.core.export.qa_exporter import export_qa_results
+        from src.core.export.semantic_exporter import export_semantic_results
         from src.core.export.word_builder import WordDocumentBuilder
 
-        results = [MockQAResult("Who?", "John Smith", "John Smith filed...")]
+        results = [MockSemanticResult("Who?", "John Smith", "John Smith filed...")]
         builder = WordDocumentBuilder()
-        export_qa_results(results, builder)
+        export_semantic_results(results, builder)
         path = tmp_path / "qa.docx"
         builder.save(str(path))
         assert path.exists()
@@ -467,26 +467,26 @@ class TestQAExportViaBuilder:
     def test_pdf_qa_export(self, tmp_path):
         """Q&A export to PDF creates valid file."""
         from src.core.export.pdf_builder import PdfDocumentBuilder
-        from src.core.export.qa_exporter import export_qa_results
+        from src.core.export.semantic_exporter import export_semantic_results
 
-        results = [MockQAResult("What?", "Personal injury", "This case involves...")]
+        results = [MockSemanticResult("What?", "Personal injury", "This case involves...")]
         builder = PdfDocumentBuilder()
-        export_qa_results(results, builder)
+        export_semantic_results(results, builder)
         path = tmp_path / "qa.pdf"
         builder.save(str(path))
         assert path.exists()
 
     def test_empty_results(self):
         """Empty results produces 'no data' message."""
-        from src.core.export.qa_exporter import export_qa_results
+        from src.core.export.semantic_exporter import export_semantic_results
         from src.core.export.word_builder import WordDocumentBuilder
 
         builder = WordDocumentBuilder()
-        export_qa_results([], builder)
+        export_semantic_results([], builder)
 
     def test_verified_answer_with_spans(self, tmp_path):
         """Verified answer renders colored spans."""
-        from src.core.export.qa_exporter import export_qa_results
+        from src.core.export.semantic_exporter import export_semantic_results
         from src.core.export.word_builder import WordDocumentBuilder
 
         verification = MockVerification(
@@ -498,28 +498,28 @@ class TestQAExportViaBuilder:
             ],
         )
         results = [
-            MockQAResult(
+            MockSemanticResult(
                 "Who?", "John Smith filed a lawsuit", "citation...", verification=verification
             )
         ]
         builder = WordDocumentBuilder()
-        export_qa_results(results, builder, include_verification_colors=True)
+        export_semantic_results(results, builder, include_verification_colors=True)
         path = tmp_path / "verified.docx"
         builder.save(str(path))
         assert path.exists()
 
     def test_rejected_answer(self):
         """Rejected answer shows rejection message."""
-        from src.core.export.qa_exporter import export_qa_results
+        from src.core.export.semantic_exporter import export_semantic_results
 
         verification = MockVerification(
             overall_reliability=0.3,
             answer_rejected=True,
             spans=[],
         )
-        results = [MockQAResult("Who?", "bad answer", "citation...", verification=verification)]
+        results = [MockSemanticResult("Who?", "bad answer", "citation...", verification=verification)]
         builder = MagicMock()
-        export_qa_results(results, builder)
+        export_semantic_results(results, builder)
         # Should not crash; rejected message is added as paragraph
 
 
@@ -545,7 +545,7 @@ class TestCombinedExport:
                 "Occurrences": 5,
             }
         ]
-        qa = [MockQAResult("Who?", "John Smith", "citation")]
+        qa = [MockSemanticResult("Who?", "John Smith", "citation")]
         builder = WordDocumentBuilder()
         export_combined(vocab, qa, builder)
         path = tmp_path / "combined.docx"
@@ -566,7 +566,7 @@ class TestCombinedExport:
                 "Occurrences": 2,
             }
         ]
-        qa = [MockQAResult("What?", "Personal injury", "The case...")]
+        qa = [MockSemanticResult("What?", "Personal injury", "The case...")]
         builder = PdfDocumentBuilder()
         export_combined(vocab, qa, builder)
         path = tmp_path / "combined.pdf"
@@ -606,7 +606,7 @@ class TestCombinedExport:
         from src.core.export.combined_exporter import export_combined
         from src.core.export.word_builder import WordDocumentBuilder
 
-        qa = [MockQAResult("Who?", "John", "The plaintiff")]
+        qa = [MockSemanticResult("Who?", "John", "The plaintiff")]
         builder = WordDocumentBuilder()
         export_combined([], qa, builder)
         path = tmp_path / "qa_only.docx"

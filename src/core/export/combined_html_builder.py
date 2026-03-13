@@ -20,7 +20,7 @@ from src.core.vocab_schema import VF
 
 def build_combined_html(
     vocab_data: list[dict],
-    qa_results: list,
+    semantic_results: list,
     summary_text: str,
     visible_columns: list[str] | None = None,
     include_verification: bool = True,
@@ -33,7 +33,7 @@ def build_combined_html(
 
     Args:
         vocab_data: List of vocabulary dicts (score-filtered)
-        qa_results: List of QAResult objects (already filtered to answered only)
+        semantic_results: List of SemanticResult objects (already filtered to answered only)
         summary_text: Summary text string
         visible_columns: Columns to show initially in vocab table
         include_verification: Whether to show verification badges in search results
@@ -43,15 +43,15 @@ def build_combined_html(
     """
     # Determine which tabs to show
     has_vocab = bool(vocab_data)
-    has_qa = bool(qa_results)
+    has_search = bool(semantic_results)
     has_summary = bool(summary_text and summary_text.strip())
 
     # Build tab definitions: (id, label, content_html)
     tabs = []
     if has_vocab:
         tabs.append(("vocab", "Vocabulary", _build_vocab_section(vocab_data, visible_columns)))
-    if has_qa:
-        tabs.append(("qa", "Search", _build_qa_section(qa_results, include_verification)))
+    if has_search:
+        tabs.append(("qa", "Search", _build_search_section(semantic_results, include_verification)))
     if has_summary:
         tabs.append(("summary", "Summary", _build_summary_section(summary_text)))
 
@@ -101,7 +101,7 @@ def build_combined_html(
         tab_contents=tab_contents_html,
         vocab_js=vocab_js,
         has_vocab="true" if has_vocab else "false",
-        has_qa="true" if has_qa else "false",
+        has_search="true" if has_search else "false",
     )
 
 
@@ -197,12 +197,12 @@ def _build_vocab_section(vocab_data: list[dict], visible_columns: list[str] | No
         </table>"""
 
 
-def _build_qa_section(qa_results: list, include_verification: bool) -> str:
+def _build_search_section(semantic_results: list, include_verification: bool) -> str:
     """
     Build the Search tab HTML content.
 
     Args:
-        qa_results: List of QAResult objects
+        semantic_results: List of SemanticResult objects
         include_verification: Whether to show verification badges
 
     Returns:
@@ -211,7 +211,7 @@ def _build_qa_section(qa_results: list, include_verification: bool) -> str:
     has_verification = False
     items = []
 
-    for i, result in enumerate(qa_results, 1):
+    for i, result in enumerate(semantic_results, 1):
         answer_html = ""
         reliability_badge = ""
 
@@ -289,7 +289,7 @@ def _build_qa_section(qa_results: list, include_verification: bool) -> str:
             <button onclick="toggleAllQA(true)">Expand All</button>
             <button onclick="toggleAllQA(false)" class="secondary">Collapse All</button>
             <button onclick="window.print()">Print</button>
-            <span class="count-display" id="qa-count">{len(qa_results)} search results</span>
+            <span class="count-display" id="qa-count">{len(semantic_results)} search results</span>
         </div>
         <div id="qa-container">
 {items_html}
@@ -643,7 +643,7 @@ COMBINED_HTML_TEMPLATE = """<!DOCTYPE html>
 
         // ---- Vocabulary functions ----
         const hasVocab = {has_vocab};
-        const hasQA = {has_qa};
+        const hasQA = {has_search};
         {vocab_js}
 
         function toggleColumn(colName) {{

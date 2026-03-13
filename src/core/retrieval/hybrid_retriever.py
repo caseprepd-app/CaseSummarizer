@@ -9,7 +9,7 @@ Architecture:
 - Manages multiple retrieval algorithm instances
 - Indexes documents into all enabled algorithms
 - Runs parallel retrieval and merges results
-- Provides unified interface for QAOrchestrator
+- Provides unified interface for SemanticOrchestrator
 
 Why Hybrid Retrieval:
 - BM25+: Reliable for exact terminology matching (primary)

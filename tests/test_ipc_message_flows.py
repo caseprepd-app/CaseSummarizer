@@ -90,17 +90,17 @@ def _make_window_stub():
     stub = MagicMock()
     stub._pending_tasks = {
         "vocab": True,
-        "qa": True,
+        "semantic": True,
     }
     stub._completed_tasks = set()
-    stub._qa_answering_active = False
-    stub._qa_failed = False
-    stub._qa_ready = False
+    stub._semantic_answering_active = False
+    stub._semantic_failed = False
+    stub._semantic_ready = False
     stub._processing_active = True
     stub._preprocessing_active = False
     stub._destroying = False
-    stub._qa_results = []
-    stub._qa_results_lock = threading.Lock()
+    stub._semantic_results = []
+    stub._semantic_results_lock = threading.Lock()
     stub._vector_store_path = None
     stub.clear_files_btn = MagicMock()
     return stub
@@ -127,15 +127,15 @@ class TestForwarderMessageSequence:
         assert output[1] == ("progress", (50, "Step 2"))
         assert output[2] == ("progress", (100, "Done"))
 
-    def test_extraction_sequence_ner_then_qa_ready(self):
-        """NER complete should arrive before qa_ready."""
+    def test_extraction_sequence_ner_then_semantic_ready(self):
+        """NER complete should arrive before semantic_ready."""
         mock_embeddings = MagicMock()
         messages = [
             ("extraction_started", None),
             ("ner_complete", {"vocab": [{"term": "defendant"}], "filtered": []}),
             ("extraction_complete", None),
             (
-                "qa_ready",
+                "semantic_ready",
                 {
                     "vector_store_path": "/tmp/vs",
                     "embeddings": mock_embeddings,
@@ -150,15 +150,15 @@ class TestForwarderMessageSequence:
             "extraction_started",
             "ner_complete",
             "extraction_complete",
-            "qa_ready",
+            "semantic_ready",
         ]
 
-    def test_qa_ready_before_trigger_default_qa(self):
-        """qa_ready must arrive before trigger_default_qa_started."""
+    def test_semantic_ready_before_trigger_default_semantic(self):
+        """semantic_ready must arrive before trigger_default_semantic_started."""
         mock_embeddings = MagicMock()
         messages = [
             (
-                "qa_ready",
+                "semantic_ready",
                 {
                     "vector_store_path": "/tmp/vs",
                     "embeddings": mock_embeddings,
@@ -167,7 +167,7 @@ class TestForwarderMessageSequence:
                 },
             ),
             (
-                "trigger_default_qa",
+                "trigger_default_semantic",
                 {
                     "vector_store_path": "/tmp/vs",
                     "embeddings": mock_embeddings,
@@ -176,10 +176,10 @@ class TestForwarderMessageSequence:
         ]
         output, state = _run_forwarder_with_messages(messages)
         types = [m[0] for m in output]
-        # qa_ready is forwarded, trigger_default_qa becomes trigger_default_qa_started
-        assert "qa_ready" in types
-        assert "trigger_default_qa_started" in types
-        assert types.index("qa_ready") < types.index("trigger_default_qa_started")
+        # semantic_ready is forwarded, trigger_default_semantic becomes trigger_default_semantic_started
+        assert "semantic_ready" in types
+        assert "trigger_default_semantic_started" in types
+        assert types.index("semantic_ready") < types.index("trigger_default_semantic_started")
 
     def test_error_messages_forwarded(self):
         """Error messages pass through the forwarder."""
@@ -192,14 +192,14 @@ class TestForwarderMessageSequence:
         assert output[0] == ("error", "Something failed")
         assert output[1] == ("status_error", "Minor issue")
 
-    def test_qa_error_forwarded(self):
-        """qa_error messages pass through the forwarder as-is."""
+    def test_semantic_error_forwarded(self):
+        """semantic_error messages pass through the forwarder as-is."""
         messages = [
-            ("qa_error", {"error": "Indexing failed"}),
+            ("semantic_error", {"error": "Indexing failed"}),
         ]
         output, _ = _run_forwarder_with_messages(messages)
         assert len(output) == 1
-        assert output[0] == ("qa_error", {"error": "Indexing failed"})
+        assert output[0] == ("semantic_error", {"error": "Indexing failed"})
 
 
 # ===========================================================================
@@ -210,12 +210,12 @@ class TestForwarderMessageSequence:
 class TestForwarderStatePreservation:
     """Test that forwarder saves/restores state correctly across messages."""
 
-    def test_qa_ready_saves_embeddings_in_state(self):
-        """qa_ready should save embeddings to subprocess state."""
+    def test_semantic_ready_saves_embeddings_in_state(self):
+        """semantic_ready should save embeddings to subprocess state."""
         mock_embeddings = MagicMock()
         messages = [
             (
-                "qa_ready",
+                "semantic_ready",
                 {
                     "vector_store_path": "/tmp/vs",
                     "embeddings": mock_embeddings,
@@ -228,12 +228,12 @@ class TestForwarderStatePreservation:
         assert state["embeddings"] is mock_embeddings
         assert state["vector_store_path"] == "/tmp/vs"
 
-    def test_qa_ready_saves_chunk_scores(self):
-        """qa_ready should save chunk_scores to subprocess state."""
+    def test_semantic_ready_saves_chunk_scores(self):
+        """semantic_ready should save chunk_scores to subprocess state."""
         mock_scores = MagicMock()
         messages = [
             (
-                "qa_ready",
+                "semantic_ready",
                 {
                     "vector_store_path": "/tmp/vs",
                     "embeddings": MagicMock(),
@@ -245,11 +245,11 @@ class TestForwarderStatePreservation:
         _, state = _run_forwarder_with_messages(messages)
         assert state["chunk_scores"] is mock_scores
 
-    def test_qa_ready_strips_embeddings_from_forwarded_message(self):
-        """Forwarded qa_ready should NOT contain embeddings (not picklable)."""
+    def test_semantic_ready_strips_embeddings_from_forwarded_message(self):
+        """Forwarded semantic_ready should NOT contain embeddings (not picklable)."""
         messages = [
             (
-                "qa_ready",
+                "semantic_ready",
                 {
                     "vector_store_path": "/tmp/vs",
                     "embeddings": MagicMock(),
@@ -261,22 +261,22 @@ class TestForwarderStatePreservation:
         output, _ = _run_forwarder_with_messages(messages)
         assert len(output) == 1
         msg_type, data = output[0]
-        assert msg_type == "qa_ready"
+        assert msg_type == "semantic_ready"
         assert "embeddings" not in data
         assert data["vector_store_path"] == "/tmp/vs"
         assert data["chunk_count"] == 42
 
-    def test_trigger_default_qa_uses_saved_state(self):
-        """trigger_default_qa should use embeddings/path saved from qa_ready."""
+    def test_trigger_default_semantic_uses_saved_state(self):
+        """trigger_default_semantic should use embeddings/path saved from semantic_ready."""
         mock_embeddings = MagicMock()
         state = _make_forwarder_state()
-        # Pre-set state as if qa_ready already ran
+        # Pre-set state as if semantic_ready already ran
         state["embeddings"] = mock_embeddings
         state["vector_store_path"] = "/tmp/vs"
 
         messages = [
             (
-                "trigger_default_qa",
+                "trigger_default_semantic",
                 {
                     "vector_store_path": "/tmp/vs",
                     "embeddings": mock_embeddings,
@@ -285,10 +285,10 @@ class TestForwarderStatePreservation:
         ]
         output, final_state = _run_forwarder_with_messages(messages, state=state)
         types = [m[0] for m in output]
-        assert "trigger_default_qa_started" in types
+        assert "trigger_default_semantic_started" in types
 
-    def test_trigger_default_qa_skipped_when_disabled(self):
-        """trigger_default_qa should send qa_complete (skip) when ask_default_questions=False."""
+    def test_trigger_default_semantic_skipped_when_disabled(self):
+        """trigger_default_semantic should send semantic_complete (skip) when ask_default_questions=False."""
         state = _make_forwarder_state()
         state["ask_default_questions"] = False
         state["embeddings"] = MagicMock()
@@ -296,7 +296,7 @@ class TestForwarderStatePreservation:
 
         messages = [
             (
-                "trigger_default_qa",
+                "trigger_default_semantic",
                 {
                     "vector_store_path": "/tmp/vs",
                     "embeddings": MagicMock(),
@@ -305,18 +305,18 @@ class TestForwarderStatePreservation:
         ]
         output, _ = _run_forwarder_with_messages(messages, state=state)
         types = [m[0] for m in output]
-        # Should skip Q&A entirely — no trigger_default_qa_started
-        assert "trigger_default_qa_started" not in types
-        assert "qa_complete" in types
+        # Should skip Q&A entirely — no trigger_default_semantic_started
+        assert "trigger_default_semantic_started" not in types
+        assert "semantic_complete" in types
 
-    def test_trigger_default_qa_without_state_logs_warning(self):
-        """trigger_default_qa with no saved embeddings should warn, not crash."""
+    def test_trigger_default_semantic_without_state_logs_warning(self):
+        """trigger_default_semantic with no saved embeddings should warn, not crash."""
         state = _make_forwarder_state()
         # embeddings and vector_store_path are None
 
         messages = [
             (
-                "trigger_default_qa",
+                "trigger_default_semantic",
                 {
                     "vector_store_path": None,
                     "embeddings": None,
@@ -326,14 +326,14 @@ class TestForwarderStatePreservation:
         # Should not raise -- just log warning
         output, _ = _run_forwarder_with_messages(messages, state=state)
         types = [m[0] for m in output]
-        assert "trigger_default_qa_started" in types
+        assert "trigger_default_semantic_started" in types
 
     def test_state_persists_across_multiple_messages(self):
-        """State from qa_ready persists through subsequent unrelated messages."""
+        """State from semantic_ready persists through subsequent unrelated messages."""
         mock_embeddings = MagicMock()
         messages = [
             (
-                "qa_ready",
+                "semantic_ready",
                 {
                     "vector_store_path": "/tmp/vs",
                     "embeddings": mock_embeddings,
@@ -344,7 +344,7 @@ class TestForwarderStatePreservation:
             ("progress", (80, "Processing...")),
         ]
         _, state = _run_forwarder_with_messages(messages)
-        # State should still have embeddings from qa_ready
+        # State should still have embeddings from semantic_ready
         assert state["embeddings"] is mock_embeddings
         assert state["vector_store_path"] == "/tmp/vs"
 
@@ -358,17 +358,17 @@ class TestFullExtractionSequence:
     """
     Test the complete message sequence from ProgressiveExtractionWorker.
 
-    Expected order for vocab + Q&A flow:
+    Expected order for vocab + semantic search flow:
     1. extraction_started
     2. progress (multiple)
     3. ner_complete
     4. extraction_complete
     5. progress (phase 2)
-    6. qa_ready (-> stripped by forwarder)
-    7. trigger_default_qa (-> intercepted, becomes trigger_default_qa_started)
-    8. qa_progress (multiple)
-    9. qa_result (multiple)
-    10. qa_complete
+    6. semantic_ready (-> stripped by forwarder)
+    7. trigger_default_semantic (-> intercepted, becomes trigger_default_semantic_started)
+    8. semantic_progress (multiple)
+    9. semantic_result (multiple)
+    10. semantic_complete
     """
 
     def test_full_vocab_qa_sequence_through_forwarder(self):
@@ -381,7 +381,7 @@ class TestFullExtractionSequence:
             ("extraction_complete", None),
             ("progress", (20, "Phase 2: Building Q&A index...")),
             (
-                "qa_ready",
+                "semantic_ready",
                 {
                     "vector_store_path": "/tmp/vs",
                     "embeddings": mock_embeddings,
@@ -390,7 +390,7 @@ class TestFullExtractionSequence:
                 },
             ),
             (
-                "trigger_default_qa",
+                "trigger_default_semantic",
                 {
                     "vector_store_path": "/tmp/vs",
                     "embeddings": mock_embeddings,
@@ -403,24 +403,24 @@ class TestFullExtractionSequence:
         # Verify key ordering constraints
         assert "extraction_started" in types
         assert "ner_complete" in types
-        assert "qa_ready" in types
-        assert "trigger_default_qa_started" in types  # Note: renamed by forwarder
+        assert "semantic_ready" in types
+        assert "trigger_default_semantic_started" in types  # Note: renamed by forwarder
 
         # extraction_started before ner_complete
         assert types.index("extraction_started") < types.index("ner_complete")
-        # ner_complete before qa_ready
-        assert types.index("ner_complete") < types.index("qa_ready")
-        # qa_ready before trigger_default_qa_started
-        assert types.index("qa_ready") < types.index("trigger_default_qa_started")
-        # trigger_default_qa was intercepted (not in output)
-        assert "trigger_default_qa" not in types
+        # ner_complete before semantic_ready
+        assert types.index("ner_complete") < types.index("semantic_ready")
+        # semantic_ready before trigger_default_semantic_started
+        assert types.index("semantic_ready") < types.index("trigger_default_semantic_started")
+        # trigger_default_semantic was intercepted (not in output)
+        assert "trigger_default_semantic" not in types
 
-    def test_qa_answering_messages_arrive_after_qa_ready(self):
-        """qa_progress/qa_result/qa_complete must come after qa_ready."""
+    def test_semantic_answering_messages_arrive_after_semantic_ready(self):
+        """semantic_progress/semantic_result/semantic_complete must come after semantic_ready."""
         mock_embeddings = MagicMock()
         messages = [
             (
-                "qa_ready",
+                "semantic_ready",
                 {
                     "vector_store_path": "/tmp/vs",
                     "embeddings": mock_embeddings,
@@ -429,19 +429,19 @@ class TestFullExtractionSequence:
                 },
             ),
             (
-                "trigger_default_qa",
+                "trigger_default_semantic",
                 {
                     "vector_store_path": "/tmp/vs",
                     "embeddings": mock_embeddings,
                 },
             ),
-            # These would come from QAWorker spawned by trigger_default_qa
-            ("qa_progress", (0, 3, "What happened?")),
-            ("qa_result", {"question": "What happened?", "answer": "..."}),
-            ("qa_progress", (1, 3, "Who are the parties?")),
-            ("qa_result", {"question": "Who are the parties?", "answer": "..."}),
+            # These would come from SemanticWorker spawned by trigger_default_semantic
+            ("semantic_progress", (0, 3, "What happened?")),
+            ("semantic_result", {"question": "What happened?", "answer": "..."}),
+            ("semantic_progress", (1, 3, "Who are the parties?")),
+            ("semantic_result", {"question": "Who are the parties?", "answer": "..."}),
             (
-                "qa_complete",
+                "semantic_complete",
                 [
                     {"question": "What happened?", "answer": "..."},
                     {"question": "Who are the parties?", "answer": "..."},
@@ -451,9 +451,9 @@ class TestFullExtractionSequence:
         output, _ = _run_forwarder_with_messages(messages)
         types = [m[0] for m in output]
 
-        assert "qa_ready" in types
-        if "qa_complete" in types:
-            assert types.index("qa_ready") < types.index("qa_complete")
+        assert "semantic_ready" in types
+        if "semantic_complete" in types:
+            assert types.index("semantic_ready") < types.index("semantic_complete")
 
 
 # ===========================================================================
@@ -471,26 +471,26 @@ class TestHandlerStateTransitions:
         """
         Simulate main_window._handle_queue_message for state-tracking messages.
 
-        Only covers message types that affect _qa_ready, _qa_answering_active,
+        Only covers message types that affect _semantic_ready, _semantic_answering_active,
         _pending_tasks, _completed_tasks.
         """
-        if msg_type == "qa_ready":
-            stub._qa_ready = True
-            # Note: NO _completed_tasks.add("qa") here (bug was fixed)
+        if msg_type == "semantic_ready":
+            stub._semantic_ready = True
+            # Note: NO _completed_tasks.add("semantic") here (bug was fixed)
 
-        elif msg_type == "qa_error":
-            stub._qa_answering_active = False
-            stub._qa_failed = True
-            if stub._pending_tasks.get("qa"):
-                stub._completed_tasks.add("qa")
+        elif msg_type == "semantic_error":
+            stub._semantic_answering_active = False
+            stub._semantic_failed = True
+            if stub._pending_tasks.get("semantic"):
+                stub._completed_tasks.add("semantic")
 
-        elif msg_type == "trigger_default_qa_started":
-            stub._qa_answering_active = True
+        elif msg_type == "trigger_default_semantic_started":
+            stub._semantic_answering_active = True
 
-        elif msg_type == "qa_complete":
-            stub._qa_answering_active = False
-            if stub._pending_tasks.get("qa"):
-                stub._completed_tasks.add("qa")
+        elif msg_type == "semantic_complete":
+            stub._semantic_answering_active = False
+            if stub._pending_tasks.get("semantic"):
+                stub._completed_tasks.add("semantic")
 
         elif msg_type == "ner_complete":
             stub._completed_tasks.add("vocab")
@@ -500,14 +500,14 @@ class TestHandlerStateTransitions:
         for task_name, is_pending in stub._pending_tasks.items():
             if is_pending and task_name not in stub._completed_tasks:
                 return False
-        return not stub._qa_answering_active
+        return not stub._semantic_answering_active
 
     def test_vocab_only_flow(self):
         """Vocab only: ner_complete -> finalize."""
         stub = _make_window_stub()
         stub._pending_tasks = {
             "vocab": True,
-            "qa": False,
+            "semantic": False,
         }
 
         self._simulate_handler(stub, "ner_complete", {"vocab": [], "filtered": []})
@@ -516,111 +516,111 @@ class TestHandlerStateTransitions:
         assert self._all_tasks_complete(stub)
 
     def test_vocab_plus_qa_flow(self):
-        """Vocab+Q&A: qa_ready -> trigger -> answering -> qa_complete -> finalize."""
+        """Vocab+Q&A: semantic_ready -> trigger -> answering -> qa_complete -> finalize."""
         stub = _make_window_stub()
         stub._pending_tasks = {
             "vocab": True,
-            "qa": True,
+            "semantic": True,
         }
 
         # Phase 1: NER
         self._simulate_handler(stub, "ner_complete", {"vocab": [], "filtered": []})
-        assert not stub._qa_answering_active
+        assert not stub._semantic_answering_active
 
         # Phase 2: Q&A index ready
-        self._simulate_handler(stub, "qa_ready", {"chunk_count": 42})
-        assert stub._qa_ready is True
-        assert "qa" not in stub._completed_tasks  # NOT premature!
+        self._simulate_handler(stub, "semantic_ready", {"chunk_count": 42})
+        assert stub._semantic_ready is True
+        assert "semantic" not in stub._completed_tasks  # NOT premature!
 
-        # Forwarder sends trigger_default_qa_started
-        self._simulate_handler(stub, "trigger_default_qa_started", None)
-        assert stub._qa_answering_active is True
+        # Forwarder sends trigger_default_semantic_started
+        self._simulate_handler(stub, "trigger_default_semantic_started", None)
+        assert stub._semantic_answering_active is True
 
         # Vocab already completed via ner_complete
         assert "vocab" in stub._completed_tasks
         assert not self._all_tasks_complete(stub)  # Q&A still active!
 
         # Q&A answers arrive
-        self._simulate_handler(stub, "qa_complete", [{"q": "test", "a": "answer"}])
-        assert stub._qa_answering_active is False
-        assert "qa" in stub._completed_tasks
+        self._simulate_handler(stub, "semantic_complete", [{"q": "test", "a": "answer"}])
+        assert stub._semantic_answering_active is False
+        assert "semantic" in stub._completed_tasks
         assert self._all_tasks_complete(stub)
 
-    def test_qa_error_still_allows_finalization(self):
-        """Q&A error should mark Q&A as complete so finalization isn't blocked."""
+    def test_semantic_error_still_allows_finalization(self):
+        """Semantic error should mark search as complete so finalization isn't blocked."""
         stub = _make_window_stub()
         stub._pending_tasks = {
             "vocab": True,
-            "qa": True,
+            "semantic": True,
         }
 
         self._simulate_handler(stub, "ner_complete", {"vocab": [], "filtered": []})
-        self._simulate_handler(stub, "qa_error", {"error": "Indexing failed"})
+        self._simulate_handler(stub, "semantic_error", {"error": "Indexing failed"})
 
-        assert "qa" in stub._completed_tasks
+        assert "semantic" in stub._completed_tasks
         assert "vocab" in stub._completed_tasks
         assert self._all_tasks_complete(stub)
 
-    def test_qa_error_clears_answering_flag(self):
-        """qa_error should clear _qa_answering_active even if it was set."""
+    def test_semantic_error_clears_answering_flag(self):
+        """semantic_error should clear _semantic_answering_active even if it was set."""
         stub = _make_window_stub()
-        stub._qa_answering_active = True  # Was set by trigger_default_qa_started
+        stub._semantic_answering_active = True  # Was set by trigger_default_semantic_started
 
-        self._simulate_handler(stub, "qa_error", {"error": "crash"})
-        assert stub._qa_answering_active is False
+        self._simulate_handler(stub, "semantic_error", {"error": "crash"})
+        assert stub._semantic_answering_active is False
 
-    def test_qa_ready_does_not_mark_complete(self):
-        """qa_ready should NOT add 'qa' to completed_tasks (the old bug)."""
+    def test_semantic_ready_does_not_mark_complete(self):
+        """semantic_ready should NOT add 'qa' to completed_tasks (the old bug)."""
         stub = _make_window_stub()
         stub._pending_tasks = {
             "vocab": True,
-            "qa": True,
+            "semantic": True,
         }
 
-        self._simulate_handler(stub, "qa_ready", {"chunk_count": 42})
-        assert "qa" not in stub._completed_tasks
+        self._simulate_handler(stub, "semantic_ready", {"chunk_count": 42})
+        assert "semantic" not in stub._completed_tasks
 
-    def test_trigger_default_qa_started_sets_answering_flag(self):
-        """trigger_default_qa_started must set _qa_answering_active."""
+    def test_trigger_default_semantic_started_sets_answering_flag(self):
+        """trigger_default_semantic_started must set _semantic_answering_active."""
         stub = _make_window_stub()
-        assert not stub._qa_answering_active
+        assert not stub._semantic_answering_active
 
-        self._simulate_handler(stub, "trigger_default_qa_started", None)
-        assert stub._qa_answering_active is True
+        self._simulate_handler(stub, "trigger_default_semantic_started", None)
+        assert stub._semantic_answering_active is True
 
     def test_vocab_complete_before_qa_complete(self):
         """Vocab completing before Q&A should NOT allow premature finalization."""
         stub = _make_window_stub()
         stub._pending_tasks = {
             "vocab": True,
-            "qa": True,
+            "semantic": True,
         }
 
         self._simulate_handler(stub, "ner_complete", {"vocab": [], "filtered": []})
-        self._simulate_handler(stub, "qa_ready", {})
-        self._simulate_handler(stub, "trigger_default_qa_started", None)
+        self._simulate_handler(stub, "semantic_ready", {})
+        self._simulate_handler(stub, "trigger_default_semantic_started", None)
 
         # Vocab is done but Q&A answering is still active
         assert "vocab" in stub._completed_tasks
-        assert "qa" not in stub._completed_tasks
-        assert stub._qa_answering_active is True
+        assert "semantic" not in stub._completed_tasks
+        assert stub._semantic_answering_active is True
         assert not self._all_tasks_complete(stub)
 
-    def test_qa_complete_before_vocab_complete_impossible(self):
-        """With NER marking vocab done, Q&A can't complete before vocab in practice."""
+    def test_semantic_complete_before_vocab_complete_impossible(self):
+        """With NER marking vocab done, semantic search can't complete before vocab in practice."""
         stub = _make_window_stub()
         stub._pending_tasks = {
             "vocab": True,
-            "qa": True,
+            "semantic": True,
         }
 
         # Simulate Q&A completing first (unlikely but should be handled)
-        self._simulate_handler(stub, "qa_ready", {})
-        self._simulate_handler(stub, "trigger_default_qa_started", None)
-        self._simulate_handler(stub, "qa_complete", [])
+        self._simulate_handler(stub, "semantic_ready", {})
+        self._simulate_handler(stub, "trigger_default_semantic_started", None)
+        self._simulate_handler(stub, "semantic_complete", [])
 
         # Q&A done but vocab not yet complete
-        assert "qa" in stub._completed_tasks
+        assert "semantic" in stub._completed_tasks
         assert "vocab" not in stub._completed_tasks
         assert not self._all_tasks_complete(stub)
 
@@ -650,8 +650,8 @@ class TestSubprocessRoundTrip:
         finally:
             manager.shutdown(blocking=True)
 
-    def test_run_qa_without_state_returns_error(self):
-        """run_qa without prior qa_ready should return an error."""
+    def test_run_semantic_without_state_returns_error(self):
+        """run_qa without prior semantic_ready should return an error."""
         from src.services.worker_manager import WorkerProcessManager
 
         manager = WorkerProcessManager()
@@ -668,7 +668,7 @@ class TestSubprocessRoundTrip:
             manager.shutdown(blocking=True)
 
     def test_followup_without_state_returns_none_result(self):
-        """followup without prior qa_ready should return qa_followup_result with None."""
+        """followup without prior semantic_ready should return semantic_followup_result with None."""
         from src.services.worker_manager import WorkerProcessManager
 
         manager = WorkerProcessManager()
@@ -676,8 +676,8 @@ class TestSubprocessRoundTrip:
         try:
             self._wait_for_ready(manager)
             manager.send_command("followup", {"question": "test?"})
-            messages = self._wait_for_messages(manager, expected_type="qa_followup_result")
-            followup_msgs = [m for m in messages if m[0] == "qa_followup_result"]
+            messages = self._wait_for_messages(manager, expected_type="semantic_followup_result")
+            followup_msgs = [m for m in messages if m[0] == "semantic_followup_result"]
             assert len(followup_msgs) >= 1
             assert followup_msgs[0][1] is None
         finally:
@@ -784,8 +784,8 @@ class TestPollingWithMessageDraining:
         """Simulate the polling continuation condition."""
         return bool(processing or preprocessing or qa_answering or messages)
 
-    def test_qa_answering_keeps_poll_alive_after_processing_done(self):
-        """After _processing_active=False, _qa_answering_active keeps polling."""
+    def test_semantic_searching_keeps_poll_alive_after_processing_done(self):
+        """After _processing_active=False, _semantic_answering_active keeps polling."""
         assert self._should_continue_polling(
             processing=False,
             preprocessing=False,
@@ -799,7 +799,7 @@ class TestPollingWithMessageDraining:
             processing=False,
             preprocessing=False,
             qa_answering=False,
-            messages=[("qa_complete", [])],
+            messages=[("semantic_complete", [])],
         )
 
     def test_no_activity_and_no_messages_stops_poll(self):
@@ -811,17 +811,17 @@ class TestPollingWithMessageDraining:
             messages=[],
         )
 
-    def test_only_qa_answering_plus_final_message(self):
+    def test_only_semantic_searching_plus_final_message(self):
         """
-        Typical end-of-pipeline scenario: processing done, Q&A answering done,
-        and the qa_complete message just arrived (in messages list).
+        Typical end-of-pipeline scenario: processing done, semantic searching done,
+        and the semantic_complete message just arrived (in messages list).
         Should continue polling to process that message.
         """
         assert self._should_continue_polling(
             processing=False,
             preprocessing=False,
             qa_answering=False,
-            messages=[("qa_complete", [])],
+            messages=[("semantic_complete", [])],
         )
 
 
@@ -833,8 +833,8 @@ class TestPollingWithMessageDraining:
 class TestCommandDispatchIntegration:
     """Test _dispatch_command for commands that require state."""
 
-    def test_run_qa_with_state_spawns_worker(self):
-        """run_qa with valid state should spawn a QAWorker."""
+    def test_run_semantic_with_state_spawns_worker(self):
+        """run_qa with valid state should spawn a SemanticWorker."""
         from src.worker_process import _dispatch_command
 
         internal_q = Queue()
@@ -846,9 +846,9 @@ class TestCommandDispatchIntegration:
             "worker_lock": threading.Lock(),
         }
 
-        with patch("src.services.workers.QAWorker") as MockQAWorker:
+        with patch("src.services.workers.SemanticWorker") as MockSemanticWorker:
             mock_worker_instance = MagicMock()
-            MockQAWorker.return_value = mock_worker_instance
+            MockSemanticWorker.return_value = mock_worker_instance
 
             _dispatch_command(
                 "run_qa",
@@ -857,7 +857,7 @@ class TestCommandDispatchIntegration:
                 state,
             )
 
-            MockQAWorker.assert_called_once()
+            MockSemanticWorker.assert_called_once()
             mock_worker_instance.start.assert_called_once()
             assert state["active_worker"] is mock_worker_instance
 

@@ -339,16 +339,9 @@ DEFAULT_SUMMARY_WORDS = 200
 MIN_SUMMARY_WORDS = 100
 MAX_SUMMARY_WORDS = 500
 
-# Legacy LLM Generation Parameters (consumed only by src/deprecated/ code)
+# Legacy summary slider settings (used by Key Excerpts word-count UI)
 SUMMARY_WORD_COUNT_TOLERANCE = 20
 SUMMARY_SLIDER_INCREMENT = 50
-SUMMARY_TEMPERATURE = _d("summary_temperature")
-LLM_TOP_P = _d("llm_top_p")
-LLM_TOKENS_PER_WORD = 1.5
-LLM_TOKEN_BUFFER_MULTIPLIER = 1.3
-LLM_EXTRACTOR_MAX_TOKENS = 1000
-SUMMARY_LENGTH_TOLERANCE = _d("summary_length_tolerance")
-SUMMARY_MAX_CONDENSE_ATTEMPTS = 3
 
 # Vocabulary Extractor Data Files
 LEGAL_EXCLUDE_LIST_PATH = BUNDLED_CONFIG_DIR / "legal_exclude.txt"
@@ -649,19 +642,19 @@ VECTOR_STORE_DIR.mkdir(parents=True, exist_ok=True)
 # Search Retrieval Settings
 # Set to None to retrieve ALL chunks (searches entire document corpus)
 # Set to a number to limit retrieval to top-K chunks
-QA_RETRIEVAL_K = _d("qa_retrieval_k")
-QA_MAX_TOKENS = _d("qa_max_tokens")
-QA_TEMPERATURE = _d("qa_temperature")
-QA_SIMILARITY_THRESHOLD = _d("qa_similarity_threshold")
+SEMANTIC_RETRIEVAL_K = _d("semantic_retrieval_k")
+SEMANTIC_MAX_TOKENS = _d("semantic_max_tokens")
+SEMANTIC_TEMPERATURE = _d("semantic_temperature")
+SEMANTIC_SIMILARITY_THRESHOLD = _d("semantic_similarity_threshold")
 
-# Search Context Window
+# Semantic Search Context Window
 # Controls how much retrieved context is passed to the prompt template.
-# See qa_retriever._get_effective_qa_context_window() for the dynamic logic.
+# See semantic_retriever._get_effective_semantic_context_window() for dynamic logic.
 # This constant is a FALLBACK value used if user preferences are unavailable.
-QA_CONTEXT_WINDOW = 4096  # Fallback tokens for retrieval context
+SEMANTIC_CONTEXT_WINDOW = 4096  # Fallback tokens for retrieval context
 
 # Chat History Settings
-QA_CONVERSATION_CONTEXT_PAIRS = 3  # Include last N search pairs in follow-up searches
+SEMANTIC_CONVERSATION_CONTEXT_PAIRS = 3  # Include last N search pairs in follow-ups
 
 # ============================================================================
 # Hybrid Retrieval Configuration (BM25+ Integration)
@@ -706,7 +699,7 @@ RRF_K = 60
 FAISS_RELEVANCE_FLOOR = _d("faiss_relevance_floor")
 
 # Target characters for focused citation excerpt — embedding-selected window
-QA_CITATION_MAX_CHARS = _d("qa_citation_max_chars")
+SEMANTIC_CITATION_MAX_CHARS = _d("semantic_citation_max_chars")
 
 # ============================================================================
 # Unified Chunking Configuration (Recursive Sentence Splitting)
@@ -727,51 +720,14 @@ UNIFIED_CHUNK_OVERLAP_TOKENS = _d("unified_chunk_overlap_tokens")
 # cl100k_base is compatible with most modern models (GPT-3.5+, Claude, Llama)
 UNIFIED_CHUNK_ENCODING = "cl100k_base"
 
-# ============================================================================
-# Hallucination Verification Configuration
-# ============================================================================
-# Uses LettuceDetect to verify search answers against source documents
-# Identifies potentially hallucinated spans with color-coded reliability
-
-# Enable/disable hallucination verification for search answers
-# When enabled, adds ~100-200ms per answer
-HALLUCINATION_VERIFICATION_ENABLED = _d("hallucination_verification_enabled")
-
-# Hallucination detection model (TinyLettuce 68M)
-# 68M params, 75% F1 on RAGTruth — good balance of accuracy and size
-# Uses lettucedetect library for span-level hallucination detection
-HALLUCINATION_MODEL = "KRLabsOrg/tinylettuce-ettin-68m-en"
-
-# Span classification thresholds for color-coding answer text
-# LettuceDetect returns probability of hallucination (0.0-1.0)
-# LOWER scores = more reliable, HIGHER scores = less reliable
-HALLUCINATION_THRESHOLDS = {
-    "verified": 0.30,  # < 0.30 = green (verified, strongly supported)
-    "uncertain": 0.50,  # 0.30 - 0.50 = yellow (uncertain, borderline)
-    "suspicious": 0.70,  # 0.50 - 0.70 = orange (suspicious, likely unsupported)
-    "unreliable": 0.85,  # 0.70 - 0.85 = red (unreliable, probably hallucinated)
-    # >= 0.85 = strikethrough (hallucinated, very high confidence)
-}
-
-# Overall answer rejection threshold - reject if reliability below this
-ANSWER_REJECTION_THRESHOLD = _d("answer_rejection_threshold")
-
-# Search Export: minimum thresholds to include in exports (both must be met)
-QA_EXPORT_CONFIDENCE_FLOOR = _d("qa_export_confidence_floor")
-QA_EXPORT_VERIFICATION_FLOOR = _d("qa_export_verification_floor")
-
-# Message shown when answer confidence is too low
-HALLUCINATION_REJECTION_MESSAGE = (
-    "Confidence in answer too low after verification step, declining to show answer..."
-)
+# Search Export: minimum confidence to include in exports
+SEMANTIC_EXPORT_CONFIDENCE_FLOOR = _d("semantic_export_confidence_floor")
 
 # Bundled model configuration for Windows installer
 # Models are stored in PROJECT_ROOT/models/ and shipped with the installer
 # This prevents network calls at runtime for privacy and offline use
 # Renamed to avoid conflict with MODELS_DIR defined earlier
 BUNDLED_MODELS_DIR = BUNDLED_BASE_DIR / "models"
-HALLUCINATION_MODEL_LOCAL_PATH = BUNDLED_MODELS_DIR / "tinylettuce-ettin-68m-en"
-
 # Embedding model for FAISS semantic search
 # nomic-embed-text-v1.5 (137M params, 768 dims, 8192-token context, 270MB)
 # Downsized from modernbert-embed-large (1.58GB) — research shows small embeddings
@@ -787,10 +743,6 @@ SEMANTIC_CHUNKER_MODEL_LOCAL_PATH = BUNDLED_MODELS_DIR / "embeddings" / "all-Min
 # HuggingFace cache directory (used if bundled model not found)
 # Falls back to downloading if bundled model is missing (dev mode)
 HF_CACHE_DIR = BUNDLED_MODELS_DIR / ".hf_cache"
-
-# Prevent network calls when bundled model exists
-# Set to True for production/installer builds, False for development
-HALLUCINATION_LOCAL_ONLY = HALLUCINATION_MODEL_LOCAL_PATH.exists()
 
 # ============================================================================
 # Cross-Encoder Reranking Configuration

@@ -3,7 +3,7 @@ Background Workers Module
 
 Contains threading and multiprocessing workers for document processing:
 - ProcessingWorker: Document extraction thread (with parallel processing)
-- ProgressiveExtractionWorker: NER + Q&A extraction worker
+- ProgressiveExtractionWorker: NER + semantic search extraction worker
 
 Performance Optimizations:
 - Parallel document extraction via Strategy Pattern
@@ -221,21 +221,21 @@ class ProcessingWorker(BaseWorker):
         pass
 
 
-class QAWorker(BaseWorker):
+class SemanticWorker(BaseWorker):
     """
-    Background worker for Q&A document querying.
+    Background worker for semantic search document querying.
 
     Runs default questions against the document using FAISS vector search
-    and generates answers via extraction or Ollama.
+    and retrieval-based extraction.
 
     Signals sent to ui_queue:
-    - ('qa_progress', (current, total, question)) - Question being processed
-    - ('qa_result', QAResult) - Single result ready
-    - ('qa_complete', list[QAResult]) - All questions processed
+    - ('semantic_progress', (current, total, question)) - Question being processed
+    - ('semantic_result', SemanticResult) - Single result ready
+    - ('semantic_complete', list[SemanticResult]) - All questions processed
     - ('error', str) - Error occurred
 
     Example:
-        worker = QAWorker(
+        worker = SemanticWorker(
             vector_store_path=Path("./vector_stores/case_123"),
             embeddings=embeddings_model,
             ui_queue=ui_queue,
@@ -262,7 +262,7 @@ class QAWorker(BaseWorker):
             ui_queue: Queue for UI communication
             answer_mode: Ignored (kept for backward compat). Always uses extraction.
             questions: Custom questions to ask (None = use defaults from YAML)
-            use_default_questions: If True, load questions from qa_default_questions.txt
+            use_default_questions: If True, load questions from semantic_default_questions.txt
         """
         super().__init__(ui_queue)
         self.vector_store_path = Path(vector_store_path)
@@ -274,12 +274,12 @@ class QAWorker(BaseWorker):
 
     def execute(self):
         """Execute semantic search in background thread."""
-        from src.core.qa import QAOrchestrator
+        from src.core.semantic import SemanticOrchestrator
 
         logger.debug("Starting semantic search")
 
         # Initialize orchestrator
-        orchestrator = QAOrchestrator(
+        orchestrator = SemanticOrchestrator(
             vector_store_path=self.vector_store_path,
             embeddings=self.embeddings,
         )
@@ -299,7 +299,7 @@ class QAWorker(BaseWorker):
         total = len(questions)
         if total == 0:
             logger.debug("No questions to process")
-            self.ui_queue.put(QueueMessage.qa_complete([]))
+            self.ui_queue.put(QueueMessage.semantic_complete([]))
             return
 
         logger.debug("Processing %s questions", total)
@@ -308,7 +308,7 @@ class QAWorker(BaseWorker):
         self.results = self._process_questions_parallel(orchestrator, questions, is_default, total)
 
         # Send completion signal with all results
-        self.ui_queue.put(QueueMessage.qa_complete(self.results))
+        self.ui_queue.put(QueueMessage.semantic_complete(self.results))
         logger.info("All %s questions processed successfully", total)
 
     def _process_questions_parallel(
@@ -318,16 +318,16 @@ class QAWorker(BaseWorker):
         Process search questions sequentially.
 
         Extraction mode is fast enough that parallelization is unnecessary.
-        Results are streamed to UI as they complete via qa_result messages.
+        Results are streamed to UI as they complete via semantic_result messages.
 
         Args:
-            orchestrator: QAOrchestrator instance
+            orchestrator: SemanticOrchestrator instance
             questions: List of questions to ask
             is_default: Whether these are default questions
             total: Total number of questions for progress tracking
 
         Returns:
-            List of QAResult objects in original question order
+            List of SemanticResult objects in original question order
         """
         logger.debug("Processing %s question(s) sequentially", len(questions))
         results = []
@@ -336,13 +336,13 @@ class QAWorker(BaseWorker):
 
             # Report progress
             truncated_q = question[:50] + "..." if len(question) > 50 else question
-            self.ui_queue.put(QueueMessage.qa_progress(i, total, truncated_q))
+            self.ui_queue.put(QueueMessage.semantic_progress(i, total, truncated_q))
 
             result = orchestrator._ask_single_question(
                 question, is_followup=False, is_default=is_default
             )
             results.append(result)
-            self.ui_queue.put(QueueMessage.qa_result(result))
+            self.ui_queue.put(QueueMessage.semantic_result(result))
             logger.debug("Q%s/%s complete: %s chars", i + 1, total, len(result.answer))
 
         return results
@@ -354,11 +354,11 @@ class ProgressiveExtractionWorker(BaseWorker):
 
     Implements the vocabulary-first architecture with progressive output:
     - Phase 1 (NER): Fast extraction via local algorithms (NER, RAKE, BM25)
-    - Phase 2 (Q&A): Builds vector store for Q&A (parallel with Phase 1)
+    - Phase 2 (Search): Builds vector store for semantic search (parallel with Phase 1)
 
     Signals sent to ui_queue:
     - ('ner_complete', vocab_data) - Phase 1 complete, display immediately
-    - ('qa_ready', vector_store_path) - Phase 2 complete, enable Q&A
+    - ('semantic_ready', vector_store_path) - Phase 2 complete, enable semantic search
     - ('error', str) - Error occurred
 
     Example:
@@ -404,9 +404,9 @@ class ProgressiveExtractionWorker(BaseWorker):
         self.user_exclude_path = user_exclude_path
         self.doc_confidence = doc_confidence  # OCR quality for ML feature
         # Cross-thread state for search indexing phase (Phase 2)
-        self._qa_succeeded = threading.Event()
-        self._qa_error_lock = threading.Lock()
-        self._qa_error_msg: str | None = None
+        self._search_succeeded = threading.Event()
+        self._search_error_lock = threading.Lock()
+        self._search_error_msg: str | None = None
 
     def execute(self):
         """Execute two-phase progressive extraction."""
@@ -508,36 +508,36 @@ class ProgressiveExtractionWorker(BaseWorker):
         # ===== PHASE 2: Search Indexing (CPU-only can take 15+ minutes) =====
         # Run in parallel thread
         # Reset search indexing phase state for this execution
-        self._qa_succeeded.clear()
-        with self._qa_error_lock:
-            self._qa_error_msg = None
-        qa_thread = threading.Thread(target=self._build_vector_store, daemon=False)
-        qa_thread.start()
+        self._search_succeeded.clear()
+        with self._search_error_lock:
+            self._search_error_msg = None
+        semantic_thread = threading.Thread(target=self._build_vector_store, daemon=False)
+        semantic_thread.start()
 
         # Wait for search index thread with periodic status updates (CPU embeddings can take 5+ minutes)
         # Using timeout loop instead of indefinite join to keep UI responsive with status updates
-        QA_JOIN_TIMEOUT_SECONDS = 30  # Check every 30 seconds
-        QA_MAX_WAIT_MINUTES = 60  # Give up after 1 hour
+        SEMANTIC_JOIN_TIMEOUT_SECONDS = 30  # Check every 30 seconds
+        SEMANTIC_MAX_WAIT_MINUTES = 60  # Give up after 1 hour
         wait_count = 0
-        max_waits = (QA_MAX_WAIT_MINUTES * 60) // QA_JOIN_TIMEOUT_SECONDS
+        max_waits = (SEMANTIC_MAX_WAIT_MINUTES * 60) // SEMANTIC_JOIN_TIMEOUT_SECONDS
 
-        while qa_thread.is_alive() and wait_count < max_waits:
-            wait_minutes = (wait_count * QA_JOIN_TIMEOUT_SECONDS) // 60
+        while semantic_thread.is_alive() and wait_count < max_waits:
+            wait_minutes = (wait_count * SEMANTIC_JOIN_TIMEOUT_SECONDS) // 60
             if wait_count == 0:
-                logger.debug("Vocabulary done, waiting for Q&A index to finish...")
-                self.send_progress(100, "Vocabulary complete. Building Q&A search index...")
+                logger.debug("Vocabulary done, waiting for semantic search index to finish...")
+                self.send_progress(100, "Vocabulary complete. Building semantic search index...")
             else:
                 self.send_progress(
                     100,
-                    f"Q&A index still building ({wait_minutes}m elapsed)...",
+                    f"Semantic search index still building ({wait_minutes}m elapsed)...",
                 )
-            qa_thread.join(timeout=QA_JOIN_TIMEOUT_SECONDS)
+            semantic_thread.join(timeout=SEMANTIC_JOIN_TIMEOUT_SECONDS)
             wait_count += 1
 
-        if qa_thread.is_alive():
+        if semantic_thread.is_alive():
             logger.warning(
-                "Q&A thread still running after %d minutes, continuing without waiting",
-                QA_MAX_WAIT_MINUTES,
+                "Semantic search thread still running after %d minutes, continuing without waiting",
+                SEMANTIC_MAX_WAIT_MINUTES,
             )
             self.send_progress(100, "Search index taking too long, proceeding without it...")
             self.ui_queue.put(
@@ -545,20 +545,24 @@ class ProgressiveExtractionWorker(BaseWorker):
                     "Search index timed out. Search tab may not work for this session."
                 )
             )
-            self.ui_queue.put(QueueMessage.qa_error("Search index timed out"))
-        elif not self._qa_succeeded.is_set():
+            self.ui_queue.put(QueueMessage.semantic_error("Search index timed out"))
+        elif not self._search_succeeded.is_set():
             # Thread exited but didn't signal success -- it crashed
-            with self._qa_error_lock:
-                error_detail = self._qa_error_msg or "unknown error"
+            with self._search_error_lock:
+                error_detail = self._search_error_msg or "unknown error"
             logger.error("Search index thread failed: %s", error_detail)
             self.send_progress(100, "Search indexing failed, vocabulary results still available.")
-            self.ui_queue.put(QueueMessage.qa_error(f"Q&A thread failed: {error_detail}"))
+            self.ui_queue.put(
+                QueueMessage.semantic_error(f"Semantic search thread failed: {error_detail}")
+            )
 
     def _build_vector_store(self):
         """Build vector store for search (Phase 2) - runs in parallel thread."""
         try:
             logger.debug("Phase 2: Building vector store...")
-            self.ui_queue.put(QueueMessage.progress(20, "Phase 2: Building Q&A index..."))
+            self.ui_queue.put(
+                QueueMessage.progress(20, "Phase 2: Building semantic search index...")
+            )
 
             from src.core.chunking import create_unified_chunker
             from src.core.vector_store import VectorStoreBuilder
@@ -652,7 +656,9 @@ class ProgressiveExtractionWorker(BaseWorker):
 
             # Guard: skip sending messages if extraction was cancelled
             if self.is_stopped:
-                logger.debug("Phase 2: Cancelled — discarding qa_ready/trigger_default_qa")
+                logger.debug(
+                    "Phase 2: Cancelled — discarding semantic_ready/trigger_default_semantic"
+                )
                 return
 
             # Extract chunk texts and metadata for key excerpts (reuses embeddings)
@@ -662,7 +668,7 @@ class ProgressiveExtractionWorker(BaseWorker):
             ]
 
             self.ui_queue.put(
-                QueueMessage.qa_ready(
+                QueueMessage.semantic_ready(
                     vector_store_path=result.persist_dir,
                     embeddings=self.embeddings,
                     chunk_count=result.chunk_count,
@@ -674,20 +680,20 @@ class ProgressiveExtractionWorker(BaseWorker):
             )
 
             # Trigger default questions if enabled
-            logger.debug("Triggering default Q&A check")
+            logger.debug("Triggering default semantic search check")
             self.ui_queue.put(
-                QueueMessage.trigger_default_qa(
+                QueueMessage.trigger_default_semantic(
                     vector_store_path=result.persist_dir,
                     embeddings=self.embeddings,
                 )
             )
 
             # Signal success so the main thread knows we didn't crash
-            self._qa_succeeded.set()
+            self._search_succeeded.set()
 
         except Exception as e:
-            logger.error("Q&A indexing failed: %s", e, exc_info=True)
-            with self._qa_error_lock:
-                self._qa_error_msg = str(e)
-            self.ui_queue.put(QueueMessage.status_error("Q&A indexing failed"))
-            self.ui_queue.put(QueueMessage.qa_error(str(e)))
+            logger.error("Semantic search indexing failed: %s", e, exc_info=True)
+            with self._search_error_lock:
+                self._search_error_msg = str(e)
+            self.ui_queue.put(QueueMessage.status_error("Semantic search indexing failed"))
+            self.ui_queue.put(QueueMessage.semantic_error(str(e)))

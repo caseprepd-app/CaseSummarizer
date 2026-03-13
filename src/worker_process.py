@@ -1,7 +1,7 @@
 """
 Worker Subprocess Entry Point
 
-Runs pipeline work (extraction, Q&A, summarization) in a separate process
+Runs pipeline work (extraction, semantic search) in a separate process
 to avoid GIL contention with the Tkinter event loop. Workers write to an
 internal queue.Queue; a forwarder thread bridges messages to the
 multiprocessing.Queue consumed by the GUI.
@@ -80,7 +80,7 @@ def worker_process_main(command_queue, result_queue):
         "chunk_scores": None,
         "documents": None,
         "active_worker": None,
-        "auto_qa_worker": None,
+        "auto_semantic_worker": None,
         "ask_default_questions": True,
         "shutdown": threading.Event(),
         "worker_lock": threading.Lock(),
@@ -207,10 +207,10 @@ def _run_extraction(args, internal_queue, state):
     """Spawn ProgressiveExtractionWorker for vocabulary extraction."""
     from src.services.workers import ProgressiveExtractionWorker
 
-    # Save checkbox state so trigger_default_qa can check it later
+    # Save checkbox state so trigger_default_semantic can check it later
     with state["worker_lock"]:
         state["ask_default_questions"] = args.get("ask_default_questions", True)
-        # Save documents for key excerpts extraction (triggered at qa_ready)
+        # Save documents for key excerpts extraction (triggered at semantic_ready)
         state["documents"] = args.get("documents")
 
     worker = ProgressiveExtractionWorker(
@@ -230,17 +230,17 @@ def _run_extraction(args, internal_queue, state):
 
 
 def _run_qa(args, internal_queue, state):
-    """Spawn QAWorker for default questions."""
+    """Spawn SemanticWorker for default questions."""
     vector_store_path = state.get("vector_store_path")
     embeddings = state.get("embeddings")
 
     if not vector_store_path or not embeddings:
-        internal_queue.put(("error", "Q&A not ready: no vector store or embeddings"))
+        internal_queue.put(("error", "Semantic search not ready: no vector store or embeddings"))
         return
 
-    from src.services.workers import QAWorker
+    from src.services.workers import SemanticWorker
 
-    worker = QAWorker(
+    worker = SemanticWorker(
         vector_store_path=vector_store_path,
         embeddings=embeddings,
         ui_queue=internal_queue,
@@ -262,23 +262,23 @@ def _run_followup(args, internal_queue, state):
     embeddings = state.get("embeddings")
 
     if not vector_store_path or not embeddings:
-        internal_queue.put(("qa_followup_result", None))
+        internal_queue.put(("semantic_followup_result", None))
         return
 
     def do_followup():
         try:
-            from src.core.qa import QAOrchestrator
+            from src.core.semantic import SemanticOrchestrator
 
-            orchestrator = QAOrchestrator(
+            orchestrator = SemanticOrchestrator(
                 vector_store_path=vector_store_path,
                 embeddings=embeddings,
             )
             result = orchestrator.ask_followup(question)
             logger.debug("Follow-up answered: %d chars", len(result.answer) if result else 0)
-            internal_queue.put(("qa_followup_result", result))
+            internal_queue.put(("semantic_followup_result", result))
         except Exception as e:
             logger.error("Follow-up error: %s", e, exc_info=True)
-            internal_queue.put(("qa_followup_result", None))
+            internal_queue.put(("semantic_followup_result", None))
 
     thread = threading.Thread(target=do_followup, daemon=True, name="followup")
     thread.start()
@@ -296,10 +296,10 @@ def _stop_active_worker(state):
             worker.stop()
         worker.join(timeout=2.0)
 
-    # Also stop auto-spawned QA worker if running
+    # Also stop auto-spawned semantic worker if running
     with state["worker_lock"]:
-        auto_qa = state.get("auto_qa_worker")
-        state["auto_qa_worker"] = None
+        auto_qa = state.get("auto_semantic_worker")
+        state["auto_semantic_worker"] = None
     if auto_qa and hasattr(auto_qa, "is_alive") and auto_qa.is_alive():
         if hasattr(auto_qa, "stop"):
             auto_qa.stop()
@@ -311,10 +311,10 @@ def _forwarder_loop(internal_queue, result_queue, command_queue, state):
     Forward messages from internal_queue to result_queue.
 
     Intercepts:
-    - qa_ready: saves embeddings/vector_store_path in state, strips
-      embeddings from forwarded message (not picklable)
-    - trigger_default_qa: auto-spawns QAWorker in subprocess, sends
-      trigger_default_qa_started to GUI instead
+    - semantic_ready: saves embeddings/vector_store_path in state, strips
+      embeddings from forwarded message (not picklable), forwards as semantic_ready
+    - trigger_default_semantic: auto-spawns SemanticWorker in subprocess, sends
+      trigger_default_semantic_started to GUI instead
 
     All other messages are forwarded as-is.
 
@@ -370,7 +370,7 @@ def _forward_message(msg_type, data, internal_queue, result_queue, state):
         result_queue: mp.Queue for GUI consumption
         state: shared subprocess state
     """
-    if msg_type == "qa_ready":
+    if msg_type == "semantic_ready":
         # Save embeddings and vector store path in subprocess state
         with state["worker_lock"]:
             state["embeddings"] = data.get("embeddings")
@@ -386,38 +386,38 @@ def _forward_message(msg_type, data, internal_queue, result_queue, state):
             data.get("chunk_count", "?"),
         )
 
-        # Forward qa_ready WITHOUT embeddings/chunk data (not picklable or too large)
+        # Forward semantic_ready WITHOUT embeddings/chunk data (not picklable or too large)
         forwarded_data = {
             "vector_store_path": data.get("vector_store_path"),
             "chunk_count": data.get("chunk_count", 0),
             "chunk_scores": data.get("chunk_scores"),
         }
-        result_queue.put(("qa_ready", forwarded_data))
+        result_queue.put(("semantic_ready", forwarded_data))
 
         # Spawn key excerpts extraction as fire-and-forget daemon thread
         _spawn_key_sentences(state, internal_queue)
 
-    elif msg_type == "trigger_default_qa":
+    elif msg_type == "trigger_default_semantic":
         # Skip if user unchecked the default questions checkbox
         if not state.get("ask_default_questions", True):
-            logger.debug("Default questions disabled by user, skipping QAWorker")
-            result_queue.put(("qa_complete", []))
+            logger.debug("Default questions disabled by user, skipping SemanticWorker")
+            result_queue.put(("semantic_complete", []))
             return
 
-        # Auto-spawn QAWorker in subprocess instead of forwarding
-        logger.debug("Intercepted trigger_default_qa, auto-spawning QAWorker")
-        result_queue.put(("trigger_default_qa_started", None))
+        # Auto-spawn SemanticWorker in subprocess instead of forwarding
+        logger.debug("Intercepted trigger_default_semantic, auto-spawning SemanticWorker")
+        result_queue.put(("trigger_default_semantic_started", None))
 
-        # Spawn QAWorker using saved state
+        # Spawn SemanticWorker using saved state
         try:
-            from src.services.workers import QAWorker
+            from src.services.workers import SemanticWorker
 
             with state["worker_lock"]:
                 embeddings = state.get("embeddings")
                 vector_store_path = data.get("vector_store_path") or state.get("vector_store_path")
 
             if embeddings and vector_store_path:
-                qa_worker = QAWorker(
+                semantic_worker = SemanticWorker(
                     vector_store_path=vector_store_path,
                     embeddings=embeddings,
                     ui_queue=internal_queue,
@@ -425,15 +425,17 @@ def _forward_message(msg_type, data, internal_queue, result_queue, state):
                     use_default_questions=True,
                 )
                 with state["worker_lock"]:
-                    state["auto_qa_worker"] = qa_worker
-                qa_worker.start()
-                logger.debug("Default QAWorker started in subprocess")
+                    state["auto_semantic_worker"] = semantic_worker
+                semantic_worker.start()
+                logger.debug("Default SemanticWorker started in subprocess")
             else:
-                logger.warning("Cannot start default Q&A: missing embeddings or vector_store_path")
-                result_queue.put(("qa_complete", []))
+                logger.warning(
+                    "Cannot start default semantic search: missing embeddings or vector_store_path"
+                )
+                result_queue.put(("semantic_complete", []))
         except Exception as e:
-            logger.error("Failed to start default QAWorker: %s", e, exc_info=True)
-            result_queue.put(("error", f"Default Q&A failed: {e}"))
+            logger.error("Failed to start default SemanticWorker: %s", e, exc_info=True)
+            result_queue.put(("error", f"Default semantic search failed: {e}"))
 
     else:
         # Forward all other messages as-is
@@ -451,16 +453,16 @@ def _forward_message(msg_type, data, internal_queue, result_queue, state):
 
 def _spawn_key_sentences(state, internal_queue):
     """
-    Spawn a daemon thread to extract key excerpts after Q&A indexing.
+    Spawn a daemon thread to extract key excerpts after semantic search indexing.
 
     Uses pre-computed chunk embeddings from the vector store builder —
     no re-splitting or re-embedding needed.
 
-    Fire-and-forget — key excerpts are a side effect of Q&A indexing,
+    Fire-and-forget — key excerpts are a side effect of semantic search indexing,
     not a tracked task.
 
     Args:
-        state: shared subprocess state (must have chunk data from qa_ready)
+        state: shared subprocess state (must have chunk data from semantic_ready)
         internal_queue: Queue to put the result on
     """
     with state["worker_lock"]:

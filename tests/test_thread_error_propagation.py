@@ -2,9 +2,9 @@
 Tests for thread error propagation fixes.
 
 Covers:
-- Q&A daemon thread signals success/failure to main thread via threading.Event
-- Main thread detects Q&A thread crash vs. successful completion
-- Main thread sends status_error on Q&A timeout
+- semantic search daemon thread signals success/failure to main thread via threading.Event
+- Main thread detects semantic search thread crash vs. successful completion
+- Main thread sends status_error on semantic search timeout
 - (GLiNER warm-up timeout tests moved to tests/deprecated/ with algorithm)
 """
 
@@ -13,12 +13,12 @@ from queue import Queue
 from unittest.mock import MagicMock, patch
 
 # ---------------------------------------------------------------------------
-# Q&A thread error propagation (workers.py)
+# semantic search thread error propagation (workers.py)
 # ---------------------------------------------------------------------------
 
 
 class TestQAThreadErrorPropagation:
-    """Test that the main thread detects Q&A thread success vs. failure."""
+    """Test that the main thread detects semantic search thread success vs. failure."""
 
     def _make_worker(self):
         """Create a ProgressiveExtractionWorker with minimal config."""
@@ -38,8 +38,8 @@ class TestQAThreadErrorPropagation:
         worker = self._make_worker()
 
         # Initialize the event and error fields (normally done in execute())
-        worker._qa_succeeded = threading.Event()
-        worker._qa_error_msg = None
+        worker._search_succeeded = threading.Event()
+        worker._search_error_msg = None
 
         # Mock the heavy imports and operations inside _build_vector_store
         mock_chunker = MagicMock()
@@ -59,17 +59,17 @@ class TestQAThreadErrorPropagation:
         ):
             worker._build_vector_store()
 
-        assert worker._qa_succeeded.is_set(), "Success event should be set"
-        assert worker._qa_error_msg is None, "No error message on success"
+        assert worker._search_succeeded.is_set(), "Success event should be set"
+        assert worker._search_error_msg is None, "No error message on success"
 
     @patch("src.services.workers.VocabularyExtractor")
     def test_qa_failure_stores_error_message(self, mock_extractor_cls):
-        """When _build_vector_store crashes, _qa_error_msg should be set."""
+        """When _build_vector_store crashes, _search_error_msg should be set."""
         worker = self._make_worker()
 
         # Initialize the event and error fields
-        worker._qa_succeeded = threading.Event()
-        worker._qa_error_msg = None
+        worker._search_succeeded = threading.Event()
+        worker._search_error_msg = None
 
         # Make the chunker import raise an exception
         with patch(
@@ -78,15 +78,15 @@ class TestQAThreadErrorPropagation:
         ):
             worker._build_vector_store()
 
-        assert not worker._qa_succeeded.is_set(), "Success event should NOT be set"
-        assert worker._qa_error_msg == "embedding model failed"
+        assert not worker._search_succeeded.is_set(), "Success event should NOT be set"
+        assert worker._search_error_msg == "embedding model failed"
 
     @patch("src.services.workers.VocabularyExtractor")
     def test_qa_failure_sends_error_to_queue(self, mock_extractor_cls):
         """When _build_vector_store crashes, error messages go to UI queue."""
         worker = self._make_worker()
-        worker._qa_succeeded = threading.Event()
-        worker._qa_error_msg = None
+        worker._search_succeeded = threading.Event()
+        worker._search_error_msg = None
 
         with patch(
             "src.core.chunking.create_unified_chunker",
@@ -99,7 +99,7 @@ class TestQAThreadErrorPropagation:
         while not worker.ui_queue.empty():
             messages.append(worker.ui_queue.get_nowait())
 
-        # Should have status_error and qa_error messages
+        # Should have status_error and semantic_error messages
         msg_types = [m[0] if isinstance(m, tuple) else m for m in messages]
         assert "status_error" in msg_types, f"Expected status_error in {msg_types}"
-        assert "qa_error" in msg_types, f"Expected qa_error in {msg_types}"
+        assert "semantic_error" in msg_types, f"Expected semantic_error in {msg_types}"

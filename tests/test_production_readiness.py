@@ -147,7 +147,7 @@ class TestRetrievalWeightValidation:
 
     def test_valid_weights_pass_through(self):
         """Valid float weights should be used."""
-        from src.core.vector_store.qa_retriever import _get_effective_algorithm_weights
+        from src.core.vector_store.semantic_retriever import _get_effective_algorithm_weights
 
         class FakePrefs:
             def get(self, key, default=None):
@@ -168,7 +168,7 @@ class TestRetrievalWeightValidation:
     def test_string_weight_falls_back_to_default(self):
         """String weight should fall back to config default."""
         from src.config import RETRIEVAL_ALGORITHM_WEIGHTS
-        from src.core.vector_store.qa_retriever import _get_effective_algorithm_weights
+        from src.core.vector_store.semantic_retriever import _get_effective_algorithm_weights
 
         class FakePrefs:
             def get(self, key, default=None):
@@ -369,15 +369,6 @@ class TestConfigFileParsing:
 
 class TestBundledModels:
     """Verify ML model directories exist and contain files."""
-
-    def test_hallucination_model_exists(self):
-        """Hallucination detection model directory must exist and be non-empty."""
-        from src.config import HALLUCINATION_MODEL_LOCAL_PATH
-
-        assert HALLUCINATION_MODEL_LOCAL_PATH.is_dir(), f"Missing: {HALLUCINATION_MODEL_LOCAL_PATH}"
-        assert any(HALLUCINATION_MODEL_LOCAL_PATH.iterdir()), (
-            f"Empty: {HALLUCINATION_MODEL_LOCAL_PATH}"
-        )
 
     def test_embedding_model_exists(self):
         """Embedding model directory must exist and be non-empty."""

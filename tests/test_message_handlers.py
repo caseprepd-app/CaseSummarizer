@@ -18,20 +18,20 @@ def _make_stub():
     """Create a stub with the same attributes MainWindow._handle_queue_message uses."""
     stub = MagicMock()
     # State attributes
-    stub._qa_ready = False
-    stub._qa_answering_active = False
-    stub._qa_results = []
-    stub._qa_results_lock = threading.Lock()
+    stub._semantic_ready = False
+    stub._semantic_answering_active = False
+    stub._semantic_results = []
+    stub._semantic_results_lock = threading.Lock()
     stub._pending_tasks = {
         "vocab": True,
-        "qa": True,
+        "semantic": True,
     }
     stub._completed_tasks = set()
     stub._vector_store_path = None
     stub.processing_results = []
     stub._processing_active = False
     stub._preprocessing_active = False
-    stub._qa_failed = False
+    stub._semantic_failed = False
     # Widget mocks
     stub.followup_btn = MagicMock()
     stub.followup_entry = MagicMock()
@@ -73,11 +73,11 @@ class TestProgressHandler:
         _call_handler(stub, "progress", (90, "Stale progress"))
         stub.set_status.assert_not_called()
 
-    def test_appends_qa_note_when_qa_ready(self):
+    def test_appends_qa_note_when_semantic_ready(self):
         """When Q&A index is ready, append answering note to status."""
         stub = _make_stub()
         stub._processing_active = True
-        stub._qa_ready = True
+        stub._semantic_ready = True
         _call_handler(stub, "progress", (75, "LLM chunk 3/5"))
         call_args = stub.set_status.call_args[0][0]
         assert "(searching documents...)" in call_args
@@ -86,7 +86,7 @@ class TestProgressHandler:
         """Don't append search note if message already mentions search."""
         stub = _make_stub()
         stub._processing_active = True
-        stub._qa_ready = True
+        stub._semantic_ready = True
         _call_handler(stub, "progress", (75, "Running search 2/5..."))
         call_args = stub.set_status.call_args[0][0]
         assert "(searching documents...)" not in call_args
@@ -95,7 +95,7 @@ class TestProgressHandler:
         """Don't append search note if message already mentions Search (capitalized)."""
         stub = _make_stub()
         stub._processing_active = True
-        stub._qa_ready = True
+        stub._semantic_ready = True
         _call_handler(stub, "progress", (75, "Search indexing..."))
         call_args = stub.set_status.call_args[0][0]
         assert "(searching documents...)" not in call_args
@@ -290,7 +290,7 @@ class TestNERCompleteHandler:
         stub = _make_stub()
         stub._pending_tasks = {
             "vocab": True,
-            "qa": False,
+            "semantic": False,
         }
         terms = [{"term": "John Smith"}, {"term": "plaintiff"}]
         _call_handler(stub, "ner_complete", {"vocab": terms, "filtered": []})
@@ -303,7 +303,7 @@ class TestNERCompleteHandler:
         stub = _make_stub()
         stub._pending_tasks = {
             "vocab": True,
-            "qa": False,
+            "semantic": False,
         }
         _call_handler(stub, "ner_complete", {"vocab": [{"term": "a"}], "filtered": []})
         stub.output_display.set_extraction_source.assert_called_once_with("ner")
@@ -313,7 +313,7 @@ class TestNERCompleteHandler:
         stub = _make_stub()
         stub._pending_tasks = {
             "vocab": True,
-            "qa": False,
+            "semantic": False,
         }
         _call_handler(stub, "ner_complete", {"vocab": [{"term": "a"}], "filtered": []})
         assert "vocab" in stub._completed_tasks
@@ -323,7 +323,7 @@ class TestNERCompleteHandler:
         stub = _make_stub()
         stub._pending_tasks = {
             "vocab": True,
-            "qa": True,
+            "semantic": True,
         }
         _call_handler(stub, "ner_complete", {"vocab": [{"term": "a"}], "filtered": []})
         call_args = stub.set_status.call_args[0][0]
@@ -334,7 +334,7 @@ class TestNERCompleteHandler:
         stub = _make_stub()
         stub._pending_tasks = {
             "vocab": True,
-            "qa": False,
+            "semantic": False,
         }
         _call_handler(stub, "ner_complete", {"vocab": [{"term": "a"}], "filtered": []})
         call_args = stub.set_status.call_args[0][0]
@@ -342,29 +342,29 @@ class TestNERCompleteHandler:
 
 
 # ---------------------------------------------------------------------------
-# qa_ready handler
+# semantic_ready handler
 # ---------------------------------------------------------------------------
 
 
 class TestQAReadyHandler:
-    """Tests for 'qa_ready' message handler."""
+    """Tests for 'semantic_ready' message handler."""
 
-    def test_sets_qa_ready_flag(self):
-        """qa_ready sets _qa_ready to True."""
+    def test_sets_semantic_ready_flag(self):
+        """semantic_ready sets _semantic_ready to True."""
         stub = _make_stub()
-        _call_handler(stub, "qa_ready", {"chunk_count": 50, "vector_store_path": "/tmp/vs"})
-        assert stub._qa_ready is True
+        _call_handler(stub, "semantic_ready", {"chunk_count": 50, "vector_store_path": "/tmp/vs"})
+        assert stub._semantic_ready is True
 
     def test_stores_vector_store_path(self):
-        """qa_ready stores the vector store path."""
+        """semantic_ready stores the vector store path."""
         stub = _make_stub()
-        _call_handler(stub, "qa_ready", {"chunk_count": 50, "vector_store_path": "/tmp/vs"})
+        _call_handler(stub, "semantic_ready", {"chunk_count": 50, "vector_store_path": "/tmp/vs"})
         assert stub._vector_store_path == "/tmp/vs"
 
     def test_enables_followup_controls(self):
-        """qa_ready enables follow-up button and entry with white placeholder."""
+        """semantic_ready enables follow-up button and entry with white placeholder."""
         stub = _make_stub()
-        _call_handler(stub, "qa_ready", {"chunk_count": 50})
+        _call_handler(stub, "semantic_ready", {"chunk_count": 50})
         stub.followup_btn.configure.assert_called_with(state="normal")
         stub.followup_entry.configure.assert_any_call(
             state="normal",
@@ -373,10 +373,10 @@ class TestQAReadyHandler:
         )
 
     def test_does_not_mark_qa_complete(self):
-        """qa_ready should NOT add 'qa' to _completed_tasks."""
+        """semantic_ready should NOT add 'qa' to _completed_tasks."""
         stub = _make_stub()
-        _call_handler(stub, "qa_ready", {"chunk_count": 50})
-        assert "qa" not in stub._completed_tasks
+        _call_handler(stub, "semantic_ready", {"chunk_count": 50})
+        assert "semantic" not in stub._completed_tasks
 
 
 # ---------------------------------------------------------------------------
@@ -388,22 +388,23 @@ class TestQAErrorHandler:
     """Tests for 'qa_error' message handler."""
 
     def test_clears_qa_answering_flag(self):
-        """qa_error clears _qa_answering_active."""
+        """qa_error clears _semantic_answering_active."""
         stub = _make_stub()
-        stub._qa_answering_active = True
-        _call_handler(stub, "qa_error", {"error": "Model failed"})
-        assert stub._qa_answering_active is False
+        stub._semantic_answering_active = True
+        _call_handler(stub, "semantic_error", {"error": "Model failed"})
+        assert stub._semantic_answering_active is False
 
-    def test_marks_qa_complete_when_pending(self):
-        """qa_error marks Q&A as completed when it was a pending task."""
+    def test_marks_qa_failed_when_pending(self):
+        """qa_error marks Q&A as failed when it was a pending task."""
         stub = _make_stub()
-        _call_handler(stub, "qa_error", {"error": "fail"})
-        assert "qa" in stub._completed_tasks
+        stub._failed_tasks = set()
+        _call_handler(stub, "semantic_error", {"error": "fail"})
+        assert "semantic" in stub._failed_tasks
 
     def test_shows_error_in_status(self):
         """qa_error shows error message in status bar."""
         stub = _make_stub()
-        _call_handler(stub, "qa_error", {"error": "Connection failed"})
+        _call_handler(stub, "semantic_error", {"error": "Connection failed"})
         stub.set_status_error.assert_called_once()
         call_args = stub.set_status_error.call_args[0][0]
         assert "Connection failed" in call_args
@@ -411,7 +412,7 @@ class TestQAErrorHandler:
     def test_handles_string_error_data(self):
         """qa_error handles plain string error data."""
         stub = _make_stub()
-        _call_handler(stub, "qa_error", "plain error string")
+        _call_handler(stub, "semantic_error", "plain error string")
         stub.set_status_error.assert_called_once()
 
     def test_triggers_finalization_when_all_complete(self):
@@ -419,23 +420,23 @@ class TestQAErrorHandler:
         stub = _make_stub()
         stub._pending_tasks = {
             "vocab": True,
-            "qa": True,
+            "semantic": True,
         }
         stub._completed_tasks = {"vocab"}
         stub._all_tasks_complete = MagicMock(return_value=True)
-        _call_handler(stub, "qa_error", {"error": "fail"})
+        _call_handler(stub, "semantic_error", {"error": "fail"})
         stub._finalize_tasks.assert_called_once()
 
-    def test_sets_qa_failed_flag(self):
-        """qa_error should set _qa_failed = True."""
+    def test_sets_semantic_failed_flag(self):
+        """qa_error should set _semantic_failed = True."""
         stub = _make_stub()
-        _call_handler(stub, "qa_error", {"error": "Embedding model not available"})
-        assert stub._qa_failed is True
+        _call_handler(stub, "semantic_error", {"error": "Embedding model not available"})
+        assert stub._semantic_failed is True
 
     def test_disables_followup_entry_with_message(self):
         """qa_error should disable followup_entry with explanatory placeholder."""
         stub = _make_stub()
-        _call_handler(stub, "qa_error", {"error": "Embedding model not available"})
+        _call_handler(stub, "semantic_error", {"error": "Embedding model not available"})
         stub.followup_entry.configure.assert_called_once()
         call_kwargs = stub.followup_entry.configure.call_args[1]
         assert call_kwargs["state"] == "disabled"
@@ -444,36 +445,36 @@ class TestQAErrorHandler:
     def test_disables_followup_button(self):
         """qa_error should disable followup_btn."""
         stub = _make_stub()
-        _call_handler(stub, "qa_error", {"error": "fail"})
+        _call_handler(stub, "semantic_error", {"error": "fail"})
         stub.followup_btn.configure.assert_called_with(state="disabled")
 
 
 # ---------------------------------------------------------------------------
-# trigger_default_qa_started handler
+# trigger_default_semantic_started handler
 # ---------------------------------------------------------------------------
 
 
 class TestTriggerDefaultQAStartedHandler:
-    """Tests for 'trigger_default_qa_started' message handler."""
+    """Tests for 'trigger_default_semantic_started' message handler."""
 
-    def test_sets_qa_answering_active(self):
-        """trigger_default_qa_started sets _qa_answering_active = True."""
+    def test_sets_semantic_answering_active(self):
+        """trigger_default_semantic_started sets _semantic_answering_active = True."""
         stub = _make_stub()
-        _call_handler(stub, "trigger_default_qa_started", {})
-        assert stub._qa_answering_active is True
+        _call_handler(stub, "trigger_default_semantic_started", {})
+        assert stub._semantic_answering_active is True
 
     def test_updates_workflow_phase_when_defaults_enabled(self):
-        """When default questions enabled, sets workflow phase to QA_ANSWERING."""
+        """When default questions enabled, sets workflow phase to SEMANTIC_SEARCHING."""
         stub = _make_stub()
         stub.ask_default_questions_check.get.return_value = True
-        _call_handler(stub, "trigger_default_qa_started", {})
+        _call_handler(stub, "trigger_default_semantic_started", {})
         stub.output_display.set_workflow_phase.assert_called_once()
 
     def test_shows_ready_message_when_defaults_disabled(self):
         """When default questions disabled, shows ready-to-search message via set_status."""
         stub = _make_stub()
         stub.ask_default_questions_check.get.return_value = False
-        _call_handler(stub, "trigger_default_qa_started", {})
+        _call_handler(stub, "trigger_default_semantic_started", {})
         stub.set_status.assert_called_once()
         msg = stub.set_status.call_args[0][0]
         assert "search" in msg.lower()
@@ -490,21 +491,21 @@ class TestQAProgressHandler:
     def test_updates_status_with_progress(self):
         """qa_progress shows next question number in status."""
         stub = _make_stub()
-        _call_handler(stub, "qa_progress", (2, 5, "Who is the plaintiff?"))
+        _call_handler(stub, "semantic_progress", (2, 5, "Who is the plaintiff?"))
         call_args = stub.set_status.call_args[0][0]
         assert "4/5" in call_args  # answered 3, now working on 4
 
     def test_first_question(self):
         """qa_progress shows working on 2/N after first answer."""
         stub = _make_stub()
-        _call_handler(stub, "qa_progress", (0, 3, "Question 1"))
+        _call_handler(stub, "semantic_progress", (0, 3, "Question 1"))
         call_args = stub.set_status.call_args[0][0]
         assert "2/3" in call_args
 
     def test_last_question(self):
         """qa_progress shows 'Completed N/N searches' on the last question."""
         stub = _make_stub()
-        _call_handler(stub, "qa_progress", (4, 5, "Last question"))
+        _call_handler(stub, "semantic_progress", (4, 5, "Last question"))
         call_args = stub.set_status.call_args[0][0]
         assert "5/5" in call_args
         assert "Completed" in call_args
@@ -515,30 +516,30 @@ class TestQAProgressHandler:
 # ---------------------------------------------------------------------------
 
 
-class TestQAResultHandler:
+class TestSemanticResultHandler:
     """Tests for 'qa_result' message handler."""
 
     def test_appends_result_to_list(self):
-        """qa_result adds individual result to _qa_results."""
+        """qa_result adds individual result to _semantic_results."""
         stub = _make_stub()
         result = MagicMock(question="Who?", quick_answer="John")
-        _call_handler(stub, "qa_result", result)
-        assert result in stub._qa_results
+        _call_handler(stub, "semantic_result", result)
+        assert result in stub._semantic_results
 
     def test_updates_output_display(self):
         """qa_result triggers output display update."""
         stub = _make_stub()
         result = MagicMock()
-        _call_handler(stub, "qa_result", result)
+        _call_handler(stub, "semantic_result", result)
         stub.output_display.update_outputs.assert_called_once()
 
     def test_multiple_results_accumulate(self):
-        """Multiple qa_result messages accumulate in _qa_results."""
+        """Multiple qa_result messages accumulate in _semantic_results."""
         stub = _make_stub()
-        _call_handler(stub, "qa_result", MagicMock())
-        _call_handler(stub, "qa_result", MagicMock())
-        _call_handler(stub, "qa_result", MagicMock())
-        assert len(stub._qa_results) == 3
+        _call_handler(stub, "semantic_result", MagicMock())
+        _call_handler(stub, "semantic_result", MagicMock())
+        _call_handler(stub, "semantic_result", MagicMock())
+        assert len(stub._semantic_results) == 3
 
     def test_thread_safe_access(self):
         """qa_result uses lock for thread-safe list access."""
@@ -555,8 +556,8 @@ class TestQAResultHandler:
             def __exit__(self, *args):
                 return real_lock.__exit__(*args)
 
-        stub._qa_results_lock = TrackingLock()
-        _call_handler(stub, "qa_result", MagicMock())
+        stub._semantic_results_lock = TrackingLock()
+        _call_handler(stub, "semantic_result", MagicMock())
         assert len(lock_entered) == 1
 
 
@@ -568,35 +569,35 @@ class TestQAResultHandler:
 class TestQACompleteHandler:
     """Tests for 'qa_complete' message handler."""
 
-    def test_replaces_qa_results(self):
-        """qa_complete replaces _qa_results with final list."""
+    def test_replaces_semantic_results(self):
+        """qa_complete replaces _semantic_results with final list."""
         stub = _make_stub()
-        stub._qa_results = [MagicMock()]  # Pre-existing
+        stub._semantic_results = [MagicMock()]  # Pre-existing
         final_results = [MagicMock(), MagicMock()]
         stub._all_tasks_complete = MagicMock(return_value=False)
-        _call_handler(stub, "qa_complete", final_results)
-        assert stub._qa_results == final_results
+        _call_handler(stub, "semantic_complete", final_results)
+        assert stub._semantic_results == final_results
 
     def test_clears_qa_answering_flag(self):
-        """qa_complete clears _qa_answering_active."""
+        """qa_complete clears _semantic_answering_active."""
         stub = _make_stub()
-        stub._qa_answering_active = True
+        stub._semantic_answering_active = True
         stub._all_tasks_complete = MagicMock(return_value=False)
-        _call_handler(stub, "qa_complete", [MagicMock()])
-        assert stub._qa_answering_active is False
+        _call_handler(stub, "semantic_complete", [MagicMock()])
+        assert stub._semantic_answering_active is False
 
     def test_marks_qa_completed(self):
         """qa_complete adds 'qa' to _completed_tasks."""
         stub = _make_stub()
         stub._all_tasks_complete = MagicMock(return_value=False)
-        _call_handler(stub, "qa_complete", [MagicMock()])
-        assert "qa" in stub._completed_tasks
+        _call_handler(stub, "semantic_complete", [MagicMock()])
+        assert "semantic" in stub._completed_tasks
 
     def test_enables_followup_button(self):
         """qa_complete enables the follow-up button."""
         stub = _make_stub()
         stub._all_tasks_complete = MagicMock(return_value=False)
-        _call_handler(stub, "qa_complete", [MagicMock()])
+        _call_handler(stub, "semantic_complete", [MagicMock()])
         stub.followup_btn.configure.assert_called_with(state="normal")
 
     def test_updates_display_with_results(self):
@@ -604,14 +605,14 @@ class TestQACompleteHandler:
         stub = _make_stub()
         results = [MagicMock()]
         stub._all_tasks_complete = MagicMock(return_value=False)
-        _call_handler(stub, "qa_complete", results)
-        stub.output_display.update_outputs.assert_called_once_with(qa_results=results)
+        _call_handler(stub, "semantic_complete", results)
+        stub.output_display.update_outputs.assert_called_once_with(semantic_results=results)
 
     def test_no_display_update_with_empty_results(self):
         """qa_complete skips display update when no results."""
         stub = _make_stub()
         stub._all_tasks_complete = MagicMock(return_value=False)
-        _call_handler(stub, "qa_complete", [])
+        _call_handler(stub, "semantic_complete", [])
         stub.output_display.update_outputs.assert_not_called()
 
     def test_triggers_finalization_when_all_complete(self):
@@ -619,19 +620,19 @@ class TestQACompleteHandler:
         stub = _make_stub()
         stub._pending_tasks = {
             "vocab": True,
-            "qa": True,
+            "semantic": True,
         }
         stub._completed_tasks = {"vocab"}
         stub._all_tasks_complete = MagicMock(return_value=True)
-        _call_handler(stub, "qa_complete", [MagicMock()])
+        _call_handler(stub, "semantic_complete", [MagicMock()])
         stub._finalize_tasks.assert_called_once()
 
     def test_handles_none_data(self):
         """qa_complete handles None data gracefully."""
         stub = _make_stub()
         stub._all_tasks_complete = MagicMock(return_value=False)
-        _call_handler(stub, "qa_complete", None)
-        assert stub._qa_results == []
+        _call_handler(stub, "semantic_complete", None)
+        assert stub._semantic_results == []
 
 
 # ---------------------------------------------------------------------------
@@ -674,40 +675,40 @@ class TestMessageSequences:
         _call_handler(stub, "extraction_complete", None)
         stub.output_display.set_extraction_in_progress.assert_called_with(False)
 
-    def test_qa_ready_then_trigger_then_progress_then_complete(self):
-        """Full Q&A sequence: qa_ready -> trigger -> progress -> complete."""
+    def test_semantic_ready_then_trigger_then_progress_then_complete(self):
+        """Full Q&A sequence: semantic_ready -> trigger -> progress -> complete."""
         stub = _make_stub()
         stub._all_tasks_complete = MagicMock(return_value=False)
 
-        # qa_ready
-        _call_handler(stub, "qa_ready", {"chunk_count": 50, "vector_store_path": "/tmp"})
-        assert stub._qa_ready is True
-        assert "qa" not in stub._completed_tasks
+        # semantic_ready
+        _call_handler(stub, "semantic_ready", {"chunk_count": 50, "vector_store_path": "/tmp"})
+        assert stub._semantic_ready is True
+        assert "semantic" not in stub._completed_tasks
 
-        # trigger_default_qa_started
-        _call_handler(stub, "trigger_default_qa_started", {})
-        assert stub._qa_answering_active is True
+        # trigger_default_semantic_started
+        _call_handler(stub, "trigger_default_semantic_started", {})
+        assert stub._semantic_answering_active is True
 
         # qa_progress
-        _call_handler(stub, "qa_progress", (0, 3, "Question 1"))
+        _call_handler(stub, "semantic_progress", (0, 3, "Question 1"))
 
         # qa_result (individual)
-        _call_handler(stub, "qa_result", MagicMock())
-        assert len(stub._qa_results) == 1
+        _call_handler(stub, "semantic_result", MagicMock())
+        assert len(stub._semantic_results) == 1
 
         # qa_complete
         stub._all_tasks_complete.return_value = True
         final = [MagicMock(), MagicMock(), MagicMock()]
-        _call_handler(stub, "qa_complete", final)
-        assert stub._qa_answering_active is False
-        assert "qa" in stub._completed_tasks
+        _call_handler(stub, "semantic_complete", final)
+        assert stub._semantic_answering_active is False
+        assert "semantic" in stub._completed_tasks
 
     def test_vocab_plus_qa_finalization_order(self):
         """Vocab+Q&A: ner_complete before qa_complete marks vocab done."""
         stub = _make_stub()
         stub._pending_tasks = {
             "vocab": True,
-            "qa": True,
+            "semantic": True,
         }
 
         # NER complete first - should mark vocab done

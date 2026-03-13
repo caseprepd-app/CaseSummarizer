@@ -346,14 +346,12 @@ class TestDownloadScriptCrossReference:
     @pytest.mark.parametrize(
         "config_attr,expected_suffix",
         [
-            ("HALLUCINATION_MODEL_LOCAL_PATH", "tinylettuce-ettin-68m-en"),
             ("EMBEDDING_MODEL_LOCAL_PATH", "embeddings/nomic-embed-text-v1.5"),
             ("SEMANTIC_CHUNKER_MODEL_LOCAL_PATH", "embeddings/all-MiniLM-L6-v2"),
             ("RERANKER_MODEL_LOCAL_PATH", "gte-reranker-modernbert-base"),
             ("COREF_MODEL_LOCAL_PATH", "coref/f-coref"),
         ],
         ids=[
-            "tinylettuce",
             "nomic-embed",
             "all-MiniLM",
             "gte-reranker",
@@ -851,13 +849,6 @@ class TestOptionalPackageBundling:
         assert "_nupunkt_available" in source or "nupunkt" in source.lower()
         assert "warning" in source.lower() or "logger.warning" in source
 
-    def test_lettucedetect_has_graceful_fallback(self):
-        """hallucination_verifier.py handles lettucedetect loading failures."""
-        source_path = PROJECT_ROOT / "src" / "core" / "qa" / "hallucination_verifier.py"
-        source = source_path.read_text(encoding="utf-8")
-        assert "lettucedetect" in source
-        assert "except" in source or "Exception" in source
-
     def test_tkinterdnd2_has_graceful_fallback(self):
         """main_window.py has HAS_DND pattern for tkinterdnd2."""
         source_path = PROJECT_ROOT / "src" / "ui" / "main_window.py"
@@ -887,13 +878,6 @@ class TestOptionalPackageBundling:
             f"collect_data_files('nupunkt') may be incomplete"
         )
 
-    def test_lettucedetect_model_path_in_config(self):
-        """HALLUCINATION_MODEL_LOCAL_PATH is defined in config."""
-        from src.config import HALLUCINATION_MODEL_LOCAL_PATH
-
-        assert HALLUCINATION_MODEL_LOCAL_PATH is not None
-        assert "tinylettuce" in str(HALLUCINATION_MODEL_LOCAL_PATH)
-
     def test_lettucedetect_model_in_download_script(self):
         """tinylettuce model is in download_models.py HF_MODELS."""
         script = _read_download_script()
@@ -918,19 +902,6 @@ class TestOptionalPackageBundling:
 
     # ── 4e. Loading pattern validation ────────────────────────────────────
 
-    def test_hallucination_verifier_prefers_bundled_path(self):
-        """hallucination_verifier delegates to resolve_model_path for bundled-first loading."""
-        source_path = PROJECT_ROOT / "src" / "core" / "qa" / "hallucination_verifier.py"
-        source = source_path.read_text(encoding="utf-8")
-        assert "resolve_model_path" in source
-        assert "HALLUCINATION_MODEL_LOCAL_PATH" in source
-
-    def test_hallucination_verifier_uses_local_files_only(self):
-        """hallucination_verifier passes local_files_only from resolve_model_path."""
-        source_path = PROJECT_ROOT / "src" / "core" / "qa" / "hallucination_verifier.py"
-        source = source_path.read_text(encoding="utf-8")
-        assert "local_only" in source or "local_files_only" in source
-
     def test_model_loader_checks_bundled_path(self):
         """model_loader.resolve_model_path checks .exists() before HF fallback."""
         source_path = PROJECT_ROOT / "src" / "core" / "utils" / "model_loader.py"
@@ -952,13 +923,6 @@ class TestOptionalPackageBundling:
         assert "SPACY_EN_CORE_WEB_SM_PATH" in source
 
     # ── 4f. Config path structure ─────────────────────────────────────────
-
-    def test_hallucination_model_under_bundled_models(self):
-        """HALLUCINATION_MODEL_LOCAL_PATH is under BUNDLED_MODELS_DIR."""
-        from src.config import BUNDLED_MODELS_DIR, HALLUCINATION_MODEL_LOCAL_PATH
-
-        rel = HALLUCINATION_MODEL_LOCAL_PATH.relative_to(BUNDLED_MODELS_DIR)
-        assert str(rel), "Path should be relative to BUNDLED_MODELS_DIR"
 
     def test_coref_model_under_bundled_models(self):
         """COREF_MODEL_LOCAL_PATH is under BUNDLED_MODELS_DIR."""

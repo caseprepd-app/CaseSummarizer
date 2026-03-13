@@ -22,7 +22,7 @@ DEFAULT_QUESTIONS_PATH = (
 
 # Legacy text file (for migration)
 LEGACY_QUESTIONS_PATH = (
-    Path(__file__).parent.parent.parent.parent / "config" / "qa_default_questions.txt"
+    Path(__file__).parent.parent.parent.parent / "config" / "semantic_default_questions.txt"
 )
 
 

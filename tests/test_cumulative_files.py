@@ -56,8 +56,8 @@ def _make_window_stub():
     stub._export_all_visible = False
     stub._preprocessing_active = False
     stub._processing_active = False
-    stub._qa_answering_active = False
-    stub._qa_ready = False
+    stub._semantic_searching_active = False
+    stub._semantic_ready = False
     stub._queue_poll_id = None
     stub._worker_ready_retries = 0
     stub._worker_manager = MagicMock()
@@ -599,9 +599,9 @@ class TestClearFilesUnchanged:
         stub = _make_window_stub()
         stub.selected_files = [r"C:\a.pdf", r"C:\b.pdf"]
         stub.processing_results = [_sample_result("a.pdf"), _sample_result("b.pdf")]
-        stub._qa_ready = True
-        stub._qa_answering_active = True
-        stub._qa_results = [{"q": "test"}]
+        stub._semantic_ready = True
+        stub._semantic_searching_active = True
+        stub._semantic_results = [{"q": "test"}]
         stub._vector_store_path = "/tmp/store"
 
         MainWindow._clear_files(stub)
@@ -609,4 +609,4 @@ class TestClearFilesUnchanged:
         assert stub.selected_files == []
         assert stub.processing_results == []
         stub.file_table.clear.assert_called_once()
-        assert stub._qa_ready is False
+        assert stub._semantic_ready is False

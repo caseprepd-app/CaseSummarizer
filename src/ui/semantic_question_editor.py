@@ -1,15 +1,15 @@
 """
-Q&A Question Editor Widget for CasePrepd.
+Semantic Search Editor Widget for CasePrepd.
 
-GUI for editing the default questions asked of every document.
-Questions are stored in config/qa_questions.yaml.
+GUI for editing the default searches run on every document.
+Questions are stored in config/semantic_questions.yaml.
 
 Features:
-- List view of current questions
+- List view of current searches
 - Add, Edit, Delete functionality
 - Save/Cancel with confirmation
 - Reset to defaults button
-- Accessible from Settings dialog and Q&A panel
+- Accessible from Settings dialog and semantic search panel
 """
 
 import logging
@@ -27,21 +27,23 @@ logger = logging.getLogger(__name__)
 from src.ui.theme import BUTTON_STYLES, COLORS, FONTS
 
 # Default questions YAML path
-DEFAULT_QUESTIONS_PATH = Path(__file__).parent.parent.parent / "config" / "qa_questions.yaml"
+DEFAULT_QUESTIONS_PATH = Path(__file__).parent.parent.parent / "config" / "semantic_questions.yaml"
 
 # Backup path for reset functionality
-BACKUP_QUESTIONS_PATH = Path(__file__).parent.parent.parent / "config" / "qa_questions_default.yaml"
+BACKUP_QUESTIONS_PATH = (
+    Path(__file__).parent.parent.parent / "config" / "semantic_questions_default.yaml"
+)
 
 
-class QAQuestionEditor(BaseModalDialog):
+class SemanticQuestionEditor(BaseModalDialog):
     """
     Dialog for editing default Q&A questions.
 
     Opens as a modal dialog with a list of questions that can be
-    added, edited, or deleted. Changes are saved to qa_questions.yaml.
+    added, edited, or deleted. Changes are saved to semantic_questions.yaml.
 
     Example:
-        editor = QAQuestionEditor(parent_window)
+        editor = SemanticQuestionEditor(parent_window)
         editor.wait_window()  # Blocks until closed
         if editor.saved:
             print("Questions were saved")
@@ -53,7 +55,7 @@ class QAQuestionEditor(BaseModalDialog):
 
         Args:
             parent: Parent window
-            yaml_path: Path to questions YAML (default: config/qa_questions.yaml)
+            yaml_path: Path to questions YAML (default: config/semantic_questions.yaml)
         """
         super().__init__(
             parent=parent,
@@ -79,7 +81,7 @@ class QAQuestionEditor(BaseModalDialog):
         # Handle window close
         self.protocol("WM_DELETE_WINDOW", self._on_close)
 
-        logger.debug("QAQuestionEditor opened with %s questions", len(self._questions))
+        logger.debug("SemanticQuestionEditor opened with %s questions", len(self._questions))
 
     def _create_ui(self):
         """Build the editor UI."""
@@ -215,7 +217,7 @@ class QAQuestionEditor(BaseModalDialog):
         import copy
 
         config = load_yaml_with_fallback(
-            self.yaml_path, fallback={}, log_prefix="[QAQuestionEditor]"
+            self.yaml_path, fallback={}, log_prefix="[SemanticQuestionEditor]"
         )
 
         if not config or "questions" not in config:
@@ -399,7 +401,7 @@ class QAQuestionEditor(BaseModalDialog):
             config = load_yaml_with_fallback(
                 self.yaml_path,
                 fallback={"version": "1.0", "entry_point": "is_court_case"},
-                log_prefix="[QAQuestionEditor]",
+                log_prefix="[SemanticQuestionEditor]",
             )
 
             # Update questions in config
@@ -448,7 +450,7 @@ class QuestionEditDialog(ctk.CTkToplevel):
     """
     Dialog for editing a single question.
 
-    Used by QAQuestionEditor for add/edit operations.
+    Used by SemanticQuestionEditor for add/edit operations.
     """
 
     def __init__(self, parent, title: str = "Edit Question", question: dict | None = None):

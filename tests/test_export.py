@@ -113,8 +113,8 @@ class TestQAHtmlExport:
     """Test Q&A HTML export."""
 
     @dataclass
-    class MockQAResult:
-        """Mock QAResult for testing."""
+    class MockSemanticResult:
+        """Mock SemanticResult for testing."""
 
         question: str
         quick_answer: str
@@ -122,12 +122,12 @@ class TestQAHtmlExport:
         source_summary: str = ""
         verification: object = None
 
-    def test_export_qa_html_creates_file(self, tmp_path):
+    def test_export_semantic_html_creates_file(self, tmp_path):
         """Q&A HTML export should create a file at the specified path."""
-        from src.core.export.html_builder import export_qa_html
+        from src.core.export.html_builder import export_semantic_html
 
         results = [
-            self.MockQAResult(
+            self.MockSemanticResult(
                 question="Who is the plaintiff?",
                 quick_answer="John Smith",
                 citation="The plaintiff, John Smith, filed...",
@@ -135,17 +135,17 @@ class TestQAHtmlExport:
         ]
         output_file = tmp_path / "qa.html"
 
-        result = export_qa_html(results, str(output_file))
+        result = export_semantic_html(results, str(output_file))
 
         assert result is True
         assert output_file.exists()
 
-    def test_export_qa_html_contains_questions_and_answers(self, tmp_path):
+    def test_export_semantic_html_contains_questions_and_answers(self, tmp_path):
         """Q&A HTML export should contain questions and answers."""
-        from src.core.export.html_builder import export_qa_html
+        from src.core.export.html_builder import export_semantic_html
 
         results = [
-            self.MockQAResult(
+            self.MockSemanticResult(
                 question="What is the case about?",
                 quick_answer="Personal injury claim",
                 citation="This case involves a personal injury...",
@@ -153,18 +153,18 @@ class TestQAHtmlExport:
         ]
         output_file = tmp_path / "qa.html"
 
-        export_qa_html(results, str(output_file))
+        export_semantic_html(results, str(output_file))
         content = output_file.read_text(encoding="utf-8")
 
         assert "What is the case about?" in content
         assert "Personal injury claim" in content
 
-    def test_export_qa_html_escapes_special_chars(self, tmp_path):
+    def test_export_semantic_html_escapes_special_chars(self, tmp_path):
         """Q&A HTML export should escape HTML special characters in data."""
-        from src.core.export.html_builder import export_qa_html
+        from src.core.export.html_builder import export_semantic_html
 
         results = [
-            self.MockQAResult(
+            self.MockSemanticResult(
                 question="What about <script> tags?",
                 quick_answer="They should be escaped",
                 citation="Test & verify",
@@ -172,7 +172,7 @@ class TestQAHtmlExport:
         ]
         output_file = tmp_path / "qa.html"
 
-        export_qa_html(results, str(output_file))
+        export_semantic_html(results, str(output_file))
         content = output_file.read_text(encoding="utf-8")
 
         # The XSS attempt in the question should be escaped in the data
@@ -180,14 +180,14 @@ class TestQAHtmlExport:
         assert "&lt;script&gt;" in content
         assert "&amp;" in content
 
-    def test_export_qa_html_empty_results(self, tmp_path):
+    def test_export_semantic_html_empty_results(self, tmp_path):
         """Q&A HTML export should handle empty results."""
-        from src.core.export.html_builder import export_qa_html
+        from src.core.export.html_builder import export_semantic_html
 
         results = []
         output_file = tmp_path / "qa.html"
 
-        result = export_qa_html(results, str(output_file))
+        result = export_semantic_html(results, str(output_file))
 
         assert result is True
         assert output_file.exists()

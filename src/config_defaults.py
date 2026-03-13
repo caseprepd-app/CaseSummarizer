@@ -271,33 +271,6 @@ DEFAULTS = {
         "category": "Document Reading",
     },
     # =======================================================================
-    # Legacy LLM Generation (consumed only by src/deprecated/ code)
-    # =======================================================================
-    "summary_temperature": {
-        "value": 0.3,
-        "min": 0.0,
-        "max": 1.0,
-        "step": 0.05,
-        "type": "float",
-        "category": "LLM Generation",
-    },
-    "llm_top_p": {
-        "value": 0.9,
-        "min": 0.5,
-        "max": 1.0,
-        "step": 0.05,
-        "type": "float",
-        "category": "LLM Generation",
-    },
-    "summary_length_tolerance": {
-        "value": 0.20,
-        "min": 0.05,
-        "max": 0.50,
-        "step": 0.05,
-        "type": "float",
-        "category": "LLM Generation",
-    },
-    # =======================================================================
     # Chunking
     # =======================================================================
     "retrieval_chunk_size": {
@@ -355,14 +328,14 @@ DEFAULTS = {
     # =======================================================================
     # Search Retrieval
     # =======================================================================
-    "qa_retrieval_k": {
+    "semantic_retrieval_k": {
         "value": 20,
         "min": 5,
         "max": 50,
         "type": "int",
         "category": "Search Retrieval",
     },
-    "qa_max_tokens": {
+    "semantic_max_tokens": {
         "value": 750,
         "min": 200,
         "max": 2000,
@@ -370,7 +343,7 @@ DEFAULTS = {
         "type": "int",
         "category": "Search Retrieval",
     },
-    "qa_temperature": {
+    "semantic_temperature": {
         "value": 0.1,
         "min": 0.0,
         "max": 1.0,
@@ -378,7 +351,7 @@ DEFAULTS = {
         "type": "float",
         "category": "Search Retrieval",
     },
-    "qa_similarity_threshold": {
+    "semantic_similarity_threshold": {
         "value": 0.5,
         "min": 0.1,
         "max": 0.9,
@@ -440,7 +413,7 @@ DEFAULTS = {
         "type": "float",
         "category": "Search Retrieval",
     },
-    "qa_citation_max_chars": {
+    "semantic_citation_max_chars": {
         "value": 1250,
         "min": 250,
         "max": 5000,
@@ -449,34 +422,10 @@ DEFAULTS = {
         "category": "Search Retrieval",
     },
     # =======================================================================
-    # Answer Quality
-    # =======================================================================
-    "hallucination_verification_enabled": {
-        "value": True,
-        "type": "bool",
-        "category": "Answer Quality",
-    },
-    "answer_rejection_threshold": {
-        "value": 0.50,
-        "min": 0.1,
-        "max": 0.9,
-        "step": 0.05,
-        "type": "float",
-        "category": "Answer Quality",
-    },
-    # =======================================================================
     # Search Export
     # =======================================================================
-    "qa_export_confidence_floor": {
+    "semantic_export_confidence_floor": {
         "value": 0.40,
-        "min": 0.0,
-        "max": 1.0,
-        "step": 0.05,
-        "type": "float",
-        "category": "Search Export",
-    },
-    "qa_export_verification_floor": {
-        "value": 0.80,
         "min": 0.0,
         "max": 1.0,
         "step": 0.05,

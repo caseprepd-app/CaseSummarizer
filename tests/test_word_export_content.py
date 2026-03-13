@@ -175,10 +175,10 @@ class TestExportServiceVocabWord:
 # ============================================================================
 
 
-class TestExportServiceQaWord:
-    """ExportService.export_qa_to_word produces readable .docx."""
+class TestExportServiceSemanticWord:
+    """ExportService.export_semantic_to_word produces readable .docx."""
 
-    def test_qa_export_roundtrip(self, tmp_path):
+    def test_semantic_export_roundtrip(self, tmp_path):
         from src.services.export_service import ExportService
 
         svc = ExportService()
@@ -191,7 +191,7 @@ class TestExportServiceQaWord:
 
         out = tmp_path / "qa.docx"
         with patch("src.services.export_service._auto_open_file"):
-            success, _ = svc.export_qa_to_word([result], str(out))
+            success, _ = svc.export_semantic_to_word([result], str(out))
 
         assert success is True
         assert out.exists()

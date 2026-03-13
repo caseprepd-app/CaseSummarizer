@@ -34,9 +34,8 @@ class TestConfigDefaultsMeta:
         expected_keys = [
             "bm25_k1",
             "bm25_b",
-            "summary_temperature",
-            "qa_retrieval_k",
-            "qa_max_tokens",
+            "semantic_retrieval_k",
+            "semantic_max_tokens",
         ]
         for key in expected_keys:
             assert key in DESCRIPTIONS, f"Missing metadata for: {key}"
@@ -113,20 +112,20 @@ class TestDefaultQuestion:
     """DefaultQuestion dataclass."""
 
     def test_creation(self):
-        from src.core.qa.default_questions_manager import DefaultQuestion
+        from src.core.semantic.default_questions_manager import DefaultQuestion
 
         q = DefaultQuestion(text="What happened?")
         assert q.text == "What happened?"
         assert q.enabled is True
 
     def test_disabled(self):
-        from src.core.qa.default_questions_manager import DefaultQuestion
+        from src.core.semantic.default_questions_manager import DefaultQuestion
 
         q = DefaultQuestion(text="Q?", enabled=False)
         assert q.enabled is False
 
     def test_to_dict(self):
-        from src.core.qa.default_questions_manager import DefaultQuestion
+        from src.core.semantic.default_questions_manager import DefaultQuestion
 
         q = DefaultQuestion(text="Q?", enabled=True)
         d = q.to_dict()
@@ -134,7 +133,7 @@ class TestDefaultQuestion:
         assert d["enabled"] is True
 
     def test_from_dict(self):
-        from src.core.qa.default_questions_manager import DefaultQuestion
+        from src.core.semantic.default_questions_manager import DefaultQuestion
 
         q = DefaultQuestion.from_dict({"text": "Q?", "enabled": False})
         assert q.text == "Q?"
@@ -145,7 +144,7 @@ class TestDefaultQuestionsManager:
     """DefaultQuestionsManager manages default Q&A questions."""
 
     def _make(self, tmp_path):
-        from src.core.qa.default_questions_manager import DefaultQuestionsManager
+        from src.core.semantic.default_questions_manager import DefaultQuestionsManager
 
         return DefaultQuestionsManager(config_path=tmp_path / "questions.json")
 
@@ -279,22 +278,22 @@ class TestCorpusRegistry:
 
 
 class TestQAExporter:
-    """export_qa_results exports Q&A to Word/PDF."""
+    """export_semantic_results exports Q&A to Word/PDF."""
 
     def test_function_exists(self):
-        from src.core.export.qa_exporter import export_qa_results
+        from src.core.export.semantic_exporter import export_semantic_results
 
-        assert callable(export_qa_results)
+        assert callable(export_semantic_results)
 
     def test_empty_results(self):
-        from src.core.export.qa_exporter import export_qa_results
+        from src.core.export.semantic_exporter import export_semantic_results
 
         mock_builder = MagicMock()
-        export_qa_results([], mock_builder)
+        export_semantic_results([], mock_builder)
         # Should call builder methods but not crash
 
     def test_with_results(self):
-        from src.core.export.qa_exporter import export_qa_results
+        from src.core.export.semantic_exporter import export_semantic_results
 
         mock_builder = MagicMock()
         result = MagicMock()
@@ -304,7 +303,7 @@ class TestQAExporter:
         result.source_summary = "complaint.pdf"
         result.verification = None
 
-        export_qa_results([result], mock_builder, include_verification_colors=False)
+        export_semantic_results([result], mock_builder, include_verification_colors=False)
         # builder should have been called for title, Q&A content
         assert mock_builder.add_heading.called or mock_builder.add_paragraph.called
 
@@ -325,7 +324,7 @@ class TestCombinedHtmlBuilder:
     def test_empty_data(self):
         from src.core.export.combined_html_builder import build_combined_html
 
-        html = build_combined_html(vocab_data=[], qa_results=[], summary_text="")
+        html = build_combined_html(vocab_data=[], semantic_results=[], summary_text="")
         assert isinstance(html, str)
         assert "<html" in html.lower()
 
@@ -333,16 +332,18 @@ class TestCombinedHtmlBuilder:
         from src.core.export.combined_html_builder import build_combined_html
 
         vocab = [{"Term": "plaintiff", "Category": "Legal"}]
-        html = build_combined_html(vocab_data=vocab, qa_results=[], summary_text="")
+        html = build_combined_html(vocab_data=vocab, semantic_results=[], summary_text="")
         assert "plaintiff" in html
 
     def test_summary_only(self):
         from src.core.export.combined_html_builder import build_combined_html
 
-        html = build_combined_html(vocab_data=[], qa_results=[], summary_text="This is a summary.")
+        html = build_combined_html(
+            vocab_data=[], semantic_results=[], summary_text="This is a summary."
+        )
         assert "This is a summary" in html
 
-    def test_qa_results(self):
+    def test_semantic_results(self):
         from src.core.export.combined_html_builder import build_combined_html
 
         qa = [
@@ -354,7 +355,7 @@ class TestCombinedHtmlBuilder:
                 verification=None,
             )
         ]
-        html = build_combined_html(vocab_data=[], qa_results=qa, summary_text="")
+        html = build_combined_html(vocab_data=[], semantic_results=qa, summary_text="")
         assert "What happened?" in html
 
 
@@ -376,7 +377,7 @@ class TestExportServiceCombined:
         with patch("src.services.export_service._auto_open_file"):
             result = svc.export_combined_html(
                 vocab_data=[{"Term": "test", "Score": "50"}],
-                qa_results=[],
+                semantic_results=[],
                 summary_text="A summary.",
                 file_path=str(out),
             )
@@ -422,7 +423,7 @@ class TestExportServiceCombined:
         with patch("src.services.export_service._auto_open_file"):
             success, _ = svc.export_combined_to_word(
                 vocab_data=[{"Term": "test"}],
-                qa_results=[qa],
+                semantic_results=[qa],
                 file_path=str(out),
             )
         assert success is True

@@ -371,45 +371,6 @@ DESCRIPTIONS = {
         ),
     },
     # =======================================================================
-    # Legacy LLM Generation (consumed only by src/deprecated/ code)
-    # =======================================================================
-    "summary_temperature": {
-        "label": "Summary temperature",
-        "tooltip": (
-            "Controls randomness in summary generation.\n"
-            "Lower = more factual and consistent.\n"
-            "Higher = more varied and creative.\n\n"
-            "Default: 0.3\n\n"
-            "Increase: More varied language (risk of less accuracy).\n"
-            "Decrease: More deterministic output (may be repetitive).\n\n"
-            "For legal documents, 0.1-0.4 is recommended."
-        ),
-    },
-    "llm_top_p": {
-        "label": "Top-p (nucleus sampling)",
-        "tooltip": (
-            "Controls the breadth of word choices during generation.\n"
-            "At 0.9, the model considers the top 90% probability mass.\n\n"
-            "Default: 0.9\n\n"
-            "Increase: Broader vocabulary in output.\n"
-            "Decrease: More focused, predictable language.\n\n"
-            "Works in combination with temperature. Lower top_p with\n"
-            "low temperature produces very consistent output."
-        ),
-    },
-    "summary_length_tolerance": {
-        "label": "Summary length tolerance",
-        "tooltip": (
-            "How much the summary can exceed the target word count before\n"
-            "being condensed. Expressed as a fraction of target length.\n\n"
-            "Default: 0.20 (20% overage allowed)\n\n"
-            "Increase: Allow longer summaries before condensation.\n"
-            "Decrease: Stricter adherence to target length.\n\n"
-            "Example: With 200 target words and 0.20 tolerance,\n"
-            "summaries up to 240 words are accepted."
-        ),
-    },
-    # =======================================================================
     # Chunking
     # =======================================================================
     "retrieval_chunk_size": {
@@ -482,7 +443,7 @@ DESCRIPTIONS = {
     # =======================================================================
     # Search Retrieval
     # =======================================================================
-    "qa_retrieval_k": {
+    "semantic_retrieval_k": {
         "label": "Chunks to retrieve",
         "tooltip": (
             "Number of document chunks retrieved for each search query.\n"
@@ -493,7 +454,7 @@ DESCRIPTIONS = {
             "These chunks are then reranked to find the best matches."
         ),
     },
-    "qa_max_tokens": {
+    "semantic_max_tokens": {
         "label": "Maximum answer length (tokens)",
         "tooltip": (
             "Maximum tokens for generated search answers.\n"
@@ -504,7 +465,7 @@ DESCRIPTIONS = {
             "Very long answers may include less relevant information."
         ),
     },
-    "qa_temperature": {
+    "semantic_temperature": {
         "label": "Search answer temperature",
         "tooltip": (
             "Creativity/randomness for search answer generation.\n"
@@ -515,7 +476,7 @@ DESCRIPTIONS = {
             "For legal documents, 0.0-0.2 is recommended."
         ),
     },
-    "qa_similarity_threshold": {
+    "semantic_similarity_threshold": {
         "label": "Chunk relevance threshold",
         "tooltip": (
             "Minimum relevance score (0-1) for a chunk to be considered\n"
@@ -621,7 +582,7 @@ DESCRIPTIONS = {
             "Acts as a sanity check before BM25+ results are merged in."
         ),
     },
-    "qa_citation_max_chars": {
+    "semantic_citation_max_chars": {
         "label": "Citation excerpt length",
         "tooltip": (
             "Target character length for the focused citation excerpt.\n"
@@ -633,55 +594,17 @@ DESCRIPTIONS = {
         ),
     },
     # =======================================================================
-    # Answer Quality
-    # =======================================================================
-    "hallucination_verification_enabled": {
-        "label": "Hallucination verification",
-        "tooltip": (
-            "Run hallucination detection on search answers to identify\n"
-            "potentially unsupported claims.\n\n"
-            "Default: Enabled\n\n"
-            "Enabled: Answers are color-coded by reliability. Adds ~100-200ms.\n"
-            "Disabled: Answers shown without reliability indicators.\n\n"
-            "Uses LettuceDetect to compare answer spans against source text."
-        ),
-    },
-    "answer_rejection_threshold": {
-        "label": "Answer rejection threshold",
-        "tooltip": (
-            "Minimum reliability score (0-1) to show a generated answer.\n"
-            "Below this threshold, the answer is rejected as unreliable.\n\n"
-            "Default: 0.50 (50% reliability)\n\n"
-            "Increase: Only show highly reliable answers (more rejections).\n"
-            "Decrease: Show more answers even if uncertain (fewer rejections).\n\n"
-            "Rejected answers display: 'Confidence too low, declining to show.'"
-        ),
-    },
-    # =======================================================================
     # Search Export
     # =======================================================================
-    "qa_export_confidence_floor": {
-        "label": "Search export retrieval floor",
+    "semantic_export_confidence_floor": {
+        "label": "Search export confidence floor",
         "tooltip": (
-            "Minimum FAISS retrieval confidence (0-1) for a search result\n"
-            "to be included in exports. This measures how relevant the\n"
-            "retrieved document chunks were to the question.\n\n"
-            "Both this AND the verification floor must be met.\n\n"
+            "Minimum retrieval confidence (0-1) for a semantic search\n"
+            "result to be included in exports. This measures how relevant\n"
+            "the retrieved document chunks were to the question.\n\n"
             "Default: 0.40 (40%)\n\n"
             "Increase: Require stronger document matches.\n"
-            "Decrease: Allow weaker matches if verification is high."
-        ),
-    },
-    "qa_export_verification_floor": {
-        "label": "Search export verification floor",
-        "tooltip": (
-            "Minimum hallucination verification reliability (0-1) for\n"
-            "a search result to be included in exports. This measures how\n"
-            "well the answer is supported by the source text.\n\n"
-            "Both this AND the retrieval floor must be met.\n\n"
-            "Default: 0.80 (80%)\n\n"
-            "Increase: Only export highly verified answers.\n"
-            "Decrease: Include answers with less verification certainty."
+            "Decrease: Allow weaker matches in exports."
         ),
     },
 }

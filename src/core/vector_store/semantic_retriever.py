@@ -1,5 +1,5 @@
 """
-Q&A Retriever for CasePrepd.
+Semantic Retriever for CasePrepd.
 
 Retrieves relevant document context for user questions using hybrid search
 combining BM25+ (lexical) and FAISS (semantic) algorithms.
@@ -11,7 +11,7 @@ Architecture (Hybrid Retrieval):
 - Returns formatted context string with source attribution
 
 Integration:
-- Used by QAWorker in background thread
+- Used by SemanticWorker in background thread
 - Provides context for search result citation extraction
 """
 
@@ -22,22 +22,22 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from src.config import (
-    QA_CONTEXT_WINDOW,
-    QA_RETRIEVAL_K,
     RETRIEVAL_ALGORITHM_WEIGHTS,
     RETRIEVAL_ENABLE_BM25,
     RETRIEVAL_ENABLE_FAISS,
     RETRIEVAL_MIN_SCORE,
+    SEMANTIC_CONTEXT_WINDOW,
+    SEMANTIC_RETRIEVAL_K,
 )
 
 logger = logging.getLogger(__name__)
 
 
-def _get_effective_qa_context_window() -> int:
+def _get_effective_semantic_context_window() -> int:
     """
-    Get effective QA context window from user preferences.
+    Get effective semantic search context window from user preferences.
 
-    QA context window scales with LLM context window based on GPU VRAM.
+    Context window scales with LLM context window based on GPU VRAM.
     Falls back to config constant if preferences unavailable.
 
     Returns:
@@ -49,8 +49,8 @@ def _get_effective_qa_context_window() -> int:
         prefs = get_user_preferences()
         return prefs.get_effective_context_size()
     except Exception as e:
-        logger.warning("Could not load user preferences for QA context window: %s", e)
-        return QA_CONTEXT_WINDOW
+        logger.warning("Could not load user preferences for semantic context window: %s", e)
+        return SEMANTIC_CONTEXT_WINDOW
 
 
 def _get_effective_algorithm_weights() -> dict[str, float]:
@@ -104,16 +104,16 @@ class RetrievalResult:
     retrieval_time_ms: float
 
 
-class QARetriever:
+class SemanticRetriever:
     """
-    Retrieves relevant context for Q&A using hybrid search.
+    Retrieves relevant context for semantic search using hybrid search.
 
     Combines BM25+ (lexical) and FAISS (semantic) search for comprehensive
     document retrieval. BM25+ handles exact terminology matching while
     FAISS can find conceptually related content.
 
     Example:
-        retriever = QARetriever(persist_dir, embeddings)
+        retriever = SemanticRetriever(persist_dir, embeddings)
         result = retriever.retrieve_context("Who are the plaintiffs?")
         print(f"Context: {result.context}")
         print(f"Sources: {[s.filename for s in result.sources]}")
@@ -333,7 +333,7 @@ class QARetriever:
 
         # Use config default if not specified
         if k is None:
-            k = QA_RETRIEVAL_K
+            k = SEMANTIC_RETRIEVAL_K
 
         # If k is still None (config says use all), use total chunk count
         if k is None:
@@ -382,35 +382,37 @@ class QARetriever:
         context_parts = []
         sources = []
         estimated_tokens = 0
-        # QA context scales with LLM context based on GPU VRAM
-        qa_context_window = _get_effective_qa_context_window()
+        # Semantic context scales with LLM context based on GPU VRAM
+        semantic_context_window = _get_effective_semantic_context_window()
         # Reserve tokens for: system prompt (~200 tokens), question (~30 tokens),
-        # formatting (~70 tokens), and LLM output (qa_max_tokens from config).
+        # formatting (~70 tokens), and LLM output (semantic_max_tokens from config).
         # Previous formula (80% for context) overflowed on small context windows,
         # causing prompt template overflow on small context windows.
         from src.config_defaults import get_default
-        from src.core.qa.qa_constants import (
+        from src.core.semantic.semantic_constants import (
             COMPACT_PROMPT_THRESHOLD,
-            COMPACT_QA_PROMPT,
-            FULL_QA_PROMPT,
+            COMPACT_SEMANTIC_PROMPT,
+            FULL_SEMANTIC_PROMPT,
         )
-        from src.core.qa.token_budget import count_tokens as _count_tokens
+        from src.core.semantic.token_budget import count_tokens as _count_tokens
 
-        qa_max_output_tokens = get_default("qa_max_tokens")
+        semantic_max_output_tokens = get_default("semantic_max_tokens")
         template = (
-            COMPACT_QA_PROMPT if qa_context_window <= COMPACT_PROMPT_THRESHOLD else FULL_QA_PROMPT
+            COMPACT_SEMANTIC_PROMPT
+            if semantic_context_window <= COMPACT_PROMPT_THRESHOLD
+            else FULL_SEMANTIC_PROMPT
         )
         prompt_overhead_tokens = (
             _count_tokens(template.replace("{context}", "").replace("{question}", "")) + 30
         )  # ~30 tokens for a typical question
         max_context_tokens = max(
             200,  # minimum to avoid empty context
-            qa_context_window - qa_max_output_tokens - prompt_overhead_tokens,
+            semantic_context_window - semantic_max_output_tokens - prompt_overhead_tokens,
         )
         logger.debug(
             "Context window: %s, output reserve: %s, overhead: %s, max context tokens: %s",
-            qa_context_window,
-            qa_max_output_tokens,
+            semantic_context_window,
+            semantic_max_output_tokens,
             prompt_overhead_tokens,
             max_context_tokens,
         )

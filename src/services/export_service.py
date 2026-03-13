@@ -1,7 +1,7 @@
 """
 Export Service
 
-Provides high-level API for exporting vocabulary and Q&A to Word/PDF/TXT/HTML.
+Provides high-level API for exporting vocabulary and semantic results to Word/PDF/TXT/HTML.
 
 Supports auto-open of exported files (configurable).
 Uses _run_export() helper to reduce duplication.
@@ -17,8 +17,8 @@ from src.core.export import (
     PdfDocumentBuilder,
     WordDocumentBuilder,
     export_combined,
-    export_qa_html,
-    export_qa_results,
+    export_semantic_html,
+    export_semantic_results,
     export_vocabulary,
     export_vocabulary_html,
     export_vocabulary_txt,
@@ -94,7 +94,7 @@ class ExportService:
     Service for exporting data to Word and PDF formats.
 
     Provides a simple API for UI components to export vocabulary
-    and Q&A results without knowing the implementation details.
+    and semantic results without knowing the implementation details.
     """
 
     def export_vocabulary_to_word(
@@ -155,16 +155,16 @@ class ExportService:
             f"{len(vocab_data)} terms to PDF", file_path, "vocabulary to PDF", do_export
         )
 
-    def export_qa_to_word(
+    def export_semantic_to_word(
         self, results: list, file_path: str, include_verification: bool = True
     ) -> tuple[bool, str | None]:
         """
-        Export Q&A results to Word document.
+        Export semantic search results to Word document.
 
         Args:
-            results: List of QAResult objects
+            results: List of SemanticResult objects
             file_path: Output file path (.docx)
-            include_verification: Include verification coloring
+            include_verification: Unused (kept for API compatibility)
 
         Returns:
             (True, None) if successful, (False, error_detail) otherwise
@@ -172,21 +172,23 @@ class ExportService:
 
         def do_export():
             builder = WordDocumentBuilder()
-            export_qa_results(results, builder, include_verification)
+            export_semantic_results(results, builder, include_verification)
             builder.save(file_path)
 
-        return _run_export(f"{len(results)} Q&A pairs to Word", file_path, "Q&A to Word", do_export)
+        return _run_export(
+            f"{len(results)} search results to Word", file_path, "search to Word", do_export
+        )
 
-    def export_qa_to_pdf(
+    def export_semantic_to_pdf(
         self, results: list, file_path: str, include_verification: bool = True
     ) -> tuple[bool, str | None]:
         """
-        Export Q&A results to PDF document.
+        Export semantic search results to PDF document.
 
         Args:
-            results: List of QAResult objects
+            results: List of SemanticResult objects
             file_path: Output file path (.pdf)
-            include_verification: Include verification coloring
+            include_verification: Unused (kept for API compatibility)
 
         Returns:
             (True, None) if successful, (False, error_detail) otherwise
@@ -194,10 +196,12 @@ class ExportService:
 
         def do_export():
             builder = PdfDocumentBuilder()
-            export_qa_results(results, builder, include_verification)
+            export_semantic_results(results, builder, include_verification)
             builder.save(file_path)
 
-        return _run_export(f"{len(results)} Q&A pairs to PDF", file_path, "Q&A to PDF", do_export)
+        return _run_export(
+            f"{len(results)} search results to PDF", file_path, "search to PDF", do_export
+        )
 
     def export_vocabulary_to_txt(
         self, vocab_data: list[dict], file_path: str
@@ -261,31 +265,31 @@ class ExportService:
 
         return build_vocabulary_html(vocab_data, visible_columns)
 
-    def export_qa_to_html(
+    def export_semantic_to_html(
         self, results: list, file_path: str, include_verification: bool = True
     ) -> tuple[bool, str | None]:
         """
-        Export Q&A results to interactive HTML.
+        Export semantic search results to interactive HTML.
 
         Args:
-            results: List of QAResult objects
+            results: List of SemanticResult objects
             file_path: Output file path (.html)
-            include_verification: Include verification coloring
+            include_verification: Unused (kept for API compatibility)
 
         Returns:
             (True, None) if successful, (False, error_detail) otherwise
         """
         return _run_export(
-            f"{len(results)} Q&A pairs to HTML",
+            f"{len(results)} search results to HTML",
             file_path,
-            "Q&A to HTML",
-            lambda: export_qa_html(results, file_path, include_verification),
+            "search to HTML",
+            lambda: export_semantic_html(results, file_path, include_verification),
         )
 
     def export_combined_html(
         self,
         vocab_data: list[dict],
-        qa_results: list,
+        semantic_results: list,
         summary_text: str,
         file_path: str,
         visible_columns: list[str] | None = None,
@@ -296,11 +300,11 @@ class ExportService:
 
         Args:
             vocab_data: List of vocabulary dicts (score-filtered)
-            qa_results: List of QAResult objects (answered only)
+            semantic_results: List of SemanticResult objects (answered only)
             summary_text: Summary text string
             file_path: Output file path (.html)
             visible_columns: Columns to show initially in vocab table
-            include_verification: Include verification badges in search results
+            include_verification: Unused (kept for API compatibility)
 
         Returns:
             (True, None) if successful, (False, error_detail) otherwise
@@ -310,7 +314,7 @@ class ExportService:
         def do_export():
             html_content = build_combined_html(
                 vocab_data,
-                qa_results,
+                semantic_results,
                 summary_text,
                 visible_columns,
                 include_verification,
@@ -320,9 +324,9 @@ class ExportService:
             Path(file_path).write_text(html_content, encoding="utf-8")
 
         term_count = len(vocab_data)
-        qa_count = len(qa_results)
+        result_count = len(semantic_results)
         return _run_export(
-            f"combined HTML ({term_count} terms, {qa_count} Q&A)",
+            f"combined HTML ({term_count} terms, {result_count} search results)",
             file_path,
             "combined HTML",
             do_export,
@@ -331,10 +335,10 @@ class ExportService:
     def export_combined_to_word(
         self,
         vocab_data: list[dict],
-        qa_results: list,
+        semantic_results: list,
         file_path: str,
         include_vocab_details: bool = False,
-        include_qa_verification: bool = True,
+        include_verification: bool = True,
         summary_text: str = "",
     ) -> tuple[bool, str | None]:
         """
@@ -342,10 +346,10 @@ class ExportService:
 
         Args:
             vocab_data: List of vocabulary dicts
-            qa_results: List of QAResult objects
+            semantic_results: List of SemanticResult objects
             file_path: Output file path (.docx)
             include_vocab_details: Include algorithm columns
-            include_qa_verification: Include verification coloring
+            include_verification: Unused (kept for API compatibility)
             summary_text: Summary text to include (empty string to skip)
 
         Returns:
@@ -356,16 +360,16 @@ class ExportService:
             builder = WordDocumentBuilder()
             export_combined(
                 vocab_data,
-                qa_results,
+                semantic_results,
                 builder,
                 include_vocab_details,
-                include_qa_verification,
+                include_verification,
                 summary_text=summary_text,
             )
             builder.save(file_path)
 
         return _run_export(
-            f"combined ({len(vocab_data)} terms, {len(qa_results)} Q&A) to Word",
+            f"combined ({len(vocab_data)} terms, {len(semantic_results)} results) to Word",
             file_path,
             "combined to Word",
             do_export,
@@ -374,10 +378,10 @@ class ExportService:
     def export_combined_to_pdf(
         self,
         vocab_data: list[dict],
-        qa_results: list,
+        semantic_results: list,
         file_path: str,
         include_vocab_details: bool = False,
-        include_qa_verification: bool = True,
+        include_verification: bool = True,
         summary_text: str = "",
     ) -> tuple[bool, str | None]:
         """
@@ -385,10 +389,10 @@ class ExportService:
 
         Args:
             vocab_data: List of vocabulary dicts
-            qa_results: List of QAResult objects
+            semantic_results: List of SemanticResult objects
             file_path: Output file path (.pdf)
             include_vocab_details: Include algorithm columns
-            include_qa_verification: Include verification coloring
+            include_verification: Unused (kept for API compatibility)
             summary_text: Summary text to include (empty string to skip)
 
         Returns:
@@ -399,16 +403,16 @@ class ExportService:
             builder = PdfDocumentBuilder()
             export_combined(
                 vocab_data,
-                qa_results,
+                semantic_results,
                 builder,
                 include_vocab_details,
-                include_qa_verification,
+                include_verification,
                 summary_text=summary_text,
             )
             builder.save(file_path)
 
         return _run_export(
-            f"combined ({len(vocab_data)} terms, {len(qa_results)} Q&A) to PDF",
+            f"combined ({len(vocab_data)} terms, {len(semantic_results)} results) to PDF",
             file_path,
             "combined to PDF",
             do_export,

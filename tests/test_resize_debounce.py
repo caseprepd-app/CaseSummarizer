@@ -40,8 +40,8 @@ def _make_mock_window():
     w._processing_active = False
     w._preprocessing_active = False
     w._queue_poll_id = None
-    w._qa_results_lock = threading.Lock()
-    w._qa_results = []
+    w._semantic_results_lock = threading.Lock()
+    w._semantic_results = []
     return w
 
 

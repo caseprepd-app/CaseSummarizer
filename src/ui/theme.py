@@ -37,10 +37,10 @@ FONTS = {
     "small_bold": ("Segoe UI", 11, "bold"),  # Small headers
     "tiny": ("Segoe UI", 10),  # Status bar, system monitor
     # Search Panel specific (used in tag_config with cnf={})
-    "qa_question": ("Segoe UI", 13, "bold"),  # Question text
-    "qa_question_default": ("Segoe UI", 13, "bold italic"),  # Default questions
-    "qa_label": ("Segoe UI", 11, "bold"),  # "Answer:", "Sources:" labels
-    "qa_source": ("Segoe UI", 12, "italic"),  # Source citations
+    "semantic_question": ("Segoe UI", 13, "bold"),  # Question text
+    "semantic_question_default": ("Segoe UI", 13, "bold italic"),  # Default questions
+    "semantic_label": ("Segoe UI", 11, "bold"),  # "Answer:", "Sources:" labels
+    "semantic_source": ("Segoe UI", 12, "italic"),  # Source citations
     # Monospace (for code/technical content)
     "mono": ("Consolas", 11),
     "mono_sm": ("Consolas", 10),
@@ -206,13 +206,13 @@ COLORS = {
     "danger_light": ("#e57373", "#f5a9b0"),  # Light red (loaded feedback)
     "info": ("#0d7a8a", "#17a2b8"),  # Info (blue)
     # Search Panel text tags
-    "qa_question": ("#1565c0", "#5dade2"),  # Question text (blue)
-    "qa_question_default": ("#5b86a7", "#7dacd6"),  # Default question (muted blue)
-    "qa_answer": ("#1a3a5c", "#aed6f1"),  # Answer text
-    "qa_citation": ("#4a4a4a", "#d7dbdd"),  # Citation text
-    "qa_source": ("#1b7a2f", "#52be80"),  # Source info (green)
-    "qa_label": ("#5a6b7a", "#85929e"),  # Labels (gray)
-    "qa_separator": ("#b0bec5", "#566573"),  # Section separators
+    "semantic_question": ("#1565c0", "#5dade2"),  # Question text (blue)
+    "semantic_question_default": ("#5b86a7", "#7dacd6"),  # Default question (muted blue)
+    "semantic_answer": ("#1a3a5c", "#aed6f1"),  # Answer text
+    "semantic_citation": ("#4a4a4a", "#d7dbdd"),  # Citation text
+    "semantic_source": ("#1b7a2f", "#52be80"),  # Source info (green)
+    "semantic_label": ("#5a6b7a", "#85929e"),  # Labels (gray)
+    "semantic_separator": ("#b0bec5", "#566573"),  # Section separators
     # Algorithm detection colors (vocabulary table)
     "algo_multi": ("#1b8a3a", "#5dde77"),  # Multiple algorithms (green)
     "algo_ner": ("#1565c0", "#7ec8e3"),  # NER only (blue)
@@ -443,17 +443,17 @@ LABEL_STYLES = {
 # Used with CTkTextbox.tag_config(name, cnf={...})
 # IMPORTANT: Must use cnf={} parameter, not keyword arguments
 
-QA_TEXT_TAGS = {
-    "question": {"foreground": COLORS["qa_question"], "font": FONTS["qa_question"]},
+SEMANTIC_TEXT_TAGS = {
+    "question": {"foreground": COLORS["semantic_question"], "font": FONTS["semantic_question"]},
     "question_default": {
-        "foreground": COLORS["qa_question_default"],
-        "font": FONTS["qa_question_default"],
+        "foreground": COLORS["semantic_question_default"],
+        "font": FONTS["semantic_question_default"],
     },
-    "label": {"foreground": COLORS["qa_label"], "font": FONTS["qa_label"]},
-    "answer": {"foreground": COLORS["qa_answer"]},
-    "citation": {"foreground": COLORS["qa_citation"]},
-    "source": {"foreground": COLORS["qa_source"], "font": FONTS["qa_source"]},
-    "separator": {"foreground": COLORS["qa_separator"]},
+    "label": {"foreground": COLORS["semantic_label"], "font": FONTS["semantic_label"]},
+    "answer": {"foreground": COLORS["semantic_answer"]},
+    "citation": {"foreground": COLORS["semantic_citation"]},
+    "source": {"foreground": COLORS["semantic_source"], "font": FONTS["semantic_source"]},
+    "separator": {"foreground": COLORS["semantic_separator"]},
     # Hallucination verification span tags
     "verify_verified": {"foreground": COLORS["verify_verified"]},
     "verify_uncertain": {"foreground": COLORS["verify_uncertain"]},

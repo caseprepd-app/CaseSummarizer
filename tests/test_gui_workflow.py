@@ -63,7 +63,7 @@ class WorkflowProgress:
     files_processed: int = 0
     preprocessing_complete: bool = False
     ner_complete: bool = False
-    qa_ready: bool = False
+    semantic_ready: bool = False
     errors: list = field(default_factory=list)
     messages: list = field(default_factory=list)
 
@@ -73,7 +73,7 @@ class WorkflowProgress:
 
     def is_complete(self) -> bool:
         """Check if workflow completed all expected phases."""
-        return self.preprocessing_complete and self.ner_complete and self.qa_ready
+        return self.preprocessing_complete and self.ner_complete and self.semantic_ready
 
 
 # =============================================================================
@@ -192,7 +192,7 @@ class QueueCollector:
             logger.debug(f"[COLLECTOR] NER complete: {term_count} terms")
 
         elif msg_type == MessageType.QA_READY:
-            self.progress.qa_ready = True
+            self.progress.semantic_ready = True
             chunk_count = data.get("chunk_count", 0) if isinstance(data, dict) else 0
             logger.debug(f"[COLLECTOR] Q&A ready: {chunk_count} chunks")
 
@@ -302,7 +302,7 @@ class TestHeadlessProgressiveExtraction:
 
         # Reset progress tracker for extraction phases
         progress_tracker.ner_complete = False
-        progress_tracker.qa_ready = False
+        progress_tracker.semantic_ready = False
         # Fresh queue for extraction
         extract_queue = Queue()
         extract_progress = WorkflowProgress()
@@ -328,7 +328,7 @@ class TestHeadlessProgressiveExtraction:
         # Wait for Q&A Ready (Phase 2)
         logger.debug("[TEST] Waiting for Phase 2 (Q&A indexing)...")
         qa_success = extract_collector.collect_until(
-            condition=lambda: extract_progress.qa_ready, timeout=PHASE2_TIMEOUT
+            condition=lambda: extract_progress.semantic_ready, timeout=PHASE2_TIMEOUT
         )
         assert qa_success, f"Phase 2 (Q&A) timed out. Messages: {extract_progress.messages[-10:]}"
         logger.debug("[TEST] Phase 2 complete!")
@@ -446,12 +446,12 @@ class TestGUISimulation:
                     # Check if tasks completed
                     if hasattr(app, "_completed_tasks") and "vocab" in app._completed_tasks:
                         logger.debug("[GUI TEST] Vocabulary task complete")
-                    if app._qa_ready:
+                    if app._semantic_ready:
                         logger.debug("[GUI TEST] Q&A ready")
 
                     # Check for stuck state
                     if (
-                        app._qa_ready
+                        app._semantic_ready
                         and hasattr(app, "_completed_tasks")
                         and "vocab" in app._completed_tasks
                     ):
@@ -463,7 +463,7 @@ class TestGUISimulation:
                 if not workflow_complete.is_set():
                     errors.append(f"Workflow did not complete within {TOTAL_TIMEOUT}s")
                     # Capture state for debugging
-                    errors.append(f"_qa_ready: {app._qa_ready}")
+                    errors.append(f"_semantic_ready: {app._semantic_ready}")
                     errors.append(f"_completed_tasks: {getattr(app, '_completed_tasks', 'N/A')}")
 
                 app.destroy()

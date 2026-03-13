@@ -54,7 +54,7 @@ class WorkerProcessManager:
     """
     Manages the persistent worker subprocess for pipeline tasks.
 
-    The subprocess runs all heavy work (extraction, Q&A, summarization)
+    The subprocess runs all heavy work (extraction, semantic search)
     in isolation from the GUI process, eliminating GIL contention.
 
     Attributes:

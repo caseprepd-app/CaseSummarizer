@@ -4,7 +4,7 @@ Tests for 11-bug audit fixes.
 Validates all 11 bug fixes with targeted unit tests:
 - Bug 1: _perform_tasks re-entrancy guard
 - Bug 2: _clear_files during processing guard + button state
-- Bug 3: Crash recovery resets _qa_ready/_qa_failed/_vector_store_path
+- Bug 3: Crash recovery resets _semantic_ready/_semantic_failed/_vector_store_path
 - Bug 4: _start_preprocessing failure re-enables clear_files_btn
 - Bug 5: Corpus dropdown error logs warning + sets status error
 - Bug 6: Crash recovery disables followup_entry and followup_btn
@@ -32,17 +32,17 @@ def _make_main_window_stub():
     """Create a stub with MainWindow attributes used by handlers."""
     stub = MagicMock()
     # State attributes
-    stub._qa_ready = False
-    stub._qa_answering_active = False
-    stub._qa_results = []
-    stub._qa_results_lock = threading.Lock()
+    stub._semantic_ready = False
+    stub._semantic_searching_active = False
+    stub._semantic_results = []
+    stub._semantic_results_lock = threading.Lock()
     stub._pending_tasks = {"vocab": True, "qa": True}
     stub._completed_tasks = set()
     stub._vector_store_path = None
     stub.processing_results = [{"filename": "test.pdf"}]
     stub._processing_active = False
     stub._preprocessing_active = False
-    stub._qa_failed = False
+    stub._semantic_failed = False
     # Widget mocks
     stub.followup_btn = MagicMock()
     stub.followup_entry = MagicMock()
@@ -148,37 +148,37 @@ class TestBug2ClearFilesGuard:
 
 
 # ===========================================================================
-# Bug 3: Crash recovery resets Q&A state
+# Bug 3: Crash recovery resets semantic search state
 # ===========================================================================
 
 
 class TestBug3CrashRecoveryResets:
-    """Subprocess crash recovery should reset _qa_ready, _qa_failed, _vector_store_path."""
+    """Subprocess crash recovery should reset _semantic_ready, _semantic_failed, _vector_store_path."""
 
     def test_error_handler_resets_qa_state(self):
-        """Error message handler resets Q&A flags."""
+        """Error message handler resets semantic search flags."""
         stub = _make_main_window_stub()
-        stub._qa_ready = True
-        stub._qa_failed = True
+        stub._semantic_ready = True
+        stub._semantic_failed = True
         stub._vector_store_path = "/tmp/old_vs"
         stub._processing_active = True
 
         _call_handler(stub, "error", "Subprocess crashed")
 
-        assert stub._qa_ready is False
-        assert stub._qa_failed is False
+        assert stub._semantic_ready is False
+        assert stub._semantic_failed is False
         assert stub._vector_store_path is None
 
     def test_error_handler_resets_qa_state_during_preprocessing(self):
-        """Error during preprocessing also resets Q&A state."""
+        """Error during preprocessing also resets semantic search state."""
         stub = _make_main_window_stub()
-        stub._qa_ready = True
+        stub._semantic_ready = True
         stub._vector_store_path = "/tmp/old_vs"
         stub._processing_active = False  # preprocessing path
 
         _call_handler(stub, "error", "Subprocess crashed")
 
-        assert stub._qa_ready is False
+        assert stub._semantic_ready is False
         assert stub._vector_store_path is None
 
 
@@ -389,9 +389,9 @@ class TestBug9ForwarderLoopError:
             "worker_lock": threading.Lock(),
         }
 
-        # qa_ready with non-dict data will cause AttributeError on data.get()
+        # semantic_ready with non-dict data will cause AttributeError on data.get()
         with pytest.raises(AttributeError):
-            _forward_message("qa_ready", "not_a_dict", internal_queue, result_queue, state)
+            _forward_message("semantic_ready", "not_a_dict", internal_queue, result_queue, state)
 
     def test_forwarder_loop_continues_after_error(self):
         """Forwarder loop should not die on a single bad message."""
@@ -410,7 +410,7 @@ class TestBug9ForwarderLoopError:
 
         # Put a bad message (will cause error in _forward_message)
         # then a good message
-        internal_q.put(("qa_ready", "not_a_dict"))  # Will error
+        internal_q.put(("semantic_ready", "not_a_dict"))  # Will error
         internal_q.put(("progress", (50, "Step 1")))  # Should still arrive
 
         t = threading.Thread(

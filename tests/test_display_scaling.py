@@ -10,7 +10,7 @@ Covers all code changes from the Universal Display Scaling implementation:
 - src/main.py: apply_scaling() call placement
 - src/ui/main_window.py: geometry scaling, old scale_fonts removed, styles with scale factor
 - src/ui/base_dialog.py: auto-scales dimensions
-- src/ui/qa_question_editor.py: scaled geometry
+- src/ui/semantic_question_editor.py: scaled geometry
 - src/ui/window_layout.py: scale_value imports in all layout methods
 - src/ui/settings/settings_registry.py: new settings, old removed, dialog scaled
 """
@@ -867,23 +867,23 @@ class TestBaseDialogScaling:
 
 
 # ============================================================================
-# 13. src/ui/qa_question_editor.py — scaled geometry
+# 13. src/ui/semantic_question_editor.py — scaled geometry
 # ============================================================================
 
 
 class TestQAQuestionEditorScaling:
-    """Verify qa_question_editor.py uses scale_value for geometry."""
+    """Verify semantic_question_editor.py uses scale_value for geometry."""
 
     def test_geometry_scaled(self):
         """Question editor geometry uses scale_value, not hardcoded '500x300'."""
-        source = _read_source("src/ui/qa_question_editor.py")
+        source = _read_source("src/ui/semantic_question_editor.py")
         assert 'geometry("500x300")' not in source
         assert "scale_value(500)" in source
         assert "scale_value(300)" in source
 
     def test_centering_uses_scaled_values(self):
         """Centering calculation uses scaled width/height variables."""
-        source = _read_source("src/ui/qa_question_editor.py")
+        source = _read_source("src/ui/semantic_question_editor.py")
         # Should use _w and _h variables, not hardcoded 500/300
         assert "- 500)" not in source
         assert "- 300)" not in source

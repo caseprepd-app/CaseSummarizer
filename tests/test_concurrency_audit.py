@@ -210,38 +210,38 @@ class TestQAThreadDaemon:
 
 
 # =========================================================================
-# 4d. _qa_error_msg protected by lock
+# 4d. _search_error_msg protected by lock
 # =========================================================================
 
 
 class TestQAErrorLock:
-    """Verify _qa_error_msg is protected by _qa_error_lock."""
+    """Verify _search_error_msg is protected by _search_error_lock."""
 
     def test_error_lock_created(self):
-        """ProgressiveExtractionWorker.__init__ must create _qa_error_lock."""
+        """ProgressiveExtractionWorker.__init__ must create _search_error_lock."""
         import inspect
 
         from src.services.workers import ProgressiveExtractionWorker
 
         source = inspect.getsource(ProgressiveExtractionWorker.__init__)
-        assert "_qa_error_lock" in source
+        assert "_search_error_lock" in source
         assert "threading.Lock()" in source
 
     def test_error_msg_read_under_lock(self):
-        """Reading _qa_error_msg must be done under _qa_error_lock."""
+        """Reading _search_error_msg must be done under _search_error_lock."""
         import inspect
 
         from src.services.workers import ProgressiveExtractionWorker
 
         source = inspect.getsource(ProgressiveExtractionWorker.execute)
-        # The read should be inside a `with self._qa_error_lock:` block
-        assert "with self._qa_error_lock:" in source
+        # The read should be inside a `with self._search_error_lock:` block
+        assert "with self._search_error_lock:" in source
 
     def test_error_msg_write_under_lock(self):
-        """Writing _qa_error_msg must be done under _qa_error_lock."""
+        """Writing _search_error_msg must be done under _search_error_lock."""
         import inspect
 
         from src.services.workers import ProgressiveExtractionWorker
 
         source = inspect.getsource(ProgressiveExtractionWorker._build_vector_store)
-        assert "with self._qa_error_lock:" in source
+        assert "with self._search_error_lock:" in source

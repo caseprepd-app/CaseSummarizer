@@ -695,8 +695,8 @@ class TestPreprocessingActiveFlag:
         w._processing_active = False
         w._preprocessing_active = True
         w._queue_poll_id = None
-        w._qa_results_lock = MagicMock()
-        w._qa_results = []
+        w._semantic_results_lock = MagicMock()
+        w._semantic_results = []
 
         MainWindow._poll_queue(w)
 
@@ -712,11 +712,11 @@ class TestPreprocessingActiveFlag:
         w._worker_manager.check_for_messages.return_value = []
         w._processing_active = False
         w._preprocessing_active = False
-        w._qa_answering_active = False
+        w._semantic_answering_active = False
         w._key_sentences_pending = False
         w._queue_poll_id = None
-        w._qa_results_lock = MagicMock()
-        w._qa_results = []
+        w._semantic_results_lock = MagicMock()
+        w._semantic_results = []
 
         MainWindow._poll_queue(w)
 

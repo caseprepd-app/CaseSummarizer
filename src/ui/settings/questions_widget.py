@@ -41,10 +41,10 @@ class DefaultQuestionsWidget(BaseSettingsWidget):
             parent: Parent widget.
             **kwargs: Additional CTkFrame arguments.
         """
-        from src.services import QAService
+        from src.services import SemanticService
 
-        qa_service = QAService()
-        self._manager = qa_service.get_default_questions_manager()
+        semantic_service = SemanticService()
+        self._manager = semantic_service.get_default_questions_manager()
 
         # Buffer: list of {"text": str, "enabled": bool} dicts
         self._buffer = [

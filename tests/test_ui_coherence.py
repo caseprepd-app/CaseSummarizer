@@ -155,17 +155,17 @@ class TestErrorMessageCoherence:
 # =========================================================================
 
 
-class TestQAPanelCoherence:
+class TestSemanticPanelCoherence:
     """Q&A panel references match reality."""
 
     def test_edit_questions_fallback_no_stale_path(self):
         """No reference to removed 'Edit Default Questions' button."""
-        text = _read("src/ui/qa_panel.py")
+        text = _read("src/ui/semantic_panel.py")
         assert "Edit Default Questions" not in text
 
     def test_edit_questions_points_to_settings_search(self):
         """Fallback message directs to Settings > Search."""
-        text = _read("src/ui/qa_panel.py")
+        text = _read("src/ui/semantic_panel.py")
         assert "Settings > Search" in text
 
 

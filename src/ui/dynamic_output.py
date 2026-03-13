@@ -31,16 +31,16 @@ from tkinter import Menu, filedialog, messagebox
 import customtkinter as ctk
 
 from src.config import SORT_WARNING_COLUMNS, USER_VOCAB_EXCLUDE_PATH, VF
-from src.ui.qa_panel import QAPanel
 
 logger = logging.getLogger(__name__)
+from src.ui.semantic_panel import SemanticPanel
 from src.ui.styles import get_vocab_font_specs
 from src.ui.theme import (
     BUTTON_STYLES,
     COLORS,
     FONTS,
     FRAME_STYLES,
-    QA_TEXT_TAGS,
+    SEMANTIC_TEXT_TAGS,
     get_color,
     resolve_tags,
 )
@@ -162,7 +162,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
 
         # Search Tab: Status placeholder (shown when no results) + search panel
         # See: https://github.com/TomSchimansky/CustomTkinter/issues/1508
-        self._qa_status_label = ctk.CTkLabel(
+        self._semantic_status_label = ctk.CTkLabel(
             self.tabview.tab("Search"),
             text="",
             font=FONTS["body"],
@@ -170,11 +170,11 @@ class DynamicOutputWidget(ctk.CTkFrame):
             justify="center",
             wraplength=0,
         )
-        self._qa_status_label.grid(row=0, column=0, sticky="nsew", padx=20, pady=50)
+        self._semantic_status_label.grid(row=0, column=0, sticky="nsew", padx=20, pady=50)
 
-        self._qa_panel = QAPanel(self.tabview.tab("Search"))
-        self._qa_panel.grid(row=0, column=0, sticky="nsew")
-        self._qa_panel.grid_remove()  # Hidden initially, shown when results arrive
+        self._semantic_panel = SemanticPanel(self.tabview.tab("Search"))
+        self._semantic_panel.grid(row=0, column=0, sticky="nsew")
+        self._semantic_panel.grid_remove()  # Hidden initially, shown when results arrive
 
         # Summary Tab: Status placeholder (shown when no summary) + textbox
         self._summary_status_label = ctk.CTkLabel(
@@ -198,7 +198,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
         self.summary_text_display.grid_remove()  # Hidden initially, shown when results arrive
 
         # Configure text tags for card-style formatting (same as Search tab)
-        for tag_name, tag_config in resolve_tags(QA_TEXT_TAGS).items():
+        for tag_name, tag_config in resolve_tags(SEMANTIC_TEXT_TAGS).items():
             self.summary_text_display.tag_config(tag_name, cnf=tag_config)
 
         # Inline find bar for Summary tab (hidden by default)
@@ -266,7 +266,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
             # Backward compatibility keys
             "Meta-Summary": "",
             "Rare Word List (CSV)": [],
-            "Q&A Results": [],
+            "Semantic Results": [],
         }
         self._document_summaries = {}  # {filename: summary_text}
 
@@ -308,7 +308,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
             if active_tab == "Document":
                 self._document_panel.show_find_bar()
             elif active_tab == "Search":
-                self._qa_panel.show_find_bar()
+                self._semantic_panel.show_find_bar()
             elif active_tab == "Key Excerpts":
                 self._summary_find_bar.show()
             # Names & Vocab tab has its own filter bar — no-op
@@ -358,11 +358,11 @@ class DynamicOutputWidget(ctk.CTkFrame):
 
     def _update_tab_status_messages(self):
         """Update status labels in Search and Key Excerpts tabs based on workflow phase and config."""
-        from src.ui.workflow_status import get_qa_tab_status, get_summary_tab_status
+        from src.ui.workflow_status import get_semantic_tab_status, get_summary_tab_status
 
         # Update Search tab status
-        qa_status = get_qa_tab_status(self._workflow_phase, self._tab_status_config)
-        self._qa_status_label.configure(text=qa_status)
+        semantic_status = get_semantic_tab_status(self._workflow_phase, self._tab_status_config)
+        self._semantic_status_label.configure(text=semantic_status)
 
         # Update Summary tab status
         summary_status = get_summary_tab_status(self._workflow_phase, self._tab_status_config)
@@ -382,7 +382,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
         self._update_tab_status_messages()
         logger.debug("Workflow phase set to: %s", phase.name)
 
-    def set_tab_status_config(self, vocab_enabled=None, qa_enabled=None, **kwargs):
+    def set_tab_status_config(self, vocab_enabled=None, semantic_enabled=None, **kwargs):
         """
         Update which features are enabled and refresh tab status messages.
 
@@ -390,29 +390,29 @@ class DynamicOutputWidget(ctk.CTkFrame):
 
         Args:
             vocab_enabled: Whether vocabulary extraction is enabled (or None to keep current)
-            qa_enabled: Whether Q&A is enabled (or None to keep current)
+            semantic_enabled: Whether semantic search is enabled (or None to keep current)
         """
         if vocab_enabled is not None:
             self._tab_status_config.vocab_enabled = vocab_enabled
-        if qa_enabled is not None:
-            self._tab_status_config.qa_enabled = qa_enabled
+        if semantic_enabled is not None:
+            self._tab_status_config.semantic_enabled = semantic_enabled
 
         self._update_tab_status_messages()
         logger.debug(
             "Tab status config updated: vocab=%s, qa=%s",
             self._tab_status_config.vocab_enabled,
-            self._tab_status_config.qa_enabled,
+            self._tab_status_config.semantic_enabled,
         )
 
-    def show_qa_content(self):
+    def show_semantic_content(self):
         """Show the search panel and hide the status label (called when results arrive)."""
-        self._qa_status_label.grid_remove()
-        self._qa_panel.grid()
+        self._semantic_status_label.grid_remove()
+        self._semantic_panel.grid()
 
-    def show_qa_status(self):
+    def show_semantic_status(self):
         """Show the search status label and hide the panel (called when clearing or before results)."""
-        self._qa_panel.grid_remove()
-        self._qa_status_label.grid()
+        self._semantic_panel.grid_remove()
+        self._semantic_status_label.grid()
         self._update_tab_status_messages()
 
     def show_summary_content(self):
@@ -494,7 +494,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
         """
         Handle tab change to show/hide appropriate button bars.
 
-        Hides the shared button bar when Search tab is active (since QAPanel
+        Hides the shared button bar when Search tab is active (since SemanticPanel
         has its own buttons), shows it for other tabs. Also shows/hides the
         main window's follow-up input frame so it only appears when the Search
         tab is active. Saves column widths when leaving Names & Vocab tab.
@@ -513,7 +513,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
                 main_window.followup_frame.grid_remove()
 
         if current_tab in ("Search", "Document"):
-            # Hide shared button bar - QAPanel has its own, Document is read-only
+            # Hide shared button bar - SemanticPanel has its own, Document is read-only
             self.button_frame.grid_remove()
         else:
             # Show shared button bar for Names & Vocab and Summary tabs
@@ -1151,7 +1151,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
             # Backward compatibility keys
             "Meta-Summary": "",
             "Rare Word List (CSV)": [],
-            "Q&A Results": [],
+            "Semantic Results": [],
         }
         self._document_summaries = {}
         self._extraction_source = "none"  # Reset progress badge state
@@ -1185,7 +1185,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
         meta_summary: str = "",
         vocab_csv_data: list | None = None,
         document_summaries: dict | None = None,
-        qa_results: list | None = None,
+        semantic_results: list | None = None,
         # Combined output parameters
         names_vocab_data: list | None = None,
         summary_text: str = "",
@@ -1199,7 +1199,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
             meta_summary: The generated meta-summary text (legacy).
             vocab_csv_data: A list of dicts representing vocabulary data (legacy).
             document_summaries: A dictionary of {filename: summary_text}.
-            qa_results: A list of QAResult objects from Q&A processing.
+            semantic_results: A list of SemanticResult objects from semantic search.
             names_vocab_data: Combined people + vocabulary data.
             summary_text: Combined summary text.
             extraction_source: "ner" or "both" for progress badge.
@@ -1224,9 +1224,9 @@ class DynamicOutputWidget(ctk.CTkFrame):
                 self._outputs["Names & Vocabulary"] = vocab_csv_data
         if document_summaries:
             self._document_summaries.update(document_summaries)
-        if qa_results is not None:
-            self._outputs["Q&A Results"] = qa_results
-            self._outputs["Search"] = qa_results
+        if semantic_results is not None:
+            self._outputs["Semantic Results"] = semantic_results
+            self._outputs["Search"] = semantic_results
         if filtered_vocab_data is not None:
             self._filtered_vocab_data_raw = filtered_vocab_data
 
@@ -1248,9 +1248,9 @@ class DynamicOutputWidget(ctk.CTkFrame):
             self._update_progress_badge(self._extraction_source)
 
         # Search tab
-        qa_data = self._outputs.get("Search") or self._outputs.get("Q&A Results")
-        if qa_data:
-            self._display_qa_results(qa_data)
+        search_data = self._outputs.get("Search") or self._outputs.get("Semantic Results")
+        if search_data:
+            self._display_semantic_results(search_data)
 
         # Key Excerpts tab
         summary = self._outputs.get("Key Excerpts") or self._outputs.get("Meta-Summary")
@@ -1275,9 +1275,9 @@ class DynamicOutputWidget(ctk.CTkFrame):
         # another tab that has content (prevents Search tab from jumping away)
         if vocab_data:
             current_tab = self.tabview.get()
-            has_qa = bool(qa_data)
+            has_search = bool(search_data)
             has_summary = bool(summary) or bool(self._document_summaries)
-            stay_on_current = (current_tab == "Search" and has_qa) or (
+            stay_on_current = (current_tab == "Search" and has_search) or (
                 current_tab == "Key Excerpts" and has_summary
             )
             if not stay_on_current:
@@ -1593,28 +1593,30 @@ class DynamicOutputWidget(ctk.CTkFrame):
 
         logger.debug("Filtered section: %s terms displayed", len(self._filtered_vocab_data_raw))
 
-    def _display_qa_results(self, results: list):
+    def _display_semantic_results(self, results: list):
         """
-        Display Q&A results using the QAPanel widget.
+        Display semantic search results using the SemanticPanel widget.
 
         Args:
-            results: List of QAResult objects
+            results: List of SemanticResult objects
         """
         if not results:
-            logger.debug("No Q&A results to display")
+            logger.debug("No semantic search results to display")
             return
 
         # Set up follow-up callback if not already done
         # (must be done after MainWindow is fully initialized, not in __init__)
-        if self._qa_panel.on_ask_followup is None:
+        if self._semantic_panel.on_ask_followup is None:
             main_window = self.winfo_toplevel()
-            if hasattr(main_window, "_ask_followup_for_qa_panel"):
-                self._qa_panel.set_followup_callback(main_window._ask_followup_for_qa_panel)
+            if hasattr(main_window, "_ask_followup_for_semantic_panel"):
+                self._semantic_panel.set_followup_callback(
+                    main_window._ask_followup_for_semantic_panel
+                )
                 logger.debug("Follow-up callback connected to MainWindow")
 
         # Display results and show the search panel (hide status label)
-        self._qa_panel.display_results(results)
-        self.show_qa_content()
+        self._semantic_panel.display_results(results)
+        self.show_semantic_content()
 
         logger.debug("Showing %s search results", len(results))
 
@@ -2202,9 +2204,9 @@ class DynamicOutputWidget(ctk.CTkFrame):
             data = self._get_filtered_vocab_data()
             return self._build_vocab_csv(data)
         elif current_tab == "Search":
-            # Get export content from QAPanel if available
-            if self._qa_panel is not None:
-                return self._qa_panel.get_export_content()
+            # Get export content from SemanticPanel if available
+            if self._semantic_panel is not None:
+                return self._semantic_panel.get_export_content()
             return ""
         elif current_tab == "Key Excerpts":
             # Return text from summary display
@@ -2263,7 +2265,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
             default_filename = "names_vocabulary.csv"
             filetypes = [("CSV Files", "*.csv"), ("All Files", "*.*")]
         elif current_tab == "Search":
-            default_filename = "qa_results.txt"
+            default_filename = "semantic_results.txt"
             filetypes = [("Text Files", "*.txt"), ("All Files", "*.*")]
         elif current_tab == "Key Excerpts":
             default_filename = "summary.txt"

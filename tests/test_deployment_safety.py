@@ -567,7 +567,7 @@ class TestModelLoadingGuards:
     def test_hallucination_verifier_uses_local_files_only(self):
         """Hallucination verifier (the good pattern) still uses local_files_only."""
         verifier_path = (
-            Path(__file__).parent.parent / "src" / "core" / "qa" / "hallucination_verifier.py"
+            Path(__file__).parent.parent / "src" / "deprecated" / "hallucination_verifier.py"
         )
         source = verifier_path.read_text(encoding="utf-8")
         assert "local_files_only" in source

@@ -270,8 +270,8 @@ class TestIgnorePatterns:
                 return
         pytest.fail("all-MiniLM-L6-v2 not found")
 
-    def test_hallucination_model_no_ignore(self, download_module):
-        """Hallucination model downloads everything (small model)."""
+    def test_ettin_model_no_ignore(self, download_module):
+        """Ettin model downloads everything (small model)."""
         for repo_id, _, ignore in download_module.HF_MODELS:
             if repo_id == "tinylettuce/ettin-68m-en":
                 assert ignore is None

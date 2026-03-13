@@ -7,9 +7,9 @@ Covers:
 - destroy() joins workers with timeout after stopping them (source inspection)
 - sys.excepthook logs uncaught main-thread exceptions (except KeyboardInterrupt)
 - threading.excepthook logs uncaught thread exceptions (except SystemExit)
-- QAService tracks temp dirs and cleans them up via cleanup()
-- QAService registers atexit backstop for temp dirs
-- QAService cleanup() is idempotent and handles missing dirs
+- SemanticService tracks temp dirs and cleans them up via cleanup()
+- SemanticService registers atexit backstop for temp dirs
+- SemanticService cleanup() is idempotent and handles missing dirs
 """
 
 import inspect
@@ -31,8 +31,8 @@ class TestDestroyingGuard:
         """Create a mock MainWindow-like object with poll method dependencies."""
         window = MagicMock()
         window._destroying = False
-        window._qa_results_lock = threading.Lock()
-        window._qa_results = []
+        window._semantic_results_lock = threading.Lock()
+        window._semantic_results = []
         return window
 
     def test_poll_followup_result_returns_early_when_destroying(self):
@@ -224,44 +224,44 @@ class TestExceptionHooks:
 
 
 # -------------------------------------------------------------------------
-# Fix 3: QAService temp dir cleanup (qa_service.py)
+# Fix 3: SemanticService temp dir cleanup (semantic_service.py)
 # -------------------------------------------------------------------------
 
 
-class TestQAServiceTempCleanup:
-    """Test QAService temp directory tracking and cleanup."""
+class TestSemanticServiceTempCleanup:
+    """Test SemanticService temp directory tracking and cleanup."""
 
     def test_init_temp_dir_is_none(self):
-        """QAService should initialize _temp_dir as None."""
-        from src.services.qa_service import QAService
+        """SemanticService should initialize _temp_dir as None."""
+        from src.services.semantic_service import SemanticService
 
-        service = QAService()
+        service = SemanticService()
         assert service._temp_dir is None
 
     def test_init_with_explicit_path_no_temp_dir(self):
-        """QAService with explicit path should not create temp dir."""
-        from src.services.qa_service import QAService
+        """SemanticService with explicit path should not create temp dir."""
+        from src.services.semantic_service import SemanticService
 
-        service = QAService(vector_store_path=Path("/some/path"))
+        service = SemanticService(vector_store_path=Path("/some/path"))
         assert service._temp_dir is None
         assert service._vector_store_path == Path("/some/path")
 
     def test_cleanup_when_no_temp_dir(self):
         """cleanup() should be safe to call when no temp dir exists."""
-        from src.services.qa_service import QAService
+        from src.services.semantic_service import SemanticService
 
-        service = QAService()
+        service = SemanticService()
         # Should not raise
         service.cleanup()
         assert service._temp_dir is None
 
     def test_cleanup_deletes_temp_dir(self):
         """cleanup() should delete the temp directory."""
-        from src.services.qa_service import QAService
+        from src.services.semantic_service import SemanticService
 
-        service = QAService()
+        service = SemanticService()
         service._temp_dir = Path(tempfile.mkdtemp())
-        service._vector_store_path = service._temp_dir / "qa_index"
+        service._vector_store_path = service._temp_dir / "semantic_index"
         service._temp_dir.mkdir(parents=True, exist_ok=True)
 
         assert service._temp_dir.exists()
@@ -273,11 +273,11 @@ class TestQAServiceTempCleanup:
 
     def test_cleanup_is_idempotent(self):
         """Calling cleanup() twice should not raise."""
-        from src.services.qa_service import QAService
+        from src.services.semantic_service import SemanticService
 
-        service = QAService()
+        service = SemanticService()
         service._temp_dir = Path(tempfile.mkdtemp())
-        service._vector_store_path = service._temp_dir / "qa_index"
+        service._vector_store_path = service._temp_dir / "semantic_index"
 
         service.cleanup()
         # Second call should be safe (dir already gone)
@@ -289,11 +289,11 @@ class TestQAServiceTempCleanup:
         """cleanup() should handle the case where temp dir was already removed."""
         import shutil
 
-        from src.services.qa_service import QAService
+        from src.services.semantic_service import SemanticService
 
-        service = QAService()
+        service = SemanticService()
         service._temp_dir = Path(tempfile.mkdtemp())
-        service._vector_store_path = service._temp_dir / "qa_index"
+        service._vector_store_path = service._temp_dir / "semantic_index"
 
         # Delete it externally first
         shutil.rmtree(service._temp_dir)
@@ -305,15 +305,15 @@ class TestQAServiceTempCleanup:
 
     def test_build_index_creates_temp_dir_when_no_path(self):
         """build_index() should create a temp dir when vector_store_path is None."""
-        from src.services.qa_service import QAService
+        from src.services.semantic_service import SemanticService
 
-        service = QAService()
+        service = SemanticService()
 
         with (
             patch("src.core.retrieval.algorithms.faiss_semantic.get_embeddings_model") as mock_emb,
             patch("src.core.chunking.create_unified_chunker") as mock_chunker,
             patch("src.core.vector_store.VectorStoreBuilder"),
-            patch("src.core.qa.QAOrchestrator"),
+            patch("src.core.semantic.SemanticOrchestrator"),
         ):
             mock_emb.return_value = MagicMock()
             mock_chunker_inst = MagicMock()
@@ -324,22 +324,22 @@ class TestQAServiceTempCleanup:
 
         assert service._temp_dir is not None
         assert service._temp_dir.exists()
-        assert "qa_index" in str(service._vector_store_path)
+        assert "semantic_index" in str(service._vector_store_path)
 
         # Clean up
         service.cleanup()
 
     def test_build_index_registers_atexit_handler(self):
         """build_index() should register an atexit handler for temp cleanup."""
-        from src.services.qa_service import QAService
+        from src.services.semantic_service import SemanticService
 
-        service = QAService()
+        service = SemanticService()
 
         with (
             patch("src.core.retrieval.algorithms.faiss_semantic.get_embeddings_model") as mock_emb,
             patch("src.core.chunking.create_unified_chunker") as mock_chunker,
             patch("src.core.vector_store.VectorStoreBuilder"),
-            patch("src.core.qa.QAOrchestrator"),
+            patch("src.core.semantic.SemanticOrchestrator"),
             patch("atexit.register") as mock_atexit,
         ):
             mock_emb.return_value = MagicMock()
@@ -356,16 +356,16 @@ class TestQAServiceTempCleanup:
 
     def test_build_index_with_explicit_path_no_temp_dir(self):
         """build_index() with explicit path should not create temp dir or atexit."""
-        from src.services.qa_service import QAService
+        from src.services.semantic_service import SemanticService
 
         explicit_path = Path(tempfile.mkdtemp()) / "explicit_index"
-        service = QAService(vector_store_path=explicit_path)
+        service = SemanticService(vector_store_path=explicit_path)
 
         with (
             patch("src.core.retrieval.algorithms.faiss_semantic.get_embeddings_model") as mock_emb,
             patch("src.core.chunking.create_unified_chunker") as mock_chunker,
             patch("src.core.vector_store.VectorStoreBuilder"),
-            patch("src.core.qa.QAOrchestrator"),
+            patch("src.core.semantic.SemanticOrchestrator"),
             patch("atexit.register") as mock_atexit,
         ):
             mock_emb.return_value = MagicMock()

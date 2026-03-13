@@ -360,9 +360,9 @@ class TestExportServiceVocabulary:
 
 
 class TestExportServiceQA:
-    """ExportService Q&A export methods."""
+    """ExportService semantic export methods."""
 
-    def test_export_qa_to_word(self, tmp_path):
+    def test_export_semantic_to_word(self, tmp_path):
         from src.services.export_service import ExportService
 
         svc = ExportService()
@@ -372,20 +372,20 @@ class TestExportServiceQA:
         with patch("src.services.export_service.WordDocumentBuilder") as mock_cls:
             mock_builder = MagicMock()
             mock_cls.return_value = mock_builder
-            with patch("src.services.export_service.export_qa_results"):
-                success, _ = svc.export_qa_to_word(results, str(out))
+            with patch("src.services.export_service.export_semantic_results"):
+                success, _ = svc.export_semantic_to_word(results, str(out))
                 assert success is True
 
-    def test_export_qa_to_html(self, tmp_path):
+    def test_export_semantic_to_html(self, tmp_path):
         from src.services.export_service import ExportService
 
         svc = ExportService()
         results = [MagicMock()]
-        out = tmp_path / "qa.html"
+        out = tmp_path / "semantic.html"
 
-        with patch("src.services.export_service.export_qa_html") as mock_fn:
+        with patch("src.services.export_service.export_semantic_html") as mock_fn:
             mock_fn.return_value = True
-            success, _ = svc.export_qa_to_html(results, str(out))
+            success, _ = svc.export_semantic_to_html(results, str(out))
             assert success is True
 
 
@@ -404,7 +404,7 @@ class TestExportServiceCombined:
         ):
             success, _ = svc.export_combined_html(
                 vocab_data=[{"Term": "a"}],
-                qa_results=[],
+                semantic_results=[],
                 summary_text="Summary",
                 file_path=str(out),
             )
@@ -423,7 +423,7 @@ class TestExportServiceCombined:
             with patch("src.services.export_service.export_combined"):
                 success, _ = svc.export_combined_to_word(
                     vocab_data=[{"Term": "a"}],
-                    qa_results=[],
+                    semantic_results=[],
                     file_path=str(out),
                 )
                 assert success is True

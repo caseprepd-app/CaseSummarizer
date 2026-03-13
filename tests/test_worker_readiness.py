@@ -459,10 +459,10 @@ class TestCommandAck:
 def _make_stub():
     """Create a stub with the same attributes MainWindow._handle_queue_message uses."""
     stub = MagicMock()
-    stub._qa_ready = False
-    stub._qa_answering_active = False
-    stub._qa_results = []
-    stub._qa_results_lock = threading.Lock()
+    stub._semantic_ready = False
+    stub._semantic_searching_active = False
+    stub._semantic_results = []
+    stub._semantic_results_lock = threading.Lock()
     stub._pending_tasks = {"vocab": True, "qa": True, "summary": False}
     stub._completed_tasks = set()
     stub._vector_store_path = None

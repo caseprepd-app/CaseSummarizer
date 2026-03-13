@@ -3,7 +3,7 @@ High-priority coverage gap tests for 3 source modules.
 
 Covers behavioral tests (not just import checks) for:
 1. VectorStoreBuilder  — create_from_unified_chunks, cleanup_stale_stores, empty input
-2. QARetriever         — retrieve_context, get_chunk_count, empty results
+2. SemanticRetriever         — retrieve_context, get_chunk_count, empty results
 3. PDFExtractor        — _extract_pymupdf with mocked fitz
 
 All external dependencies (fitz, pdfplumber, FAISS, Ollama, langchain, etc.)
@@ -300,19 +300,19 @@ class TestVectorStoreBuilderCleanupStaleStores:
 
 
 # =========================================================================
-# 2. QARetriever
+# 2. SemanticRetriever
 # =========================================================================
 
 
-class TestQARetrieverRetrieveContext:
-    """Tests for QARetriever.retrieve_context() with fully mocked internals."""
+class TestSemanticRetrieverRetrieveContext:
+    """Tests for SemanticRetriever.retrieve_context() with fully mocked internals."""
 
     def _make_retriever(self):
-        """Build a QARetriever with all heavy dependencies mocked out."""
-        from src.core.vector_store.qa_retriever import QARetriever
+        """Build a SemanticRetriever with all heavy dependencies mocked out."""
+        from src.core.vector_store.semantic_retriever import SemanticRetriever
 
         # We'll bypass __init__ entirely and set attributes manually
-        retriever = object.__new__(QARetriever)
+        retriever = object.__new__(SemanticRetriever)
         retriever.vector_store_path = Path("/fake/path")
         retriever.embeddings = MagicMock()
         retriever._faiss_store = MagicMock()
@@ -338,7 +338,7 @@ class TestQARetrieverRetrieveContext:
         retriever._hybrid_retriever.get_chunk_count.return_value = 5
 
         with patch(
-            "src.core.vector_store.qa_retriever._get_effective_qa_context_window", return_value=4096
+            "src.core.vector_store.semantic_retriever._get_effective_semantic_context_window", return_value=4096
         ):
             result = retriever.retrieve_context("Who is the plaintiff?", k=5, min_score=0.0)
 
@@ -359,7 +359,7 @@ class TestQARetrieverRetrieveContext:
         retriever._hybrid_retriever.get_chunk_count.return_value = 1
 
         with patch(
-            "src.core.vector_store.qa_retriever._get_effective_qa_context_window", return_value=4096
+            "src.core.vector_store.semantic_retriever._get_effective_semantic_context_window", return_value=4096
         ):
             result = retriever.retrieve_context("test?", k=5, min_score=0.5)
 
@@ -390,7 +390,7 @@ class TestQARetrieverRetrieveContext:
         retriever._hybrid_retriever.get_chunk_count.return_value = 2
 
         with patch(
-            "src.core.vector_store.qa_retriever._get_effective_qa_context_window", return_value=4096
+            "src.core.vector_store.semantic_retriever._get_effective_semantic_context_window", return_value=4096
         ):
             result = retriever.retrieve_context("test?", k=5, min_score=0.0)
 
@@ -405,7 +405,7 @@ class TestQARetrieverRetrieveContext:
         retriever._hybrid_retriever.get_chunk_count.return_value = 0
 
         with patch(
-            "src.core.vector_store.qa_retriever._get_effective_qa_context_window", return_value=4096
+            "src.core.vector_store.semantic_retriever._get_effective_semantic_context_window", return_value=4096
         ):
             result = retriever.retrieve_context("anything?", k=5, min_score=0.0)
 
@@ -413,14 +413,14 @@ class TestQARetrieverRetrieveContext:
         assert result.context == ""
 
 
-class TestQARetrieverHelpers:
-    """Tests for QARetriever helper methods."""
+class TestSemanticRetrieverHelpers:
+    """Tests for SemanticRetriever helper methods."""
 
     def _make_retriever(self):
-        """Build a QARetriever with mocked internals."""
-        from src.core.vector_store.qa_retriever import QARetriever
+        """Build a SemanticRetriever with mocked internals."""
+        from src.core.vector_store.semantic_retriever import SemanticRetriever
 
-        retriever = object.__new__(QARetriever)
+        retriever = object.__new__(SemanticRetriever)
         retriever._hybrid_retriever = MagicMock()
         retriever._reranker = None
         return retriever
@@ -434,7 +434,7 @@ class TestQARetrieverHelpers:
 
     def test_get_relevant_sources_summary_formats_sources(self):
         """get_relevant_sources_summary() returns a readable string of filenames."""
-        from src.core.vector_store.qa_retriever import RetrievalResult, SourceInfo
+        from src.core.vector_store.semantic_retriever import RetrievalResult, SourceInfo
 
         retriever = self._make_retriever()
 
@@ -466,7 +466,7 @@ class TestQARetrieverHelpers:
 
     def test_get_relevant_sources_summary_no_sources(self):
         """Returns 'No sources found' when result has no sources."""
-        from src.core.vector_store.qa_retriever import RetrievalResult
+        from src.core.vector_store.semantic_retriever import RetrievalResult
 
         retriever = self._make_retriever()
 

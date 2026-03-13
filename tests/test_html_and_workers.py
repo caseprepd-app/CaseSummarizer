@@ -3,7 +3,7 @@ Tests for HTML export builders and background worker classes.
 
 Covers:
 - html_builder.py: _escape, build_vocabulary_html, export_vocabulary_html,
-  export_qa_html (with verification coloring)
+  export_semantic_html (with verification coloring)
 - workers.py: ProcessingWorker, MultiDocSummaryWorker structure and initialization
 """
 
@@ -183,12 +183,12 @@ class TestExportVocabularyHtml:
 
 
 # ============================================================================
-# export_qa_html
+# export_semantic_html
 # ============================================================================
 
 
 class TestExportQaHtml:
-    """Tests for export_qa_html()."""
+    """Tests for export_semantic_html()."""
 
     def _mock_result(self, question="What?", answer="Something.", citation="p1"):
         result = MagicMock()
@@ -200,27 +200,27 @@ class TestExportQaHtml:
         return result
 
     def test_writes_qa_file(self, tmp_path):
-        from src.core.export.html_builder import export_qa_html
+        from src.core.export.html_builder import export_semantic_html
 
         out = tmp_path / "qa.html"
         results = [self._mock_result()]
-        success = export_qa_html(results, str(out))
+        success = export_semantic_html(results, str(out))
         assert success is True
         content = out.read_text(encoding="utf-8")
         assert "What?" in content
         assert "Something." in content
 
     def test_empty_results(self, tmp_path):
-        from src.core.export.html_builder import export_qa_html
+        from src.core.export.html_builder import export_semantic_html
 
         out = tmp_path / "qa.html"
-        success = export_qa_html([], str(out))
+        success = export_semantic_html([], str(out))
         assert success is True
         content = out.read_text(encoding="utf-8")
         assert "0 Q&amp;A pairs" in content
 
     def test_verification_coloring(self, tmp_path):
-        from src.core.export.html_builder import export_qa_html
+        from src.core.export.html_builder import export_semantic_html
 
         out = tmp_path / "qa.html"
         result = self._mock_result()
@@ -234,7 +234,7 @@ class TestExportQaHtml:
         verification.spans = [span]
         result.verification = verification
 
-        success = export_qa_html([result], str(out), include_verification=True)
+        success = export_semantic_html([result], str(out), include_verification=True)
         assert success is True
         content = out.read_text(encoding="utf-8")
         assert "verified" in content
@@ -242,7 +242,7 @@ class TestExportQaHtml:
         assert "legend" in content.lower()
 
     def test_rejected_answer_styling(self, tmp_path):
-        from src.core.export.html_builder import export_qa_html
+        from src.core.export.html_builder import export_semantic_html
 
         out = tmp_path / "qa.html"
         result = self._mock_result()
@@ -252,36 +252,36 @@ class TestExportQaHtml:
         verification.spans = []
         result.verification = verification
 
-        success = export_qa_html([result], str(out))
+        success = export_semantic_html([result], str(out))
         assert success is True
         content = out.read_text(encoding="utf-8")
         assert "unreliable" in content
         assert "LOW" in content
 
     def test_no_verification(self, tmp_path):
-        from src.core.export.html_builder import export_qa_html
+        from src.core.export.html_builder import export_semantic_html
 
         out = tmp_path / "qa.html"
-        success = export_qa_html([self._mock_result()], str(out), include_verification=False)
+        success = export_semantic_html([self._mock_result()], str(out), include_verification=False)
         assert success is True
         content = out.read_text(encoding="utf-8")
         # No legend when verification is off
         assert "legend" not in content.lower() or "Verification" not in content
 
     def test_long_question_truncated_in_header(self, tmp_path):
-        from src.core.export.html_builder import export_qa_html
+        from src.core.export.html_builder import export_semantic_html
 
         out = tmp_path / "qa.html"
         long_q = "A" * 100
         result = self._mock_result(question=long_q)
-        export_qa_html([result], str(out))
+        export_semantic_html([result], str(out))
         content = out.read_text(encoding="utf-8")
         assert "..." in content  # Should be truncated at 80 chars
 
     def test_invalid_path_returns_false(self):
-        from src.core.export.html_builder import export_qa_html
+        from src.core.export.html_builder import export_semantic_html
 
-        result = export_qa_html([], "/nonexistent/dir/qa.html")
+        result = export_semantic_html([], "/nonexistent/dir/qa.html")
         assert result is False
 
 

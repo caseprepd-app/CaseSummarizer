@@ -464,7 +464,7 @@ def export_vocabulary_html(
 # Search Results HTML Builder
 # ============================================================================
 
-QA_HTML_TEMPLATE = """<!DOCTYPE html>
+SEMANTIC_HTML_TEMPLATE = """<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -642,7 +642,7 @@ QA_HTML_TEMPLATE = """<!DOCTYPE html>
     </div>
 
     <div id="qa-container">
-{qa_items}
+{search_items}
     </div>
 
 {legend}
@@ -691,7 +691,7 @@ QA_HTML_TEMPLATE = """<!DOCTYPE html>
 </html>"""
 
 
-def export_qa_html(
+def export_semantic_html(
     results: list,
     file_path: str,
     include_verification: bool = True,
@@ -701,7 +701,7 @@ def export_qa_html(
     Export Q&A results to interactive HTML file.
 
     Args:
-        results: List of QAResult objects
+        results: List of SemanticResult objects
         file_path: Output file path (.html)
         include_verification: Include verification coloring
         title: Document title
@@ -784,7 +784,7 @@ def export_qa_html(
         </div>"""
             items.append(item)
 
-        qa_items = "\n".join(items)
+        search_items = "\n".join(items)
 
         # Build legend if verification was used
         if has_verification:
@@ -800,8 +800,8 @@ def export_qa_html(
             legend = ""
 
         # Generate HTML
-        html_content = QA_HTML_TEMPLATE.format(
-            summary=_escape(summary), qa_items=qa_items, legend=legend
+        html_content = SEMANTIC_HTML_TEMPLATE.format(
+            summary=_escape(summary), search_items=search_items, legend=legend
         )
 
         Path(file_path).write_text(html_content, encoding="utf-8")

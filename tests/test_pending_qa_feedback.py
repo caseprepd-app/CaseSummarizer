@@ -26,17 +26,17 @@ class TestPendingAnswerConstant:
         assert len(PENDING_ANSWER_TEXT) > 0
 
 
-class TestPendingQAResult:
-    """Tests for creating pending QAResult entries."""
+class TestPendingSemanticResult:
+    """Tests for creating pending SemanticResult entries."""
 
-    def test_create_pending_qa_result(self):
-        """Should be able to create a QAResult with pending answer."""
-        from src.services import QAService
+    def test_create_pending_semantic_result(self):
+        """Should be able to create a SemanticResult with pending answer."""
+        from src.services import SemanticService
         from src.ui.main_window import PENDING_ANSWER_TEXT
 
-        QAResult = QAService().get_qa_result_class()
+        SemanticResult = SemanticService().get_semantic_result_class()
 
-        pending = QAResult(
+        pending = SemanticResult(
             question="What is the plaintiff's name?",
             quick_answer=PENDING_ANSWER_TEXT,
             citation="",
@@ -49,14 +49,14 @@ class TestPendingQAResult:
         assert pending.is_followup is True
         assert pending.include_in_export is False
 
-    def test_pending_qa_result_not_exportable(self):
-        """Pending QAResult with include_in_export=False should not be exported."""
-        from src.services import QAService
+    def test_pending_semantic_result_not_exportable(self):
+        """Pending SemanticResult with include_in_export=False should not be exported."""
+        from src.services import SemanticService
         from src.ui.main_window import PENDING_ANSWER_TEXT
 
-        QAResult = QAService().get_qa_result_class()
+        SemanticResult = SemanticService().get_semantic_result_class()
 
-        pending = QAResult(
+        pending = SemanticResult(
             question="Test question",
             quick_answer=PENDING_ANSWER_TEXT,
             citation="",
@@ -73,20 +73,20 @@ class TestPendingEntryReplacement:
 
     def test_replace_pending_by_index(self):
         """Pending entry should be replaceable by index."""
-        from src.services import QAService
+        from src.services import SemanticService
         from src.ui.main_window import PENDING_ANSWER_TEXT
 
-        QAResult = QAService().get_qa_result_class()
+        SemanticResult = SemanticService().get_semantic_result_class()
 
-        # Simulate the _qa_results list with a pending entry
+        # Simulate the _semantic_results list with a pending entry
         results = [
-            QAResult(question="Q1", quick_answer="Answer 1"),
-            QAResult(question="Q2", quick_answer=PENDING_ANSWER_TEXT),  # Pending
+            SemanticResult(question="Q1", quick_answer="Answer 1"),
+            SemanticResult(question="Q2", quick_answer=PENDING_ANSWER_TEXT),  # Pending
         ]
         pending_index = 1
 
         # Create the real result
-        real_result = QAResult(
+        real_result = SemanticResult(
             question="Q2",
             quick_answer="This is the real answer to Q2",
             citation="Source text...",
@@ -104,15 +104,15 @@ class TestPendingEntryReplacement:
 
     def test_remove_pending_on_error(self):
         """Pending entry should be removable on error."""
-        from src.services import QAService
+        from src.services import SemanticService
         from src.ui.main_window import PENDING_ANSWER_TEXT
 
-        QAResult = QAService().get_qa_result_class()
+        SemanticResult = SemanticService().get_semantic_result_class()
 
-        # Simulate the _qa_results list with a pending entry
+        # Simulate the _semantic_results list with a pending entry
         results = [
-            QAResult(question="Q1", quick_answer="Answer 1"),
-            QAResult(question="Q2", quick_answer=PENDING_ANSWER_TEXT),  # Pending
+            SemanticResult(question="Q1", quick_answer="Answer 1"),
+            SemanticResult(question="Q2", quick_answer=PENDING_ANSWER_TEXT),  # Pending
         ]
         pending_index = 1
 
@@ -126,13 +126,13 @@ class TestPendingEntryReplacement:
 
     def test_pending_check_identifies_pending_entries(self):
         """Should be able to identify pending entries by their answer text."""
-        from src.services import QAService
+        from src.services import SemanticService
         from src.ui.main_window import PENDING_ANSWER_TEXT
 
-        QAResult = QAService().get_qa_result_class()
+        SemanticResult = SemanticService().get_semantic_result_class()
 
-        pending = QAResult(question="Q", quick_answer=PENDING_ANSWER_TEXT)
-        answered = QAResult(question="Q", quick_answer="Real answer")
+        pending = SemanticResult(question="Q", quick_answer=PENDING_ANSWER_TEXT)
+        answered = SemanticResult(question="Q", quick_answer="Real answer")
 
         # Check if entry is pending
         assert pending.quick_answer == PENDING_ANSWER_TEXT

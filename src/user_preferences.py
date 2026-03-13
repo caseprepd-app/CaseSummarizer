@@ -28,6 +28,7 @@ class UserPreferencesManager:
         """
         self.preferences_file = Path(preferences_file)
         self._preferences = self._load_preferences()
+        self._migrate_qa_to_semantic()
 
     def _load_preferences(self) -> dict[str, Any]:
         """
@@ -70,6 +71,37 @@ class UserPreferencesManager:
             # Transient errors (PermissionError, Dropbox lock) — don't rename the file
             logger.warning("Could not read preferences (transient error), using defaults: %s", e)
             return default_structure
+
+    def _migrate_qa_to_semantic(self) -> None:
+        """Migrate old qa_ preference keys to semantic_ (one-time)."""
+        renames = {
+            "qa_retrieval_k": "semantic_retrieval_k",
+            "qa_max_tokens": "semantic_max_tokens",
+            "qa_temperature": "semantic_temperature",
+            "qa_similarity_threshold": "semantic_similarity_threshold",
+            "qa_citation_max_chars": "semantic_citation_max_chars",
+            "qa_export_confidence_floor": "semantic_export_confidence_floor",
+        }
+        migrated = False
+        for old_key, new_key in renames.items():
+            if old_key in self._preferences and new_key not in self._preferences:
+                self._preferences[new_key] = self._preferences.pop(old_key)
+                migrated = True
+        # Remove dead keys
+        for dead_key in [
+            "summary_temperature",
+            "llm_top_p",
+            "summary_length_tolerance",
+            "hallucination_verification_enabled",
+            "answer_rejection_threshold",
+            "qa_export_verification_floor",
+        ]:
+            if dead_key in self._preferences:
+                del self._preferences[dead_key]
+                migrated = True
+        if migrated:
+            self._save_preferences()
+            logger.info("Migrated qa_ preferences to semantic_ keys")
 
     def _save_preferences(self) -> None:
         """Save preferences to JSON file using atomic write (write-to-temp then rename)."""

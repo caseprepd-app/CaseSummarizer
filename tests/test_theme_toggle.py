@@ -141,13 +141,13 @@ class TestResolveTags:
     def test_resolve_tags_qa(self, mock_ctk):
         """QA_TEXT_TAGS resolves without errors and all foregrounds are strings."""
         mock_ctk.get_appearance_mode.return_value = "Dark"
-        from src.ui.theme import QA_TEXT_TAGS, resolve_tags
+        from src.ui.theme import SEMANTIC_TEXT_TAGS, resolve_tags
 
-        result = resolve_tags(QA_TEXT_TAGS)
+        result = resolve_tags(SEMANTIC_TEXT_TAGS)
         for tag_name, config in result.items():
             if "foreground" in config:
                 assert isinstance(config["foreground"], str), (
-                    f"QA tag '{tag_name}' foreground should be a string after resolve"
+                    f"Semantic tag '{tag_name}' foreground should be a string after resolve"
                 )
 
     @patch("src.ui.theme.ctk")

@@ -17,9 +17,9 @@ def _make_stub():
     stub = MagicMock()
     stub._processing_active = False
     stub._preprocessing_active = False
-    stub._qa_ready = False
-    stub._qa_answering_active = False
-    stub._qa_failed = False
+    stub._semantic_ready = False
+    stub._semantic_searching_active = False
+    stub._semantic_failed = False
     stub._vector_store_path = None
     stub._worker_ready_retries = 0
     stub.selected_files = []
@@ -285,16 +285,16 @@ class TestVocabExportGuard:
 
 
 class TestQaExportGuard:
-    """_export_qa should reject double-click."""
+    """_export_semantic should reject double-click."""
 
     def test_rejects_when_already_exporting(self):
         """Second dropdown selection during export is ignored."""
         stub = MagicMock()
-        stub._exporting_qa = True
+        stub._exporting_semantic = True
 
-        from src.ui.qa_panel import QAPanel
+        from src.ui.semantic_panel import SemanticPanel
 
-        QAPanel._export_qa(stub, "csv")
+        SemanticPanel._export_semantic(stub, "csv")
 
-        # _export_qa_impl should NOT be called
-        stub._export_qa_impl.assert_not_called()
+        # _export_semantic_impl should NOT be called
+        stub._export_semantic_impl.assert_not_called()

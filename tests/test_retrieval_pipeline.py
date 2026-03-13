@@ -491,30 +491,30 @@ class TestVectorStoreBuilder:
 
 
 # ---------------------------------------------------------------------------
-# QARetriever
+# SemanticRetriever
 # ---------------------------------------------------------------------------
 
 
-class TestQARetrieverStructure:
-    """QARetriever loads vector stores and retrieves context."""
+class TestSemanticRetrieverStructure:
+    """SemanticRetriever loads vector stores and retrieves context."""
 
     def test_class_exists(self):
-        from src.core.vector_store.qa_retriever import QARetriever
+        from src.core.vector_store.semantic_retriever import SemanticRetriever
 
-        assert QARetriever is not None
+        assert SemanticRetriever is not None
 
     def test_has_retrieve_context_method(self):
-        from src.core.vector_store.qa_retriever import QARetriever
+        from src.core.vector_store.semantic_retriever import SemanticRetriever
 
-        assert hasattr(QARetriever, "retrieve_context")
+        assert hasattr(SemanticRetriever, "retrieve_context")
 
     def test_has_get_chunk_count_method(self):
-        from src.core.vector_store.qa_retriever import QARetriever
+        from src.core.vector_store.semantic_retriever import SemanticRetriever
 
-        assert hasattr(QARetriever, "get_chunk_count")
+        assert hasattr(SemanticRetriever, "get_chunk_count")
 
     def test_source_info_dataclass(self):
-        from src.core.vector_store.qa_retriever import SourceInfo
+        from src.core.vector_store.semantic_retriever import SourceInfo
 
         si = SourceInfo(
             filename="doc.pdf",
@@ -527,7 +527,7 @@ class TestQARetrieverStructure:
         assert si.relevance_score == 0.85
 
     def test_retrieval_result_dataclass(self):
-        from src.core.vector_store.qa_retriever import RetrievalResult
+        from src.core.vector_store.semantic_retriever import RetrievalResult
 
         rr = RetrievalResult(
             context="Some context text",

@@ -1,13 +1,13 @@
 """
-Q&A Service for CasePrepd.
+Semantic Search Service for CasePrepd.
 
-Provides a clean interface for question-answering operations.
-Wraps the QAOrchestrator, vector store, and retrieval components.
+Provides a clean interface for semantic search operations.
+Wraps the SemanticOrchestrator, vector store, and retrieval components.
 
 Usage:
-    from src.services import QAService
+    from src.services import SemanticService
 
-    service = QAService()
+    service = SemanticService()
     service.build_index(text)
     results = service.run_default_questions()
     answer = service.ask_question("Who is the plaintiff?")
@@ -35,17 +35,17 @@ def get_embeddings_model():
     return _get()
 
 
-class QAService:
+class SemanticService:
     """
-    Service layer for Q&A operations.
+    Service layer for semantic search operations.
 
-    Coordinates vector store building, retrieval, and answer generation.
+    Coordinates vector store building, retrieval, and search.
     Provides a simplified interface for the UI layer.
     """
 
     def __init__(self, vector_store_path: Path | None = None):
         """
-        Initialize the Q&A service.
+        Initialize the semantic search service.
 
         Args:
             vector_store_path: Path to store/load vector index.
@@ -66,7 +66,7 @@ class QAService:
         self, text: str, progress_callback: Callable[[str], None] | None = None
     ) -> bool:
         """
-        Build the vector index for Q&A.
+        Build the vector index for semantic search.
 
         Args:
             text: Document text to index
@@ -75,7 +75,7 @@ class QAService:
         Returns:
             True if successful, False otherwise
         """
-        logger.info("Building Q&A index (%d chars)", len(text))
+        logger.info("Building semantic search index (%d chars)", len(text))
         try:
             if progress_callback:
                 progress_callback("Loading embeddings model...")
@@ -107,7 +107,7 @@ class QAService:
                 import tempfile
 
                 self._temp_dir = Path(tempfile.mkdtemp())
-                self._vector_store_path = self._temp_dir / "qa_index"
+                self._vector_store_path = self._temp_dir / "semantic_index"
 
                 # atexit backstop: clean up even if destroy() never runs
                 temp_dir = self._temp_dir  # capture for lambda
@@ -119,9 +119,9 @@ class QAService:
             )
 
             # Initialize orchestrator
-            from src.core.qa import QAOrchestrator
+            from src.core.semantic import SemanticOrchestrator
 
-            self._orchestrator = QAOrchestrator(
+            self._orchestrator = SemanticOrchestrator(
                 vector_store_path=self._vector_store_path,
                 embeddings=self._embeddings,
             )
@@ -131,7 +131,7 @@ class QAService:
             logger.debug("Index built with %s chunks", len(chunks))
 
             if progress_callback:
-                progress_callback("Q&A ready")
+                progress_callback("Semantic search ready")
 
             return True
 
@@ -150,7 +150,7 @@ class QAService:
             progress_callback: Optional callback(current, total) for progress
 
         Returns:
-            List of QAResult objects
+            List of SemanticResult objects
         """
         logger.info("Running default questions")
         if not self._is_ready or self._orchestrator is None:
@@ -167,7 +167,7 @@ class QAService:
             question: The question to ask
 
         Returns:
-            QAResult object or None if not ready
+            SemanticResult object or None if not ready
         """
         logger.info("Follow-up question: %s", question[:80])
         if not self._is_ready or self._orchestrator is None:
@@ -186,10 +186,10 @@ class QAService:
         if self._orchestrator is None:
             # Load questions without full orchestrator
             from src.core.config import load_yaml_with_fallback
-            from src.core.qa.qa_orchestrator import DEFAULT_QUESTIONS_PATH
+            from src.core.semantic.semantic_orchestrator import DEFAULT_QUESTIONS_PATH
 
             config = load_yaml_with_fallback(
-                DEFAULT_QUESTIONS_PATH, fallback={}, log_prefix="[QAService]"
+                DEFAULT_QUESTIONS_PATH, fallback={}, log_prefix="[SemanticService]"
             )
 
             return [q.get("text", "") for q in config.get("questions", [])]
@@ -262,15 +262,15 @@ class QAService:
         Get the default questions manager.
 
         Returns:
-            DefaultQuestionsManager for managing Q&A questions.
+            DefaultQuestionsManager for managing semantic search questions.
         """
-        from src.core.qa.default_questions_manager import get_default_questions_manager
+        from src.core.semantic.default_questions_manager import get_default_questions_manager
 
         return get_default_questions_manager()
 
     def create_orchestrator(self, vector_store_path=None, embeddings=None, **kwargs):
         """
-        Create a new QAOrchestrator instance.
+        Create a new SemanticOrchestrator instance.
 
         Used by workers that need direct access to the orchestrator.
 
@@ -280,11 +280,11 @@ class QAService:
             **kwargs: Ignored (absorbs legacy answer_mode param).
 
         Returns:
-            QAOrchestrator instance.
+            SemanticOrchestrator instance.
         """
-        from src.core.qa import QAOrchestrator
+        from src.core.semantic import SemanticOrchestrator
 
-        return QAOrchestrator(
+        return SemanticOrchestrator(
             vector_store_path=vector_store_path,
             embeddings=embeddings,
         )
@@ -294,24 +294,24 @@ class QAService:
         Phase 1: Retrieve context for a follow-up question.
 
         Args:
-            orchestrator: QAOrchestrator instance
+            orchestrator: SemanticOrchestrator instance
             question: The follow-up question
 
         Returns:
-            Partial QAResult with citation but placeholder answer
+            Partial SemanticResult with citation but placeholder answer
         """
         return orchestrator.retrieve_for_question(question, is_followup=True)
 
     def generate_answer_for_followup(self, orchestrator, result):
         """
-        Phase 2: Generate answer for a partial QAResult.
+        Phase 2: Generate answer for a partial SemanticResult.
 
         Args:
-            orchestrator: QAOrchestrator instance
-            result: Partial QAResult from retrieve_for_followup
+            orchestrator: SemanticOrchestrator instance
+            result: Partial SemanticResult from retrieve_for_followup
 
         Returns:
-            Updated QAResult with final answer
+            Updated SemanticResult with final answer
         """
         return orchestrator.generate_answer_for_result(result)
 
@@ -322,7 +322,7 @@ class QAService:
         Returns:
             Dict with keys: retrieval, generation
         """
-        from src.core.qa.qa_constants import (
+        from src.core.semantic.semantic_constants import (
             PENDING_GENERATION_TEXT,
             PENDING_RETRIEVAL_TEXT,
         )
@@ -332,16 +332,16 @@ class QAService:
             "generation": PENDING_GENERATION_TEXT,
         }
 
-    def get_qa_result_class(self):
+    def get_semantic_result_class(self):
         """
-        Get the QAResult class for type checking.
+        Get the SemanticResult class for type checking.
 
         Returns:
-            QAResult class from qa_orchestrator.
+            SemanticResult class from semantic_orchestrator.
         """
-        from src.core.qa.qa_orchestrator import QAResult
+        from src.core.semantic.semantic_orchestrator import SemanticResult
 
-        return QAResult
+        return SemanticResult
 
     def get_vector_store_builder(self):
         """

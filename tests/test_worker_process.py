@@ -236,8 +236,8 @@ class TestForwarderLoop:
 
         assert msg == ("progress", (50, "Working..."))
 
-    def test_qa_ready_strips_embeddings(self):
-        """qa_ready messages should have embeddings stripped and saved to state."""
+    def test_semantic_ready_strips_embeddings(self):
+        """semantic_ready messages should have embeddings stripped and saved to state."""
         from src.worker_process import _forwarder_loop
 
         internal_q = Queue()
@@ -255,7 +255,7 @@ class TestForwarderLoop:
 
         internal_q.put(
             (
-                "qa_ready",
+                "semantic_ready",
                 {
                     "vector_store_path": "/tmp/vs",
                     "embeddings": mock_embeddings,
@@ -277,13 +277,13 @@ class TestForwarderLoop:
         assert state["vector_store_path"] == "/tmp/vs"
 
         # Check forwarded message has no embeddings
-        assert msg_type == "qa_ready"
+        assert msg_type == "semantic_ready"
         assert "embeddings" not in data
         assert data["vector_store_path"] == "/tmp/vs"
         assert data["chunk_count"] == 42
 
-    def test_trigger_default_qa_intercepted(self):
-        """trigger_default_qa should be intercepted and trigger_default_qa_started sent."""
+    def test_trigger_default_semantic_intercepted(self):
+        """trigger_default_semantic should be intercepted and trigger_default_semantic_started sent."""
         from src.worker_process import _forwarder_loop
 
         internal_q = Queue()
@@ -300,7 +300,7 @@ class TestForwarderLoop:
 
         internal_q.put(
             (
-                "trigger_default_qa",
+                "trigger_default_semantic",
                 {
                     "vector_store_path": "/tmp/vs",
                     "embeddings": MagicMock(),
@@ -315,7 +315,7 @@ class TestForwarderLoop:
         state["shutdown"].set()
         t.join(timeout=5)
 
-        assert msg_type == "trigger_default_qa_started"
+        assert msg_type == "trigger_default_semantic_started"
 
 
 class TestCommandDispatch:
@@ -334,7 +334,7 @@ class TestCommandDispatch:
         assert msg[0] == "error"
         assert "Unknown command" in msg[1]
 
-    def test_run_qa_without_embeddings(self):
+    def test_run_semantic_without_embeddings(self):
         """run_qa without embeddings should produce error."""
         from src.worker_process import _dispatch_command
 
@@ -367,7 +367,7 @@ class TestCommandDispatch:
         _dispatch_command("followup", {"question": "test?"}, internal_q, state)
 
         msg = internal_q.get_nowait()
-        assert msg == ("qa_followup_result", None)
+        assert msg == ("semantic_followup_result", None)
 
 
 class TestStopActiveWorker:
@@ -414,14 +414,14 @@ class TestStopActiveWorker:
 # =========================================================================
 
 
-class TestQAResultPickling:
-    """Verify QAResult and related dataclasses survive pickling."""
+class TestSemanticResultPickling:
+    """Verify SemanticResult and related dataclasses survive pickling."""
 
-    def test_qa_result_roundtrip(self):
-        """QAResult should survive pickle roundtrip."""
-        from src.core.qa.qa_orchestrator import QAResult
+    def test_semantic_result_roundtrip(self):
+        """SemanticResult should survive pickle roundtrip."""
+        from src.core.semantic.semantic_orchestrator import SemanticResult
 
-        result = QAResult(
+        result = SemanticResult(
             question="What happened?",
             quick_answer="The defendant testified.",
             citation="Page 3: The defendant stated...",
@@ -438,34 +438,28 @@ class TestQAResultPickling:
         assert unpickled.confidence == result.confidence
         assert unpickled.is_followup is True
 
-    def test_qa_result_with_verification_roundtrip(self):
-        """QAResult with VerificationResult should survive pickle."""
-        from src.core.qa.hallucination_verifier import VerificationResult, VerifiedSpan
-        from src.core.qa.qa_orchestrator import QAResult
+    def test_semantic_result_with_all_fields_roundtrip(self):
+        """SemanticResult with all fields populated should survive pickle."""
+        from src.core.semantic.semantic_orchestrator import SemanticResult
 
-        verification = VerificationResult(
-            spans=[
-                VerifiedSpan(text="The defendant", start=0, end=13, hallucination_prob=0.1),
-                VerifiedSpan(text="testified", start=14, end=23, hallucination_prob=0.05),
-            ],
-            overall_reliability=0.92,
-            answer_rejected=False,
-        )
-
-        result = QAResult(
+        result = SemanticResult(
             question="What happened?",
             quick_answer="The defendant testified.",
-            citation="Page 3",
+            citation="Page 3: The defendant stated under oath...",
             confidence=0.85,
-            verification=verification,
+            source_summary="complaint.pdf, page 3",
+            is_followup=True,
+            is_default_question=False,
         )
 
         pickled = pickle.dumps(result)
         unpickled = pickle.loads(pickled)
 
-        assert unpickled.verification is not None
-        assert len(unpickled.verification.spans) == 2
-        assert unpickled.verification.overall_reliability == 0.92
+        assert unpickled.question == result.question
+        assert unpickled.citation == result.citation
+        assert unpickled.confidence == 0.85
+        assert unpickled.source_summary == "complaint.pdf, page 3"
+        assert unpickled.is_followup is True
 
     def test_chunk_scores_roundtrip(self):
         """ChunkScores should survive pickle roundtrip."""
@@ -491,11 +485,11 @@ class TestQAResultPickling:
             ("file_processed", {"filename": "test.pdf", "status": "success"}),
             ("processing_finished", [{"filename": "test.pdf"}]),
             ("ner_complete", {"vocab": [{"term": "defendant"}], "filtered": []}),
-            ("qa_ready", {"vector_store_path": "/tmp/vs", "chunk_count": 10}),
-            ("qa_progress", (1, 5, "What happened?")),
+            ("semantic_ready", {"vector_store_path": "/tmp/vs", "chunk_count": 10}),
+            ("semantic_progress", (1, 5, "What happened?")),
             ("extraction_started", None),
             ("extraction_complete", None),
-            ("trigger_default_qa_started", None),
+            ("trigger_default_semantic_started", None),
         ]
 
         for msg in messages:
@@ -590,11 +584,11 @@ class TestQueueMessageFactory:
             QueueMessage.processing_finished([]),
             QueueMessage.vocab_csv_generated([{"term": "test"}]),
             QueueMessage.summary_result("Summary text"),
-            QueueMessage.qa_progress(1, 5, "Question?"),
-            QueueMessage.qa_complete([]),
-            QueueMessage.qa_error("Error"),
+            QueueMessage.semantic_progress(1, 5, "Question?"),
+            QueueMessage.semantic_complete([]),
+            QueueMessage.semantic_error("Error"),
             QueueMessage.ner_complete([], []),
-            QueueMessage.qa_ready(
+            QueueMessage.semantic_ready(
                 vector_store_path="/tmp/vs",
                 embeddings=None,  # Real embeddings not picklable, but None is
                 chunk_count=10,

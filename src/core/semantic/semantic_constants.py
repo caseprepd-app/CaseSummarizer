@@ -1,14 +1,14 @@
 """
-Shared constants for search module.
+Shared constants for semantic search module.
 
-Prompt templates are used by qa_retriever for context window budget calculation.
+Prompt templates are used by semantic_retriever for context window budget calculation.
 """
 
 UNANSWERED_TEXT = "No relevant information found in the documents."
 REJECTION_TEXT = "Confidence in answer too low after verification step, declining to show answer..."
 
 # Compact prompt for small context windows (saves ~70 tokens vs full)
-COMPACT_QA_PROMPT = (
+COMPACT_SEMANTIC_PROMPT = (
     "Answer using the excerpts below. Different wording is OK "
     "(e.g., 'failed to appear' = 'didn't show up'). "
     "Only say 'not found' if the topic is entirely absent.\n\n"
@@ -17,7 +17,7 @@ COMPACT_QA_PROMPT = (
     "Answer:"
 )
 
-FULL_QA_PROMPT = (
+FULL_SEMANTIC_PROMPT = (
     "You are a legal document analyst. Answer the question using the "
     "document excerpts below.\n\n"
     "GUIDELINES:\n"

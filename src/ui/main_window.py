@@ -101,12 +101,14 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
 
         # Search infrastructure (vector_store_path still tracked here for UI checks)
         self._vector_store_path = None  # Path to current session's vector store
-        self._qa_results: list = []  # Store QAResult objects
-        self._qa_results_lock = threading.Lock()  # Thread-safe access
-        self._qa_ready = False  # Search becomes available after indexing
-        self._qa_answering_active = False  # True while default searches are being answered
-        self._qa_failed = False  # True when search indexing fails (embedding model error, etc.)
-        self._key_sentences_pending = False  # True after qa_ready until key_sentences_result
+        self._semantic_results: list = []  # Store SemanticResult objects
+        self._semantic_results_lock = threading.Lock()  # Thread-safe access
+        self._semantic_ready = False  # Search becomes available after indexing
+        self._semantic_answering_active = False  # True while default searches are being answered
+        self._semantic_failed = (
+            False  # True when search indexing fails (embedding model error, etc.)
+        )
+        self._key_sentences_pending = False  # True after semantic_ready until key_sentences_result
         self._worker_ready_retries = 0  # Auto-retry counter for worker startup
 
         # Task tracking defaults (normally set in _perform_tasks, but init here
@@ -123,7 +125,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
 
         # Panel follow-up IPC: background thread waits on event, main thread delivers result
         self._panel_followup_event = threading.Event()
-        self._panel_followup_data = None  # Stores QAResult for panel followup
+        self._panel_followup_data = None  # Stores SemanticResult for panel followup
 
         # Initialize ttk styles with UI scale factor and font offset.
         # Must happen AFTER super().__init__() creates the Tk root (ttk.Style needs it).
@@ -462,11 +464,11 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         self.file_table.clear()
         self.output_display.clear_document_preview()
         # Reset search state so old results don't persist
-        self._qa_ready = False
-        self._qa_answering_active = False
-        self._qa_failed = False
+        self._semantic_ready = False
+        self._semantic_answering_active = False
+        self._semantic_failed = False
         self._key_sentences_pending = False
-        self._qa_results.clear()
+        self._semantic_results.clear()
         self._vector_store_path = None
         if hasattr(self, "followup_btn"):
             self.followup_btn.configure(state="disabled")
@@ -657,17 +659,17 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
 
         # Detect dead subprocess while we think work is in progress
         any_active = (
-            self._processing_active or self._preprocessing_active or self._qa_answering_active
+            self._processing_active or self._preprocessing_active or self._semantic_answering_active
         )
         if any_active and not messages and not self._worker_manager.is_alive():
             logger.error("Worker subprocess died while tasks were active — recovering")
             self.set_status_error("Worker process crashed. Results may be incomplete.")
             self._preprocessing_active = False
-            self._qa_answering_active = False
+            self._semantic_answering_active = False
             self._key_sentences_pending = False
             # Reset search state so stale session data doesn't persist
-            self._qa_ready = False
-            self._qa_failed = False
+            self._semantic_ready = False
+            self._semantic_failed = False
             self._vector_store_path = None
             # Disable followup controls — session is dead
             if hasattr(self, "followup_entry"):
@@ -699,7 +701,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             if not self._processing_active:
                 return
             # Append search status note if index is ready but answers haven't appeared yet
-            if self._qa_ready and "search" not in message.lower():
+            if self._semantic_ready and "search" not in message.lower():
                 message = f"{message} (searching documents...)"
             self.set_status(message)
 
@@ -717,12 +719,12 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             # Reset ALL processing flags to prevent stuck UI
             self._preprocessing_active = False
             # Reset search state so stale session data doesn't persist
-            self._qa_ready = False
-            self._qa_failed = False
+            self._semantic_ready = False
+            self._semantic_failed = False
             self._vector_store_path = None
             if self._processing_active:
                 self._processing_active = False
-                self._qa_answering_active = False
+                self._semantic_answering_active = False
                 self.output_display.set_extraction_in_progress(False)
                 self._on_tasks_complete(False, str(data))
             else:
@@ -784,12 +786,12 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             # "vocab in progress" to "building search index" so users
             # aren't confused by the vocab tab being done while the Search
             # tab still says vocab is running.
-            if not self._qa_ready:
+            if not self._semantic_ready:
                 from src.ui.workflow_status import WorkflowPhase
 
-                self.output_display.set_workflow_phase(WorkflowPhase.QA_INDEXING)
+                self.output_display.set_workflow_phase(WorkflowPhase.SEMANTIC_INDEXING)
 
-            if self._pending_tasks.get("qa"):
+            if self._pending_tasks.get("semantic"):
                 self.set_status(f"Found {term_count} terms. Building search index...")
             else:
                 self.set_status(f"Vocabulary extraction complete: {term_count} terms")
@@ -799,12 +801,12 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             if self._all_tasks_complete():
                 self._finalize_tasks()
 
-        elif msg_type == "qa_ready":
+        elif msg_type == "semantic_ready":
             chunk_count = data.get("chunk_count", 0)
-            logger.debug("Q&A ready: %s chunks indexed", chunk_count)
+            logger.debug("Semantic search ready: %s chunks indexed", chunk_count)
             self._vector_store_path = data.get("vector_store_path")
             # Embeddings stay in worker subprocess (not picklable)
-            self._qa_ready = True
+            self._semantic_ready = True
             self._key_sentences_pending = True  # Daemon thread extracting in subprocess
             # Enable search input whenever search index is ready
             self.followup_btn.configure(state="normal")
@@ -817,18 +819,18 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
                 f"Search index ready ({chunk_count} passages). Running default searches..."
             )
 
-        elif msg_type == "qa_error":
+        elif msg_type == "semantic_error":
             error_msg = (
-                data.get("error", "Unknown Q&A error") if isinstance(data, dict) else str(data)
+                data.get("error", "Unknown search error") if isinstance(data, dict) else str(data)
             )
-            logger.warning("Q&A indexing error (full): %s", error_msg)
+            logger.warning("Semantic indexing error (full): %s", error_msg)
             # Truncate at word boundary to avoid mid-word cuts
             if len(error_msg) > 80:
                 error_msg = error_msg[:77].rsplit(" ", 1)[0] + "..."
             self.set_status_error(f"Search unavailable: {error_msg}")
             # Search won't be available but vocab extraction can continue
-            self._qa_answering_active = False
-            self._qa_failed = True
+            self._semantic_answering_active = False
+            self._semantic_failed = True
             # Disable follow-up controls with explanatory message
             if hasattr(self, "followup_entry"):
                 self.followup_entry.configure(
@@ -838,16 +840,16 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
                 )
             if hasattr(self, "followup_btn"):
                 self.followup_btn.configure(state="disabled")
-            if self._pending_tasks.get("qa"):
-                self._failed_tasks.add("qa")
+            if self._pending_tasks.get("semantic"):
+                self._failed_tasks.add("semantic")
             # Key excerpts won't arrive if vector store failed
             self._failed_tasks.add("key_excerpts")
             if self._all_tasks_complete():
                 self._finalize_tasks()
 
-        elif msg_type == "trigger_default_qa_started":
-            # QAWorker was auto-spawned in the worker subprocess
-            self._qa_answering_active = True
+        elif msg_type == "trigger_default_semantic_started":
+            # SemanticWorker was auto-spawned in the worker subprocess
+            self._semantic_answering_active = True
             if not self.ask_default_questions_check.get():
                 logger.debug("Default questions disabled, skipping display update")
                 self.set_status("Ready. Type a search below to query your documents.")
@@ -855,39 +857,39 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
                 # Update workflow phase for tab status
                 from src.ui.workflow_status import WorkflowPhase
 
-                self.output_display.set_workflow_phase(WorkflowPhase.QA_ANSWERING)
+                self.output_display.set_workflow_phase(WorkflowPhase.SEMANTIC_SEARCHING)
                 logger.debug("Default questions worker started in subprocess")
 
         # Search result handlers (messages from default searches worker)
-        elif msg_type == "qa_progress":
+        elif msg_type == "semantic_progress":
             current, total, _question = data
             answered = current + 1
-            logger.debug("Q&A progress: %s/%s", answered, total)
+            logger.debug("Semantic search progress: %s/%s", answered, total)
             if answered < total:
                 self.set_status(f"Running search {answered + 1}/{total}...")
             else:
                 self.set_status(f"Completed {answered}/{total} searches")
 
-        elif msg_type == "qa_result":
+        elif msg_type == "semantic_result":
             # Individual search result - add to results and update display
-            logger.debug("Q&A result received")
-            with self._qa_results_lock:  # Thread-safe access
-                self._qa_results.append(data)
-                self.output_display.update_outputs(qa_results=self._qa_results)
+            logger.debug("Semantic search result received")
+            with self._semantic_results_lock:  # Thread-safe access
+                self._semantic_results.append(data)
+                self.output_display.update_outputs(semantic_results=self._semantic_results)
 
-        elif msg_type == "qa_complete":
+        elif msg_type == "semantic_complete":
             # All default searches answered
-            qa_results = data if data else []
-            logger.debug("Q&A complete: %s answers", len(qa_results))
-            with self._qa_results_lock:  # Thread-safe access
-                self._qa_results = qa_results
-            if qa_results:
-                self.output_display.update_outputs(qa_results=qa_results)
-                self.set_status(f"Default searches complete: {len(qa_results)} responses")
+            semantic_results = data if data else []
+            logger.debug("Semantic search complete: %s answers", len(semantic_results))
+            with self._semantic_results_lock:  # Thread-safe access
+                self._semantic_results = semantic_results
+            if semantic_results:
+                self.output_display.update_outputs(semantic_results=semantic_results)
+                self.set_status(f"Default searches complete: {len(semantic_results)} responses")
             self.followup_btn.configure(state="normal")
-            self._qa_answering_active = False
-            if self._pending_tasks.get("qa"):
-                self._completed_tasks.add("qa")
+            self._semantic_answering_active = False
+            if self._pending_tasks.get("semantic"):
+                self._completed_tasks.add("semantic")
             if self._all_tasks_complete():
                 self._finalize_tasks()
 
@@ -901,7 +903,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             if self._all_tasks_complete():
                 self._finalize_tasks()
 
-        elif msg_type == "qa_followup_result":
+        elif msg_type == "semantic_followup_result":
             # Route panel followup results via event (avoids queue race condition)
             if not self._panel_followup_event.is_set():
                 self._panel_followup_data = data
@@ -1005,9 +1007,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             Tuple of (enabled_count, total_count)
         """
         try:
-            from src.services import QAService
-
-            manager = QAService().get_default_questions_manager()
+            manager = SemanticService().get_default_questions_manager()
             return (manager.get_enabled_count(), manager.get_total_count())
 
         except Exception as e:
@@ -1070,13 +1070,13 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         Update the session stats display.
 
         Shows document stats (file count, pages, size) and extraction stats
-        (term count, person count, Q&A count) after processing.
+        (term count, person count, semantic search count) after processing.
 
         Args:
             extraction_stats: Optional dict with extraction results:
                 - vocab_count: Total vocabulary terms
                 - person_count: Terms marked as persons
-                - qa_count: Number of Q&A results
+                - semantic_count: Number of semantic search results
                 - processing_time: Time in seconds
         """
         if not self.processing_results:
@@ -1124,8 +1124,8 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
                 v = extraction_stats["vocab_count"]
                 p = extraction_stats.get("person_count", 0)
                 ext_parts.append(f"{v} terms ({p} persons)")
-            if extraction_stats.get("qa_count", 0) > 0:
-                ext_parts.append(f"{extraction_stats['qa_count']} searches")
+            if extraction_stats.get("semantic_count", 0) > 0:
+                ext_parts.append(f"{extraction_stats['semantic_count']} searches")
             if extraction_stats.get("processing_time"):
                 t = extraction_stats["processing_time"]
                 if t >= 60:
@@ -1161,12 +1161,12 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         self._start_timer()
 
         # Track pending tasks (vocab + search + key excerpts)
-        self._pending_tasks = {"vocab": True, "qa": True, "key_excerpts": True}
+        self._pending_tasks = {"vocab": True, "semantic": True, "key_excerpts": True}
         self._completed_tasks = set()
         self._failed_tasks = set()
-        self._qa_ready = False
-        self._qa_answering_active = False
-        self._qa_failed = False
+        self._semantic_ready = False
+        self._semantic_answering_active = False
+        self._semantic_failed = False
         self._key_sentences_pending = False
 
         # Set initial workflow phase
@@ -1202,7 +1202,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             self._worker_manager.cancel()
 
         # Reset processing state
-        self._qa_answering_active = False
+        self._semantic_answering_active = False
         self._preprocessing_active = False
 
         # Finalize as a partial completion
@@ -1245,7 +1245,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         Start progressive two-phase extraction.
 
         Phase 1 (NER): Fast, displays results in ~5 seconds
-        Phase 2 (Q&A): Builds vector store, enables Q&A panel
+        Phase 2 (Semantic): Builds vector store, enables semantic search panel
         """
         from src.config import (
             LEGAL_EXCLUDE_LIST_PATH,
@@ -1319,7 +1319,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         logger.debug("Polling started (extraction)")
         self._poll_queue()
 
-    def _start_qa_task(self):
+    def _start_semantic_task(self):
         """Start Semantic Search task via worker subprocess."""
         self.set_status("Semantic Search: Loading embeddings model (this may take a moment)...")
 
@@ -1336,18 +1336,18 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         # Ensure queue polling is active
         if self._queue_poll_id:
             self.after_cancel(self._queue_poll_id)
-        logger.debug("Polling started (Q&A)")
+        logger.debug("Polling started (semantic search)")
         self._poll_queue()
 
-    def _on_qa_complete(self, qa_results: list):
+    def _on_semantic_complete(self, semantic_results: list):
         """Handle search completion."""
-        self._completed_tasks.add("qa")
-        self._qa_results = qa_results
+        self._completed_tasks.add("semantic")
+        self._semantic_results = semantic_results
 
         # Display results using update_outputs
-        if qa_results:
-            self.output_display.update_outputs(qa_results=qa_results)
-            self.set_status(f"Semantic Search: {len(qa_results)} searches completed")
+        if semantic_results:
+            self.output_display.update_outputs(semantic_results=semantic_results)
+            self.set_status(f"Semantic Search: {len(semantic_results)} searches completed")
             # Enable follow-up question controls
             self.followup_btn.configure(state="normal")
             self.followup_entry.configure(
@@ -1367,23 +1367,25 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         for task_name, is_pending in self._pending_tasks.items():
             if is_pending and task_name not in self._completed_tasks | self._failed_tasks:
                 return False
-        return not self._qa_answering_active
+        return not self._semantic_answering_active
 
     def _finalize_tasks(self):
         """Finalize all tasks and update UI."""
-        # Guard against duplicate finalization (e.g. two qa_error messages)
+        # Guard against duplicate finalization (e.g. two semantic_error messages)
         if not self._processing_active:
             logger.debug("Skipping finalization: already complete")
             return
-        if self._qa_answering_active:
-            logger.debug("Deferring finalization: Q&A answering still active")
+        if self._semantic_answering_active:
+            logger.debug("Deferring finalization: semantic search still active")
             return
-        # Guard against race: Q&A is pending but trigger_default_qa_started
+        # Guard against race: semantic search is pending but trigger_default_semantic_started
         # hasn't arrived yet (subprocess is still building the index).
         done = self._completed_tasks | self._failed_tasks
-        qa_pending_not_started = self._pending_tasks.get("qa") and "qa" not in done
-        if qa_pending_not_started and not self._qa_failed:
-            logger.debug("Deferring finalization: Q&A pending but not yet started")
+        semantic_pending_not_started = (
+            self._pending_tasks.get("semantic") and "semantic" not in done
+        )
+        if semantic_pending_not_started and not self._semantic_failed:
+            logger.debug("Deferring finalization: semantic search pending but not yet started")
             return
         completed = len(self._completed_tasks)
         failed = len(self._failed_tasks)
@@ -1414,7 +1416,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         self._update_generate_button_state()
 
         # Enable follow-up if search succeeded
-        if success and not self._qa_failed:
+        if success and not self._semantic_failed:
             self.followup_btn.configure(state="normal")
 
         # Show Export All button after successful processing
@@ -1437,7 +1439,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         Gather extraction statistics after task completion.
 
         Returns:
-            Dict with vocab_count, person_count, qa_count, processing_time
+            Dict with vocab_count, person_count, semantic_count, processing_time
         """
         stats = {}
 
@@ -1454,8 +1456,8 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             stats["person_count"] = sum(1 for v in vocab_data if v.get(VF.IS_PERSON) == VF.YES)
 
         # Search stats
-        if self._qa_results:
-            stats["qa_count"] = len(self._qa_results)
+        if self._semantic_results:
+            stats["semantic_count"] = len(self._semantic_results)
 
         # Processing time
         if self._processing_start_time:
@@ -1470,7 +1472,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             return
 
         # Check prerequisites (vector_store_path tracked locally, embeddings in subprocess)
-        if not self._vector_store_path or not self._qa_ready:
+        if not self._vector_store_path or not self._semantic_ready:
             messagebox.showwarning(
                 "Search Not Ready",
                 "Search system is not initialized yet.\n\n"
@@ -1500,20 +1502,19 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         self.set_status(f"Searching: {display_q}")
 
         # Show pending result immediately in search panel
-        from src.services import QAService
 
-        QAResult = QAService().get_qa_result_class()
-        pending_result = QAResult(
+        SemanticResult = SemanticService().get_semantic_result_class()
+        pending_result = SemanticResult(
             question=question,
             quick_answer=PENDING_ANSWER_TEXT,
             citation="",
             is_followup=True,
             include_in_export=False,
         )
-        with self._qa_results_lock:
-            self._qa_results.append(pending_result)
-            self._pending_followup_index = len(self._qa_results) - 1
-        self.output_display.update_outputs(qa_results=list(self._qa_results))
+        with self._semantic_results_lock:
+            self._semantic_results.append(pending_result)
+            self._pending_followup_index = len(self._semantic_results) - 1
+        self.output_display.update_outputs(semantic_results=list(self._semantic_results))
         # Switch to Search tab so user sees the pending search
         self.output_display.tabview.set("Search")
 
@@ -1523,7 +1524,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         self._followup_poll_count = 0
         self._worker_manager.send_command("followup", {"question": question})
 
-        # Start polling for followup result (comes via qa_followup_result message)
+        # Start polling for followup result (comes via semantic_followup_result message)
         self._poll_followup_result()
 
     def _poll_followup_result(self):
@@ -1542,7 +1543,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             self.set_status_error("Search timed out — worker may have crashed")
             return
 
-        # Check for qa_followup_result in subprocess messages
+        # Check for semantic_followup_result in subprocess messages
         messages = self._worker_manager.check_for_messages()
         followup_result = None
         other_messages = []
@@ -1550,7 +1551,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         for msg in messages:
             try:
                 msg_type, data = msg
-                if msg_type == "qa_followup_result":
+                if msg_type == "semantic_followup_result":
                     followup_result = data
                 else:
                     # Re-handle non-followup messages normally
@@ -1590,17 +1591,19 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         try:
             if followup_result is not None and hasattr(followup_result, "quick_answer"):
                 # Replace pending result with actual answer
-                with self._qa_results_lock:
+                with self._semantic_results_lock:
                     pending_idx = getattr(self, "_pending_followup_index", None)
-                    if pending_idx is not None and pending_idx < len(self._qa_results):
-                        if self._qa_results[pending_idx].quick_answer == PENDING_ANSWER_TEXT:
-                            self._qa_results[pending_idx] = followup_result
+                    if pending_idx is not None and pending_idx < len(self._semantic_results):
+                        if self._semantic_results[pending_idx].quick_answer == PENDING_ANSWER_TEXT:
+                            self._semantic_results[pending_idx] = followup_result
                         else:
-                            self._qa_results.append(followup_result)
+                            self._semantic_results.append(followup_result)
                     else:
-                        self._qa_results.append(followup_result)
+                        self._semantic_results.append(followup_result)
                     self._pending_followup_index = None
-                    self.output_display.update_outputs(qa_results=list(self._qa_results))
+                    self.output_display.update_outputs(
+                        semantic_results=list(self._semantic_results)
+                    )
                 answer_len = (
                     len(followup_result.quick_answer) if followup_result.quick_answer else 0
                 )
@@ -1608,13 +1611,15 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
                 logger.debug("Follow-up result displayed successfully")
             else:
                 # None result = error in subprocess
-                with self._qa_results_lock:
+                with self._semantic_results_lock:
                     pending_idx = getattr(self, "_pending_followup_index", None)
-                    if pending_idx is not None and pending_idx < len(self._qa_results):
-                        if self._qa_results[pending_idx].quick_answer == PENDING_ANSWER_TEXT:
-                            self._qa_results.pop(pending_idx)
+                    if pending_idx is not None and pending_idx < len(self._semantic_results):
+                        if self._semantic_results[pending_idx].quick_answer == PENDING_ANSWER_TEXT:
+                            self._semantic_results.pop(pending_idx)
                     self._pending_followup_index = None
-                    self.output_display.update_outputs(qa_results=list(self._qa_results))
+                    self.output_display.update_outputs(
+                        semantic_results=list(self._semantic_results)
+                    )
                 self.set_status_error("Follow-up search could not be completed")
                 messagebox.showerror("Error", "Failed to process follow-up search")
         except Exception as e:
@@ -1622,29 +1627,29 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             self.set_status_error("Follow-up error. Try rephrasing your search.")
             messagebox.showerror("Error", f"Error displaying result: {e!s}")
 
-    def _ask_followup_for_qa_panel(self, question: str):
+    def _ask_followup_for_semantic_panel(self, question: str):
         """
-        Ask a follow-up question from the QAPanel widget.
+        Ask a follow-up question from the SemanticPanel widget.
 
-        This method is called by QAPanel's built-in follow-up input.
-        It returns a QAResult directly (unlike _ask_followup which updates UI).
+        This method is called by SemanticPanel's built-in follow-up input.
+        It returns a SemanticResult directly (unlike _ask_followup which updates UI).
         Sends command to worker subprocess and polls synchronously (runs in thread).
 
         Args:
             question: The follow-up question text
 
         Returns:
-            QAResult object with the answer, or None on error
+            SemanticResult object with the answer, or None on error
         """
         if not question:
             return None
 
         # Check prerequisites
-        if not self._vector_store_path or not self._qa_ready:
-            logger.debug("Follow-up unavailable: no vector store or Q&A not ready")
+        if not self._vector_store_path or not self._semantic_ready:
+            logger.debug("Follow-up unavailable: no vector store or semantic search not ready")
             return None
 
-        # NOTE: This method runs in a background thread (from QAPanel._ask_followup)
+        # NOTE: This method runs in a background thread (from SemanticPanel._ask_followup)
         # Do NOT call GUI methods like set_status() here - it causes freezes!
         # Do NOT poll the shared result_queue here — it races with _poll_queue on main thread.
         # Instead, wait on _panel_followup_event which _handle_queue_message sets.
@@ -1671,8 +1676,8 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             self._panel_followup_data = None
 
             if data is not None:
-                with self._qa_results_lock:
-                    self._qa_results.append(data)
+                with self._semantic_results_lock:
+                    self._semantic_results.append(data)
                 logger.debug("Follow-up answered: %s chars", len(data.quick_answer))
             return data
 
@@ -1740,10 +1745,10 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
 
     def _export_all(self):
         """
-        Export all results (vocabulary, Q&A, summary) to a single file.
+        Export all results (vocabulary, semantic search, summary) to a single file.
 
         Opens a save dialog offering HTML, Word, and PDF formats. Gathers
-        score-filtered vocab, answered Q&A, and summary text into one document.
+        score-filtered vocab, answered searches, and summary text into one document.
         """
         if self._exporting_all:
             return
@@ -1767,11 +1772,11 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         vocab_data = self.output_display._get_filtered_vocab_data()
 
         # Gather answered search results only
-        qa_results = []
-        if self._qa_results:
-            qa_panel = self.output_display._qa_panel
-            if qa_panel and qa_panel._results:
-                qa_results = [r for r in qa_panel._results if r.is_exportable]
+        semantic_results = []
+        if self._semantic_results:
+            semantic_panel = self.output_display._semantic_panel
+            if semantic_panel and semantic_panel._results:
+                semantic_results = [r for r in semantic_panel._results if r.is_exportable]
 
         # Gather summary text
         summary = self.output_display._outputs.get("Summary", "")
@@ -1780,7 +1785,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         summary_text = summary.strip() if summary else ""
 
         # Check we have something to export
-        if not vocab_data and not qa_results and not summary_text:
+        if not vocab_data and not semantic_results and not summary_text:
             messagebox.showwarning("No Data", "No results to export yet.")
             return
 
@@ -1814,7 +1819,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         if ext == ".docx":
             success, error_detail = export_service.export_combined_to_word(
                 vocab_data=vocab_data,
-                qa_results=qa_results,
+                semantic_results=semantic_results,
                 file_path=filepath,
                 summary_text=summary_text,
             )
@@ -1822,7 +1827,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         elif ext == ".pdf":
             success, error_detail = export_service.export_combined_to_pdf(
                 vocab_data=vocab_data,
-                qa_results=qa_results,
+                semantic_results=semantic_results,
                 file_path=filepath,
                 summary_text=summary_text,
             )
@@ -1831,7 +1836,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             visible_columns = self.output_display._get_visible_columns()
             success, error_detail = export_service.export_combined_html(
                 vocab_data=vocab_data,
-                qa_results=qa_results,
+                semantic_results=semantic_results,
                 summary_text=summary_text,
                 file_path=filepath,
                 visible_columns=visible_columns,
@@ -1857,8 +1862,8 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             parts = []
             if vocab_data:
                 parts.append(f"{len(vocab_data)} terms")
-            if qa_results:
-                parts.append(f"{len(qa_results)} searches")
+            if semantic_results:
+                parts.append(f"{len(semantic_results)} searches")
             if summary_text:
                 parts.append("summary")
             self.set_status(f"Exported {' + '.join(parts)} to {filename}", duration_ms=5000)

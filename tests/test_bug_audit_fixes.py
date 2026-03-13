@@ -147,7 +147,7 @@ def _make_poll_stub():
     stub._destroying = False
     stub._processing_active = False
     stub._preprocessing_active = False
-    stub._qa_answering_active = False
+    stub._semantic_answering_active = False
     stub._queue_poll_id = None
     stub._worker_manager = MagicMock()
     stub._worker_manager.check_for_messages.return_value = []
@@ -187,13 +187,13 @@ class TestDeadSubprocessDetection:
         assert "crashed" in stub.set_status_error.call_args[0][0].lower()
         assert stub._processing_active is False
         assert stub._preprocessing_active is False
-        assert stub._qa_answering_active is False
+        assert stub._semantic_answering_active is False
 
     def test_recovery_clears_all_active_flags(self):
         """All three active flags are cleared on subprocess death."""
         stub = _make_poll_stub()
         stub._preprocessing_active = True
-        stub._qa_answering_active = True
+        stub._semantic_answering_active = True
         stub._processing_active = True
         stub._worker_manager.is_alive.return_value = False
 
@@ -202,7 +202,7 @@ class TestDeadSubprocessDetection:
         MainWindow._poll_queue(stub)
 
         assert stub._preprocessing_active is False
-        assert stub._qa_answering_active is False
+        assert stub._semantic_answering_active is False
         assert stub._processing_active is False
 
     def test_no_recovery_when_no_active_flags(self):
@@ -414,7 +414,7 @@ class TestReplaceAll:
     @pytest.fixture
     def manager(self, tmp_path):
         """Create a DefaultQuestionsManager with temp file."""
-        from src.core.qa.default_questions_manager import DefaultQuestionsManager
+        from src.core.semantic.default_questions_manager import DefaultQuestionsManager
 
         config_path = tmp_path / "questions.json"
         return DefaultQuestionsManager(config_path=config_path)
@@ -439,7 +439,7 @@ class TestReplaceAll:
 
     def test_persists_to_disk(self, manager, tmp_path):
         """replace_all saves to disk (new instance reads same data)."""
-        from src.core.qa.default_questions_manager import DefaultQuestionsManager
+        from src.core.semantic.default_questions_manager import DefaultQuestionsManager
 
         manager.replace_all(
             [

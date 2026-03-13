@@ -368,11 +368,11 @@ class TestWorkerSignatures:
         assert params == [], f"execute() should take no args besides self, got: {params}"
 
     def test_qa_worker_has_execute(self):
-        """QAWorker has execute() method with no required args."""
-        from src.services.workers import QAWorker
+        """SemanticWorker has execute() method with no required args."""
+        from src.services.workers import SemanticWorker
 
-        assert hasattr(QAWorker, "execute")
-        sig = inspect.signature(QAWorker.execute)
+        assert hasattr(SemanticWorker, "execute")
+        sig = inspect.signature(SemanticWorker.execute)
         params = [p for p in sig.parameters if p != "self"]
         assert params == []
 

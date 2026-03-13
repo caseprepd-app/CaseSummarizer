@@ -188,7 +188,7 @@ def _configure_qa_table_style(style: ttk.Style, sf: float, font_offset: int) -> 
     font_size = max(8, int(10 * sf) + font_offset)
     font_spec = ("Segoe UI", font_size)
     style.configure(
-        "QATable.Treeview",
+        "SemanticTable.Treeview",
         background=get_color("tree_bg"),
         foreground=get_color("tree_fg"),
         fieldbackground=get_color("tree_field_bg"),
@@ -196,27 +196,29 @@ def _configure_qa_table_style(style: ttk.Style, sf: float, font_offset: int) -> 
         rowheight=_get_rowheight(font_spec),
         font=font_spec,
     )
-    style.map("QATable.Treeview", background=[("selected", get_color("row_selected"))])
+    style.map("SemanticTable.Treeview", background=[("selected", get_color("row_selected"))])
 
     style.configure(
-        "QATable.Treeview.Heading",
+        "SemanticTable.Treeview.Heading",
         background=get_color("tree_heading_bg"),
         foreground=get_color("tree_heading_fg"),
         relief="flat",
         font=("Segoe UI", font_size, "bold"),
         padding=(int(8 * sf), int(4 * sf)),
     )
-    style.map("QATable.Treeview.Heading", background=[("active", get_color("tree_heading_hover"))])
+    style.map(
+        "SemanticTable.Treeview.Heading", background=[("active", get_color("tree_heading_hover"))]
+    )
 
     style.configure(
-        "QATable.Vertical.TScrollbar",
+        "SemanticTable.Vertical.TScrollbar",
         background=get_color("tree_scroll_bg"),
         troughcolor=get_color("tree_scroll_trough"),
         borderwidth=0,
         arrowcolor=get_color("tree_arrow"),
     )
     style.configure(
-        "QATable.Horizontal.TScrollbar",
+        "SemanticTable.Horizontal.TScrollbar",
         background=get_color("tree_scroll_bg"),
         troughcolor=get_color("tree_scroll_trough"),
         borderwidth=0,
@@ -251,7 +253,7 @@ def _configure_file_review_style(style: ttk.Style, sf: float, font_offset: int) 
 
 
 def _configure_question_list_style(style: ttk.Style, sf: float, font_offset: int) -> None:
-    """Configure style for question editor list (QAQuestionEditor)."""
+    """Configure style for question editor list (SemanticQuestionEditor)."""
     from src.ui.theme import get_color
 
     font_size = max(8, int(10 * sf) + font_offset)

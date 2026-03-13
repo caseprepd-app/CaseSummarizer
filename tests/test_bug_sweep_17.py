@@ -2,7 +2,7 @@
 Tests for the 17-bug sweep fixes.
 
 Covers: followup attribute fix, preferences error handling, thread-safe singletons,
-PDF truncation ellipsis, vector store cancel guard, qa_service cleanup, worker_process
+PDF truncation ellipsis, vector store cancel guard, semantic_service cleanup, worker_process
 lock, and miscellaneous low-severity fixes.
 """
 
@@ -16,24 +16,24 @@ from unittest.mock import patch
 
 
 class TestFollowupAttributeFix:
-    """Bug #1: QAResult uses quick_answer, not answer."""
+    """Bug #1: SemanticResult uses quick_answer, not answer."""
 
     def test_qa_result_has_quick_answer(self):
-        """QAResult dataclass has quick_answer as the primary field."""
-        from src.core.qa.qa_orchestrator import QAResult
+        """SemanticResult dataclass has quick_answer as the primary field."""
+        from src.core.semantic.semantic_orchestrator import SemanticResult
 
-        result = QAResult(question="test", quick_answer="answer text")
+        result = SemanticResult(question="test", quick_answer="answer text")
         assert result.quick_answer == "answer text"
         # The .answer property exists for backward compat but delegates to quick_answer
         assert result.answer == "answer text"
 
     def test_main_window_uses_quick_answer(self):
-        """_ask_followup_for_qa_panel uses data.quick_answer, not data.answer."""
+        """_ask_followup_for_semantic_panel uses data.quick_answer, not data.answer."""
         import inspect
 
         from src.ui.main_window import MainWindow
 
-        source = inspect.getsource(MainWindow._ask_followup_for_qa_panel)
+        source = inspect.getsource(MainWindow._ask_followup_for_semantic_panel)
         assert "data.quick_answer" in source
         assert "data.answer" not in source
 
@@ -118,13 +118,13 @@ class TestPanelFollowupEvent:
         assert "_panel_followup_data" in source
 
     def test_handle_queue_message_routes_followup(self):
-        """_handle_queue_message should handle qa_followup_result messages."""
+        """_handle_queue_message should handle semantic_followup_result messages."""
         import inspect
 
         from src.ui.main_window import MainWindow
 
         source = inspect.getsource(MainWindow._handle_queue_message)
-        assert "qa_followup_result" in source
+        assert "semantic_followup_result" in source
         assert "_panel_followup_event" in source
 
 
@@ -164,48 +164,48 @@ class TestVectorStoreCancelGuard:
     """Bug #6: _build_vector_store checks is_stopped before sending messages."""
 
     def test_build_vector_store_has_cancel_check(self):
-        """Source code checks is_stopped before qa_ready message."""
+        """Source code checks is_stopped before semantic_ready message."""
         import inspect
 
         from src.services.workers import ProgressiveExtractionWorker
 
         source = inspect.getsource(ProgressiveExtractionWorker._build_vector_store)
-        # The cancel guard should appear before qa_ready
+        # The cancel guard should appear before semantic_ready
         cancel_pos = source.find("is_stopped")
-        qa_ready_pos = source.find("qa_ready")
+        semantic_ready_pos = source.find("semantic_ready")
         assert cancel_pos != -1, "is_stopped check not found"
-        assert qa_ready_pos != -1, "qa_ready not found"
-        assert cancel_pos < qa_ready_pos, "is_stopped check must come before qa_ready"
+        assert semantic_ready_pos != -1, "semantic_ready not found"
+        assert cancel_pos < semantic_ready_pos, "is_stopped check must come before semantic_ready"
 
 
 # ============================================================
-# Bug #7: qa_service.clear() calls cleanup()
+# Bug #7: semantic_service.clear() calls cleanup()
 # ============================================================
 
 
-class TestQAServiceClearCleanup:
+class TestSemanticServiceClearCleanup:
     """Bug #7: clear() should call cleanup() before clearing _temp_dir."""
 
     def test_clear_calls_cleanup(self):
         """clear() invokes cleanup() to delete temp directory."""
         import inspect
 
-        from src.services.qa_service import QAService
+        from src.services.semantic_service import SemanticService
 
-        source = inspect.getsource(QAService.clear)
+        source = inspect.getsource(SemanticService.clear)
         assert "self.cleanup()" in source
 
 
 # ============================================================
-# Bug #8: worker_process auto_qa_worker lock
+# Bug #8: worker_process auto_semantic_worker lock
 # ============================================================
 
 
-class TestAutoQAWorkerLock:
-    """Bug #8: auto_qa_worker access protected by worker_lock."""
+class TestAutoSemanticWorkerLock:
+    """Bug #8: auto_semantic_worker access protected by worker_lock."""
 
-    def test_auto_qa_worker_uses_lock(self):
-        """_stop_active_worker accesses auto_qa_worker under lock."""
+    def test_auto_semantic_worker_uses_lock(self):
+        """_stop_active_worker accesses auto_semantic_worker under lock."""
         import inspect
 
         from src.worker_process import _stop_active_worker
@@ -225,13 +225,13 @@ class TestDeadExpressionRemoved:
     """Bug #10: Unused getattr call removed from dynamic_output.py."""
 
     def test_no_dead_getattr(self):
-        """The dead getattr(_qa_ready) expression should be gone."""
+        """The dead getattr(_semantic_ready) expression should be gone."""
         import inspect
 
         from src.ui.dynamic_output import DynamicOutputWidget
 
         source = inspect.getsource(DynamicOutputWidget._refresh_tabs)
-        assert 'getattr(main_window, "_qa_ready"' not in source
+        assert 'getattr(main_window, "_semantic_ready"' not in source
 
 
 # ============================================================
@@ -281,7 +281,7 @@ class TestTokenBudgetThreadSafety:
 
     def test_encoder_lock_exists(self):
         """The lock variable exists in the module."""
-        from src.core.qa import token_budget
+        from src.core.semantic import token_budget
 
         assert hasattr(token_budget, "_encoder_lock")
         assert isinstance(token_budget._encoder_lock, type(threading.Lock()))
@@ -355,6 +355,6 @@ class TestHFEnvVarsSetDefault:
 
     def test_hallucination_verifier_uses_set_hf_cache_env(self):
         """hallucination_verifier.py delegates to set_hf_cache_env."""
-        source = Path("src/core/qa/hallucination_verifier.py").read_text(encoding="utf-8")
+        source = Path("src/deprecated/hallucination_verifier.py").read_text(encoding="utf-8")
         assert "set_hf_cache_env" in source
         assert 'os.environ["HF_HOME"]' not in source

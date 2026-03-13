@@ -48,9 +48,9 @@ class TestBug1AfterCallbackGuards:
         source = _read_source("ui/main_window.py")
         assert "_reset_export_btn" in source
 
-    def test_qa_panel_copy_btn_reset_has_guard(self):
-        """qa_panel copy defines _reset_copy_btn with try/except."""
-        source = _read_source("ui/qa_panel.py")
+    def test_semantic_panel_copy_btn_reset_has_guard(self):
+        """semantic_panel copy defines _reset_copy_btn with try/except."""
+        source = _read_source("ui/semantic_panel.py")
         assert "_reset_copy_btn" in source
 
 

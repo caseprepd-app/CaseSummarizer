@@ -2,23 +2,24 @@
 Tests for Q&A Orchestrator and Answer Generator.
 
 Tests the Q&A system components:
-1. QAResult - Data model for Q&A pairs
+1. SemanticResult - Data model for Q&A pairs
 2. AnswerGenerator - Extraction and Ollama modes
-3. QAOrchestrator - Question loading and answer coordination
+3. SemanticOrchestrator - Question loading and answer coordination
 """
 
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+from src.core.semantic import SemanticResult
 
-class TestQAResult:
-    """Tests for QAResult dataclass."""
+
+class TestSemanticResult:
+    """Tests for SemanticResult dataclass."""
 
     def test_qaresult_defaults(self):
-        """QAResult should have sensible defaults."""
-        from src.core.qa import QAResult
+        """SemanticResult should have sensible defaults."""
 
-        result = QAResult(
+        result = SemanticResult(
             question="Who is the plaintiff?",
             quick_answer="John Smith is the plaintiff.",
             citation="The plaintiff John Smith filed...",
@@ -35,10 +36,9 @@ class TestQAResult:
         assert result.is_followup is False
 
     def test_qaresult_full_initialization(self):
-        """QAResult should accept all fields."""
-        from src.core.qa import QAResult
+        """SemanticResult should accept all fields."""
 
-        result = QAResult(
+        result = SemanticResult(
             question="What damages are sought?",
             quick_answer="$100,000 in compensatory damages",
             citation="Plaintiff seeks damages of $100,000...",
@@ -58,104 +58,12 @@ class TestQAResult:
         assert result.citation == "Plaintiff seeks damages of $100,000..."
 
 
-class TestAnswerGenerator:
-    """Tests for AnswerGenerator class."""
-
-    def test_initialization(self):
-        """AnswerGenerator should initialize (always extraction mode)."""
-        from src.core.qa.answer_generator import AnswerGenerator
-
-        generator = AnswerGenerator()
-        # Should not crash; mode param is ignored for backward compat
-
-    def test_initialization_with_mode_param_ignored(self):
-        """AnswerGenerator accepts mode param but ignores it."""
-        from src.core.qa.answer_generator import AnswerGenerator
-
-        generator = AnswerGenerator(mode="ollama")
-        # Should not crash; mode is ignored
-
-    def test_generate_returns_message_for_empty_context(self):
-        """generate() should return appropriate message for empty context."""
-        from src.core.qa.answer_generator import AnswerGenerator
-
-        generator = AnswerGenerator()
-        result = generator.generate("Who is the plaintiff?", "")
-
-        assert "No relevant information" in result
-
-    def test_extraction_mode_extracts_from_context(self):
-        """Extraction mode should find relevant sentences from context."""
-        from src.core.qa.answer_generator import AnswerGenerator
-
-        generator = AnswerGenerator()
-
-        context = """
-        The plaintiff John Smith filed this lawsuit on January 15, 2024.
-        He alleges that the defendant ABC Corporation was negligent.
-        The incident occurred at the defendant's warehouse in Brooklyn.
-        """
-
-        result = generator.generate("Who is the plaintiff?", context)
-
-        # Should extract sentence mentioning plaintiff
-        assert "John Smith" in result or "plaintiff" in result.lower()
-
-    def test_extraction_mode_handles_no_matches(self):
-        """Extraction mode should handle case with no keyword matches."""
-        from src.core.qa.answer_generator import AnswerGenerator
-
-        generator = AnswerGenerator()
-
-        context = "This document contains no relevant party information."
-
-        result = generator.generate("Who is the defendant?", context)
-
-        # Should return something (first sentence or "no specific answer")
-        assert len(result) > 0
-
-    def test_keyword_extraction_filters_stopwords(self):
-        """_extract_keywords should filter common stopwords."""
-        from src.core.qa.answer_generator import AnswerGenerator
-
-        generator = AnswerGenerator()
-
-        keywords = generator._extract_keywords("What is the name of the plaintiff?")
-
-        assert "what" not in keywords
-        assert "is" not in keywords
-        assert "the" not in keywords
-        assert "of" not in keywords
-        assert "name" in keywords
-        assert "plaintiff" in keywords
-
-    def test_split_sentences_handles_abbreviations(self):
-        """_split_sentences should handle common abbreviations."""
-        from src.core.qa.answer_generator import AnswerGenerator
-
-        generator = AnswerGenerator()
-
-        text = "Dr. Smith testified on Jan. 15, 2024. He stated the injury was severe."
-
-        sentences = generator._split_sentences(text)
-
-        # Should not split at "Dr." or "Jan."
-        assert len(sentences) == 2
-
-    def test_set_mode_is_noop(self):
-        """set_mode is a no-op for backward compatibility."""
-        from src.core.qa.answer_generator import AnswerGenerator
-
-        generator = AnswerGenerator()
-        generator.set_mode("ollama")  # Should not crash
-
-
-class TestQAOrchestrator:
-    """Tests for QAOrchestrator class (without actual vector store)."""
+class TestSemanticOrchestrator:
+    """Tests for SemanticOrchestrator class (without actual vector store)."""
 
     def test_default_questions_path_exists(self):
         """DEFAULT_QUESTIONS_PATH should point to existing file."""
-        from src.core.qa.qa_orchestrator import DEFAULT_QUESTIONS_PATH
+        from src.core.semantic.semantic_orchestrator import DEFAULT_QUESTIONS_PATH
 
         # The config/qa_questions.yaml should exist in the project
         assert DEFAULT_QUESTIONS_PATH.exists()
@@ -178,11 +86,11 @@ questions:
         yaml_path = tmp_path / "test_questions.yaml"
         yaml_path.write_text(yaml_content)
 
-        # Mock the QARetriever to avoid needing actual vector store
-        with patch("src.core.qa.qa_orchestrator.QARetriever"):
-            from src.core.qa import QAOrchestrator
+        # Mock the SemanticRetriever to avoid needing actual vector store
+        with patch("src.core.semantic.semantic_orchestrator.SemanticRetriever"):
+            from src.core.semantic import SemanticOrchestrator
 
-            orchestrator = QAOrchestrator(
+            orchestrator = SemanticOrchestrator(
                 vector_store_path=tmp_path, embeddings=MagicMock(), questions_path=yaml_path
             )
 
@@ -194,19 +102,24 @@ questions:
 
     def test_get_exportable_results_filters_by_flag(self):
         """get_exportable_results should only return included items."""
-        from src.core.qa import QAResult
 
         # Create mock orchestrator results
-        with patch("src.core.qa.qa_orchestrator.QARetriever"):
-            from src.core.qa import QAOrchestrator
+        with patch("src.core.semantic.semantic_orchestrator.SemanticRetriever"):
+            from src.core.semantic import SemanticOrchestrator
 
-            orchestrator = QAOrchestrator(vector_store_path=Path("."), embeddings=MagicMock())
+            orchestrator = SemanticOrchestrator(vector_store_path=Path("."), embeddings=MagicMock())
 
             # Add mock results
             orchestrator.results = [
-                QAResult(question="Q1", quick_answer="A1", citation="C1", include_in_export=True),
-                QAResult(question="Q2", quick_answer="A2", citation="C2", include_in_export=False),
-                QAResult(question="Q3", quick_answer="A3", citation="C3", include_in_export=True),
+                SemanticResult(
+                    question="Q1", quick_answer="A1", citation="C1", include_in_export=True
+                ),
+                SemanticResult(
+                    question="Q2", quick_answer="A2", citation="C2", include_in_export=False
+                ),
+                SemanticResult(
+                    question="Q3", quick_answer="A3", citation="C3", include_in_export=True
+                ),
             ]
 
             exportable = orchestrator.get_exportable_results()
@@ -216,15 +129,16 @@ questions:
 
     def test_toggle_export_changes_flag(self):
         """toggle_export should flip the include_in_export flag."""
-        from src.core.qa import QAResult
 
-        with patch("src.core.qa.qa_orchestrator.QARetriever"):
-            from src.core.qa import QAOrchestrator
+        with patch("src.core.semantic.semantic_orchestrator.SemanticRetriever"):
+            from src.core.semantic import SemanticOrchestrator
 
-            orchestrator = QAOrchestrator(vector_store_path=Path("."), embeddings=MagicMock())
+            orchestrator = SemanticOrchestrator(vector_store_path=Path("."), embeddings=MagicMock())
 
             orchestrator.results = [
-                QAResult(question="Q1", quick_answer="A1", citation="C1", include_in_export=True),
+                SemanticResult(
+                    question="Q1", quick_answer="A1", citation="C1", include_in_export=True
+                ),
             ]
 
             # Toggle off
@@ -239,15 +153,14 @@ questions:
 
     def test_export_to_text_format(self):
         """export_to_text should produce properly formatted text."""
-        from src.core.qa import QAResult
 
-        with patch("src.core.qa.qa_orchestrator.QARetriever"):
-            from src.core.qa import QAOrchestrator
+        with patch("src.core.semantic.semantic_orchestrator.SemanticRetriever"):
+            from src.core.semantic import SemanticOrchestrator
 
-            orchestrator = QAOrchestrator(vector_store_path=Path("."), embeddings=MagicMock())
+            orchestrator = SemanticOrchestrator(vector_store_path=Path("."), embeddings=MagicMock())
 
             orchestrator.results = [
-                QAResult(
+                SemanticResult(
                     question="What type of case is this?",
                     quick_answer="This is a civil personal injury case.",
                     citation="Filed in civil court for personal injury...",
@@ -265,18 +178,17 @@ questions:
 
     def test_export_to_text_excludes_unchecked(self):
         """export_to_text should only include checked items."""
-        from src.core.qa import QAResult
 
-        with patch("src.core.qa.qa_orchestrator.QARetriever"):
-            from src.core.qa import QAOrchestrator
+        with patch("src.core.semantic.semantic_orchestrator.SemanticRetriever"):
+            from src.core.semantic import SemanticOrchestrator
 
-            orchestrator = QAOrchestrator(vector_store_path=Path("."), embeddings=MagicMock())
+            orchestrator = SemanticOrchestrator(vector_store_path=Path("."), embeddings=MagicMock())
 
             orchestrator.results = [
-                QAResult(
+                SemanticResult(
                     question="Included", quick_answer="Yes", citation="C1", include_in_export=True
                 ),
-                QAResult(
+                SemanticResult(
                     question="Excluded", quick_answer="No", citation="C2", include_in_export=False
                 ),
             ]
@@ -288,31 +200,30 @@ questions:
 
     def test_clear_results(self):
         """clear_results should empty the results list."""
-        from src.core.qa import QAResult
 
-        with patch("src.core.qa.qa_orchestrator.QARetriever"):
-            from src.core.qa import QAOrchestrator
+        with patch("src.core.semantic.semantic_orchestrator.SemanticRetriever"):
+            from src.core.semantic import SemanticOrchestrator
 
-            orchestrator = QAOrchestrator(vector_store_path=Path("."), embeddings=MagicMock())
+            orchestrator = SemanticOrchestrator(vector_store_path=Path("."), embeddings=MagicMock())
 
-            orchestrator.results = [QAResult(question="Q", quick_answer="A", citation="C")]
+            orchestrator.results = [SemanticResult(question="Q", quick_answer="A", citation="C")]
             assert len(orchestrator.results) == 1
 
             orchestrator.clear_results()
             assert len(orchestrator.results) == 0
 
 
-class TestQAWorker:
-    """Tests for QAWorker thread."""
+class TestSemanticWorker:
+    """Tests for SemanticWorker thread."""
 
     def test_worker_initialization(self):
-        """QAWorker should initialize with required parameters."""
+        """SemanticWorker should initialize with required parameters."""
         from queue import Queue
 
-        from src.services.workers import QAWorker
+        from src.services.workers import SemanticWorker
 
         queue = Queue()
-        worker = QAWorker(
+        worker = SemanticWorker(
             vector_store_path=Path("."),
             embeddings=MagicMock(),
             ui_queue=queue,
@@ -323,28 +234,28 @@ class TestQAWorker:
         assert worker.custom_questions is None
 
     def test_worker_accepts_custom_questions(self):
-        """QAWorker should accept custom question list."""
+        """SemanticWorker should accept custom question list."""
         from queue import Queue
 
-        from src.services.workers import QAWorker
+        from src.services.workers import SemanticWorker
 
         queue = Queue()
         custom_qs = ["Question 1?", "Question 2?"]
 
-        worker = QAWorker(
+        worker = SemanticWorker(
             vector_store_path=Path("."), embeddings=MagicMock(), ui_queue=queue, questions=custom_qs
         )
 
         assert worker.custom_questions == custom_qs
 
     def test_worker_stop_signal(self):
-        """QAWorker should respond to stop signal."""
+        """SemanticWorker should respond to stop signal."""
         from queue import Queue
 
-        from src.services.workers import QAWorker
+        from src.services.workers import SemanticWorker
 
         queue = Queue()
-        worker = QAWorker(vector_store_path=Path("."), embeddings=MagicMock(), ui_queue=queue)
+        worker = SemanticWorker(vector_store_path=Path("."), embeddings=MagicMock(), ui_queue=queue)
 
         assert not worker._stop_event.is_set()
 

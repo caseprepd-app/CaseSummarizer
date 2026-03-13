@@ -1295,14 +1295,14 @@ def _register_all_settings():
         """Persist buffered questions list to the manager (single disk write)."""
         if questions_data is None:
             return
-        from src.services import QAService
+        from src.services import SemanticService
 
-        manager = QAService().get_default_questions_manager()
+        manager = SemanticService().get_default_questions_manager()
         manager.replace_all(questions_data)
 
     SettingsRegistry.register(
         SettingDefinition(
-            key="qa_default_questions",
+            key="semantic_default_questions",
             label="Default Searches",
             category="Search",
             setting_type=SettingType.CUSTOM,
@@ -1607,49 +1607,28 @@ def _register_all_settings():
     # SEARCH EXPORT TAB
     # ===================================================================
 
-    from src.config import QA_EXPORT_CONFIDENCE_FLOOR, QA_EXPORT_VERIFICATION_FLOOR
+    from src.config import SEMANTIC_EXPORT_CONFIDENCE_FLOOR
 
     SettingsRegistry.register(
         SettingDefinition(
-            key="qa_export_confidence_floor",
+            key="semantic_export_confidence_floor",
             label="Retrieval confidence floor",
             category="Search Export",
             setting_type=SettingType.SLIDER,
             tooltip=(
-                "Minimum FAISS retrieval confidence (0-1) for a search result\n"
+                "Minimum retrieval confidence (0-1) for a search result\n"
                 "to be included in exports. This measures how relevant the\n"
-                "retrieved document chunks were to the question.\n\n"
-                "Both this AND the verification floor must be met.\n\n"
+                "retrieved document chunks were to the query.\n\n"
                 "Default: 0.40 (40%)"
             ),
-            default=QA_EXPORT_CONFIDENCE_FLOOR,
+            default=SEMANTIC_EXPORT_CONFIDENCE_FLOOR,
             min_value=0.0,
             max_value=1.0,
             step=0.05,
-            getter=lambda: prefs.get("qa_export_confidence_floor", QA_EXPORT_CONFIDENCE_FLOOR),
-            setter=lambda v: prefs.set("qa_export_confidence_floor", float(v)),
-        )
-    )
-
-    SettingsRegistry.register(
-        SettingDefinition(
-            key="qa_export_verification_floor",
-            label="Verification reliability floor",
-            category="Search Export",
-            setting_type=SettingType.SLIDER,
-            tooltip=(
-                "Minimum hallucination verification reliability (0-1) for\n"
-                "a search result to be included in exports. This measures how\n"
-                "well the answer is supported by the source text.\n\n"
-                "Both this AND the retrieval floor must be met.\n\n"
-                "Default: 0.80 (80%)"
+            getter=lambda: prefs.get(
+                "semantic_export_confidence_floor", SEMANTIC_EXPORT_CONFIDENCE_FLOOR
             ),
-            default=QA_EXPORT_VERIFICATION_FLOOR,
-            min_value=0.0,
-            max_value=1.0,
-            step=0.05,
-            getter=lambda: prefs.get("qa_export_verification_floor", QA_EXPORT_VERIFICATION_FLOOR),
-            setter=lambda v: prefs.set("qa_export_verification_floor", float(v)),
+            setter=lambda v: prefs.set("semantic_export_confidence_floor", float(v)),
         )
     )
 

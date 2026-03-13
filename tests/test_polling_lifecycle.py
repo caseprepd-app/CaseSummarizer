@@ -1,9 +1,9 @@
 """
-Tests for Q&A polling lifecycle fixes.
+Tests for semantic search polling lifecycle fixes.
 
 Validates 3 bug fixes:
-1. Polling loop stays alive while Q&A answering is active
-2. Q&A marked complete only when questions are answered (not at index-ready)
+1. Polling loop stays alive while semantic search answering is active
+2. semantic search marked complete only when questions are answered (not at index-ready)
 3. Cross-encoder uses direct kwargs (not model_kwargs) for sentence-transformers 3.0+
 """
 
@@ -21,11 +21,11 @@ def _make_window_stub():
     stub = MagicMock()
     stub._pending_tasks = {
         "vocab": True,
-        "qa": True,
+        "semantic": True,
     }
     stub._completed_tasks = set()
-    stub._qa_answering_active = False
-    stub._qa_failed = False
+    stub._semantic_answering_active = False
+    stub._semantic_failed = False
     stub._processing_active = True
     stub._preprocessing_active = False
     stub._destroying = False
@@ -46,7 +46,7 @@ class TestAllTasksComplete:
         for task_name, is_pending in stub._pending_tasks.items():
             if is_pending and task_name not in stub._completed_tasks:
                 return False
-        return not stub._qa_answering_active
+        return not stub._semantic_answering_active
 
     def test_returns_false_when_pending_task_not_completed(self):
         """Pending tasks not in completed_tasks -> not complete."""
@@ -54,18 +54,18 @@ class TestAllTasksComplete:
         stub._completed_tasks = {"vocab"}  # qa still pending
         assert self._call(stub) is False
 
-    def test_returns_false_when_qa_answering_active(self):
-        """Even if all tasks completed, active Q&A means not done."""
+    def test_returns_false_when_semantic_answering_active(self):
+        """Even if all tasks completed, active semantic search means not done."""
         stub = _make_window_stub()
-        stub._completed_tasks = {"vocab", "qa"}
-        stub._qa_answering_active = True
+        stub._completed_tasks = {"vocab", "semantic"}
+        stub._semantic_answering_active = True
         assert self._call(stub) is False
 
     def test_returns_true_when_all_complete_and_qa_inactive(self):
-        """All pending tasks completed and Q&A inactive -> complete."""
+        """All pending tasks completed and semantic search inactive -> complete."""
         stub = _make_window_stub()
-        stub._completed_tasks = {"vocab", "qa"}
-        stub._qa_answering_active = False
+        stub._completed_tasks = {"vocab", "semantic"}
+        stub._semantic_answering_active = False
         assert self._call(stub) is True
 
     def test_ignores_non_pending_tasks(self):
@@ -73,7 +73,7 @@ class TestAllTasksComplete:
         stub = _make_window_stub()
         stub._pending_tasks = {
             "vocab": True,
-            "qa": False,
+            "semantic": False,
         }
         stub._completed_tasks = {"vocab"}
         assert self._call(stub) is True
@@ -97,79 +97,79 @@ class TestFinalizeTasksGuard:
         """Simulate _finalize_tasks logic (matches production code)."""
         if not stub._processing_active:
             return "skipped"
-        if stub._qa_answering_active:
+        if stub._semantic_answering_active:
             return "deferred"
         qa_pending_not_started = (
-            stub._pending_tasks.get("qa")
-            and "qa" not in stub._completed_tasks
-            and not stub._qa_failed
+            stub._pending_tasks.get("semantic")
+            and "semantic" not in stub._completed_tasks
+            and not stub._semantic_failed
         )
         if qa_pending_not_started:
             return "deferred"
         return "finalized"
 
-    def test_defers_when_qa_answering_active(self):
-        """_finalize_tasks should return early when Q&A is still running."""
+    def test_defers_when_semantic_answering_active(self):
+        """_finalize_tasks should return early when semantic search is still running."""
         stub = _make_window_stub()
-        stub._qa_answering_active = True
+        stub._semantic_answering_active = True
         assert self._finalize(stub) == "deferred"
 
     def test_proceeds_when_qa_answering_inactive(self):
-        """_finalize_tasks should proceed when Q&A is not running."""
+        """_finalize_tasks should proceed when semantic search is not running."""
         stub = _make_window_stub()
-        stub._qa_answering_active = False
-        stub._completed_tasks = {"vocab", "qa"}
+        stub._semantic_answering_active = False
+        stub._completed_tasks = {"vocab", "semantic"}
         assert self._finalize(stub) == "finalized"
 
     def test_defers_when_qa_pending_not_started(self):
-        """_finalize_tasks defers when Q&A is pending but not yet started."""
+        """_finalize_tasks defers when semantic search is pending but not yet started."""
         stub = _make_window_stub()
         stub._pending_tasks = {
             "vocab": True,
-            "qa": True,
+            "semantic": True,
         }
         stub._completed_tasks = {"vocab"}
-        stub._qa_answering_active = False
+        stub._semantic_answering_active = False
         assert self._finalize(stub) == "deferred"
 
     def test_proceeds_when_qa_pending_and_completed(self):
-        """_finalize_tasks proceeds when Q&A is pending and already completed."""
+        """_finalize_tasks proceeds when semantic search is pending and already completed."""
         stub = _make_window_stub()
         stub._pending_tasks = {
             "vocab": True,
-            "qa": True,
+            "semantic": True,
         }
-        stub._completed_tasks = {"vocab", "qa"}
-        stub._qa_answering_active = False
+        stub._completed_tasks = {"vocab", "semantic"}
+        stub._semantic_answering_active = False
         assert self._finalize(stub) == "finalized"
 
     def test_skips_when_already_complete(self):
         """_finalize_tasks skips if _processing_active is already False (double call)."""
         stub = _make_window_stub()
         stub._processing_active = False
-        stub._completed_tasks = {"vocab", "qa"}
+        stub._completed_tasks = {"vocab", "semantic"}
         assert self._finalize(stub) == "skipped"
 
-    def test_proceeds_when_qa_failed_even_if_not_completed(self):
-        """_finalize_tasks proceeds when Q&A failed (don't wait for trigger_default_qa)."""
+    def test_proceeds_when_semantic_failed_even_if_not_completed(self):
+        """_finalize_tasks proceeds when semantic search failed (don't wait for trigger_default_semantic)."""
         stub = _make_window_stub()
         stub._pending_tasks = {
             "vocab": True,
-            "qa": True,
+            "semantic": True,
         }
-        stub._completed_tasks = {"vocab", "qa"}  # qa_error already added it
-        stub._qa_failed = True
+        stub._completed_tasks = {"vocab", "semantic"}  # semantic_error already added it
+        stub._semantic_failed = True
         assert self._finalize(stub) == "finalized"
 
     def test_proceeds_when_qa_not_pending(self):
-        """_finalize_tasks proceeds when Q&A was not a pending task."""
+        """_finalize_tasks proceeds when semantic search was not a pending task."""
         stub = _make_window_stub()
         stub._pending_tasks = {
             "vocab": True,
-            "qa": False,
+            "semantic": False,
         }
         stub._completed_tasks = {"vocab"}
-        stub._qa_answering_active = False
+        stub._semantic_answering_active = False
         assert self._finalize(stub) == "finalized"
 
 
@@ -179,23 +179,23 @@ class TestFinalizeTasksGuard:
 
 
 class TestPollingCondition:
-    """Tests that polling condition includes _qa_answering_active."""
+    """Tests that polling condition includes _semantic_answering_active."""
 
     def _should_poll(self, stub, messages):
         """Simulate the polling condition from _poll_queue."""
         return bool(
             stub._processing_active
             or stub._preprocessing_active
-            or stub._qa_answering_active
+            or stub._semantic_answering_active
             or messages
         )
 
-    def test_polls_when_qa_answering_active(self):
-        """Polling should continue when Q&A answering is active even if processing is done."""
+    def test_polls_when_semantic_answering_active(self):
+        """Polling should continue when semantic search answering is active even if processing is done."""
         stub = _make_window_stub()
         stub._processing_active = False
         stub._preprocessing_active = False
-        stub._qa_answering_active = True
+        stub._semantic_answering_active = True
         assert self._should_poll(stub, []) is True
 
     def test_stops_when_everything_inactive_and_no_messages(self):
@@ -203,7 +203,7 @@ class TestPollingCondition:
         stub = _make_window_stub()
         stub._processing_active = False
         stub._preprocessing_active = False
-        stub._qa_answering_active = False
+        stub._semantic_answering_active = False
         assert self._should_poll(stub, []) is False
 
     def test_polls_when_processing_active(self):
@@ -211,7 +211,7 @@ class TestPollingCondition:
         stub = _make_window_stub()
         stub._processing_active = True
         stub._preprocessing_active = False
-        stub._qa_answering_active = False
+        stub._semantic_answering_active = False
         assert self._should_poll(stub, []) is True
 
     def test_polls_when_messages_present(self):
@@ -219,81 +219,81 @@ class TestPollingCondition:
         stub = _make_window_stub()
         stub._processing_active = False
         stub._preprocessing_active = False
-        stub._qa_answering_active = False
+        stub._semantic_answering_active = False
         assert self._should_poll(stub, [("progress", "test")]) is True
 
 
 # ---------------------------------------------------------------------------
-# qa_complete / qa_error handler behavior tests
+# semantic_complete / semantic_error handler behavior tests
 # ---------------------------------------------------------------------------
 
 
 class TestQAHandlerBehavior:
-    """Tests that qa_complete and qa_error clear flag and trigger finalization."""
+    """Tests that semantic_complete and semantic_error clear flag and trigger finalization."""
 
-    def _simulate_qa_complete(self, stub):
-        """Simulate the qa_complete handler logic."""
-        stub._qa_answering_active = False
-        if stub._pending_tasks.get("qa"):
-            stub._completed_tasks.add("qa")
+    def _simulate_semantic_complete(self, stub):
+        """Simulate the semantic_complete handler logic."""
+        stub._semantic_answering_active = False
+        if stub._pending_tasks.get("semantic"):
+            stub._completed_tasks.add("semantic")
 
-    def _simulate_qa_error(self, stub):
-        """Simulate the qa_error handler logic."""
-        stub._qa_answering_active = False
-        stub._qa_failed = True
-        if stub._pending_tasks.get("qa"):
-            stub._completed_tasks.add("qa")
+    def _simulate_semantic_error(self, stub):
+        """Simulate the semantic_error handler logic."""
+        stub._semantic_answering_active = False
+        stub._semantic_failed = True
+        if stub._pending_tasks.get("semantic"):
+            stub._completed_tasks.add("semantic")
 
-    def test_qa_complete_clears_flag(self):
-        """qa_complete handler should clear _qa_answering_active."""
+    def test_semantic_complete_clears_flag(self):
+        """semantic_complete handler should clear _semantic_answering_active."""
         stub = _make_window_stub()
-        stub._qa_answering_active = True
-        self._simulate_qa_complete(stub)
-        assert stub._qa_answering_active is False
+        stub._semantic_answering_active = True
+        self._simulate_semantic_complete(stub)
+        assert stub._semantic_answering_active is False
 
-    def test_qa_complete_adds_to_completed_tasks(self):
-        """qa_complete handler should mark Q&A as completed."""
+    def test_semantic_complete_adds_to_completed_tasks(self):
+        """semantic_complete handler should mark semantic search as completed."""
         stub = _make_window_stub()
-        stub._qa_answering_active = True
-        self._simulate_qa_complete(stub)
-        assert "qa" in stub._completed_tasks
+        stub._semantic_answering_active = True
+        self._simulate_semantic_complete(stub)
+        assert "semantic" in stub._completed_tasks
 
-    def test_qa_error_clears_flag(self):
-        """qa_error handler should clear _qa_answering_active."""
+    def test_semantic_error_clears_flag(self):
+        """semantic_error handler should clear _semantic_answering_active."""
         stub = _make_window_stub()
-        stub._qa_answering_active = True
-        self._simulate_qa_error(stub)
-        assert stub._qa_answering_active is False
+        stub._semantic_answering_active = True
+        self._simulate_semantic_error(stub)
+        assert stub._semantic_answering_active is False
 
-    def test_qa_error_adds_to_completed_tasks(self):
-        """qa_error handler should mark Q&A as completed (failed but done)."""
+    def test_semantic_error_adds_to_completed_tasks(self):
+        """semantic_error handler should mark semantic search as completed (failed but done)."""
         stub = _make_window_stub()
-        stub._qa_answering_active = True
-        self._simulate_qa_error(stub)
-        assert "qa" in stub._completed_tasks
+        stub._semantic_answering_active = True
+        self._simulate_semantic_error(stub)
+        assert "semantic" in stub._completed_tasks
 
-    def test_qa_complete_skips_non_pending_qa(self):
-        """If Q&A wasn't a pending task, don't add to completed."""
+    def test_semantic_complete_skips_non_pending_qa(self):
+        """If semantic search wasn't a pending task, don't add to completed."""
         stub = _make_window_stub()
         stub._pending_tasks = {
             "vocab": True,
-            "qa": False,
+            "semantic": False,
         }
-        stub._qa_answering_active = True
-        self._simulate_qa_complete(stub)
-        assert "qa" not in stub._completed_tasks
+        stub._semantic_answering_active = True
+        self._simulate_semantic_complete(stub)
+        assert "semantic" not in stub._completed_tasks
 
 
 # ---------------------------------------------------------------------------
-# qa_ready no longer marks complete
+# semantic_ready no longer marks complete
 # ---------------------------------------------------------------------------
 
 
 class TestQAReadyNoCompletion:
-    """Verify qa_ready handler does NOT mark Q&A as complete."""
+    """Verify semantic_ready handler does NOT mark semantic search as complete."""
 
-    def test_qa_ready_source_code_has_no_premature_completion(self):
-        """The qa_ready handler should not add 'qa' to _completed_tasks."""
+    def test_semantic_ready_source_code_has_no_premature_completion(self):
+        """The semantic_ready handler should not add 'qa' to _completed_tasks."""
         import ast
         from pathlib import Path
 
@@ -306,22 +306,24 @@ class TestQAReadyNoCompletion:
             if isinstance(node, ast.FunctionDef) and node.name == "_handle_queue_message":
                 # Get the source lines for this function
                 func_source = ast.get_source_segment(source, node)
-                # Find the qa_ready elif block
+                # Find the semantic_ready elif block
                 lines = func_source.split("\n")
-                in_qa_ready_block = False
-                qa_ready_lines = []
+                in_semantic_ready_block = False
+                semantic_ready_lines = []
                 for line in lines:
-                    if 'msg_type == "qa_ready"' in line:
-                        in_qa_ready_block = True
+                    if 'msg_type == "semantic_ready"' in line:
+                        in_semantic_ready_block = True
                         continue
-                    elif in_qa_ready_block and ("elif msg_type ==" in line or "else:" in line):
+                    elif in_semantic_ready_block and (
+                        "elif msg_type ==" in line or "else:" in line
+                    ):
                         break
-                    elif in_qa_ready_block:
-                        qa_ready_lines.append(line)
+                    elif in_semantic_ready_block:
+                        semantic_ready_lines.append(line)
 
-                qa_ready_block = "\n".join(qa_ready_lines)
-                assert '_completed_tasks.add("qa")' not in qa_ready_block, (
-                    "qa_ready handler should not mark Q&A as complete"
+                semantic_ready_block = "\n".join(semantic_ready_lines)
+                assert '_completed_tasks.add("semantic")' not in semantic_ready_block, (
+                    "semantic_ready handler should not mark semantic search as complete"
                 )
                 return
 
@@ -329,26 +331,26 @@ class TestQAReadyNoCompletion:
 
 
 # ---------------------------------------------------------------------------
-# trigger_default_qa_started sets flag
+# trigger_default_semantic_started sets flag
 # ---------------------------------------------------------------------------
 
 
 class TestTriggerDefaultQAStarted:
-    """Verify trigger_default_qa_started handler sets _qa_answering_active."""
+    """Verify trigger_default_semantic_started handler sets _semantic_answering_active."""
 
-    def test_source_code_sets_qa_answering_active(self):
-        """The handler should set _qa_answering_active = True."""
+    def test_source_code_sets_semantic_answering_active(self):
+        """The handler should set _semantic_answering_active = True."""
         from pathlib import Path
 
         source_path = Path(__file__).parent.parent / "src" / "ui" / "main_window.py"
         source = source_path.read_text(encoding="utf-8")
 
-        # Find the trigger_default_qa_started block
+        # Find the trigger_default_semantic_started block
         lines = source.split("\n")
         in_block = False
         block_lines = []
         for line in lines:
-            if 'msg_type == "trigger_default_qa_started"' in line:
+            if 'msg_type == "trigger_default_semantic_started"' in line:
                 in_block = True
                 continue
             elif in_block and ("elif msg_type ==" in line or "else:" in line):
@@ -357,8 +359,8 @@ class TestTriggerDefaultQAStarted:
                 block_lines.append(line)
 
         block_text = "\n".join(block_lines)
-        assert "_qa_answering_active = True" in block_text, (
-            "trigger_default_qa_started handler must set _qa_answering_active = True"
+        assert "_semantic_answering_active = True" in block_text, (
+            "trigger_default_semantic_started handler must set _semantic_answering_active = True"
         )
 
 
@@ -453,60 +455,60 @@ class TestTaskCombinationFlows:
         for task_name, is_pending in stub._pending_tasks.items():
             if is_pending and task_name not in stub._completed_tasks:
                 return False
-        return not stub._qa_answering_active
+        return not stub._semantic_answering_active
 
     def test_vocab_only_finalizes_immediately(self):
-        """Vocab-only: _finalize_tasks proceeds because _qa_answering_active=False."""
+        """Vocab-only: _finalize_tasks proceeds because _semantic_answering_active=False."""
         stub = _make_window_stub()
         stub._pending_tasks = {
             "vocab": True,
-            "qa": False,
+            "semantic": False,
         }
         stub._completed_tasks = {"vocab"}
-        stub._qa_answering_active = False
+        stub._semantic_answering_active = False
         assert self._all_tasks_complete(stub) is True
 
     def test_vocab_plus_qa_defers_during_answering(self):
-        """Vocab+Q&A: finalization deferred while Q&A answering is active."""
+        """Vocab+semantic search: finalization deferred while semantic search answering is active."""
         stub = _make_window_stub()
         stub._pending_tasks = {
             "vocab": True,
-            "qa": True,
+            "semantic": True,
         }
         stub._completed_tasks = {"vocab"}
-        stub._qa_answering_active = True
+        stub._semantic_answering_active = True
         assert self._all_tasks_complete(stub) is False
 
-    def test_vocab_plus_qa_completes_after_answering(self):
-        """Vocab+Q&A: finalization proceeds after Q&A answering completes."""
+    def test_vocab_plus_semantic_completes_after_answering(self):
+        """Vocab+semantic search: finalization proceeds after semantic search answering completes."""
         stub = _make_window_stub()
         stub._pending_tasks = {
             "vocab": True,
-            "qa": True,
+            "semantic": True,
         }
-        stub._completed_tasks = {"vocab", "qa"}
-        stub._qa_answering_active = False
+        stub._completed_tasks = {"vocab", "semantic"}
+        stub._semantic_answering_active = False
         assert self._all_tasks_complete(stub) is True
 
 
 # ---------------------------------------------------------------------------
-# Race condition: vocab completes before trigger_default_qa_started
+# Race condition: vocab completes before trigger_default_semantic_started
 # ---------------------------------------------------------------------------
 
 
 class TestVocabCompleteQARace:
-    """Tests for the race between vocab completion and Q&A startup."""
+    """Tests for the race between vocab completion and semantic search startup."""
 
     def _finalize(self, stub):
         """Simulate _finalize_tasks logic (matches production code)."""
         if not stub._processing_active:
             return "skipped"
-        if stub._qa_answering_active:
+        if stub._semantic_answering_active:
             return "deferred"
         qa_pending_not_started = (
-            stub._pending_tasks.get("qa")
-            and "qa" not in stub._completed_tasks
-            and not stub._qa_failed
+            stub._pending_tasks.get("semantic")
+            and "semantic" not in stub._completed_tasks
+            and not stub._semantic_failed
         )
         if qa_pending_not_started:
             return "deferred"
@@ -519,43 +521,43 @@ class TestVocabCompleteQARace:
         return self._finalize(stub)
 
     def test_vocab_complete_does_not_finalize_when_qa_pending(self):
-        """Vocab complete should not finalize when Q&A is pending but not started."""
+        """Vocab complete should not finalize when semantic search is pending but not started."""
         stub = _make_window_stub()
         stub._pending_tasks = {
             "vocab": True,
-            "qa": True,
+            "semantic": True,
         }
         stub._completed_tasks = set()
-        stub._qa_answering_active = False
+        stub._semantic_answering_active = False
         result = self._simulate_vocab_complete(stub)
         assert result == "deferred"
         assert stub._on_tasks_complete.call_count == 0
 
     def test_full_sequence_vocab_then_qa(self):
-        """Integration: vocab defers, then Q&A starts, then Q&A completes."""
+        """Integration: vocab defers, then semantic search starts, then semantic search completes."""
         stub = _make_window_stub()
         stub._pending_tasks = {
             "vocab": True,
-            "qa": True,
+            "semantic": True,
         }
         stub._completed_tasks = set()
-        stub._qa_answering_active = False
+        stub._semantic_answering_active = False
 
         # Step 1: vocab completes — should defer
         result = self._simulate_vocab_complete(stub)
         assert result == "deferred"
         assert stub._on_tasks_complete.call_count == 0
 
-        # Step 2: trigger_default_qa_started arrives
-        stub._qa_answering_active = True
+        # Step 2: trigger_default_semantic_started arrives
+        stub._semantic_answering_active = True
 
-        # Step 3: Finalize attempted mid-Q&A — should still defer
+        # Step 3: Finalize attempted mid-semantic search — should still defer
         result2 = self._finalize(stub)
         assert result2 == "deferred"
 
-        # Step 4: qa_complete arrives
-        stub._qa_answering_active = False
-        stub._completed_tasks.add("qa")
+        # Step 4: semantic_complete arrives
+        stub._semantic_answering_active = False
+        stub._completed_tasks.add("semantic")
 
         # Step 5: Now finalization should proceed
         result3 = self._finalize(stub)
@@ -563,14 +565,14 @@ class TestVocabCompleteQARace:
         stub._on_tasks_complete.assert_called_once()
 
     def test_vocab_complete_finalizes_when_qa_not_pending(self):
-        """Vocab complete should finalize normally when Q&A is not pending."""
+        """Vocab complete should finalize normally when semantic search is not pending."""
         stub = _make_window_stub()
         stub._pending_tasks = {
             "vocab": True,
-            "qa": False,
+            "semantic": False,
         }
         stub._completed_tasks = set()
-        stub._qa_answering_active = False
+        stub._semantic_answering_active = False
         result = self._simulate_vocab_complete(stub)
         assert result == "finalized"
         stub._on_tasks_complete.assert_called_once()

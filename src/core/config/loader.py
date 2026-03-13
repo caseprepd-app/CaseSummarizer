@@ -28,8 +28,8 @@ def load_yaml(
     Replaces duplicate _load_config() methods in:
     - chunking_engine.py
     - vector_store/question_flow.py
-    - qa/qa_orchestrator.py
-    - ui/qa_question_editor.py (2 locations)
+    - semantic/semantic_orchestrator.py
+    - ui/semantic_question_editor.py (2 locations)
     - config.py (load_model_configs)
 
     Args:
