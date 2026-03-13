@@ -714,9 +714,8 @@ QA_CITATION_MAX_CHARS = _d("qa_citation_max_chars")
 # Single chunking pass for all downstream consumers (search indexing + key excerpts)
 # Uses recursive sentence splitting with overlap via NUPunkt legal-aware splitter
 #
-# Defaults tuned for precision on deposition Q&A (128-token target ≈ one exchange).
-# Research: 128-256 tokens optimal for fact-based retrieval (NVIDIA, Firecrawl 2026).
-# Cross-encoder reranker compensates for smaller chunks; larger chunks dilute relevance.
+# Defaults tuned for tight key-excerpt retrieval (75-token target ≈ a few sentences).
+# Smaller chunks surface just the key facts; cross-encoder reranker compensates.
 
 # Token limits for chunk sizing (research-based fixed values)
 UNIFIED_CHUNK_MIN_TOKENS = _d("unified_chunk_min_tokens")

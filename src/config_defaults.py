@@ -316,37 +316,36 @@ DEFAULTS = {
         "type": "int",
         "category": "Chunking",
     },
-    # Chunk sizes tuned for precision retrieval on deposition Q&A:
-    # 128-token target ≈ one Q&A exchange — reporters want targeted, not lengthy
-    # Research: 128-256 tokens optimal for fact-based precision (NVIDIA, Firecrawl 2026)
-    # Larger chunks dilute relevance; cross-encoder reranker picks the best match
+    # Chunk sizes tuned for tight, "juicy details" excerpts:
+    # 75-token target ≈ a few sentences — just the key facts reporters want
+    # Smaller chunks favor key-excerpt precision; cross-encoder reranker compensates
     "unified_chunk_min_tokens": {
-        "value": 60,
-        "min": 30,
+        "value": 50,
+        "min": 20,
         "max": 150,
         "step": 10,
         "type": "int",
         "category": "Chunking",
     },
     "unified_chunk_target_tokens": {
-        "value": 128,
-        "min": 64,
+        "value": 75,
+        "min": 30,
         "max": 300,
-        "step": 16,
+        "step": 5,
         "type": "int",
         "category": "Chunking",
     },
     "unified_chunk_max_tokens": {
-        "value": 200,
-        "min": 100,
+        "value": 115,
+        "min": 50,
         "max": 400,
-        "step": 25,
+        "step": 10,
         "type": "int",
         "category": "Chunking",
     },
     # ~12% of target_tokens; Firecrawl 2026 recommends 10-20% overlap for RAG
     "unified_chunk_overlap_tokens": {
-        "value": 15,
+        "value": 9,
         "min": 0,
         "max": 60,
         "step": 5,

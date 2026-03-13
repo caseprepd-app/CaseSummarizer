@@ -439,7 +439,7 @@ DESCRIPTIONS = {
         "tooltip": (
             "Minimum tokens per chunk. Chunks smaller than this are\n"
             "merged with their neighbor.\n\n"
-            "Default: 80 tokens\n\n"
+            "Default: 50 tokens\n\n"
             "Increase: Larger minimum chunks (fewer, bigger pieces).\n"
             "Decrease: Allow smaller chunks (more granular retrieval).\n\n"
             "Research (2025-2026): 200-word fixed chunks match or beat\n"
@@ -451,7 +451,7 @@ DESCRIPTIONS = {
         "tooltip": (
             "Ideal token count per chunk. The splitter aims for this\n"
             "size when splitting documents at sentence boundaries.\n\n"
-            "Default: 200 tokens\n\n"
+            "Default: 75 tokens\n\n"
             "Increase: Larger chunks (more context per passage).\n"
             "Decrease: Smaller chunks (more precise retrieval).\n\n"
             "Research (2025-2026): 200-512 tokens optimal for retrieval."
@@ -461,7 +461,7 @@ DESCRIPTIONS = {
         "label": "Chunk maximum tokens",
         "tooltip": (
             "Maximum tokens per chunk. Chunks exceeding this are split.\n\n"
-            "Default: 350 tokens\n\n"
+            "Default: 115 tokens\n\n"
             "Increase: Allow larger chunks (more context, less precision).\n"
             "Decrease: Enforce smaller chunks (better precision, more splits).\n\n"
             "Research: Keeping chunks under 512 tokens maximizes precision."
@@ -473,7 +473,7 @@ DESCRIPTIONS = {
             "Number of tokens from the end of each chunk to repeat at\n"
             "the start of the next chunk. Prevents information loss\n"
             "at chunk boundaries.\n\n"
-            "Default: 20 tokens (~10% of target)\n\n"
+            "Default: 9 tokens (~12% of target)\n\n"
             "Increase: Better boundary coverage (more redundancy).\n"
             "Decrease: Less redundancy (risk of split context).\n\n"
             "Typical: 10-20% of target chunk size."
