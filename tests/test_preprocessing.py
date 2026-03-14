@@ -11,7 +11,6 @@ from src.core.preprocessing import (
     TitlePageRemover,
     create_default_pipeline,
 )
-from src.deprecated.qa_converter import QAConverter
 
 
 class TestLineNumberRemover:
@@ -270,38 +269,6 @@ class TestHeaderFooterRemover:
             assert result.changes_made == 0
 
 
-class TestQAConverter:
-    """Tests for Q/A Converter preprocessor."""
-
-    def test_converts_q_dot_format(self):
-        """Should convert Q. to Question:."""
-        converter = QAConverter()
-        text = "Q.  Where were you on January 5th?"
-        result = converter.process(text)
-
-        assert "Question: Where were you" in result.text
-        assert "Q." not in result.text
-
-    def test_converts_a_dot_format(self):
-        """Should convert A. to Answer:."""
-        converter = QAConverter()
-        text = "A.  I was at home."
-        result = converter.process(text)
-
-        assert "Answer: I was at home." in result.text
-        assert "A." not in result.text
-
-    def test_handles_full_qa_exchange(self):
-        """Should convert full Q&A exchanges."""
-        converter = QAConverter()
-        text = "Q.  What happened?\nA.  I saw the accident."
-        result = converter.process(text)
-
-        assert "Question: What happened?" in result.text
-        assert "Answer: I saw the accident." in result.text
-        assert result.changes_made == 2
-
-
 class TestTitlePageRemover:
     """Tests for TitlePageRemover preprocessor."""
 
@@ -382,23 +349,30 @@ class TestPreprocessingPipeline:
 
     def test_disabled_preprocessors_skipped(self):
         """Should skip disabled preprocessors."""
+        # Pipeline with LineNumberRemover active and HeaderFooterRemover disabled
         pipeline = PreprocessingPipeline(
             [
                 LineNumberRemover(),
-                QAConverter(),
+                HeaderFooterRemover(),
             ]
         )
-        pipeline.preprocessors[1].enabled = False  # Disable Q/A converter
+        pipeline.preprocessors[1].enabled = False  # Disable header/footer remover
 
-        text = "Q.  What happened?\nA.  I saw it."
+        # "DIRECT EXAMINATION" appears 4 times — HeaderFooterRemover would remove it,
+        # but since it's disabled the header text must survive.
+        # Line numbers are removed by the still-active LineNumberRemover.
+        text = (
+            "1  DIRECT EXAMINATION\n"
+            "2  DIRECT EXAMINATION\n"
+            "3  DIRECT EXAMINATION\n"
+            "4  DIRECT EXAMINATION"
+        )
         result = pipeline.process(text)
 
-        # Q/A NOT converted (disabled)
-        assert "Q." in result
-        assert "A." in result
-        # Question:/Answer: should not appear
-        assert "Question:" not in result
-        assert "Answer:" not in result
+        # Line numbers removed (LineNumberRemover active)
+        assert "1  DIRECT EXAMINATION" not in result
+        # Header text preserved (HeaderFooterRemover disabled)
+        assert "DIRECT EXAMINATION" in result
 
     def test_empty_text_handled(self):
         """Should handle empty text gracefully."""

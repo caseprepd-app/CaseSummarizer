@@ -541,7 +541,7 @@ SPACY_DOWNLOAD_TIMEOUT_SEC = 3600  # Overall timeout: 1 hour (slow connections)
 SPACY_SOCKET_TIMEOUT_SEC = 10  # Socket timeout per request
 SPACY_THREAD_TIMEOUT_SEC = 15  # Thread termination timeout
 
-# Document Chunking (hierarchical summarization)
+# Document Chunking
 # Overlap fraction prevents context loss at chunk boundaries
 CHUNK_OVERLAP_FRACTION = 0.1  # 10% overlap between chunks
 

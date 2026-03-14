@@ -1,5 +1,5 @@
 """
-Cross-Encoder Reranker for Q&A Retrieval.
+Cross-Encoder Reranker for Semantic Search Retrieval.
 
 Uses Alibaba-NLP/gte-reranker-modernbert-base (149M params, 8192-token context)
 to rerank candidate chunks after hybrid retrieval. The 8192-token limit means
@@ -82,7 +82,7 @@ class CrossEncoderReranker:
         Rerank chunks by cross-encoder relevance score.
 
         Filters out chunks below MIN_RELEVANCE_SCORE to prevent irrelevant
-        context from reaching the LLM when the answer isn't in the documents.
+        context from appearing in search results when the query matches nothing.
 
         Args:
             query: The user's question

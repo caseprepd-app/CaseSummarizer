@@ -45,7 +45,7 @@ class VectorStoreResult:
 
 class VectorStoreBuilder:
     """
-    Creates and manages FAISS vector stores for Q&A.
+    Creates and manages FAISS vector stores for semantic search.
 
     Converts processed document chunks into a searchable vector index.
     Uses HuggingFaceEmbeddings (nomic-embed-text-v1.5) for embedding generation.
@@ -156,7 +156,7 @@ class VectorStoreBuilder:
         """
         Build vector store from UnifiedChunk objects.
 
-        This method uses the same chunks that LLM extraction uses,
+        This method uses the same chunks that vocabulary extraction uses,
         enabling efficient single-pass chunking for the entire pipeline.
 
         Args:
@@ -418,13 +418,13 @@ class VectorStoreBuilder:
         Apply preprocessing pipeline to clean text before vectorization.
 
         Removes line numbers, headers/footers, and other noise that would
-        degrade Q&A citation quality.
+        degrade search result quality.
 
         Args:
             text: Raw extracted text
 
         Returns:
-            Cleaned text suitable for vector search and citation display
+            Cleaned text suitable for vector search and excerpt display
         """
         try:
             from src.core.preprocessing import create_default_pipeline

@@ -4,7 +4,7 @@ GUI Workflow Integration Tests
 Tests the full document processing workflow that simulates user actions:
 1. Load sample PDFs
 2. Preprocess documents (extraction)
-3. Click "Process Documents" (vocabulary + Q&A)
+3. Click "Process Documents" (vocabulary + semantic search)
 4. Verify all phases complete
 
 Two testing modes:

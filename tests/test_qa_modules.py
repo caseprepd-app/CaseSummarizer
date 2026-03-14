@@ -1,13 +1,10 @@
 """
-Tests for Q&A core modules.
+Tests for semantic search core modules.
 
 Covers:
-- AnswerGenerator (answer_generator.py) — extraction mode
-- HallucinationVerifier (hallucination_verifier.py) — span building, reliability
-- Citation excerpt extraction (citation_excerpt.py)
-- Token budget utilities (token_budget.py)
-- Verification config (verification_config.py)
-- Q&A constants (qa_constants.py)
+- Citation excerpt extraction (citation_excerpt.py) — window building, truncation
+- Token budget utilities (token_budget.py) — counting, budget math
+- Semantic constants (semantic_constants.py) — prompt templates, thresholds
 """
 
 

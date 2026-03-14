@@ -1,10 +1,10 @@
 """
-Tests for Q&A Orchestrator and Answer Generator.
+Tests for Semantic Search Orchestrator.
 
-Tests the Q&A system components:
-1. SemanticResult - Data model for Q&A pairs
-2. AnswerGenerator - Extraction and Ollama modes
-3. SemanticOrchestrator - Question loading and answer coordination
+Tests the semantic search system components:
+1. SemanticResult - Data model for search result pairs (question + citation)
+2. SemanticOrchestrator - Question loading, retrieval, export coordination
+3. SemanticWorker - Background thread for async search execution
 """
 
 from pathlib import Path
