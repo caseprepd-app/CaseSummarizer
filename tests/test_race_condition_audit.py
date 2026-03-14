@@ -250,6 +250,109 @@ class TestWorkerProcessStateInit:
 # =========================================================================
 
 
+class TestStateReadUnderLock:
+    """Verify _run_qa/_run_followup/_run_extraction read state under worker_lock."""
+
+    def _get_func_body(self, src, func_name):
+        """Extract the body of a top-level function from source."""
+        match = re.search(
+            rf"def {func_name}\(.*?\n(.*?)(?=\ndef |\Z)",
+            src,
+            re.DOTALL,
+        )
+        assert match, f"{func_name} not found in worker_process source"
+        return match.group(1)
+
+    def test_run_qa_reads_embeddings_under_lock(self):
+        """_run_qa must read embeddings/vector_store_path inside worker_lock."""
+        src = _get_worker_process_source()
+        body = self._get_func_body(src, "_run_qa")
+        # The lock block must appear before the embeddings/vector_store_path reads
+        assert "worker_lock" in body, "_run_qa must use worker_lock when reading state"
+        lock_pos = body.index("worker_lock")
+        embeddings_pos = body.index("embeddings")
+        # embeddings read must appear after the lock is acquired
+        assert embeddings_pos > lock_pos, "_run_qa reads embeddings before acquiring worker_lock"
+
+    def test_run_followup_reads_state_under_lock(self):
+        """_run_followup must read embeddings/vector_store_path inside worker_lock."""
+        src = _get_worker_process_source()
+        body = self._get_func_body(src, "_run_followup")
+        assert "worker_lock" in body, "_run_followup must use worker_lock when reading state"
+        lock_pos = body.index("worker_lock")
+        vs_pos = body.index("vector_store_path")
+        assert vs_pos > lock_pos, (
+            "_run_followup reads vector_store_path before acquiring worker_lock"
+        )
+
+    def test_run_extraction_reads_embeddings_under_lock(self):
+        """_run_extraction must read embeddings inside worker_lock before passing to worker."""
+        src = _get_worker_process_source()
+        body = self._get_func_body(src, "_run_extraction")
+        assert "worker_lock" in body, "_run_extraction must use worker_lock"
+        # There should NOT be a bare state.get("embeddings") outside the lock block
+        # The fix uses a local variable 'embeddings' populated inside the lock
+        assert re.search(r'with state\["worker_lock"\].*?embeddings\s*=', body, re.DOTALL), (
+            "_run_extraction must read embeddings inside a worker_lock context"
+        )
+
+
+class TestCancellationInterruptsWaitLoop:
+    """Verify that setting is_stopped exits the semantic thread wait loop."""
+
+    def _get_workers_source(self):
+        """Return workers.py source."""
+        import src.services.workers as mod
+
+        return inspect.getsource(mod)
+
+    def _get_execute_body(self, src):
+        """Extract ProgressiveExtractionWorker.execute body."""
+        match = re.search(
+            r"class ProgressiveExtractionWorker.*?def execute\(self\).*?\n(.*?)(?=\n    def |\Z)",
+            src,
+            re.DOTALL,
+        )
+        assert match, "ProgressiveExtractionWorker.execute not found"
+        return match.group(1)
+
+    def test_wait_loop_checks_is_stopped(self):
+        """The semantic thread wait loop must include 'not self.is_stopped' as a condition."""
+        src = self._get_workers_source()
+        body = self._get_execute_body(src)
+        # Find the while loop that joins the semantic thread
+        loop_match = re.search(r"while semantic_thread\.is_alive\(\)(.*?):", body)
+        assert loop_match, "semantic thread wait loop not found in execute()"
+        condition = loop_match.group(0)
+        assert "is_stopped" in condition, (
+            "Wait loop must check 'self.is_stopped' so cancel breaks out immediately.\n"
+            f"Found: {condition}"
+        )
+
+    def test_wait_loop_exits_on_stop_flag(self):
+        """Simulate the wait loop logic: is_stopped=True must terminate after one iteration."""
+        import threading
+
+        # Simulate a thread that never finishes
+        never_done = threading.Event()
+        fake_thread = threading.Thread(target=never_done.wait)
+        fake_thread.daemon = True
+        fake_thread.start()
+
+        is_stopped = True
+        wait_count = 0
+        max_waits = 120  # would normally block for 60 minutes
+
+        while fake_thread.is_alive() and wait_count < max_waits and not is_stopped:
+            fake_thread.join(timeout=0.01)
+            wait_count += 1
+
+        # Loop must have exited without iterating (is_stopped was True from the start)
+        assert wait_count == 0, f"Loop iterated {wait_count} times despite is_stopped=True"
+        never_done.set()
+        fake_thread.join(timeout=1)
+
+
 class TestAntiPatternAudit:
     """Source-level checks for known concurrency anti-patterns."""
 

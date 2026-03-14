@@ -98,3 +98,8 @@ timestamp,document_id,term,feedback,is_person,algorithms,NER_detection,RAKE_dete
 2026-03-12T19:12:04.616468,unknown,Chris Boyne,1,1,"YAKE,RAKE,NER",True,True,False,False,False,True,3,98.7,24,0,0.0,0.003332,5.397058823529411,0.0,1,1.0,0.9499999999999998,0.95,0.0,1.0,0,1,21394
 2026-03-12T19:12:14.270216,unknown,anguishing pain,-1,0,"YAKE,RAKE",False,True,False,False,False,True,2,97.0,10,0,0.0,0.021395,3.3793103448275863,0.0,1,1.0,0.95,0.95,0.0,1.0,0,1,21394
 2026-03-12T19:12:22.555247,unknown,Andrew Merola,1,1,NER,True,False,False,False,False,False,1,93.3,65,0,0.0,0.0,0.0,0.0,1,1.0,0.95,0.95,0.0,1.0,0,1,21394
+2026-03-13T14:55:14.534872,unknown,Lingpin Hung,1,1,"YAKE,NER",True,False,False,False,False,True,2,92.8,3,0,0.0,0.03954,0.0,0.0,1,1.0,0.94,0.94,0.0,1.0,0,1,15367
+2026-03-13T15:55:33.560638,unknown,Arthur Rubin,1,1,"RAKE,YAKE,NER",True,True,False,False,False,True,3,97.9,31,0,0.0,0.03791,3.6666666666666665,0.0,1,1.0,0.9399999999999998,0.94,0.0,1.0,0,1,18359
+2026-03-13T15:55:38.078819,unknown,Philip Jones,1,1,"RAKE,YAKE,NER",True,True,False,False,False,True,3,97.6,11,0,0.0,0.035498,3.661538461538462,0.0,1,1.0,0.94,0.94,0.0,1.0,0,1,18359
+2026-03-13T15:55:40.941976,unknown,Cortland Lawson,1,1,"RAKE,NER",True,True,False,False,False,False,2,97.1,24,0,0.0,0.0,3.4,0.0,1,1.0,0.94,0.94,0.0,1.0,0,1,18359
+2026-03-13T15:57:26.098138,unknown,Tal Carmody,1,1,NER,True,False,False,False,False,False,1,89.5,25,0,0.0,0.0,0.0,0.0,1,1.0,0.94,0.94,0.0,1.0,0,1,18359

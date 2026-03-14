@@ -213,11 +213,14 @@ def _run_extraction(args, internal_queue, state):
         # Save documents for key excerpts extraction (triggered at semantic_ready)
         state["documents"] = args.get("documents")
 
+    with state["worker_lock"]:
+        embeddings = state.get("embeddings")
+
     worker = ProgressiveExtractionWorker(
         documents=args["documents"],
         combined_text=args["combined_text"],
         ui_queue=internal_queue,
-        embeddings=state.get("embeddings"),
+        embeddings=embeddings,
         exclude_list_path=args.get("exclude_list_path"),
         medical_terms_path=args.get("medical_terms_path"),
         user_exclude_path=args.get("user_exclude_path"),
@@ -231,8 +234,9 @@ def _run_extraction(args, internal_queue, state):
 
 def _run_qa(args, internal_queue, state):
     """Spawn SemanticWorker for default questions."""
-    vector_store_path = state.get("vector_store_path")
-    embeddings = state.get("embeddings")
+    with state["worker_lock"]:
+        vector_store_path = state.get("vector_store_path")
+        embeddings = state.get("embeddings")
 
     if not vector_store_path or not embeddings:
         internal_queue.put(("error", "Semantic search not ready: no vector store or embeddings"))
@@ -258,8 +262,9 @@ def _run_followup(args, internal_queue, state):
     """Run a follow-up question in a background thread."""
     question = args.get("question", "")
     logger.debug("Follow-up question: %.80s", question)
-    vector_store_path = state.get("vector_store_path")
-    embeddings = state.get("embeddings")
+    with state["worker_lock"]:
+        vector_store_path = state.get("vector_store_path")
+        embeddings = state.get("embeddings")
 
     if not vector_store_path or not embeddings:
         internal_queue.put(("semantic_followup_result", None))
