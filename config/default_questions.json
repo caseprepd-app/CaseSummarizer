@@ -1,11 +1,7 @@
 {
   "questions": [
     {
-      "text": "What injuries were sustained?",
-      "enabled": true
-    },
-    {
-      "text": "What warnings were given?",
+      "text": "injuries sustained",
       "enabled": true
     }
   ]

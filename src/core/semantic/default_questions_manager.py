@@ -109,11 +109,7 @@ class DefaultQuestionsManager:
     def _create_default_questions(self):
         """Create default set of questions."""
         self._questions = [
-            DefaultQuestion("What is this case about?", True),
-            DefaultQuestion("What are the main allegations?", True),
-            DefaultQuestion("Who are the plaintiffs?", True),
-            DefaultQuestion("Who are the defendants?", True),
-            DefaultQuestion("What is the date of the incident?", True),
+            DefaultQuestion("injuries sustained", True),
         ]
         self._save()
 

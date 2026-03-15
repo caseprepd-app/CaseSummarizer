@@ -1021,6 +1021,8 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             Tuple of (enabled_count, total_count)
         """
         try:
+            from src.services import SemanticService
+
             manager = SemanticService().get_default_questions_manager()
             return (manager.get_enabled_count(), manager.get_total_count())
 
