@@ -126,6 +126,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         # Panel follow-up IPC: background thread waits on event, main thread delivers result
         self._panel_followup_event = threading.Event()
         self._panel_followup_data = None  # Stores SemanticResult for panel followup
+        self._tab_followup_result = None  # Stash when _poll_queue() steals a tab followup result
 
         # Initialize ttk styles with UI scale factor and font offset.
         # Must happen AFTER super().__init__() creates the Tk root (ttk.Style needs it).
@@ -455,7 +456,12 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         """Clear all files from the session."""
         from src.ui.theme import COLORS
 
-        if self._processing_active or self._preprocessing_active:
+        if (
+            self._processing_active
+            or self._preprocessing_active
+            or self._semantic_answering_active
+            or self._key_sentences_pending
+        ):
             logger.warning("Cannot clear files during active processing")
             return
 
@@ -904,13 +910,21 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
                 self._finalize_tasks()
 
         elif msg_type == "semantic_followup_result":
-            # Route panel followup results via event (avoids queue race condition)
-            if not self._panel_followup_event.is_set():
+            # Route to whichever followup consumer is active.
+            # _poll_queue() and _poll_followup_result() both drain the same queue, so
+            # _poll_queue() may steal a tab-followup result when _key_sentences_pending
+            # keeps it running after processing completes.
+            if self._followup_pending:
+                # Tab followup is waiting — stash so _poll_followup_result() can pick it up
+                self._tab_followup_result = data
+                logger.debug("Tab followup result stashed (intercepted by _poll_queue)")
+            elif not self._panel_followup_event.is_set():
+                # Panel followup is waiting — deliver via event
                 self._panel_followup_data = data
                 self._panel_followup_event.set()
                 logger.debug("Panel followup result delivered via event")
             else:
-                logger.debug("Followup result received but no panel waiting")
+                logger.debug("Followup result received but no consumer waiting")
 
         elif msg_type == "command_ack":
             cmd = data.get("cmd", "unknown") if isinstance(data, dict) else data
@@ -1570,6 +1584,12 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
                 logger.debug("Malformed message in queue processing: %s", msg)
             except Exception:
                 logger.error("Unhandled error processing message: %s", msg, exc_info=True)
+
+        # Also check if _poll_queue() already consumed the message and stashed it
+        if followup_result is None and self._tab_followup_result is not None:
+            followup_result = self._tab_followup_result
+            self._tab_followup_result = None
+            logger.debug("Tab followup result recovered from stash")
 
         if followup_result is None and not messages:
             # No result yet, keep polling
