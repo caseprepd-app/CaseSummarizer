@@ -117,6 +117,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         self._completed_tasks: set = set()
         self._failed_tasks: set = set()
         self._exporting_all = False  # Re-entrancy guard for export-all
+        self._deferred_status_id: str | None = None  # Pending set_status() during error hold
 
         # Follow-up polling timeout counter (BUG 1 fix)
         self._followup_poll_count: int = 0
@@ -476,13 +477,12 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         self._key_sentences_pending = False
         self._semantic_results.clear()
         self._vector_store_path = None
-        if hasattr(self, "followup_btn"):
-            self.followup_btn.configure(state="disabled")
-            self.followup_entry.configure(
-                state="disabled",
-                placeholder_text="Search your documents after processing completes...",
-                placeholder_text_color=COLORS["placeholder_golden"],
-            )
+        self.followup_btn.configure(state="disabled")
+        self.followup_entry.configure(
+            state="disabled",
+            placeholder_text="Search your documents after processing completes...",
+            placeholder_text_color=COLORS["placeholder_golden"],
+        )
         self._update_generate_button_state()
         self._update_session_stats()  # Clear stats display
         self._update_doc_count_badge()
@@ -678,12 +678,11 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             self._semantic_failed = False
             self._vector_store_path = None
             # Disable followup controls — session is dead
-            if hasattr(self, "followup_entry"):
-                self.followup_entry.configure(
-                    state="disabled",
-                    placeholder_text="Session ended — reprocess files",
-                )
-                self.followup_btn.configure(state="disabled")
+            self.followup_entry.configure(
+                state="disabled",
+                placeholder_text="Session ended — reprocess files",
+            )
+            self.followup_btn.configure(state="disabled")
             if self._processing_active:
                 self._processing_active = False
                 self.output_display.set_extraction_in_progress(False)
@@ -838,14 +837,12 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             self._semantic_answering_active = False
             self._semantic_failed = True
             # Disable follow-up controls with explanatory message
-            if hasattr(self, "followup_entry"):
-                self.followup_entry.configure(
-                    state="disabled",
-                    placeholder_text="Search unavailable \u2014 index failed to build.",
-                    placeholder_text_color=COLORS["placeholder_red"],
-                )
-            if hasattr(self, "followup_btn"):
-                self.followup_btn.configure(state="disabled")
+            self.followup_entry.configure(
+                state="disabled",
+                placeholder_text="Search unavailable \u2014 index failed to build.",
+                placeholder_text_color=COLORS["placeholder_red"],
+            )
+            self.followup_btn.configure(state="disabled")
             if self._pending_tasks.get("semantic"):
                 self._failed_tasks.add("semantic")
             # Key excerpts won't arrive if vector store failed
@@ -872,7 +869,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             answered = current + 1
             logger.debug("Semantic search progress: %s/%s", answered, total)
             if answered < total:
-                self.set_status(f"Running search {answered + 1}/{total}...")
+                self.set_status(f"Running search {answered}/{total}...")
             else:
                 self.set_status(f"Completed {answered}/{total} searches")
 
@@ -892,6 +889,8 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             if semantic_results:
                 self.output_display.update_outputs(semantic_results=semantic_results)
                 self.set_status(f"Default searches complete: {len(semantic_results)} responses")
+            else:
+                self.set_status("Default searches complete: no matches found")
             self.followup_btn.configure(state="normal")
             self._semantic_answering_active = False
             if self._pending_tasks.get("semantic"):
@@ -1615,7 +1614,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
                 # Replace pending result with actual answer
                 with self._semantic_results_lock:
                     pending_idx = getattr(self, "_pending_followup_index", None)
-                    if pending_idx is not None and pending_idx < len(self._semantic_results):
+                    if pending_idx is not None and 0 <= pending_idx < len(self._semantic_results):
                         if self._semantic_results[pending_idx].quick_answer == PENDING_ANSWER_TEXT:
                             self._semantic_results[pending_idx] = followup_result
                         else:
@@ -1635,7 +1634,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
                 # None result = error in subprocess
                 with self._semantic_results_lock:
                     pending_idx = getattr(self, "_pending_followup_index", None)
-                    if pending_idx is not None and pending_idx < len(self._semantic_results):
+                    if pending_idx is not None and 0 <= pending_idx < len(self._semantic_results):
                         if self._semantic_results[pending_idx].quick_answer == PENDING_ANSWER_TEXT:
                             self._semantic_results.pop(pending_idx)
                     self._pending_followup_index = None
@@ -1999,9 +1998,13 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             import time
 
             if time.time() < self._status_error_hold_until:
-                # Schedule this message for after the hold expires
+                # Cancel any previous deferred status (only the latest matters)
+                if hasattr(self, "_deferred_status_id") and self._deferred_status_id:
+                    self.after_cancel(self._deferred_status_id)
                 remaining_ms = int((self._status_error_hold_until - time.time()) * 1000)
-                self.after(remaining_ms, lambda: self.set_status(message, duration_ms))
+                self._deferred_status_id = self.after(
+                    remaining_ms, lambda: self.set_status(message, duration_ms)
+                )
                 return
 
         # Cancel any pending status clear
@@ -2015,6 +2018,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         self.status_label.configure(text=message, text_color=COLORS["text_primary"])
 
         self._status_error_hold_until = None
+        self._deferred_status_id = None
 
         logger.debug("Status: %s", message)
 

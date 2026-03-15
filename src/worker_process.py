@@ -478,6 +478,7 @@ def _spawn_key_sentences(state, internal_queue):
 
     if not chunk_texts or chunk_embeddings is None:
         logger.debug("Skipping key excerpts: no chunk data available")
+        internal_queue.put(("key_sentences_result", []))
         return
 
     # Estimate total pages from document data
@@ -510,6 +511,7 @@ def _spawn_key_sentences(state, internal_queue):
             logger.debug("Key excerpts extracted: %d passages", len(serialized))
         except Exception as e:
             logger.error("Key excerpts extraction failed: %s", e, exc_info=True)
+            internal_queue.put(("key_sentences_result", []))
 
     thread = threading.Thread(target=_extract, daemon=True, name="key-excerpts")
     thread.start()
