@@ -1,6 +1,5 @@
 """Tests for preprocessing modules: cleaners, removers, converters."""
 
-import pytest
 
 # ---------------------------------------------------------------------------
 # QAConverter
@@ -655,13 +654,8 @@ class TestCoreferenceResolver:
         assert hasattr(result, "changes_made")
         assert hasattr(result, "metadata")
 
-    def test_metadata_has_resolutions(self):
-        pytest.importorskip("fastcoref")
-        result = self._make().process("Test text.")
-        assert "resolutions" in result.metadata
-
     def test_model_availability_check(self):
-        """Should gracefully handle missing spaCy/fastcoref models."""
+        """Should gracefully handle missing spaCy model."""
         resolver = self._make()
         result = resolver.process("John went home. He was tired.")
         # Whether or not model is available, should not crash

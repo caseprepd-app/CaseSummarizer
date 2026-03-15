@@ -757,12 +757,6 @@ RERANKER_MODEL_NAME = (
 )
 RERANKER_MODEL_LOCAL_PATH = BUNDLED_MODELS_DIR / "gte-reranker-modernbert-base"
 
-# Coreference resolution model (fastcoref F-coref)
-# Resolves pronouns to named entities for improved search/retrieval accuracy
-# F-coref: 78.5% F1 on OntoNotes, 16x faster than LingMess, distilled model
-COREF_MODEL_NAME = "biu-nlp/f-coref"
-COREF_MODEL_LOCAL_PATH = BUNDLED_MODELS_DIR / "coref" / "f-coref"
-
 # Bundled spaCy models for Windows installer (no runtime downloads)
 SPACY_MODELS_DIR = BUNDLED_MODELS_DIR / "spacy"
 SPACY_EN_CORE_WEB_LG_PATH = SPACY_MODELS_DIR / "en_core_web_lg"

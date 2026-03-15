@@ -395,13 +395,6 @@ class TestBundledModels:
         assert RERANKER_MODEL_LOCAL_PATH.is_dir(), f"Missing: {RERANKER_MODEL_LOCAL_PATH}"
         assert any(RERANKER_MODEL_LOCAL_PATH.iterdir()), f"Empty: {RERANKER_MODEL_LOCAL_PATH}"
 
-    def test_coref_model_exists(self):
-        """Coreference resolution model directory must exist and be non-empty."""
-        from src.config import COREF_MODEL_LOCAL_PATH
-
-        assert COREF_MODEL_LOCAL_PATH.is_dir(), f"Missing: {COREF_MODEL_LOCAL_PATH}"
-        assert any(COREF_MODEL_LOCAL_PATH.iterdir()), f"Empty: {COREF_MODEL_LOCAL_PATH}"
-
     def test_spacy_models_exist(self):
         """All 3 bundled spaCy model directories must exist and be non-empty."""
         from src.config import (

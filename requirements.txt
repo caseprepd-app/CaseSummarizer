@@ -4,11 +4,12 @@ customtkinter
 spacy
 nltk
 langchain-text-splitters
-langchain>=0.1.0
 langchain-community>=0.1.0
 langchain-huggingface>=0.0.3
 sentence-transformers>=3.0.0
-# Required by nomic-embed-text-v1.5 embedding model
+# Required by nomic-embed-text-v1.5 — hard runtime dep, do not remove
+# modeling_hf_nomic_bert.py imports einops directly for tensor ops
+# https://huggingface.co/nomic-ai/nomic-embed-text-v1.5/discussions/16
 einops
 faiss-cpu>=1.7.4
 pdfplumber
@@ -26,8 +27,6 @@ rank-bm25>=0.2.2
 tiktoken>=0.5.0
 # OCR error / gibberish detection
 pyspellchecker>=0.8.0
-# Hallucination verification for Q&A
-lettucedetect>=0.1.6
 # OCR image preprocessing for improved accuracy
 opencv-python-headless>=4.8.0
 deskew>=1.5.0
@@ -38,9 +37,6 @@ fpdf2>=2.7.0
 tkinterdnd2>=0.3.0
 # Graph-based keyword extraction for vocabulary (pytextrank)
 pytextrank>=3.0.0
-# Coreference resolution for pronoun-to-name replacement (unmaintained since
-# May 2023; patched in coreference_resolver.py for transformers 5.x compat)
-fastcoref
 # Neural sentence tokenizer (fallback: regex splitter)
 nupunkt
 # Pure statistical keyword extraction (no model, zero dependencies)

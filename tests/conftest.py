@@ -7,7 +7,7 @@ inherits leftover state from a previous test.
 IMPORTANT: Tests must be run with the project venv activated (.venv\\Scripts\\activate).
 The system Python (3.13) differs from the venv Python (3.12) and is missing project
 dependencies. Running with the wrong interpreter causes ModuleNotFoundError for
-packages like nupunkt, lettucedetect, and tkinterdnd2.
+packages like nupunkt and tkinterdnd2.
 """
 
 import pytest

@@ -67,7 +67,6 @@ class TestModelPathConstants:
         """All model paths are children of BUNDLED_MODELS_DIR."""
         from src.config import (
             BUNDLED_MODELS_DIR,
-            COREF_MODEL_LOCAL_PATH,
             EMBEDDING_MODEL_LOCAL_PATH,
             RERANKER_MODEL_LOCAL_PATH,
             SEMANTIC_CHUNKER_MODEL_LOCAL_PATH,
@@ -78,7 +77,6 @@ class TestModelPathConstants:
             EMBEDDING_MODEL_LOCAL_PATH,
             SEMANTIC_CHUNKER_MODEL_LOCAL_PATH,
             RERANKER_MODEL_LOCAL_PATH,
-            COREF_MODEL_LOCAL_PATH,
             SPACY_MODELS_DIR,
         ]:
             # All should be under BUNDLED_MODELS_DIR

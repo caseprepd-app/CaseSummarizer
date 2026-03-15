@@ -307,12 +307,6 @@ class TestPackageDataAccessibility:
         unknown = spell.unknown(["asdfqwerty"])
         assert "asdfqwerty" in unknown
 
-    def test_lettucedetect_importable(self):
-        """lettucedetect package imports (prompt templates must be accessible)."""
-        import lettucedetect
-
-        assert lettucedetect is not None
-
     def test_tkinterdnd2_importable(self):
         """tkinterdnd2 imports (TCL scripts + native DLLs for drag-and-drop)."""
         try:
@@ -349,13 +343,11 @@ class TestDownloadScriptCrossReference:
             ("EMBEDDING_MODEL_LOCAL_PATH", "embeddings/nomic-embed-text-v1.5"),
             ("SEMANTIC_CHUNKER_MODEL_LOCAL_PATH", "embeddings/all-MiniLM-L6-v2"),
             ("RERANKER_MODEL_LOCAL_PATH", "gte-reranker-modernbert-base"),
-            ("COREF_MODEL_LOCAL_PATH", "coref/f-coref"),
         ],
         ids=[
             "nomic-embed",
             "all-MiniLM",
             "gte-reranker",
-            "f-coref",
         ],
     )
     def test_hf_model_dirname_matches_config(self, config_attr, expected_suffix):
@@ -749,10 +741,10 @@ class TestUpgradeSafety:
 # ============================================================================
 # P1 - Optional Package Bundling
 # ============================================================================
-# Four packages (nupunkt, lettucedetect, tkinterdnd2, fastcoref) have graceful
-# fallbacks in production code. Without proper bundling, end users silently
-# lose features. These tests verify all four are correctly configured in
-# requirements.txt, caseprepd.spec, and have proper fallback + bundled paths.
+# Two packages (nupunkt, tkinterdnd2) have graceful fallbacks in production code.
+# Without proper bundling, end users silently lose features. These tests verify
+# both are correctly configured in requirements.txt, caseprepd.spec, and have
+# proper fallback + bundled paths.
 
 REQUIREMENTS_PATH = PROJECT_ROOT / "requirements.txt"
 DOWNLOAD_SCRIPT_PATH = PROJECT_ROOT / "scripts" / "download_models.py"
@@ -785,14 +777,6 @@ class TestOptionalPackageBundling:
         data_section = spec[data_start:data_end]
         assert '"nupunkt"' in data_section
 
-    def test_lettucedetect_in_spec_data_packages(self):
-        """lettucedetect is in spec data_packages (ships prompt templates)."""
-        spec = _read_spec()
-        data_start = spec.index("data_packages = [")
-        data_end = spec.index("]", data_start)
-        data_section = spec[data_start:data_end]
-        assert '"lettucedetect"' in data_section
-
     def test_tkinterdnd2_in_spec_data_packages(self):
         """tkinterdnd2 is in spec data_packages (ships TCL scripts + DLLs)."""
         spec = _read_spec()
@@ -809,14 +793,6 @@ class TestOptionalPackageBundling:
         hi_section = spec[hi_start:hi_end]
         assert '"tkinterdnd2"' in hi_section
 
-    def test_fastcoref_in_spec_submodules(self):
-        """fastcoref is in spec packages_to_collect (has nested subpackages)."""
-        spec = _read_spec()
-        pkg_start = spec.index("packages_to_collect = [")
-        pkg_end = spec.index("]", pkg_start)
-        pkg_section = spec[pkg_start:pkg_end]
-        assert '"fastcoref"' in pkg_section
-
     # ── 4b. Requirements cross-reference ──────────────────────────────────
 
     def test_nupunkt_in_requirements(self):
@@ -824,20 +800,10 @@ class TestOptionalPackageBundling:
         reqs = _read_requirements()
         assert re.search(r"^nupunkt", reqs, re.MULTILINE)
 
-    def test_lettucedetect_in_requirements(self):
-        """lettucedetect is listed in requirements.txt."""
-        reqs = _read_requirements()
-        assert re.search(r"^lettucedetect", reqs, re.MULTILINE)
-
     def test_tkinterdnd2_in_requirements(self):
         """tkinterdnd2 is listed in requirements.txt."""
         reqs = _read_requirements()
         assert re.search(r"^tkinterdnd2", reqs, re.MULTILINE)
-
-    def test_fastcoref_in_requirements(self):
-        """fastcoref is listed in requirements.txt."""
-        reqs = _read_requirements()
-        assert re.search(r"^fastcoref", reqs, re.MULTILINE)
 
     # ── 4c. Production fallback audit ─────────────────────────────────────
 
@@ -856,14 +822,6 @@ class TestOptionalPackageBundling:
         assert "HAS_DND" in source
         assert "ImportError" in source
 
-    def test_fastcoref_has_graceful_fallback(self):
-        """coreference_resolver.py has ImportError guard for fastcoref."""
-        source_path = PROJECT_ROOT / "src" / "core" / "preprocessing" / "coreference_resolver.py"
-        source = source_path.read_text(encoding="utf-8")
-        assert "ImportError" in source
-        assert "fastcoref" in source
-        assert "warning" in source.lower() or "logger.warning" in source
-
     # ── 4d. Model/asset availability ──────────────────────────────────────
 
     def test_nupunkt_bundled_model_in_package(self):
@@ -878,28 +836,6 @@ class TestOptionalPackageBundling:
             f"collect_data_files('nupunkt') may be incomplete"
         )
 
-    def test_lettucedetect_model_in_download_script(self):
-        """tinylettuce model is in download_models.py HF_MODELS."""
-        script = _read_download_script()
-        assert "tinylettuce" in script
-
-    def test_fastcoref_model_path_in_config(self):
-        """COREF_MODEL_LOCAL_PATH is defined in config."""
-        from src.config import COREF_MODEL_LOCAL_PATH
-
-        assert COREF_MODEL_LOCAL_PATH is not None
-        assert "f-coref" in str(COREF_MODEL_LOCAL_PATH)
-
-    def test_fastcoref_model_in_download_script(self):
-        """f-coref model is in download_models.py HF_MODELS."""
-        script = _read_download_script()
-        assert "f-coref" in script
-
-    def test_fastcoref_spacy_dependency_in_download_script(self):
-        """en_core_web_sm (required by fastcoref) is in SPACY_MODELS."""
-        script = _read_download_script()
-        assert "en_core_web_sm" in script
-
     # ── 4e. Loading pattern validation ────────────────────────────────────
 
     def test_model_loader_checks_bundled_path(self):
@@ -909,27 +845,7 @@ class TestOptionalPackageBundling:
         assert ".exists()" in source
         assert "bundled_path" in source
 
-    def test_coreference_resolver_prefers_bundled_path(self):
-        """coreference_resolver checks COREF_MODEL_LOCAL_PATH.exists()."""
-        source_path = PROJECT_ROOT / "src" / "core" / "preprocessing" / "coreference_resolver.py"
-        source = source_path.read_text(encoding="utf-8")
-        assert "COREF_MODEL_LOCAL_PATH" in source
-        assert ".exists()" in source
-
-    def test_coreference_resolver_prefers_bundled_spacy(self):
-        """coreference_resolver checks SPACY_EN_CORE_WEB_SM_PATH.exists()."""
-        source_path = PROJECT_ROOT / "src" / "core" / "preprocessing" / "coreference_resolver.py"
-        source = source_path.read_text(encoding="utf-8")
-        assert "SPACY_EN_CORE_WEB_SM_PATH" in source
-
     # ── 4f. Config path structure ─────────────────────────────────────────
-
-    def test_coref_model_under_bundled_models(self):
-        """COREF_MODEL_LOCAL_PATH is under BUNDLED_MODELS_DIR."""
-        from src.config import BUNDLED_MODELS_DIR, COREF_MODEL_LOCAL_PATH
-
-        rel = COREF_MODEL_LOCAL_PATH.relative_to(BUNDLED_MODELS_DIR)
-        assert str(rel), "Path should be relative to BUNDLED_MODELS_DIR"
 
     def test_coref_spacy_model_under_bundled_models(self):
         """SPACY_EN_CORE_WEB_SM_PATH is under BUNDLED_MODELS_DIR."""

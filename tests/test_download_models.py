@@ -67,11 +67,9 @@ class TestModuleStructure:
         """HF_MODELS contains all required HuggingFace models."""
         repo_ids = {entry[0] for entry in download_module.HF_MODELS}
         expected = {
-            "tinylettuce/ettin-68m-en",
             "nomic-ai/nomic-embed-text-v1.5",
             "sentence-transformers/all-MiniLM-L6-v2",
             "Alibaba-NLP/gte-reranker-modernbert-base",
-            "biu-nlp/f-coref",
         }
         assert expected == repo_ids
 
@@ -269,11 +267,3 @@ class TestIgnorePatterns:
                 assert any("pytorch_model.bin" in p for p in ignore)
                 return
         pytest.fail("all-MiniLM-L6-v2 not found")
-
-    def test_ettin_model_no_ignore(self, download_module):
-        """Ettin model downloads everything (small model)."""
-        for repo_id, _, ignore in download_module.HF_MODELS:
-            if repo_id == "tinylettuce/ettin-68m-en":
-                assert ignore is None
-                return
-        pytest.fail("tinylettuce/ettin-68m-en not found")

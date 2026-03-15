@@ -16,10 +16,8 @@ Models downloaded:
     models/nltk_data/corpora/omw-1.4/     (pruned to English-only metadata)
     models/nltk_data/corpora/stopwords/      (rake-nltk dependency)
     models/nltk_data/tokenizers/punkt_tab/   (rake-nltk sentence tokenizer)
-    models/tinylettuce-ettin-68m-en/      (hallucination detector)
     models/embeddings/nomic-embed-text-v1.5/  (FAISS embeddings)
     models/gte-reranker-modernbert-base/  (cross-encoder reranker)
-    models/coref/f-coref/                 (coreference resolution)
     models/tesseract/                     (OCR engine + eng.traineddata)
     models/poppler/                       (PDF-to-image conversion)
 """
@@ -43,7 +41,6 @@ NLTK_DIR = MODELS_DIR / "nltk_data"
 
 # HuggingFace models: (repo_id, local_subdir, ignore_patterns)
 HF_MODELS = [
-    ("tinylettuce/ettin-68m-en", "tinylettuce-ettin-68m-en", None),
     (
         "nomic-ai/nomic-embed-text-v1.5",
         "embeddings/nomic-embed-text-v1.5",
@@ -65,7 +62,6 @@ HF_MODELS = [
         ],
     ),  # Keep only safetensors + tokenizer (~87MB vs ~932MB)
     ("Alibaba-NLP/gte-reranker-modernbert-base", "gte-reranker-modernbert-base", None),
-    ("biu-nlp/f-coref", "coref/f-coref", None),
 ]
 
 
