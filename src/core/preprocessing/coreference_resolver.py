@@ -1,17 +1,13 @@
 """
 Coreference Resolution Preprocessor
 
-Replaces pronouns (he, she, they, etc.) with the actual names they refer to,
-using the fastcoref library (F-coref mode). This improves search accuracy
-since chunks containing only pronouns become findable by name.
+Replaces pronouns (he, she, they, etc.) with the actual names they refer to.
+This improves search accuracy since chunks containing only pronouns become
+findable by name.
 
-F-coref: 78.5% F1 on OntoNotes, 16x faster than LingMess, ~350MB model.
-
-Uses spaCy + fastcoref integration. Model is loaded lazily on first use.
-Falls back gracefully if fastcoref is not installed.
-
-Note: fastcoref is unmaintained (last update May 2023). A compatibility
-patch is applied at import time for transformers 5.x support.
+Note: fastcoref was removed (Mar 2026) — this module is now always a no-op.
+The class remains to avoid breaking the preprocessing pipeline. _ensure_model()
+will always return False since fastcoref is not installed.
 """
 
 import logging
@@ -50,9 +46,9 @@ class CoreferenceResolver(BasePreprocessor):
     """
     Resolves coreference chains, replacing pronouns with named antecedents.
 
-    Uses fastcoref (F-coref, 78.5 F1) via spaCy pipeline integration.
-    Loads model lazily on first call. If fastcoref is unavailable, returns
-    text unchanged with a logged warning.
+    fastcoref was removed (Mar 2026). This class is now always a no-op —
+    _ensure_model() returns False and process() returns text unchanged.
+    Retained to avoid breaking the preprocessing pipeline.
     """
 
     name = "Coreference Resolver"
