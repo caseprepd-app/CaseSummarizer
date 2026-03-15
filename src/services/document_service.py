@@ -49,15 +49,16 @@ class DocumentService:
             from src.user_preferences import get_user_preferences
 
             prefs = get_user_preferences()
-            keys = [
-                "preprocess_title_pages",
+            bool_keys = [
                 "preprocess_index_pages",
                 "preprocess_headers_footers",
                 "preprocess_line_numbers",
                 "preprocess_page_boundaries",
                 "preprocess_transcript_artifacts",
             ]
-            return {k: prefs.get(k, True) for k in keys}
+            result = {k: prefs.get(k, True) for k in bool_keys}
+            result["title_page_handling"] = prefs.get("title_page_handling", "vocab_only")
+            return result
         except Exception as e:
             logger.warning("Failed to load preprocessing settings: %s", e)
             return {}

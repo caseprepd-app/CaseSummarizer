@@ -409,6 +409,34 @@ def _register_all_settings():
         )
     )
 
+    # Title page handling
+    SettingsRegistry.register(
+        SettingDefinition(
+            key="title_page_handling",
+            label="Title page handling",
+            category="Vocabulary",
+            setting_type=SettingType.DROPDOWN,
+            tooltip=(
+                "Controls how title/cover pages are handled during processing.\n\n"
+                "• Use for vocabulary only: Title pages are included when extracting "
+                "vocabulary (good source of canonical party and attorney names) but "
+                "excluded from search and key excerpts (where they cause false positives).\n\n"
+                "• Include in all processing: Title pages are never removed.\n\n"
+                "• Exclude from all processing: Title pages are removed before vocabulary "
+                "extraction and before search/key excerpts.\n\n"
+                "Changes apply on next document load."
+            ),
+            default="vocab_only",
+            options=[
+                ("Use title pages for vocabulary only", "vocab_only"),
+                ("Include title pages in all processing", "include_all"),
+                ("Exclude title pages from all processing", "exclude_all"),
+            ],
+            getter=lambda: prefs.get("title_page_handling", "vocab_only"),
+            setter=lambda v: prefs.set("title_page_handling", v),
+        )
+    )
+
     # CSV export column format setting
     SettingsRegistry.register(
         SettingDefinition(
@@ -1091,13 +1119,6 @@ def _register_all_settings():
     # ===================================================================
 
     _preprocess_toggles = [
-        (
-            "preprocess_title_pages",
-            "Remove title pages",
-            "Remove cover/title pages from the start of legal transcripts.\n\n"
-            "These pages typically contain case caption, court info, and "
-            "reporter details that aren't part of the testimony.",
-        ),
         (
             "preprocess_index_pages",
             "Remove index pages",

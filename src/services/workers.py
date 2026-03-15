@@ -556,6 +556,54 @@ class ProgressiveExtractionWorker(BaseWorker):
                 QueueMessage.semantic_error(f"Semantic search thread failed: {error_detail}")
             )
 
+    def _get_search_title_remover(self):
+        """
+        Return a TitlePageRemover for search chunking if the setting calls for it.
+
+        For "vocab_only" mode, title pages are excluded from search/key excerpts
+        but were kept in preprocessed_text (used for vocabulary extraction).
+
+        Returns:
+            TitlePageRemover instance if vocab_only mode, else None
+        """
+        try:
+            from src.user_preferences import get_user_preferences
+
+            prefs = get_user_preferences()
+            handling = prefs.get("title_page_handling", "vocab_only")
+        except Exception:
+            handling = "vocab_only"
+
+        if handling == "vocab_only":
+            from src.core.preprocessing.title_page_remover import TitlePageRemover
+
+            return TitlePageRemover()
+        return None
+
+    def _chunk_documents_for_search(self, chunker, title_page_remover):
+        """
+        Chunk all documents for search indexing, optionally removing title pages.
+
+        Args:
+            chunker: UnifiedChunker instance
+            title_page_remover: TitlePageRemover or None
+
+        Returns:
+            List of chunks across all documents
+        """
+        all_chunks = []
+        for doc in self.documents:
+            filename = doc.get("filename", "unknown")
+            # Prefer preprocessed_text (already cleaned) over extracted_text (raw)
+            text = doc.get("preprocessed_text") or doc.get("extracted_text", "")
+            if not text.strip():
+                continue
+            if title_page_remover is not None:
+                text = title_page_remover.process(text).text
+            doc_chunks = chunker.chunk_text(text, source_file=filename)
+            all_chunks.extend(doc_chunks)
+        return all_chunks
+
     def _build_vector_store(self):
         """Build vector store for search (Phase 2) - runs in parallel thread."""
         try:
@@ -597,14 +645,8 @@ class ProgressiveExtractionWorker(BaseWorker):
                 QueueMessage.progress(24, "Splitting documents into searchable passages...")
             )
             chunker = create_unified_chunker()
-            all_chunks = []
-            for doc in self.documents:
-                filename = doc.get("filename", "unknown")
-                # Prefer preprocessed_text (already cleaned) over extracted_text (raw)
-                text = doc.get("preprocessed_text") or doc.get("extracted_text", "")
-                if text.strip():
-                    doc_chunks = chunker.chunk_text(text, source_file=filename)
-                    all_chunks.extend(doc_chunks)
+            title_page_remover = self._get_search_title_remover()
+            all_chunks = self._chunk_documents_for_search(chunker, title_page_remover)
 
             if self.is_stopped:
                 logger.debug("Phase 2: Cancelled before vector store build")

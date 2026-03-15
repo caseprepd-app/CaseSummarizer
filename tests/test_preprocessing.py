@@ -328,6 +328,36 @@ class TestPreprocessingPipeline:
         assert any(p.name == "Page Boundary Cleaner" for p in pipeline.preprocessors)
         assert any(p.name == "Transcript Cleaner" for p in pipeline.preprocessors)
 
+    def test_default_settings_none_disables_title_page_remover(self):
+        """settings=None (default call) disables TitlePageRemover — vocab_only is the default."""
+        pipeline = create_default_pipeline()
+        remover = next(p for p in pipeline.preprocessors if p.name == "Title Page Remover")
+        assert remover.enabled is False
+
+    def test_settings_missing_title_page_handling_disables_remover(self):
+        """Empty settings dict with no title_page_handling key defaults to disabled."""
+        pipeline = create_default_pipeline({})
+        remover = next(p for p in pipeline.preprocessors if p.name == "Title Page Remover")
+        assert remover.enabled is False
+
+    def test_title_page_handling_exclude_all_enables_remover(self):
+        """exclude_all: TitlePageRemover should be enabled in the pipeline."""
+        pipeline = create_default_pipeline({"title_page_handling": "exclude_all"})
+        remover = next(p for p in pipeline.preprocessors if p.name == "Title Page Remover")
+        assert remover.enabled is True
+
+    def test_title_page_handling_vocab_only_disables_remover(self):
+        """vocab_only: TitlePageRemover disabled in pipeline (workers.py handles search)."""
+        pipeline = create_default_pipeline({"title_page_handling": "vocab_only"})
+        remover = next(p for p in pipeline.preprocessors if p.name == "Title Page Remover")
+        assert remover.enabled is False
+
+    def test_title_page_handling_include_all_disables_remover(self):
+        """include_all: TitlePageRemover should be disabled everywhere."""
+        pipeline = create_default_pipeline({"title_page_handling": "include_all"})
+        remover = next(p for p in pipeline.preprocessors if p.name == "Title Page Remover")
+        assert remover.enabled is False
+
     def test_pipeline_processes_in_order(self):
         """Should process text through all preprocessors in order."""
         pipeline = create_default_pipeline()

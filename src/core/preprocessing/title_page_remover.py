@@ -3,14 +3,10 @@ Title Page Remover Preprocessor
 
 Removes title/cover pages from legal documents.
 These pages contain case captions, court information, and formatting
-that adds no value to AI summaries.
+that adds no value to search results or key excerpts.
 
-Two-tiered approach:
-1. Page-level: Score whole pages for title characteristics
-2. Line-level: Before removing a scored page, scan for content lines.
-   A content line is 4+ words with mixed capitalization, confirmed by
-   the next 5 substantive lines also being content lines. Look-ahead
-   crosses page boundaries.
+Page-level approach: a page either scores above the threshold (removed whole)
+or below (kept, and all subsequent pages are kept too).
 
 Common title page patterns:
 - Case captions (parties, court, index numbers)
@@ -35,8 +31,7 @@ class TitlePageRemover(BasePreprocessor):
     Strategy:
     1. Split text into page-like chunks (by form feeds or large gaps)
     2. Score each chunk for "title page" characteristics
-    3. Before removing, check for content lines mid-page
-    4. Remove whole pages or split at content boundary
+    3. Remove whole pages that exceed the threshold; stop at first kept page
 
     Title pages typically have:
     - Case captions with parties
@@ -55,12 +50,6 @@ class TitlePageRemover(BasePreprocessor):
 
     # Only apply percentage limit for documents larger than this (bytes)
     LARGE_DOC_THRESHOLD = 10000  # 10KB
-
-    # How many substantive lines after a candidate must also be content
-    _LOOKAHEAD = 5
-
-    # Fraction of words starting uppercase that signals a title line
-    _MOSTLY_CAPS_RATIO = 0.75
 
     # Patterns and their scores
     TITLE_PAGE_PATTERNS: ClassVar[list[tuple[re.Pattern[str], int]]] = [
@@ -174,148 +163,13 @@ class TitlePageRemover(BasePreprocessor):
 
         return score
 
-    def _is_mostly_caps(self, words: list[str]) -> bool:
-        """
-        Check if a word list is predominantly capitalized.
-
-        Title page lines (firm names, party names, addresses) are mostly
-        uppercase or title-case. Proceedings text has a natural mix.
-
-        Args:
-            words: Split word list from a line
-
-        Returns:
-            True if >= 75% of alphabetic words start uppercase
-        """
-        alpha_words = [w for w in words if w and w[0].isalpha()]
-        if not alpha_words:
-            return True  # No alpha words = not prose
-        caps = sum(1 for w in alpha_words if w[0].isupper())
-        return caps / len(alpha_words) >= self._MOSTLY_CAPS_RATIO
-
-    def _is_content_line(self, line: str) -> bool:
-        """
-        Check whether a line looks like proceedings content.
-
-        A content line has 4+ words with mixed capitalization — not
-        75%+ uppercase-starting words. This distinguishes proceedings
-        text from ALL-CAPS or Title Case title page lines.
-
-        Args:
-            line: A single line of text
-
-        Returns:
-            True if the line looks like proceedings content
-        """
-        stripped = line.strip()
-        if not stripped:
-            return False
-
-        words = stripped.split()
-        if len(words) < 4:
-            return False
-
-        return not self._is_mostly_caps(words)
-
-    @staticmethod
-    def _char_offset(lines: list[str], target_idx: int) -> int:
-        """
-        Calculate the character offset of a line within the original text.
-
-        Args:
-            lines: Lines from text.split('\\n')
-            target_idx: Index of the target line
-
-        Returns:
-            Character position of the start of that line
-        """
-        offset = 0
-        for i in range(target_idx):
-            offset += len(lines[i]) + 1  # +1 for the \n
-        return offset
-
-    def _collect_substantive_lines(
-        self, page_lines: list[str], start: int, remaining_pages: list[str]
-    ) -> list[str]:
-        """
-        Gather substantive (non-blank) lines starting after a given index.
-
-        Crosses page boundaries using remaining_pages so look-ahead
-        isn't limited to the current page.
-
-        Args:
-            page_lines: Lines from the current page
-            start: Index to start scanning from (exclusive)
-            remaining_pages: Subsequent page texts for cross-page look-ahead
-
-        Returns:
-            List of up to _LOOKAHEAD substantive lines
-        """
-        substantive: list[str] = []
-
-        # Lines remaining on the current page
-        for j in range(start + 1, len(page_lines)):
-            if page_lines[j].strip():
-                substantive.append(page_lines[j])
-                if len(substantive) >= self._LOOKAHEAD:
-                    return substantive
-
-        # Cross into remaining pages if needed
-        for page_text in remaining_pages:
-            for line in page_text.split("\n"):
-                if line.strip():
-                    substantive.append(line)
-                    if len(substantive) >= self._LOOKAHEAD:
-                        return substantive
-
-        return substantive
-
-    def _find_proceedings_start(self, page_text: str, remaining_pages: list[str]) -> int | None:
-        """
-        Scan a title page for the start of proceedings content.
-
-        A line is confirmed as proceedings start when it is a content line
-        AND the next 5 substantive (non-blank) lines are also content lines.
-        Look-ahead crosses page boundaries.
-
-        Args:
-            page_text: Text of a single page
-            remaining_pages: Subsequent pages for cross-page look-ahead
-
-        Returns:
-            Character offset where proceedings begin, or None
-        """
-        lines = page_text.split("\n")
-        content_indices = [i for i, line in enumerate(lines) if self._is_content_line(line)]
-
-        if not content_indices:
-            return None
-
-        for idx in content_indices:
-            ahead = self._collect_substantive_lines(lines, idx, remaining_pages)
-
-            if len(ahead) < self._LOOKAHEAD:
-                continue  # Not enough lines to confirm
-
-            all_content = all(self._is_content_line(line) for line in ahead)
-            if all_content:
-                logger.debug(
-                    "Proceedings at line %d (%d/%d content lines ahead)",
-                    idx,
-                    len(ahead),
-                    self._LOOKAHEAD,
-                )
-                return self._char_offset(lines, idx)
-
-        return None
-
     def process(self, text: str) -> PreprocessingResult:
         """
         Remove title pages from text.
 
-        For each candidate title page, checks for proceedings content
-        before removing. If proceedings are found mid-page, only the
-        title portion is discarded and all subsequent content is kept.
+        Each page is scored independently. Pages scoring at or above the
+        threshold are removed whole. The first page that does not score as
+        a title page stops further removal — all remaining pages are kept.
 
         Args:
             text: Input text potentially containing title pages
@@ -334,9 +188,7 @@ class TitlePageRemover(BasePreprocessor):
                 text=text, changes_made=0, metadata={"pages_analyzed": 1, "pages_removed": 0}
             )
 
-        kept_pages, removed_count, removed_scores, removed_chars = self._filter_pages(
-            pages, len(text)
-        )
+        kept_pages, removed_count, removed_scores = self._filter_pages(pages, len(text))
 
         # Rejoin pages
         result = "\n\n".join(kept_pages)
@@ -359,21 +211,20 @@ class TitlePageRemover(BasePreprocessor):
 
     def _filter_pages(
         self, pages: list[str], total_input_len: int
-    ) -> tuple[list[str], int, list[int], int]:
+    ) -> tuple[list[str], int, list[int]]:
         """
-        Score and filter pages, preserving proceedings content.
+        Score and filter pages using page-level decisions only.
 
-        Only analyzes the first 3 pages. For each title-scoring page,
-        checks for proceedings content before removing. If proceedings
-        are found mid-page, splits at that boundary and keeps all
-        subsequent pages.
+        Only analyzes the first 3 pages. A page scoring at or above the
+        threshold is removed whole. The first page that does not meet the
+        threshold stops removal — it and all subsequent pages are kept.
 
         Args:
             pages: List of page text chunks
             total_input_len: Length of the original full text
 
         Returns:
-            Tuple of (kept_pages, removed_count, removed_scores, removed_chars)
+            Tuple of (kept_pages, removed_count, removed_scores)
         """
         kept_pages = []
         removed_count = 0
@@ -399,30 +250,10 @@ class TitlePageRemover(BasePreprocessor):
                 kept_pages.extend(pages[i + 1 :])
                 break
 
-            # Page scores as title — check for proceedings content
-            remaining = pages[i + 1 :]
-            proc_offset = self._find_proceedings_start(page, remaining)
-            if proc_offset is not None:
-                kept_pages.append(page[proc_offset:])
-                removed_count += 1
-                removed_scores.append(score)
-                removed_chars += proc_offset
-                kept_pages.extend(remaining)
-                logger.info(
-                    "Page %d (score=%d): proceedings at offset %d, "
-                    "partial removal (%d/%d chars kept)",
-                    i,
-                    score,
-                    proc_offset,
-                    len(page) - proc_offset,
-                    len(page),
-                )
-                break
-
-            # No proceedings — remove entire page
+            # Remove entire page
             removed_count += 1
             removed_scores.append(score)
             removed_chars += len(page)
             logger.debug("Page %d removed (score=%d)", i, score)
 
-        return kept_pages, removed_count, removed_scores, removed_chars
+        return kept_pages, removed_count, removed_scores

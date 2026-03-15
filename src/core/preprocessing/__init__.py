@@ -35,8 +35,8 @@ from src.core.preprocessing.transcript_cleaner import TranscriptCleaner
 # Mapping from setting key to preprocessor class name
 # Note: Coreference resolution runs in UnifiedChunker before chunking,
 # so it only affects search and key excerpts, not vocabulary extraction.
+# Note: title_page_handling is handled separately (3-way dropdown, not bool).
 _SETTING_TO_PREPROCESSOR = {
-    "preprocess_title_pages": "Title Page Remover",
     "preprocess_index_pages": "Index Page Remover",
     "preprocess_headers_footers": "Header/Footer Remover",
     "preprocess_line_numbers": "Line Number Remover",
@@ -60,16 +60,30 @@ def create_default_pipeline(settings: dict | None = None) -> PreprocessingPipeli
     Note: Coreference resolution runs in UnifiedChunker (before chunking),
     affecting only search and key excerpts.
 
+    The title_page_handling setting controls TitlePageRemover:
+    - "exclude_all": enabled in this pipeline (removes title pages before vocab)
+    - "vocab_only": disabled here; workers.py applies removal before chunking
+    - "include_all": disabled everywhere
+
     Args:
-        settings: Optional dict of preprocessing toggle settings.
-            Keys are setting names (e.g., 'preprocess_line_numbers'),
-            values are booleans. If None, all preprocessors are enabled.
+        settings: Optional dict of preprocessing settings.
+            title_page_handling accepts "exclude_all", "vocab_only", "include_all".
+            Other keys are booleans. If None, all preprocessors use defaults.
 
     Returns:
         Configured PreprocessingPipeline instance
     """
+    title_page_remover = TitlePageRemover()
+
+    # title_page_handling controls TitlePageRemover; only enable for "exclude_all"
+    if settings:
+        handling = settings.get("title_page_handling", "vocab_only")
+        title_page_remover.enabled = handling == "exclude_all"
+    else:
+        title_page_remover.enabled = False  # default: vocab_only (workers.py handles search)
+
     preprocessors = [
-        TitlePageRemover(),
+        title_page_remover,
         IndexPageRemover(),
         HeaderFooterRemover(),
         LineNumberRemover(),
@@ -77,7 +91,7 @@ def create_default_pipeline(settings: dict | None = None) -> PreprocessingPipeli
         TranscriptCleaner(),
     ]
 
-    # Apply settings toggles if provided
+    # Apply boolean toggle settings (title_page_handling is handled above)
     if settings:
         for setting_key, preprocessor_name in _SETTING_TO_PREPROCESSOR.items():
             if setting_key in settings:
