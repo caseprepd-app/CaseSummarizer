@@ -475,7 +475,8 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         self._semantic_answering_active = False
         self._semantic_failed = False
         self._key_sentences_pending = False
-        self._semantic_results.clear()
+        with self._semantic_results_lock:
+            self._semantic_results.clear()
         self._vector_store_path = None
         self.followup_btn.configure(state="disabled")
         self.followup_entry.configure(
@@ -732,7 +733,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
                 self._semantic_answering_active = False
                 self.output_display.set_extraction_in_progress(False)
                 self._on_tasks_complete(False, str(data))
-            else:
+            elif self._preprocessing_active:
                 self._on_preprocessing_complete([])
 
         # Progressive Extraction handlers
