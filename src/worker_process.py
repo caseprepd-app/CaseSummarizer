@@ -207,13 +207,11 @@ def _run_extraction(args, internal_queue, state):
     """Spawn ProgressiveExtractionWorker for vocabulary extraction."""
     from src.services.workers import ProgressiveExtractionWorker
 
-    # Save checkbox state so trigger_default_semantic can check it later
+    # Save checkbox state and read embeddings atomically so the forwarder
+    # thread cannot modify state between the write and the read.
     with state["worker_lock"]:
         state["ask_default_questions"] = args.get("ask_default_questions", True)
-        # Save documents for key excerpts extraction (triggered at semantic_ready)
         state["documents"] = args.get("documents")
-
-    with state["worker_lock"]:
         embeddings = state.get("embeddings")
 
     worker = ProgressiveExtractionWorker(
@@ -292,19 +290,20 @@ def _run_followup(args, internal_queue, state):
 
 def _stop_active_worker(state):
     """Stop the currently active worker, if any."""
+    # Grab both worker references in a single lock section so the forwarder
+    # thread cannot create a new auto_semantic_worker between the two reads.
     with state["worker_lock"]:
         worker = state.get("active_worker")
         state["active_worker"] = None
+        auto_qa = state.get("auto_semantic_worker")
+        state["auto_semantic_worker"] = None
+
     if worker and hasattr(worker, "is_alive") and worker.is_alive():
         logger.debug("Stopping active worker: %s", type(worker).__name__)
         if hasattr(worker, "stop"):
             worker.stop()
         worker.join(timeout=2.0)
 
-    # Also stop auto-spawned semantic worker if running
-    with state["worker_lock"]:
-        auto_qa = state.get("auto_semantic_worker")
-        state["auto_semantic_worker"] = None
     if auto_qa and hasattr(auto_qa, "is_alive") and auto_qa.is_alive():
         if hasattr(auto_qa, "stop"):
             auto_qa.stop()
@@ -403,8 +402,14 @@ def _forward_message(msg_type, data, internal_queue, result_queue, state):
         _spawn_key_sentences(state, internal_queue)
 
     elif msg_type == "trigger_default_semantic":
-        # Skip if user unchecked the default questions checkbox
-        if not state.get("ask_default_questions", True):
+        # Read all needed state in a single lock section so the command loop
+        # thread cannot modify ask_default_questions between the check and use.
+        with state["worker_lock"]:
+            ask_default = state.get("ask_default_questions", True)
+            embeddings = state.get("embeddings")
+            vector_store_path = data.get("vector_store_path") or state.get("vector_store_path")
+
+        if not ask_default:
             logger.debug("Default questions disabled by user, skipping SemanticWorker")
             result_queue.put(("semantic_complete", []))
             return
@@ -416,10 +421,6 @@ def _forward_message(msg_type, data, internal_queue, result_queue, state):
         # Spawn SemanticWorker using saved state
         try:
             from src.services.workers import SemanticWorker
-
-            with state["worker_lock"]:
-                embeddings = state.get("embeddings")
-                vector_store_path = data.get("vector_store_path") or state.get("vector_store_path")
 
             if embeddings and vector_store_path:
                 semantic_worker = SemanticWorker(
