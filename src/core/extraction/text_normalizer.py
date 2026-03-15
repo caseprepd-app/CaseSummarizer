@@ -410,11 +410,9 @@ class TextNormalizer:
         Returns:
             True if line should be kept
         """
-        # Minimum length check
-        # TODO: MIN_LINE_LENGTH (15) is too aggressive for transcripts.
-        # It silently eats short but valid lines like "Q. Yes?", "A. No.",
-        # "THE COURT:", "MR. SMITH:". Consider lowering the threshold or
-        # adding transcript-aware exceptions (Q./A./speaker patterns).
+        # Minimum length check — drops single-character artifacts and blank lines.
+        # Threshold is intentionally low (2) to preserve short but valid transcript
+        # content like "no", "Q. Yes?", "A. No." etc.
         if len(line) < MIN_LINE_LENGTH:
             # Exception: Allow short legal headers
             return bool(self._is_legal_header(line))

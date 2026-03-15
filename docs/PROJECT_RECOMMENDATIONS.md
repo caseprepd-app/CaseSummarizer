@@ -24,10 +24,7 @@ The vocabulary table shows a term, its score, and occurrence count — but not *
 There's a processing timer but no ETA or percentage. Summarization takes 30+ minutes. The status bar just says what step is running. Users have no idea if it'll be 5 more minutes or 50. Even a rough chunk-based progress bar (e.g., "Summarizing chunk 12 of 47") would help.
 
 ### 5. Grow the Developer Dataset
-Only **34 observations** (14 good, 20 bad). The ML model needs 30 minimum to activate, so the baseline is barely above threshold. The ensemble needs 40 for Random Forest weight. A thin developer dataset means:
-- Out-of-box vocabulary filtering is unreliable
-- New users get a poor first impression before they've rated enough terms
-- Recommend building this to 150–200 samples across diverse case types
+Currently **117 observations** (as of Mar 2026). The ML model activates at 30 and Random Forest joins the ensemble at 40 — both thresholds are well cleared. Continue building toward 150–200 samples across diverse case types for a stronger out-of-box experience for new users.
 
 ---
 
@@ -39,19 +36,11 @@ Only **34 observations** (14 good, 20 bad). The ML model needs 30 minimum to act
 ### 7. ~~Undo/Correct Vocabulary Feedback~~ ✅ Already Working
 Clicking Keep/Skip toggles the rating on; clicking the same box again sets `feedback=0` which calls `_delete_feedback_from_csv()` and removes the row entirely. The CSV always mirrors the GUI state. Rapid-click safe: toggle decision reads from in-memory cache (instant), CSV writes are under `_file_lock`, and deleting a nonexistent row is a no-op.
 
-### 8. Extractive Summary for CPU-Only Users
-Summary is disabled on CPU-only machines (small local models at 2K context can't produce useful legal summaries). An extractive alternative could fill the gap:
-- Use TF-IDF or TextRank to score and select the most important sentences — no LLM needed
-- Fast (seconds, not hours), works on any hardware, no Ollama dependency
-- For legal docs where exact wording matters, extractive summaries may be more trustworthy than a small model's paraphrase
-- Could coexist alongside the existing LLM summary as a "Quick Summary" option
-- Libraries to evaluate: sumy, pytextrank, or a custom TF-IDF sentence ranker
+### 8. ~~Extractive Summary for CPU-Only Users~~ ✅ Implemented
+The Key Excerpts tab extracts the most representative passages via K-means clustering on semantic embeddings — no LLM, no GPU required, runs in seconds. Each cluster centroid represents a distinct topic; the nearest passage is surfaced. This is the extractive approach described here.
 
-### 9. Summary Section-Level or Quick Mode (GPU users)
-Summary is all-or-nothing: off (0 minutes) or on (30+ minutes). Options to consider:
-- Quick summary mode (single pass, shorter, ~5 minutes)
-- Per-document summaries vs. multi-document synthesis
-- Partial results shown as they're generated (progressive display is in the engine but may not be surfaced in the UI)
+### ~~9. Summary Section-Level or Quick Mode (GPU users)~~ Obsolete
+This recommendation referenced the LLM summarization feature (Ollama-based, 30+ min). That feature was removed in March 2026. The Key Excerpts tab is now the summary mechanism for all users.
 
 ### 10. Default Export Folder Preference
 Every export opens a file picker starting from wherever. No setting for a default export directory. Court reporters working on many cases would benefit from a configurable default folder.
@@ -69,8 +58,8 @@ Removed `"filter_typo_variants"` from `src/core/vocabulary/__init__.py` `__all__
 ### 13. ExportService Return Type Annotations ✅
 Fixed all 10 export methods: `-> bool` changed to `-> tuple[bool, str | None]` with matching docstrings.
 
-### 14. Score Floor Filtering TODO
-`src/ui/dynamic_output.py` has `# TODO: Test score floor filtering for both GUI display and CSV export`. This is the only TODO in the codebase — needs verification and the TODO removed.
+### 14. ~~Score Floor Filtering TODO~~ ✅ Resolved
+The TODO in `dynamic_output.py` was already gone. `MIN_LINE_LENGTH` lowered from 15 → 2 in `config.py` so short but valid transcript lines ("no", "Q. Yes?", "A. No.") are no longer dropped by the text normalizer.
 
 ### 15. Keyboard Shortcuts for Vocabulary Rating
 No keyboard shortcut for keep/skip on the selected vocabulary term. Power users rating 100+ terms per case would benefit from a quick keyboard workflow (e.g., `K` for keep, `S` for skip, arrow keys to navigate).

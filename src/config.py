@@ -277,7 +277,7 @@ CORPUS_DIR.mkdir(parents=True, exist_ok=True)
 # File Processing Limits
 MAX_FILE_SIZE_MB = 500
 LARGE_FILE_WARNING_MB = 100
-MIN_LINE_LENGTH = 15
+MIN_LINE_LENGTH = 2
 MIN_DICTIONARY_CONFIDENCE = 60  # Percentage
 PDFPLUMBER_SKIP_CONFIDENCE = 75  # Skip pdfplumber if PyMuPDF confidence >= this
 

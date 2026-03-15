@@ -104,4 +104,8 @@ python -m pytest tests/ -v
 
 ## Architecture
 
-Run `pydeps src -o deps.svg` to visualize code structure.
+Four output tabs: **Document** (file preview), **Vocabulary** (extracted terms with ML filtering), **Search** (semantic + BM25 retrieval), **Key Excerpts** (representative passages via K-means clustering).
+
+Heavy work (extraction, semantic indexing, vocabulary extraction) runs in a separate subprocess. The GUI communicates with it via `multiprocessing.Queue` and polls every 33ms.
+
+Run `pydeps src -o deps.svg` to visualize the full module dependency graph.
