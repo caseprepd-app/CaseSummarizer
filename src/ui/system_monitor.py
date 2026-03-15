@@ -305,9 +305,12 @@ class SystemMonitor(ctk.CTkFrame):
             try:
                 if PSUTIL_AVAILABLE:
                     cpu_freq = psutil.cpu_freq()
-                    freq_text = f"Base: {cpu_freq.current:.1f} GHz"
-                    if cpu_freq.max:
-                        freq_text += f" | Max: {cpu_freq.max:.1f} GHz"
+                    if cpu_freq is not None:
+                        freq_text = f"Base: {cpu_freq.current:.1f} GHz"
+                        if cpu_freq.max:
+                            freq_text += f" | Max: {cpu_freq.max:.1f} GHz"
+                    else:
+                        freq_text = "Frequency: Unknown"
                 else:
                     freq_text = "Frequency: Unknown (psutil not available)"
             except Exception as e:

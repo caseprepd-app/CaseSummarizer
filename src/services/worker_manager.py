@@ -114,7 +114,10 @@ class WorkerProcessManager:
         logger.debug("Sending command: %s", cmd_type)
         if args:
             logger.debug("  args: %s", _summarize_args(args))
-        self.command_queue.put((cmd_type, args or {}))
+        try:
+            self.command_queue.put((cmd_type, args or {}))
+        except Exception as e:
+            logger.error("Failed to send command '%s': %s", cmd_type, e)
 
     def check_for_messages(self):
         """
@@ -155,7 +158,10 @@ class WorkerProcessManager:
         """Send cancel command to stop the active worker in the subprocess."""
         if self.is_alive():
             logger.debug("Sending cancel command")
-            self.command_queue.put("cancel")
+            try:
+                self.command_queue.put("cancel")
+            except Exception as e:
+                logger.error("Failed to send cancel command: %s", e)
 
     def is_alive(self):
         """

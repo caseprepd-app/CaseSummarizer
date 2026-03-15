@@ -57,7 +57,7 @@ class UserPreferencesManager:
             # File content is corrupted — preserve for recovery, use defaults
             corrupt_path = self.preferences_file.with_suffix(".json.corrupt")
             try:
-                self.preferences_file.rename(corrupt_path)
+                self.preferences_file.replace(corrupt_path)
                 logger.warning(
                     "Preferences file corrupted, renamed to %s, using defaults: %s",
                     corrupt_path,

@@ -297,16 +297,17 @@ class VocabularyService:
             return 0
 
         # Count supported files (excluding preprocessed files)
-        count = 0
+        # Use a set to avoid double-counting on case-insensitive filesystems (Windows)
+        seen = set()
         for ext in SUPPORTED_EXTENSIONS:
             for f in path.glob(f"*{ext}"):
-                if "_preprocessed" not in f.stem:
-                    count += 1
+                if "_preprocessed" not in f.stem and f.name.lower() not in seen:
+                    seen.add(f.name.lower())
             for f in path.glob(f"*{ext.upper()}"):
-                if "_preprocessed" not in f.stem:
-                    count += 1
+                if "_preprocessed" not in f.stem and f.name.lower() not in seen:
+                    seen.add(f.name.lower())
 
-        return count
+        return len(seen)
 
     def is_corpus_disabled(self) -> bool:
         """

@@ -451,7 +451,7 @@ class ProgressiveExtractionWorker(BaseWorker):
             ]
 
             def doc_progress(current, total, doc_id):
-                pct = 10 + int((current / total) * 20)
+                pct = 10 + int((current / max(total, 1)) * 20)
                 self.send_progress(pct, f"Doc {current}/{total}: extraction complete ({doc_id})")
 
             ner_results = extractor.extract_documents(
