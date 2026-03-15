@@ -26,6 +26,7 @@ Example usage:
 import logging
 import os
 import shutil
+import sys
 from pathlib import Path
 
 from src.config import (
@@ -45,6 +46,36 @@ _TESSERACT_STANDARD_PATHS = [
     Path(os.environ.get("LOCALAPPDATA", ""), "Tesseract-OCR/tesseract.exe"),
 ]
 
+_tesseract_patched = False
+
+
+def _suppress_tesseract_console():
+    """
+    Patch pytesseract on Windows so tesseract.exe runs without a console window.
+
+    Replaces pytesseract's subprocess.Popen reference with a wrapper that injects
+    CREATE_NO_WINDOW into every call, preventing a terminal from briefly flashing
+    on screen each time OCR is performed. No-op on non-Windows platforms.
+    """
+    import subprocess
+    import types
+
+    import pytesseract.pytesseract as _pyt
+
+    _orig_popen = subprocess.Popen
+
+    def _no_window_popen(*args, creationflags=0, **kwargs):
+        """Popen wrapper that adds CREATE_NO_WINDOW on Windows."""
+        return _orig_popen(
+            *args, creationflags=creationflags | subprocess.CREATE_NO_WINDOW, **kwargs
+        )
+
+    proxy = types.ModuleType("subprocess")
+    proxy.__dict__.update(vars(subprocess))
+    proxy.Popen = _no_window_popen
+    _pyt.subprocess = proxy
+    logger.debug("Patched pytesseract to suppress console window")
+
 
 def _configure_tesseract():
     """
@@ -52,7 +83,10 @@ def _configure_tesseract():
 
     Checks bundled binary first, then PATH, then standard Windows install
     locations so users don't need to manually install or configure Tesseract.
+    Also patches pytesseract on Windows (once) to hide the tesseract console.
     """
+    global _tesseract_patched
+
     import pytesseract
 
     from src.config import TESSERACT_BUNDLED_EXE
@@ -60,16 +94,16 @@ def _configure_tesseract():
     if TESSERACT_BUNDLED_EXE.exists():
         pytesseract.tesseract_cmd = str(TESSERACT_BUNDLED_EXE)
         logger.debug("Using bundled Tesseract at %s", TESSERACT_BUNDLED_EXE)
-        return
+    elif shutil.which("tesseract") is None:
+        for path in _TESSERACT_STANDARD_PATHS:
+            if path.exists():
+                pytesseract.tesseract_cmd = str(path)
+                logger.debug("Configured pytesseract to use %s", path)
+                break
 
-    if shutil.which("tesseract") is not None:
-        return  # Already on PATH
-
-    for path in _TESSERACT_STANDARD_PATHS:
-        if path.exists():
-            pytesseract.tesseract_cmd = str(path)
-            logger.debug("Configured pytesseract to use %s", path)
-            return
+    if sys.platform == "win32" and not _tesseract_patched:
+        _suppress_tesseract_console()
+        _tesseract_patched = True
 
 
 from .dictionary_utils import DictionaryTextValidator

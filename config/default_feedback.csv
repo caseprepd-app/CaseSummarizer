@@ -103,3 +103,12 @@ timestamp,document_id,term,feedback,is_person,algorithms,NER_detection,RAKE_dete
 2026-03-13T15:55:38.078819,unknown,Philip Jones,1,1,"RAKE,YAKE,NER",True,True,False,False,False,True,3,97.6,11,0,0.0,0.035498,3.661538461538462,0.0,1,1.0,0.94,0.94,0.0,1.0,0,1,18359
 2026-03-13T15:55:40.941976,unknown,Cortland Lawson,1,1,"RAKE,NER",True,True,False,False,False,False,2,97.1,24,0,0.0,0.0,3.4,0.0,1,1.0,0.94,0.94,0.0,1.0,0,1,18359
 2026-03-13T15:57:26.098138,unknown,Tal Carmody,1,1,NER,True,False,False,False,False,False,1,89.5,25,0,0.0,0.0,0.0,0.0,1,1.0,0.94,0.94,0.0,1.0,0,1,18359
+2026-03-14T21:58:46.822318,unknown,Jennifer Mueller,1,1,"RAKE,NER,YAKE",True,True,False,False,False,True,3,95.4,230,0,0.0,0.003525,3.455357142857143,0.0,1,1.0,0.94,0.94,0.0,1.0,0,1,36345
+2026-03-14T21:59:02.490674,unknown,psoas,1,0,"RAKE,BM25,YAKE,NER",True,True,True,False,False,True,4,93.7,115,172822,0.0,0.011801,2.1052631578947367,23.3666,1,1.0,0.94,0.94,0.0,1.0,0,1,36345
+2026-03-14T21:59:11.747792,unknown,neoplasm,1,1,"NER,MedicalNER",True,False,False,False,True,False,2,72.1,6,26958,0.0,0.0,0.0,0.0,1,1.0,0.94,0.94,0.0,1.0,0,1,36345
+2026-03-14T21:59:20.852824,unknown,Dwyer,1,1,"NER,BM25,YAKE",True,False,True,False,False,True,3,91.3,38,29766,0.0,0.009945,0.0,21.7851,1,1.0,0.94,0.94,0.0,1.0,0,1,36345
+2026-03-14T22:00:02.088242,unknown,femoral,1,0,"RAKE,BM25,YAKE,NER",True,True,True,False,False,True,4,94.4,400,34580,0.0,0.001521,2.0923076923076924,24.5105,1,1.0,0.94,0.94,0.0,1.0,0,1,36345
+2026-03-14T22:00:15.152015,unknown,question,-1,0,YAKE,False,False,False,False,False,True,1,30.7,1,591,0.0,0.001146,0.0,0.0,1,1.0,0.94,0.94,0.0,1.0,0,1,36345
+2026-03-14T22:00:20.453168,unknown,evidence,-1,0,YAKE,False,False,False,False,False,True,1,31.7,1,1305,0.0,0.002224,0.0,0.0,1,1.0,0.94,0.94,0.0,1.0,0,1,36345
+2026-03-14T22:02:28.240837,unknown,fire,-1,0,NER,True,False,False,False,False,False,1,28.3,1,959,0.0,0.0,0.0,0.0,1,1.0,0.94,0.94,0.0,1.0,0,1,36345
+2026-03-14T22:02:43.904385,unknown,Memorial Sloan,1,1,"NER,YAKE",True,False,False,False,False,True,2,89.1,2,0,0.0,0.003694,0.0,0.0,1,1.0,0.94,0.94,0.0,1.0,0,1,36345
