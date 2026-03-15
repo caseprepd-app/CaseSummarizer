@@ -6,13 +6,8 @@
 
 ## Large Changes (New Functionality)
 
-### 1. Session Persistence / Case Management
-Every session is ephemeral. You load files, process, export, close — everything vanishes. There's no way to:
-- Save a case and reopen it later
-- See a history of cases you've processed
-- Iterate on a case across multiple sessions (e.g., add a new exhibit to an existing case)
-
-This is probably the single biggest gap for a working court reporter.
+### ~~1. Session Persistence / Case Management~~ Deprecated
+CasePrepd is a lock-and-load tool: load files, process, export, done. There's nothing monolithic to persist across sessions. This was originally flagged for iterative workflows, but the app's design is throughput-oriented — each run is self-contained.
 
 ### 2. ~~Document Preview Panel~~ ✅ Implemented
 Clicking a file row in the left panel shows its extracted text in a "Document" tab (first tab position) with metadata header (pages, word count, confidence, method). Prefers preprocessed text, falls back to raw. Supports Ctrl+F search. Auto-clears when file is removed.
