@@ -545,15 +545,9 @@ def create_unified_chunker(
         target_tokens = target_tokens or DEFAULT_TARGET_TOKENS
         max_tokens = max_tokens or DEFAULT_MAX_TOKENS
 
-    # Read coreference preference if not explicitly provided
+    # Coreference is always disabled (fastcoref removed Mar 2026)
     if apply_coreference is None:
-        try:
-            from src.user_preferences import get_user_preferences
-
-            prefs = get_user_preferences()
-            apply_coreference = prefs.get("coreference_enabled", False)
-        except Exception:
-            apply_coreference = False
+        apply_coreference = False
 
     return UnifiedChunker(
         min_tokens=min_tokens,

@@ -82,8 +82,8 @@ The developer dataset is never deleted — it just gets increasingly outweighed 
 **Important:** Always activate the virtual environment before running tests.
 The project uses Python 3.12 in `.venv`, but your system PATH may point to a
 different Python (e.g. 3.13). Running tests with the wrong Python causes
-misleading failures — packages like `nupunkt`, `lettucedetect`, and
-`tkinterdnd2` will appear missing even though they're installed in the venv.
+misleading failures — packages like `nupunkt` and `tkinterdnd2` will appear
+missing even though they're installed in the venv.
 
 ```bash
 # Activate first (Windows)

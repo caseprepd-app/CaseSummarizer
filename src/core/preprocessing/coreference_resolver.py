@@ -61,83 +61,13 @@ class CoreferenceResolver(BasePreprocessor):
 
     def _ensure_model(self) -> bool:
         """
-        Load spaCy + fastcoref model on first use.
+        Always returns False — fastcoref was removed (Mar 2026).
 
         Returns:
-            True if model is ready, False if fastcoref unavailable.
+            False always.
         """
-        if self._available is not None:
-            return self._available
-
-        try:
-            import spacy
-
-            # Patch: fastcoref is unmaintained (May 2023) and breaks with
-            # transformers 5.x which renamed _tied_weights_keys to
-            # all_tied_weights_keys. FCorefModel doesn't tie any weights,
-            # so empty values are safe.
-            # See: https://github.com/huggingface/transformers/issues/43646
-            #      https://github.com/huggingface/transformers/issues/43883
-            from fastcoref.modeling import FCorefModel
-
-            if not hasattr(FCorefModel, "all_tied_weights_keys"):
-                FCorefModel._tied_weights_keys = []
-                FCorefModel.all_tied_weights_keys = {}
-
-            from fastcoref import spacy_component  # noqa: F401 — registers the pipe
-
-            from src.config import (
-                COREF_MODEL_LOCAL_PATH,
-                COREF_MODEL_NAME,
-                HF_CACHE_DIR,
-                SPACY_EN_CORE_WEB_SM_PATH,
-            )
-        except ImportError:
-            logger.warning(
-                "fastcoref not installed — coreference resolution disabled. "
-                "Install with: pip install fastcoref"
-            )
-            self._available = False
-            return False
-
-        try:
-            # Bundled spaCy model (Windows installer) or installed package
-            spacy_model = (
-                str(SPACY_EN_CORE_WEB_SM_PATH)
-                if SPACY_EN_CORE_WEB_SM_PATH.exists()
-                else "en_core_web_sm"
-            )
-            nlp = spacy.load(spacy_model, exclude=["ner", "lemmatizer"])
-
-            # Determine model path: bundled first, then HuggingFace fallback
-            model_path = (
-                str(COREF_MODEL_LOCAL_PATH) if COREF_MODEL_LOCAL_PATH.exists() else COREF_MODEL_NAME
-            )
-
-            if not COREF_MODEL_LOCAL_PATH.exists():
-                import os
-
-                os.environ.setdefault("HF_HOME", str(HF_CACHE_DIR))
-                logger.info("Bundled coref model not found, downloading %s", COREF_MODEL_NAME)
-
-            nlp.add_pipe(
-                "fastcoref",
-                config={
-                    "model_architecture": "FCoref",
-                    "model_path": model_path,
-                    "device": "cpu",
-                },
-            )
-
-            self._nlp = nlp
-            self._available = True
-            logger.info("Coreference model loaded: %s", model_path)
-            return True
-
-        except Exception as e:
-            logger.error("Failed to load coreference model: %s", e, exc_info=True)
-            self._available = False
-            return False
+        self._available = False
+        return False
 
     def _resolve_text(self, text: str) -> tuple[str, int, list[dict]]:
         """
