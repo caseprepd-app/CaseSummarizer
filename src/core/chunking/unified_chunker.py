@@ -535,30 +535,10 @@ def create_unified_chunker(
     Returns:
         Configured UnifiedChunker instance
     """
-    # Auto-scale if no explicit values provided
     if min_tokens is None and target_tokens is None and max_tokens is None:
-        try:
-            from src.user_preferences import get_user_preferences
-
-            prefs = get_user_preferences()
-            sizes = prefs.get_effective_chunk_sizes()
-            min_tokens = sizes["min_tokens"]
-            target_tokens = sizes["target_tokens"]
-            max_tokens = sizes["max_tokens"]
-
-            logger.debug(
-                "Auto-scaled: min=%s, target=%s, max=%s (context=%s)",
-                min_tokens,
-                target_tokens,
-                max_tokens,
-                sizes["context_window"],
-            )
-        except Exception as e:
-            # Fallback to defaults if preferences unavailable
-            logger.debug("Auto-scale failed (%s), using defaults", e)
-            min_tokens = DEFAULT_MIN_TOKENS
-            target_tokens = DEFAULT_TARGET_TOKENS
-            max_tokens = DEFAULT_MAX_TOKENS
+        min_tokens = DEFAULT_MIN_TOKENS
+        target_tokens = DEFAULT_TARGET_TOKENS
+        max_tokens = DEFAULT_MAX_TOKENS
     else:
         # Use provided values with defaults for any not specified
         min_tokens = min_tokens or DEFAULT_MIN_TOKENS

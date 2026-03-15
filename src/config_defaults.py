@@ -289,11 +289,11 @@ DEFAULTS = {
         "type": "int",
         "category": "Chunking",
     },
-    # Chunk sizes tuned for tight, "juicy details" excerpts:
-    # 75-token target ≈ a few sentences — just the key facts reporters want
-    # Smaller chunks favor key-excerpt precision; cross-encoder reranker compensates
+    # Chunk sizes tuned for meaningful paragraph-length excerpts:
+    # 150-token target ≈ one solid paragraph (~100-160 words)
+    # Balances excerpt readability with search precision
     "unified_chunk_min_tokens": {
-        "value": 50,
+        "value": 75,
         "min": 20,
         "max": 150,
         "step": 10,
@@ -301,7 +301,7 @@ DEFAULTS = {
         "category": "Chunking",
     },
     "unified_chunk_target_tokens": {
-        "value": 75,
+        "value": 150,
         "min": 30,
         "max": 300,
         "step": 5,
@@ -309,16 +309,16 @@ DEFAULTS = {
         "category": "Chunking",
     },
     "unified_chunk_max_tokens": {
-        "value": 115,
+        "value": 225,
         "min": 50,
         "max": 400,
         "step": 10,
         "type": "int",
         "category": "Chunking",
     },
-    # ~12% of target_tokens; Firecrawl 2026 recommends 10-20% overlap for RAG
+    # ~15% of target_tokens; Firecrawl 2026 recommends 10-20% overlap for RAG
     "unified_chunk_overlap_tokens": {
-        "value": 9,
+        "value": 22,
         "min": 0,
         "max": 60,
         "step": 5,
