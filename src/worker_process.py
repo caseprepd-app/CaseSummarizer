@@ -482,7 +482,8 @@ def _spawn_key_sentences(state, internal_queue):
         return
 
     # Estimate total pages from document data
-    total_pages = sum(d.get("page_count", 0) for d in documents)
+    # Use "or 0" to handle page_count=None (non-PDF files have page_count=None, not missing)
+    total_pages = sum(d.get("page_count") or 0 for d in documents)
 
     def _extract():
         try:
