@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CasePrepd — Case Prep That Never Leaves Your Computer</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header>
+  <nav>
+    <a href="#" class="logo">CasePrepd</a>
+    <div class="nav-links">
+      <a href="#features">Features</a>
+      <a href="#who">Who Is This For?</a>
+      <a href="#how">How It Works</a>
+      <a href="#requirements">Requirements</a>
+      <a href="#download">Download</a>
+      <a href="#faq">FAQ</a>
+    </div>
+  </nav>
+</header>
+
+<main>
+
+<section class="hero">
+  <h1>CasePrepd</h1>
+  <p class="tagline">Case Prep That Never Leaves Your Computer</p>
+  <p class="subtitle">
+    Vocabulary lists, semantic search, and key excerpts from your case
+    documents &mdash; processed 100% on your machine.
+    Nothing uploaded. Nothing stored in the cloud.
+  </p>
+  <p class="built-for">Built for sensitive court matters, HIPAA, and anything you can't risk sharing.</p>
+  <a href="#download" class="cta-button">Download CasePrepd</a>
+  <p class="attribution">
+    Made with Claude Code by Noah Collin, a court reporter.
+  </p>
+</section>
+
+<section id="features" class="features">
+  <h2>What You Get</h2>
+  <div class="feature-grid">
+    <div class="feature-card">
+      <h3>Vocabulary Lists</h3>
+      <p>
+        Names, medical terms, legal jargon, and technical words automatically
+        pulled from your documents. Scored by importance so you prep the terms
+        that matter most. A built-in ML model learns your preferences over time.
+      </p>
+    </div>
+    <div class="feature-card">
+      <h3>Semantic Search</h3>
+      <p>
+        Ask natural-language questions about your case documents and get answers
+        with source citations. Great for targeted questions across a breadth of
+        documents.
+      </p>
+    </div>
+    <div class="feature-card">
+      <h3>Key Excerpts</h3>
+      <p>
+        Representative passages automatically selected from your documents using
+        clustering. Helpful for quickly understanding the core content of complex
+        cases with hundreds of pages.
+      </p>
+    </div>
+  </div>
+  <p class="export-note">Export to HTML, Word, PDF, CSV, or plain text.</p>
+</section>
+
+<section id="who" class="audience">
+  <h2>Who Is This For?</h2>
+  <ul>
+    <li>Court reporters handling sealed or potentially sensitive matters</li>
+    <li>Scopists, proofreaders, or other professionals handling case materials</li>
+    <li>Anyone preparing for testimony with sensitive medical or financial records</li>
+    <li>Anyone wary of sending documents to an AI cloud</li>
+  </ul>
+</section>
+
+<section id="how" class="how-it-works">
+  <h2>How It Works</h2>
+  <p>
+    CasePrepd is a desktop app, not a web service. You load your documents
+    (PDF, Word, text files, images with OCR), and everything is processed
+    locally using embedded AI models. No internet connection is needed after
+    installation.
+  </p>
+  <p>
+    Under the hood, CasePrepd uses FAISS vector search and a cross-encoder
+    reranker for semantic search, spaCy NLP for entity extraction, and a
+    trained classifier for vocabulary filtering. All models are bundled with
+    the installer.
+  </p>
+</section>
+
+<section id="requirements" class="requirements">
+  <h2>System Requirements</h2>
+  <ul>
+    <li><strong>Windows only</strong> (Windows 10 or 11)</li>
+    <li><strong>16 GB RAM</strong> minimum</li>
+    <li><strong>8 GB disk space</strong> minimum</li>
+    <li>Dedicated GPU recommended for faster processing, but not required</li>
+  </ul>
+</section>
+
+<section id="download" class="download">
+  <h2>Download</h2>
+  <p>
+    <a href="https://github.com/nono638/CaseSummarizer/releases" class="cta-button">
+      Download from GitHub Releases
+    </a>
+  </p>
+
+  <div class="smartscreen-warning">
+    <h3>Windows SmartScreen Warning</h3>
+    <p>
+      CasePrepd is not code-signed (code signing certificates cost hundreds of
+      dollars per year, and this is free software). When you run the installer,
+      Windows SmartScreen may display a warning: <em>"Windows protected your PC."</em>
+    </p>
+    <p>
+      To proceed: click <strong>"More info"</strong>, then click
+      <strong>"Run anyway"</strong>. The source code is fully open and
+      available on <a href="https://github.com/nono638/CaseSummarizer">GitHub</a>
+      for inspection.
+    </p>
+  </div>
+</section>
+
+<section id="faq" class="faq">
+  <h2>FAQ</h2>
+
+  <details>
+    <summary>Why is this free?</summary>
+    <p>
+      I'm a court reporter who built this for my own use and wanted to share it
+      with the community. It's open source and always will be.
+    </p>
+  </details>
+
+  <details>
+    <summary>Is my data really private?</summary>
+    <p>
+      Yes. CasePrepd never connects to the internet. All processing happens on
+      your machine using models that ship with the installer. No data is
+      uploaded, logged, or transmitted anywhere.
+    </p>
+  </details>
+
+  <details>
+    <summary>Do I need a GPU?</summary>
+    <p>
+      No. CasePrepd works on CPU. A dedicated GPU will speed up processing,
+      especially for large document sets, but it is not required.
+    </p>
+  </details>
+
+  <details>
+    <summary>What file types are supported?</summary>
+    <p>
+      PDF, Word (.docx), plain text (.txt), and images (via built-in OCR with
+      Tesseract). Scanned PDFs are automatically OCR'd.
+    </p>
+  </details>
+</section>
+
+</main>
+
+<footer>
+  <p>
+    CasePrepd is open source &mdash;
+    <a href="https://github.com/nono638/CaseSummarizer">view on GitHub</a>.
+  </p>
+</footer>
+
+</body>
+</html>
