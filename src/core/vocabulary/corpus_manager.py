@@ -716,7 +716,7 @@ class CorpusManager:
 
         # Step 2: Sanitize (fix encoding, mojibake, etc.)
         sanitizer = CharacterSanitizer()
-        clean_text = sanitizer.sanitize(raw_text)
+        clean_text, _ = sanitizer.sanitize(raw_text)
 
         # Step 3: Preprocess (remove headers, footers, line numbers, title pages)
         pipeline = create_default_pipeline()

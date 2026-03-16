@@ -107,20 +107,13 @@ class TestContextWindowHelper:
 
         assert result == SEMANTIC_CONTEXT_WINDOW
 
-    def test_returns_value_from_preferences(self):
-        """Returns the context size reported by user preferences."""
+    def test_returns_fixed_constant(self):
+        """Always returns SEMANTIC_CONTEXT_WINDOW (no dynamic GPU sizing)."""
+        from src.config import SEMANTIC_CONTEXT_WINDOW
         from src.core.vector_store.semantic_retriever import _get_effective_semantic_context_window
 
-        mock_prefs = MagicMock()
-        mock_prefs.get_effective_context_size.return_value = 8192
-
-        with patch(
-            "src.user_preferences.get_user_preferences",
-            return_value=mock_prefs,
-        ):
-            result = _get_effective_semantic_context_window()
-
-        assert result == 8192
+        result = _get_effective_semantic_context_window()
+        assert result == SEMANTIC_CONTEXT_WINDOW
 
 
 class TestAlgorithmWeightsHelper:
