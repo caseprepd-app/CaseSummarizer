@@ -28,8 +28,9 @@ Execute the full release cycle for CasePrepd. Arguments: $ARGUMENTS
 - If it fails, diagnose and fix. Common issues: missing data packages in spec file.
 
 ## Step 5: Inno Setup Installer
-- Run: `"C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer\caseprepd.iss`
-- Expected output: `installer/Output/CasePrepd_Setup.exe`
+- Must run from inside the installer directory: `cd installer && "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" caseprepd.iss`
+- Running ISCC from the project root with a relative path fails ("file not found") because ISCC resolves paths relative to its own CWD, not the .iss file location.
+- Expected output: `installer/Output/CasePrepdSetup.exe`
 - Verify the installer was created and report its file size.
 
 ## Step 6: Push and Create GitHub Release

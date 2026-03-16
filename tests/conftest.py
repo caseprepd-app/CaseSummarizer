@@ -92,14 +92,6 @@ def _do_reset():
     except ImportError:
         pass
 
-    # AIService -- singleton wrapper for Ollama / GPU operations
-    try:
-        from src.services.ai_service import AIService
-
-        AIService.reset_singleton()
-    except ImportError:
-        pass
-
     # ExportService -- singleton for Word/PDF/HTML export
     try:
         from src.services.export_service import reset_export_service

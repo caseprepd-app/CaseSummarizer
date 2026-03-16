@@ -1,4 +1,4 @@
-"""Tests for the services layer: VocabularyService, AIService, ExportService, etc."""
+"""Tests for the services layer: VocabularyService, ExportService, DocumentService, etc."""
 
 import csv
 from pathlib import Path
@@ -223,60 +223,6 @@ class TestVocabularyServiceCorpus:
         result = svc.get_max_corpus_docs()
         assert isinstance(result, int)
         assert result > 0
-
-
-# ---------------------------------------------------------------------------
-# AIService
-# ---------------------------------------------------------------------------
-
-
-class TestAIServiceSingleton:
-    """AIService is a singleton."""
-
-    def test_singleton_returns_same_instance(self):
-        from src.services.ai_service import AIService
-
-        s1 = AIService()
-        s2 = AIService()
-        assert s1 is s2
-
-    def test_initialized_flag_prevents_re_init(self):
-        from src.services.ai_service import AIService
-
-        svc = AIService()
-        assert svc._initialized is True
-        svc._ollama_manager = "sentinel"
-
-        svc2 = AIService()
-        assert svc2._ollama_manager == "sentinel"  # Not reset
-
-
-# TestAIServiceOllama removed — Ollama integration deprecated
-
-
-class TestAIServiceGPU:
-    """AIService GPU detection pass-through."""
-
-    def test_has_dedicated_gpu_delegates(self):
-        from src.services.ai_service import AIService
-
-        svc = AIService()
-        with patch("src.core.utils.gpu_detector.has_dedicated_gpu", return_value=False):
-            assert svc.has_dedicated_gpu() is False
-
-    def test_get_gpu_status_text_returns_string(self):
-        from src.services.ai_service import AIService
-
-        svc = AIService()
-        with patch("src.core.utils.gpu_detector.get_gpu_status_text", return_value="No GPU"):
-            assert svc.get_gpu_status_text() == "No GPU"
-
-    def test_get_optimal_context_size_returns_int(self):
-        from src.services.ai_service import AIService
-
-        svc = AIService()
-        with patch("src.core.utils.gpu_detector.get_optimal_context_size", return_value=4096):
-            assert svc.get_optimal_context_size() == 4096
 
 
 # ---------------------------------------------------------------------------
@@ -699,7 +645,10 @@ class TestDocumentServiceProcess:
     def test_process_single_document_returns_dict(self):
         svc = self._make_service()
         svc.extractor = MagicMock()
-        svc.extractor.extract.return_value = {"text": "raw text", "confidence": 90}
+        svc.extractor.process_document.return_value = {
+            "extracted_text": "raw text",
+            "confidence": 90,
+        }
         svc.sanitizer = MagicMock()
         svc.sanitizer.sanitize.return_value = ("sanitized text", {"chars_removed": 5})
         svc.preprocessor = MagicMock()
@@ -715,7 +664,7 @@ class TestDocumentServiceProcess:
     def test_process_documents_calls_progress(self):
         svc = self._make_service()
         svc.extractor = MagicMock()
-        svc.extractor.extract.return_value = {"text": "text", "confidence": 80}
+        svc.extractor.process_document.return_value = {"extracted_text": "text", "confidence": 80}
         svc.sanitizer = MagicMock()
         svc.sanitizer.sanitize.return_value = ("text", {})
         svc.preprocessor = MagicMock()

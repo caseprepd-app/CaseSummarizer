@@ -16,11 +16,40 @@ State dict (shared by reference within the subprocess):
 
 import logging
 import os
+import subprocess
+import sys
 import threading
 import traceback
 from queue import Empty, Queue
 
 logger = logging.getLogger(__name__)
+
+
+def _patch_subprocess_no_window():
+    """
+    Monkey-patch subprocess.Popen to inject CREATE_NO_WINDOW on Windows.
+
+    Third-party libraries (sentence-transformers, tokenizers, torch) may
+    spawn subprocesses during model loading or inference. Without this
+    patch, those processes flash a blank console window to the user.
+
+    This runs inside the worker subprocess because main.py patches only
+    apply to the GUI process — the worker is a separate Python process.
+    """
+    if sys.platform != "win32":
+        return
+
+    _CREATE_NO_WINDOW = 0x08000000
+    _original_popen_init = subprocess.Popen.__init__
+
+    def _patched_popen_init(self, *args, **kwargs):
+        """Wrap Popen.__init__ to add CREATE_NO_WINDOW flag."""
+        flags = kwargs.get("creationflags", 0)
+        kwargs["creationflags"] = flags | _CREATE_NO_WINDOW
+        _original_popen_init(self, *args, **kwargs)
+
+    subprocess.Popen.__init__ = _patched_popen_init
+
 
 # Sentinels: plain strings placed on command_queue to signal control events.
 # Checked by equality comparison in _command_loop() (identity won't work across pickle).
@@ -66,6 +95,17 @@ def worker_process_main(command_queue, result_queue):
         command_queue: multiprocessing.Queue for receiving commands from GUI
         result_queue: multiprocessing.Queue for sending messages to GUI
     """
+    # Suppress console windows from third-party subprocess spawns (must run first)
+    _patch_subprocess_no_window()
+
+    # Ensure any multiprocessing spawned from worker also uses pythonw.exe
+    if sys.platform == "win32":
+        import multiprocessing
+
+        _pythonw = os.path.join(os.path.dirname(sys.executable), "pythonw.exe")
+        if os.path.exists(_pythonw):
+            multiprocessing.set_executable(_pythonw)
+
     # Configure logging in subprocess
     logging.basicConfig(
         level=logging.DEBUG,

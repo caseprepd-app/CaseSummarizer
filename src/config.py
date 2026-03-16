@@ -300,7 +300,6 @@ OCR_ENABLE_CLAHE = _d("ocr_enable_clahe")
 # Queue timeout for multiprocessing operations
 QUEUE_TIMEOUT_SECONDS = 2.0  # Timeout for multiprocessing queue operations
 
-GPU_DETECTION_TIMEOUT = 15  # Seconds for GPU/VRAM detection via WMI
 
 # --- New Model Configuration System ---
 MODEL_CONFIG_FILE = BUNDLED_CONFIG_DIR / "models.yaml"

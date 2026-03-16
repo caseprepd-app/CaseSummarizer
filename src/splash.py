@@ -81,6 +81,7 @@ def launch():
                 env=env,
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
+                creationflags=subprocess.CREATE_NO_WINDOW,
             )
             splash_log(f"[Splash] Launched frozen splash subprocess (PID: {proc.pid})")
             return proc

@@ -9,11 +9,9 @@ Validates all 9 low-risk performance improvements:
 5. Frozenset for O(1) membership checks in LLM extractor
 6. Eliminated redundant .split() in name deduplicator
 7. Cached .lower() in corpus_registry (covered by #2)
-8. Lazy % formatting in gpu_detector logger calls
-9. Cached .configure() values in SystemMonitor
+8. Cached .configure() values in SystemMonitor
 """
 
-import logging
 import re
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -304,51 +302,7 @@ class TestNameDeduplicatorSplit:
 
 
 # ========================================================================
-# 8. Lazy % formatting in gpu_detector logger calls
-# ========================================================================
-
-
-class TestGpuDetectorLazyLogging:
-    """Verify f-strings replaced with lazy % formatting in gpu_detector."""
-
-    def test_no_fstrings_in_logger_calls(self):
-        """gpu_detector.py should not use f-strings in logger calls."""
-        import inspect
-
-        from src.core.utils import gpu_detector
-
-        source = inspect.getsource(gpu_detector)
-        lines = source.split("\n")
-        fstring_logger_lines = []
-        for i, line in enumerate(lines, 1):
-            stripped = line.strip()
-            if ("logger.debug(" in stripped or "logger.info(" in stripped) and 'f"' in stripped:
-                fstring_logger_lines.append(f"  Line {i}: {stripped}")
-
-        assert not fstring_logger_lines, "Found f-strings in logger calls:\n" + "\n".join(
-            fstring_logger_lines
-        )
-
-    def test_lazy_formatting_not_evaluated_when_disabled(self):
-        """Logger % args should NOT be formatted when log level is above DEBUG."""
-        from src.core.utils.gpu_detector import logger as gpu_logger
-
-        # Set level above DEBUG so debug messages are suppressed
-        original_level = gpu_logger.level
-        gpu_logger.setLevel(logging.CRITICAL)
-
-        # If f-strings were used, the format() would still be evaluated.
-        # With lazy %, the string formatting is skipped entirely.
-        # We verify the logger doesn't error on the % format strings.
-        try:
-            gpu_logger.debug("[GPU] Test message: %s (%d)", "test", 42)
-            gpu_logger.info("[GPU] VRAM: %.1fGB -> optimal context: %d tokens", 8.0, 16000)
-        finally:
-            gpu_logger.setLevel(original_level)
-
-
-# ========================================================================
-# 9. Cached .configure() in SystemMonitor
+# 8. Cached .configure() in SystemMonitor
 # ========================================================================
 
 

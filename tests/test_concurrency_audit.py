@@ -8,70 +8,7 @@ daemon thread settings, and cross-thread error message protection.
 import threading
 
 # =========================================================================
-# 1. AIService thread-safe singleton
-# =========================================================================
-
-
-class TestAIServiceSingleton:
-    """Verify AIService uses thread-safe SingletonHolder."""
-
-    def test_lock_exists(self):
-        """SingletonHolder must have a lock for thread safety."""
-        from src.services import ai_service
-
-        assert hasattr(ai_service, "_ai_holder")
-        assert isinstance(ai_service._ai_holder._lock, type(threading.Lock()))
-
-    def test_concurrent_creation_returns_same_instance(self):
-        """10 threads creating AIService simultaneously must get the same instance."""
-        from src.services.ai_service import AIService
-
-        AIService.reset_singleton()
-        instances = [None] * 10
-        barrier = threading.Barrier(10)
-
-        def create(idx):
-            barrier.wait()
-            instances[idx] = AIService()
-
-        threads = [threading.Thread(target=create, args=(i,)) for i in range(10)]
-        for t in threads:
-            t.start()
-        for t in threads:
-            t.join(timeout=5)
-            assert not t.is_alive(), f"Thread {t.name} did not finish within timeout"
-
-        # All instances must be the same object
-        assert all(inst is instances[0] for inst in instances)
-        AIService.reset_singleton()
-
-    def test_reset_under_contention(self):
-        """Alternating creation and reset from multiple threads must not raise."""
-        from src.services.ai_service import AIService
-
-        AIService.reset_singleton()
-        errors = []
-
-        def worker():
-            try:
-                for _ in range(20):
-                    _ = AIService()
-                    AIService.reset_singleton()
-            except Exception as e:
-                errors.append(e)
-
-        threads = [threading.Thread(target=worker) for _ in range(5)]
-        for t in threads:
-            t.start()
-        for t in threads:
-            t.join(timeout=10)
-
-        assert errors == [], f"Errors during contention: {errors}"
-        AIService.reset_singleton()
-
-
-# =========================================================================
-# 2. UserPreferencesManager thread-safe singleton
+# 1. UserPreferencesManager thread-safe singleton
 # =========================================================================
 
 

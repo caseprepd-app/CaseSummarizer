@@ -181,66 +181,6 @@ class TestDiagnoseMLIOProtection:
 # =========================================================================
 
 
-class TestGpuDetectorBoundsChecking:
-    """Test GPU detector handles edge-case nvidia-smi output."""
-
-    def test_empty_stdout_returns_none(self):
-        """nvidia-smi with empty stdout should return None from _detect_gpu_cli."""
-        from src.core.utils.gpu_detector import _detect_gpu_cli
-
-        with (
-            patch(
-                "shutil.which",
-                side_effect=lambda cmd: "nvidia-smi" if cmd == "nvidia-smi" else None,
-            ),
-            patch("subprocess.run") as mock_run,
-        ):
-            mock_run.return_value = MagicMock(returncode=0, stdout="")
-            result = _detect_gpu_cli()
-            # Empty stdout means no GPU detected
-            assert result is None
-
-    def test_valid_nvidia_smi_output(self):
-        """nvidia-smi with valid output should parse correctly."""
-        from src.core.utils.gpu_detector import _detect_gpu_cli
-
-        with (
-            patch(
-                "shutil.which",
-                side_effect=lambda cmd: "nvidia-smi" if cmd == "nvidia-smi" else None,
-            ),
-            patch("subprocess.run") as mock_run,
-        ):
-            mock_run.return_value = MagicMock(
-                returncode=0,
-                stdout="NVIDIA GeForce RTX 3080, 10240\n",
-            )
-            result = _detect_gpu_cli()
-            assert result is not None
-            assert result["gpu_name"] == "NVIDIA GeForce RTX 3080"
-            assert result["vram_bytes"] == 10240 * 1024 * 1024
-
-    def test_single_column_nvidia_output(self):
-        """nvidia-smi with only GPU name (no VRAM) should not crash."""
-        from src.core.utils.gpu_detector import _detect_gpu_cli
-
-        with (
-            patch(
-                "shutil.which",
-                side_effect=lambda cmd: "nvidia-smi" if cmd == "nvidia-smi" else None,
-            ),
-            patch("subprocess.run") as mock_run,
-        ):
-            mock_run.return_value = MagicMock(
-                returncode=0,
-                stdout="NVIDIA GeForce RTX 3080\n",
-            )
-            result = _detect_gpu_cli()
-            assert result is not None
-            assert result["gpu_name"] == "NVIDIA GeForce RTX 3080"
-            assert result["vram_bytes"] == 0  # No VRAM column, defaults to 0
-
-
 class TestPreferenceFeaturesBoundsChecking:
     """Test preference_learner_features handles edge-case strings."""
 

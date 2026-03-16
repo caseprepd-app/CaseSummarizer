@@ -35,22 +35,12 @@ logger = logging.getLogger(__name__)
 
 def _get_effective_semantic_context_window() -> int:
     """
-    Get effective semantic search context window from user preferences.
-
-    Context window scales with LLM context window based on GPU VRAM.
-    Falls back to config constant if preferences unavailable.
+    Get semantic search context window (fixed token budget for retrieval).
 
     Returns:
         Context window size in tokens
     """
-    try:
-        from src.user_preferences import get_user_preferences
-
-        prefs = get_user_preferences()
-        return prefs.get_effective_context_size()
-    except Exception as e:
-        logger.warning("Could not load user preferences for semantic context window: %s", e)
-        return SEMANTIC_CONTEXT_WINDOW
+    return SEMANTIC_CONTEXT_WINDOW
 
 
 def _get_effective_algorithm_weights() -> dict[str, float]:
