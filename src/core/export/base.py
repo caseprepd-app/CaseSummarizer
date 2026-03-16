@@ -6,23 +6,6 @@ Both formats share the same interface for consistent output.
 """
 
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
-
-
-@dataclass
-class TextSpan:
-    """
-    Text segment with optional styling.
-
-    Used for verification-colored Q&A answers where different parts
-    have different reliability scores.
-    """
-
-    text: str
-    color: tuple[int, int, int] | None = None  # RGB tuple
-    bold: bool = False
-    italic: bool = False
-    strikethrough: bool = False
 
 
 class DocumentBuilder(ABC):
@@ -57,16 +40,6 @@ class DocumentBuilder(ABC):
         pass
 
     @abstractmethod
-    def add_styled_paragraph(self, spans: list[TextSpan]) -> None:
-        """
-        Add a paragraph with mixed styling (e.g., verification colors).
-
-        Args:
-            spans: List of TextSpan objects with individual styling
-        """
-        pass
-
-    @abstractmethod
     def add_table(self, headers: list[str], rows: list[list[str]]) -> None:
         """
         Add a table to the document.
@@ -91,39 +64,6 @@ class DocumentBuilder(ABC):
             path: Output file path
         """
         pass
-
-
-# Verification color constants (from theme.py)
-# Used for search answer span coloring
-VERIFICATION_COLORS = {
-    "verified": (40, 167, 69),  # Green
-    "uncertain": (255, 193, 7),  # Yellow
-    "suspicious": (253, 126, 20),  # Orange
-    "unreliable": (220, 53, 69),  # Red
-    "hallucinated": (136, 136, 136),  # Gray (+ strikethrough)
-}
-
-
-def get_verification_color(hallucination_prob: float) -> tuple[tuple[int, int, int], bool, str]:
-    """
-    Get color and styling for a verification probability.
-
-    Args:
-        hallucination_prob: Probability that text is hallucinated (0.0 to 1.0)
-
-    Returns:
-        Tuple of (RGB color, strikethrough flag, category name)
-    """
-    if hallucination_prob < 0.30:
-        return VERIFICATION_COLORS["verified"], False, "verified"
-    elif hallucination_prob < 0.50:
-        return VERIFICATION_COLORS["uncertain"], False, "uncertain"
-    elif hallucination_prob < 0.70:
-        return VERIFICATION_COLORS["suspicious"], False, "suspicious"
-    elif hallucination_prob < 0.85:
-        return VERIFICATION_COLORS["unreliable"], False, "unreliable"
-    else:
-        return VERIFICATION_COLORS["hallucinated"], True, "hallucinated"
 
 
 def format_export_timestamp() -> str:

@@ -103,17 +103,6 @@ def get_ner_mapping() -> dict[str, str]:
     return config.get("ner_mapping", {})
 
 
-def get_llm_prompt_categories() -> str:
-    """
-    Return comma-separated category list for LLM prompts.
-
-    Returns:
-        str: String like "Person, Place, Medical, Technical, Unknown"
-    """
-    config = load_categories()
-    return config.get("llm_prompt_categories", ", ".join(get_category_list()))
-
-
 def is_valid_category(category: str) -> bool:
     """
     Check if category ID is valid.

@@ -125,11 +125,11 @@ class TestCorpusManagerIOProtection:
             patch("src.core.sanitization.CharacterSanitizer") as mock_san_cls,
             patch("src.core.preprocessing.create_default_pipeline") as mock_pipe,
         ):
-            mock_ext_cls.return_value.extract.return_value = {
-                "success": True,
-                "text": "hello world",
+            mock_ext_cls.return_value.process_document.return_value = {
+                "status": "success",
+                "extracted_text": "hello world",
             }
-            mock_san_cls.return_value.sanitize.return_value = "hello world"
+            mock_san_cls.return_value.sanitize.return_value = ("hello world", {})
             mock_pipe.return_value.process.return_value = "hello world"
 
             # Patch Path.write_text to fail with PermissionError

@@ -11,7 +11,7 @@ from fpdf import FPDF
 
 logger = logging.getLogger(__name__)
 
-from src.core.export.base import DocumentBuilder, TextSpan
+from src.core.export.base import DocumentBuilder
 
 
 def _sanitize_for_latin1(text: str) -> str:
@@ -85,32 +85,6 @@ class PdfDocumentBuilder(DocumentBuilder):
         self.pdf.multi_cell(0, self._line_height, _sanitize_for_latin1(text))
         self.pdf.ln(2)
         self.pdf.set_font("Helvetica", size=11)
-
-    def add_styled_paragraph(self, spans: list[TextSpan]) -> None:
-        """Add a paragraph with mixed styling (verification colors)."""
-        for span in spans:
-            # Set color
-            if span.color:
-                self.pdf.set_text_color(*span.color)
-            else:
-                self.pdf.set_text_color(0, 0, 0)
-
-            # Set style
-            style = ""
-            if span.bold:
-                style += "B"
-            if span.italic:
-                style += "I"
-            if span.strikethrough:
-                style += "S"  # fpdf2 supports strikethrough
-
-            self.pdf.set_font("Helvetica", style, 11)
-            self.pdf.write(self._line_height, _sanitize_for_latin1(span.text))
-
-        # Reset to defaults
-        self.pdf.set_text_color(0, 0, 0)
-        self.pdf.set_font("Helvetica", size=11)
-        self.pdf.ln(self._line_height + 2)
 
     def add_table(self, headers: list[str], rows: list[list[str]]) -> None:
         """Add a table to the document."""

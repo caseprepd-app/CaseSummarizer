@@ -491,10 +491,6 @@ INDEX_ESTIMATED_CHARS_PER_LINE = 60  # For estimating line count from chars
 INDEX_PAGE_REF_DIVISOR = 2  # Divide page refs by this for density calc
 INDEX_CHAR_WINDOW_SIZE = 2000  # Character window size for char-based detection
 
-# Semantic Chunker Embedding Model (DEPRECATED — semantic chunking removed)
-# Kept for backward compatibility with deprecated KeyBERT algorithm
-SEMANTIC_CHUNKER_EMBEDDING_MODEL = "all-MiniLM-L6-v2"
-
 # GUI Display Limits for Vocabulary Table
 # Based on tkinter Treeview performance testing:
 # - < 100 rows: Excellent performance
@@ -600,12 +596,6 @@ _user_workers = max(1, min(8, USER_DEFINED_MAX_WORKER_COUNT))
 # Compute actual max workers based on settings
 PARALLEL_MAX_WORKERS = _user_workers if USER_PICKS_MAX_WORKER_COUNT else min(os.cpu_count() or 4, 4)
 
-# AI Prompt Templates
-PROMPTS_DIR = BUNDLED_CONFIG_DIR / "prompts"
-USER_PROMPTS_DIR = APPDATA_DIR / "prompts"  # User-created prompts survive app updates
-
-# Ensure user prompts directory exists
-USER_PROMPTS_DIR.mkdir(parents=True, exist_ok=True)
 # License Configuration
 LICENSE_FILE = CONFIG_DIR / "license.dat"
 LICENSE_API_BASE_URL = "https://api.localscribe.example.com"  # Placeholder - will be updated
@@ -734,10 +724,6 @@ BUNDLED_MODELS_DIR = BUNDLED_BASE_DIR / "models"
 # Uses GPU when available via torch.cuda.is_available(), falls back to CPU.
 EMBEDDING_MODEL_NAME = "nomic-ai/nomic-embed-text-v1.5"
 EMBEDDING_MODEL_LOCAL_PATH = BUNDLED_MODELS_DIR / "embeddings" / "nomic-embed-text-v1.5"
-
-# Semantic chunker embedding model (DEPRECATED — semantic chunking removed)
-# Kept for backward compatibility with deprecated KeyBERT algorithm
-SEMANTIC_CHUNKER_MODEL_LOCAL_PATH = BUNDLED_MODELS_DIR / "embeddings" / "all-MiniLM-L6-v2"
 
 # HuggingFace cache directory (used if bundled model not found)
 # Falls back to downloading if bundled model is missing (dev mode)

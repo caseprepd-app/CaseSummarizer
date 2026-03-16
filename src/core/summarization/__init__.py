@@ -1,15 +1,12 @@
 """
 Summarization Package for CasePrepd.
 
-LLM-based summarization has been removed. Only extractive key sentences
-(via K-means clustering on embeddings) remain active.
-
-Previous LLM summarization code moved to src/deprecated/.
+Extractive key passages via K-means clustering on pre-computed embeddings.
 """
 
-from .key_sentences import KeySentence, extract_key_sentences
+from .key_sentences import KeySentence, extract_key_passages
 
 __all__ = [
     "KeySentence",
-    "extract_key_sentences",
+    "extract_key_passages",
 ]

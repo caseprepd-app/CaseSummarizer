@@ -280,18 +280,6 @@ class TestSpacyBundledPaths:
         assert "_download_and_load_model" not in source
 
 
-class TestCorefBundledPath:
-    """Tests for coreference resolver bundled spaCy path."""
-
-    def test_coref_resolver_imports_spacy_sm_path(self):
-        """Coreference resolver source references SPACY_EN_CORE_WEB_SM_PATH."""
-        from src.core.preprocessing import coreference_resolver as mod
-
-        source = Path(mod.__file__).read_text()
-        assert "SPACY_EN_CORE_WEB_SM_PATH" in source
-        assert "en_core_web_sm" in source
-
-
 class TestScispaCyBundledPath:
     """Tests for scispaCy bundled path loading."""
 

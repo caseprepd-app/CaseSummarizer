@@ -218,7 +218,6 @@ COLORS = {
     "algo_ner": ("#1565c0", "#7ec8e3"),  # NER only (blue)
     "algo_rake": ("#7b1fa2", "#c792ea"),  # RAKE only (purple)
     "algo_bm25": ("#e67e22", "#ffb347"),  # BM25 only (orange)
-    "algo_llm": ("#00838f", "#4dd0e1"),  # Reserved (cyan)
     # Table rows
     "row_odd": ("#f0f0f0", "#2b2b2b"),  # Odd row
     "row_even": ("#e4e4e4", "#353535"),  # Even row
@@ -242,11 +241,6 @@ COLORS = {
     # System monitor
     "monitor_bg": ("#d8e8d8", "#1a3a1a"),
     # Hallucination verification colors (unused since LLM/lettucedetect removal Mar 2026)
-    "verify_verified": ("#1b7a2f", "#28a745"),  # Green
-    "verify_uncertain": ("#e6a800", "#ffc107"),  # Yellow
-    "verify_suspicious": ("#c75000", "#fd7e14"),  # Orange
-    "verify_unreliable": ("#c62828", "#dc3545"),  # Red
-    "verify_hallucinated": ("#999999", "#888888"),  # Gray + strikethrough
     # Reliability header colors
     "reliability_high": ("#1b7a2f", "#28a745"),  # Green
     "reliability_medium": ("#e6a800", "#ffc107"),  # Yellow
@@ -486,7 +480,6 @@ VOCAB_TABLE_TAGS = {
     "found_ner": {"foreground": COLORS["algo_ner"]},
     "found_rake": {"foreground": COLORS["algo_rake"]},
     "found_bm25": {"foreground": COLORS["algo_bm25"]},
-    "found_llm": {"foreground": COLORS["algo_llm"]},
     "oddrow": {"background": COLORS["row_odd"], "foreground": COLORS["row_text"]},
     "evenrow": {"background": COLORS["row_even"], "foreground": COLORS["row_text"]},
     # Muted rows for filtered/lesser terms section

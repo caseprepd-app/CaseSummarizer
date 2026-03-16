@@ -23,12 +23,7 @@ Usage:
     builder.save("combined_report.docx")
 """
 
-from src.core.export.base import (
-    VERIFICATION_COLORS,
-    DocumentBuilder,
-    TextSpan,
-    get_verification_color,
-)
+from src.core.export.base import DocumentBuilder
 from src.core.export.combined_exporter import export_combined
 from src.core.export.html_builder import export_semantic_html, export_vocabulary_html
 from src.core.export.pdf_builder import PdfDocumentBuilder
@@ -37,19 +32,13 @@ from src.core.export.vocab_exporter import export_vocabulary, export_vocabulary_
 from src.core.export.word_builder import WordDocumentBuilder
 
 __all__ = [
-    "VERIFICATION_COLORS",
-    # Base classes
     "DocumentBuilder",
     "PdfDocumentBuilder",
-    "TextSpan",
-    # Builders
     "WordDocumentBuilder",
     "export_combined",
     "export_semantic_html",
     "export_semantic_results",
-    # Exporters
     "export_vocabulary",
     "export_vocabulary_html",
     "export_vocabulary_txt",
-    "get_verification_color",
 ]

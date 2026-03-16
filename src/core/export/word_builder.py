@@ -11,9 +11,9 @@ from docx.enum.table import WD_TABLE_ALIGNMENT
 
 logger = logging.getLogger(__name__)
 from docx.enum.text import WD_ALIGN_PARAGRAPH
-from docx.shared import Pt, RGBColor
+from docx.shared import Pt
 
-from src.core.export.base import DocumentBuilder, TextSpan
+from src.core.export.base import DocumentBuilder
 
 
 class WordDocumentBuilder(DocumentBuilder):
@@ -52,22 +52,6 @@ class WordDocumentBuilder(DocumentBuilder):
         run = para.add_run(text)
         run.bold = bold
         run.italic = italic
-
-    def add_styled_paragraph(self, spans: list[TextSpan]) -> None:
-        """Add a paragraph with mixed styling (verification colors)."""
-        para = self.doc.add_paragraph()
-
-        for span in spans:
-            run = para.add_run(span.text)
-
-            if span.bold:
-                run.bold = True
-            if span.italic:
-                run.italic = True
-            if span.strikethrough:
-                run.font.strike = True
-            if span.color:
-                run.font.color.rgb = RGBColor(*span.color)
 
     def add_table(self, headers: list[str], rows: list[list[str]]) -> None:
         """Add a table to the document."""

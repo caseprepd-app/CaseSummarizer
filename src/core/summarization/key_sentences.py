@@ -5,11 +5,8 @@ Extracts the most representative passages from a document set using
 semantic embeddings and K-means clustering. Each cluster represents a
 distinct topic; the passage closest to each centroid is selected.
 
-Two modes:
-- extract_key_passages(): Reuses pre-computed chunk embeddings from FAISS
-  (no re-splitting or re-embedding). Preferred.
-- extract_key_sentences(): Legacy — re-splits and re-embeds from scratch.
-  Kept for backward compatibility.
+Uses extract_key_passages() which reuses pre-computed chunk embeddings from
+FAISS (no re-splitting or re-embedding).
 
 No new dependencies — uses scikit-learn KMeans already in the venv.
 """
@@ -136,97 +133,6 @@ def extract_key_passages(
 
     results.sort(key=lambda s: s.position)
     logger.debug("Key passages: returning %d passages", len(results))
-    return results
-
-
-def extract_key_sentences(
-    documents: list[dict],
-    embeddings_model,
-    n: int | None = None,
-) -> list[KeySentence]:
-    """
-    Extract the most representative sentences from a set of documents.
-
-    Args:
-        documents: List of dicts with 'filename' and either
-                   'preprocessed_text' or 'extracted_text'.
-        embeddings_model: A model with embed_documents(texts) -> list[list[float]].
-        n: Number of key sentences. If None, auto-scales with page count.
-
-    Returns:
-        List of KeySentence objects sorted by document position.
-    """
-    from src.core.utils.sentence_splitter import split_sentences
-
-    # Collect all sentences with metadata
-    all_sentences: list[dict] = []
-    total_pages = 0
-
-    for doc in documents:
-        filename = doc.get("filename", "unknown")
-        text = doc.get("preprocessed_text") or doc.get("extracted_text", "")
-        total_pages += doc.get("page_count", 0)
-
-        if not text.strip():
-            continue
-
-        sentences = split_sentences(text)
-        for sent in sentences:
-            all_sentences.append(
-                {
-                    "text": sent.strip(),
-                    "source_file": filename,
-                    "position": len(all_sentences),
-                }
-            )
-
-    logger.debug(
-        "Key sentences: %d raw sentences from %d documents", len(all_sentences), len(documents)
-    )
-
-    # Filter sentences
-    filtered = _filter_sentences(all_sentences)
-    logger.debug("Key sentences: %d after filtering", len(filtered))
-
-    if not filtered:
-        logger.warning("No valid sentences after filtering")
-        return []
-
-    # Embed all filtered sentences
-    texts = [s["text"] for s in filtered]
-    try:
-        embeddings = embeddings_model.embed_documents(texts)
-        embeddings_array = np.array(embeddings, dtype=np.float32)
-    except Exception as e:
-        logger.error("Key sentences embedding failed: %s", e, exc_info=True)
-        return []
-
-    # Determine K — use 3-voter ensemble or explicit override
-    if n is None:
-        from src.core.summarization.k_selection import select_k
-
-        fallback_k = compute_sentence_count(total_pages)
-        n = select_k(embeddings_array, fallback_k)
-    n = min(n, len(filtered))
-
-    # Cluster and select
-    selected_indices = _cluster_and_select(embeddings_array, n)
-
-    # Build result sorted by document position
-    results = []
-    for idx in selected_indices:
-        sent = filtered[idx]
-        results.append(
-            KeySentence(
-                text=sent["text"],
-                source_file=sent["source_file"],
-                position=sent["position"],
-                score=0.0,  # Updated by _cluster_and_select if needed
-            )
-        )
-
-    results.sort(key=lambda s: s.position)
-    logger.debug("Key sentences: returning %d sentences", len(results))
     return results
 
 

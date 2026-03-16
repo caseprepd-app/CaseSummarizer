@@ -353,35 +353,3 @@ class TestHeaderFooterRemover:
         result = self._make().process(text)
         assert "unique_patterns_removed" in result.metadata
         assert "total_lines_removed" in result.metadata
-
-
-# ---------------------------------------------------------------------------
-# CoreferenceResolver
-# ---------------------------------------------------------------------------
-
-
-class TestCoreferenceResolver:
-    """CoreferenceResolver replaces pronouns with antecedents."""
-
-    def _make(self):
-        from src.core.preprocessing.coreference_resolver import CoreferenceResolver
-
-        return CoreferenceResolver()
-
-    def test_empty_text(self):
-        result = self._make().process("")
-        assert result.changes_made == 0
-
-    def test_returns_preprocessing_result(self):
-        result = self._make().process("John went to the store.")
-        assert hasattr(result, "text")
-        assert hasattr(result, "changes_made")
-        assert hasattr(result, "metadata")
-
-    def test_model_availability_check(self):
-        """Should gracefully handle missing spaCy model."""
-        resolver = self._make()
-        result = resolver.process("John went home. He was tired.")
-        # Whether or not model is available, should not crash
-        assert isinstance(result.text, str)
-        assert result.changes_made >= 0

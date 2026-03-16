@@ -544,17 +544,6 @@ class TestDiagnostics:
         # Should load within reasonable time
         assert load_time < 60, f"Embeddings took too long to load: {load_time}s"
 
-    def test_ollama_connection(self):
-        """Test that Ollama is available (required for LLM phases)."""
-        from src.core.ai import OllamaModelManager
-
-        manager = OllamaModelManager()
-
-        if not manager.is_connected:
-            pytest.skip("Ollama not running - LLM tests will be skipped")
-
-        logger.debug(f"[DIAGNOSTIC] Ollama connected, model: {manager.model_name}")
-
 
 # =============================================================================
 # Run tests directly

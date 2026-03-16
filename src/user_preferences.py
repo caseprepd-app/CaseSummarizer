@@ -134,57 +134,6 @@ class UserPreferencesManager:
             # Log error but don't crash
             logger.warning("Could not save user preferences: %s", e)
 
-    def get_default_prompt(self, model_name: str) -> str | None:
-        """
-        Get the user's preferred default prompt for a model.
-
-        Args:
-            model_name: Name of the model (e.g., 'phi-3-mini')
-
-        Returns:
-            Preset ID string, or None if no default set
-        """
-        return self._preferences.get("model_defaults", {}).get(model_name)
-
-    def set_default_prompt(self, model_name: str, preset_id: str) -> None:
-        """
-        Set the default prompt for a model.
-
-        Args:
-            model_name: Name of the model (e.g., 'phi-3-mini')
-            preset_id: Preset identifier (e.g., 'factual-summary')
-        """
-        if "model_defaults" not in self._preferences:
-            self._preferences["model_defaults"] = {}
-
-        self._preferences["model_defaults"][model_name] = preset_id
-        self._save_preferences()
-
-    def get_last_used_model(self) -> str | None:
-        """Get the last model the user loaded."""
-        return self._preferences.get("last_used_model")
-
-    def set_last_used_model(self, model_name: str) -> None:
-        """
-        Set the last used model.
-
-        Args:
-            model_name: Name of the model
-        """
-        self._preferences["last_used_model"] = model_name
-        self._save_preferences()
-
-    def clear_default_prompt(self, model_name: str) -> None:
-        """
-        Clear the default prompt for a model.
-
-        Args:
-            model_name: Name of the model
-        """
-        if "model_defaults" in self._preferences:
-            self._preferences["model_defaults"].pop(model_name, None)
-            self._save_preferences()
-
     def get_cpu_fraction(self) -> float:
         """
         Get the CPU fraction for parallel document processing.
