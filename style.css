@@ -178,6 +178,33 @@ h3 {
   font-style: italic;
 }
 
+/* Screenshots */
+.screenshots {
+  text-align: center;
+}
+
+.screenshot-item {
+  margin-bottom: 2.5rem;
+}
+
+.screenshot-item:last-child {
+  margin-bottom: 0;
+}
+
+.screenshot-label {
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-bottom: 0.8rem;
+}
+
+.screenshot-item img {
+  max-width: 100%;
+  border-radius: var(--radius);
+  border: 1px solid rgba(255,255,255,0.1);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+}
+
 /* Audience */
 .audience ul {
   list-style: none;
