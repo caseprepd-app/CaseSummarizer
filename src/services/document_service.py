@@ -106,9 +106,9 @@ class DocumentService:
         """
         logger.debug("Processing document: %s", Path(file_path).name)
         # Extract raw text
-        extraction_result = self.extractor.extract(file_path)
+        extraction_result = self.extractor.process_document(file_path)
 
-        raw_text = extraction_result.get("text", "")
+        raw_text = extraction_result.get("extracted_text", "")
         confidence = extraction_result.get("confidence", 0)
 
         # Sanitize (fix encoding issues, normalize whitespace)

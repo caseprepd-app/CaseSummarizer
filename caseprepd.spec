@@ -121,6 +121,7 @@ data_packages = [
     "docx",              # default.docx template for Word export
     "tkinterdnd2",       # TCL scripts + native DLLs for drag-and-drop
     "fpdf",              # sRGB ICC color profile for PDF export
+    "yake",              # Stopwords lists for keyword extraction
 ]
 
 for pkg in data_packages:

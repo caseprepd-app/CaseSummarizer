@@ -705,12 +705,12 @@ class CorpusManager:
 
         # Step 1: Extract text
         extractor = RawTextExtractor()
-        result = extractor.extract(str(file_path))
+        result = extractor.process_document(str(file_path))
 
-        if not result.get("success"):
-            raise Exception(f"Extraction failed: {result.get('error', 'Unknown error')}")
+        if result.get("status") == "error":
+            raise Exception(f"Extraction failed: {result.get('error_message', 'Unknown error')}")
 
-        raw_text = result.get("text", "")
+        raw_text = result.get("extracted_text", "")
         if not raw_text.strip():
             raise Exception("Extracted text is empty")
 
