@@ -7,7 +7,7 @@
 #define MyAppName "CasePrepd"
 #define MyAppVersion "1.0.15"
 #define MyAppPublisher "CasePrepd"
-#define MyAppURL "https://sites.google.com/view/caseprepd/home"
+#define MyAppURL "https://caseprepd-app.github.io/CaseSummarizer/"
 #define MyAppExeName "CasePrepd.exe"
 
 [Setup]
