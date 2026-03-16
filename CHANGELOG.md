@@ -7,6 +7,16 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.0.16] - 2026-03-16
+
+### Fixed
+- YAKE stopwords missing from PyInstaller bundle (crashed on "No such file: stopwords_noLang.txt")
+- `RawTextExtractor` API rename: `.extract()` → `.process_document()`, updated key names in document_service and corpus_manager
+- Installer now produces single .exe (DiskSpanning=no instead of .exe + .bin split)
+
+### Added
+- Console window suppression tests for subprocess spawns and splash screen
+
 ## [1.0.15] - 2026-03-16
 
 ### Changed
