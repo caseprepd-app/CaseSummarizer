@@ -205,6 +205,70 @@ h3 {
   box-shadow: 0 4px 20px rgba(0,0,0,0.4);
 }
 
+/* Annotated screenshot with numbered callouts */
+.annotated-screenshot {
+  position: relative;
+  display: inline-block;
+}
+
+.callout {
+  position: absolute;
+  width: 28px;
+  height: 28px;
+  background: var(--accent);
+  color: #fff;
+  border-radius: 50%;
+  font-size: 0.85rem;
+  font-weight: 700;
+  line-height: 28px;
+  text-align: center;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+  border: 2px solid rgba(255,255,255,0.9);
+  pointer-events: none;
+}
+
+.callout-1 { top: 7%; right: 14%; }
+.callout-2 { top: 42%; left: 15%; }
+.callout-3 { top: 22%; left: 55%; }
+.callout-4 { bottom: 12%; left: 15%; }
+.callout-5 { bottom: 7%; left: 52%; }
+
+.callout-legend {
+  text-align: left;
+  max-width: 520px;
+  margin: 1.2rem auto 0;
+  padding-left: 1.2rem;
+  list-style: none;
+  counter-reset: legend;
+}
+
+.callout-legend li {
+  counter-increment: legend;
+  padding: 0.3rem 0 0.3rem 2rem;
+  position: relative;
+  color: var(--text-muted);
+  font-size: 0.92rem;
+}
+
+.callout-legend li::before {
+  content: counter(legend);
+  position: absolute;
+  left: 0;
+  width: 22px;
+  height: 22px;
+  background: var(--accent);
+  color: #fff;
+  border-radius: 50%;
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 22px;
+  text-align: center;
+}
+
+@media (max-width: 600px) {
+  .callout { width: 22px; height: 22px; font-size: 0.7rem; line-height: 22px; }
+}
+
 /* Audience */
 .audience ul {
   list-style: none;
