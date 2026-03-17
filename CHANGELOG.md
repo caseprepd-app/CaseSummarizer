@@ -7,6 +7,20 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.0.17] - 2026-03-16
+
+### Fixed
+- Runtime KeyError in theme.py from stale hallucination-verification color references
+- Circular import chain (user_preferences → services → model_io → preference_learner → user_preferences)
+- Unreachable error-handler recovery branch for preprocessing failures
+- Console window flash on worker subprocess and splash screen spawns
+- `sanitize()` tuple unpacking in corpus_manager
+- 15 test failures from stale mocks, deleted code references, and subprocess timing
+
+### Removed
+- ~2,000 lines of dead code from Ollama/LLM/coreference removal
+- GPU detection (no longer needed after LLM removal)
+
 ## [1.0.16] - 2026-03-16
 
 ### Fixed
