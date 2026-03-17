@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>CasePrepd — Case Prep That Never Leaves Your Computer</title>
   <link rel="stylesheet" href="style.css">
+  <link rel="icon" href="favicon.ico" type="image/x-icon">
 </head>
 <body>
 
@@ -36,7 +37,7 @@
   <p class="built-for">Built for sensitive court matters, HIPAA, and anything you can't risk sharing.</p>
   <a href="#download" class="cta-button">Download CasePrepd</a>
   <p class="attribution">
-    Made with Claude Code by Noah Collin, a court reporter.
+    Built by Noah Collin, a court reporter.
   </p>
 </section>
 
@@ -96,37 +97,48 @@
   <div class="screenshot-item">
     <div class="screenshot-label">Document Tab &mdash; Viewing Extracted Text</div>
     <img src="screenshots/CasePrepedDocumentTab.png" alt="CasePrepd Document tab displaying extracted transcript text from a PDF with page navigation" loading="lazy">
+    <p class="screenshot-description">
+      Full text extracted from your PDFs and Word docs, with page-by-page navigation.
+    </p>
   </div>
 
   <div class="screenshot-item">
     <div class="screenshot-label">Vocabulary &mdash; Names and Key Terms</div>
     <img src="screenshots/vocabularyScreenshot.png" alt="CasePrepd Vocabulary tab showing extracted names and terms with quality scores, person detection, and Keep/Skip feedback buttons" loading="lazy">
     <p class="screenshot-description">
-      Multiple extraction algorithms (NER, YAKE, RAKE) work together to pull
-      the names and terms that matter most from your documents. Each term is
-      scored by relevance, and a built-in ML model learns from your Keep/Skip
-      feedback to surface better results over time &mdash; tuned to what
-      court reporters actually need for job dictionaries.
+      Multiple extraction algorithms work together to pull the names and terms
+      that matter most from your documents. Each term is scored by relevance,
+      and a built-in ML model learns from your Keep/Skip feedback to surface
+      better results over time &mdash; tuned to what court reporters and
+      scopists actually need for job dictionaries.
     </p>
   </div>
 
   <div class="screenshot-item">
     <div class="screenshot-label">Semantic Search &mdash; Natural Language Questions</div>
     <img src="screenshots/SemanticSearchScreenshot1.png" alt="CasePrepd Search tab showing semantic search results with relevance scoring and source citations from transcript" loading="lazy">
+    <p class="screenshot-description">
+      Ask plain-English questions about your case documents and get answers with
+      source citations. Useful for pulling specific facts from hundreds of pages.
+    </p>
   </div>
 
   <div class="screenshot-item">
     <div class="screenshot-label">Key Excerpts &mdash; Auto-Selected Passages</div>
     <img src="screenshots/keyExcerptsScreenshot1.png" alt="CasePrepd Key Excerpts tab showing representative passages automatically selected from case documents" loading="lazy">
+    <p class="screenshot-description">
+      The most representative passages from your documents, automatically selected
+      by topic clustering. A quick way to get the gist of a complex case.
+    </p>
   </div>
 </section>
 
 <section id="who" class="audience">
   <h2>Who Is This For?</h2>
   <ul>
-    <li>Court reporters handling sealed or potentially sensitive matters</li>
-    <li>Scopists, proofreaders, or other professionals handling case materials</li>
-    <li>Anyone preparing for testimony with sensitive medical or financial records</li>
+    <li>Court reporters prepping vocabulary for upcoming jobs</li>
+    <li>Scopists and proofreaders building job dictionaries from case documents</li>
+    <li>Anyone handling sealed, confidential, or HIPAA-protected materials</li>
     <li>Anyone wary of sending documents to an AI cloud</li>
   </ul>
 </section>
@@ -141,10 +153,9 @@
     never connects to the internet, period.
   </p>
   <p>
-    Under the hood, CasePrepd uses FAISS vector search and a cross-encoder
-    reranker for semantic search, spaCy NLP for entity extraction, and a
-    trained classifier for vocabulary filtering. All models are bundled with
-    the installer.
+    Under the hood, CasePrepd uses multiple on-device, offline AI models for
+    search, entity extraction, and vocabulary filtering. All models are bundled
+    with the installer &mdash; nothing is downloaded at runtime.
   </p>
 </section>
 
@@ -154,7 +165,6 @@
     <li><strong>Windows only</strong> (Windows 10 or 11)</li>
     <li><strong>16 GB RAM</strong> minimum</li>
     <li><strong>8 GB disk space</strong> minimum</li>
-    <li>Dedicated GPU recommended for faster processing, but not required</li>
   </ul>
 </section>
 
@@ -203,10 +213,10 @@
   </details>
 
   <details>
-    <summary>Do I need a GPU?</summary>
+    <summary>Do I need a powerful computer?</summary>
     <p>
-      No. CasePrepd works on CPU. A dedicated GPU will speed up processing,
-      especially for large document sets, but it is not required.
+      You need 16 GB of RAM and about 8 GB of disk space. CasePrepd runs
+      entirely on CPU &mdash; no GPU required.
     </p>
   </details>
 
@@ -225,6 +235,7 @@
   <p>
     CasePrepd is open source &mdash;
     <a href="https://github.com/caseprepd-app/CaseSummarizer">view on GitHub</a>.
+    Built with <a href="https://claude.ai/claude-code">Claude Code</a>.
   </p>
 </footer>
 
