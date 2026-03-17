@@ -49,7 +49,8 @@
       <p>
         Names, medical terms, legal jargon, and technical words automatically
         pulled from your documents. Scored by importance so you prep the terms
-        that matter most. A built-in ML model learns your preferences over time.
+        that matter most. The app learns your preferences over time &mdash;
+        the more you use it, the better it gets at flagging what matters to you.
       </p>
     </div>
     <div class="feature-card">
@@ -63,7 +64,7 @@
     <div class="feature-card">
       <h3>Key Excerpts</h3>
       <p>
-        Surfaces topical themes from your documents by clustering passages.
+        Surfaces topical themes from your documents by grouping related passages.
         A starting point for getting oriented in a large case &mdash; not
         every excerpt will be a hit, but the good ones save real time.
       </p>
@@ -86,7 +87,7 @@
       <span class="callout callout-5">5</span>
     </div>
     <ol class="callout-legend">
-      <li>Manage saved corpora for quick recall across sessions</li>
+      <li>Manage saved reference libraries for comparing terms across jobs</li>
       <li>Drop files here or click to add PDFs, Word docs, and text files</li>
       <li>Switch between Document, Vocabulary, Search, and Key Excerpts tabs</li>
       <li>Process all loaded documents with one click</li>
@@ -106,11 +107,11 @@
     <div class="screenshot-label">Vocabulary &mdash; Names and Key Terms</div>
     <img src="screenshots/vocabularyScreenshot.png" alt="CasePrepd Vocabulary tab showing extracted names and terms with quality scores, person detection, and Keep/Skip feedback buttons" loading="lazy">
     <p class="screenshot-description">
-      Multiple extraction algorithms work together to pull the names and terms
-      that matter most from your documents. Each term is scored by relevance,
-      and a built-in ML model learns from your Keep/Skip feedback to surface
-      better results over time &mdash; tuned to what court reporters and
-      scopists actually need for job dictionaries.
+      Multiple methods work together to pull the names and terms that matter
+      most from your documents. Each term is scored by relevance, and the app
+      learns from your Keep/Skip feedback to surface better results over
+      time &mdash; tuned to what court reporters and scopists actually need
+      for job dictionaries.
     </p>
   </div>
 
@@ -132,6 +133,18 @@
       a starting point, not a summary.
     </p>
   </div>
+
+  <div class="screenshot-item">
+    <div class="screenshot-label">Reference Libraries &mdash; It Learns What You Need</div>
+    <img src="screenshots/corpusScreenshot.png" alt="CasePrepd reference library dialog showing saved document collections used to improve vocabulary scoring" loading="lazy">
+    <p class="screenshot-description">
+      Save collections of past job documents as reference libraries. CasePrepd
+      compares new documents against your library to highlight terms that are
+      unusual for your line of work &mdash; so common legal boilerplate drops
+      to the bottom and case-specific names rise to the top. The more jobs you
+      add, the smarter the scoring gets.
+    </p>
+  </div>
 </section>
 
 <section id="who" class="audience">
@@ -148,15 +161,15 @@
   <h2>How It Works</h2>
   <p>
     CasePrepd is a desktop app, not a web service. You load your documents
-    (PDF, Word, text files, images with OCR), and everything is processed
-    locally using embedded AI models. No internet connection is needed at
-    any point &mdash; not during installation, not during use. The app
+    (PDF, Word, text files, and even scanned images), and everything is
+    processed locally using built-in AI. No internet connection is needed
+    at any point &mdash; not during installation, not during use. The app
     never connects to the internet, period.
   </p>
   <p>
-    Under the hood, CasePrepd uses multiple on-device, offline AI models for
-    search, entity extraction, and vocabulary filtering. All models are bundled
-    with the installer &mdash; nothing is downloaded at runtime.
+    Under the hood, CasePrepd uses multiple on-device AI models for search,
+    name recognition, and vocabulary filtering. Everything ships with the
+    installer &mdash; nothing is downloaded at runtime.
   </p>
 </section>
 
@@ -173,7 +186,7 @@
   <h2>Download</h2>
   <p>
     <a href="https://github.com/caseprepd-app/CaseSummarizer/releases" class="cta-button">
-      Download from GitHub Releases
+      Download for Windows
     </a>
   </p>
 
@@ -225,8 +238,9 @@
   <details>
     <summary>What file types are supported?</summary>
     <p>
-      PDF, Word (.docx), plain text (.txt), and images (via built-in OCR with
-      Tesseract). Scanned PDFs are automatically OCR'd.
+      PDF, Word (.docx), plain text (.txt), and images. Scanned PDFs are
+      automatically read using built-in text recognition (OCR) &mdash; no
+      extra software needed.
     </p>
   </details>
 </section>
