@@ -211,9 +211,9 @@ class TestAutoSemanticWorkerLock:
         from src.worker_process import _stop_active_worker
 
         source = inspect.getsource(_stop_active_worker)
-        # Count lock acquisitions — should have 2 (atomic read+clear for each worker)
+        # Both workers grabbed in single lock section (consolidated from 2 to 1)
         lock_count = source.count('state["worker_lock"]')
-        assert lock_count >= 2, f"Expected >= 2 lock usages, found {lock_count}"
+        assert lock_count >= 1, f"Expected >= 1 lock usages, found {lock_count}"
 
 
 # ============================================================

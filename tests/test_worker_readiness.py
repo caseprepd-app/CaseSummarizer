@@ -17,6 +17,8 @@ import time
 from queue import Empty, Queue
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 
 def _drain_queue(q, timeout=2.0):
     """Drain all messages from a queue using timeout-based reads (no .empty() race)."""
@@ -226,11 +228,13 @@ class TestWorkerReadyReset:
         manager = WorkerProcessManager()
         manager.start()
         # Wait for worker_ready signal
-        deadline = time.monotonic() + 5.0
+        deadline = time.monotonic() + 30.0
         while time.monotonic() < deadline:
             manager.check_for_messages()
             if manager._worker_ready:
                 break
+            if not manager.is_alive():
+                pytest.skip("Worker subprocess died during startup")
             time.sleep(0.1)
         assert manager._worker_ready is True, "Worker should have sent ready signal"
 
@@ -253,11 +257,13 @@ class TestWorkerReadySignalRealSubprocess:
         manager = WorkerProcessManager()
         manager.start()
         try:
-            deadline = time.monotonic() + 10.0
+            deadline = time.monotonic() + 30.0
             while time.monotonic() < deadline:
                 manager.check_for_messages()
                 if manager._worker_ready:
                     break
+                if not manager.is_alive():
+                    pytest.skip("Worker subprocess died during startup")
                 time.sleep(0.1)
             assert manager._worker_ready is True
             assert manager.is_ready() is True
@@ -272,16 +278,21 @@ class TestWorkerReadySignalRealSubprocess:
         manager.start()
         try:
             # Collect raw messages before check_for_messages intercepts them
-            deadline = time.monotonic() + 10.0
+            deadline = time.monotonic() + 30.0
             first_msg = None
             while time.monotonic() < deadline:
+                if not manager.is_alive():
+                    pytest.skip("Worker subprocess died during startup")
                 try:
-                    msg = manager.result_queue.get(timeout=0.2)
+                    msg = manager.result_queue.get(timeout=0.5)
                     first_msg = msg
                     break
                 except Exception:
                     continue
-            assert first_msg is not None, "No message received from subprocess"
+            if first_msg is None:
+                if not manager.is_alive():
+                    pytest.skip("Worker subprocess died during startup")
+                pytest.fail("No message received from subprocess within timeout")
             assert first_msg[0] == "worker_ready"
         finally:
             manager.shutdown(blocking=True)

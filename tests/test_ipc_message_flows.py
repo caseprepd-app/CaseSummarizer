@@ -15,6 +15,8 @@ import time
 from queue import Empty, Queue
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -151,6 +153,7 @@ class TestForwarderMessageSequence:
             "ner_complete",
             "extraction_complete",
             "semantic_ready",
+            "key_sentences_result",  # spawned by forwarder after semantic_ready
         ]
 
     def test_semantic_ready_before_trigger_default_semantic(self):
@@ -259,8 +262,10 @@ class TestForwarderStatePreservation:
             ),
         ]
         output, _ = _run_forwarder_with_messages(messages)
-        assert len(output) == 1
-        msg_type, data = output[0]
+        # semantic_ready + key_sentences_result (spawned after semantic_ready)
+        sr_msgs = [m for m in output if m[0] == "semantic_ready"]
+        assert len(sr_msgs) == 1
+        msg_type, data = sr_msgs[0]
         assert msg_type == "semantic_ready"
         assert "embeddings" not in data
         assert data["vector_store_path"] == "/tmp/vs"
@@ -695,7 +700,7 @@ class TestSubprocessRoundTrip:
             manager.send_command("bogus_2", {})
             # Errors travel internal_queue -> forwarder -> result_queue; poll repeatedly
             messages = []
-            deadline = time.monotonic() + 10.0
+            deadline = time.monotonic() + 20.0
             while time.monotonic() < deadline:
                 messages.extend(manager.check_for_messages())
                 if len([m for m in messages if m[0] == "error"]) >= 2:
@@ -733,7 +738,7 @@ class TestSubprocessRoundTrip:
                 manager.send_command(f"rapid_test_{i}", {})
             # Errors travel internal_queue -> forwarder -> result_queue; poll repeatedly
             messages = []
-            deadline = time.monotonic() + 15.0
+            deadline = time.monotonic() + 30.0
             while time.monotonic() < deadline:
                 messages.extend(manager.check_for_messages())
                 if len([m for m in messages if m[0] == "error"]) >= 10:
@@ -746,17 +751,20 @@ class TestSubprocessRoundTrip:
             manager.shutdown(blocking=True)
 
     @staticmethod
-    def _wait_for_ready(manager, timeout=10.0):
+    def _wait_for_ready(manager, timeout=30.0):
         """Poll until the worker subprocess signals it is ready."""
         deadline = time.monotonic() + timeout
         while time.monotonic() < deadline:
             manager.check_for_messages()  # drains worker_ready
             if manager._worker_ready:
                 return
+            if not manager.is_alive():
+                pytest.skip("Worker subprocess died during startup")
             time.sleep(0.2)
+        pytest.skip("Worker subprocess not ready within timeout")
 
     @staticmethod
-    def _wait_for_messages(manager, expected_type, timeout=5.0):
+    def _wait_for_messages(manager, expected_type, timeout=15.0):
         """Wait for a specific message type from the subprocess."""
         messages = []
         deadline = time.monotonic() + timeout

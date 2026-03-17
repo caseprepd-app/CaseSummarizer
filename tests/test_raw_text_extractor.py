@@ -39,10 +39,10 @@ class TestRawTextExtractor:
         assert confidence < 20  # Should be low for gibberish
 
     def test_normalize_text_removes_short_lines(self, extractor):
-        """Test that short lines are removed."""
-        text = "This is a good line with enough content.\nShort\nAnother good line here."
+        """Test that very short lines (< MIN_LINE_LENGTH=2) are removed."""
+        text = "This is a good line with enough content.\nX\nAnother good line here."
         cleaned = extractor._normalize_text(text)
-        assert "Short" not in cleaned
+        assert "\nX\n" not in cleaned
         assert "good line" in cleaned
 
     def test_normalize_text_preserves_legal_headers(self, extractor):

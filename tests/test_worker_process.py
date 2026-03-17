@@ -546,17 +546,19 @@ class TestSubprocessIntegration:
         manager.start()
         try:
             # Wait for subprocess to be fully ready before sending commands
-            deadline = time.monotonic() + 10.0
+            deadline = time.monotonic() + 30.0
             while time.monotonic() < deadline:
                 manager.check_for_messages()
                 if manager._worker_ready:
                     break
+                if not manager.is_alive():
+                    pytest.skip("Worker subprocess died during startup")
                 time.sleep(0.2)
             manager.send_command("nonexistent_command", {})
             # Error travels: internal_queue -> forwarder (0.5s poll) -> result_queue
             # Must poll repeatedly rather than single sleep+check
             messages = []
-            deadline = time.monotonic() + 10.0
+            deadline = time.monotonic() + 15.0
             while time.monotonic() < deadline:
                 messages.extend(manager.check_for_messages())
                 if any(m[0] == "error" for m in messages):

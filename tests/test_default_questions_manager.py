@@ -128,8 +128,8 @@ class TestDefaultQuestionsManagerLoading:
 
         manager = DefaultQuestionsManager(config_path=json_path)
 
-        # Falls back to built-in defaults
-        assert manager.get_total_count() >= 3
+        # Falls back to built-in defaults (currently 1 default question)
+        assert manager.get_total_count() >= 1
 
     def test_reload_re_reads_from_disk(self, tmp_path):
         """reload() picks up changes made to the file after construction."""
