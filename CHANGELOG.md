@@ -7,6 +7,31 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.0.18] - 2026-03-17
+
+### Fixed
+- Crash in corpus dialog when clicking an empty treeview row
+- Crash in model import when backup file already deleted (`missing_ok=True`)
+- Import rule violation: `semantic_question_editor` now imports from `src.config` instead of `src.core.config`
+- Semantic index wait status showing "0m elapsed" instead of "30s elapsed"
+- Cancellation during semantic indexing now gives the thread a 5-second grace period
+
+### Added
+- 99 new tests covering critical gaps identified in test audit:
+  - Worker execute() methods (ProcessingWorker, SemanticWorker, ProgressiveExtractionWorker)
+  - VocabularyExtractor orchestration (extract, extract_progressive, parallel algorithms)
+  - Key excerpts daemon thread (_spawn_key_sentences)
+  - WorkerProcessManager crash recovery and lifecycle
+  - MainWindow message dispatch and dead subprocess detection
+  - Transcript speaker boundary injection
+  - Adjusted mean rarity calculator
+  - Frequency data loader with thread safety
+- Test isolation fix: frequency data cache reset prevents cross-test pollution
+
+### Infrastructure
+- Removed stale extraction_prompts/prompts paths from PyInstaller spec
+- README.md included in GitHub Releases
+
 ## [1.0.17] - 2026-03-16
 
 ### Fixed

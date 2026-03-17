@@ -89,7 +89,7 @@ def import_user_model(src_path: Path) -> tuple[bool, str]:
             # Restore backup
             if backup and backup.exists():
                 shutil.copy2(backup, VOCAB_MODEL_PATH)
-                backup.unlink()
+                backup.unlink(missing_ok=True)
             elif not had_existing:
                 VOCAB_MODEL_PATH.unlink(missing_ok=True)
 

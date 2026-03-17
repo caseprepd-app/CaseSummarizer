@@ -11,6 +11,7 @@ from pathlib import Path
 import yaml
 
 from src.config_defaults import get_default as _factory_default
+from src.core.config import load_yaml_with_fallback  # noqa: F401 — re-exported for UI layer
 from src.core.vocab_schema import VF
 
 

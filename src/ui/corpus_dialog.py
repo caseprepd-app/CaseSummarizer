@@ -484,6 +484,8 @@ class CorpusDialog(BaseModalDialog):
             return
 
         values = self.corpus_tree.item(selection[0], "values")
+        if not values:
+            return
         # Extract name (remove "● " and " (Active)" if present)
         name = values[0].replace("● ", "").replace(" (Active)", "")
         self._selected_corpus = name

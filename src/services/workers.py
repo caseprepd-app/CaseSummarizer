@@ -522,17 +522,24 @@ class ProgressiveExtractionWorker(BaseWorker):
         max_waits = (SEMANTIC_MAX_WAIT_MINUTES * 60) // SEMANTIC_JOIN_TIMEOUT_SECONDS
 
         while semantic_thread.is_alive() and wait_count < max_waits and not self.is_stopped:
-            wait_minutes = (wait_count * SEMANTIC_JOIN_TIMEOUT_SECONDS) // 60
+            wait_seconds = wait_count * SEMANTIC_JOIN_TIMEOUT_SECONDS
+            wait_minutes = wait_seconds // 60
             if wait_count == 0:
                 logger.debug("Vocabulary done, waiting for semantic search index to finish...")
                 self.send_progress(100, "Vocabulary complete. Building semantic search index...")
             else:
+                elapsed = f"{wait_minutes}m" if wait_minutes >= 1 else f"{wait_seconds}s"
                 self.send_progress(
                     100,
-                    f"Semantic search index still building ({wait_minutes}m elapsed)...",
+                    f"Semantic search index still building ({elapsed} elapsed)...",
                 )
             semantic_thread.join(timeout=SEMANTIC_JOIN_TIMEOUT_SECONDS)
             wait_count += 1
+
+        if semantic_thread.is_alive() and self.is_stopped:
+            # Cancelled by user — give the thread a brief grace period to finish
+            logger.info("Cancellation requested, waiting up to 5s for semantic thread to finish...")
+            semantic_thread.join(timeout=5)
 
         if semantic_thread.is_alive():
             logger.warning(

@@ -20,7 +20,7 @@ from tkinter import messagebox, ttk
 import customtkinter as ctk
 import yaml
 
-from src.core.config import load_yaml_with_fallback
+from src.config import load_yaml_with_fallback
 from src.ui.base_dialog import BaseModalDialog
 
 logger = logging.getLogger(__name__)
