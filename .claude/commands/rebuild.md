@@ -35,7 +35,7 @@ Execute the full release cycle for CasePrepd. Arguments: $ARGUMENTS
 
 ## Step 6: Push and Create GitHub Release
 - Push commits and tags: `git push && git push --tags`
-- Create release: `gh release create vX.Y.Z installer/Output/CasePrepd_Setup.exe --title "CasePrepd vX.Y.Z" --notes-file -` (pipe changelog section)
+- Create release: `gh release create vX.Y.Z installer/Output/CasePrepd_Setup.exe README.md --title "CasePrepd vX.Y.Z" --notes-file -` (pipe changelog section)
 - Verify the release was created: `gh release view vX.Y.Z`
 
 ## Error Handling
