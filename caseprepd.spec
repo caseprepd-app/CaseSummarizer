@@ -23,8 +23,6 @@ PROJECT_ROOT = os.path.abspath(".")
 # Format: (source_glob_or_dir, dest_dir_in_bundle)
 added_data = [
     (os.path.join("config", "*"), "config"),
-    (os.path.join("config", "extraction_prompts", "*"), os.path.join("config", "extraction_prompts")),
-    (os.path.join("config", "prompts", "*"), os.path.join("config", "prompts")),
     (os.path.join("assets", "icon.ico"), "assets"),
     (os.path.join("assets", "splash", "*"), os.path.join("assets", "splash")),
 ]
