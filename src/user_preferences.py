@@ -419,7 +419,7 @@ class UserPreferencesManager:
         self._save_preferences()
 
 
-from src.services.singleton import SingletonHolder
+from src.singleton import SingletonHolder
 
 
 def _create_preferences(preferences_file: Path | None = None):

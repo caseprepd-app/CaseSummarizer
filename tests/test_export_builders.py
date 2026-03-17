@@ -7,104 +7,12 @@ Covers:
 - Combined export orchestration (combined_exporter.py)
 - Vocabulary exporter via builder interface (vocab_exporter.py)
 - Q&A exporter via builder interface (qa_exporter.py)
-- Base classes and verification colors (base.py)
 """
 
 from dataclasses import dataclass
 from unittest.mock import MagicMock
 
 import pytest
-
-# ============================================================================
-# A. Base Classes and Verification Colors
-# ============================================================================
-
-
-class TestTextSpan:
-    """Tests for the TextSpan dataclass."""
-
-    def test_default_values(self):
-        """TextSpan defaults: no color, no bold/italic/strikethrough."""
-        from src.core.export.base import TextSpan
-
-        span = TextSpan(text="hello")
-        assert span.text == "hello"
-        assert span.color is None
-        assert span.bold is False
-        assert span.italic is False
-        assert span.strikethrough is False
-
-    def test_with_all_attributes(self):
-        """TextSpan stores all styling attributes."""
-        from src.core.export.base import TextSpan
-
-        span = TextSpan(text="red", color=(255, 0, 0), bold=True, strikethrough=True)
-        assert span.color == (255, 0, 0)
-        assert span.bold is True
-        assert span.strikethrough is True
-
-
-class TestVerificationColors:
-    """Tests for get_verification_color thresholds."""
-
-    def test_verified(self):
-        """Low hallucination prob -> verified (green)."""
-        from src.core.export.base import get_verification_color
-
-        color, strike, category = get_verification_color(0.10)
-        assert category == "verified"
-        assert strike is False
-
-    def test_uncertain(self):
-        """Moderate prob -> uncertain."""
-        from src.core.export.base import get_verification_color
-
-        _, _, category = get_verification_color(0.35)
-        assert category == "uncertain"
-
-    def test_suspicious(self):
-        """Higher prob -> suspicious."""
-        from src.core.export.base import get_verification_color
-
-        _, _, category = get_verification_color(0.55)
-        assert category == "suspicious"
-
-    def test_unreliable(self):
-        """High prob -> unreliable."""
-        from src.core.export.base import get_verification_color
-
-        _, _, category = get_verification_color(0.75)
-        assert category == "unreliable"
-
-    def test_hallucinated(self):
-        """Very high prob -> hallucinated with strikethrough."""
-        from src.core.export.base import get_verification_color
-
-        color, strike, category = get_verification_color(0.90)
-        assert category == "hallucinated"
-        assert strike is True
-
-    def test_boundary_verified_uncertain(self):
-        """Exactly 0.30 -> uncertain (not verified)."""
-        from src.core.export.base import get_verification_color
-
-        _, _, category = get_verification_color(0.30)
-        assert category == "uncertain"
-
-    def test_zero_prob(self):
-        """Zero prob -> verified."""
-        from src.core.export.base import get_verification_color
-
-        _, _, category = get_verification_color(0.0)
-        assert category == "verified"
-
-    def test_one_prob(self):
-        """Max prob -> hallucinated."""
-        from src.core.export.base import get_verification_color
-
-        _, _, category = get_verification_color(1.0)
-        assert category == "hallucinated"
-
 
 # ============================================================================
 # B. Word Document Builder
@@ -144,19 +52,6 @@ class TestWordDocumentBuilder:
         builder.add_paragraph("Bold", bold=True)
         builder.add_paragraph("Italic", italic=True)
         builder.add_paragraph("Both", bold=True, italic=True)
-
-    def test_styled_paragraph_with_colors(self):
-        """Builder renders spans with RGB colors."""
-        from src.core.export.base import TextSpan
-        from src.core.export.word_builder import WordDocumentBuilder
-
-        builder = WordDocumentBuilder()
-        spans = [
-            TextSpan("green text", color=(0, 255, 0)),
-            TextSpan("red text", color=(255, 0, 0), bold=True),
-            TextSpan("struck", strikethrough=True),
-        ]
-        builder.add_styled_paragraph(spans)
 
     def test_table_with_data(self, tmp_path):
         """Builder creates table with headers and rows."""
@@ -244,19 +139,6 @@ class TestPdfDocumentBuilder:
         builder = PdfDocumentBuilder()
         builder.add_paragraph("Bold", bold=True)
         builder.add_paragraph("Italic", italic=True)
-
-    def test_styled_paragraph_with_colors(self):
-        """Builder renders spans with RGB colors."""
-        from src.core.export.base import TextSpan
-        from src.core.export.pdf_builder import PdfDocumentBuilder
-
-        builder = PdfDocumentBuilder()
-        spans = [
-            TextSpan("green text", color=(0, 128, 0)),
-            TextSpan("red bold", color=(255, 0, 0), bold=True),
-            TextSpan("struck", strikethrough=True, color=(128, 128, 128)),
-        ]
-        builder.add_styled_paragraph(spans)
 
     def test_table_with_data(self, tmp_path):
         """Builder creates table with headers and rows."""
@@ -517,7 +399,9 @@ class TestQAExportViaBuilder:
             answer_rejected=True,
             spans=[],
         )
-        results = [MockSemanticResult("Who?", "bad answer", "citation...", verification=verification)]
+        results = [
+            MockSemanticResult("Who?", "bad answer", "citation...", verification=verification)
+        ]
         builder = MagicMock()
         export_semantic_results(results, builder)
         # Should not crash; rejected message is added as paragraph

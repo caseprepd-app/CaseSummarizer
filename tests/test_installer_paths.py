@@ -69,13 +69,11 @@ class TestModelPathConstants:
             BUNDLED_MODELS_DIR,
             EMBEDDING_MODEL_LOCAL_PATH,
             RERANKER_MODEL_LOCAL_PATH,
-            SEMANTIC_CHUNKER_MODEL_LOCAL_PATH,
             SPACY_MODELS_DIR,
         )
 
         for path in [
             EMBEDDING_MODEL_LOCAL_PATH,
-            SEMANTIC_CHUNKER_MODEL_LOCAL_PATH,
             RERANKER_MODEL_LOCAL_PATH,
             SPACY_MODELS_DIR,
         ]:

@@ -722,18 +722,21 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             logger.error("Worker error: %s", data)
             self.set_status_error(f"Error: {data}")
             messagebox.showerror("Processing Error", str(data))
+            # Snapshot flags before clearing
+            was_processing = self._processing_active
+            was_preprocessing = self._preprocessing_active
             # Reset ALL processing flags to prevent stuck UI
             self._preprocessing_active = False
             # Reset search state so stale session data doesn't persist
             self._semantic_ready = False
             self._semantic_failed = False
             self._vector_store_path = None
-            if self._processing_active:
+            if was_processing:
                 self._processing_active = False
                 self._semantic_answering_active = False
                 self.output_display.set_extraction_in_progress(False)
                 self._on_tasks_complete(False, str(data))
-            elif self._preprocessing_active:
+            elif was_preprocessing:
                 self._on_preprocessing_complete([])
 
         # Progressive Extraction handlers

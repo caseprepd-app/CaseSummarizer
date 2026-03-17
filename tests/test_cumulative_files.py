@@ -57,6 +57,8 @@ def _make_window_stub():
     stub._preprocessing_active = False
     stub._processing_active = False
     stub._semantic_searching_active = False
+    stub._semantic_answering_active = False
+    stub._key_sentences_pending = False
     stub._semantic_ready = False
     stub._queue_poll_id = None
     stub._worker_ready_retries = 0

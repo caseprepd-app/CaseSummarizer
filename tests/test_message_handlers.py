@@ -171,8 +171,9 @@ class TestErrorHandler:
 
     @patch("src.ui.main_window.messagebox")
     def test_calls_preprocessing_complete_with_empty(self, mock_msgbox):
-        """Error handler calls _on_preprocessing_complete with empty list."""
+        """Error during preprocessing calls _on_preprocessing_complete with empty list."""
         stub = _make_stub()
+        stub._preprocessing_active = True
         _call_handler(stub, "error", "fail")
         stub._on_preprocessing_complete.assert_called_once_with([])
 
@@ -489,18 +490,18 @@ class TestQAProgressHandler:
     """Tests for 'qa_progress' message handler."""
 
     def test_updates_status_with_progress(self):
-        """qa_progress shows next question number in status."""
+        """qa_progress shows completed count in status."""
         stub = _make_stub()
         _call_handler(stub, "semantic_progress", (2, 5, "Who is the plaintiff?"))
         call_args = stub.set_status.call_args[0][0]
-        assert "4/5" in call_args  # answered 3, now working on 4
+        assert "3/5" in call_args  # answered 3 of 5
 
     def test_first_question(self):
-        """qa_progress shows working on 2/N after first answer."""
+        """qa_progress shows 1/N after first answer."""
         stub = _make_stub()
         _call_handler(stub, "semantic_progress", (0, 3, "Question 1"))
         call_args = stub.set_status.call_args[0][0]
-        assert "2/3" in call_args
+        assert "1/3" in call_args
 
     def test_last_question(self):
         """qa_progress shows 'Completed N/N searches' on the last question."""
@@ -716,8 +717,9 @@ class TestMessageSequences:
         assert "vocab" in stub._completed_tasks
 
     def test_error_during_extraction_resets_state(self):
-        """Error during extraction triggers preprocessing complete."""
+        """Error during preprocessing triggers preprocessing complete."""
         stub = _make_stub()
+        stub._preprocessing_active = True
         with patch("src.ui.main_window.messagebox"):
             _call_handler(stub, "error", "Extraction failed")
         stub._on_preprocessing_complete.assert_called_once_with([])

@@ -152,6 +152,7 @@ class TestConfigureTesseract:
             patch(
                 "src.core.extraction.ocr_processor.shutil.which", return_value="/usr/bin/tesseract"
             ),
+            patch("src.core.extraction.ocr_processor._tesseract_patched", True),
             patch.dict("sys.modules", {"pytesseract": mock_pytesseract}),
         ):
             _configure_tesseract()
@@ -168,6 +169,7 @@ class TestConfigureTesseract:
         mock_pytesseract = MagicMock()
         with (
             patch("src.core.extraction.ocr_processor.shutil.which", return_value=None),
+            patch("src.core.extraction.ocr_processor._tesseract_patched", True),
             patch("pathlib.Path.exists", return_value=True),
             patch.dict("sys.modules", {"pytesseract": mock_pytesseract}),
         ):
@@ -182,6 +184,7 @@ class TestConfigureTesseract:
         original_cmd = mock_pytesseract.tesseract_cmd
         with (
             patch("src.core.extraction.ocr_processor.shutil.which", return_value=None),
+            patch("src.core.extraction.ocr_processor._tesseract_patched", True),
             patch("pathlib.Path.exists", return_value=False),
             patch.dict("sys.modules", {"pytesseract": mock_pytesseract}),
         ):
@@ -674,7 +677,6 @@ class TestDownloadModelsScript:
             import download_models
 
             repo_ids = [entry[0] for entry in download_models.HF_MODELS]
-            assert "biu-nlp/f-coref" in repo_ids
             assert "nomic-ai/nomic-embed-text-v1.5" in repo_ids
         finally:
             sys.path.pop(0)
@@ -857,13 +859,6 @@ class TestNLTKBloatPrevention:
 
 class TestSemanticChunkerModelBundling:
     """Tests that the semantic chunker embedding model is configured for bundling."""
-
-    def test_config_exports_semantic_chunker_local_path(self):
-        """Config defines SEMANTIC_CHUNKER_MODEL_LOCAL_PATH constant."""
-        from src.config import SEMANTIC_CHUNKER_MODEL_LOCAL_PATH
-
-        assert SEMANTIC_CHUNKER_MODEL_LOCAL_PATH.name == "all-MiniLM-L6-v2"
-        assert "embeddings" in str(SEMANTIC_CHUNKER_MODEL_LOCAL_PATH)
 
     def test_download_script_includes_minilm(self):
         """download_models.py HF_MODELS includes all-MiniLM-L6-v2."""

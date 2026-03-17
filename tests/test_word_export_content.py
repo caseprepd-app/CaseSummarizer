@@ -94,29 +94,6 @@ class TestWordBuilderContent:
         separator_found = any("─" in p.text for p in doc.paragraphs)
         assert separator_found
 
-    def test_styled_paragraph_with_color(self, tmp_path):
-        from src.core.export.base import TextSpan
-
-        builder = self._builder()
-        spans = [
-            TextSpan(text="green text", color=(0, 128, 0)),
-            TextSpan(text=" red text", color=(255, 0, 0), bold=True),
-        ]
-        builder.add_styled_paragraph(spans)
-        out = tmp_path / "test.docx"
-        builder.save(str(out))
-
-        doc = Document(str(out))
-        # Find paragraph with colored runs
-        for p in doc.paragraphs:
-            if "green text" in p.text:
-                assert len(p.runs) == 2
-                assert p.runs[0].font.color.rgb is not None
-                assert p.runs[1].bold is True
-                break
-        else:
-            raise AssertionError("Styled paragraph not found")
-
 
 # ============================================================================
 # ExportService vocabulary to Word end-to-end

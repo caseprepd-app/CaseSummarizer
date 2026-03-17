@@ -249,9 +249,3 @@ class TestConfigMagicNumbers:
         assert INDEX_ESTIMATED_CHARS_PER_LINE > 0
         assert INDEX_PAGE_REF_DIVISOR > 0
         assert INDEX_CHAR_WINDOW_SIZE > 0
-
-    def test_semantic_chunker_model_config_exists(self):
-        """Verify semantic chunker model config exists."""
-        from src.config import SEMANTIC_CHUNKER_EMBEDDING_MODEL
-
-        assert SEMANTIC_CHUNKER_EMBEDDING_MODEL == "all-MiniLM-L6-v2"

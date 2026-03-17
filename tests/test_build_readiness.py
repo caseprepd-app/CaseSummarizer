@@ -76,7 +76,6 @@ class TestFrozenModePathResolution:
             "MEDICAL_TERMS_LIST_PATH",
             "GOOGLE_WORD_FREQUENCY_FILE",
             "MODEL_CONFIG_FILE",
-            "PROMPTS_DIR",
             "DEBUG_DEFAULT_FILE",
         ],
     )
@@ -105,7 +104,6 @@ class TestFrozenModePathResolution:
             "LEGAL_EXCLUDE_LIST_PATH",
             "MEDICAL_TERMS_LIST_PATH",
             "MODEL_CONFIG_FILE",
-            "PROMPTS_DIR",
         ]
         fragile = []
         for name in config_file_constants:
@@ -341,12 +339,10 @@ class TestDownloadScriptCrossReference:
         "config_attr,expected_suffix",
         [
             ("EMBEDDING_MODEL_LOCAL_PATH", "embeddings/nomic-embed-text-v1.5"),
-            ("SEMANTIC_CHUNKER_MODEL_LOCAL_PATH", "embeddings/all-MiniLM-L6-v2"),
             ("RERANKER_MODEL_LOCAL_PATH", "gte-reranker-modernbert-base"),
         ],
         ids=[
             "nomic-embed",
-            "all-MiniLM",
             "gte-reranker",
         ],
     )
@@ -600,7 +596,6 @@ class TestMaxPathSafety:
             "MEDICAL_TERMS_LIST_PATH",
             "GOOGLE_WORD_FREQUENCY_FILE",
             "MODEL_CONFIG_FILE",
-            "PROMPTS_DIR",
             "DEBUG_DEFAULT_FILE",
         ]
         for name in constants:

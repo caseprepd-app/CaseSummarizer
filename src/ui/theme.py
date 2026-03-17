@@ -240,7 +240,6 @@ COLORS = {
     "drop_zone_idle_bg": ("#e8e8e8", "#2b2b2b"),
     # System monitor
     "monitor_bg": ("#d8e8d8", "#1a3a1a"),
-    # Hallucination verification colors (unused since LLM/lettucedetect removal Mar 2026)
     # Reliability header colors
     "reliability_high": ("#1b7a2f", "#28a745"),  # Green
     "reliability_medium": ("#e6a800", "#ffc107"),  # Yellow
@@ -448,12 +447,6 @@ SEMANTIC_TEXT_TAGS = {
     "citation": {"foreground": COLORS["semantic_citation"]},
     "source": {"foreground": COLORS["semantic_source"], "font": FONTS["semantic_source"]},
     "separator": {"foreground": COLORS["semantic_separator"]},
-    # Hallucination verification span tags (unused since LLM/lettucedetect removal Mar 2026)
-    "verify_verified": {"foreground": COLORS["verify_verified"]},
-    "verify_uncertain": {"foreground": COLORS["verify_uncertain"]},
-    "verify_suspicious": {"foreground": COLORS["verify_suspicious"]},
-    "verify_unreliable": {"foreground": COLORS["verify_unreliable"]},
-    "verify_hallucinated": {"foreground": COLORS["verify_hallucinated"], "overstrike": True},
     # Reliability header tags (bold + colored)
     "reliability_high": {"foreground": COLORS["reliability_high"], "font": FONTS["body_bold"]},
     "reliability_medium": {"foreground": COLORS["reliability_medium"], "font": FONTS["body_bold"]},

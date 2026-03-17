@@ -307,22 +307,6 @@ class TestBundledConfigFiles:
         assert GOOGLE_WORD_FREQUENCY_FILE.is_file(), f"Missing: {GOOGLE_WORD_FREQUENCY_FILE}"
         assert GOOGLE_WORD_FREQUENCY_FILE.stat().st_size > 0
 
-    def test_prompt_templates_dir_exists(self):
-        """config/prompts/phi-3-mini/ must exist with at least one .txt file."""
-        from src.config import PROMPTS_DIR
-
-        phi3_dir = PROMPTS_DIR / "phi-3-mini"
-        assert phi3_dir.is_dir(), f"Missing directory: {phi3_dir}"
-        txt_files = list(phi3_dir.glob("*.txt"))
-        assert len(txt_files) >= 1, f"No .txt files in {phi3_dir}"
-
-    def test_extraction_prompts_dir_exists(self):
-        """config/extraction_prompts/ must exist with at least one .txt file."""
-        extraction_dir = BUNDLED_BASE_DIR / "config" / "extraction_prompts"
-        assert extraction_dir.is_dir(), f"Missing directory: {extraction_dir}"
-        txt_files = list(extraction_dir.glob("*.txt"))
-        assert len(txt_files) >= 1, f"No .txt files in {extraction_dir}"
-
 
 class TestConfigFileParsing:
     """Verify key config files are valid and contain expected structure."""
@@ -359,13 +343,6 @@ class TestConfigFileParsing:
             data = json.load(f)
         assert data is not None, "transcript_patterns.json must not be null"
 
-    def test_prompt_parameters_json_parses(self):
-        """prompt_parameters.json must parse as valid JSON."""
-        path = BUNDLED_CONFIG_DIR / "prompt_parameters.json"
-        with open(path, encoding="utf-8") as f:
-            data = json.load(f)
-        assert data is not None, "prompt_parameters.json must not be null"
-
 
 class TestBundledModels:
     """Verify ML model directories exist and contain files."""
@@ -376,17 +353,6 @@ class TestBundledModels:
 
         assert EMBEDDING_MODEL_LOCAL_PATH.is_dir(), f"Missing: {EMBEDDING_MODEL_LOCAL_PATH}"
         assert any(EMBEDDING_MODEL_LOCAL_PATH.iterdir()), f"Empty: {EMBEDDING_MODEL_LOCAL_PATH}"
-
-    def test_semantic_chunker_model_exists(self):
-        """Semantic chunker model directory must exist and be non-empty."""
-        from src.config import SEMANTIC_CHUNKER_MODEL_LOCAL_PATH
-
-        assert SEMANTIC_CHUNKER_MODEL_LOCAL_PATH.is_dir(), (
-            f"Missing: {SEMANTIC_CHUNKER_MODEL_LOCAL_PATH}"
-        )
-        assert any(SEMANTIC_CHUNKER_MODEL_LOCAL_PATH.iterdir()), (
-            f"Empty: {SEMANTIC_CHUNKER_MODEL_LOCAL_PATH}"
-        )
 
     def test_reranker_model_exists(self):
         """Reranker model directory must exist and be non-empty."""

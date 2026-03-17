@@ -310,6 +310,7 @@ class TestConfigureTesseract:
                     create=True,
                 ),
                 patch("src.config.TESSERACT_BUNDLED_EXE", bundled_path),
+                patch("src.core.extraction.ocr_processor._tesseract_patched", True),
             ):
                 _configure_tesseract()
 
@@ -339,6 +340,7 @@ class TestConfigureTesseract:
                     create=True,
                 ),
                 patch("src.config.TESSERACT_BUNDLED_EXE", bundled_path),
+                patch("src.core.extraction.ocr_processor._tesseract_patched", True),
                 patch("shutil.which", return_value="/usr/bin/tesseract"),
             ):
                 _configure_tesseract()
