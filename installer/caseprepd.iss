@@ -5,7 +5,7 @@
 ; ──────────────────────────────────────────────────────────────
 
 #define MyAppName "CasePrepd"
-#define MyAppVersion "1.0.19"
+#define MyAppVersion "1.0.20"
 #define MyAppPublisher "CasePrepd"
 #define MyAppURL "https://caseprepd-app.github.io/CaseSummarizer/"
 #define MyAppExeName "CasePrepd.exe"

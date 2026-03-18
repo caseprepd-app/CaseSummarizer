@@ -7,6 +7,19 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.0.20] - 2026-03-18
+
+### Fixed
+- Key excerpts extraction errors now report to UI instead of silently returning empty results
+- Missing `hasattr` guards on `set_status()` calls in copy-to-clipboard and save-to-file
+
+### Changed
+- Relocated shared worker modules (base_worker, queue_messages, silly_messages, status_reporter) from `src/ui/` to `src/services/` to fix backward import direction
+- Added `services_imports_ui` check to import violation finder
+
+### Infrastructure
+- 30 new tests covering module relocation, error reporting, and hasattr guards
+
 ## [1.0.19] - 2026-03-18
 
 ### Added
