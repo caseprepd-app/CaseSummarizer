@@ -278,6 +278,55 @@ class TestVocabExportGuard:
         # _export_vocab_impl should NOT be called
         stub._export_vocab_impl.assert_not_called()
 
+    def test_disables_dropdown_during_export(self):
+        """Export dropdown should be disabled during export."""
+        stub = MagicMock()
+        stub._exporting_vocab = False
+
+        from src.ui.dynamic_output import DynamicOutputWidget
+
+        DynamicOutputWidget._export_vocab(stub, "csv")
+
+        # Should disable then re-enable
+        disable_call = ({"state": "disabled"},)
+        enable_call = ({"state": "normal"},)
+        configure_calls = [c.kwargs for c in stub._set_export_dropdown_enabled.call_args_list]
+        assert stub._set_export_dropdown_enabled.call_count == 2
+        assert stub._set_export_dropdown_enabled.call_args_list[0].args == (False,)
+        assert stub._set_export_dropdown_enabled.call_args_list[1].args == (True,)
+
+    def test_reenables_dropdown_after_error(self):
+        """Dropdown re-enabled even when export raises."""
+        stub = MagicMock()
+        stub._exporting_vocab = False
+        stub._export_vocab_impl.side_effect = RuntimeError("boom")
+
+        from src.ui.dynamic_output import DynamicOutputWidget
+
+        DynamicOutputWidget._export_vocab(stub, "csv")
+
+        # Should still re-enable
+        last_call = stub._set_export_dropdown_enabled.call_args_list[-1]
+        assert last_call.args == (True,)
+        assert stub._exporting_vocab is False
+
+
+class TestVocabExportAllGuard:
+    """_export_all should disable dropdown during combined export."""
+
+    def test_disables_dropdown_during_combined_export(self):
+        """Export dropdown disabled during combined export."""
+        stub = MagicMock()
+        stub._exporting_vocab = False
+
+        from src.ui.dynamic_output import DynamicOutputWidget
+
+        DynamicOutputWidget._export_all(stub, "pdf")
+
+        assert stub._set_export_dropdown_enabled.call_count == 2
+        assert stub._set_export_dropdown_enabled.call_args_list[0].args == (False,)
+        assert stub._set_export_dropdown_enabled.call_args_list[1].args == (True,)
+
 
 # ===========================================================================
 # QA export: re-entrancy guard
@@ -298,3 +347,30 @@ class TestQaExportGuard:
 
         # _export_semantic_impl should NOT be called
         stub._export_semantic_impl.assert_not_called()
+
+    def test_disables_dropdown_during_export(self):
+        """Semantic export dropdown disabled during export."""
+        stub = MagicMock()
+        stub._exporting_semantic = False
+
+        from src.ui.semantic_panel import SemanticPanel
+
+        SemanticPanel._export_semantic(stub, "txt")
+
+        assert stub._set_export_dropdown_enabled.call_count == 2
+        assert stub._set_export_dropdown_enabled.call_args_list[0].args == (False,)
+        assert stub._set_export_dropdown_enabled.call_args_list[1].args == (True,)
+
+    def test_reenables_dropdown_after_error(self):
+        """Semantic dropdown re-enabled even when export raises."""
+        stub = MagicMock()
+        stub._exporting_semantic = False
+        stub._export_semantic_impl.side_effect = RuntimeError("boom")
+
+        from src.ui.semantic_panel import SemanticPanel
+
+        SemanticPanel._export_semantic(stub, "txt")
+
+        last_call = stub._set_export_dropdown_enabled.call_args_list[-1]
+        assert last_call.args == (True,)
+        assert stub._exporting_semantic is False

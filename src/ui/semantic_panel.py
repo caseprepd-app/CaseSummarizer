@@ -275,6 +275,7 @@ class SemanticPanel(ctk.CTkFrame):
         if self._exporting_semantic:
             return
         self._exporting_semantic = True
+        self._set_export_dropdown_enabled(False)
 
         try:
             self._export_semantic_impl(format_key)
@@ -282,6 +283,7 @@ class SemanticPanel(ctk.CTkFrame):
             logger.error("Semantic export failed", exc_info=True)
         finally:
             self._exporting_semantic = False
+            self._set_export_dropdown_enabled(True)
 
     def _export_semantic_impl(self, format_key: str):
         """Implementation of _export_semantic, guarded by _exporting_semantic flag."""
@@ -410,6 +412,14 @@ class SemanticPanel(ctk.CTkFrame):
 
         # Reset dropdown to placeholder
         self.export_dropdown.set("Export...")
+
+    def _set_export_dropdown_enabled(self, enabled: bool):
+        """Enable or disable the export dropdown during export."""
+        try:
+            state = "normal" if enabled else "disabled"
+            self.export_dropdown.configure(state=state)
+        except Exception:
+            pass  # Widget may not exist yet
 
     def _format_csv_export(self, results: list[SemanticResult]) -> str:
         """

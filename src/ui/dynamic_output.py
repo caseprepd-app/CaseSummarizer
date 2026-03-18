@@ -2427,6 +2427,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
         if self._exporting_vocab:
             return
         self._exporting_vocab = True
+        self._set_export_dropdown_enabled(False)
 
         try:
             self._export_vocab_impl(format_key)
@@ -2434,6 +2435,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
             logger.error("Vocabulary export failed", exc_info=True)
         finally:
             self._exporting_vocab = False
+            self._set_export_dropdown_enabled(True)
 
     def _export_vocab_impl(self, format_key: str):
         """Implementation of _export_vocab, guarded by _exporting_vocab flag."""
@@ -2574,12 +2576,14 @@ class DynamicOutputWidget(ctk.CTkFrame):
         if self._exporting_vocab:
             return
         self._exporting_vocab = True
+        self._set_export_dropdown_enabled(False)
         try:
             self._export_all_impl(format_key)
         except Exception:
             logger.error("Combined export failed", exc_info=True)
         finally:
             self._exporting_vocab = False
+            self._set_export_dropdown_enabled(True)
 
     def _export_all_impl(self, format_key: str):
         """Implementation of _export_all, guarded by _exporting_vocab flag."""
@@ -2687,6 +2691,14 @@ class DynamicOutputWidget(ctk.CTkFrame):
 
         # Reset dropdown to placeholder
         self.export_dropdown.set("Export...")
+
+    def _set_export_dropdown_enabled(self, enabled: bool):
+        """Enable or disable the export dropdown during export."""
+        try:
+            state = "normal" if enabled else "disabled"
+            self.export_dropdown.configure(state=state)
+        except Exception:
+            pass  # Widget may not exist yet
 
     def _on_treeview_click(self, event, vocab_tv: VocabTreeview | None = None):
         """
