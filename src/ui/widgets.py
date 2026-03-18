@@ -115,9 +115,10 @@ class FileReviewTable(ctk.CTkFrame):
         # Click handler for remove column
         self.tree.bind("<ButtonRelease-1>", self._on_click)
 
-        # Hover preview bindings
+        # Hover preview bindings — <ButtonPress> hides tooltip on click
         self.tree.bind("<Motion>", self._on_hover)
         self.tree.bind("<Leave>", self._on_leave)
+        self.tree.bind("<ButtonPress>", lambda e: self._hide_tooltip(), add="+")
 
     def add_pending_file(self, filename, file_path):
         """

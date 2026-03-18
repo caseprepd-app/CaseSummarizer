@@ -67,15 +67,22 @@ class TooltipIcon(ctk.CTkLabel):
 
     Uses CTkToplevel for the tooltip to avoid z-order issues with
     other widgets. The tooltip appears near the icon and disappears
-    when the mouse leaves.
+    immediately when the mouse leaves — no straddling logic.
 
-    Uses global TooltipManager to ensure only ONE tooltip is visible at a time
-    across the ENTIRE application (not just TooltipIcon).
+    Best practices (v1.0.19 refactor):
+    - 400ms show delay prevents flicker during mouse traversal
+    - Immediate hide on <Leave> (no delayed position checks)
+    - <ButtonPress> hides tooltip so it doesn't obscure click targets
+    - <Destroy> cleans up tooltip when icon widget is destroyed
+    - Timer IDs stored and cancelled on every event entry
+    - All bindings use add="+" to preserve existing handlers
 
     Attributes:
         tooltip_text: The help text to display on hover.
         tooltip_window: Reference to the popup window (if visible).
     """
+
+    _SHOW_DELAY_MS = 400
 
     def __init__(self, parent, tooltip_text: str, **kwargs):
         """
@@ -96,28 +103,69 @@ class TooltipIcon(ctk.CTkLabel):
         )
         self.tooltip_text = tooltip_text
         self.tooltip_window = None
+        self._show_timer = None
 
-        self.bind("<Enter>", self._show_tooltip)
-        self.bind("<Leave>", self._hide_tooltip)
+        self.bind("<Enter>", self._on_enter, add="+")
+        self.bind("<Leave>", self._on_leave, add="+")
+        self.bind("<ButtonPress>", self._on_leave, add="+")
+        self.bind("<Destroy>", self._on_destroy, add="+")
 
-    def _show_tooltip(self, event=None):
+    def _cancel_show(self):
+        """Cancel any pending show timer."""
+        if self._show_timer is not None:
+            try:
+                self.after_cancel(self._show_timer)
+            except (tk.TclError, RuntimeError):
+                pass
+            self._show_timer = None
+
+    def _on_enter(self, event=None):
+        """Schedule tooltip display after delay."""
+        self._cancel_show()
+        self._show_timer = self.after(self._SHOW_DELAY_MS, self._show_tooltip)
+
+    def _on_leave(self, event=None):
+        """Hide tooltip immediately on mouse leave or click."""
+        self._cancel_show()
+        self._force_hide_tooltip()
+
+    def _on_destroy(self, event=None):
+        """Clean up tooltip when icon widget is destroyed."""
+        self._cancel_show()
+        self._force_hide_tooltip()
+
+    def _show_tooltip(self):
         """Display tooltip popup near the icon."""
-        # Close any existing tooltip from ANYWHERE in the app
-        tooltip_manager.close_active()
+        self._show_timer = None
 
         if self.tooltip_window:
             return
 
-        # Position tooltip to the right of the icon
+        try:
+            if not self.winfo_exists():
+                return
+        except (tk.TclError, RuntimeError):
+            return
+
+        tooltip_manager.close_active()
+
         x = self.winfo_rootx() + 25
         y = self.winfo_rooty() - 5
 
-        self.tooltip_window = ctk.CTkToplevel(self)
-        self.tooltip_window.wm_overrideredirect(True)  # No window decorations
+        try:
+            self.tooltip_window = ctk.CTkToplevel(self)
+        except (tk.TclError, RuntimeError):
+            return
+
+        self.tooltip_window.wm_overrideredirect(True)
         self.tooltip_window.wm_geometry(f"+{x}+{y}")
         self.tooltip_window.attributes("-topmost", True)
 
-        # Tooltip content
+        try:
+            self.tooltip_window.wm_attributes("-toolwindow", True)
+        except (tk.TclError, RuntimeError):
+            pass
+
         label = ctk.CTkLabel(
             self.tooltip_window,
             text=self.tooltip_text,
@@ -129,64 +177,16 @@ class TooltipIcon(ctk.CTkLabel):
         )
         label.pack(padx=10, pady=8)
 
-        # Register with global manager
         tooltip_manager.register(self.tooltip_window, owner=self)
 
-        # Also bind leave event to the tooltip window itself
-        self.tooltip_window.bind("<Leave>", self._check_hide_tooltip)
-
-    def _check_hide_tooltip(self, event=None):
-        """Hide tooltip if mouse has left both icon and tooltip window."""
-        if self.tooltip_window:
-            # Get mouse position
-            mouse_x = self.winfo_pointerx()
-            mouse_y = self.winfo_pointery()
-
-            # Check if mouse is over the icon
-            icon_x1 = self.winfo_rootx()
-            icon_y1 = self.winfo_rooty()
-            icon_x2 = icon_x1 + self.winfo_width()
-            icon_y2 = icon_y1 + self.winfo_height()
-
-            over_icon = icon_x1 <= mouse_x <= icon_x2 and icon_y1 <= mouse_y <= icon_y2
-
-            # Check if mouse is over the tooltip
-            over_tooltip = False
-            if self.tooltip_window and self.tooltip_window.winfo_exists():
-                tip_x1 = self.tooltip_window.winfo_rootx()
-                tip_y1 = self.tooltip_window.winfo_rooty()
-                tip_x2 = tip_x1 + self.tooltip_window.winfo_width()
-                tip_y2 = tip_y1 + self.tooltip_window.winfo_height()
-                over_tooltip = tip_x1 <= mouse_x <= tip_x2 and tip_y1 <= mouse_y <= tip_y2
-
-            # Hide if mouse is over neither
-            if not over_icon and not over_tooltip:
-                self._force_hide_tooltip()
-
-    def _hide_tooltip(self, event=None):
-        """Hide tooltip when mouse leaves the icon."""
-        # Use after() to delay slightly - allows _show_tooltip on next element to run first
-        if self.tooltip_window:
-            self.after(50, self._delayed_hide_check)
-
-    def _delayed_hide_check(self):
-        """Check if we should hide after a short delay."""
-        # If another tooltip became active, the manager already closed us
-        if not tooltip_manager.is_active(self.tooltip_window):
-            self.tooltip_window = None
-            return
-        # Otherwise, check mouse position
-        self._check_hide_tooltip()
-
     def _force_hide_tooltip(self):
-        """Unconditionally hide the tooltip."""
+        """Unconditionally hide and destroy the tooltip."""
         if self.tooltip_window:
-            # Unregister from global manager
             tooltip_manager.unregister(self.tooltip_window)
-            import contextlib
-
-            with contextlib.suppress(tk.TclError, RuntimeError):
+            try:
                 self.tooltip_window.destroy()
+            except (tk.TclError, RuntimeError):
+                pass
             self.tooltip_window = None
 
 

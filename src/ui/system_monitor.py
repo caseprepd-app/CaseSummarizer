@@ -113,9 +113,11 @@ class SystemMonitor(ctk.CTkFrame):
         self.ram_label.pack(padx=6, pady=2)
 
         # Bind tooltip events to both frames
+        # <ButtonPress> hides tooltip on click; all use add="+"
         for widget in [self.cpu_frame, self.cpu_label, self.ram_frame, self.ram_label]:
-            widget.bind("<Enter>", self._on_enter)
-            widget.bind("<Leave>", self._on_leave)
+            widget.bind("<Enter>", self._on_enter, add="+")
+            widget.bind("<Leave>", self._on_leave, add="+")
+            widget.bind("<ButtonPress>", self._on_leave, add="+")
 
         # Start monitoring thread
         self.start_monitoring()

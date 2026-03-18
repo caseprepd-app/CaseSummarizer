@@ -99,6 +99,7 @@ class VocabTreeview:
         self.widget.bind("<Double-1>", self._on_double_click)
         self.widget.bind("<Motion>", self._on_hover)
         self.widget.bind("<Leave>", self._hide_tooltip)
+        self.widget.bind("<ButtonPress>", lambda e: self._hide_tooltip(None), add="+")
 
     def configure_columns(self, columns, widths: dict | None = None):
         """
@@ -383,10 +384,22 @@ class VocabTreeview:
         """
         self._hide_tooltip(None)
 
-        self._tooltip = ctk.CTkToplevel(self._parent)
+        from src.ui.tooltip_manager import tooltip_manager
+
+        tooltip_manager.close_active()
+
+        try:
+            self._tooltip = ctk.CTkToplevel(self._parent)
+        except Exception:
+            return
         self._tooltip.wm_overrideredirect(True)
         self._tooltip.wm_geometry(f"+{x}+{y}")
         self._tooltip.attributes("-topmost", True)
+
+        try:
+            self._tooltip.wm_attributes("-toolwindow", True)
+        except Exception:
+            pass
 
         label = ctk.CTkLabel(
             self._tooltip,
@@ -399,11 +412,19 @@ class VocabTreeview:
         )
         label.pack()
 
+        tooltip_manager.register(self._tooltip, owner=self)
+
     def _hide_tooltip(self, _event):
         """Hide and destroy the tooltip window."""
         if self._tooltip_after_id:
             self._parent.after_cancel(self._tooltip_after_id)
             self._tooltip_after_id = None
         if self._tooltip:
-            self._tooltip.destroy()
+            from src.ui.tooltip_manager import tooltip_manager
+
+            tooltip_manager.unregister(self._tooltip)
+            try:
+                self._tooltip.destroy()
+            except Exception:
+                pass
             self._tooltip = None
