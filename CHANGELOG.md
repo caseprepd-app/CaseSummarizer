@@ -7,6 +7,20 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.0.19] - 2026-03-18
+
+### Added
+- Combined export with filtered table sorting and score floor controls
+- Merged Search Export tab into unified Export tab
+
+### Fixed
+- Sticky tooltip bug; refactored tooltips to follow best practices
+- Export dropdown disabled during export to prevent rapid clicks
+
+### Changed
+- Renamed semantic search "confidence" to "relevance" and raised thresholds
+- Swept stale tooltips and removed dead settings
+
 ## [1.0.18] - 2026-03-17
 
 ### Fixed
