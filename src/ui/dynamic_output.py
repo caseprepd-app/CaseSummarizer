@@ -2323,13 +2323,14 @@ class DynamicOutputWidget(ctk.CTkFrame):
             # Status bar confirmation with count
             current_tab = self.tabview.get()
             main_window = self.winfo_toplevel()
-            if current_tab == "Vocabulary":
-                filtered_data = self._get_filtered_vocab_data()
-                main_window.set_status(
-                    f"Copied {len(filtered_data)} terms to clipboard", duration_ms=5000
-                )
-            elif current_tab == "Key Excerpts":
-                main_window.set_status("Copied key excerpts to clipboard", duration_ms=5000)
+            if hasattr(main_window, "set_status"):
+                if current_tab == "Vocabulary":
+                    filtered_data = self._get_filtered_vocab_data()
+                    main_window.set_status(
+                        f"Copied {len(filtered_data)} terms to clipboard", duration_ms=5000
+                    )
+                elif current_tab == "Key Excerpts":
+                    main_window.set_status("Copied key excerpts to clipboard", duration_ms=5000)
         else:
             messagebox.showwarning("Empty", "No content to copy.")
 
@@ -2403,16 +2404,17 @@ class DynamicOutputWidget(ctk.CTkFrame):
 
             # Status bar confirmation with details
             main_window = self.winfo_toplevel()
-            filename = os.path.basename(filepath)
-            if current_tab == "Vocabulary":
-                filtered_data = self._get_filtered_vocab_data()
-                main_window.set_status(
-                    f"Saved {len(filtered_data)} terms to {filename}", duration_ms=5000
-                )
-            elif current_tab == "Search":
-                main_window.set_status(f"Saved search results to {filename}", duration_ms=5000)
-            elif current_tab == "Key Excerpts":
-                main_window.set_status(f"Saved key excerpts to {filename}", duration_ms=5000)
+            if hasattr(main_window, "set_status"):
+                filename = os.path.basename(filepath)
+                if current_tab == "Vocabulary":
+                    filtered_data = self._get_filtered_vocab_data()
+                    main_window.set_status(
+                        f"Saved {len(filtered_data)} terms to {filename}", duration_ms=5000
+                    )
+                elif current_tab == "Search":
+                    main_window.set_status(f"Saved search results to {filename}", duration_ms=5000)
+                elif current_tab == "Key Excerpts":
+                    main_window.set_status(f"Saved key excerpts to {filename}", duration_ms=5000)
 
     def _export_vocab(self, format_key: str):
         """

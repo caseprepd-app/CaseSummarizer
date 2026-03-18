@@ -85,8 +85,8 @@ class TestSpawnKeySentences:
         assert msg[1][0]["score"] == 0.95
 
     @patch("src.core.summarization.key_sentences.extract_key_passages")
-    def test_extraction_error_sends_empty_result(self, mock_extract):
-        """Exception during extraction sends empty result (no crash)."""
+    def test_extraction_error_sends_error_message(self, mock_extract):
+        """Exception during extraction sends error message to GUI."""
         mock_extract.side_effect = RuntimeError("Model OOM")
 
         state = _make_state(
@@ -98,7 +98,8 @@ class TestSpawnKeySentences:
         _spawn_key_sentences(state, q)
 
         msg = q.get(timeout=5)
-        assert msg == ("key_sentences_result", [])
+        assert msg[0] == "key_sentences_error"
+        assert "Model OOM" in msg[1]
 
     def test_page_count_none_treated_as_zero(self):
         """Documents with page_count=None don't crash total_pages sum."""

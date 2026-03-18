@@ -32,6 +32,8 @@ def _make_stub():
     stub._processing_active = False
     stub._preprocessing_active = False
     stub._semantic_failed = False
+    stub._key_sentences_pending = False
+    stub._failed_tasks = set()
     # Widget mocks
     stub.followup_btn = MagicMock()
     stub.followup_entry = MagicMock()
@@ -634,6 +636,98 @@ class TestQACompleteHandler:
         stub._all_tasks_complete = MagicMock(return_value=False)
         _call_handler(stub, "semantic_complete", None)
         assert stub._semantic_results == []
+
+
+# ---------------------------------------------------------------------------
+# key_sentences_result handler
+# ---------------------------------------------------------------------------
+
+
+class TestKeySentencesResultHandler:
+    """Tests for 'key_sentences_result' message handler."""
+
+    def test_clears_pending_flag(self):
+        """key_sentences_result clears _key_sentences_pending."""
+        stub = _make_stub()
+        stub._key_sentences_pending = True
+        _call_handler(stub, "key_sentences_result", [{"text": "passage"}])
+        assert stub._key_sentences_pending is False
+
+    def test_updates_display_with_data(self):
+        """key_sentences_result updates output display when data exists."""
+        stub = _make_stub()
+        data = [{"text": "Key passage", "score": 0.9}]
+        _call_handler(stub, "key_sentences_result", data)
+        stub.output_display.update_key_sentences.assert_called_once_with(data)
+
+    def test_no_display_update_with_empty_data(self):
+        """key_sentences_result skips display update when data is empty."""
+        stub = _make_stub()
+        _call_handler(stub, "key_sentences_result", [])
+        stub.output_display.update_key_sentences.assert_not_called()
+
+    def test_adds_to_completed_tasks(self):
+        """key_sentences_result adds 'key_excerpts' to _completed_tasks."""
+        stub = _make_stub()
+        _call_handler(stub, "key_sentences_result", [])
+        assert "key_excerpts" in stub._completed_tasks
+
+    def test_triggers_finalization_when_all_complete(self):
+        """key_sentences_result triggers finalization when all tasks done."""
+        stub = _make_stub()
+        stub._all_tasks_complete = MagicMock(return_value=True)
+        _call_handler(stub, "key_sentences_result", [])
+        stub._finalize_tasks.assert_called_once()
+
+
+# ---------------------------------------------------------------------------
+# key_sentences_error handler
+# ---------------------------------------------------------------------------
+
+
+class TestKeySentencesErrorHandler:
+    """Tests for 'key_sentences_error' message handler."""
+
+    def test_clears_pending_flag(self):
+        """key_sentences_error clears _key_sentences_pending."""
+        stub = _make_stub()
+        stub._key_sentences_pending = True
+        _call_handler(stub, "key_sentences_error", "Model OOM")
+        assert stub._key_sentences_pending is False
+
+    def test_shows_error_in_status_bar(self):
+        """key_sentences_error calls set_status_error with message."""
+        stub = _make_stub()
+        _call_handler(stub, "key_sentences_error", "Embeddings shape mismatch")
+        stub.set_status_error.assert_called_once()
+        call_args = stub.set_status_error.call_args[0][0]
+        assert "Embeddings shape mismatch" in call_args
+
+    def test_adds_to_failed_tasks(self):
+        """key_sentences_error adds 'key_excerpts' to _failed_tasks."""
+        stub = _make_stub()
+        _call_handler(stub, "key_sentences_error", "fail")
+        assert "key_excerpts" in stub._failed_tasks
+
+    def test_does_not_add_to_completed_tasks(self):
+        """key_sentences_error should NOT add to _completed_tasks."""
+        stub = _make_stub()
+        _call_handler(stub, "key_sentences_error", "fail")
+        assert "key_excerpts" not in stub._completed_tasks
+
+    def test_triggers_finalization_when_all_complete(self):
+        """key_sentences_error triggers finalization when all tasks done."""
+        stub = _make_stub()
+        stub._all_tasks_complete = MagicMock(return_value=True)
+        _call_handler(stub, "key_sentences_error", "fail")
+        stub._finalize_tasks.assert_called_once()
+
+    def test_no_finalization_when_tasks_remain(self):
+        """key_sentences_error does not finalize when tasks are pending."""
+        stub = _make_stub()
+        stub._all_tasks_complete = MagicMock(return_value=False)
+        _call_handler(stub, "key_sentences_error", "fail")
+        stub._finalize_tasks.assert_not_called()
 
 
 # ---------------------------------------------------------------------------

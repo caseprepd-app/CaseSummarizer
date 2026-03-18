@@ -912,6 +912,14 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             if self._all_tasks_complete():
                 self._finalize_tasks()
 
+        elif msg_type == "key_sentences_error":
+            self._key_sentences_pending = False
+            logger.error("Key excerpts extraction failed: %s", data)
+            self.set_status_error(f"Key excerpts failed: {data}")
+            self._failed_tasks.add("key_excerpts")
+            if self._all_tasks_complete():
+                self._finalize_tasks()
+
         elif msg_type == "semantic_followup_result":
             # Route to whichever followup consumer is active.
             # _poll_queue() and _poll_followup_result() both drain the same queue, so

@@ -393,7 +393,7 @@ class TestProgressiveExtractionWorkerQueueMessages:
 
     def test_extraction_started_message_format(self):
         """QueueMessage.extraction_started() returns correct tuple format."""
-        from src.ui.queue_messages import QueueMessage
+        from src.services.queue_messages import QueueMessage
 
         msg = QueueMessage.extraction_started()
         assert isinstance(msg, tuple)
@@ -401,7 +401,7 @@ class TestProgressiveExtractionWorkerQueueMessages:
 
     def test_ner_complete_message_format(self):
         """QueueMessage.ner_complete() returns correct tuple format with data."""
-        from src.ui.queue_messages import QueueMessage
+        from src.services.queue_messages import QueueMessage
 
         vocab_data = [{"term": "Smith", "type": "Person"}]
         filtered = [{"term": "x", "type": "Technical"}]

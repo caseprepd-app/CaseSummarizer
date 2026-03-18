@@ -90,6 +90,32 @@ class TestBug3FileWriteGuard:
 
 
 # ---------------------------------------------------------------------------
+# Bug 3b: hasattr guards on winfo_toplevel().set_status()
+# ---------------------------------------------------------------------------
+
+
+class TestBug3bHasattrGuards:
+    """Verify copy_to_clipboard and save_to_file guard set_status with hasattr."""
+
+    def test_copy_to_clipboard_has_hasattr_guard(self):
+        """copy_to_clipboard uses hasattr(main_window, 'set_status')."""
+        source = _read_source("ui/dynamic_output.py")
+        # Find the copy_to_clipboard method and check for hasattr guard
+        copy_start = source.index("def copy_to_clipboard")
+        copy_end = source.index("\n    def ", copy_start + 1)
+        copy_source = source[copy_start:copy_end]
+        assert 'hasattr(main_window, "set_status")' in copy_source
+
+    def test_save_to_file_has_hasattr_guard(self):
+        """save_to_file uses hasattr(main_window, 'set_status')."""
+        source = _read_source("ui/dynamic_output.py")
+        save_start = source.index("def save_to_file")
+        save_end = source.index("\n    def ", save_start + 1)
+        save_source = source[save_start:save_end]
+        assert 'hasattr(main_window, "set_status")' in save_source
+
+
+# ---------------------------------------------------------------------------
 # Bug 4: result_queue.put() failure doesn't kill command loop
 # ---------------------------------------------------------------------------
 

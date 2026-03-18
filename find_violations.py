@@ -119,6 +119,14 @@ def check_core_ui_violation(source_module: str, imported_module: str) -> bool:
     return False
 
 
+def check_services_ui_violation(source_module: str, imported_module: str) -> bool:
+    """Check if services imports from UI (should be the other way around)."""
+    if source_module.startswith(SERVICES_MODULE):
+        if imported_module.startswith(UI_MODULE):
+            return True
+    return False
+
+
 def find_all_violations(project_root: Path, verbose: bool = False) -> dict:
     """Scan all Python files and find import violations."""
 
@@ -126,6 +134,7 @@ def find_all_violations(project_root: Path, verbose: bool = False) -> dict:
         "parallel_crossimport": [],  # Stage 5 modules importing each other
         "ui_imports_core": [],  # UI bypassing services
         "core_imports_ui": [],  # Core depending on UI
+        "services_imports_ui": [],  # Services depending on UI
     }
 
     src_dir = project_root / "src"
@@ -181,6 +190,17 @@ def find_all_violations(project_root: Path, verbose: bool = False) -> dict:
                     }
                 )
 
+            if check_services_ui_violation(source_module, imported_module):
+                violations["services_imports_ui"].append(
+                    {
+                        "file": str(filepath),
+                        "line": lineno,
+                        "source": source_module,
+                        "imports": imported_module,
+                        "reason": "Services cannot import from UI",
+                    }
+                )
+
     return violations
 
 
@@ -200,6 +220,7 @@ def print_violations(violations: dict) -> int:
             "UI should only import from src/services/, not src/core/",
         ),
         ("core_imports_ui", "CORE IMPORTING UI", "Core modules should never depend on UI"),
+        ("services_imports_ui", "SERVICES IMPORTING UI", "Services should never depend on UI"),
     ]
 
     for key, title, description in categories:

@@ -553,7 +553,7 @@ def _spawn_key_sentences(state, internal_queue):
             logger.debug("Key excerpts extracted: %d passages", len(serialized))
         except Exception as e:
             logger.error("Key excerpts extraction failed: %s", e, exc_info=True)
-            internal_queue.put(("key_sentences_result", []))
+            internal_queue.put(("key_sentences_error", str(e)))
 
     thread = threading.Thread(target=_extract, daemon=True, name="key-excerpts")
     thread.start()

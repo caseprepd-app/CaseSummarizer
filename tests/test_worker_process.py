@@ -576,7 +576,7 @@ class TestQueueMessageFactory:
 
     def test_all_factory_methods_picklable(self):
         """Every QueueMessage factory method should produce picklable output."""
-        from src.ui.queue_messages import QueueMessage
+        from src.services.queue_messages import QueueMessage
 
         messages = [
             QueueMessage.progress(50, "Working..."),

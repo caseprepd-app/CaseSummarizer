@@ -28,8 +28,8 @@ from src.core.parallel import (
     ThreadPoolStrategy,
 )
 from src.core.vocabulary import VocabularyExtractor
-from src.ui.base_worker import BaseWorker
-from src.ui.queue_messages import QueueMessage
+from src.services.base_worker import BaseWorker
+from src.services.queue_messages import QueueMessage
 
 logger = logging.getLogger(__name__)
 
@@ -193,7 +193,7 @@ class ProcessingWorker(BaseWorker):
         if self.processed_results:
             from src.core.preprocessing import create_default_pipeline
             from src.services.document_service import DocumentService
-            from src.ui.silly_messages import get_silly_message
+            from src.services.silly_messages import get_silly_message
 
             self.send_progress(80, "Cleaning up headers and footers...")
             preprocessor = create_default_pipeline(DocumentService._get_preprocessing_settings())
@@ -666,7 +666,7 @@ class ProgressiveExtractionWorker(BaseWorker):
             )
 
             def on_index_progress(current, total):
-                from src.ui.silly_messages import get_silly_message
+                from src.services.silly_messages import get_silly_message
 
                 msg = f"Building search index ({current}/{total} passages)..."
                 # Higher silly message rate for incremental progress (15% vs 4%)
