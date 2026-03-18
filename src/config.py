@@ -674,7 +674,7 @@ RETRIEVAL_MIN_SCORE = _d("retrieval_min_score")
 
 # Minimum best-chunk score to attempt answering a question
 # Below this, the question is treated as unanswerable for this document
-RETRIEVAL_CONFIDENCE_GATE = _d("retrieval_confidence_gate")
+RETRIEVAL_RELEVANCE_GATE = _d("retrieval_relevance_gate")
 
 # Multi-algorithm bonus: legacy setting, kept for backward compatibility
 # RRF fusion naturally rewards multi-algorithm consensus without explicit bonus
@@ -710,8 +710,8 @@ UNIFIED_CHUNK_OVERLAP_TOKENS = _d("unified_chunk_overlap_tokens")
 # cl100k_base is compatible with most modern models (GPT-3.5+, Claude, Llama)
 UNIFIED_CHUNK_ENCODING = "cl100k_base"
 
-# Search Export: minimum confidence to include in exports
-SEMANTIC_EXPORT_CONFIDENCE_FLOOR = _d("semantic_export_confidence_floor")
+# Search Export: minimum relevance to include in exports
+SEMANTIC_EXPORT_RELEVANCE_FLOOR = _d("semantic_export_relevance_floor")
 
 # Bundled model configuration for Windows installer
 # Models are stored in PROJECT_ROOT/models/ and shipped with the installer

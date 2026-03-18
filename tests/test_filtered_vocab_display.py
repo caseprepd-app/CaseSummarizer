@@ -242,3 +242,33 @@ class TestFilteredScoreFloorSetting:
         all_settings = SettingsRegistry.get_all_settings()
         setting = next(s for s in all_settings if s.key == "vocab_filtered_score_floor")
         assert setting.category == "Vocabulary"
+
+
+class TestExportRelevanceFloorSetting:
+    """Tests for the renamed semantic_export_relevance_floor setting."""
+
+    def test_relevance_floor_registered(self):
+        """semantic_export_relevance_floor is registered in settings."""
+        from src.ui.settings import settings_registry  # noqa: F401
+        from src.ui.settings.settings_registry import SettingsRegistry
+
+        all_settings = SettingsRegistry.get_all_settings()
+        keys = [s.key for s in all_settings]
+        assert "semantic_export_relevance_floor" in keys
+
+    def test_old_confidence_key_not_registered(self):
+        """Old semantic_export_confidence_floor key should not exist."""
+        from src.ui.settings.settings_registry import SettingsRegistry
+
+        all_settings = SettingsRegistry.get_all_settings()
+        keys = [s.key for s in all_settings]
+        assert "semantic_export_confidence_floor" not in keys
+
+    def test_relevance_floor_label(self):
+        """Setting label should say 'relevance' not 'confidence'."""
+        from src.ui.settings.settings_registry import SettingsRegistry
+
+        all_settings = SettingsRegistry.get_all_settings()
+        setting = next(s for s in all_settings if s.key == "semantic_export_relevance_floor")
+        assert "relevance" in setting.label.lower()
+        assert "confidence" not in setting.label.lower()

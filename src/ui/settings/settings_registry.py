@@ -896,7 +896,7 @@ def _register_all_settings():
             setting_type=SettingType.SLIDER,
             tooltip=(
                 "Filter terms with quality scores below this threshold.\n\n"
-                "Higher values show only high-confidence results. "
+                "Higher values show only high-relevance results. "
                 "Lower values include more terms but may include noise.\n\n"
                 "The quality score is based on ML predictions of term usefulness."
             ),
@@ -1613,28 +1613,28 @@ def _register_all_settings():
     # SEARCH EXPORT TAB
     # ===================================================================
 
-    from src.config import SEMANTIC_EXPORT_CONFIDENCE_FLOOR
+    from src.config import SEMANTIC_EXPORT_RELEVANCE_FLOOR
 
     SettingsRegistry.register(
         SettingDefinition(
-            key="semantic_export_confidence_floor",
-            label="Retrieval confidence floor",
+            key="semantic_export_relevance_floor",
+            label="Retrieval relevance floor",
             category="Search Export",
             setting_type=SettingType.SLIDER,
             tooltip=(
-                "Minimum retrieval confidence (0-1) for a search result\n"
+                "Minimum retrieval relevance (0-1) for a search result\n"
                 "to be included in exports. This measures how relevant the\n"
                 "retrieved document chunks were to the query.\n\n"
                 "Default: 0.51 (51%)"
             ),
-            default=SEMANTIC_EXPORT_CONFIDENCE_FLOOR,
+            default=SEMANTIC_EXPORT_RELEVANCE_FLOOR,
             min_value=0.0,
             max_value=1.0,
             step=0.05,
             getter=lambda: prefs.get(
-                "semantic_export_confidence_floor", SEMANTIC_EXPORT_CONFIDENCE_FLOOR
+                "semantic_export_relevance_floor", SEMANTIC_EXPORT_RELEVANCE_FLOOR
             ),
-            setter=lambda v: prefs.set("semantic_export_confidence_floor", float(v)),
+            setter=lambda v: prefs.set("semantic_export_relevance_floor", float(v)),
         )
     )
 

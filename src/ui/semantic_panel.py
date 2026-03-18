@@ -208,8 +208,8 @@ class SemanticPanel(ctk.CTkFrame):
             # Search header with relevance score on the same line
             question_tag = "question_default" if result.is_default_question else "question"
             self.text_display.insert("end", f"Search {i}:", question_tag)
-            if result.confidence > 0:
-                relevance_pct = int(result.confidence * 100)
+            if result.relevance > 0:
+                relevance_pct = int(result.relevance * 100)
                 self.text_display.insert("end", f"  [Relevance: {relevance_pct}%]", "score_detail")
             self.text_display.insert("end", "\n")
             self.text_display.insert("end", f"{result.question}\n\n", "answer")

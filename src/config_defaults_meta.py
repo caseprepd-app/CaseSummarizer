@@ -545,13 +545,13 @@ DESCRIPTIONS = {
             "for including a chunk."
         ),
     },
-    "retrieval_confidence_gate": {
-        "label": "Retrieval confidence gate",
+    "retrieval_relevance_gate": {
+        "label": "Retrieval relevance gate",
         "tooltip": (
-            "Minimum best-chunk score needed to attempt answering a query.\n"
-            "If no chunk scores above this, the query is treated as\n"
+            "Minimum best-chunk relevance score needed to attempt answering\n"
+            "a query. If no chunk scores above this, the query is treated as\n"
             "unanswerable for the current documents.\n\n"
-            "Default: 0.15\n\n"
+            "Default: 0.50\n\n"
             "Increase: More conservative — refuses more queries.\n"
             "Decrease: Attempts answers even with weak evidence.\n\n"
             "This prevents the system from showing bogus answers when\n"
@@ -575,7 +575,7 @@ DESCRIPTIONS = {
             "Minimum FAISS (semantic) score required from the best chunk.\n"
             "If no chunk reaches this score, the query has no semantic match\n"
             "and retrieval returns empty (question likely unanswerable).\n\n"
-            "Default: 0.10\n\n"
+            "Default: 0.25\n\n"
             "Increase: Stricter semantic check — more questions refused.\n"
             "Decrease: More lenient — attempts answers with weaker matches.\n\n"
             "FAISS uses cosine similarity (0=unrelated, 1=identical meaning).\n"
@@ -596,13 +596,13 @@ DESCRIPTIONS = {
     # =======================================================================
     # Search Export
     # =======================================================================
-    "semantic_export_confidence_floor": {
-        "label": "Search export confidence floor",
+    "semantic_export_relevance_floor": {
+        "label": "Search export relevance floor",
         "tooltip": (
-            "Minimum retrieval confidence (0-1) for a semantic search\n"
+            "Minimum retrieval relevance (0-1) for a semantic search\n"
             "result to be included in exports. This measures how relevant\n"
             "the retrieved document chunks were to the question.\n\n"
-            "Default: 0.40 (40%)\n\n"
+            "Default: 0.51 (51%)\n\n"
             "Increase: Require stronger document matches.\n"
             "Decrease: Allow weaker matches in exports."
         ),

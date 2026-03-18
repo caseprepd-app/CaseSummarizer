@@ -79,7 +79,9 @@ class UserPreferencesManager:
             "qa_temperature": "semantic_temperature",
             "qa_similarity_threshold": "semantic_similarity_threshold",
             "qa_citation_max_chars": "semantic_citation_max_chars",
-            "qa_export_confidence_floor": "semantic_export_confidence_floor",
+            "qa_export_confidence_floor": "semantic_export_relevance_floor",
+            "semantic_export_confidence_floor": "semantic_export_relevance_floor",
+            "retrieval_confidence_gate": "retrieval_relevance_gate",
         }
         migrated = False
         for old_key, new_key in renames.items():

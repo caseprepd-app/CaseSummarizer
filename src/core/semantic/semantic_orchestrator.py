@@ -25,9 +25,6 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from src.config import (
-    RETRIEVAL_CONFIDENCE_GATE,
-)
 from src.core.config import load_yaml_with_fallback
 from src.core.semantic.semantic_constants import (
     UNANSWERED_TEXT,
@@ -64,7 +61,7 @@ class SemanticResult:
         citation: Raw retrieved text excerpts from BM25+/vector search
         include_in_export: Whether to include this result in export (default: True)
         source_summary: Human-readable source citation (e.g., "complaint.pdf, page 3")
-        confidence: Relevance score from vector search (0-1)
+        relevance: Relevance score from vector search (0-1)
         retrieval_time_ms: Time taken for vector search
         is_followup: Whether this is a user-asked follow-up question
         is_default_question: Whether this question came from the default questions list
@@ -75,7 +72,7 @@ class SemanticResult:
     citation: str = ""  # Raw retrieved text from BM25+/vector search
     include_in_export: bool = True
     source_summary: str = ""
-    confidence: float = 0.0
+    relevance: float = 0.0
     retrieval_time_ms: float = 0.0
     is_followup: bool = False
     is_default_question: bool = False  # Marks questions from default list
@@ -90,24 +87,24 @@ class SemanticResult:
         """Whether this question received a meaningful answer from the documents."""
         from src.core.semantic.semantic_constants import UNANSWERED_TEXT
 
-        return not (self.confidence == 0.0 and self.quick_answer == UNANSWERED_TEXT)
+        return not (self.relevance == 0.0 and self.quick_answer == UNANSWERED_TEXT)
 
     @property
     def is_exportable(self) -> bool:
         """Whether this result meets quality thresholds for export."""
         import math
 
-        from src.config import SEMANTIC_EXPORT_CONFIDENCE_FLOOR
+        from src.config import SEMANTIC_EXPORT_RELEVANCE_FLOOR
         from src.core.semantic.semantic_constants import UNANSWERED_TEXT
 
-        # Filter NaN or non-finite confidence
-        if not math.isfinite(self.confidence):
+        # Filter NaN or non-finite relevance
+        if not math.isfinite(self.relevance):
             return False
         # Filter unanswered
-        if self.confidence == 0.0 and self.quick_answer == UNANSWERED_TEXT:
+        if self.relevance == 0.0 and self.quick_answer == UNANSWERED_TEXT:
             return False
-        # Retrieval confidence must meet floor
-        if self.confidence < SEMANTIC_EXPORT_CONFIDENCE_FLOOR:
+        # Retrieval relevance must meet floor
+        if self.relevance < SEMANTIC_EXPORT_RELEVANCE_FLOOR:
             return False
         return True
 
@@ -329,8 +326,10 @@ class SemanticOrchestrator:
             )
 
         # Check if retrieval quality is sufficient to attempt answering
+        from src.config import RETRIEVAL_RELEVANCE_GATE
+
         best_score = max((s.relevance_score for s in retrieval_result.sources), default=0.0)
-        has_quality_context = retrieval_result.context and best_score >= RETRIEVAL_CONFIDENCE_GATE
+        has_quality_context = retrieval_result.context and best_score >= RETRIEVAL_RELEVANCE_GATE
 
         if has_quality_context:
             # Citation: focused excerpt via embedding similarity
@@ -345,18 +344,18 @@ class SemanticOrchestrator:
             )
 
             source_summary = self.retriever.get_relevant_sources_summary(retrieval_result)
-            confidence = self._calculate_confidence(retrieval_result)
+            relevance = self._calculate_relevance(retrieval_result)
         else:
             # Low retrieval scores = question likely unanswerable from these documents
-            if retrieval_result.context and best_score < RETRIEVAL_CONFIDENCE_GATE:
+            if retrieval_result.context and best_score < RETRIEVAL_RELEVANCE_GATE:
                 logger.debug(
                     "Retrieval quality gate: best_score=%.3f < gate=%s -- treating as unanswerable",
                     best_score,
-                    RETRIEVAL_CONFIDENCE_GATE,
+                    RETRIEVAL_RELEVANCE_GATE,
                 )
             citation = "No relevant excerpts found in documents."
             source_summary = ""
-            confidence = 0.0
+            relevance = 0.0
 
         return SemanticResult(
             question=question,
@@ -364,7 +363,7 @@ class SemanticOrchestrator:
             citation=citation,
             include_in_export=has_quality_context,
             source_summary=source_summary,
-            confidence=confidence,
+            relevance=relevance,
             retrieval_time_ms=retrieval_result.retrieval_time_ms,
             is_followup=is_followup,
             is_default_question=is_default,
@@ -374,7 +373,7 @@ class SemanticOrchestrator:
         """
         Phase 1 of split follow-up flow: retrieve context only.
 
-        Returns a partial SemanticResult with citation/source/confidence populated
+        Returns a partial SemanticResult with citation/source/relevance populated
         but quick_answer set to a placeholder. Stashes raw retrieval context
         as _retrieval_context for phase 2.
 
@@ -400,8 +399,10 @@ class SemanticOrchestrator:
                 question[:50],
             )
 
+        from src.config import RETRIEVAL_RELEVANCE_GATE
+
         best_score = max((s.relevance_score for s in retrieval_result.sources), default=0.0)
-        has_quality_context = retrieval_result.context and best_score >= RETRIEVAL_CONFIDENCE_GATE
+        has_quality_context = retrieval_result.context and best_score >= RETRIEVAL_RELEVANCE_GATE
 
         if has_quality_context:
             from src.config import SEMANTIC_CITATION_MAX_CHARS
@@ -414,7 +415,7 @@ class SemanticOrchestrator:
                 max_chars=SEMANTIC_CITATION_MAX_CHARS,
             )
             source_summary = self.retriever.get_relevant_sources_summary(retrieval_result)
-            confidence = self._calculate_confidence(retrieval_result)
+            relevance = self._calculate_relevance(retrieval_result)
 
             result = SemanticResult(
                 question=question,
@@ -422,23 +423,23 @@ class SemanticOrchestrator:
                 citation=citation,
                 include_in_export=True,
                 source_summary=source_summary,
-                confidence=confidence,
+                relevance=relevance,
                 retrieval_time_ms=retrieval_result.retrieval_time_ms,
                 is_followup=is_followup,
             )
         else:
-            if retrieval_result.context and best_score < RETRIEVAL_CONFIDENCE_GATE:
+            if retrieval_result.context and best_score < RETRIEVAL_RELEVANCE_GATE:
                 logger.debug(
                     "Retrieval quality gate: best_score=%.3f < gate=%s",
                     best_score,
-                    RETRIEVAL_CONFIDENCE_GATE,
+                    RETRIEVAL_RELEVANCE_GATE,
                 )
             result = SemanticResult(
                 question=question,
                 quick_answer=UNANSWERED_TEXT,
                 citation="No relevant excerpts found in documents.",
                 source_summary="",
-                confidence=0.0,
+                relevance=0.0,
                 retrieval_time_ms=retrieval_result.retrieval_time_ms,
                 is_followup=is_followup,
                 include_in_export=False,
@@ -461,9 +462,9 @@ class SemanticOrchestrator:
         """
         return result
 
-    def _calculate_confidence(self, retrieval_result: RetrievalResult) -> float:
+    def _calculate_relevance(self, retrieval_result: RetrievalResult) -> float:
         """
-        Calculate overall confidence score from retrieval results.
+        Calculate overall relevance score from retrieval results.
 
         Uses average relevance score of retrieved chunks.
 
@@ -471,7 +472,7 @@ class SemanticOrchestrator:
             retrieval_result: Result from SemanticRetriever
 
         Returns:
-            Confidence score (0-1)
+            Relevance score (0-1)
         """
         if not retrieval_result.sources:
             return 0.0

@@ -5,7 +5,7 @@ Prompt templates are used by semantic_retriever for context window budget calcul
 """
 
 UNANSWERED_TEXT = "No relevant information found in the documents."
-REJECTION_TEXT = "Confidence in answer too low after verification step, declining to show answer..."
+REJECTION_TEXT = "Relevance too low after verification step, declining to show answer..."
 
 # Compact prompt for small context windows (saves ~70 tokens vs full)
 COMPACT_SEMANTIC_PROMPT = (

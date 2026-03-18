@@ -389,10 +389,10 @@ DEFAULTS = {
         "type": "float",
         "category": "Search Retrieval",
     },
-    "retrieval_confidence_gate": {
-        "value": 0.15,
+    "retrieval_relevance_gate": {
+        "value": 0.50,
         "min": 0.05,
-        "max": 0.5,
+        "max": 0.8,
         "step": 0.01,
         "type": "float",
         "category": "Search Retrieval",
@@ -406,7 +406,7 @@ DEFAULTS = {
         "category": "Search Retrieval",
     },
     "faiss_relevance_floor": {
-        "value": 0.10,
+        "value": 0.25,
         "min": 0.0,
         "max": 0.5,
         "step": 0.01,
@@ -424,7 +424,7 @@ DEFAULTS = {
     # =======================================================================
     # Search Export
     # =======================================================================
-    "semantic_export_confidence_floor": {
+    "semantic_export_relevance_floor": {
         "value": 0.51,
         "min": 0.0,
         "max": 1.0,

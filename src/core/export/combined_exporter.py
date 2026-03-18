@@ -134,8 +134,8 @@ def _build_search_txt(semantic_results: list) -> str:
             lines.append(f"  Citation: {result.citation}")
         if result.source_summary:
             lines.append(f"  Source: {result.source_summary}")
-        conf_pct = int(result.confidence * 100)
-        lines.append(f"  Confidence: {conf_pct}%")
+        relevance_pct = int(result.relevance * 100)
+        lines.append(f"  Relevance: {relevance_pct}%")
         lines.append("")
     return "\n".join(lines)
 

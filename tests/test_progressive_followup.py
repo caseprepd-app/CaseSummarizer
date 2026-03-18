@@ -94,12 +94,12 @@ class TestRetrieveForQuestion:
         assert result.citation  # Non-empty
         assert len(result.citation) > 0
 
-    def test_confidence_is_populated(self, mock_orchestrator):
+    def test_relevance_is_populated(self, mock_orchestrator):
         orch, _, _ = mock_orchestrator
 
         result = orch.retrieve_for_question("Who is the plaintiff?")
 
-        assert result.confidence > 0
+        assert result.relevance > 0
 
     def test_source_summary_is_populated(self, mock_orchestrator):
         orch, _, _ = mock_orchestrator
@@ -122,7 +122,7 @@ class TestRetrieveForQuestion:
         result = orch.retrieve_for_question("Something irrelevant?")
 
         assert result.quick_answer == UNANSWERED_TEXT
-        assert result.confidence == 0.0
+        assert result.relevance == 0.0
 
 
 class TestGenerateAnswerForResult:

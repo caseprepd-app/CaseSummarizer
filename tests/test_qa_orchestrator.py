@@ -32,7 +32,7 @@ class TestSemanticResult:
         assert result.answer == "John Smith is the plaintiff."
         assert result.include_in_export is True  # Default to included
         assert result.source_summary == ""
-        assert result.confidence == 0.0
+        assert result.relevance == 0.0
         assert result.is_followup is False
 
     def test_qaresult_full_initialization(self):
@@ -44,18 +44,85 @@ class TestSemanticResult:
             citation="Plaintiff seeks damages of $100,000...",
             include_in_export=False,
             source_summary="complaint.pdf, pages 5-6",
-            confidence=0.85,
+            relevance=0.85,
             retrieval_time_ms=123.4,
             is_followup=True,
         )
 
         assert result.include_in_export is False
         assert result.source_summary == "complaint.pdf, pages 5-6"
-        assert result.confidence == 0.85
+        assert result.relevance == 0.85
         assert result.retrieval_time_ms == 123.4
         assert result.is_followup is True
         assert result.quick_answer == "$100,000 in compensatory damages"
         assert result.citation == "Plaintiff seeks damages of $100,000..."
+
+
+class TestSemanticResultRelevance:
+    """Tests for SemanticResult.relevance field and is_exportable property."""
+
+    def test_is_answered_with_nonzero_relevance(self):
+        """Result with relevance > 0 is considered answered."""
+        result = SemanticResult(question="Q?", relevance=0.5)
+        assert result.is_answered is True
+
+    def test_is_answered_zero_relevance_with_unanswered_text(self):
+        """Result with relevance=0 and unanswered text is not answered."""
+        from src.core.semantic.semantic_constants import UNANSWERED_TEXT
+
+        result = SemanticResult(question="Q?", relevance=0.0, quick_answer=UNANSWERED_TEXT)
+        assert result.is_answered is False
+
+    def test_is_exportable_above_floor(self):
+        """Result above export relevance floor is exportable."""
+        result = SemanticResult(question="Q?", relevance=0.75, citation="text")
+        assert result.is_exportable is True
+
+    def test_is_exportable_below_floor(self):
+        """Result below export relevance floor is not exportable."""
+        result = SemanticResult(question="Q?", relevance=0.30, citation="text")
+        assert result.is_exportable is False
+
+    def test_is_exportable_zero_relevance_unanswered(self):
+        """Unanswered result is not exportable."""
+        from src.core.semantic.semantic_constants import UNANSWERED_TEXT
+
+        result = SemanticResult(question="Q?", relevance=0.0, quick_answer=UNANSWERED_TEXT)
+        assert result.is_exportable is False
+
+    def test_is_exportable_nan_relevance(self):
+        """NaN relevance is not exportable."""
+        result = SemanticResult(question="Q?", relevance=float("nan"), citation="text")
+        assert result.is_exportable is False
+
+
+class TestSemanticSearchThresholds:
+    """Tests for FAISS floor and retrieval relevance gate defaults."""
+
+    def test_faiss_floor_default(self):
+        """FAISS relevance floor should default to 0.25."""
+        from src.config_defaults import DEFAULTS
+
+        assert DEFAULTS["faiss_relevance_floor"]["value"] == 0.25
+
+    def test_retrieval_relevance_gate_default(self):
+        """Retrieval relevance gate should default to 0.50."""
+        from src.config_defaults import DEFAULTS
+
+        assert DEFAULTS["retrieval_relevance_gate"]["value"] == 0.50
+
+    def test_export_relevance_floor_default(self):
+        """Export relevance floor should default to 0.51."""
+        from src.config_defaults import DEFAULTS
+
+        assert DEFAULTS["semantic_export_relevance_floor"]["value"] == 0.51
+
+    def test_old_confidence_keys_removed(self):
+        """Old 'confidence' config keys should no longer exist."""
+        from src.config_defaults import DEFAULTS
+
+        assert "retrieval_confidence_gate" not in DEFAULTS
+        assert "semantic_export_confidence_floor" not in DEFAULTS
 
 
 class TestSemanticOrchestrator:

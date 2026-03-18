@@ -2554,7 +2554,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
     # -----------------------------------------------------------------
 
     def _get_exportable_semantic_results(self) -> list:
-        """Return semantic results that meet the export confidence threshold."""
+        """Return semantic results that meet the export relevance threshold."""
         results = self._outputs.get("Search") or self._outputs.get("Semantic Results", [])
         return [r for r in results if hasattr(r, "is_exportable") and r.is_exportable]
 

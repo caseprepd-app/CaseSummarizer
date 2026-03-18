@@ -425,7 +425,7 @@ class TestSemanticResultPickling:
             question="What happened?",
             quick_answer="The defendant testified.",
             citation="Page 3: The defendant stated...",
-            confidence=0.85,
+            relevance=0.85,
             is_followup=True,
         )
 
@@ -435,7 +435,7 @@ class TestSemanticResultPickling:
         assert unpickled.question == result.question
         assert unpickled.quick_answer == result.quick_answer
         assert unpickled.citation == result.citation
-        assert unpickled.confidence == result.confidence
+        assert unpickled.relevance == result.relevance
         assert unpickled.is_followup is True
 
     def test_semantic_result_with_all_fields_roundtrip(self):
@@ -446,7 +446,7 @@ class TestSemanticResultPickling:
             question="What happened?",
             quick_answer="The defendant testified.",
             citation="Page 3: The defendant stated under oath...",
-            confidence=0.85,
+            relevance=0.85,
             source_summary="complaint.pdf, page 3",
             is_followup=True,
             is_default_question=False,
@@ -457,7 +457,7 @@ class TestSemanticResultPickling:
 
         assert unpickled.question == result.question
         assert unpickled.citation == result.citation
-        assert unpickled.confidence == 0.85
+        assert unpickled.relevance == 0.85
         assert unpickled.source_summary == "complaint.pdf, page 3"
         assert unpickled.is_followup is True
 
