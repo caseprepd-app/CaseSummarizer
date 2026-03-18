@@ -96,6 +96,8 @@ class UserPreferencesManager:
             "hallucination_verification_enabled",
             "answer_rejection_threshold",
             "qa_export_verification_floor",
+            "semantic_temperature",
+            "retrieval_multi_algo_bonus",
         ]:
             if dead_key in self._preferences:
                 del self._preferences[dead_key]

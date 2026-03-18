@@ -1406,7 +1406,7 @@ def _register_all_settings():
             category="Export",
             setting_type=SettingType.CHECKBOX,
             tooltip=(
-                "When enabled, exported files (CSV, Word, PDF, HTML) are "
+                "When enabled, exported files (TXT, PDF, HTML) are "
                 "automatically opened in their default application after export.\n\n"
                 "Disable this if you export many files at once or prefer to "
                 "manually open files."
@@ -1609,22 +1609,19 @@ def _register_all_settings():
         )
     )
 
-    # ===================================================================
-    # SEARCH EXPORT TAB
-    # ===================================================================
-
+    # Search export relevance floor — lives on the Export tab
     from src.config import SEMANTIC_EXPORT_RELEVANCE_FLOOR
 
     SettingsRegistry.register(
         SettingDefinition(
             key="semantic_export_relevance_floor",
-            label="Retrieval relevance floor",
-            category="Search Export",
+            label="Search relevance floor",
+            category="Export",
             setting_type=SettingType.SLIDER,
             tooltip=(
-                "Minimum retrieval relevance (0-1) for a search result\n"
-                "to be included in exports. This measures how relevant the\n"
-                "retrieved document chunks were to the query.\n\n"
+                "Minimum relevance score (0-1) for a search result to be\n"
+                "included in exports. Results below this threshold are\n"
+                "excluded — they're usually not relevant enough to be useful.\n\n"
                 "Default: 0.51 (51%)"
             ),
             default=SEMANTIC_EXPORT_RELEVANCE_FLOOR,

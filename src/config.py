@@ -634,7 +634,6 @@ VECTOR_STORE_DIR.mkdir(parents=True, exist_ok=True)
 # Set to a number to limit retrieval to top-K chunks
 SEMANTIC_RETRIEVAL_K = _d("semantic_retrieval_k")
 SEMANTIC_MAX_TOKENS = _d("semantic_max_tokens")
-SEMANTIC_TEMPERATURE = _d("semantic_temperature")
 SEMANTIC_SIMILARITY_THRESHOLD = _d("semantic_similarity_threshold")
 
 # Semantic Search Context Window
@@ -674,11 +673,8 @@ RETRIEVAL_MIN_SCORE = _d("retrieval_min_score")
 
 # Minimum best-chunk score to attempt answering a question
 # Below this, the question is treated as unanswerable for this document
+# Renamed from RETRIEVAL_CONFIDENCE_GATE in v1.0.19
 RETRIEVAL_RELEVANCE_GATE = _d("retrieval_relevance_gate")
-
-# Multi-algorithm bonus: legacy setting, kept for backward compatibility
-# RRF fusion naturally rewards multi-algorithm consensus without explicit bonus
-RETRIEVAL_MULTI_ALGO_BONUS = _d("retrieval_multi_algo_bonus")
 
 # Reciprocal Rank Fusion constant (standard value from literature)
 # Higher k = less advantage for top-ranked items, more uniform blending
@@ -711,6 +707,7 @@ UNIFIED_CHUNK_OVERLAP_TOKENS = _d("unified_chunk_overlap_tokens")
 UNIFIED_CHUNK_ENCODING = "cl100k_base"
 
 # Search Export: minimum relevance to include in exports
+# Renamed from SEMANTIC_EXPORT_CONFIDENCE_FLOOR in v1.0.19
 SEMANTIC_EXPORT_RELEVANCE_FLOOR = _d("semantic_export_relevance_floor")
 
 # Bundled model configuration for Windows installer

@@ -272,3 +272,11 @@ class TestExportRelevanceFloorSetting:
         setting = next(s for s in all_settings if s.key == "semantic_export_relevance_floor")
         assert "relevance" in setting.label.lower()
         assert "confidence" not in setting.label.lower()
+
+    def test_relevance_floor_in_export_category(self):
+        """Setting should be in Export tab, not Search Export."""
+        from src.ui.settings.settings_registry import SettingsRegistry
+
+        all_settings = SettingsRegistry.get_all_settings()
+        setting = next(s for s in all_settings if s.key == "semantic_export_relevance_floor")
+        assert setting.category == "Export"

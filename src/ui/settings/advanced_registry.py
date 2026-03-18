@@ -82,8 +82,13 @@ def _register_advanced_settings():
         )
     )
 
+    # Keys already registered in the base settings tabs (not Advanced)
+    _skip_keys = {s.key for s in SettingsRegistry.get_all_settings()}
+
     # --- Register each setting ---
     for key, entry in DEFAULTS.items():
+        if key in _skip_keys:
+            continue  # Already registered in a base tab (Export, Search, etc.)
         meta = DESCRIPTIONS.get(key, {})
         label = meta.get("label", key.replace("_", " ").title())
         tooltip = meta.get("tooltip", "")

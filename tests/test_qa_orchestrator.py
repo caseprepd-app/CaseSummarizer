@@ -124,6 +124,13 @@ class TestSemanticSearchThresholds:
         assert "retrieval_confidence_gate" not in DEFAULTS
         assert "semantic_export_confidence_floor" not in DEFAULTS
 
+    def test_dead_settings_removed(self):
+        """Removed settings should no longer exist in defaults."""
+        from src.config_defaults import DEFAULTS
+
+        assert "semantic_temperature" not in DEFAULTS
+        assert "retrieval_multi_algo_bonus" not in DEFAULTS
+
 
 class TestSemanticOrchestrator:
     """Tests for SemanticOrchestrator class (without actual vector store)."""

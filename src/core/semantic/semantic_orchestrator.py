@@ -61,7 +61,9 @@ class SemanticResult:
         citation: Raw retrieved text excerpts from BM25+/vector search
         include_in_export: Whether to include this result in export (default: True)
         source_summary: Human-readable source citation (e.g., "complaint.pdf, page 3")
-        relevance: Relevance score from vector search (0-1)
+        relevance: Relevance score from vector search (0-1).
+            Renamed from "confidence" in v1.0.19 — some comments or
+            tooltips may still refer to it by the old name.
         retrieval_time_ms: Time taken for vector search
         is_followup: Whether this is a user-asked follow-up question
         is_default_question: Whether this question came from the default questions list

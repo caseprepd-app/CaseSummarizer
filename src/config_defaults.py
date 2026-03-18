@@ -343,14 +343,6 @@ DEFAULTS = {
         "type": "int",
         "category": "Search Retrieval",
     },
-    "semantic_temperature": {
-        "value": 0.1,
-        "min": 0.0,
-        "max": 1.0,
-        "step": 0.05,
-        "type": "float",
-        "category": "Search Retrieval",
-    },
     "semantic_similarity_threshold": {
         "value": 0.5,
         "min": 0.1,
@@ -397,14 +389,6 @@ DEFAULTS = {
         "type": "float",
         "category": "Search Retrieval",
     },
-    "retrieval_multi_algo_bonus": {
-        "value": 0.1,
-        "min": 0.0,
-        "max": 0.3,
-        "step": 0.01,
-        "type": "float",
-        "category": "Search Retrieval",
-    },
     "faiss_relevance_floor": {
         "value": 0.25,
         "min": 0.0,
@@ -422,7 +406,7 @@ DEFAULTS = {
         "category": "Search Retrieval",
     },
     # =======================================================================
-    # Search Export
+    # Export
     # =======================================================================
     "semantic_export_relevance_floor": {
         "value": 0.51,
@@ -430,7 +414,7 @@ DEFAULTS = {
         "max": 1.0,
         "step": 0.05,
         "type": "float",
-        "category": "Search Export",
+        "category": "Export",
     },
 }
 

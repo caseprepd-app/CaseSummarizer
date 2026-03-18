@@ -202,7 +202,7 @@ DESCRIPTIONS = {
         "label": "NER algorithm weight",
         "tooltip": (
             "Influence of the NER (Named Entity Recognition) algorithm on\n"
-            "final vocabulary confidence scores. NER is best at finding\n"
+            "final vocabulary quality scores. NER is best at finding\n"
             "person names, organizations, and locations.\n\n"
             "Default: 1.0\n\n"
             "Increase: NER findings weighted more heavily in merging.\n"
@@ -376,7 +376,7 @@ DESCRIPTIONS = {
     "retrieval_chunk_size": {
         "label": "Retrieval chunk size (chars)",
         "tooltip": (
-            "Characters per chunk for search retrieval indexing.\n"
+            "Characters per chunk for BM25+ and FAISS search indexing.\n"
             "Smaller chunks = more precise retrieval but more fragments.\n\n"
             "Default: 500 characters\n\n"
             "Increase: Larger context per chunk (fewer, broader chunks).\n"
@@ -400,7 +400,7 @@ DESCRIPTIONS = {
         "tooltip": (
             "Minimum tokens per chunk. Chunks smaller than this are\n"
             "merged with their neighbor.\n\n"
-            "Default: 50 tokens\n\n"
+            "Default: 75 tokens\n\n"
             "Increase: Larger minimum chunks (fewer, bigger pieces).\n"
             "Decrease: Allow smaller chunks (more granular retrieval).\n\n"
             "Research (2025-2026): 200-word fixed chunks match or beat\n"
@@ -412,7 +412,7 @@ DESCRIPTIONS = {
         "tooltip": (
             "Ideal token count per chunk. The splitter aims for this\n"
             "size when splitting documents at sentence boundaries.\n\n"
-            "Default: 75 tokens\n\n"
+            "Default: 150 tokens\n\n"
             "Increase: Larger chunks (more context per passage).\n"
             "Decrease: Smaller chunks (more precise retrieval).\n\n"
             "Research (2025-2026): 200-512 tokens optimal for retrieval."
@@ -422,7 +422,7 @@ DESCRIPTIONS = {
         "label": "Chunk maximum tokens",
         "tooltip": (
             "Maximum tokens per chunk. Chunks exceeding this are split.\n\n"
-            "Default: 115 tokens\n\n"
+            "Default: 225 tokens\n\n"
             "Increase: Allow larger chunks (more context, less precision).\n"
             "Decrease: Enforce smaller chunks (better precision, more splits).\n\n"
             "Research: Keeping chunks under 512 tokens maximizes precision."
@@ -434,7 +434,7 @@ DESCRIPTIONS = {
             "Number of tokens from the end of each chunk to repeat at\n"
             "the start of the next chunk. Prevents information loss\n"
             "at chunk boundaries.\n\n"
-            "Default: 9 tokens (~12% of target)\n\n"
+            "Default: 22 tokens (~15% of target)\n\n"
             "Increase: Better boundary coverage (more redundancy).\n"
             "Decrease: Less redundancy (risk of split context).\n\n"
             "Typical: 10-20% of target chunk size."
@@ -455,25 +455,14 @@ DESCRIPTIONS = {
         ),
     },
     "semantic_max_tokens": {
-        "label": "Maximum answer length (tokens)",
+        "label": "Context window reserve (tokens)",
         "tooltip": (
-            "Maximum tokens for generated search answers.\n"
-            "Controls how long answers can be.\n\n"
-            "Default: 750 tokens (~500 words)\n\n"
-            "Increase: Allow longer, more detailed answers.\n"
-            "Decrease: Shorter, more concise answers.\n\n"
-            "Very long answers may include less relevant information."
-        ),
-    },
-    "semantic_temperature": {
-        "label": "Search answer temperature",
-        "tooltip": (
-            "Creativity/randomness for search answer generation.\n"
-            "Lower values produce more factual, consistent answers.\n\n"
-            "Default: 0.1\n\n"
-            "Increase: More varied phrasing (risk of less accuracy).\n"
-            "Decrease: More deterministic, factual answers.\n\n"
-            "For legal documents, 0.0-0.2 is recommended."
+            "Tokens reserved for output when budgeting the context window.\n"
+            "The remaining space is used for retrieved document chunks.\n\n"
+            "Default: 750 tokens\n\n"
+            "Increase: Smaller context window for chunks (fewer passages).\n"
+            "Decrease: Larger context window for chunks (more passages).\n\n"
+            "Most users won't need to change this."
         ),
     },
     "semantic_similarity_threshold": {
@@ -526,9 +515,9 @@ DESCRIPTIONS = {
         "label": "Chunks kept after reranking",
         "tooltip": (
             "Number of top chunks to keep after cross-encoder reranking.\n"
-            "These are the chunks used for generating the answer.\n\n"
+            "These are the chunks used for building the citation excerpt.\n\n"
             "Default: 5 chunks\n\n"
-            "Increase: More context for the LLM (may exceed context window).\n"
+            "Increase: More passages considered for citation (broader context).\n"
             "Decrease: Fewer, most-relevant chunks only.\n\n"
             "From the initial 20 retrieved, only the top-K reranked are used."
         ),
@@ -558,17 +547,6 @@ DESCRIPTIONS = {
             "the document doesn't contain relevant information."
         ),
     },
-    "retrieval_multi_algo_bonus": {
-        "label": "Multi-algorithm agreement bonus",
-        "tooltip": (
-            "Extra score added when both BM25+ and FAISS find the same chunk.\n"
-            "Agreement between algorithms signals higher confidence.\n\n"
-            "Default: 0.1\n\n"
-            "Increase: More reward for cross-algorithm agreement.\n"
-            "Decrease: Less influence from algorithm agreement.\n\n"
-            "Applied per additional algorithm beyond the first."
-        ),
-    },
     "faiss_relevance_floor": {
         "label": "FAISS semantic relevance floor",
         "tooltip": (
@@ -594,10 +572,10 @@ DESCRIPTIONS = {
         ),
     },
     # =======================================================================
-    # Search Export
+    # Export
     # =======================================================================
     "semantic_export_relevance_floor": {
-        "label": "Search export relevance floor",
+        "label": "Search relevance floor",
         "tooltip": (
             "Minimum retrieval relevance (0-1) for a semantic search\n"
             "result to be included in exports. This measures how relevant\n"
