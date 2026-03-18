@@ -122,3 +122,9 @@ timestamp,document_id,term,feedback,is_person,algorithms,NER_detection,RAKE_dete
 2026-03-16T21:59:21.586972,unknown,A. Uh-huh,-1,0,MedicalNER,False,False,False,False,True,False,1,36.8,1,0,0.0,0.0,0.0,0.0,1,1.0,0.95,0.95,0.0,1.0,0,1,10934
 2026-03-16T21:59:31.302052,unknown,hear,-1,0,YAKE,False,False,False,False,False,True,1,30.5,1,1735,0.0,0.017781,0.0,0.0,1,1.0,0.95,0.95,0.0,1.0,0,1,10934
 2026-03-16T21:59:35.918185,unknown,Yeah,-1,0,YAKE,False,False,False,False,False,True,1,33.2,1,2993,0.0,0.02776,0.0,0.0,1,1.0,0.95,0.95,0.0,1.0,0,1,10934
+2026-03-17T22:50:18.552997,unknown,COURT,-1,0,YAKE,False,False,False,False,False,True,1,24.8,1,607,0.0,0.000703,0.0,0.0,1,1.0,0.96,0.96,0.0,1.0,0,1,17177
+2026-03-17T22:50:28.721022,unknown,Good,-1,0,YAKE,False,False,False,False,False,True,1,31.1,1,154,0.0,0.010782,0.0,0.0,1,1.0,0.96,0.96,0.0,1.0,0,1,17177
+2026-03-17T22:50:42.794148,unknown,jury,-1,0,YAKE,False,False,False,False,False,True,1,30.5,1,5933,0.0,0.016422,0.0,0.0,1,1.0,0.96,0.96,0.0,1.0,0,1,17177
+2026-03-17T22:50:47.807004,unknown,afternoon,-1,0,YAKE,False,False,False,False,False,True,1,30.6,1,3889,0.0,0.029438,0.0,0.0,1,1.0,0.96,0.96,0.0,1.0,0,1,17177
+2026-03-17T22:54:16.033556,unknown,Thanasis,1,0,"NER,MedicalNER",True,False,False,False,True,False,2,87.7,7,286907,0.0,0.0,0.0,0.0,1,1.0,0.96,0.96,0.0,1.0,0,1,17177
+2026-03-17T22:54:27.306786,unknown,showed Thano,-1,0,"RAKE,YAKE",False,True,False,False,False,True,2,72.3,7,0,0.0,0.014189,2.881818181818182,0.0,1,1.0,0.96,0.96,0.0,1.0,0,1,17177

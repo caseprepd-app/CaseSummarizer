@@ -832,9 +832,12 @@ class VocabularyExtractor:
             seen_terms.add(lower_term)
 
             # Frequency filters — divert to filtered list instead of discarding
+            # High-scoring single-occurrence items (score >= 85) stay in main list
             if merged.frequency > frequency_threshold:
                 term_data[VF.FILTER_REASON] = "too frequent"
                 filtered_terms.append(term_data)
+            elif merged.frequency < min_occurrences and final_quality_score >= 85:
+                vocabulary.append(term_data)
             elif merged.frequency < min_occurrences:
                 term_data[VF.FILTER_REASON] = "below min occurrences"
                 filtered_terms.append(term_data)

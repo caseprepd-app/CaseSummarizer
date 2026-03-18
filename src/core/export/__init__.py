@@ -24,7 +24,7 @@ Usage:
 """
 
 from src.core.export.base import DocumentBuilder
-from src.core.export.combined_exporter import export_combined
+from src.core.export.combined_exporter import export_combined, export_combined_txt
 from src.core.export.html_builder import export_semantic_html, export_vocabulary_html
 from src.core.export.pdf_builder import PdfDocumentBuilder
 from src.core.export.semantic_exporter import export_semantic_results
@@ -36,6 +36,7 @@ __all__ = [
     "PdfDocumentBuilder",
     "WordDocumentBuilder",
     "export_combined",
+    "export_combined_txt",
     "export_semantic_html",
     "export_semantic_results",
     "export_vocabulary",

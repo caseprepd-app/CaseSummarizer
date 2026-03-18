@@ -417,6 +417,34 @@ class ExportService:
             do_export,
         )
 
+    def export_combined_to_txt(
+        self,
+        vocab_data: list[dict],
+        semantic_results: list,
+        summary_text: str,
+        file_path: str,
+    ) -> tuple[bool, str | None]:
+        """
+        Export vocabulary, search results, and key excerpts to a single TXT file.
+
+        Args:
+            vocab_data: List of vocabulary dicts
+            semantic_results: List of SemanticResult objects
+            summary_text: Summary text string
+            file_path: Output file path (.txt)
+
+        Returns:
+            (True, None) if successful, (False, error_detail) otherwise
+        """
+        from src.core.export.combined_exporter import export_combined_txt
+
+        return _run_export(
+            f"combined ({len(vocab_data)} terms, {len(semantic_results)} results) to TXT",
+            file_path,
+            "combined to TXT",
+            lambda: export_combined_txt(vocab_data, semantic_results, summary_text, file_path),
+        )
+
 
 from src.services.singleton import SingletonHolder
 

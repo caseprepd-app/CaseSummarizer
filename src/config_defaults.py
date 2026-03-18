@@ -425,7 +425,7 @@ DEFAULTS = {
     # Search Export
     # =======================================================================
     "semantic_export_confidence_floor": {
-        "value": 0.40,
+        "value": 0.51,
         "min": 0.0,
         "max": 1.0,
         "step": 0.05,

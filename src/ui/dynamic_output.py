@@ -134,6 +134,9 @@ class DynamicOutputWidget(ctk.CTkFrame):
         self._filtered_inner_frame = None  # Inner frame (hidden when collapsed)
         self._filtered_expanded = False
         self._filtered_vocab_data_raw: list[dict] = []  # Raw filtered data
+        self._filtered_unsorted_data: list[dict] = []  # Unsorted copy for sort reset
+        self._filtered_sort_column: str | None = None
+        self._filtered_sort_ascending: bool = True
 
         # Dialog-open guards (prevent opening duplicate dialogs)
         self._dialog_open: dict[str, bool] = {}
@@ -251,7 +254,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
         # Note: CTkOptionMenu doesn't support hover_color, so only use fg_color
         self.export_dropdown = ctk.CTkOptionMenu(
             self.button_frame,
-            values=["Export...", "TXT", "CSV", "Word (.docx)", "PDF", "HTML"],
+            values=["Export...", "TXT", "PDF", "HTML"],
             command=self._on_export_format_selected,
             width=120,
             fg_color=BUTTON_STYLES["primary"]["fg_color"],
@@ -1505,6 +1508,19 @@ class DynamicOutputWidget(ctk.CTkFrame):
             vocab_tab.grid_rowconfigure(1, weight=0)
             return
 
+        # Apply filtered-list score floor (hide low-scoring noise)
+        from src.user_preferences import get_user_preferences
+
+        filtered_floor = get_user_preferences().get("vocab_filtered_score_floor", 40)
+        filtered_data = [
+            item
+            for item in filtered_data
+            if isinstance(item, dict) and item.get(VF.QUALITY_SCORE, 0) >= filtered_floor
+        ]
+        if not filtered_data:
+            vocab_tab.grid_rowconfigure(1, weight=0)
+            return
+
         # Store raw data for expand/collapse
         self._filtered_vocab_data_raw = filtered_data
         self._filtered_expanded = False
@@ -1586,19 +1602,80 @@ class DynamicOutputWidget(ctk.CTkFrame):
         )
         self._filtered_treeview = self._filtered_vocab_tv.widget  # Backward compat
         self._filtered_vocab_tv.configure_columns(columns)
+        self._filtered_vocab_tv.configure_sortable_columns(columns, self._sort_filtered_by_column)
 
         # Add vertical scrollbar only (filtered section is compact)
         vsb, _hsb = self._filtered_vocab_tv.add_scrollbars(self._filtered_inner_frame)
         self._filtered_treeview.grid(row=0, column=0, sticky="nsew")
         vsb.grid(row=0, column=1, sticky="ns")
 
+        # Sort by score descending by default
+        display_data = self._sort_vocab_data(
+            self._filtered_vocab_data_raw, "Score", ascending=False
+        )
+        self._filtered_unsorted_data = list(self._filtered_vocab_data_raw)
+        self._filtered_sort_column = "Score"
+        self._filtered_sort_ascending = False
+        self._update_filtered_sort_headers()
+
         # Insert rows using VocabTreeview (handles values, tags, and data mapping)
-        for i, item in enumerate(self._filtered_vocab_data_raw):
+        for i, item in enumerate(display_data):
             if not isinstance(item, dict):
                 continue
             self._filtered_vocab_tv.insert_row(item, i, columns)
 
         logger.debug("Filtered section: %s terms displayed", len(self._filtered_vocab_data_raw))
+
+    def _sort_filtered_by_column(self, column: str):
+        """Sort filtered vocabulary table by column (mirrors _sort_by_column)."""
+        if not self._filtered_unsorted_data or self._filtered_treeview is None:
+            return
+
+        # Determine new sort state (cycle: asc → desc → unsorted)
+        if self._filtered_sort_column == column:
+            if self._filtered_sort_ascending:
+                self._filtered_sort_ascending = False
+            else:
+                self._filtered_sort_column = None
+                self._filtered_sort_ascending = True
+        else:
+            self._filtered_sort_column = column
+            self._filtered_sort_ascending = True
+
+        # Prepare sorted data
+        if self._filtered_sort_column is None:
+            sorted_data = list(self._filtered_unsorted_data)
+        else:
+            sorted_data = self._sort_vocab_data(
+                self._filtered_unsorted_data,
+                self._filtered_sort_column,
+                self._filtered_sort_ascending,
+            )
+
+        self._update_filtered_sort_headers()
+        self._redisplay_filtered_data(sorted_data)
+
+    def _update_filtered_sort_headers(self):
+        """Update filtered table column headers with sort indicator (▲/▼)."""
+        if self._filtered_treeview is None:
+            return
+        for col in self._get_visible_columns():
+            if col == self._filtered_sort_column:
+                indicator = " ▲" if self._filtered_sort_ascending else " ▼"
+                self._filtered_treeview.heading(col, text=f"{col}{indicator}")
+            else:
+                self._filtered_treeview.heading(col, text=col)
+
+    def _redisplay_filtered_data(self, sorted_data: list):
+        """Clear and repopulate the filtered treeview with sorted data."""
+        if self._filtered_treeview is None:
+            return
+        self._filtered_treeview.delete(*self._filtered_treeview.get_children())
+        columns = tuple(self._get_visible_columns())
+        for i, item in enumerate(sorted_data):
+            if not isinstance(item, dict):
+                continue
+            self._filtered_vocab_tv.insert_row(item, i, columns)
 
     def _display_semantic_results(self, results: list):
         """
@@ -2448,45 +2525,165 @@ class DynamicOutputWidget(ctk.CTkFrame):
             logger.warning("Vocab export failed: %s", e)
             messagebox.showerror("Export Failed", f"Could not save file:\n{e}")
 
-    def _quick_export_vocab_csv(self):
-        """Quick export vocabulary to CSV file."""
-        self._export_vocab("csv")
+    # --- Deprecated single-section export shortcuts (Mar 2026) ---
+    # Kept for potential future use. Export dropdown now uses _export_all()
+    # which exports all sections (vocab, search, key excerpts) together.
+    #
+    # def _quick_export_vocab_csv(self):
+    #     """Quick export vocabulary to CSV file."""
+    #     self._export_vocab("csv")
+    #
+    # def _export_vocab_to_word(self):
+    #     """Export vocabulary to Word document."""
+    #     self._export_vocab("word")
+    #
+    # def _export_vocab_to_pdf(self):
+    #     """Export vocabulary to PDF document."""
+    #     self._export_vocab("pdf")
+    #
+    # def _export_vocab_to_txt(self):
+    #     """Export vocabulary to plain text file."""
+    #     self._export_vocab("txt")
+    #
+    # def _export_vocab_to_html(self):
+    #     """Export vocabulary to interactive HTML file."""
+    #     self._export_vocab("html")
 
-    def _export_vocab_to_word(self):
-        """Export vocabulary to Word document."""
-        self._export_vocab("word")
+    # -----------------------------------------------------------------
+    # Combined Export (all sections: vocab + search + key excerpts)
+    # -----------------------------------------------------------------
 
-    def _export_vocab_to_pdf(self):
-        """Export vocabulary to PDF document."""
-        self._export_vocab("pdf")
+    def _get_exportable_semantic_results(self) -> list:
+        """Return semantic results that meet the export confidence threshold."""
+        results = self._outputs.get("Search") or self._outputs.get("Semantic Results", [])
+        return [r for r in results if hasattr(r, "is_exportable") and r.is_exportable]
 
-    def _export_vocab_to_txt(self):
-        """Export vocabulary to plain text file."""
-        self._export_vocab("txt")
+    def _get_summary_text(self) -> str:
+        """Return the key excerpts text for export."""
+        return (
+            self._outputs.get("Key Excerpts") or self._outputs.get("Meta-Summary") or ""
+        ).strip()
 
-    def _export_vocab_to_html(self):
-        """Export vocabulary to interactive HTML file."""
-        self._export_vocab("html")
+    def _export_all(self, format_key: str):
+        """
+        Export all sections (vocabulary, search, key excerpts) in the given format.
+
+        Args:
+            format_key: One of "txt", "pdf", "html"
+        """
+        if self._exporting_vocab:
+            return
+        self._exporting_vocab = True
+        try:
+            self._export_all_impl(format_key)
+        except Exception:
+            logger.error("Combined export failed", exc_info=True)
+        finally:
+            self._exporting_vocab = False
+
+    def _export_all_impl(self, format_key: str):
+        """Implementation of _export_all, guarded by _exporting_vocab flag."""
+        from datetime import datetime
+
+        from src.services import DocumentService
+
+        vocab_data = self._get_filtered_vocab_data()
+        semantic_results = self._get_exportable_semantic_results()
+        summary_text = self._get_summary_text()
+
+        if not vocab_data and not semantic_results and not summary_text:
+            messagebox.showwarning("No Data", "No data to export.\n\nProcess documents first.")
+            return
+
+        ext_map = {"txt": ".txt", "pdf": ".pdf", "html": ".html"}
+        prefs = get_user_preferences()
+        export_path = (
+            prefs.get("last_export_path") or DocumentService().get_default_documents_folder()
+        )
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"case_report_{timestamp}{ext_map[format_key]}"
+        filepath = os.path.join(export_path, filename)
+
+        success, error_detail = self._dispatch_combined_export(
+            format_key, vocab_data, semantic_results, summary_text, filepath
+        )
+        self._handle_export_result(success, error_detail, filepath, export_path, prefs)
+
+    def _dispatch_combined_export(
+        self, format_key, vocab_data, semantic_results, summary_text, filepath
+    ):
+        """Dispatch to the appropriate combined exporter by format."""
+        from src.services import get_export_service
+
+        export_service = get_export_service()
+
+        if format_key == "html":
+            visible_columns = self._get_visible_columns()
+            return export_service.export_combined_html(
+                vocab_data, semantic_results, summary_text, filepath, visible_columns
+            )
+        elif format_key == "pdf":
+            include_details = self._should_include_vocab_details()
+            return export_service.export_combined_to_pdf(
+                vocab_data,
+                semantic_results,
+                filepath,
+                include_vocab_details=include_details,
+                summary_text=summary_text,
+            )
+        else:  # txt
+            return export_service.export_combined_to_txt(
+                vocab_data, semantic_results, summary_text, filepath
+            )
+
+    def _should_include_vocab_details(self) -> bool:
+        """Check if algorithm detail columns are visible (for Word/PDF exports)."""
+        return any(
+            self._column_visibility.get(col, False)
+            for col in [
+                VF.NER,
+                VF.RAKE,
+                VF.BM25,
+                VF.TOPICRANK,
+                VF.MEDICALNER,
+                VF.YAKE,
+                VF.ALGO_COUNT,
+            ]
+        )
+
+    def _handle_export_result(self, success, error_detail, filepath, export_path, prefs):
+        """Handle post-export status messaging and preference saving."""
+        from pathlib import Path
+
+        if success:
+            prefs.set("last_export_path", str(Path(filepath).parent))
+            folder_name = Path(export_path).name
+            filename = Path(filepath).name
+            main_window = self.winfo_toplevel()
+            if hasattr(main_window, "set_status"):
+                main_window.set_status(f"Exported to {folder_name}/{filename}", duration_ms=5000)
+            logger.debug("Exported to %s", filepath)
+        else:
+            ext = Path(filepath).suffix
+            detail = f"\n\n{error_detail}" if error_detail else ""
+            messagebox.showerror("Export Failed", f"Could not export to {ext} file.{detail}")
 
     def _on_export_format_selected(self, choice: str):
         """
         Handle export format selection from dropdown.
 
+        Exports all sections (vocabulary, search results, key excerpts)
+        in the chosen format.
+
         Args:
-            choice: Selected format ("Export...", "TXT", "CSV", "Word (.docx)", "PDF", "HTML")
+            choice: Selected format ("Export...", "TXT", "PDF", "HTML")
         """
         if choice == "Export...":
             return  # Placeholder, do nothing
 
-        format_map = {
-            "TXT": "txt",
-            "CSV": "csv",
-            "Word (.docx)": "word",
-            "PDF": "pdf",
-            "HTML": "html",
-        }
+        format_map = {"TXT": "txt", "PDF": "pdf", "HTML": "html"}
         if choice in format_map:
-            self._export_vocab(format_map[choice])
+            self._export_all(format_map[choice])
 
         # Reset dropdown to placeholder
         self.export_dropdown.set("Export...")

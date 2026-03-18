@@ -911,6 +911,28 @@ def _register_all_settings():
 
     SettingsRegistry.register(
         SettingDefinition(
+            key="vocab_filtered_score_floor",
+            label="Filtered list minimum score",
+            category="Vocabulary",
+            setting_type=SettingType.SLIDER,
+            tooltip=(
+                "Hide filtered-out terms with scores below this threshold.\n\n"
+                "Terms in the lower 'Filtered out' section scoring below this "
+                "value are hidden entirely — they're usually noise (common words, "
+                "nonsense phrases).\n\n"
+                "Default: 40. Range: 20–49."
+            ),
+            default=40,
+            min_value=20,
+            max_value=49,
+            step=1,
+            getter=lambda: prefs.get("vocab_filtered_score_floor", 40),
+            setter=lambda v: prefs.set("vocab_filtered_score_floor", int(v)),
+        )
+    )
+
+    SettingsRegistry.register(
+        SettingDefinition(
             key="phrase_mean_rarity_threshold",
             label="Phrase mean commonality",
             category="Vocabulary",
@@ -1603,7 +1625,7 @@ def _register_all_settings():
                 "Minimum retrieval confidence (0-1) for a search result\n"
                 "to be included in exports. This measures how relevant the\n"
                 "retrieved document chunks were to the query.\n\n"
-                "Default: 0.40 (40%)"
+                "Default: 0.51 (51%)"
             ),
             default=SEMANTIC_EXPORT_CONFIDENCE_FLOOR,
             min_value=0.0,
