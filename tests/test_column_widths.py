@@ -8,22 +8,14 @@ Covers:
 - truncate_text(): text overflow prevention
 - get_vocab_font_specs(): font spec accessor
 - COLUMN_REGISTRY / COLUMN_ORDER consistency
-- stretch=False on all columns (source inspection)
-- Save cap raised to 800 (source inspection)
-- "Reset Column Widths" menu option (source inspection)
-- _autosize_columns_to_content / _reset_column_widths (source inspection)
+- stretch=False on all columns (behavioral)
+- Save cap 800 (behavioral via prefs validation)
+- DynamicOutputDisplay column management methods
 """
 
 import tkinter as tk
-from pathlib import Path
 
 import pytest
-
-
-def _read_source(module_path: str) -> str:
-    """Read a source file relative to project root."""
-    root = Path(__file__).parent.parent
-    return (root / module_path).read_text(encoding="utf-8")
 
 
 @pytest.fixture(scope="module")
@@ -56,10 +48,13 @@ class TestColumnRegistryConsistency:
         assert set(COLUMN_ORDER) == set(COLUMN_REGISTRY.keys())
 
     def test_no_duplicate_columns_in_order(self):
-        """COLUMN_ORDER has no duplicates."""
-        from src.ui.vocab_table.column_config import COLUMN_ORDER
+        """COLUMN_ORDER has no duplicates and includes all expected columns."""
+        from src.ui.vocab_table.column_config import COLUMN_ORDER, COLUMN_REGISTRY
 
         assert len(COLUMN_ORDER) == len(set(COLUMN_ORDER))
+        assert set(COLUMN_ORDER) == set(COLUMN_REGISTRY.keys()), (
+            f"Missing: {set(COLUMN_REGISTRY.keys()) - set(COLUMN_ORDER)}"
+        )
 
     def test_term_cannot_be_hidden(self):
         """Term column has can_hide=False."""
@@ -383,44 +378,18 @@ class TestMaxWidthForColumn:
 class TestGetVocabFontSpecs:
     """Tests for the font spec accessor in styles.py."""
 
-    def test_returns_two_tuples(self):
-        """Returns a pair of font spec tuples."""
+    def test_returns_valid_font_specs(self):
+        """Returns content and heading font specs with correct structure and values."""
         from src.ui.styles import get_vocab_font_specs
 
         content, heading = get_vocab_font_specs()
-        assert isinstance(content, tuple)
-        assert isinstance(heading, tuple)
-
-    def test_content_font_has_family_and_size(self):
-        """Content font spec has at least family and size."""
-        from src.ui.styles import get_vocab_font_specs
-
-        content, _ = get_vocab_font_specs()
-        assert len(content) >= 2
-        assert isinstance(content[0], str)  # family
-        assert isinstance(content[1], int)  # size
-
-    def test_heading_font_is_bold(self):
-        """Heading font spec includes 'bold'."""
-        from src.ui.styles import get_vocab_font_specs
-
-        _, heading = get_vocab_font_specs()
-        assert len(heading) >= 3
+        assert isinstance(content, tuple) and len(content) >= 2
+        assert isinstance(content[0], str) and len(content[0]) > 0
+        assert isinstance(content[1], int) and content[1] > 0
+        assert isinstance(heading, tuple) and len(heading) >= 3
         assert heading[2] == "bold"
-
-    def test_heading_same_family_as_content(self):
-        """Content and heading use the same font family."""
-        from src.ui.styles import get_vocab_font_specs
-
-        content, heading = get_vocab_font_specs()
-        assert content[0] == heading[0]
-
-    def test_heading_same_size_as_content(self):
-        """Content and heading use the same font size."""
-        from src.ui.styles import get_vocab_font_specs
-
-        content, heading = get_vocab_font_specs()
-        assert content[1] == heading[1]
+        assert content[0] == heading[0], "Font families must match"
+        assert content[1] == heading[1], "Font sizes must match"
 
 
 # ============================================================================
@@ -431,57 +400,24 @@ class TestGetVocabFontSpecs:
 class TestStretchFalseOnAllColumns:
     """Verify stretch=False is set on all columns (no snap-back)."""
 
-    def test_no_stretch_true_in_column_config(self):
-        """No stretch=True in the VocabTreeview column configuration."""
-        source = _read_source("src/ui/vocab_table/vocab_treeview.py")
-        # Find the column configuration block
-        assert "stretch=False" in source
-        # The old pattern should be gone
-        assert 'stretch=col == "Term"' not in source
+    def test_configure_columns_sets_stretch_false(self, _tk_root):
+        """VocabTreeview.configure_columns sets stretch=False on every column."""
+        from src.ui.vocab_table.vocab_treeview import VocabTreeview
 
-    def test_all_stretch_calls_are_false(self):
-        """Every stretch= assignment in vocab_treeview.py is False."""
-        import re
-
-        source = _read_source("src/ui/vocab_table/vocab_treeview.py")
-        stretches = re.findall(r"stretch=(\S+)", source)
-        for val in stretches:
-            assert val.rstrip(",)") == "False", f"Found stretch={val}"
+        cols = ("Term", "Score", "Keep")
+        tv = VocabTreeview(_tk_root, columns=cols)
+        tv.configure_columns(cols)
+        for col in cols:
+            info = tv.widget.column(col)
+            assert info["stretch"] == 0, f"{col} has stretch={info['stretch']}"
+        tv.widget.destroy()
 
 
 class TestSaveCapRaised:
     """Verify the column width save cap was raised to 800."""
 
-    def test_save_cap_is_800(self):
-        """_save_column_widths uses 800 as upper bound."""
-        source = _read_source("src/ui/dynamic_output.py")
-        assert "30 <= width <= 800" in source
-
-    def test_no_old_500_cap(self):
-        """Old 500 cap is gone."""
-        source = _read_source("src/ui/dynamic_output.py")
-        assert "30 <= width <= 500" not in source
-
-    def test_prefs_validation_matches_save_cap(self):
-        """user_preferences.py column width upper limit matches dynamic_output save cap (800)."""
-        source = _read_source("src/user_preferences.py")
-        assert "width > 800" in source
-        assert "width > 500" not in source
-
-    def test_prefs_accepts_width_680(self):
-        """Column width of 680 (common on wide monitors) is accepted by prefs."""
-        import os
-        import tempfile
-
-        from src.user_preferences import UserPreferencesManager
-
-        with tempfile.TemporaryDirectory() as d:
-            prefs = UserPreferencesManager(os.path.join(d, "p.json"))
-            prefs.set("vocab_column_widths", {"Found By": 680})
-            assert prefs.get("vocab_column_widths")["Found By"] == 680
-
-    def test_prefs_accepts_width_800(self):
-        """Column width of 800 (upper limit) is accepted by prefs."""
+    def test_save_cap_is_800_via_prefs(self):
+        """Column width 800 is accepted but 801 is rejected (cap is 800)."""
         import os
         import tempfile
 
@@ -491,9 +427,11 @@ class TestSaveCapRaised:
             prefs = UserPreferencesManager(os.path.join(d, "p.json"))
             prefs.set("vocab_column_widths", {"Term": 800})
             assert prefs.get("vocab_column_widths")["Term"] == 800
+            with pytest.raises(ValueError, match="30-800"):
+                prefs.set("vocab_column_widths", {"Term": 801})
 
-    def test_prefs_rejects_width_801(self):
-        """Column width above 800 is rejected by prefs."""
+    def test_prefs_rejects_boundary_widths(self):
+        """Widths at invalid boundaries (negative, 0, 29, 10000) are all rejected."""
         import os
         import tempfile
 
@@ -501,173 +439,82 @@ class TestSaveCapRaised:
 
         with tempfile.TemporaryDirectory() as d:
             prefs = UserPreferencesManager(os.path.join(d, "p.json"))
-            with pytest.raises(ValueError, match="30-800"):
-                prefs.set("vocab_column_widths", {"Term": 801})
+            for bad_width in [-1, 0, 29, 10000]:
+                with pytest.raises(ValueError, match="30-800"):
+                    prefs.set("vocab_column_widths", {"Term": bad_width})
+
+    def test_prefs_accepts_valid_widths(self):
+        """Widths 30 (min), 680 (wide monitor), and 800 (max) are accepted."""
+        import os
+        import tempfile
+
+        from src.user_preferences import UserPreferencesManager
+
+        with tempfile.TemporaryDirectory() as d:
+            prefs = UserPreferencesManager(os.path.join(d, "p.json"))
+            for width in [30, 680, 800]:
+                prefs.set("vocab_column_widths", {"Found By": width})
+                assert prefs.get("vocab_column_widths")["Found By"] == width
 
     def test_save_column_widths_wraps_prefs_in_try_except(self):
         """_save_column_widths catches prefs errors instead of propagating."""
-        source = _read_source("src/ui/dynamic_output.py")
-        # Find the _save_column_widths method body
+        from pathlib import Path
+
+        root = Path(__file__).parent.parent
+        source = (root / "src/ui/dynamic_output.py").read_text(encoding="utf-8")
         start = source.index("def _save_column_widths")
         next_def = source.index("\n    def ", start + 1)
-        body = source[start:next_def]
-        assert "Could not save column widths" in body
+        assert "Could not save column widths" in source[start:next_def]
 
 
-class TestOnTabChangedExceptionIsolation:
-    """Verify _on_tab_changed keeps working even if _save_column_widths fails."""
+class TestDynamicOutputMethods:
+    """Verify DynamicOutputDisplay has key column management methods."""
 
-    def test_save_after_ui_updates(self):
-        """_save_column_widths is called AFTER followup_frame and button_frame updates."""
-        source = _read_source("src/ui/dynamic_output.py")
-        start = source.index("def _on_tab_changed")
-        next_def = source.index("\n    def ", start + 1)
-        body = source[start:next_def]
-        # followup_frame update should come before _save_column_widths
-        followup_pos = body.index("followup_frame")
-        save_pos = body.index("_save_column_widths")
-        assert followup_pos < save_pos, (
-            "_save_column_widths should run after followup_frame visibility update"
-        )
+    def test_autosize_and_reset_methods_exist(self):
+        """DynamicOutputWidget has autosize and reset column methods."""
+        from src.ui.dynamic_output import DynamicOutputWidget
 
-
-class TestResetColumnWidthsMenu:
-    """Verify Reset Column Widths is in the column menu."""
-
-    def test_menu_has_reset_column_widths(self):
-        """Column menu includes 'Reset Column Widths' command."""
-        source = _read_source("src/ui/dynamic_output.py")
-        assert '"Reset Column Widths"' in source
-
-    def test_menu_has_reset_column_visibility(self):
-        """Column menu includes 'Reset Column Visibility' command."""
-        source = _read_source("src/ui/dynamic_output.py")
-        assert '"Reset Column Visibility"' in source
-
-    def test_reset_widths_calls_method(self):
-        """Reset Column Widths menu command is wired to _reset_column_widths."""
-        source = _read_source("src/ui/dynamic_output.py")
-        assert "self._reset_column_widths" in source
-
-
-class TestAutosizeMethod:
-    """Verify _autosize_columns_to_content exists and is called."""
-
-    def test_method_exists(self):
-        """_autosize_columns_to_content is defined in dynamic_output.py."""
-        source = _read_source("src/ui/dynamic_output.py")
-        assert "def _autosize_columns_to_content(self, data" in source
-
-    def test_called_in_update_pagination(self):
-        """_autosize_columns_to_content is called from _update_pagination_ui."""
-        source = _read_source("src/ui/dynamic_output.py")
-        # Find the _update_pagination_ui method body
-        start = source.index("def _update_pagination_ui")
-        # Find next def at same indent level
-        next_def = source.index("\n    def ", start + 1)
-        body = source[start:next_def]
-        assert "_autosize_columns_to_content" in body
-
-    def test_skips_when_saved_widths_exist(self):
-        """_autosize_columns_to_content returns early when saved widths exist."""
-        source = _read_source("src/ui/dynamic_output.py")
-        start = source.index("def _autosize_columns_to_content")
-        next_def = source.index("\n    def ", start + 1)
-        body = source[start:next_def]
-        assert "_load_column_widths" in body
-        assert "if saved_widths:" in body
-
-
-class TestResetColumnWidthsMethod:
-    """Verify _reset_column_widths clears prefs and re-auto-sizes."""
-
-    def test_method_exists(self):
-        """_reset_column_widths is defined."""
-        source = _read_source("src/ui/dynamic_output.py")
-        assert "def _reset_column_widths(self)" in source
-
-    def test_clears_saved_widths(self):
-        """_reset_column_widths sets vocab_column_widths to empty dict."""
-        source = _read_source("src/ui/dynamic_output.py")
-        start = source.index("def _reset_column_widths")
-        next_def = source.index("\n    def ", start + 1)
-        body = source[start:next_def]
-        assert '"vocab_column_widths", {}' in body
-
-    def test_calls_compute_column_widths(self):
-        """_reset_column_widths re-computes widths after clearing."""
-        source = _read_source("src/ui/dynamic_output.py")
-        start = source.index("def _reset_column_widths")
-        next_def = source.index("\n    def ", start + 1)
-        body = source[start:next_def]
-        assert "compute_column_widths" in body
-
-
-class TestDPIAwareInitialWidths:
-    """Verify initial column widths use DPI-aware computation."""
-
-    def test_display_csv_uses_compute_column_widths(self):
-        """_display_csv calls compute_column_widths when no saved widths."""
-        source = _read_source("src/ui/dynamic_output.py")
-        start = source.index("def _display_csv")
-        next_def = source.index("\n    def ", start + 1)
-        body = source[start:next_def]
-        assert "compute_column_widths" in body
-
-    def test_display_csv_uses_get_vocab_font_specs(self):
-        """_display_csv gets font specs for width computation."""
-        source = _read_source("src/ui/dynamic_output.py")
-        start = source.index("def _display_csv")
-        next_def = source.index("\n    def ", start + 1)
-        body = source[start:next_def]
-        assert "get_vocab_font_specs" in body
-
-    def test_display_csv_checks_saved_widths_first(self):
-        """_display_csv prefers saved widths over computed ones."""
-        source = _read_source("src/ui/dynamic_output.py")
-        start = source.index("def _display_csv")
-        next_def = source.index("\n    def ", start + 1)
-        body = source[start:next_def]
-        assert "_load_column_widths" in body
+        for method in ("_autosize_columns_to_content", "_reset_column_widths"):
+            assert hasattr(DynamicOutputWidget, method), f"Missing {method}"
+            assert callable(getattr(DynamicOutputWidget, method))
 
 
 # ============================================================================
-# 8. Constants and imports
+# 8. Constants and behavioral verification
 # ============================================================================
 
 
 class TestColumnConfigConstants:
-    """Verify column_config constants are set correctly."""
+    """Verify column_config constants are used correctly in computation."""
 
-    def test_min_column_width(self):
-        """MIN_COLUMN_WIDTH is 40."""
-        from src.ui.vocab_table.column_config import MIN_COLUMN_WIDTH
+    def test_min_column_width_clamps_narrow_columns(self, _tk_root):
+        """A column whose heading+content would be <40px is clamped to MIN_COLUMN_WIDTH."""
+        from src.ui.vocab_table.column_config import MIN_COLUMN_WIDTH, compute_column_widths
 
-        assert MIN_COLUMN_WIDTH == 40
+        result = compute_column_widths(["NER"], ("Segoe UI", 10), ("Segoe UI", 10, "bold"), 1000)
+        assert result["NER"] >= MIN_COLUMN_WIDTH
 
-    def test_cell_padding(self):
-        """_CELL_PADDING is 16."""
-        from src.ui.vocab_table.column_config import _CELL_PADDING
+    def test_cell_padding_included_in_content_width(self, _tk_root):
+        """_CELL_PADDING (16px) is added to measured content width."""
+        import tkinter.font as tkfont
 
-        assert _CELL_PADDING == 16
+        from src.ui.vocab_table.column_config import _CELL_PADDING, _measure_content_width
 
-    def test_sort_indicator_padding(self):
-        """_SORT_INDICATOR_PADDING is 12."""
-        from src.ui.vocab_table.column_config import _SORT_INDICATOR_PADDING
+        font = tkfont.Font(font=("Segoe UI", 10))
+        width = _measure_content_width("Term", [{"Term": "Plaintiff"}], font)
+        assert width == font.measure("Plaintiff") + _CELL_PADDING
 
-        assert _SORT_INDICATOR_PADDING == 12
+    def test_sort_indicator_padding_in_heading_width(self, _tk_root):
+        """_SORT_INDICATOR_PADDING (12px) is included in heading width calc."""
+        import tkinter.font as tkfont
 
-    def test_column_config_imports_tkfont(self):
-        """column_config.py imports tkinter.font for DPI-aware measurement."""
-        source = _read_source("src/ui/vocab_table/column_config.py")
-        assert "import tkinter.font as tkfont" in source
+        from src.ui.vocab_table.column_config import (
+            _CELL_PADDING,
+            _SORT_INDICATOR_PADDING,
+            compute_column_widths,
+        )
 
-    def test_dynamic_output_imports_compute_function(self):
-        """dynamic_output.py imports compute_column_widths."""
-        source = _read_source("src/ui/dynamic_output.py")
-        assert "compute_column_widths" in source
-
-    def test_dynamic_output_imports_get_vocab_font_specs(self):
-        """dynamic_output.py imports get_vocab_font_specs."""
-        source = _read_source("src/ui/dynamic_output.py")
-        assert "from src.ui.styles import get_vocab_font_specs" in source
+        hfont = tkfont.Font(font=("Segoe UI", 10, "bold"))
+        expected_min = hfont.measure("Score") + _SORT_INDICATOR_PADDING + _CELL_PADDING
+        result = compute_column_widths(["Score"], ("Segoe UI", 10), ("Segoe UI", 10, "bold"), 2000)
+        assert result["Score"] >= expected_min

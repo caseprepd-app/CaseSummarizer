@@ -27,6 +27,16 @@ class TestChunkScoresDataclass:
         assert scores.skip == []
         assert scores.skip_reason == []
 
+    def test_with_actual_data(self):
+        """ChunkScores with actual data stores values correctly."""
+        scores = ChunkScores(
+            skip=[False, True, False],
+            skip_reason=["", "redundant with chunk 1 (sim=0.99)", ""],
+        )
+        assert len(scores.skip) == 3
+        assert scores.skip[1] is True
+        assert "redundant" in scores.skip_reason[1]
+
 
 class TestDetectRedundantChunksEdgeCases:
     """Test edge cases for detect_redundant_chunks."""

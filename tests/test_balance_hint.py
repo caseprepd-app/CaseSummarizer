@@ -73,16 +73,17 @@ def _call_update(label, feedback_mgr, dismissed=False):
 
 
 def test_no_hint_under_20_votes(widget_parts):
-    """No hint should appear with fewer than 20 total votes."""
+    """18 total votes (< 20 threshold) should produce no hint."""
     label, mgr = widget_parts
     mgr._keep = [f"term_{i}" for i in range(15)]
     mgr._skip = [f"skip_{i}" for i in range(3)]
     _call_update(label, mgr)
     assert label.text == ""
+    assert label.text_color is None
 
 
 def test_no_hint_when_balanced(widget_parts):
-    """No hint when feedback is reasonably balanced (< 75% majority)."""
+    """20 votes with 70% keeps (below 75%) should produce no hint."""
     label, mgr = widget_parts
     mgr._keep = [f"term_{i}" for i in range(14)]
     mgr._skip = [f"skip_{i}" for i in range(6)]
@@ -91,33 +92,35 @@ def test_no_hint_when_balanced(widget_parts):
 
 
 def test_hint_shown_when_keeps_dominate(widget_parts):
-    """Hint should appear when keeps > 75% of 20+ votes."""
+    """20 votes with 90% keeps should show keeps-dominated hint."""
     label, mgr = widget_parts
     mgr._keep = [f"term_{i}" for i in range(18)]
     mgr._skip = [f"skip_{i}" for i in range(2)]
     _call_update(label, mgr)
-    assert "keeps" in label.text
+    assert label.text == "Tip: Your feedback is mostly keeps"
+    assert label.text_color == ("gray50", "gray70")
 
 
 def test_hint_shown_when_skips_dominate(widget_parts):
-    """Hint should appear when skips > 75% of 20+ votes."""
+    """20 votes with 85% skips should show skips-dominated hint."""
     label, mgr = widget_parts
     mgr._keep = [f"term_{i}" for i in range(3)]
     mgr._skip = [f"skip_{i}" for i in range(17)]
     _call_update(label, mgr)
-    assert "skips" in label.text
+    assert label.text == "Tip: Your feedback is mostly skips"
+    assert label.text_color == ("gray50", "gray70")
 
 
 def test_hint_clears_when_balance_improves(widget_parts):
-    """Hint should disappear when balance improves."""
+    """Hint should disappear when ratio drops below 75%."""
     label, mgr = widget_parts
-    # First: lopsided
+    # First: 90% keeps (lopsided)
     mgr._keep = [f"term_{i}" for i in range(18)]
     mgr._skip = [f"skip_{i}" for i in range(2)]
     _call_update(label, mgr)
     assert "keeps" in label.text
 
-    # Then: balanced
+    # Then: 60% keeps (balanced)
     mgr._keep = [f"term_{i}" for i in range(12)]
     mgr._skip = [f"skip_{i}" for i in range(8)]
     _call_update(label, mgr)
@@ -125,7 +128,7 @@ def test_hint_clears_when_balance_improves(widget_parts):
 
 
 def test_dismissed_stays_hidden(widget_parts):
-    """Once dismissed, hint should not reappear."""
+    """Once dismissed, hint should not reappear even with lopsided data."""
     label, mgr = widget_parts
     mgr._keep = [f"term_{i}" for i in range(18)]
     mgr._skip = [f"skip_{i}" for i in range(2)]
@@ -133,20 +136,19 @@ def test_dismissed_stays_hidden(widget_parts):
     assert label.text == ""
 
 
-def test_exactly_75_percent_no_hint(widget_parts):
-    """At exactly 75%, hint should appear (>= threshold)."""
+def test_exactly_75_percent_shows_hint(widget_parts):
+    """15/20 = exactly 75% should show hint (threshold is not <0.75)."""
     label, mgr = widget_parts
     mgr._keep = [f"term_{i}" for i in range(15)]
     mgr._skip = [f"skip_{i}" for i in range(5)]
     _call_update(label, mgr)
-    # 15/20 = 0.75, which is not < 0.75, so hint should show
-    assert "keeps" in label.text
+    assert label.text == "Tip: Your feedback is mostly keeps"
 
 
 def test_76_percent_shows_hint(widget_parts):
-    """At 76%, hint should clearly appear."""
+    """19/25 = 76% keeps should show keeps hint."""
     label, mgr = widget_parts
     mgr._keep = [f"term_{i}" for i in range(19)]
     mgr._skip = [f"skip_{i}" for i in range(6)]
     _call_update(label, mgr)
-    assert "keeps" in label.text
+    assert label.text == "Tip: Your feedback is mostly keeps"

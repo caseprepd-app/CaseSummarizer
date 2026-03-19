@@ -34,8 +34,11 @@ class TestRAKEAlgorithm:
         text = "The plaintiff filed a motion for summary judgment in the federal court."
         result = algo.extract(text)
         assert isinstance(result, AlgorithmResult)
-        assert result.processing_time_ms >= 0
+        assert result.processing_time_ms > 0
         assert isinstance(result.candidates, list)
+        assert result.metadata.get("raw_phrases_found") is not None
+        for c in result.candidates:
+            assert c.source_algorithm == "RAKE"
 
     def test_extract_finds_phrases(self):
         from src.core.vocabulary.algorithms.rake_algorithm import RAKEAlgorithm
@@ -88,12 +91,15 @@ class TestRAKEAlgorithm:
         assert len(result.candidates) <= 5
 
     def test_preprocess_removes_line_numbers(self):
+        """Extraction on text with line numbers produces clean results."""
         from src.core.vocabulary.algorithms.rake_algorithm import RAKEAlgorithm
 
-        algo = RAKEAlgorithm()
+        algo = RAKEAlgorithm(min_score=1.0, min_frequency=1)
         text = "  1  The witness testified about the incident.\n  2  The plaintiff was present."
-        cleaned = algo._preprocess_text(text)
-        assert "  1  " not in cleaned
+        result = algo.extract(text)
+        # Line numbers should not appear in extracted terms
+        terms = [c.term for c in result.candidates]
+        assert all(not t.strip().isdigit() for t in terms)
 
     def test_clean_phrase_strips_junk_prefix(self):
         from src.core.vocabulary.algorithms.rake_algorithm import RAKEAlgorithm
@@ -137,12 +143,17 @@ class TestRAKEAlgorithm:
         assert config["max_candidates"] == 100
 
     def test_rake_property_lazy_loads(self):
+        """Accessing .rake lazy-loads a usable Rake instance."""
         from src.core.vocabulary.algorithms.rake_algorithm import RAKEAlgorithm
 
         algo = RAKEAlgorithm()
         assert algo._rake is None
-        _ = algo.rake
-        assert algo._rake is not None
+        rake_instance = algo.rake
+        assert rake_instance is not None
+        # Verify it can actually extract keywords (functional, not just not-None)
+        rake_instance.extract_keywords_from_text("summary judgment motion")
+        phrases = rake_instance.get_ranked_phrases()
+        assert isinstance(phrases, list)
 
     def test_clean_phrase_preserves_original_casing(self):
         """_clean_phrase should NOT title-case — preserve original document casing."""
@@ -167,12 +178,18 @@ class TestRAKEAlgorithm:
         assert algo._clean_phrase("MRI scan") == "MRI scan"
 
     def test_stopwords_used(self):
-        """RAKE should use app's STOPWORDS, not NLTK corpus."""
+        """RAKE filters stopwords from extraction output."""
         from src.core.utils.tokenizer import STOPWORDS
         from src.core.vocabulary.algorithms.rake_algorithm import RAKEAlgorithm
 
-        algo = RAKEAlgorithm()
-        assert algo.rake.stopwords == STOPWORDS
+        algo = RAKEAlgorithm(min_score=0.5, min_frequency=1)
+        text = "The the the motion for summary judgment was filed by the plaintiff."
+        result = algo.extract(text)
+        # No extracted term should be a bare stopword
+        for c in result.candidates:
+            single_words = c.term.lower().split()
+            if len(single_words) == 1:
+                assert single_words[0] not in STOPWORDS
 
 
 # ============================================================================
@@ -192,7 +209,8 @@ class TestScispaCyAlgorithm:
         assert algo._nlp is None
 
     def test_extract_graceful_when_model_missing(self):
-        """Should return empty result when scispaCy model is not installed."""
+        """Should return empty AlgorithmResult when scispaCy model is missing."""
+        from src.core.vocabulary.algorithms.base import AlgorithmResult
         from src.core.vocabulary.algorithms.scispacy_algorithm import ScispaCyAlgorithm
 
         algo = ScispaCyAlgorithm()
@@ -200,38 +218,30 @@ class TestScispaCyAlgorithm:
         with patch("spacy.load", side_effect=OSError("Model not found")):
             algo._nlp = None
             result = algo.extract("Some medical text with aspirin.")
+            assert isinstance(result, AlgorithmResult)
             assert result.candidates == []
             assert result.metadata.get("skipped") is True
+            assert "reason" in result.metadata
 
-    def test_extract_with_mocked_model(self):
-        """With a mocked spaCy model, should return CandidateTerms."""
-        from src.core.vocabulary.algorithms.base import AlgorithmResult
+    def test_extract_with_real_model(self):
+        """With a real scispaCy model, entities should be words from the text."""
+        import pytest
+
         from src.core.vocabulary.algorithms.scispacy_algorithm import ScispaCyAlgorithm
 
         algo = ScispaCyAlgorithm()
+        try:
+            algo._load_nlp()
+        except Exception:
+            pytest.skip("scispaCy model not installed")
 
-        # Mock the NLP model
-        mock_ent1 = MagicMock()
-        mock_ent1.text = "aspirin"
-        mock_ent1.label_ = "CHEMICAL"
-        mock_ent1.start_char = 10
-
-        mock_ent2 = MagicMock()
-        mock_ent2.text = "myocardial infarction"
-        mock_ent2.label_ = "DISEASE"
-        mock_ent2.start_char = 30
-
-        mock_doc = MagicMock()
-        mock_doc.ents = [mock_ent1, mock_ent2]
-
-        algo._nlp = MagicMock(return_value=mock_doc)
-
-        result = algo.extract("The patient was given aspirin for myocardial infarction.")
-        assert isinstance(result, AlgorithmResult)
-        assert len(result.candidates) == 2
-        assert result.candidates[0].term == "aspirin"
-        assert result.candidates[0].suggested_type == "Medical"
-        assert result.candidates[1].term == "myocardial infarction"
+        text = "The patient was given aspirin for myocardial infarction."
+        result = algo.extract(text)
+        # Every extracted term must be a substring of the input text
+        for c in result.candidates:
+            assert c.term in text, f"'{c.term}' not found in input text"
+            assert c.suggested_type == "Medical"
+            assert c.source_algorithm == "MedicalNER"
 
     def test_deduplicates_entities(self):
         from src.core.vocabulary.algorithms.scispacy_algorithm import ScispaCyAlgorithm

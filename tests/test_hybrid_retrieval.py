@@ -96,6 +96,10 @@ class TestBM25PlusRetriever:
         # Should find chunks mentioning "plaintiff"
         found_plaintiff = any("plaintiff" in c.text.lower() for c in result.chunks)
         assert found_plaintiff, "Expected to find chunks mentioning plaintiff"
+        # Chunks should have non-empty text and valid relevance scores
+        for chunk in result.chunks:
+            assert len(chunk.text.strip()) > 0
+            assert 0.0 <= chunk.relevance_score <= 1.0
 
     def test_retrieve_scores_are_normalized(self):
         """Test relevance scores are normalized to 0-1 range."""

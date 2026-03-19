@@ -235,28 +235,32 @@ class TestPreferenceFeaturesBoundsChecking:
         extract_features = mock_deps
         term_data = {"Term": "   ", "occurrences": 1, "is_person": 0, "algorithms": "NER"}
         result = extract_features(term_data)
-        assert result is not None
+        assert len(result) == 53  # Full 53-element feature vector
+        assert all(isinstance(float(v), float) for v in result)
 
     def test_single_char_term(self, mock_deps):
         """Single character term should work without IndexError."""
         extract_features = mock_deps
         term_data = {"Term": "X", "occurrences": 1, "is_person": 0, "algorithms": "NER"}
         result = extract_features(term_data)
-        assert result is not None
+        assert len(result) == 53
+        assert all(isinstance(float(v), float) for v in result)
 
     def test_term_with_trailing_punctuation(self, mock_deps):
         """Term ending in punctuation should detect it safely."""
         extract_features = mock_deps
         term_data = {"Term": "Smith:", "occurrences": 3, "is_person": 1, "algorithms": "NER"}
         result = extract_features(term_data)
-        assert result is not None
+        assert len(result) == 53
+        assert all(isinstance(float(v), float) for v in result)
 
     def test_term_with_leading_digit(self, mock_deps):
         """Term starting with a digit should detect it safely."""
         extract_features = mock_deps
         term_data = {"Term": "3M", "occurrences": 2, "is_person": 0, "algorithms": "RAKE"}
         result = extract_features(term_data)
-        assert result is not None
+        assert len(result) == 53
+        assert all(isinstance(float(v), float) for v in result)
 
 
 # =========================================================================

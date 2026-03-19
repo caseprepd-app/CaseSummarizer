@@ -39,9 +39,12 @@ class TestStripTranscriptArtifacts:
     def test_empty_after_stripping_returns_original(self):
         from src.core.vocabulary.name_deduplicator import _strip_transcript_artifacts
 
-        result = _strip_transcript_artifacts("1 Q")
-        # Should return something (original or stripped), not empty
-        assert len(result) > 0
+        # "17" is all digits — stripping produces empty, so original is returned
+        result = _strip_transcript_artifacts("17")
+        assert result == "17"
+        # "1 Q" partially strips to "Q" (non-empty), so returns stripped version
+        result2 = _strip_transcript_artifacts("1 Q")
+        assert result2 == "Q"
 
 
 class TestNormalizeName:
@@ -267,7 +270,10 @@ class TestFindPotentialDuplicates:
             _make_term("Antonio Fernandez Vargas", is_person=True, freq=3),
         ]
         dupes = find_potential_duplicates(terms)
-        assert len(dupes) > 0
+        assert len(dupes) == 1
+        # Dict maps shorter name -> longer name
+        assert "Antonio Vargas" in dupes
+        assert dupes["Antonio Vargas"] == "Antonio Fernandez Vargas"
 
     def test_different_first_name_same_last_not_flagged(self):
         from src.core.vocabulary.name_deduplicator import find_potential_duplicates

@@ -127,8 +127,8 @@ class TestRarityFilterWrapper:
         ]
         f = RarityFilter()
         result = f.filter(vocab)
-        # Should have filtered some terms (at least "the")
-        assert result.removed_count >= 0
+        # "the" is a common word and should be removed by rarity filter
+        assert result.removed_count > 0
         assert len(result.vocabulary) + result.removed_count == len(vocab)
 
     def test_empty_input(self):
@@ -187,9 +187,8 @@ class TestGibberishFilterWrapper:
 
         vocab = [_term("xkjqzwf")]
         result = GibberishFilter().filter(vocab)
-        assert result.removed_count >= 0  # Depends on spellchecker
-        if result.removed_count > 0:
-            assert "xkjqzwf" in result.removed_terms
+        assert result.removed_count == 1
+        assert "xkjqzwf" in result.removed_terms
 
     def test_empty_input(self):
         from src.core.vocabulary.filters.gibberish import GibberishFilter
@@ -357,4 +356,5 @@ class TestFilterChainFactories:
         ]
         result = chain.run(vocab)
         assert isinstance(result.vocabulary, list)
-        assert result.removed_count >= 0
+        # "the" should be removed by at least one filter in the chain
+        assert result.removed_count > 0

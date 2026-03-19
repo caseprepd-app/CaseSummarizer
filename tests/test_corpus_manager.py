@@ -129,9 +129,11 @@ class TestCorpusLimit:
             (corpus / f"doc{i}.pdf").write_text("x")
         mgr = CorpusManager(corpus_dir=corpus, cache_dir=tmp_path / "cache")
         assert mgr.is_corpus_disabled()
-        assert mgr.get_disabled_reason() is not None
-        assert "30" in mgr.get_disabled_reason()
-        assert "25" in mgr.get_disabled_reason()
+        reason = mgr.get_disabled_reason()
+        assert reason is not None
+        assert "30" in reason
+        assert "25" in reason
+        assert "disabled" in reason.lower()
 
     def test_corpus_not_ready_when_disabled(self, tmp_path):
         corpus = tmp_path / "corpus"

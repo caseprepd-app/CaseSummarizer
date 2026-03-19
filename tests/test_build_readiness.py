@@ -185,9 +185,12 @@ class TestHiddenImportsComplete:
 
     @pytest.mark.parametrize("module_name", HIDDEN_IMPORTS_NON_UI)
     def test_hidden_import_importable(self, module_name):
-        """Each non-UI hidden import can be loaded via importlib."""
+        """Each non-UI hidden import loads with a valid module structure."""
         mod = importlib.import_module(module_name)
-        assert mod is not None
+        assert hasattr(mod, "__name__")
+        assert mod.__name__ == module_name
+        # Must expose attributes (public or private C extension symbols)
+        assert len(dir(mod)) > 0, f"{module_name} has no attributes"
 
     def test_spec_hidden_imports_match_test_list(self):
         """Every hidden import in the spec appears in our test parameter list."""
@@ -277,18 +280,27 @@ class TestPackageDataAccessibility:
         size_kb = ca_path.stat().st_size / 1024
         assert size_kb > 100, f"CA bundle suspiciously small: {size_kb:.0f} KB"
 
-    def test_fpdf_importable(self):
-        """fpdf imports successfully (needs sRGB ICC profile data)."""
+    def test_fpdf_functional(self):
+        """fpdf creates a working PDF instance with expected methods."""
         from fpdf import FPDF
 
-        assert FPDF is not None
+        pdf = FPDF()
+        assert hasattr(pdf, "add_page")
+        assert hasattr(pdf, "set_font")
+        assert hasattr(pdf, "cell")
+        pdf.add_page()
+        pdf.set_font("Helvetica", size=12)
+        pdf.cell(text="test")
+        assert pdf.pages_count == 1
 
     def test_docx_document_creates(self):
-        """python-docx Document() creates without error (needs default.docx template)."""
+        """python-docx Document() creates a fresh empty document."""
         from docx import Document
+        from docx.document import Document as DocumentClass
 
         doc = Document()
-        assert doc is not None
+        assert isinstance(doc, DocumentClass)
+        assert len(doc.paragraphs) == 0
 
     def test_nupunkt_sentence_tokenize(self):
         """nupunkt splits two sentences correctly (needs bundled model data)."""

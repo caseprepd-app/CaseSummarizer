@@ -120,6 +120,7 @@ class TestScaleValue:
 
             result = scale_value(100)
             assert isinstance(result, int)
+            assert result > 0  # scaled pixel values should be positive
             assert result == 133
 
     def test_zero_input(self):

@@ -40,7 +40,8 @@ class TestCanonicalImports:
 
         msg = get_silly_message()
         assert isinstance(msg, str)
-        assert len(msg) > 0
+        assert len(msg) > 5  # Messages are full sentences, not empty/trivial
+        assert msg.endswith("...")  # All silly messages end with ellipsis
 
     def test_import_status_reporter_from_services(self):
         """StatusReporter importable from src.services."""

@@ -73,14 +73,17 @@ class TestSplitSentenceSpans:
     def test_spans_cover_text(self):
         text = "First sentence. Second sentence."
         spans = split_sentence_spans(text)
-        assert len(spans) >= 1
+        assert len(spans) == 2
         # Each span should have (sentence, (start, end))
         for sent, (start, end) in spans:
             assert isinstance(sent, str)
             assert isinstance(start, int)
             assert isinstance(end, int)
-            assert start >= 0
+            assert 0 <= start < len(text)
             assert end > start
+            assert end <= len(text)
+            # Span offsets should correspond to actual sentence text
+            assert sent.strip() in text[start:end]
 
     def test_span_offsets_match_text(self):
         """Character offsets should point to correct positions in original text."""

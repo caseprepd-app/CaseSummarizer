@@ -47,15 +47,15 @@ class TestFilterSubstringArtifacts:
 
 
 class TestIsCommonWordVariant:
-    @patch("src.core.vocabulary.artifact_filter.is_common_word", return_value=True)
-    def test_canonical_plus_common_word(self, mock_common):
+    def test_canonical_plus_common_word(self):
+        """'patient' is a real common word, so canonical + 'Patient' is a variant."""
         from src.core.vocabulary.artifact_filter import _is_common_word_variant
 
         result = _is_common_word_variant("Luigi Napolitano Patient", "Luigi Napolitano")
         assert result is True
 
-    @patch("src.core.vocabulary.artifact_filter.is_common_word", return_value=True)
-    def test_same_length_not_variant(self, mock_common):
+    def test_same_length_not_variant(self):
+        """Identical terms cannot be a variant of each other."""
         from src.core.vocabulary.artifact_filter import _is_common_word_variant
 
         result = _is_common_word_variant("Luigi Napolitano", "Luigi Napolitano")

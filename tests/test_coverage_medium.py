@@ -408,7 +408,7 @@ class TestProgressiveExtractionWorkerQueueMessages:
         msg = QueueMessage.ner_complete(vocab_data, filtered)
         assert isinstance(msg, tuple)
         assert msg[0] == "ner_complete"
-        assert msg[1] == {"vocab": vocab_data, "filtered": filtered}
+        assert msg[1] == {"vocab": vocab_data, "filtered": filtered, "skipped_algorithms": []}
 
     def test_processing_worker_empty_files_sends_finished(self):
         """ProcessingWorker with 0 files sends processing_finished immediately."""

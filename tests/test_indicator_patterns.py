@@ -196,6 +196,7 @@ class TestCaching:
 
             matches_positive("test")
             assert len(_cache) > 0
+            assert "positive" in _cache  # Cache key should be "positive"
 
             invalidate_cache()
             assert len(_cache) == 0

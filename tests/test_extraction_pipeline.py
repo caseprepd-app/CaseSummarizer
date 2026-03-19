@@ -212,31 +212,35 @@ class TestDictionaryTextValidator:
         assert helpers is not None
 
     def test_calculate_confidence(self):
+        """Real English text produces a valid confidence percentage."""
         from src.core.extraction.dictionary_utils import DictionaryTextValidator
 
         helpers = DictionaryTextValidator()
 
-        # Real English text should have decent confidence
         confidence = helpers.calculate_confidence(
             "The plaintiff filed a motion for summary judgment."
         )
         assert isinstance(confidence, (int, float))
-        assert confidence >= 0
+        assert 0.0 <= confidence <= 100.0
+        assert confidence > 50.0, "Real English should score above 50%"
 
     def test_confidence_empty_text(self):
+        """Empty text returns exactly 0.0 confidence."""
         from src.core.extraction.dictionary_utils import DictionaryTextValidator
 
         helpers = DictionaryTextValidator()
         confidence = helpers.calculate_confidence("")
         assert isinstance(confidence, (int, float))
-        assert confidence >= 0
+        assert confidence == 0.0
 
     def test_confidence_gibberish(self):
+        """Gibberish scores low and below real English text."""
         from src.core.extraction.dictionary_utils import DictionaryTextValidator
 
         helpers = DictionaryTextValidator()
         confidence = helpers.calculate_confidence("xkjw qrmn tplz zzqx")
         assert isinstance(confidence, (int, float))
-        # Gibberish should have lower confidence than real text
+        assert 0.0 <= confidence <= 100.0
         real_confidence = helpers.calculate_confidence("The court has ruled in favor.")
-        assert confidence <= real_confidence
+        assert 0.0 <= real_confidence <= 100.0
+        assert confidence < real_confidence

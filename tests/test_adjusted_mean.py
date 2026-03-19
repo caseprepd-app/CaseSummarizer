@@ -36,9 +36,7 @@ class TestComputeAdjustedMean:
 
     def test_all_above_floor(self):
         """When all scores are above floor, returns normal mean."""
-        scores = [0.5, 0.6, 0.7]
-        expected = sum(scores) / len(scores)
-        assert abs(compute_adjusted_mean(scores, 0.10) - expected) < 1e-9
+        assert abs(compute_adjusted_mean([0.5, 0.6, 0.7], 0.10) - 0.6) < 1e-9
 
     def test_separate_filter_scores(self):
         """Filter by linear scores, average log-transformed scores."""

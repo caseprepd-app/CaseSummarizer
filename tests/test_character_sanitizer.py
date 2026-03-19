@@ -53,11 +53,17 @@ class TestMojibakeFix:
             "naïveté",  # French word with accents
         ]
 
-        for text in test_cases:
+        # With transliteration on (default), accents become ASCII equivalents
+        expected = [
+            "Jose Garcia",
+            "Montreal",
+            "Muller",
+            "naivete",
+        ]
+
+        for text, exp in zip(test_cases, expected):
             cleaned, _ = sanitizer.sanitize(text)
-            # Should be readable and similar
-            assert len(cleaned) > 0
-            assert cleaned[0].isupper() or cleaned[0].isalpha()
+            assert cleaned == exp, f"Expected '{exp}' but got '{cleaned}' for input '{text}'"
 
 
 class TestRedactionHandling:
@@ -79,16 +85,16 @@ class TestRedactionHandling:
             assert "[REDACTED]" in cleaned or "REDACTED" in cleaned or " " in cleaned
 
     def test_redaction_stats(self):
-        """Test that redaction detection is accurate."""
-        sanitizer = CharacterSanitizer()
+        """Test that redaction detection is accurate with transliteration off."""
+        # Disable transliteration so █ chars survive to the redaction stage
+        sanitizer = CharacterSanitizer(transliterate=False)
 
-        # Text with clear redaction blocks
         text = "Info ██ more text"
-        _, _stats = sanitizer.sanitize(text)
+        cleaned, stats = sanitizer.sanitize(text)
 
-        # Redaction characters should be detected or transliterated away
-        # The exact count depends on detection, but text should be processed
-        assert len(text) > 0  # Input is valid
+        # Two █ characters should be counted as redactions
+        assert stats["redactions_replaced"] == 2
+        assert "[REDACTED]" in cleaned
 
 
 class TestControlCharacterRemoval:
@@ -107,8 +113,8 @@ class TestControlCharacterRemoval:
         assert "\x01" not in cleaned
         assert "\x02" not in cleaned
         assert "Normal text" in cleaned
-        # May have control_chars_removed or replaced depending on the character
-        assert stats["control_chars_removed"] >= 0
+        # ftfy fixes control chars in stage 1 (mojibake), so they show as mojibake_fixed
+        assert stats["mojibake_fixed"] >= 3, "Control chars should be fixed by ftfy"
 
     def test_newlines_preserved(self):
         """Test that legitimate newlines are preserved."""
@@ -143,9 +149,10 @@ class TestZeroWidthCharacters:
         text = "Word1\u200bWord2"
         cleaned, _stats = sanitizer.sanitize(text)
 
-        # Should not contain zero-width space
+        # Should not contain zero-width space, and both words preserved
         assert "\u200b" not in cleaned
         assert "Word1" in cleaned
+        assert "Word2" in cleaned
 
     def test_zero_width_joiner_removed(self):
         """Test that zero-width joiners are handled."""
@@ -275,11 +282,12 @@ class TestStatisticsCollection:
         text = "Word1\x00Word2██Word3ñêcessary"
         _, stats = sanitizer.sanitize(text)
 
-        # Each stat should be non-negative
-        assert all(v >= 0 for v in stats.values())
-
-        # At least some processing should have occurred
-        assert sum(stats.values()) > 0
+        # \x00 is fixed by ftfy in stage 1 (before stage 5 control-char removal)
+        assert stats["mojibake_fixed"] > 0
+        # Accented chars (ñ, ê) should be transliterated
+        assert stats["transliterations"] > 0
+        # Total processing should reflect multiple fixes
+        assert sum(stats.values()) >= 3
 
 
 class TestLogging:
@@ -328,7 +336,7 @@ class TestEdgeCases:
         sanitizer = CharacterSanitizer()
 
         cleaned, _ = sanitizer.sanitize("   \n  \n   ")
-        assert len(cleaned) >= 0  # May collapse to minimal whitespace
+        assert len(cleaned) > 0  # Whitespace collapses but doesn't vanish entirely
 
     def test_very_long_text(self):
         """Test sanitizing very long text."""
@@ -344,16 +352,17 @@ class TestEdgeCases:
         assert stats["transliterations"] > 0 or stats["redactions_replaced"] > 0
 
     def test_text_with_all_control_chars(self):
-        """Test text composed entirely of problematic characters."""
+        """Text composed entirely of control characters is stripped to empty."""
         sanitizer = CharacterSanitizer()
 
-        # All control characters
         text = "\x00\x01\x02\x03\x04\x05"
-        _cleaned, stats = sanitizer.sanitize(text)
+        cleaned, stats = sanitizer.sanitize(text)
 
-        # Should handle control chars (may be removed or replaced)
-        # The specific count depends on how they're handled
-        assert stats["control_chars_removed"] >= 0
+        # Pure control chars are stripped entirely by ftfy
+        assert cleaned == "", "All control chars should be stripped"
+        # Verify stats dict is still well-formed
+        assert isinstance(stats, dict)
+        assert all(isinstance(v, int) for v in stats.values())
 
 
 if __name__ == "__main__":

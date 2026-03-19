@@ -77,7 +77,7 @@ class TestBaseScore:
             algorithm_count=1,
             term="4Q:",  # leading digit + single-ish + trailing punct
         )
-        assert low >= 0.0
+        assert 0.0 <= low <= 100.0
 
 
 # =========================================================================

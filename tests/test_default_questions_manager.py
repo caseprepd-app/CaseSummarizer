@@ -423,7 +423,7 @@ class TestDefaultQuestionsManagerSingleton:
     """Tests for get_default_questions_manager singleton accessor."""
 
     def test_returns_manager_instance(self):
-        """get_default_questions_manager returns a DefaultQuestionsManager."""
+        """get_default_questions_manager returns a functional manager."""
         from src.core.semantic.default_questions_manager import (
             DefaultQuestionsManager,
             get_default_questions_manager,
@@ -431,6 +431,9 @@ class TestDefaultQuestionsManagerSingleton:
 
         manager = get_default_questions_manager()
         assert isinstance(manager, DefaultQuestionsManager)
+        assert manager.get_total_count() >= 1
+        assert hasattr(manager, "get_enabled_questions")
+        assert hasattr(manager, "add_question")
 
     def test_returns_same_instance_on_repeated_calls(self):
         """Repeated calls return the same singleton instance."""

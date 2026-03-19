@@ -46,10 +46,13 @@ class TestRerankerEmptyInput:
         from src.core.retrieval.cross_encoder_reranker import CrossEncoderReranker
 
         reranker = CrossEncoderReranker()
-        result = reranker.rerank("Who filed?", chunks=[], top_k=5)
 
-        assert result == []
-        assert reranker._model is None  # Model was never loaded
+        with patch.object(reranker, "_load_model") as mock_load:
+            result = reranker.rerank("Who filed?", chunks=[], top_k=5)
+
+            assert result == []
+            assert reranker._model is None  # Model was never loaded
+            mock_load.assert_not_called()  # No unnecessary model load
 
 
 class TestRerankerModelLoadFailure:
