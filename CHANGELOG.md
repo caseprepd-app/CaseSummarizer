@@ -7,6 +7,22 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.0.22] - 2026-03-19
+
+### Added
+- Vocabulary quality indicator turns yellowish-green when some algorithms fail, showing users results may be incomplete
+
+### Fixed
+- Graceful degradation when individual vocabulary algorithms or semantic questions fail — partial results shown instead of crash
+- Bundled app no longer falls back to system Python dependencies at runtime
+- Missing psutil dependency added to build
+- Remaining user-facing error messages cleaned up (no raw tracebacks)
+
+### Infrastructure
+- Test gap audit: strengthened 40+ weak/tautological assertions across 22 existing test files
+- 9 new edge case test files covering vocabulary extractor, chunker, worker process, worker manager, hybrid retriever, PDF extractor, file_utils, status_reporter, and citation_excerpt
+- Net +316 tests (3,078 → 3,394)
+
 ## [1.0.21] - 2026-03-18
 
 ### Fixed
