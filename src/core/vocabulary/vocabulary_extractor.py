@@ -529,17 +529,23 @@ class VocabularyExtractor:
                 alg = fast_algorithms[0]
                 if status_callback:
                     status_callback(_algo_status_message(alg.name))
-                result = alg.extract(text)
-                all_results.append(result)
-                logger.debug("%s: %s candidates", alg.name, len(result.candidates))
+                try:
+                    result = alg.extract(text)
+                    all_results.append(result)
+                    logger.debug("%s: %s candidates", alg.name, len(result.candidates))
+                except Exception as e:
+                    logger.warning("Algorithm %s failed: %s", alg.name, e)
             else:
                 # Sequential with status updates (so user sees per-algorithm messages)
                 for alg in fast_algorithms:
                     if status_callback:
                         status_callback(_algo_status_message(alg.name))
-                    result = alg.extract(text)
-                    all_results.append(result)
-                    logger.debug("%s: %s candidates", alg.name, len(result.candidates))
+                    try:
+                        result = alg.extract(text)
+                        all_results.append(result)
+                        logger.debug("%s: %s candidates", alg.name, len(result.candidates))
+                    except Exception as e:
+                        logger.warning("Algorithm %s failed: %s", alg.name, e)
 
             # Send partial results if callback provided
             if partial_callback is not None and all_results:
@@ -652,14 +658,17 @@ class VocabularyExtractor:
             all_results = []
             for algorithm in enabled_algorithms:
                 logger.debug("Running %s algorithm...", algorithm.name)
-                result = algorithm.extract(text)
-                all_results.append(result)
-                logger.debug(
-                    "%s: %s candidates in %.1fms",
-                    algorithm.name,
-                    len(result.candidates),
-                    result.processing_time_ms,
-                )
+                try:
+                    result = algorithm.extract(text)
+                    all_results.append(result)
+                    logger.debug(
+                        "%s: %s candidates in %.1fms",
+                        algorithm.name,
+                        len(result.candidates),
+                        result.processing_time_ms,
+                    )
+                except Exception as e:
+                    logger.warning("Algorithm %s failed: %s", algorithm.name, e)
             return all_results
 
         # Parallel execution

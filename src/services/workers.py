@@ -338,12 +338,15 @@ class SemanticWorker(BaseWorker):
             truncated_q = question[:50] + "..." if len(question) > 50 else question
             self.ui_queue.put(QueueMessage.semantic_progress(i, total, truncated_q))
 
-            result = orchestrator._ask_single_question(
-                question, is_followup=False, is_default=is_default
-            )
-            results.append(result)
-            self.ui_queue.put(QueueMessage.semantic_result(result))
-            logger.debug("Q%s/%s complete: %s chars", i + 1, total, len(result.answer))
+            try:
+                result = orchestrator._ask_single_question(
+                    question, is_followup=False, is_default=is_default
+                )
+                results.append(result)
+                self.ui_queue.put(QueueMessage.semantic_result(result))
+                logger.debug("Q%s/%s complete: %s chars", i + 1, total, len(result.answer))
+            except Exception as e:
+                logger.warning("Question %s/%s failed: %s", i + 1, total, e)
 
         return results
 
