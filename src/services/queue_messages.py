@@ -309,7 +309,9 @@ class QueueMessage:
 
     @staticmethod
     def ner_complete(
-        vocab_data: list[dict], filtered_terms: list[dict] | None = None
+        vocab_data: list[dict],
+        filtered_terms: list[dict] | None = None,
+        skipped_algorithms: list[str] | None = None,
     ) -> tuple[str, dict]:
         """
         Create local algorithm extraction complete message (Phase 1).
@@ -320,10 +322,15 @@ class QueueMessage:
         Args:
             vocab_data: List of vocabulary terms from local algorithms
             filtered_terms: Terms excluded by frequency filters (for UI display)
+            skipped_algorithms: Names of algorithms that were unavailable or failed
         """
         return (
             MessageType.NER_COMPLETE,
-            {"vocab": vocab_data, "filtered": filtered_terms or []},
+            {
+                "vocab": vocab_data,
+                "filtered": filtered_terms or [],
+                "skipped_algorithms": skipped_algorithms or [],
+            },
         )
 
     @staticmethod

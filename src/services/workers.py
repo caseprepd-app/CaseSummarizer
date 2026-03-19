@@ -494,12 +494,14 @@ class ProgressiveExtractionWorker(BaseWorker):
             )
 
         ner_results, filtered_terms = ner_results
+        skipped = getattr(extractor, "skipped_algorithms", [])
         logger.info(
-            "Phase 1 complete: %s terms from local algorithms, %s filtered",
+            "Phase 1 complete: %s terms from local algorithms, %s filtered, %s skipped",
             len(ner_results),
             len(filtered_terms),
+            skipped or "none",
         )
-        self.ui_queue.put(QueueMessage.ner_complete(ner_results, filtered_terms))
+        self.ui_queue.put(QueueMessage.ner_complete(ner_results, filtered_terms, skipped))
 
         # Signal extraction complete (re-enables feedback buttons)
         self.ui_queue.put(QueueMessage.extraction_complete())

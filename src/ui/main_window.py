@@ -116,6 +116,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         self._pending_tasks: dict = {}
         self._completed_tasks: set = set()
         self._failed_tasks: set = set()
+        self._degraded_algorithms: list[str] = []  # Algorithms skipped/failed in vocab
         self._exporting_all = False  # Re-entrancy guard for export-all
         self._deferred_status_id: str | None = None  # Pending set_status() during error hold
 
@@ -780,11 +781,15 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         elif msg_type == "ner_complete":
             vocab_data = data.get("vocab", []) if isinstance(data, dict) else data
             filtered_data = data.get("filtered", []) if isinstance(data, dict) else []
+            skipped = data.get("skipped_algorithms", []) if isinstance(data, dict) else []
+            if skipped:
+                self._degraded_algorithms = skipped
             term_count = len(vocab_data)
             logger.debug(
-                "NER complete: %s terms, %s filtered - displaying",
+                "NER complete: %s terms, %s filtered, %s skipped - displaying",
                 term_count,
                 len(filtered_data),
+                skipped or "none",
             )
             self.output_display.update_outputs(
                 vocab_csv_data=vocab_data, filtered_vocab_data=filtered_data
@@ -1191,6 +1196,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         self._pending_tasks = {"vocab": True, "semantic": True, "key_excerpts": True}
         self._completed_tasks = set()
         self._failed_tasks = set()
+        self._degraded_algorithms = []
         self._semantic_ready = False
         self._semantic_answering_active = False
         self._semantic_failed = False
@@ -1247,13 +1253,15 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         self.complete_btn.grid_remove()
         self.stop_btn.grid(row=6, column=0, sticky="ew", padx=10, pady=(15, 5))
 
-    def _hide_stop_button(self, partial: bool = False):
-        """Swap stop button to complete/incomplete button after processing ends."""
+    def _hide_stop_button(self, partial: bool = False, degraded: bool = False):
+        """Swap stop button to complete/incomplete/degraded button."""
         from src.ui.theme import BUTTON_STYLES
 
         self.stop_btn.grid_remove()
         if partial:
             self.complete_btn.configure(text="Incomplete", **BUTTON_STYLES["warning"])
+        elif degraded:
+            self.complete_btn.configure(text="Complete*", **BUTTON_STYLES["degraded"])
         else:
             self.complete_btn.configure(text="Complete", **BUTTON_STYLES["success"])
         self.complete_btn.grid(row=6, column=0, sticky="ew", padx=10, pady=(15, 5))
@@ -1419,14 +1427,20 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         if failed:
             msg = f"Completed {completed} task(s), {failed} failed"
             self._on_tasks_complete(True, msg, partial=True)
+        elif self._degraded_algorithms:
+            names = ", ".join(self._degraded_algorithms)
+            msg = f"Completed {completed} task(s) (unavailable: {names})"
+            self._on_tasks_complete(True, msg, degraded=True)
         else:
             self._on_tasks_complete(True, f"Completed {completed} task(s)")
 
-    def _on_tasks_complete(self, success: bool, message: str, partial: bool = False):
+    def _on_tasks_complete(
+        self, success: bool, message: str, partial: bool = False, degraded: bool = False
+    ):
         """Handle task completion."""
         self._stop_timer()
         self._processing_active = False
-        self._hide_stop_button(partial=partial)
+        self._hide_stop_button(partial=partial, degraded=degraded)
         self.output_display.set_extraction_in_progress(False)
 
         # Update workflow phase for tab status
@@ -1456,7 +1470,9 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             extraction_stats = self._gather_extraction_stats()
             self._update_session_stats(extraction_stats)
 
-        if success:
+        if success and degraded:
+            self.set_status_error(message, hold_seconds=8.0)
+        elif success:
             self.set_status(message)
         else:
             self.set_status_error(message)

@@ -268,6 +268,7 @@ class VocabularyExtractor:
             rake = RAKEAlgorithm()
 
             self.algorithms = [ner, rake]
+            skipped: list[str] = []
 
             # Conditionally add BM25 if enabled and corpus is ready
             if self._should_enable_bm25():
@@ -294,6 +295,7 @@ class VocabularyExtractor:
                 logger.debug("TopicRank algorithm enabled")
             except ImportError:
                 logger.debug("TopicRank unavailable (pytextrank not installed)")
+                skipped.append("TopicRank")
 
             # Conditionally add MedicalNER if scispacy is installed
             try:
@@ -304,6 +306,7 @@ class VocabularyExtractor:
                 logger.debug("MedicalNER algorithm enabled")
             except ImportError:
                 logger.debug("MedicalNER unavailable (scispacy not installed)")
+                skipped.append("MedicalNER")
 
             # Conditionally add YAKE if installed
             try:
@@ -314,9 +317,14 @@ class VocabularyExtractor:
                 logger.debug("YAKE algorithm enabled")
             except ImportError:
                 logger.debug("YAKE unavailable (yake not installed)")
+                skipped.append("YAKE")
 
         else:
             self.algorithms = algorithms
+            skipped = []
+
+        # Track algorithms that were unavailable at init time
+        self.skipped_algorithms: list[str] = list(skipped)
 
         # Initialize merger with algorithm weights
         self.merger = AlgorithmScoreMerger(
@@ -536,6 +544,8 @@ class VocabularyExtractor:
                     logger.debug("%s: %s candidates", alg.name, len(result.candidates))
                 except Exception as e:
                     logger.warning("Algorithm %s failed: %s", alg.name, e)
+                    if alg.name not in self.skipped_algorithms:
+                        self.skipped_algorithms.append(alg.name)
             else:
                 # Sequential with status updates (so user sees per-algorithm messages)
                 for alg in fast_algorithms:
@@ -547,6 +557,8 @@ class VocabularyExtractor:
                         logger.debug("%s: %s candidates", alg.name, len(result.candidates))
                     except Exception as e:
                         logger.warning("Algorithm %s failed: %s", alg.name, e)
+                        if alg.name not in self.skipped_algorithms:
+                            self.skipped_algorithms.append(alg.name)
 
             # Send partial results if callback provided
             if partial_callback is not None and all_results:
@@ -670,6 +682,8 @@ class VocabularyExtractor:
                     )
                 except Exception as e:
                     logger.warning("Algorithm %s failed: %s", algorithm.name, e)
+                    if algorithm.name not in self.skipped_algorithms:
+                        self.skipped_algorithms.append(algorithm.name)
             return all_results
 
         # Parallel execution
@@ -714,6 +728,8 @@ class VocabularyExtractor:
                         task_result.task_id,
                         task_result.error,
                     )
+                    if task_result.task_id not in self.skipped_algorithms:
+                        self.skipped_algorithms.append(task_result.task_id)
 
             total_time = (time.time() - start_time) * 1000
             logger.debug("Parallel extraction complete in %.1fms", total_time)

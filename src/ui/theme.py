@@ -201,6 +201,7 @@ COLORS = {
     # Semantic colors — attention-grabbing in both modes
     "success": ("#1b7a2f", "#28a745"),  # Keep/approved (green)
     "success_light": ("#4caf50", "#90EE90"),  # Light green (loaded feedback)
+    "success_degraded": ("#5a8c1a", "#7ab648"),  # Yellowish-green (completed but degraded)
     "warning": ("#e6a800", "#ffc107"),  # Warning (yellow) — darker on light bg
     "danger": ("#c62828", "#dc3545"),  # Error/skip (red) — deeper on light bg
     "danger_light": ("#e57373", "#f5a9b0"),  # Light red (loaded feedback)
@@ -355,6 +356,10 @@ BUTTON_STYLES = {
     "warning": {
         "fg_color": COLORS["warning"],
         "hover_color": COLORS["warning"],
+    },
+    "degraded": {
+        "fg_color": COLORS["success_degraded"],
+        "hover_color": COLORS["success_degraded"],
     },
     "caution": {
         "fg_color": ("#6a3a9e", "#7744aa"),
