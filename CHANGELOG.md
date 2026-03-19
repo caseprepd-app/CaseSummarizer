@@ -7,6 +7,21 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.0.21] - 2026-03-18
+
+### Fixed
+- Fixed "Resource punkt not found" error on end-user machines — RAKE now uses bundled nupunkt sentence splitter instead of NLTK punkt data
+- Bundled tiktoken BPE encoding data so token counting works offline without internet
+- Improved error messages when bundled spaCy models are missing — users now see reinstall guidance instead of cryptic OSError tracebacks
+
+### Removed
+- Removed punkt_tab from NLTK data bundle (no longer needed, saves disk space)
+
+### Infrastructure
+- Full audit of system dependencies to ensure standalone installer has zero runtime downloads
+- Added tests for tiktoken offline loading and bundled cache validation
+- model_loader now logs a warning (not silent debug) when falling back from bundled to HuggingFace
+
 ## [1.0.20] - 2026-03-18
 
 ### Fixed
