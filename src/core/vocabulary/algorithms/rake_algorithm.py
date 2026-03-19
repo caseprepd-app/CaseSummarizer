@@ -37,6 +37,7 @@ from typing import Any
 from rake_nltk import Rake
 
 from src.config import VOCAB_ALGORITHM_WEIGHTS
+from src.core.utils.sentence_splitter import split_sentences
 from src.core.utils.tokenizer import STOPWORDS
 from src.core.vocabulary.algorithms import register_algorithm
 from src.core.vocabulary.algorithms.base import (
@@ -109,6 +110,7 @@ class RAKEAlgorithm(BaseExtractionAlgorithm):
                 min_length=self.min_length,
                 max_length=self.max_length,
                 include_repeated_phrases=True,
+                sentence_tokenizer=split_sentences,
             )
         return self._rake
 

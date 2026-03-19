@@ -28,7 +28,11 @@ def resolve_model_path(bundled_path: Path, hf_model_name: str) -> tuple[str, boo
         logger.debug("Using bundled model: %s", model_path)
         return model_path, True
 
-    logger.debug("Downloading model: %s", hf_model_name)
+    logger.warning(
+        "Bundled model not found at %s — falling back to HuggingFace: %s",
+        bundled_path,
+        hf_model_name,
+    )
     return hf_model_name, False
 
 

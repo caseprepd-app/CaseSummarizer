@@ -665,7 +665,6 @@ class TestDownloadModelsScript:
             assert "wordnet" in download_models.NLTK_CORPORA
             assert "omw-1.4" in download_models.NLTK_CORPORA
             assert "stopwords" in download_models.NLTK_CORPORA
-            assert "punkt_tab" in download_models.NLTK_CORPORA
         finally:
             sys.path.pop(0)
 
@@ -754,7 +753,7 @@ class TestOCRPreCheck:
 class TestNLTKBloatPrevention:
     """Tests that only required NLTK corpora are bundled, not the full 3+ GB."""
 
-    REQUIRED_CORPORA = {"words", "wordnet", "omw-1.4", "stopwords", "punkt_tab"}
+    REQUIRED_CORPORA = {"words", "wordnet", "omw-1.4", "stopwords"}
 
     def test_models_nltk_data_contains_only_required_resources(self):
         """models/nltk_data/ has only the required resources, no extras."""

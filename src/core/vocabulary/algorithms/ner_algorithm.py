@@ -442,16 +442,18 @@ class NERAlgorithm(BaseExtractionAlgorithm):
             logger.debug("Loaded bundled spaCy model: %s", SPACY_EN_CORE_WEB_LG_PATH)
             return nlp
 
-        # Installed package (dev environment)
+        # Dev fallback: try pip-installed model
         try:
             nlp = spacy.load(SPACY_MODEL_NAME)
             logger.debug("Loaded installed spaCy model: %s", SPACY_MODEL_NAME)
             return nlp
         except OSError:
             raise RuntimeError(
-                f"spaCy model '{SPACY_MODEL_NAME}' not found.\n"
-                f"Run: python scripts/download_models.py\n"
-                f"Or:  python -m spacy download {SPACY_MODEL_NAME}"
+                f"Language model '{SPACY_MODEL_NAME}' not found. "
+                f"Expected at: {SPACY_EN_CORE_WEB_LG_PATH}\n"
+                f"If you installed from the Windows installer, please "
+                f"reinstall — the model files may be missing.\n"
+                f"For developers: python scripts/download_models.py"
             )
 
     def _chunk_text(self, text: str, chunk_size_kb: int = 100) -> list[str]:

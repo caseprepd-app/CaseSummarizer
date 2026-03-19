@@ -126,7 +126,16 @@ class TextRankAlgorithm(BaseExtractionAlgorithm):
             self._nlp = spacy.load(str(SPACY_EN_CORE_WEB_LG_PATH))
             logger.debug("Loaded bundled spaCy model: %s", SPACY_EN_CORE_WEB_LG_PATH)
         else:
-            self._nlp = spacy.load("en_core_web_lg")
+            try:
+                self._nlp = spacy.load("en_core_web_lg")
+            except OSError:
+                raise RuntimeError(
+                    f"Language model not found. "
+                    f"Expected at: {SPACY_EN_CORE_WEB_LG_PATH}\n"
+                    f"If you installed from the Windows installer, please "
+                    f"reinstall — the model files may be missing.\n"
+                    f"For developers: python scripts/download_models.py"
+                )
         self._nlp.add_pipe("topicrank")
         logger.debug("Loaded en_core_web_lg with pytextrank TopicRank pipeline")
 

@@ -15,7 +15,7 @@ Models downloaded:
     models/nltk_data/corpora/wordnet/
     models/nltk_data/corpora/omw-1.4/     (pruned to English-only metadata)
     models/nltk_data/corpora/stopwords/      (rake-nltk dependency)
-    models/nltk_data/tokenizers/punkt_tab/   (rake-nltk sentence tokenizer)
+    models/tiktoken_cache/                (cl100k_base BPE data for token counting)
     models/embeddings/nomic-embed-text-v1.5/  (FAISS embeddings)
     models/gte-reranker-modernbert-base/  (cross-encoder reranker)
     models/tesseract/                     (OCR engine + eng.traineddata)
@@ -36,7 +36,7 @@ SPACY_MODELS = ["en_core_web_lg", "en_core_web_sm", "en_ner_bc5cdr_md"]
 SPACY_DIR = MODELS_DIR / "spacy"
 
 # NLTK corpora to bundle
-NLTK_CORPORA = ["words", "wordnet", "omw-1.4", "stopwords", "punkt_tab"]
+NLTK_CORPORA = ["words", "wordnet", "omw-1.4", "stopwords"]
 NLTK_DIR = MODELS_DIR / "nltk_data"
 
 # HuggingFace models: (repo_id, local_subdir, ignore_patterns)
@@ -344,6 +344,57 @@ def download_poppler() -> dict[str, bool]:
         return {"poppler": False}
 
 
+TIKTOKEN_CACHE_DIR = MODELS_DIR / "tiktoken_cache"
+
+
+def download_tiktoken_data() -> dict[str, bool]:
+    """
+    Pre-cache tiktoken BPE data for offline use.
+
+    tiktoken downloads encoding files on first use. Pre-caching them
+    into models/tiktoken_cache/ ensures the bundled app works offline.
+
+    Returns:
+        Dict mapping 'tiktoken_cl100k' to success status.
+    """
+    import hashlib
+    import os
+
+    TIKTOKEN_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+    os.environ["TIKTOKEN_CACHE_DIR"] = str(TIKTOKEN_CACHE_DIR)
+
+    # Check if already cached by trying to load the encoding
+    try:
+        import tiktoken
+
+        tiktoken.get_encoding("cl100k_base")
+        # Verify cache file exists in our directory
+        cached_files = list(TIKTOKEN_CACHE_DIR.iterdir())
+        if cached_files:
+            print("  [SKIP] tiktoken cl100k_base (already cached)")
+            return {"tiktoken_cl100k": True}
+    except Exception:
+        pass
+
+    print("  Downloading tiktoken cl100k_base encoding...")
+    try:
+        from urllib.request import Request, urlopen
+
+        url = "https://openaipublic.blob.core.windows.net/encodings/cl100k_base.tiktoken"
+        cache_key = hashlib.sha1(url.encode()).hexdigest()
+        cache_path = TIKTOKEN_CACHE_DIR / cache_key
+
+        req = Request(url, headers={"User-Agent": "CasePrepd-Downloader"})
+        with urlopen(req, timeout=60) as resp:
+            data = resp.read()
+        cache_path.write_bytes(data)
+        print(f"  [OK] tiktoken cl100k_base ({len(data) / 1024:.0f} KB)")
+        return {"tiktoken_cl100k": True}
+    except Exception as e:
+        print(f"  [FAILED] tiktoken cl100k_base: {e}")
+        return {"tiktoken_cl100k": False}
+
+
 def main():
     """Download all models for the Windows installer."""
     print("=" * 60)
@@ -370,6 +421,10 @@ def main():
     print("\n--- Poppler ---")
     poppler_results = download_poppler()
 
+    # 6. tiktoken encoding data
+    print("\n--- tiktoken ---")
+    tiktoken_results = download_tiktoken_data()
+
     # Summary
     print("\n" + "=" * 60)
     print("Summary")
@@ -381,6 +436,7 @@ def main():
         **hf_results,
         **tesseract_results,
         **poppler_results,
+        **tiktoken_results,
     }
     passed = sum(1 for v in all_results.values() if v)
     failed = sum(1 for v in all_results.values() if not v)

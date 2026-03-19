@@ -395,7 +395,7 @@ class TestNltkDataBundled:
         if not NLTK_DATA_DIR.is_dir():
             pytest.skip("NLTK_DATA_DIR not present (run download_models.py)")
 
-        required = ["words", "wordnet", "omw-1.4", "stopwords", "punkt_tab"]
+        required = ["words", "wordnet", "omw-1.4", "stopwords"]
         for corpus in required:
             # Require extracted directories (not just zips) for PyInstaller reliability
             corpora_dir = NLTK_DATA_DIR / "corpora"
@@ -414,6 +414,28 @@ class TestNltkDataBundled:
 
         word_list = words.words()
         assert len(word_list) > 1000, f"Expected 1000+ words, got {len(word_list)}"
+
+
+class TestTiktokenBundled:
+    """Verify tiktoken BPE data is bundled for offline use."""
+
+    def test_tiktoken_cache_exists(self):
+        """Bundled tiktoken cache directory must exist with data."""
+        from src.config import BUNDLED_MODELS_DIR
+
+        cache_dir = BUNDLED_MODELS_DIR / "tiktoken_cache"
+        if not cache_dir.is_dir():
+            pytest.skip("tiktoken_cache not present (run download_models.py)")
+        files = list(cache_dir.iterdir())
+        assert files, f"tiktoken_cache is empty: {cache_dir}"
+
+    def test_tiktoken_loads_offline(self):
+        """tiktoken.get_encoding works using bundled cache."""
+        import tiktoken
+
+        enc = tiktoken.get_encoding("cl100k_base")
+        tokens = enc.encode("test")
+        assert len(tokens) > 0
 
 
 class TestHiddenImportsResolvable:

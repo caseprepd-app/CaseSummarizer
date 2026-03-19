@@ -61,12 +61,20 @@ class ScispaCyAlgorithm(BaseExtractionAlgorithm):
 
         from src.config import SPACY_EN_NER_BC5CDR_MD_PATH
 
-        model_path = (
-            str(SPACY_EN_NER_BC5CDR_MD_PATH)
-            if SPACY_EN_NER_BC5CDR_MD_PATH.exists()
-            else "en_ner_bc5cdr_md"
-        )
-        self._nlp = spacy.load(model_path)
+        if SPACY_EN_NER_BC5CDR_MD_PATH.exists():
+            model_path = str(SPACY_EN_NER_BC5CDR_MD_PATH)
+        else:
+            model_path = "en_ner_bc5cdr_md"
+        try:
+            self._nlp = spacy.load(model_path)
+        except OSError:
+            raise RuntimeError(
+                f"Medical NER model not found. "
+                f"Expected at: {SPACY_EN_NER_BC5CDR_MD_PATH}\n"
+                f"If you installed from the Windows installer, please "
+                f"reinstall — the model files may be missing.\n"
+                f"For developers: python scripts/download_models.py"
+            )
         logger.debug("Loaded scispaCy model: %s", model_path)
 
     def extract(self, text: str, **kwargs) -> AlgorithmResult:

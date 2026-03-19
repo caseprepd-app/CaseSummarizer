@@ -60,8 +60,13 @@ class TestModuleStructure:
 
     def test_nltk_corpora_list(self, download_module):
         """NLTK_CORPORA contains all required corpora."""
-        required = {"words", "wordnet", "omw-1.4", "stopwords", "punkt_tab"}
+        required = {"words", "wordnet", "omw-1.4", "stopwords"}
         assert required == set(download_module.NLTK_CORPORA)
+
+    def test_tiktoken_cache_dir_defined(self, download_module):
+        """TIKTOKEN_CACHE_DIR is defined for offline bundling."""
+        assert hasattr(download_module, "TIKTOKEN_CACHE_DIR")
+        assert download_module.TIKTOKEN_CACHE_DIR == download_module.MODELS_DIR / "tiktoken_cache"
 
     def test_hf_models_complete(self, download_module):
         """HF_MODELS contains all required HuggingFace models."""

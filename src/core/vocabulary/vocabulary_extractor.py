@@ -371,7 +371,18 @@ class VocabularyExtractor:
                         try:
                             self._nlp = spacy.load("en_core_web_lg")
                         except OSError:
-                            self._nlp = spacy.load("en_core_web_sm")
+                            try:
+                                self._nlp = spacy.load("en_core_web_sm")
+                            except OSError:
+                                raise RuntimeError(
+                                    f"Language model not found. Expected at: "
+                                    f"{SPACY_EN_CORE_WEB_LG_PATH}\n"
+                                    f"If you installed from the Windows "
+                                    f"installer, please reinstall — the model "
+                                    f"files may be missing.\n"
+                                    f"For developers: python scripts/"
+                                    f"download_models.py"
+                                )
             return self._nlp
 
     def extract(

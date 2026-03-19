@@ -715,6 +715,11 @@ SEMANTIC_EXPORT_RELEVANCE_FLOOR = _d("semantic_export_relevance_floor")
 # This prevents network calls at runtime for privacy and offline use
 # Renamed to avoid conflict with MODELS_DIR defined earlier
 BUNDLED_MODELS_DIR = BUNDLED_BASE_DIR / "models"
+
+# Bundled tiktoken cache (prevents runtime download of BPE encoding data)
+_TIKTOKEN_CACHE = BUNDLED_MODELS_DIR / "tiktoken_cache"
+if _TIKTOKEN_CACHE.exists():
+    os.environ.setdefault("TIKTOKEN_CACHE_DIR", str(_TIKTOKEN_CACHE))
 # Embedding model for FAISS semantic search
 # nomic-embed-text-v1.5 (137M params, 768 dims, 8192-token context, 270MB)
 # Downsized from modernbert-embed-large (1.58GB) — research shows small embeddings
