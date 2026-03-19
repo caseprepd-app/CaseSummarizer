@@ -716,10 +716,20 @@ SEMANTIC_EXPORT_RELEVANCE_FLOOR = _d("semantic_export_relevance_floor")
 # Renamed to avoid conflict with MODELS_DIR defined earlier
 BUNDLED_MODELS_DIR = BUNDLED_BASE_DIR / "models"
 
+# In frozen mode, prevent HuggingFace from downloading models over the network.
+# All required models are bundled; a missing model means a corrupt install.
+_IS_FROZEN = getattr(sys, "frozen", False)
+if _IS_FROZEN:
+    os.environ["HF_HUB_OFFLINE"] = "1"
+
 # Bundled tiktoken cache (prevents runtime download of BPE encoding data)
+# In frozen mode, force-set to bundled path so user env vars can't override.
 _TIKTOKEN_CACHE = BUNDLED_MODELS_DIR / "tiktoken_cache"
 if _TIKTOKEN_CACHE.exists():
-    os.environ.setdefault("TIKTOKEN_CACHE_DIR", str(_TIKTOKEN_CACHE))
+    if _IS_FROZEN:
+        os.environ["TIKTOKEN_CACHE_DIR"] = str(_TIKTOKEN_CACHE)
+    else:
+        os.environ.setdefault("TIKTOKEN_CACHE_DIR", str(_TIKTOKEN_CACHE))
 # Embedding model for FAISS semantic search
 # nomic-embed-text-v1.5 (137M params, 768 dims, 8192-token context, 270MB)
 # Downsized from modernbert-embed-large (1.58GB) — research shows small embeddings

@@ -857,18 +857,18 @@ class TestNLTKBloatPrevention:
 
 
 class TestSemanticChunkerModelBundling:
-    """Tests that the semantic chunker embedding model is configured for bundling."""
+    """Tests that embedding models are configured for bundling."""
 
-    def test_download_script_includes_minilm(self):
-        """download_models.py HF_MODELS includes all-MiniLM-L6-v2."""
+    def test_download_script_excludes_deprecated_minilm(self):
+        """download_models.py no longer bundles deprecated all-MiniLM-L6-v2."""
         script_path = Path(__file__).parent.parent / "scripts"
         sys.path.insert(0, str(script_path))
         try:
             import download_models
 
             repo_ids = [entry[0] for entry in download_models.HF_MODELS]
-            assert "sentence-transformers/all-MiniLM-L6-v2" in repo_ids, (
-                "all-MiniLM-L6-v2 must be in HF_MODELS for offline bundling."
+            assert "sentence-transformers/all-MiniLM-L6-v2" not in repo_ids, (
+                "all-MiniLM-L6-v2 was only used by deprecated KeyBERT."
             )
         finally:
             sys.path.pop(0)

@@ -25,6 +25,7 @@ semantic search is primary for comprehensive retrieval of relevant content.
 """
 
 import logging
+import sys
 import threading
 import time
 from typing import TYPE_CHECKING, Any
@@ -137,10 +138,12 @@ def get_embeddings_model() -> "HuggingFaceEmbeddings":
             logger.error(
                 "Failed to load embedding model '%s': %s", DEFAULT_EMBEDDING_MODEL, e, exc_info=True
             )
+            if getattr(sys, "frozen", False):
+                hint = "Please reinstall the application to restore model files."
+            else:
+                hint = "Run: python scripts/download_models.py"
             raise RuntimeError(
-                f"Embedding model not available: {DEFAULT_EMBEDDING_MODEL}\n"
-                f"Run: python scripts/download_models.py\n"
-                f"Error: {e}"
+                f"Embedding model not available: {DEFAULT_EMBEDDING_MODEL}\n{hint}\nError: {e}"
             ) from e
     return _shared_embeddings
 

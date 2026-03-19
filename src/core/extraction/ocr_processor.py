@@ -94,12 +94,21 @@ def _configure_tesseract():
     if TESSERACT_BUNDLED_EXE.exists():
         pytesseract.tesseract_cmd = str(TESSERACT_BUNDLED_EXE)
         logger.debug("Using bundled Tesseract at %s", TESSERACT_BUNDLED_EXE)
-    elif shutil.which("tesseract") is None:
+    elif shutil.which("tesseract") is not None:
+        logger.debug("Using Tesseract from system PATH")
+    else:
+        found = False
         for path in _TESSERACT_STANDARD_PATHS:
             if path.exists():
                 pytesseract.tesseract_cmd = str(path)
                 logger.debug("Configured pytesseract to use %s", path)
+                found = True
                 break
+        if not found:
+            logger.warning(
+                "Tesseract not found (bundled, PATH, or standard locations). "
+                "OCR will not be available."
+            )
 
     if sys.platform == "win32" and not _tesseract_patched:
         _suppress_tesseract_console()

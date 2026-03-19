@@ -7,6 +7,7 @@ pattern used by faiss_semantic and cross_encoder_reranker.
 
 import logging
 import os
+import sys
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -40,10 +41,16 @@ def set_hf_cache_env(cache_dir: Path) -> None:
     """
     Set HuggingFace cache environment variables.
 
-    Uses setdefault to avoid overwriting user-configured values.
+    In frozen mode (Windows installer), force-sets to bundled path so user
+    env vars can't redirect model loading to unexpected locations.
+    In dev mode, uses setdefault to respect user-configured values.
 
     Args:
         cache_dir: Directory for HuggingFace model cache
     """
-    os.environ.setdefault("HF_HOME", str(cache_dir))
-    os.environ.setdefault("TRANSFORMERS_CACHE", str(cache_dir))
+    if getattr(sys, "frozen", False):
+        os.environ["HF_HOME"] = str(cache_dir)
+        os.environ["TRANSFORMERS_CACHE"] = str(cache_dir)
+    else:
+        os.environ.setdefault("HF_HOME", str(cache_dir))
+        os.environ.setdefault("TRANSFORMERS_CACHE", str(cache_dir))

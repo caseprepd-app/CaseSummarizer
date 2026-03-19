@@ -73,7 +73,6 @@ class TestModuleStructure:
         repo_ids = {entry[0] for entry in download_module.HF_MODELS}
         expected = {
             "nomic-ai/nomic-embed-text-v1.5",
-            "sentence-transformers/all-MiniLM-L6-v2",
             "Alibaba-NLP/gte-reranker-modernbert-base",
         }
         assert expected == repo_ids
@@ -263,12 +262,7 @@ class TestIgnorePatterns:
                 return
         pytest.fail("nomic-embed-text-v1.5 not found")
 
-    def test_minilm_skips_large_files(self, download_module):
-        """all-MiniLM-L6-v2 skips ONNX, OpenVINO, and large binaries."""
-        for repo_id, _, ignore in download_module.HF_MODELS:
-            if repo_id == "sentence-transformers/all-MiniLM-L6-v2":
-                assert ignore is not None
-                assert any("onnx" in p for p in ignore)
-                assert any("pytorch_model.bin" in p for p in ignore)
-                return
-        pytest.fail("all-MiniLM-L6-v2 not found")
+    def test_minilm_removed(self, download_module):
+        """all-MiniLM-L6-v2 removed (only used by deprecated KeyBERT)."""
+        repo_ids = {entry[0] for entry in download_module.HF_MODELS}
+        assert "sentence-transformers/all-MiniLM-L6-v2" not in repo_ids

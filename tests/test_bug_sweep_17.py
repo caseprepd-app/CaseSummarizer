@@ -339,13 +339,18 @@ class TestSentinelDocstring:
 
 
 class TestHFEnvVarsSetDefault:
-    """Bug #17: HF_HOME uses os.environ.setdefault, not direct assignment."""
+    """Bug #17: HF_HOME uses setdefault in dev, force-set in frozen mode."""
 
-    def test_model_loader_uses_setdefault(self):
-        """model_loader.py set_hf_cache_env uses setdefault."""
+    def test_model_loader_uses_setdefault_in_dev(self):
+        """model_loader.py set_hf_cache_env uses setdefault for dev mode."""
         source = Path("src/core/utils/model_loader.py").read_text(encoding="utf-8")
         assert 'os.environ.setdefault("HF_HOME"' in source
-        assert 'os.environ["HF_HOME"]' not in source
+
+    def test_model_loader_force_sets_in_frozen(self):
+        """model_loader.py set_hf_cache_env force-sets in frozen mode."""
+        source = Path("src/core/utils/model_loader.py").read_text(encoding="utf-8")
+        assert 'os.environ["HF_HOME"]' in source
+        assert "frozen" in source
 
     def test_cross_encoder_uses_set_hf_cache_env(self):
         """cross_encoder_reranker.py delegates to set_hf_cache_env."""
