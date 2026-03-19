@@ -41,3 +41,5 @@ pytextrank>=3.0.0,<4.0
 nupunkt>=0.6.0,<1.0
 # Pure statistical keyword extraction (no model, zero dependencies)
 yake>=0.7.0,<1.0
+# System resource detection for dynamic worker count calculation
+psutil>=5.9.0,<7.0

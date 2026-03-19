@@ -19,6 +19,7 @@ Example usage:
 
 import logging
 import re
+import sys
 
 from nltk.corpus import words
 
@@ -66,9 +67,11 @@ class DictionaryTextValidator:
             self.english_words = {word.lower() for word in words.words()}
             logger.debug("Loaded %d English words", len(self.english_words))
         except LookupError:
-            raise RuntimeError(
-                "NLTK 'words' corpus not found. Run: python scripts/download_models.py"
-            )
+            if getattr(sys, "frozen", False):
+                hint = "Please reinstall the application to restore data files."
+            else:
+                hint = "Run: python scripts/download_models.py"
+            raise RuntimeError(f"NLTK 'words' corpus not found. {hint}")
 
     def _load_legal_keywords(self) -> None:
         """

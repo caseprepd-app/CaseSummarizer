@@ -9,6 +9,7 @@ The status bar shows granular progress ("Building search index 32/118..."),
 while tabs show higher-level context ("Search will run after vocabulary extraction").
 """
 
+import sys
 from dataclasses import dataclass
 from enum import Enum, auto
 
@@ -81,10 +82,11 @@ def get_semantic_tab_status(phase: WorkflowPhase, config: TabStatusConfig) -> st
         return "Processing complete.\n\nUse the search bar below to query your documents."
 
     if phase == WorkflowPhase.COMPLETE_WITH_ERRORS:
-        return (
-            "Search unavailable \u2014 embedding model failed to load.\n\n"
-            "Check Settings or run: python scripts/download_models.py"
-        )
+        if getattr(sys, "frozen", False):
+            hint = "Try reinstalling the application to restore model files."
+        else:
+            hint = "Run: python scripts/download_models.py"
+        return f"Search unavailable \u2014 embedding model failed to load.\n\n{hint}"
 
     return ""
 

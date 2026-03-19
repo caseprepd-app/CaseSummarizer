@@ -30,6 +30,7 @@ All algorithms run locally without external LLM calls.
 import logging
 import math
 import os
+import sys
 import threading
 import time
 from pathlib import Path
@@ -1259,9 +1260,11 @@ class VocabularyExtractor:
         try:
             wordnet.synsets("test")
         except LookupError:
-            raise RuntimeError(
-                "NLTK 'wordnet' corpus not found. Run: python scripts/download_models.py"
-            )
+            if getattr(sys, "frozen", False):
+                hint = "Please reinstall the application to restore data files."
+            else:
+                hint = "Run: python scripts/download_models.py"
+            raise RuntimeError(f"NLTK 'wordnet' corpus not found. {hint}")
 
     def reload_user_exclusions(self):
         """Reload user exclusions from file."""
