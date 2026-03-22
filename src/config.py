@@ -716,11 +716,9 @@ SEMANTIC_EXPORT_RELEVANCE_FLOOR = _d("semantic_export_relevance_floor")
 # Renamed to avoid conflict with MODELS_DIR defined earlier
 BUNDLED_MODELS_DIR = BUNDLED_BASE_DIR / "models"
 
-# In frozen mode, prevent HuggingFace from downloading models over the network.
-# All required models are bundled; a missing model means a corrupt install.
+# All required models are bundled locally — no network downloads, ever.
+# HF_HUB_OFFLINE and TRANSFORMERS_OFFLINE are set in model_loader.py.
 _IS_FROZEN = getattr(sys, "frozen", False)
-if _IS_FROZEN:
-    os.environ["HF_HUB_OFFLINE"] = "1"
 
 # Bundled tiktoken cache (prevents runtime download of BPE encoding data)
 # In frozen mode, force-set to bundled path so user env vars can't override.
@@ -738,8 +736,7 @@ if _TIKTOKEN_CACHE.exists():
 EMBEDDING_MODEL_NAME = "nomic-ai/nomic-embed-text-v1.5"
 EMBEDDING_MODEL_LOCAL_PATH = BUNDLED_MODELS_DIR / "embeddings" / "nomic-embed-text-v1.5"
 
-# HuggingFace cache directory (used if bundled model not found)
-# Falls back to downloading if bundled model is missing (dev mode)
+# HuggingFace cache directory (dev mode only — models are bundled in production)
 HF_CACHE_DIR = BUNDLED_MODELS_DIR / ".hf_cache"
 
 # ============================================================================
@@ -750,9 +747,7 @@ HF_CACHE_DIR = BUNDLED_MODELS_DIR / ".hf_cache"
 # Cross-encoders process query+document pairs together for more accurate relevance.
 
 RERANKING_ENABLED = _d("reranking_enabled")
-RERANKER_MODEL_NAME = (
-    "Alibaba-NLP/gte-reranker-modernbert-base"  # ~300MB model, downloads on first use
-)
+RERANKER_MODEL_NAME = "Alibaba-NLP/gte-reranker-modernbert-base"  # ~300MB model, bundled locally
 RERANKER_MODEL_LOCAL_PATH = BUNDLED_MODELS_DIR / "gte-reranker-modernbert-base"
 
 # Bundled spaCy models for Windows installer (no runtime downloads)

@@ -43,8 +43,8 @@ class TestFAISSEmbeddingsGuard:
         # Clean up
         mod._shared_embeddings = None
 
-    def test_no_local_files_only_when_bundled_missing(self):
-        """When bundled model is absent, local_files_only should NOT be set."""
+    def test_local_files_only_always_set(self):
+        """local_files_only is always True, even when bundled model is absent."""
         import src.core.retrieval.algorithms.faiss_semantic as mod
 
         mod._shared_embeddings = None
@@ -60,7 +60,7 @@ class TestFAISSEmbeddingsGuard:
             mod.get_embeddings_model()
 
         call_kwargs = mock_cls.call_args[1]
-        assert "local_files_only" not in call_kwargs["model_kwargs"]
+        assert call_kwargs["model_kwargs"]["local_files_only"] is True
         mod._shared_embeddings = None
 
     def test_clear_error_on_load_failure(self):
@@ -203,8 +203,8 @@ class TestCrossEncoderGuard:
         call_kwargs = mock_cls.call_args[1]
         assert call_kwargs["local_files_only"] is True
 
-    def test_no_local_files_only_when_not_bundled(self):
-        """Non-bundled path -> local_files_only should not be passed."""
+    def test_local_files_only_always_set_for_reranker(self):
+        """local_files_only is always True, even when bundled model is absent."""
         from src.core.retrieval.cross_encoder_reranker import CrossEncoderReranker
 
         reranker = CrossEncoderReranker()
@@ -220,7 +220,7 @@ class TestCrossEncoderGuard:
             reranker._load_model()
 
         call_kwargs = mock_cls.call_args[1]
-        assert "local_files_only" not in call_kwargs
+        assert call_kwargs["local_files_only"] is True
 
     def test_rerank_fallback_on_load_failure(self):
         """If model fails to load, rerank() returns original chunks (graceful degradation)."""
@@ -256,8 +256,8 @@ class TestCrossEncoderGuard:
         assert "HF_HOME" in os.environ
         assert "TRANSFORMERS_CACHE" in os.environ
 
-    def test_no_local_files_only_kwarg_when_not_bundled(self):
-        """When not bundled, local_files_only should not be in kwargs."""
+    def test_local_files_only_kwarg_always_set(self):
+        """local_files_only is always True in kwargs, even when not bundled."""
         from src.core.retrieval.cross_encoder_reranker import CrossEncoderReranker
 
         reranker = CrossEncoderReranker()
@@ -272,7 +272,7 @@ class TestCrossEncoderGuard:
             reranker._load_model()
 
         call_kwargs = mock_cls.call_args[1]
-        assert "local_files_only" not in call_kwargs
+        assert call_kwargs["local_files_only"] is True
 
     def test_is_available_returns_false_on_failure(self):
         """is_available() returns False when model cannot load."""

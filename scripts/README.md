@@ -12,6 +12,12 @@ Run all scripts from the project root with the venv activated.
 | `download_embedding_model.py` | Download nomic-embed-text-v1.5 embedding model to `models/` |
 | `download_reranker_model.py` | Download gte-reranker-modernbert-base cross-encoder to `models/` |
 
+## Build Validation
+
+| Script | Purpose |
+|--------|---------|
+| `validate_models.py` | Verify all bundled model files exist and aren't truncated — run before PyInstaller |
+
 ## Diagnostic Scripts
 
 | Script | Purpose |

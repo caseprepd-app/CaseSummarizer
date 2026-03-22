@@ -48,11 +48,11 @@ if TYPE_CHECKING:
 
 def _get_embedding_model_path() -> str:
     """
-    Get the embedding model path, preferring local bundled model.
+    Get the embedding model path from bundled local model.
 
     Returns:
         Local path if bundled model exists, otherwise HuggingFace model name
-        for automatic download.
+        for dev environments only. Frozen builds raise RuntimeError if missing.
     """
     from src.core.utils.model_loader import resolve_model_path
 
@@ -93,15 +93,14 @@ def get_embeddings_model() -> "HuggingFaceEmbeddings":
     Uses GPU when available for faster embedding.
     Configures search_document/search_query prompt prefixes for nomic-embed-text.
 
-    If the bundled model is present, uses local_files_only=True to prevent
-    any network downloads. If not bundled, allows download but wraps in
-    try/except for clear error messaging.
+    Always uses local_files_only=True — no network downloads are attempted.
+    Models must be bundled locally in the project's models/ directory.
 
     Returns:
         HuggingFaceEmbeddings instance
 
     Raises:
-        RuntimeError: If model cannot be loaded (missing bundled model + no network)
+        RuntimeError: If model cannot be loaded (missing or incomplete model files)
     """
     global _shared_embeddings
     if _shared_embeddings is not None:
@@ -123,9 +122,11 @@ def get_embeddings_model() -> "HuggingFaceEmbeddings":
             is_local,
         )
 
-        model_kwargs = {"device": device, "trust_remote_code": True}
-        if is_local:
-            model_kwargs["local_files_only"] = True
+        model_kwargs = {
+            "device": device,
+            "trust_remote_code": True,
+            "local_files_only": True,
+        }
 
         try:
             _shared_embeddings = HuggingFaceEmbeddings(
