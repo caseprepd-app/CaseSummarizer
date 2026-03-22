@@ -53,6 +53,7 @@ instance if no shared model is provided.
 """
 
 import logging
+import sys
 import time
 from typing import Any
 
@@ -125,15 +126,19 @@ class TextRankAlgorithm(BaseExtractionAlgorithm):
         if SPACY_EN_CORE_WEB_LG_PATH.exists():
             self._nlp = spacy.load(str(SPACY_EN_CORE_WEB_LG_PATH))
             logger.debug("Loaded bundled spaCy model: %s", SPACY_EN_CORE_WEB_LG_PATH)
+        elif getattr(sys, "frozen", False):
+            raise RuntimeError(
+                f"Bundled spaCy model not found: {SPACY_EN_CORE_WEB_LG_PATH}\n"
+                f"Please reinstall the application to restore model files."
+            )
         else:
             try:
                 self._nlp = spacy.load("en_core_web_lg")
+                logger.warning("Using pip-installed spaCy model (not bundled)")
             except OSError:
                 raise RuntimeError(
                     f"Language model not found. "
                     f"Expected at: {SPACY_EN_CORE_WEB_LG_PATH}\n"
-                    f"If you installed from the Windows installer, please "
-                    f"reinstall — the model files may be missing.\n"
                     f"For developers: python scripts/download_models.py"
                 )
         self._nlp.add_pipe("topicrank")

@@ -717,17 +717,16 @@ SEMANTIC_EXPORT_RELEVANCE_FLOOR = _d("semantic_export_relevance_floor")
 BUNDLED_MODELS_DIR = BUNDLED_BASE_DIR / "models"
 
 # All required models are bundled locally — no network downloads, ever.
-# HF_HUB_OFFLINE and TRANSFORMERS_OFFLINE are set in model_loader.py.
+# Set early so no import path can trigger a download before model_loader runs.
+os.environ["HF_HUB_OFFLINE"] = "1"
+os.environ["TRANSFORMERS_OFFLINE"] = "1"
 _IS_FROZEN = getattr(sys, "frozen", False)
 
 # Bundled tiktoken cache (prevents runtime download of BPE encoding data)
-# In frozen mode, force-set to bundled path so user env vars can't override.
+# Force-set so dev mode mirrors production exactly.
 _TIKTOKEN_CACHE = BUNDLED_MODELS_DIR / "tiktoken_cache"
 if _TIKTOKEN_CACHE.exists():
-    if _IS_FROZEN:
-        os.environ["TIKTOKEN_CACHE_DIR"] = str(_TIKTOKEN_CACHE)
-    else:
-        os.environ.setdefault("TIKTOKEN_CACHE_DIR", str(_TIKTOKEN_CACHE))
+    os.environ["TIKTOKEN_CACHE_DIR"] = str(_TIKTOKEN_CACHE)
 # Embedding model for FAISS semantic search
 # nomic-embed-text-v1.5 (137M params, 768 dims, 8192-token context, 270MB)
 # Downsized from modernbert-embed-large (1.58GB) — research shows small embeddings
@@ -759,11 +758,13 @@ SPACY_EN_NER_BC5CDR_MD_PATH = SPACY_MODELS_DIR / "en_ner_bc5cdr_md"
 # Bundled NLTK data for Windows installer (no runtime downloads)
 NLTK_DATA_DIR = BUNDLED_MODELS_DIR / "nltk_data"
 
-# Register bundled NLTK data path before any NLTK consumer
+# Register bundled NLTK data path before any NLTK consumer.
+# Use ONLY the bundled path so dev mode mirrors production exactly —
+# system NLTK data can't silently mask missing bundled data.
 if NLTK_DATA_DIR.exists():
     import nltk
 
-    nltk.data.path.insert(0, str(NLTK_DATA_DIR))
+    nltk.data.path = [str(NLTK_DATA_DIR)]
 
 # Bundled Tesseract OCR binary for Windows installer (no system install needed)
 TESSERACT_BUNDLED_DIR = BUNDLED_MODELS_DIR / "tesseract"

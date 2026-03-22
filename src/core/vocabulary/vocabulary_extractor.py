@@ -376,19 +376,25 @@ class VocabularyExtractor:
                         self._nlp = spacy.load(str(SPACY_EN_CORE_WEB_LG_PATH))
                     elif SPACY_EN_CORE_WEB_SM_PATH.exists():
                         self._nlp = spacy.load(str(SPACY_EN_CORE_WEB_SM_PATH))
+                    elif getattr(sys, "frozen", False):
+                        raise RuntimeError(
+                            f"Bundled spaCy model not found: "
+                            f"{SPACY_EN_CORE_WEB_LG_PATH}\n"
+                            f"Please reinstall the application to "
+                            f"restore model files."
+                        )
                     else:
                         try:
                             self._nlp = spacy.load("en_core_web_lg")
+                            logger.warning("Using pip-installed spaCy (not bundled)")
                         except OSError:
                             try:
                                 self._nlp = spacy.load("en_core_web_sm")
+                                logger.warning("Using pip-installed en_core_web_sm")
                             except OSError:
                                 raise RuntimeError(
-                                    f"Language model not found. Expected at: "
-                                    f"{SPACY_EN_CORE_WEB_LG_PATH}\n"
-                                    f"If you installed from the Windows "
-                                    f"installer, please reinstall — the model "
-                                    f"files may be missing.\n"
+                                    f"Language model not found. Expected "
+                                    f"at: {SPACY_EN_CORE_WEB_LG_PATH}\n"
                                     f"For developers: python scripts/"
                                     f"download_models.py"
                                 )

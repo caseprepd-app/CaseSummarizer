@@ -21,6 +21,7 @@ algorithms contribute their candidates. This ensures consistent filtering.
 
 import logging
 import re
+import sys
 import time
 from collections import defaultdict
 from typing import Any
@@ -425,34 +426,38 @@ class NERAlgorithm(BaseExtractionAlgorithm):
         """
         Load the spaCy model from bundled path or installed package.
 
-        Checks bundled models/spacy/ directory first (Windows installer),
-        then falls back to spacy.load() for dev environments.
+        Checks bundled models/spacy/ directory first (Windows installer).
+        In frozen mode, fails if bundled model is missing.
+        In dev mode, falls back to pip-installed model.
 
         Returns:
             Loaded spaCy Language model.
 
         Raises:
-            RuntimeError: If model not found in either location.
+            RuntimeError: If model not found.
         """
         from src.config import SPACY_EN_CORE_WEB_LG_PATH
 
-        # Bundled model (Windows installer)
         if SPACY_EN_CORE_WEB_LG_PATH.exists():
             nlp = spacy.load(str(SPACY_EN_CORE_WEB_LG_PATH))
             logger.debug("Loaded bundled spaCy model: %s", SPACY_EN_CORE_WEB_LG_PATH)
             return nlp
 
+        if getattr(sys, "frozen", False):
+            raise RuntimeError(
+                f"Bundled spaCy model not found: {SPACY_EN_CORE_WEB_LG_PATH}\n"
+                f"Please reinstall the application to restore model files."
+            )
+
         # Dev fallback: try pip-installed model
         try:
             nlp = spacy.load(SPACY_MODEL_NAME)
-            logger.debug("Loaded installed spaCy model: %s", SPACY_MODEL_NAME)
+            logger.warning("Using pip-installed spaCy model (not bundled): %s", SPACY_MODEL_NAME)
             return nlp
         except OSError:
             raise RuntimeError(
                 f"Language model '{SPACY_MODEL_NAME}' not found. "
                 f"Expected at: {SPACY_EN_CORE_WEB_LG_PATH}\n"
-                f"If you installed from the Windows installer, please "
-                f"reinstall — the model files may be missing.\n"
                 f"For developers: python scripts/download_models.py"
             )
 

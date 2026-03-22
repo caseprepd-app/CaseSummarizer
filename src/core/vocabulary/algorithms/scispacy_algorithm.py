@@ -57,22 +57,29 @@ class ScispaCyAlgorithm(BaseExtractionAlgorithm):
 
     def _load_nlp(self):
         """Load scispaCy en_ner_bc5cdr_md model from bundled path or package."""
+        import sys
+
         import spacy
 
         from src.config import SPACY_EN_NER_BC5CDR_MD_PATH
 
         if SPACY_EN_NER_BC5CDR_MD_PATH.exists():
             model_path = str(SPACY_EN_NER_BC5CDR_MD_PATH)
+        elif getattr(sys, "frozen", False):
+            raise RuntimeError(
+                f"Bundled medical NER model not found: "
+                f"{SPACY_EN_NER_BC5CDR_MD_PATH}\n"
+                f"Please reinstall the application to restore model files."
+            )
         else:
             model_path = "en_ner_bc5cdr_md"
+            logger.warning("Using pip-installed scispaCy model (not bundled)")
         try:
             self._nlp = spacy.load(model_path)
         except OSError:
             raise RuntimeError(
                 f"Medical NER model not found. "
                 f"Expected at: {SPACY_EN_NER_BC5CDR_MD_PATH}\n"
-                f"If you installed from the Windows installer, please "
-                f"reinstall — the model files may be missing.\n"
                 f"For developers: python scripts/download_models.py"
             )
         logger.debug("Loaded scispaCy model: %s", model_path)

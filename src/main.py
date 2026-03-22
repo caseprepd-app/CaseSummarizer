@@ -169,6 +169,11 @@ def main():
     setup_logging()
     purge_old_logs()
 
+    # 4b. Log where every asset loads from (catches "works on my machine" issues)
+    from src.services.asset_audit import run_asset_audit
+
+    run_asset_audit()
+
     # 5. Install global exception hooks so unhandled errors are logged
     # (especially important in PyInstaller --noconsole where stdout is None)
     _logger = logging.getLogger(__name__)
