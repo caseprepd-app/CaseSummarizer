@@ -7,6 +7,21 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.0.23] - 2026-03-22
+
+### Fixed
+- Embedding model no longer attempts HuggingFace downloads — `local_files_only=True` enforced unconditionally
+- Dev mode now mirrors production exactly: all assets load from project directory, not system fallbacks
+- NLTK restricted to single bundled path (no system corpus fallback)
+- Tiktoken and HuggingFace cache env vars force-set instead of setdefault
+
+### Added
+- Asset audit log at startup — every model, dataset, and binary logged with BUNDLED/SYSTEM/MISSING provenance
+- Pre-build validation script (`scripts/validate_models.py`) catches missing or truncated assets before PyInstaller
+
+### Infrastructure
+- Frozen-mode guards on all spaCy and ML model loading — RuntimeError with reinstall guidance instead of silent fallback
+
 ## [1.0.22] - 2026-03-19
 
 ### Added
