@@ -25,6 +25,8 @@ REQUIRED_MODELS = {
         "files": [
             "config.json",
             "config_sentence_transformers.json",
+            "configuration_hf_nomic_bert.py",
+            "modeling_hf_nomic_bert.py",
             "model.safetensors",
             "modules.json",
             "sentence_bert_config.json",

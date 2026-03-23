@@ -51,6 +51,38 @@ def download_model() -> bool:
         return False
 
 
+def _bundle_custom_code(target_dir: Path) -> None:
+    """
+    Bundle custom model code and patch config for offline loading.
+
+    The nomic model uses trust_remote_code with custom Python files
+    hosted in the nomic-ai/nomic-bert-2048 repo. Without these files,
+    offline loading fails. This downloads them and rewrites auto_map
+    entries in config.json to point to local modules.
+    """
+    import json
+    import shutil
+
+    from huggingface_hub import hf_hub_download
+
+    code_repo = "nomic-ai/nomic-bert-2048"
+    code_files = ["configuration_hf_nomic_bert.py", "modeling_hf_nomic_bert.py"]
+
+    for filename in code_files:
+        src = hf_hub_download(code_repo, filename)
+        shutil.copy2(src, target_dir / filename)
+        print(f"  [OK] Bundled {filename}")
+
+    config_path = target_dir / "config.json"
+    config = json.loads(config_path.read_text(encoding="utf-8"))
+    if "auto_map" in config:
+        for key, value in config["auto_map"].items():
+            if "--" in value:
+                config["auto_map"][key] = value.split("--", 1)[1]
+        config_path.write_text(json.dumps(config, indent=2) + "\n", encoding="utf-8")
+        print("  [OK] Patched config.json auto_map for offline use")
+
+
 def verify_model() -> bool:
     """
     Verify that key model files exist after download.
@@ -77,6 +109,9 @@ def main():
     models_dir.mkdir(parents=True, exist_ok=True)
 
     success = download_model()
+
+    if success:
+        _bundle_custom_code(models_dir / MODEL_DIR)
 
     # Verification
     print("\n" + "=" * 60)

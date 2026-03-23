@@ -400,6 +400,64 @@ class TestDownloadScriptCrossReference:
 
 
 # ============================================================================
+# Nomic Embedding Model — Offline Readiness
+# ============================================================================
+# The nomic model uses trust_remote_code with custom Python code from a
+# separate HF repo (nomic-ai/nomic-bert-2048). These files and a patched
+# config.json must be bundled for offline/frozen loading to work.
+
+
+class TestNomicOfflineReadiness:
+    """Verify nomic embedding model is bundled for fully offline use."""
+
+    NOMIC_DIR = PROJECT_ROOT / "models" / "embeddings" / "nomic-embed-text-v1.5"
+
+    def test_custom_config_code_exists(self):
+        """configuration_hf_nomic_bert.py is bundled with the model."""
+        path = self.NOMIC_DIR / "configuration_hf_nomic_bert.py"
+        assert path.is_file(), f"Missing custom config code: {path}"
+
+    def test_custom_modeling_code_exists(self):
+        """modeling_hf_nomic_bert.py is bundled with the model."""
+        path = self.NOMIC_DIR / "modeling_hf_nomic_bert.py"
+        assert path.is_file(), f"Missing custom modeling code: {path}"
+
+    def test_auto_map_uses_local_references(self):
+        """config.json auto_map entries point to local modules, not remote repos."""
+        import json
+
+        config = json.loads((self.NOMIC_DIR / "config.json").read_text(encoding="utf-8"))
+        assert "auto_map" in config, "config.json missing auto_map"
+        for key, value in config["auto_map"].items():
+            assert "--" not in value, f"auto_map[{key}] still points to remote repo: {value}"
+
+    def test_auto_map_references_bundled_files(self):
+        """auto_map module names match the bundled .py files."""
+        import json
+
+        config = json.loads((self.NOMIC_DIR / "config.json").read_text(encoding="utf-8"))
+        for value in config["auto_map"].values():
+            module_name = value.split(".")[0]
+            py_file = self.NOMIC_DIR / f"{module_name}.py"
+            assert py_file.is_file(), (
+                f"auto_map references {module_name} but {py_file.name} not found"
+            )
+
+    def test_config_has_nomic_bert_architecture(self):
+        """config.json declares NomicBertModel architecture."""
+        import json
+
+        config = json.loads((self.NOMIC_DIR / "config.json").read_text(encoding="utf-8"))
+        assert "NomicBertModel" in config.get("architectures", [])
+
+    def test_validate_models_requires_custom_code(self):
+        """validate_models.py checks for the custom .py files."""
+        validate_src = (PROJECT_ROOT / "scripts" / "validate_models.py").read_text(encoding="utf-8")
+        assert "configuration_hf_nomic_bert.py" in validate_src
+        assert "modeling_hf_nomic_bert.py" in validate_src
+
+
+# ============================================================================
 # P1 - Post-Build Dist Verification
 # ============================================================================
 # After PyInstaller runs, verify dist/ folder structure before Inno packaging.
@@ -496,6 +554,26 @@ class TestPostBuildDistVerification:
         total = sum(f.stat().st_size for f in DIST_DIR.rglob("*") if f.is_file())
         total_mb = total / (1024 * 1024)
         assert 500 < total_mb < 10240, f"Dist size is {total_mb:.0f} MB -- expected 500-10240 MB"
+
+
+@DIST_SKIP
+class TestNomicOfflineReadinessDist:
+    """Verify nomic custom code is present in the built dist."""
+
+    NOMIC_DIST = DIST_DIR / "_internal" / "models" / "embeddings" / "nomic-embed-text-v1.5"
+
+    def test_custom_code_in_dist(self):
+        """Custom .py files are present in the dist build."""
+        assert (self.NOMIC_DIST / "configuration_hf_nomic_bert.py").is_file()
+        assert (self.NOMIC_DIST / "modeling_hf_nomic_bert.py").is_file()
+
+    def test_auto_map_local_in_dist(self):
+        """Dist config.json auto_map uses local references."""
+        import json
+
+        config = json.loads((self.NOMIC_DIST / "config.json").read_text(encoding="utf-8"))
+        for key, value in config["auto_map"].items():
+            assert "--" not in value, f"Dist auto_map[{key}] still remote: {value}"
 
 
 # ============================================================================

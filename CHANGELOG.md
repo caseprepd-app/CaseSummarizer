@@ -7,6 +7,17 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.0.24] - 2026-03-23
+
+### Fixed
+- Semantic search failing on end-user machines — nomic embedding model's custom architecture code (`trust_remote_code`) was not bundled, causing offline loading to fail with "couldn't connect to huggingface.co"
+
+### Infrastructure
+- Bundle nomic-bert custom Python code (`configuration_hf_nomic_bert.py`, `modeling_hf_nomic_bert.py`) with patched `config.json` for fully offline model loading
+- Download scripts auto-fetch and patch custom code after model download
+- `validate_models.py` now requires custom code files, failing early if missing
+- 21 new tests for offline model readiness and custom code bundling
+
 ## [1.0.23] - 2026-03-22
 
 ### Fixed

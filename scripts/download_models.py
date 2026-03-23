@@ -202,11 +202,42 @@ def download_huggingface_models() -> dict[str, bool]:
             snapshot_download(**kwargs)
             print(f"  [OK] {repo_id}")
             results[repo_id] = True
+
+            if repo_id == "nomic-ai/nomic-embed-text-v1.5":
+                _bundle_nomic_custom_code(target)
         except Exception as e:
             print(f"  [FAILED] {repo_id}: {e}")
             results[repo_id] = False
 
     return results
+
+
+def _bundle_nomic_custom_code(target_dir: Path) -> None:
+    """
+    Bundle custom model code for offline nomic-embed loading.
+
+    The nomic model's config.json auto_map points to remote code in
+    nomic-ai/nomic-bert-2048. Without these .py files present locally,
+    trust_remote_code=True fails in offline/frozen mode.
+    """
+    import json
+
+    from huggingface_hub import hf_hub_download
+
+    code_repo = "nomic-ai/nomic-bert-2048"
+    for filename in ["configuration_hf_nomic_bert.py", "modeling_hf_nomic_bert.py"]:
+        src = hf_hub_download(code_repo, filename)
+        shutil.copy2(src, target_dir / filename)
+        print(f"  [OK] Bundled {filename}")
+
+    config_path = target_dir / "config.json"
+    config = json.loads(config_path.read_text(encoding="utf-8"))
+    if "auto_map" in config:
+        for key, value in config["auto_map"].items():
+            if "--" in value:
+                config["auto_map"][key] = value.split("--", 1)[1]
+        config_path.write_text(json.dumps(config, indent=2) + "\n", encoding="utf-8")
+        print("  [OK] Patched config.json auto_map for offline use")
 
 
 TESSERACT_DIR = MODELS_DIR / "tesseract"

@@ -266,3 +266,213 @@ class TestIgnorePatterns:
         """all-MiniLM-L6-v2 removed (only used by deprecated KeyBERT)."""
         repo_ids = {entry[0] for entry in download_module.HF_MODELS}
         assert "sentence-transformers/all-MiniLM-L6-v2" not in repo_ids
+
+
+# ============================================================================
+# H. Nomic Custom Code Bundling (download_models.py)
+# ============================================================================
+
+
+class TestNomicCustomCodeBundling:
+    """Tests for _bundle_nomic_custom_code in download_models.py."""
+
+    def test_function_exists(self, download_module):
+        """_bundle_nomic_custom_code is defined and callable."""
+        assert callable(download_module._bundle_nomic_custom_code)
+
+    def test_copies_custom_code_files(self, download_module, tmp_path):
+        """Downloads and copies configuration and modeling .py files."""
+        # Create a config.json with remote auto_map
+        config = {
+            "auto_map": {
+                "AutoConfig": "nomic-ai/nomic-bert-2048--configuration_hf_nomic_bert.NomicBertConfig",
+                "AutoModel": "nomic-ai/nomic-bert-2048--modeling_hf_nomic_bert.NomicBertModel",
+            }
+        }
+        (tmp_path / "config.json").write_text(__import__("json").dumps(config), encoding="utf-8")
+
+        fake_py = tmp_path / "cached_file.py"
+        fake_py.write_text("# fake", encoding="utf-8")
+
+        with patch("huggingface_hub.hf_hub_download", return_value=str(fake_py)):
+            download_module._bundle_nomic_custom_code(tmp_path)
+
+        assert (tmp_path / "configuration_hf_nomic_bert.py").exists()
+        assert (tmp_path / "modeling_hf_nomic_bert.py").exists()
+
+    def test_patches_auto_map_to_local(self, download_module, tmp_path):
+        """Rewrites auto_map entries to remove remote repo prefix."""
+        import json
+
+        config = {
+            "auto_map": {
+                "AutoConfig": "nomic-ai/nomic-bert-2048--configuration_hf_nomic_bert.NomicBertConfig",
+                "AutoModel": "nomic-ai/nomic-bert-2048--modeling_hf_nomic_bert.NomicBertModel",
+            }
+        }
+        (tmp_path / "config.json").write_text(json.dumps(config), encoding="utf-8")
+
+        fake_py = tmp_path / "cached_file.py"
+        fake_py.write_text("# fake", encoding="utf-8")
+
+        with patch("huggingface_hub.hf_hub_download", return_value=str(fake_py)):
+            download_module._bundle_nomic_custom_code(tmp_path)
+
+        patched = json.loads((tmp_path / "config.json").read_text(encoding="utf-8"))
+        for value in patched["auto_map"].values():
+            assert "--" not in value, f"Remote prefix not stripped: {value}"
+        assert patched["auto_map"]["AutoConfig"] == "configuration_hf_nomic_bert.NomicBertConfig"
+        assert patched["auto_map"]["AutoModel"] == "modeling_hf_nomic_bert.NomicBertModel"
+
+    def test_skips_patch_when_no_auto_map(self, download_module, tmp_path):
+        """No crash when config.json has no auto_map key."""
+        import json
+
+        config = {"model_type": "bert"}
+        (tmp_path / "config.json").write_text(json.dumps(config), encoding="utf-8")
+
+        fake_py = tmp_path / "cached_file.py"
+        fake_py.write_text("# fake", encoding="utf-8")
+
+        with patch("huggingface_hub.hf_hub_download", return_value=str(fake_py)):
+            download_module._bundle_nomic_custom_code(tmp_path)
+
+        patched = json.loads((tmp_path / "config.json").read_text(encoding="utf-8"))
+        assert "auto_map" not in patched
+
+    def test_leaves_already_local_auto_map_unchanged(self, download_module, tmp_path):
+        """auto_map entries without '--' are left as-is."""
+        import json
+
+        config = {
+            "auto_map": {
+                "AutoConfig": "configuration_hf_nomic_bert.NomicBertConfig",
+            }
+        }
+        (tmp_path / "config.json").write_text(json.dumps(config), encoding="utf-8")
+
+        fake_py = tmp_path / "cached_file.py"
+        fake_py.write_text("# fake", encoding="utf-8")
+
+        with patch("huggingface_hub.hf_hub_download", return_value=str(fake_py)):
+            download_module._bundle_nomic_custom_code(tmp_path)
+
+        patched = json.loads((tmp_path / "config.json").read_text(encoding="utf-8"))
+        assert patched["auto_map"]["AutoConfig"] == "configuration_hf_nomic_bert.NomicBertConfig"
+
+    def test_called_after_nomic_download(self, download_module):
+        """_bundle_nomic_custom_code is called after nomic model downloads."""
+        call_log = []
+
+        def mock_snapshot(**kwargs):
+            """Track snapshot_download calls."""
+            call_log.append(("snapshot", kwargs["repo_id"]))
+
+        def mock_bundle(target_dir):
+            """Track _bundle_nomic_custom_code calls."""
+            call_log.append(("bundle", str(target_dir)))
+
+        with (
+            patch.object(download_module, "MODELS_DIR", Path("/fake/models")),
+            patch("huggingface_hub.snapshot_download", side_effect=mock_snapshot),
+            patch.object(download_module, "_bundle_nomic_custom_code", side_effect=mock_bundle),
+        ):
+            download_module.download_huggingface_models()
+
+        # Bundle should be called right after nomic snapshot_download
+        snapshot_calls = [c for c in call_log if c[0] == "snapshot"]
+        bundle_calls = [c for c in call_log if c[0] == "bundle"]
+        assert len(bundle_calls) == 1
+        assert any("nomic" in c[1] for c in snapshot_calls)
+
+    def test_not_called_for_reranker(self, download_module):
+        """_bundle_nomic_custom_code is NOT called for the reranker model."""
+        bundle_calls = []
+
+        with (
+            patch.object(download_module, "MODELS_DIR", Path("/fake/models")),
+            patch("huggingface_hub.snapshot_download"),
+            patch.object(
+                download_module,
+                "_bundle_nomic_custom_code",
+                side_effect=lambda d: bundle_calls.append(d),
+            ),
+        ):
+            download_module.download_huggingface_models()
+
+        # Should be called exactly once (for nomic only)
+        assert len(bundle_calls) == 1
+
+
+# ============================================================================
+# I. Nomic Custom Code Bundling (download_embedding_model.py)
+# ============================================================================
+
+
+@pytest.fixture
+def embedding_download_module():
+    """Import download_embedding_model from scripts/."""
+    script_path = Path(__file__).parent.parent / "scripts"
+    sys.path.insert(0, str(script_path))
+    try:
+        if "download_embedding_model" in sys.modules:
+            del sys.modules["download_embedding_model"]
+        import download_embedding_model
+
+        yield download_embedding_model
+    finally:
+        sys.path.pop(0)
+        if "download_embedding_model" in sys.modules:
+            del sys.modules["download_embedding_model"]
+
+
+class TestEmbeddingDownloadCustomCode:
+    """Tests for _bundle_custom_code in download_embedding_model.py."""
+
+    def test_function_exists(self, embedding_download_module):
+        """_bundle_custom_code is defined and callable."""
+        assert callable(embedding_download_module._bundle_custom_code)
+
+    def test_patches_auto_map(self, embedding_download_module, tmp_path):
+        """Rewrites auto_map to local module references."""
+        import json
+
+        config = {
+            "auto_map": {
+                "AutoConfig": "nomic-ai/nomic-bert-2048--configuration_hf_nomic_bert.NomicBertConfig",
+            }
+        }
+        (tmp_path / "config.json").write_text(json.dumps(config), encoding="utf-8")
+
+        fake_py = tmp_path / "cached.py"
+        fake_py.write_text("# fake", encoding="utf-8")
+
+        with patch("huggingface_hub.hf_hub_download", return_value=str(fake_py)):
+            embedding_download_module._bundle_custom_code(tmp_path)
+
+        patched = json.loads((tmp_path / "config.json").read_text(encoding="utf-8"))
+        assert patched["auto_map"]["AutoConfig"] == "configuration_hf_nomic_bert.NomicBertConfig"
+
+    def test_main_calls_bundle_on_success(self, embedding_download_module):
+        """main() calls _bundle_custom_code after successful download."""
+        with (
+            patch.object(embedding_download_module, "download_model", return_value=True),
+            patch.object(embedding_download_module, "verify_model", return_value=True),
+            patch.object(embedding_download_module, "_bundle_custom_code") as mock_bundle,
+            patch.object(embedding_download_module, "models_dir", Path("/fake")),
+        ):
+            embedding_download_module.main()
+
+        mock_bundle.assert_called_once()
+
+    def test_main_skips_bundle_on_failure(self, embedding_download_module):
+        """main() does NOT call _bundle_custom_code when download fails."""
+        with (
+            patch.object(embedding_download_module, "download_model", return_value=False),
+            patch.object(embedding_download_module, "verify_model", return_value=False),
+            patch.object(embedding_download_module, "_bundle_custom_code") as mock_bundle,
+            pytest.raises(SystemExit),
+        ):
+            embedding_download_module.main()
+
+        mock_bundle.assert_not_called()
