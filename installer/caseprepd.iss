@@ -49,6 +49,8 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 [Files]
 ; Bundle everything from the PyInstaller dist output
 Source: "..\dist\CasePrepd\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+; VC++ Redistributable — installed silently if not already present
+Source: "vc_redist.x64.exe"; DestDir: "{tmp}"; Flags: deleteafterinstall
 
 [Icons]
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\_internal\assets\icon.ico"
@@ -65,21 +67,27 @@ Type: filesandordirs; Name: "{userappdata}\{#MyAppName}"
 Filename: "{app}\{#MyAppExeName}"; Description: "Launch {#MyAppName}"; Flags: nowait postinstall skipifsilent
 
 [Code]
-// Check for Visual C++ Runtime (vcruntime140.dll) before installation.
-// PyInstaller bundles most DLLs but some native extensions (onnxruntime,
-// torch, tokenizers) depend on the VC++ redistributable. Without it,
-// the app crashes with a cryptic "DLL load failed" error.
+// Install the bundled VC++ Redistributable silently if not already present.
+// Native extensions (onnxruntime, tokenizers) depend on vcruntime140.dll.
 function VCRuntimeInstalled: Boolean;
 begin
   Result := FileExists(ExpandConstant('{sys}\vcruntime140.dll'));
 end;
 
-function InitializeSetup: Boolean;
+procedure InstallVCRedist;
+var
+  ResultCode: Integer;
 begin
-  Result := True;
   if not VCRuntimeInstalled then
   begin
-    MsgBox('Microsoft Visual C++ Runtime (vcruntime140.dll) was not found.' + #13#10 + #13#10 + '{#MyAppName} requires the Visual C++ Redistributable to run.' + #13#10 + #13#10 + 'Please download and install it from:' + #13#10 + 'https://aka.ms/vs/17/release/vc_redist.x64.exe' + #13#10 + #13#10 + 'Then run this installer again.', mbError, MB_OK);
-    Result := False;
+    Exec(ExpandConstant('{tmp}\vc_redist.x64.exe'),
+         '/install /quiet /norestart', '', SW_HIDE,
+         ewWaitUntilTerminated, ResultCode);
   end;
+end;
+
+procedure CurStepChanged(CurStep: TSetupStep);
+begin
+  if CurStep = ssInstall then
+    InstallVCRedist;
 end;
