@@ -2222,6 +2222,40 @@ class DynamicOutputWidget(ctk.CTkFrame):
         except Exception as e:
             logger.debug("ERROR: Failed to add '%s' to exclusion list: %s", term, e)
 
+    def _remove_from_user_exclusion_list(self, term: str) -> None:
+        """
+        Remove a term from the user exclusion list.
+
+        Called when user clears a previous Skip (-1) rating so the
+        term is no longer excluded from future extractions.
+
+        Args:
+            term: The term to un-exclude (case-insensitive)
+        """
+        if not term:
+            return
+
+        lower_term = term.lower().strip()
+        try:
+            if not USER_VOCAB_EXCLUDE_PATH.exists():
+                return
+
+            with open(USER_VOCAB_EXCLUDE_PATH, encoding="utf-8") as f:
+                lines = f.readlines()
+
+            kept = [ln for ln in lines if ln.strip().lower() != lower_term]
+
+            if len(kept) == len(lines):
+                logger.debug("Term '%s' not in exclusion list", term)
+                return
+
+            with open(USER_VOCAB_EXCLUDE_PATH, "w", encoding="utf-8") as f:
+                f.writelines(kept)
+
+            logger.debug("Removed '%s' from exclusion list", term)
+        except Exception as e:
+            logger.debug("Failed to remove '%s' from exclusion list: %s", term, e)
+
     def _build_vocab_csv(self, vocab_data: list) -> str:
         """
         Build CSV string from vocabulary data.
@@ -2834,6 +2868,8 @@ class DynamicOutputWidget(ctk.CTkFrame):
 
             if new_rating == -1:
                 self._add_to_user_exclusion_list(term)
+            elif current_rating == -1 and new_rating != -1:
+                self._remove_from_user_exclusion_list(term)
 
             self._update_balance_hint()
 

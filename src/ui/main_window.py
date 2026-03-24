@@ -1197,6 +1197,8 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         self._completed_tasks = set()
         self._failed_tasks = set()
         self._degraded_algorithms = []
+        with self._semantic_results_lock:
+            self._semantic_results.clear()
         self._semantic_ready = False
         self._semantic_answering_active = False
         self._semantic_failed = False
@@ -2152,6 +2154,9 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         if self._resize_debounce_id is not None:
             self.after_cancel(self._resize_debounce_id)
             self._resize_debounce_id = None
+        if hasattr(self, "_deferred_status_id") and self._deferred_status_id:
+            self.after_cancel(self._deferred_status_id)
+            self._deferred_status_id = None
 
         # Shut down the worker subprocess (non-blocking to avoid GUI hang)
         if self._worker_manager:

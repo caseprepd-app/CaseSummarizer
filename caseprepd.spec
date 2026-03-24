@@ -92,6 +92,18 @@ packages_to_collect = [
     "catalogue",
     "confection",
     "pydantic",
+    # TopicRank (pytextrank) and its full dependency tree
+    "pytextrank",
+    "networkx",
+    "graphviz",
+    "icecream",
+    "pygments",
+    "git",          # GitPython — imported by pytextrank.version
+    "gitdb",
+    "smmap",
+    "asttokens",
+    "executing",
+    "colorama",
 ]
 
 for pkg in packages_to_collect:

@@ -769,7 +769,7 @@ def export_semantic_html(
 
             item = f"""        <div class="qa-item">
             <div class="qa-header" onclick="toggleItem(this)">
-                <span>Q{i}: {_escape(result.question)[:80]}{"..." if len(result.question) > 80 else ""}{reliability_badge}</span>
+                <span>Q{i}: {_escape(result.question[:80])}{"..." if len(result.question) > 80 else ""}{reliability_badge}</span>
                 <span class="toggle">▼ Hide</span>
             </div>
             <div class="qa-content">

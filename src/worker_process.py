@@ -212,6 +212,11 @@ def _dispatch_command(cmd_type, args, internal_queue, state):
         internal_queue: Queue the worker writes messages to
         state: shared subprocess state
     """
+    if cmd_type not in ("process_files", "extract", "run_qa", "followup"):
+        logger.warning("Unknown command: %s", cmd_type)
+        internal_queue.put(("error", f"Unknown command: {cmd_type}"))
+        return
+
     # Stop any running worker before starting a new one
     _stop_active_worker(state)
 
@@ -223,9 +228,6 @@ def _dispatch_command(cmd_type, args, internal_queue, state):
         _run_qa(args, internal_queue, state)
     elif cmd_type == "followup":
         _run_followup(args, internal_queue, state)
-    else:
-        logger.warning("Unknown command: %s", cmd_type)
-        internal_queue.put(("error", f"Unknown command: {cmd_type}"))
 
 
 def _run_process_files(args, internal_queue, state):
