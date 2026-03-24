@@ -7,6 +7,21 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.0.26] - 2026-03-24
+
+### Fixed
+- Thread-safe singleton initialization for UserPreferences and AIService
+- Hash collision in vocabulary treeview item IDs
+- Splash screen orphan process on early exit
+- Scanned page detection, corpus double-count, excerpt boundary errors
+- Bundled scipy for TopicRank + pytextrank dependency diagnostics
+
+### Removed
+- Unused SystemMonitor widget and all references
+
+### Infrastructure
+- Test isolation improvements — singleton reset between tests
+
 ## [1.0.25] - 2026-03-24
 
 ### Fixed
