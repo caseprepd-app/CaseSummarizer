@@ -36,41 +36,42 @@ class TestWorkerSubprocessPatch:
         assert subprocess.Popen.__init__ is not orig
 
     def test_patch_injects_create_no_window_flag(self):
-        """The patched Popen must include CREATE_NO_WINDOW in creationflags."""
+        """The patched Popen passes CREATE_NO_WINDOW to the original init."""
+        _CREATE_NO_WINDOW = 0x08000000
+
+        # Replace init with a spy, then patch — patch captures the spy
+        spy = MagicMock()
+        subprocess.Popen.__init__ = spy
+
         from src.worker_process import _patch_subprocess_no_window
 
         _patch_subprocess_no_window()
 
-        captured_flags = []
-        orig_init = subprocess.Popen.__init__
+        mock_self = MagicMock()
+        subprocess.Popen.__init__(mock_self, ["echo"])
 
-        # Intercept the patched init to capture flags without actually running
-        real_init = object.__getattribute__(subprocess.Popen, "__init__")
-
-        with patch.object(subprocess, "Popen", wraps=subprocess.Popen) as mock_cls:
-            # Just call the patched __init__ with a mock self
-            # to see what creationflags it would pass
-            pass
-
-        # Simpler approach: just verify the flag math
-        _CREATE_NO_WINDOW = 0x08000000
-        test_flags = 0
-        result = test_flags | _CREATE_NO_WINDOW
-        assert result & _CREATE_NO_WINDOW, "CREATE_NO_WINDOW flag not set"
+        spy.assert_called_once()
+        flags = spy.call_args[1].get("creationflags", 0)
+        assert flags & _CREATE_NO_WINDOW, f"CREATE_NO_WINDOW not injected: flags={hex(flags)}"
 
     def test_patch_preserves_existing_flags(self):
-        """Existing creationflags should be preserved when patch adds its flag."""
+        """Existing creationflags survive when the patch adds its flag."""
+        _CREATE_NO_WINDOW = 0x08000000
+        _EXISTING = 0x00000010
+
+        spy = MagicMock()
+        subprocess.Popen.__init__ = spy
+
         from src.worker_process import _patch_subprocess_no_window
 
         _patch_subprocess_no_window()
 
-        _CREATE_NO_WINDOW = 0x08000000
-        existing_flag = 0x00000010  # Some existing flag
+        mock_self = MagicMock()
+        subprocess.Popen.__init__(mock_self, ["echo"], creationflags=_EXISTING)
 
-        # The patch should OR the flags, preserving existing ones
-        result = existing_flag | _CREATE_NO_WINDOW
-        assert result & existing_flag, "Existing flags were lost"
-        assert result & _CREATE_NO_WINDOW, "CREATE_NO_WINDOW not added"
+        flags = spy.call_args[1].get("creationflags", 0)
+        assert flags & _EXISTING, "Existing flags were lost"
+        assert flags & _CREATE_NO_WINDOW, "CREATE_NO_WINDOW not added"
 
     def test_patch_is_idempotent(self):
         """Calling the patch twice should not break anything."""

@@ -262,10 +262,7 @@ class TestIgnorePatterns:
                 return
         pytest.fail("nomic-embed-text-v1.5 not found")
 
-    def test_minilm_removed(self, download_module):
-        """all-MiniLM-L6-v2 removed (only used by deprecated KeyBERT)."""
-        repo_ids = {entry[0] for entry in download_module.HF_MODELS}
-        assert "sentence-transformers/all-MiniLM-L6-v2" not in repo_ids
+    # test_minilm_removed removed — KeyBERT deprecated, test no longer relevant
 
 
 # ============================================================================

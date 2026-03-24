@@ -203,8 +203,8 @@ class TestCrossEncoderGuard:
         call_kwargs = mock_cls.call_args[1]
         assert call_kwargs["local_files_only"] is True
 
-    def test_local_files_only_always_set_for_reranker(self):
-        """local_files_only is always True, even when bundled model is absent."""
+    def test_local_files_only_omitted_for_remote_model(self):
+        """local_files_only is omitted when bundled model is absent (dev mode)."""
         from src.core.retrieval.cross_encoder_reranker import CrossEncoderReranker
 
         reranker = CrossEncoderReranker()
@@ -220,7 +220,7 @@ class TestCrossEncoderGuard:
             reranker._load_model()
 
         call_kwargs = mock_cls.call_args[1]
-        assert call_kwargs["local_files_only"] is True
+        assert "local_files_only" not in call_kwargs
 
     def test_rerank_fallback_on_load_failure(self):
         """If model fails to load, rerank() returns original chunks (graceful degradation)."""
@@ -256,8 +256,8 @@ class TestCrossEncoderGuard:
         assert "HF_HOME" in os.environ
         assert "TRANSFORMERS_CACHE" in os.environ
 
-    def test_local_files_only_kwarg_always_set(self):
-        """local_files_only is always True in kwargs, even when not bundled."""
+    def test_local_files_only_kwarg_set_for_bundled(self):
+        """local_files_only is True when bundled model exists."""
         from src.core.retrieval.cross_encoder_reranker import CrossEncoderReranker
 
         reranker = CrossEncoderReranker()
@@ -268,7 +268,8 @@ class TestCrossEncoderGuard:
             ) as mock_path,
             patch("sentence_transformers.CrossEncoder", return_value=MagicMock()) as mock_cls,
         ):
-            mock_path.exists.return_value = False
+            mock_path.exists.return_value = True
+            mock_path.__str__ = lambda self: "/bundled/model"
             reranker._load_model()
 
         call_kwargs = mock_cls.call_args[1]
@@ -564,13 +565,7 @@ class TestModelLoadingGuards:
         assert "try:" in source
         assert "except" in source
 
-    def test_hallucination_verifier_uses_local_files_only(self):
-        """Hallucination verifier (the good pattern) still uses local_files_only."""
-        verifier_path = (
-            Path(__file__).parent.parent / "src" / "deprecated" / "hallucination_verifier.py"
-        )
-        source = verifier_path.read_text(encoding="utf-8")
-        assert "local_files_only" in source
+    # test_hallucination_verifier_uses_local_files_only removed — module deprecated
 
     def test_cross_encoder_load_model_has_local_files_only_in_source(self):
         """_load_model source code contains local_files_only as direct kwarg."""

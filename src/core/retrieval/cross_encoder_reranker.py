@@ -60,12 +60,11 @@ class CrossEncoderReranker:
 
         from sentence_transformers import CrossEncoder
 
-        model_path, _ = resolve_model_path(RERANKER_MODEL_LOCAL_PATH, RERANKER_MODEL_NAME)
+        model_path, is_local = resolve_model_path(RERANKER_MODEL_LOCAL_PATH, RERANKER_MODEL_NAME)
 
-        init_kwargs = {
-            "max_length": RERANKER_MAX_LENGTH,
-            "local_files_only": True,
-        }
+        init_kwargs = {"max_length": RERANKER_MAX_LENGTH}
+        if is_local:
+            init_kwargs["local_files_only"] = True
 
         self._model = CrossEncoder(model_path, **init_kwargs)
 

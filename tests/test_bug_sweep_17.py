@@ -358,8 +358,4 @@ class TestHFEnvVarsSetDefault:
         assert "set_hf_cache_env" in source
         assert 'os.environ["HF_HOME"]' not in source
 
-    def test_hallucination_verifier_uses_set_hf_cache_env(self):
-        """hallucination_verifier.py delegates to set_hf_cache_env."""
-        source = Path("src/deprecated/hallucination_verifier.py").read_text(encoding="utf-8")
-        assert "set_hf_cache_env" in source
-        assert 'os.environ["HF_HOME"]' not in source
+    # test_hallucination_verifier_uses_set_hf_cache_env removed — module deprecated

@@ -870,7 +870,24 @@ class TestCommandDispatchIntegration:
             assert state["active_worker"] is mock_worker_instance
 
     def test_new_command_stops_previous_worker(self):
-        """Dispatching a new command should stop the active worker first."""
+        """Dispatching a valid command should stop the active worker first."""
+        from src.worker_process import _dispatch_command
+
+        internal_q = Queue()
+        old_worker = MagicMock()
+        old_worker.is_alive.return_value = True
+        state = {"active_worker": old_worker, "worker_lock": threading.Lock()}
+
+        # Use a real command to trigger stop-before-start logic.
+        # Patch the worker class to avoid real work.
+        with patch("src.worker_process._run_qa"):
+            _dispatch_command("run_qa", {}, internal_q, state)
+
+        old_worker.stop.assert_called_once()
+        old_worker.join.assert_called_once()
+
+    def test_unknown_command_does_not_stop_worker(self):
+        """Unknown commands return early without touching the active worker."""
         from src.worker_process import _dispatch_command
 
         internal_q = Queue()
@@ -880,8 +897,7 @@ class TestCommandDispatchIntegration:
 
         _dispatch_command("unknown_cmd", {}, internal_q, state)
 
-        old_worker.stop.assert_called_once()
-        old_worker.join.assert_called_once()
+        old_worker.stop.assert_not_called()
 
 
 # ===========================================================================

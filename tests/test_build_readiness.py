@@ -970,7 +970,7 @@ class TestOptionalPackageBundling:
 
     # ── 4f. Config path structure ─────────────────────────────────────────
 
-    def test_coref_spacy_model_under_bundled_models(self):
+    def test_spacy_ner_model_under_bundled_models(self):
         """SPACY_EN_CORE_WEB_SM_PATH is under BUNDLED_MODELS_DIR."""
         from src.config import BUNDLED_MODELS_DIR, SPACY_EN_CORE_WEB_SM_PATH
 

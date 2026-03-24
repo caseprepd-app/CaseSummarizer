@@ -100,35 +100,75 @@ class TestBaseNamedComponent:
 
 
 class TestBaseNamedComponentIntegration:
-    """Verify real pipeline base classes inherit from BaseNamedComponent."""
+    """Verify real pipeline base classes inherit and get_config works."""
 
-    def test_preprocessor_inherits(self):
-        """BasePreprocessor inherits from BaseNamedComponent."""
-        from src.core.base_component import BaseNamedComponent
+    def test_preprocessor_get_config(self):
+        """BasePreprocessor inherits and get_config returns name/enabled."""
         from src.core.preprocessing.base import BasePreprocessor
 
-        assert issubclass(BasePreprocessor, BaseNamedComponent)
+        class Stub(BasePreprocessor):
+            """Stub."""
 
-    def test_extraction_algorithm_inherits(self):
-        """BaseExtractionAlgorithm inherits from BaseNamedComponent."""
-        from src.core.base_component import BaseNamedComponent
+            def process(self, text):
+                """No-op."""
+                return text
+
+        obj = Stub()
+        config = obj.get_config()
+        assert "name" in config and "enabled" in config
+
+    def test_extraction_algorithm_get_config(self):
+        """BaseExtractionAlgorithm inherits and get_config returns name/enabled."""
         from src.core.vocabulary.algorithms.base import BaseExtractionAlgorithm
 
-        assert issubclass(BaseExtractionAlgorithm, BaseNamedComponent)
+        class Stub(BaseExtractionAlgorithm):
+            """Stub."""
 
-    def test_retrieval_algorithm_inherits(self):
-        """BaseRetrievalAlgorithm inherits from BaseNamedComponent."""
-        from src.core.base_component import BaseNamedComponent
+            def extract(self, text, **kw):
+                """No-op."""
+                return []
+
+        obj = Stub()
+        config = obj.get_config()
+        assert "name" in config and "enabled" in config
+
+    def test_retrieval_algorithm_get_config(self):
+        """BaseRetrievalAlgorithm inherits and get_config returns name/enabled."""
         from src.core.retrieval.base import BaseRetrievalAlgorithm
 
-        assert issubclass(BaseRetrievalAlgorithm, BaseNamedComponent)
+        class Stub(BaseRetrievalAlgorithm):
+            """Stub."""
 
-    def test_vocabulary_filter_inherits(self):
-        """BaseVocabularyFilter inherits from BaseNamedComponent."""
-        from src.core.base_component import BaseNamedComponent
+            def index_documents(self, chunks):
+                """No-op."""
+
+            def retrieve(self, query, k=5):
+                """No-op."""
+                return []
+
+            @property
+            def is_indexed(self):
+                """No-op."""
+                return False
+
+        obj = Stub()
+        config = obj.get_config()
+        assert "name" in config and "enabled" in config
+
+    def test_vocabulary_filter_get_config(self):
+        """BaseVocabularyFilter inherits and get_config returns name/enabled."""
         from src.core.vocabulary.filters.base import BaseVocabularyFilter
 
-        assert issubclass(BaseVocabularyFilter, BaseNamedComponent)
+        class Stub(BaseVocabularyFilter):
+            """Stub."""
+
+            def filter(self, terms):
+                """No-op."""
+                return terms
+
+        obj = Stub()
+        config = obj.get_config()
+        assert "name" in config and "enabled" in config
 
 
 # =========================================================================

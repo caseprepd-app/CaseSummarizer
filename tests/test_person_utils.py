@@ -31,6 +31,35 @@ def test_empty_values():
     assert not is_person_entry({"Type": ""})
 
 
+def test_negative_person_values():
+    """Explicit 'No' and 'false' are not persons."""
+    assert not is_person_entry({"Term": "x", "Is Person": "No"})
+    assert not is_person_entry({"Term": "x", "Is Person": "false"})
+    assert not is_person_entry({"Term": "x", "Is Person": "0"})
+
+
+def test_ml_format_zero_variants():
+    """ML format: 0, '0', 'false', 'no' are all non-person."""
+    assert not is_person_entry({"Term": "x", "is_person": 0})
+    assert not is_person_entry({"Term": "x", "is_person": "0"})
+    assert not is_person_entry({"Term": "x", "is_person": "false"})
+    assert not is_person_entry({"Term": "x", "is_person": "no"})
+
+
+def test_case_insensitive_person_detection():
+    """Person detection is case-insensitive for all formats."""
+    assert is_person_entry({"Term": "x", "Is Person": "YES"})
+    assert is_person_entry({"Term": "x", "Is Person": "True"})
+    assert is_person_entry({"Term": "x", "Type": "PERSON"})
+    assert is_person_entry({"Term": "x", "is_person": "YES"})
+
+
+def test_type_non_person_categories():
+    """Non-Person type values are not person entries."""
+    for cat in ("Medical", "Technical", "Place", "Unknown"):
+        assert not is_person_entry({"Term": "x", "Type": cat})
+
+
 # ---------------------------------------------------------------------------
 # count_persons / vocab_summary_counts
 # ---------------------------------------------------------------------------
