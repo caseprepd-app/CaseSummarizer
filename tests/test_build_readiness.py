@@ -214,6 +214,44 @@ class TestHiddenImportsComplete:
         )
 
 
+class TestPackagesToCollectImportable:
+    """Every package in packages_to_collect must be importable."""
+
+    @staticmethod
+    def _extract_packages_to_collect():
+        """Parse packages_to_collect list from the spec file."""
+        spec = _read_spec()
+        start = spec.index("packages_to_collect = [")
+        end = spec.index("]", start)
+        section = spec[start:end]
+        return re.findall(r'"([\w]+)"', section)
+
+    def test_all_packages_importable(self):
+        """Each package in packages_to_collect can be imported."""
+        import importlib
+
+        packages = self._extract_packages_to_collect()
+        assert len(packages) > 0, "No packages found in packages_to_collect"
+
+        failures = []
+        for pkg in packages:
+            try:
+                importlib.import_module(pkg)
+            except ImportError as e:
+                failures.append(f"{pkg}: {e}")
+
+        assert not failures, "packages_to_collect entries that failed to import:\n" + "\n".join(
+            failures
+        )
+
+    def test_pytextrank_full_chain(self):
+        """pytextrank imports successfully with all dependencies."""
+        import pytextrank
+
+        assert hasattr(pytextrank, "TopicRank")
+        assert hasattr(pytextrank, "TopicRankFactory")
+
+
 # ============================================================================
 # P1 - DLL-Heavy Package Loading
 # ============================================================================
