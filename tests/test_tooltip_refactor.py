@@ -224,35 +224,6 @@ class TestFileReviewTableTooltip:
 
 
 # ===========================================================================
-# SystemMonitor: <ButtonPress> binding
-# ===========================================================================
-
-
-class TestSystemMonitorTooltip:
-    """SystemMonitor should hide tooltip on click."""
-
-    def test_binds_button_press(self):
-        """Source should bind <ButtonPress> to hide tooltip."""
-        from src.ui.system_monitor import SystemMonitor
-
-        source = inspect.getsource(SystemMonitor.__init__)
-        assert "<ButtonPress>" in source
-
-    def test_bindings_use_add_plus(self):
-        """All tooltip bindings should use add='+'."""
-        from src.ui.system_monitor import SystemMonitor
-
-        source = inspect.getsource(SystemMonitor.__init__)
-        tooltip_bind_lines = [
-            l
-            for l in source.splitlines()
-            if "bind(" in l and any(e in l for e in ["Enter", "Leave", "ButtonPress"])
-        ]
-        for line in tooltip_bind_lines:
-            assert 'add="+"' in line or "add='+'" in line, f"Missing add='+' in: {line.strip()}"
-
-
-# ===========================================================================
 # VocabTreeview: tooltip_manager integration + <ButtonPress>
 # ===========================================================================
 
@@ -379,15 +350,6 @@ class TestAllTooltipSourcesUseManager:
 
         show_src = inspect.getsource(FileReviewTable._show_tooltip)
         hide_src = inspect.getsource(FileReviewTable._hide_tooltip)
-        assert "tooltip_manager" in show_src
-        assert "tooltip_manager" in hide_src
-
-    def test_system_monitor_uses_manager(self):
-        """SystemMonitor tooltips should use tooltip_manager."""
-        from src.ui.system_monitor import SystemMonitor
-
-        show_src = inspect.getsource(SystemMonitor._show_tooltip)
-        hide_src = inspect.getsource(SystemMonitor._hide_tooltip)
         assert "tooltip_manager" in show_src
         assert "tooltip_manager" in hide_src
 

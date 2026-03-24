@@ -299,15 +299,6 @@ COLORS = {
     # Warning banner (settings corpus warning)
     "warning_banner_bg": ("#FFF3CD", "#FFF3CD"),  # Yellow-cream
     "warning_banner_fg": ("#856404", "#856404"),  # Dark brown text
-    # System monitor status tiers
-    "sysmon_good_bg": ("#d8e8d8", "#1a3a1a"),
-    "sysmon_good_fg": ("#1b7a2f", "#90EE90"),
-    "sysmon_warn_bg": ("#e8e8d0", "#3a3a1a"),
-    "sysmon_warn_fg": ("#b08800", "#FFEB3B"),
-    "sysmon_caution_bg": ("#e8ddd0", "#3a2a1a"),
-    "sysmon_caution_fg": ("#c75000", "#FFA500"),
-    "sysmon_critical_bg": ("#e8d0d0", "#3a1a1a"),
-    "sysmon_critical_fg": ("#c62828", "#FF4444"),
     # Extracting status (purple)
     "extracting": ("#7b1fa2", "#9b59b6"),
     # Corpus dialog buttons

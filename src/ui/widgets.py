@@ -3,8 +3,6 @@ CasePrepd - Custom UI Widgets
 
 This module contains reusable CustomTkinter widget components for the main application:
 - FileReviewTable: Displays document processing results in a table format
-
-Note: System monitoring is handled by src/ui/system_monitor.py (not in this module).
 """
 
 import logging

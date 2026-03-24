@@ -1,7 +1,7 @@
 """
 Tests for performance audit optimizations.
 
-Validates all 9 low-risk performance improvements:
+Validates performance improvements:
 1. O(n×m) → O(n+m) entity membership via set in NER
 2. Removed redundant uppercase glob on Windows
 3. Reusable RawTextExtractor in IDF build
@@ -9,7 +9,6 @@ Validates all 9 low-risk performance improvements:
 5. Frozenset for O(1) membership checks in LLM extractor
 6. Eliminated redundant .split() in name deduplicator
 7. Cached .lower() in corpus_registry (covered by #2)
-8. Cached .configure() values in SystemMonitor
 """
 
 import re
@@ -299,95 +298,3 @@ class TestNameDeduplicatorSplit:
 
         empty = []
         assert _absorb_single_word_names(empty) == empty
-
-
-# ========================================================================
-# 8. Cached .configure() in SystemMonitor
-# ========================================================================
-
-
-class TestSystemMonitorCachedConfigure:
-    """Verify SystemMonitor skips redundant .configure() calls."""
-
-    def test_cache_attributes_exist(self):
-        """SystemMonitor should have _last_* cache attributes."""
-        import inspect
-
-        from src.ui.system_monitor import SystemMonitor
-
-        source = inspect.getsource(SystemMonitor.__init__)
-        for attr in [
-            "_last_cpu_text",
-            "_last_cpu_fg",
-            "_last_cpu_bg",
-            "_last_ram_text",
-            "_last_ram_fg",
-            "_last_ram_bg",
-        ]:
-            assert attr in source, f"Missing cache attribute: {attr}"
-
-    def test_update_display_checks_cache(self):
-        """_update_display should compare values before calling .configure()."""
-        import inspect
-
-        from src.ui.system_monitor import SystemMonitor
-
-        source = inspect.getsource(SystemMonitor._update_display)
-        # Should have conditional checks
-        assert "self._last_cpu_text" in source
-        assert "self._last_ram_text" in source
-
-    def test_configure_skipped_when_unchanged(self):
-        """When values are the same, .configure() should NOT be called."""
-        from src.ui.system_monitor import SystemMonitor
-
-        monitor = MagicMock(spec=SystemMonitor)
-        monitor._last_cpu_text = "CPU: 50%"
-        monitor._last_cpu_fg = "#90EE90"
-        monitor._last_cpu_bg = "#1a3a1a"
-        monitor._last_ram_text = "RAM: 60%"
-        monitor._last_ram_fg = "#90EE90"
-        monitor._last_ram_bg = "#1a3a1a"
-        monitor.current_cpu = 50
-        monitor.current_ram_percent = 60
-        monitor.cpu_label = MagicMock()
-        monitor.cpu_frame = MagicMock()
-        monitor.ram_label = MagicMock()
-        monitor.ram_frame = MagicMock()
-        # _get_colors must return a real tuple (not MagicMock) for unpacking
-        monitor._get_colors = MagicMock(return_value=("#1a3a1a", "#90EE90"))
-
-        # Call real _update_display
-        SystemMonitor._update_display(monitor)
-
-        # Values unchanged → no configure calls
-        monitor.cpu_label.configure.assert_not_called()
-        monitor.cpu_frame.configure.assert_not_called()
-        monitor.ram_label.configure.assert_not_called()
-        monitor.ram_frame.configure.assert_not_called()
-
-    def test_configure_called_when_changed(self):
-        """When values change, .configure() SHOULD be called."""
-        from src.ui.system_monitor import SystemMonitor
-
-        monitor = MagicMock(spec=SystemMonitor)
-        monitor._last_cpu_text = "CPU: 50%"
-        monitor._last_cpu_fg = "#90EE90"
-        monitor._last_cpu_bg = "#1a3a1a"
-        monitor._last_ram_text = "RAM: 60%"
-        monitor._last_ram_fg = "#90EE90"
-        monitor._last_ram_bg = "#1a3a1a"
-        monitor.current_cpu = 75  # Changed!
-        monitor.current_ram_percent = 85  # Changed!
-        monitor.cpu_label = MagicMock()
-        monitor.cpu_frame = MagicMock()
-        monitor.ram_label = MagicMock()
-        monitor.ram_frame = MagicMock()
-        # _get_colors must return a real tuple (not MagicMock) for unpacking
-        monitor._get_colors = MagicMock(return_value=("#3a2a1a", "#FFA500"))
-
-        SystemMonitor._update_display(monitor)
-
-        # Values changed → configure should be called
-        monitor.cpu_label.configure.assert_called_once()
-        monitor.ram_label.configure.assert_called_once()

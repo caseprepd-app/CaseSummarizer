@@ -72,62 +72,6 @@ class TestUserPrefsSingleton:
 
 
 # =========================================================================
-# 3. SystemMonitor metrics lock + thread cleanup
-# =========================================================================
-
-
-class TestSystemMonitorConcurrency:
-    """Verify metrics lock and thread join in stop_monitoring."""
-
-    def test_metrics_lock_exists(self):
-        """SystemMonitor must have a _metrics_lock attribute."""
-        # Check the __init__ code references _metrics_lock
-        import inspect
-
-        from src.ui.system_monitor import SystemMonitor
-
-        source = inspect.getsource(SystemMonitor.__init__)
-        assert "_metrics_lock" in source
-
-    def test_monitor_thread_stored(self):
-        """start_monitoring must store the thread reference."""
-        import inspect
-
-        from src.ui.system_monitor import SystemMonitor
-
-        source = inspect.getsource(SystemMonitor.start_monitoring)
-        assert "_monitor_thread" in source
-
-    def test_stop_monitoring_joins_thread(self):
-        """stop_monitoring must join the thread with a timeout."""
-        import inspect
-
-        from src.ui.system_monitor import SystemMonitor
-
-        source = inspect.getsource(SystemMonitor.stop_monitoring)
-        assert ".join(" in source
-        assert "timeout" in source
-
-    def test_collect_metrics_uses_lock(self):
-        """_collect_metrics must write under _metrics_lock."""
-        import inspect
-
-        from src.ui.system_monitor import SystemMonitor
-
-        source = inspect.getsource(SystemMonitor._collect_metrics)
-        assert "_metrics_lock" in source
-
-    def test_schedule_update_uses_lock(self):
-        """_schedule_main_thread_update must read under _metrics_lock."""
-        import inspect
-
-        from src.ui.system_monitor import SystemMonitor
-
-        source = inspect.getsource(SystemMonitor._schedule_main_thread_update)
-        assert "_metrics_lock" in source
-
-
-# =========================================================================
 # 4c. Q&A thread daemon=False
 # =========================================================================
 

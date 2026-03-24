@@ -541,12 +541,6 @@ SPACY_THREAD_TIMEOUT_SEC = 15  # Thread termination timeout
 # Overlap fraction prevents context loss at chunk boundaries
 CHUNK_OVERLAP_FRACTION = 0.1  # 10% overlap between chunks
 
-# System Monitor Color Thresholds (CPU and RAM)
-# Used for color-coded status indicators in the system monitor widget
-# Applied independently to both CPU and RAM percentages
-SYSTEM_MONITOR_THRESHOLD_GREEN = 75  # 0-74%: Green (healthy)
-SYSTEM_MONITOR_THRESHOLD_YELLOW = 85  # 75-84%: Yellow (elevated)
-SYSTEM_MONITOR_THRESHOLD_CRITICAL = 90  # 90%+: Red with "!" indicator
 
 # Vocabulary Extraction Performance Settings
 # Max text size in KB for vocabulary orchestrator (safety net for degenerate inputs)

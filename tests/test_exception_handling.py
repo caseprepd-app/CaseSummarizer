@@ -420,12 +420,6 @@ class TestNoImportViolations:
 
         assert DocumentService is not None
 
-    def test_system_monitor_has_logger(self):
-        """system_monitor should have logger available."""
-        from src.ui.system_monitor import logger
-
-        assert logger is not None
-
     def test_corpus_widget_has_logger(self):
         """corpus_widget should have logger available."""
         from src.ui.settings.corpus_widget import logger
