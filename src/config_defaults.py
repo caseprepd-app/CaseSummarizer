@@ -289,38 +289,38 @@ DEFAULTS = {
         "type": "int",
         "category": "Chunking",
     },
-    # Chunk sizes tuned for meaningful paragraph-length excerpts:
-    # 150-token target ≈ one solid paragraph (~100-160 words)
+    # Chunk sizes tuned for fuller paragraph-length excerpts:
+    # 225-token target ≈ 150-180 words, more context per chunk
     # Balances excerpt readability with search precision
     "unified_chunk_min_tokens": {
-        "value": 75,
+        "value": 125,
         "min": 20,
-        "max": 150,
+        "max": 200,
         "step": 10,
         "type": "int",
         "category": "Chunking",
     },
     "unified_chunk_target_tokens": {
-        "value": 150,
+        "value": 225,
         "min": 30,
-        "max": 300,
+        "max": 400,
         "step": 5,
         "type": "int",
         "category": "Chunking",
     },
     "unified_chunk_max_tokens": {
-        "value": 225,
+        "value": 325,
         "min": 50,
-        "max": 400,
+        "max": 500,
         "step": 10,
         "type": "int",
         "category": "Chunking",
     },
     # ~15% of target_tokens; Firecrawl 2026 recommends 10-20% overlap for RAG
     "unified_chunk_overlap_tokens": {
-        "value": 22,
+        "value": 35,
         "min": 0,
-        "max": 60,
+        "max": 80,
         "step": 5,
         "type": "int",
         "category": "Chunking",

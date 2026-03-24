@@ -15,7 +15,7 @@ from src.ui.base_dialog import BaseModalDialog
 from src.ui.theme import COLORS, FONTS
 
 # Online documentation URL
-DOCS_URL = "https://sites.google.com/view/caseprepd/home"
+DOCS_URL = "https://caseprepd-app.github.io/CaseSummarizer"
 
 
 class HelpDialog(BaseModalDialog):
