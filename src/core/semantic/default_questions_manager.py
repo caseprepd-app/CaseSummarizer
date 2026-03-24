@@ -279,3 +279,10 @@ def get_default_questions_manager() -> DefaultQuestionsManager:
             if _manager is None:
                 _manager = DefaultQuestionsManager()
     return _manager
+
+
+def reset_singleton():
+    """Reset the singleton instance. Used in test teardown."""
+    global _manager
+    with _manager_lock:
+        _manager = None

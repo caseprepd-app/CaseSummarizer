@@ -197,13 +197,11 @@ class UnifiedChunker:
         Returns:
             Number of tokens
         """
-        cache_key = hash(text)
-
-        if cache_key in self._token_count_cache:
-            return self._token_count_cache[cache_key]
+        if text in self._token_count_cache:
+            return self._token_count_cache[text]
 
         count = len(self.encoder.encode(text))
-        self._token_count_cache[cache_key] = count
+        self._token_count_cache[text] = count
         return count
 
     def chunk_text(

@@ -24,6 +24,7 @@ Usage:
 """
 
 import logging
+import threading
 
 from spellchecker import SpellChecker
 
@@ -54,6 +55,7 @@ class GibberishFilter:
     """
 
     _instance = None
+    _instance_lock = threading.Lock()
     _spell = None
 
     def __init__(self):
@@ -63,13 +65,15 @@ class GibberishFilter:
     @classmethod
     def get_instance(cls) -> "GibberishFilter":
         """
-        Get singleton instance (lazy load).
+        Get singleton instance (lazy load, thread-safe).
 
         Returns:
             The shared GibberishFilter instance
         """
         if cls._instance is None:
-            cls._instance = cls()
+            with cls._instance_lock:
+                if cls._instance is None:
+                    cls._instance = cls()
         return cls._instance
 
     def is_gibberish(self, text: str) -> bool:

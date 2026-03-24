@@ -405,7 +405,10 @@ class CorpusRegistry:
 
 
 # Global singleton instance
+import threading
+
 _corpus_registry: CorpusRegistry | None = None
+_corpus_registry_lock = threading.Lock()
 
 
 def get_corpus_registry() -> CorpusRegistry:
@@ -417,5 +420,7 @@ def get_corpus_registry() -> CorpusRegistry:
     """
     global _corpus_registry
     if _corpus_registry is None:
-        _corpus_registry = CorpusRegistry()
+        with _corpus_registry_lock:
+            if _corpus_registry is None:
+                _corpus_registry = CorpusRegistry()
     return _corpus_registry

@@ -144,7 +144,7 @@ FEATURE_NAMES = [
     "is_all_caps",  # "PLAINTIFF'S EXHIBIT" - headers, not vocabulary
     "is_title_case",  # 1.0 if term.istitle() (proper nouns), 0.0 otherwise
     # Document quality feature
-    "source_doc_confidence",  # OCR/extraction confidence (0-100) - lower = more OCR errors
+    "source_doc_confidence",  # OCR/extraction confidence (0-1 scale) - lower = more OCR errors
     # Corpus familiarity feature (simplified to binary)
     "corpus_common_term",  # Binary: True if term in >=64% of corpus docs AND >=5 occurrences
     # Word-level features (9 total) + rarity score

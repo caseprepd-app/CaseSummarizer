@@ -99,3 +99,11 @@ def _do_reset():
         reset_export_service()
     except ImportError:
         pass
+
+    # DefaultQuestionsManager -- holds default semantic questions
+    try:
+        from src.core.semantic.default_questions_manager import reset_singleton as reset_questions
+
+        reset_questions()
+    except ImportError:
+        pass

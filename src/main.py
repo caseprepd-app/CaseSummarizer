@@ -161,67 +161,68 @@ def main():
         raise
 
     # 3. Setup stdout/stderr crash log (separate from structured logging)
-    setup_file_logging(LOGS_DIR)
+    try:
+        setup_file_logging(LOGS_DIR)
 
-    # 4. Configure structured logging (RotatingFileHandler -> caseprepd.log)
-    from src.logging_config import purge_old_logs, setup_logging
+        # 4. Configure structured logging (RotatingFileHandler -> caseprepd.log)
+        from src.logging_config import purge_old_logs, setup_logging
 
-    setup_logging()
-    purge_old_logs()
+        setup_logging()
+        purge_old_logs()
 
-    # 4b. Log where every asset loads from (catches "works on my machine" issues)
-    from src.services.asset_audit import run_asset_audit
+        # 4b. Log where every asset loads from (catches "works on my machine" issues)
+        from src.services.asset_audit import run_asset_audit
 
-    run_asset_audit()
+        run_asset_audit()
 
-    # 5. Install global exception hooks so unhandled errors are logged
-    # (especially important in PyInstaller --noconsole where stdout is None)
-    _logger = logging.getLogger(__name__)
+        # 5. Install global exception hooks so unhandled errors are logged
+        # (especially important in PyInstaller --noconsole where stdout is None)
+        _logger = logging.getLogger(__name__)
 
-    def _uncaught_exception(exc_type, exc_value, exc_tb):
-        if issubclass(exc_type, KeyboardInterrupt):
-            sys.__excepthook__(exc_type, exc_value, exc_tb)
-            return
-        _logger.critical("Uncaught exception", exc_info=(exc_type, exc_value, exc_tb))
+        def _uncaught_exception(exc_type, exc_value, exc_tb):
+            if issubclass(exc_type, KeyboardInterrupt):
+                sys.__excepthook__(exc_type, exc_value, exc_tb)
+                return
+            _logger.critical("Uncaught exception", exc_info=(exc_type, exc_value, exc_tb))
 
-    def _uncaught_thread_exception(args):
-        if args.exc_type is SystemExit:
-            return
+        def _uncaught_thread_exception(args):
+            if args.exc_type is SystemExit:
+                return
 
-        _logger.critical(
-            "Uncaught exception in thread %s",
-            args.thread.name if args.thread else "unknown",
-            exc_info=(args.exc_type, args.exc_value, args.exc_traceback),
-        )
+            _logger.critical(
+                "Uncaught exception in thread %s",
+                args.thread.name if args.thread else "unknown",
+                exc_info=(args.exc_type, args.exc_value, args.exc_traceback),
+            )
 
-    sys.excepthook = _uncaught_exception
+        sys.excepthook = _uncaught_exception
 
-    threading.excepthook = _uncaught_thread_exception
+        threading.excepthook = _uncaught_thread_exception
 
-    # 6. Set appearance mode from user preference (default: Dark)
-    from src.user_preferences import get_user_preferences
+        # 6. Set appearance mode from user preference (default: Dark)
+        from src.user_preferences import get_user_preferences
 
-    _prefs = get_user_preferences()
-    _appearance = _prefs.get("appearance_mode", "Dark")
-    ctk.set_appearance_mode(_appearance)
-    ctk.set_default_color_theme("blue")
+        _prefs = get_user_preferences()
+        _appearance = _prefs.get("appearance_mode", "Dark")
+        ctk.set_appearance_mode(_appearance)
+        ctk.set_default_color_theme("blue")
 
-    # Apply display scaling (font offset + UI scale) before creating any widgets
-    from src.ui.scaling import apply_scaling
+        # Apply display scaling (font offset + UI scale) before creating any widgets
+        from src.ui.scaling import apply_scaling
 
-    apply_scaling()
+        apply_scaling()
 
-    # 8. Start persistent worker subprocess for pipeline tasks (GIL-free)
-    from src.services.worker_manager import WorkerProcessManager
+        # 8. Start persistent worker subprocess for pipeline tasks (GIL-free)
+        from src.services.worker_manager import WorkerProcessManager
 
-    worker_manager = WorkerProcessManager()
-    worker_manager.start()
+        worker_manager = WorkerProcessManager()
+        worker_manager.start()
 
-    # 9. Create main window
-    app = MainWindow(worker_manager=worker_manager)
-
-    # 10. Kill splash now that the main window is ready
-    kill(splash_proc)
+        # 9. Create main window
+        app = MainWindow(worker_manager=worker_manager)
+    finally:
+        # Kill splash even if startup fails (prevents orphaned splash window)
+        kill(splash_proc)
 
     # Force main window to front (splash had -topmost, so GUI may be behind it)
     app.lift()
