@@ -1,6 +1,8 @@
 # CasePrepd
 
-100% offline, private document processing for court reporters. Extracts names, vocabulary, key sentences, and supports semantic search across legal documents without any data leaving your computer.
+**100% offline, private document processing for court reporters.** Extracts names, vocabulary, key sentences, and supports semantic search across legal documents without any data leaving your computer.
+
+**[Download the latest release](https://github.com/caseprepd-app/CaseSummarizer/releases/latest)** | [Website](https://caseprepd-app.github.io/CaseSummarizer)
 
 ## Requirements
 
