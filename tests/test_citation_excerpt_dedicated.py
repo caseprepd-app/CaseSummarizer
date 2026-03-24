@@ -83,7 +83,7 @@ def test_long_passage_extracts_focused():
     # Make the embeddings select the window closest to the relevant part
     windows = _build_windows(passage, 250)
     best_idx = 0
-    for i, (start, text) in enumerate(windows):
+    for i, (start, end, text) in enumerate(windows):
         if "jury awarded" in text:
             best_idx = i
             break
@@ -170,8 +170,8 @@ def test_build_windows_coverage():
     # First window starts near 0
     assert windows[0][0] <= 5
     # Last window reaches near the end
-    last_start, last_text = windows[-1]
-    assert last_start + len(last_text) >= len(text.strip()) - 30
+    last_start, last_end, last_text = windows[-1]
+    assert last_end >= len(text.strip()) - 30
 
 
 def test_none_embeddings_fallback():

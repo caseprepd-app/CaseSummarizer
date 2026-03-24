@@ -54,7 +54,7 @@ class TestCitationExcerpt:
         windows = _build_windows(text, 200)
         assert len(windows) >= 2
         # Each window should be roughly 200 chars
-        for _, w_text in windows:
+        for _, _, w_text in windows:
             assert len(w_text) <= 220
 
     def test_truncate_to_sentence_fallback(self):

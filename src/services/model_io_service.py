@@ -93,10 +93,11 @@ def import_user_model(src_path: Path) -> tuple[bool, str]:
             elif not had_existing:
                 VOCAB_MODEL_PATH.unlink(missing_ok=True)
 
+            restore_msg = " Your previous model has been restored." if had_existing else ""
             return False, (
                 f"This model was trained with incompatible features "
                 f"(expected {len(FEATURE_NAMES)} features). "
-                f"Import cancelled. Your previous model has been restored."
+                f"Import cancelled.{restore_msg}"
             )
 
         # Success — clean up backup

@@ -101,9 +101,10 @@ class PdfDocumentBuilder(DocumentBuilder):
         self.pdf.set_fill_color(240, 240, 240)
 
         for header in headers:
+            header_text = header[:17] + "..." if len(header) > 20 else header
             if len(header) > 20:
-                logger.warning("PDF table header truncated: '%s' -> '%s'", header, header[:20])
-            self.pdf.cell(col_width, 8, _sanitize_for_latin1(header[:20]), border=1, fill=True)
+                logger.warning("PDF table header truncated: '%s' -> '%s'", header, header_text)
+            self.pdf.cell(col_width, 8, _sanitize_for_latin1(header_text), border=1, fill=True)
         self.pdf.ln()
 
         # Data rows

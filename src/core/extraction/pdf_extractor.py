@@ -132,13 +132,13 @@ class PDFExtractor:
                         continue
 
                     # Check if large image covers most of the page
-                    image_rects = page.get_image_rects(page.get_images(full=True))
                     max_image_coverage = 0.0
-                    for rect in image_rects:
-                        img_area = rect.width * rect.height
-                        coverage = img_area / page_area
-                        if coverage > max_image_coverage:
-                            max_image_coverage = coverage
+                    for img in page.get_images(full=True):
+                        for rect in page.get_image_rects(img):
+                            img_area = rect.width * rect.height
+                            coverage = img_area / page_area
+                            if coverage > max_image_coverage:
+                                max_image_coverage = coverage
 
                     # Check extractable text length
                     text = page.get_text().strip()

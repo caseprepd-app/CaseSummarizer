@@ -129,6 +129,9 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         self._panel_followup_event = threading.Event()
         self._panel_followup_data = None  # Stores SemanticResult for panel followup
         self._tab_followup_result = None  # Stash when _poll_queue() steals a tab followup result
+        self._status_clear_id = None  # Tk after-ID for auto-clearing status bar
+        self._status_error_hold_until = None  # Timestamp until error message is held
+        self._deferred_status_id = None  # Tk after-ID for deferred status update
 
         # Initialize ttk styles with UI scale factor and font offset.
         # Must happen AFTER super().__init__() creates the Tk root (ttk.Style needs it).

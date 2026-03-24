@@ -55,7 +55,7 @@ def inject_speaker_boundaries(text: str) -> str:
         Text with paragraph breaks at speaker turns
     """
     # Quick check: skip if no transcript markers found
-    text_upper = text[:5000].upper()
+    text_upper = text[:20000].upper()
     if not any(marker in text_upper for marker in _QUICK_CHECK_MARKERS):
         return text
 

@@ -76,8 +76,8 @@ def extract_citation_excerpt(
     if not windows:
         return _truncate_to_sentence(chunk, max_chars)
 
-    start, window_text = _select_best_window(windows, question, embeddings)
-    return _format_excerpt(chunk, start, start + len(window_text))
+    start, end, window_text = _select_best_window(windows, question, embeddings)
+    return _format_excerpt(chunk, start, end)
 
 
 def _get_top_chunk(context: str) -> str:
@@ -142,14 +142,14 @@ def _build_windows(text: str, window_size: int) -> list[tuple[int, str]]:
 
         # Snap end to word boundary
         actual_end = end
-        if end < text_len and text[end - 1] != " ":
+        if end < text_len and text[end] != " ":
             last_space = text.rfind(" ", actual_start, end)
             if last_space > actual_start:
                 actual_end = last_space
 
         window_text = text[actual_start:actual_end].strip()
         if window_text:
-            windows.append((actual_start, window_text))
+            windows.append((actual_start, actual_end, window_text))
 
         pos += stride
         # Stop if we've covered the end
@@ -160,23 +160,23 @@ def _build_windows(text: str, window_size: int) -> list[tuple[int, str]]:
 
 
 def _select_best_window(
-    windows: list[tuple[int, str]],
+    windows: list[tuple[int, int, str]],
     question: str,
     embeddings,
-) -> tuple[int, str]:
+) -> tuple[int, int, str]:
     """
     Select the window most similar to the question using embedding cosine similarity.
 
     Args:
-        windows: List of (start_position, window_text) tuples.
+        windows: List of (start_position, end_position, window_text) tuples.
         question: The question to match against.
         embeddings: HuggingFaceEmbeddings model.
 
     Returns:
-        (start_position, window_text) of the best-matching window.
+        (start_position, end_position, window_text) of the best-matching window.
     """
     q_emb = np.array(embeddings.embed_query(question))
-    w_texts = [text for _, text in windows]
+    w_texts = [text for _, _, text in windows]
     w_embs = np.array(embeddings.embed_documents(w_texts))
 
     # Cosine similarity: (w_embs @ q_emb) / (||w_embs|| * ||q_emb||)

@@ -26,7 +26,7 @@ from src.config import (
 )
 
 logger = logging.getLogger(__name__)
-from src.ui.theme import COLORS, FONTS
+from src.ui.theme import COLORS, FONTS, get_color
 from src.ui.tooltip_manager import tooltip_manager
 
 

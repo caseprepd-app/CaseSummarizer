@@ -183,9 +183,9 @@ class CorpusRegistry:
         # If this was the active corpus, switch to another
         active = self.get_active_corpus()
         if active == name:
-            remaining = list(self._registry["corpora"].keys())
+            remaining = list(self._registry["corpora"].values())
             if remaining:
-                self.set_active_corpus(remaining[0])
+                self.set_active_corpus(remaining[0].get("display_name", ""))
 
         # Delete files if requested
         if delete_files and corpus_path.exists():

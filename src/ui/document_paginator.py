@@ -36,8 +36,13 @@ def split_into_sections(text: str, words_per_section: int = 300) -> list[str]:
     for para in paragraphs:
         para_words = len(para.split()) if para.strip() else 0
 
-        # Force-split a single paragraph that exceeds the threshold
-        if para_words > words_per_section and not current_lines:
+        # Force-split a paragraph that exceeds the threshold
+        if para_words > words_per_section:
+            # Flush accumulated lines first
+            if current_lines:
+                sections.append("\n".join(current_lines))
+                current_lines = []
+                current_count = 0
             words = para.split()
             for i in range(0, len(words), words_per_section):
                 sections.append(" ".join(words[i : i + words_per_section]))

@@ -124,6 +124,8 @@ class CorpusManager:
             files.update(self.corpus_dir.glob(f"*{ext}"))
             files.update(self.corpus_dir.glob(f"*{ext.upper()}"))
 
+        # Exclude preprocessed companion files (e.g. foo_preprocessed.txt)
+        files = {f for f in files if "_preprocessed" not in f.stem}
         return len(files)
 
     def is_corpus_ready(self, min_docs: int = MIN_CORPUS_DOCS) -> bool:
@@ -455,6 +457,8 @@ class CorpusManager:
         files = set()
         for ext in SUPPORTED_EXTENSIONS:
             files.update(self.corpus_dir.glob(f"*{ext}"))
+        # Exclude preprocessed companion files (e.g. foo_preprocessed.txt)
+        files = {f for f in files if "_preprocessed" not in f.stem}
         return sorted(files)
 
     def _extract_text(self, file_path: Path, extractor=None) -> str:

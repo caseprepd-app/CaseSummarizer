@@ -187,7 +187,9 @@ class LineNumberRemover(BasePreprocessor):
             # Keep leading whitespace, remove number and extra spaces
             return match.group(1)
 
+        changes_before_start = changes
         result = self.LINE_START_PATTERN.sub(replace_start, result)
+        start_line_count = changes - changes_before_start
 
         # Remove line numbers followed by 3+ spaces (strong signal, anywhere in text)
         # "sentence. 24   Plaintiff's" -> "sentence. Plaintiff's"
@@ -248,7 +250,8 @@ class LineNumberRemover(BasePreprocessor):
             text=result,
             changes_made=changes,
             metadata={
-                "start_line_numbers": attached_start_count,
+                "start_line_numbers": start_line_count,
+                "attached_start_numbers": attached_start_count,
                 "triple_space_line_numbers": triple_space_count,
                 "end_line_numbers": end_count,
                 "pipe_line_numbers": pipe_count,
