@@ -7,6 +7,18 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.0.25] - 2026-03-24
+
+### Fixed
+- Increased default chunk sizes for fuller search and excerpt passages
+- Bundled pytextrank dependency tree + 5 bug fixes from program sweep
+
+### Added
+- Bundled VC++ Redistributable in installer for zero-friction setup
+
+### Infrastructure
+- Full test audit — removed outdated tests, strengthened shallow tests, added 502 new tests
+
 ## [1.0.24] - 2026-03-23
 
 ### Fixed

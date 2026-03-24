@@ -8,7 +8,7 @@ Execute the full release cycle for CasePrepd. Arguments: $ARGUMENTS
 - Activate venv: `.venv\Scripts\activate`
 
 ## Step 1: Version Bump
-- If $ARGUMENTS includes "patch", "minor", or "major", use that. Otherwise ask the user.
+- Default to "patch" unless $ARGUMENTS explicitly includes "minor" or "major".
 - Run: `.venv/Scripts/python scripts/bump_version.py <patch|minor|major>`
 - Confirm the new version number with the user.
 
