@@ -6,12 +6,19 @@
   <title>CasePrepd — Case Prep That Never Leaves Your Computer</title>
   <link rel="stylesheet" href="style.css">
   <link rel="icon" href="favicon.ico" type="image/x-icon">
+  <meta name="description" content="Free desktop app for court reporters and scopists. Extract vocabulary, search case documents, and find key passages — 100% offline, nothing uploaded.">
+  <meta property="og:title" content="CasePrepd — Case Prep That Never Leaves Your Computer">
+  <meta property="og:description" content="Vocabulary lists, semantic search, and key excerpts from your case documents — processed 100% on your machine.">
+  <meta property="og:image" content="https://caseprepd-app.github.io/CaseSummarizer/screenshots/CasePrepedMainMenu1.png">
+  <meta property="og:url" content="https://caseprepd-app.github.io/CaseSummarizer/">
+  <meta property="og:type" content="website">
 </head>
 <body>
 
 <header>
   <nav>
     <a href="#" class="logo">CasePrepd</a>
+    <button class="hamburger" aria-label="Menu" aria-expanded="false">&#9776;</button>
     <div class="nav-links">
       <a href="#features">Features</a>
       <a href="#screenshots">Screenshots</a>
@@ -189,6 +196,7 @@
       Download for Windows
     </a>
   </p>
+  <p class="version-info">v1.0.26 &mdash; March 2026</p>
 
   <div class="smartscreen-warning">
     <h3>Windows SmartScreen Warning</h3>
@@ -204,6 +212,27 @@
       available on <a href="https://github.com/caseprepd-app/CaseSummarizer">GitHub</a>
       for inspection.
     </p>
+  </div>
+</section>
+
+<section id="getting-started" class="getting-started">
+  <h2>Getting Started</h2>
+  <div class="steps">
+    <div class="step">
+      <span class="step-number">1</span>
+      <h3>Install</h3>
+      <p>Run the installer. No internet needed &mdash; everything is included.</p>
+    </div>
+    <div class="step">
+      <span class="step-number">2</span>
+      <h3>Load Documents</h3>
+      <p>Drag and drop your PDFs, Word docs, or text files into the app.</p>
+    </div>
+    <div class="step">
+      <span class="step-number">3</span>
+      <h3>Process</h3>
+      <p>Click one button. Vocabulary, search, and key excerpts are ready in minutes.</p>
+    </div>
   </div>
 </section>
 
@@ -258,6 +287,21 @@
   </p>
   <script type="text/javascript" src="https://cdnjs.buymeacoffee.com/1.0.0/button.prod.min.js" data-name="bmc-button" data-slug="NoahCollin" data-color="#5F7FFF" data-emoji="" data-font="Arial" data-text="Buy me a coffee" data-outline-color="#000000" data-font-color="#ffffff" data-coffee-color="#FFDD00"></script>
 </footer>
+
+<script>
+  const hamburger = document.querySelector('.hamburger');
+  const navLinks = document.querySelector('.nav-links');
+  hamburger.addEventListener('click', () => {
+    const open = navLinks.classList.toggle('open');
+    hamburger.setAttribute('aria-expanded', open);
+  });
+  navLinks.addEventListener('click', (e) => {
+    if (e.target.tagName === 'A') {
+      navLinks.classList.remove('open');
+      hamburger.setAttribute('aria-expanded', 'false');
+    }
+  });
+</script>
 
 </body>
 </html>
