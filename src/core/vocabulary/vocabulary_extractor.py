@@ -292,9 +292,9 @@ class VocabularyExtractor:
 
                 topicrank = TextRankAlgorithm(nlp=ner.nlp)
                 self.algorithms.append(topicrank)
-                logger.debug("TopicRank algorithm enabled")
-            except ImportError:
-                logger.debug("TopicRank unavailable (pytextrank not installed)")
+                logger.info("TopicRank algorithm enabled (shared spaCy model)")
+            except Exception as e:
+                logger.warning("TopicRank unavailable: %s: %s", type(e).__name__, e)
                 skipped.append("TopicRank")
 
             # Conditionally add MedicalNER if scispacy is installed

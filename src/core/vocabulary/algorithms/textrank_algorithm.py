@@ -72,6 +72,60 @@ logger = logging.getLogger(__name__)
 # NER, attribute_ruler, lemmatizer are unused overhead (~30-50% savings).
 _TOPICRANK_DISABLED = ["ner", "attribute_ruler", "lemmatizer"]
 
+# pytextrank dependency chain (module_name, pip_package_name)
+_PYTEXTRANK_DEPS = [
+    ("scipy", "scipy"),
+    ("scipy.cluster.hierarchy", "scipy (clustering)"),
+    ("scipy.spatial.distance", "scipy (distance)"),
+    ("networkx", "networkx"),
+    ("graphviz", "graphviz"),
+    ("icecream", "icecream"),
+    ("pygments", "pygments"),
+    ("gitdb", "gitdb"),
+    ("smmap", "smmap"),
+    ("git", "GitPython"),
+    ("asttokens", "asttokens"),
+    ("executing", "executing"),
+    ("colorama", "colorama"),
+]
+
+
+def _log_pytextrank_diagnostics(original_error: Exception):
+    """Log which pytextrank dependencies loaded vs failed."""
+    import importlib
+
+    logger.warning(
+        "pytextrank import failed: %s: %s", type(original_error).__name__, original_error
+    )
+    logger.warning("Checking pytextrank dependency chain:")
+    for module_name, package_name in _PYTEXTRANK_DEPS:
+        try:
+            mod = importlib.import_module(module_name)
+            ver = getattr(mod, "__version__", "?")
+            logger.warning("  OK: %s (%s) v%s", module_name, package_name, ver)
+        except Exception as e:
+            logger.error("  MISSING: %s (%s): %s", module_name, package_name, e)
+    for submod in ["pytextrank", "pytextrank.version", "pytextrank.base"]:
+        try:
+            importlib.import_module(submod)
+            logger.warning("  OK: %s", submod)
+        except Exception as e:
+            logger.error("  FAILED: %s: %s: %s", submod, type(e).__name__, e)
+
+
+def _import_pytextrank():
+    """Import pytextrank with diagnostic logging on failure."""
+    logger.debug("Importing pytextrank...")
+    try:
+        import pytextrank
+
+        ver = getattr(pytextrank, "__version__", "?")
+        logger.info("pytextrank v%s imported successfully", ver)
+        return pytextrank
+    except Exception as e:
+        _log_pytextrank_diagnostics(e)
+        raise
+
 
 @register_algorithm("TopicRank")
 class TextRankAlgorithm(BaseExtractionAlgorithm):
@@ -102,12 +156,11 @@ class TextRankAlgorithm(BaseExtractionAlgorithm):
         self._nlp = None
 
         if nlp is not None:
-            import pytextrank  # noqa: F401 — registers the pipeline component
-
+            _import_pytextrank()
             self._nlp = nlp
             if "topicrank" not in self._nlp.pipe_names:
                 self._nlp.add_pipe("topicrank")
-                logger.debug("Added topicrank pipe to shared spaCy model")
+                logger.info("Added topicrank pipe to shared spaCy model")
             else:
                 logger.debug("Shared spaCy model already has topicrank pipe")
 
@@ -118,7 +171,7 @@ class TextRankAlgorithm(BaseExtractionAlgorithm):
         Fallback: loads en_core_web_lg with topicrank when no shared
         model was provided at init time.
         """
-        import pytextrank  # noqa: F401 — registers the pipeline component
+        _import_pytextrank()
         import spacy
 
         from src.config import SPACY_EN_CORE_WEB_LG_PATH
@@ -160,9 +213,10 @@ class TextRankAlgorithm(BaseExtractionAlgorithm):
         # Lazy-load model
         if self._nlp is None:
             try:
+                logger.info("TopicRank: lazy-loading spaCy model + pytextrank...")
                 self._load_nlp()
             except Exception as e:
-                logger.warning("TopicRank unavailable: %s", e)
+                logger.warning("TopicRank unavailable: %s: %s", type(e).__name__, e, exc_info=True)
                 return AlgorithmResult(
                     candidates=[],
                     processing_time_ms=0.0,

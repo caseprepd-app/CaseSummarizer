@@ -164,10 +164,12 @@ def create_default_algorithms(**config) -> list[BaseExtractionAlgorithm]:
             topicrank = TextRankAlgorithm()
             topicrank.weight = config.get("topicrank_weight", 0.6)
             algorithms.append(topicrank)
-        except ImportError:
+        except Exception as e:
             import logging
 
-            logging.getLogger(__name__).debug("TopicRank unavailable (pytextrank not installed)")
+            logging.getLogger(__name__).warning(
+                "TopicRank unavailable: %s: %s", type(e).__name__, e
+            )
 
     # YAKE Algorithm (pure statistical keyword extraction)
     if config.get("yake_enabled", True):

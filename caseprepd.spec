@@ -94,6 +94,7 @@ packages_to_collect = [
     "pydantic",
     # TopicRank (pytextrank) and its full dependency tree
     "pytextrank",
+    "scipy",        # scipy.cluster.hierarchy + scipy.spatial.distance — used by topicrank.py
     "networkx",
     "graphviz",
     "icecream",
@@ -144,7 +145,7 @@ added_data.extend(pkg_data)
 
 # ── Collect dynamic libraries ──────────────────────────────────────────
 added_binaries = []
-binary_packages = ["torch", "tokenizers", "thinc", "sklearn"]
+binary_packages = ["torch", "tokenizers", "thinc", "sklearn", "scipy"]
 
 for pkg in binary_packages:
     try:
