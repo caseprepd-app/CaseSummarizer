@@ -7,6 +7,14 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.0.27] - 2026-03-25
+
+### Fixed
+- TopicRank fails on end-user machines without git.exe
+
+### Changed
+- Added download and website links to README
+
 ## [1.0.26] - 2026-03-24
 
 ### Fixed
