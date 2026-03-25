@@ -40,6 +40,11 @@ Execute the full release cycle for CasePrepd. Arguments: $ARGUMENTS
 - Create release: `gh release create vX.Y.Z installer/Output/CasePrepd_Setup.exe README.md --title "CasePrepd vX.Y.Z" --notes-file -` (pipe changelog section)
 - Verify the release was created: `gh release view vX.Y.Z`
 
+## Step 7: Update GitHub Pages Version
+- Run: `.venv/Scripts/python scripts/update_ghpages_version.py X.Y.Z` (using the version from Step 1)
+- This checks out gh-pages, updates the version number and month/year in index.html, commits, pushes, and switches back to main.
+- Verify it succeeded by checking the script output.
+
 ## Error Handling
 - If any step fails, stop and diagnose. Do NOT proceed to later steps.
 - If PyInstaller fails, the version bump commit is still valid — don't revert it.
