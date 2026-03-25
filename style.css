@@ -382,6 +382,12 @@ h3 {
   margin-top: 0.5rem;
 }
 
+.download-hint {
+  font-size: 0.95rem;
+  color: var(--text-muted);
+  margin-top: 0.3rem;
+}
+
 .download > p {
   margin-bottom: 2rem;
 }
