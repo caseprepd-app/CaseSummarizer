@@ -294,7 +294,7 @@ class VocabularyExtractor:
                 self.algorithms.append(topicrank)
                 logger.info("TopicRank algorithm enabled (shared spaCy model)")
             except Exception as e:
-                logger.warning("TopicRank unavailable: %s: %s", type(e).__name__, e)
+                logger.warning("TopicRank unavailable: %s: %s", type(e).__name__, e, exc_info=True)
                 skipped.append("TopicRank")
 
             # Conditionally add MedicalNER if scispacy is installed

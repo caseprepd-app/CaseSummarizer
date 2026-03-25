@@ -106,11 +106,12 @@ def worker_process_main(command_queue, result_queue):
         if os.path.exists(_pythonw):
             multiprocessing.set_executable(_pythonw)
 
-    # Configure logging in subprocess
-    logging.basicConfig(
-        level=logging.DEBUG,
-        format="[WorkerProcess] %(levelname)s %(name)s: %(message)s",
-    )
+    # Configure logging in subprocess — use the same log file as the main process
+    # so that diagnostic messages (e.g. TopicRank dependency errors) appear in the
+    # user-visible log instead of being lost to stderr.
+    from src.logging_config import setup_logging
+
+    setup_logging()
     logger.info("Worker subprocess started (PID: %s)", __import__("os").getpid())
 
     internal_queue = Queue()

@@ -93,10 +93,22 @@ _PYTEXTRANK_DEPS = [
 def _log_pytextrank_diagnostics(original_error: Exception):
     """Log which pytextrank dependencies loaded vs failed."""
     import importlib
+    import os
+    import shutil
 
     logger.warning(
         "pytextrank import failed: %s: %s", type(original_error).__name__, original_error
     )
+
+    # Check if this is the known GitPython/git.exe issue
+    git_exe = shutil.which("git")
+    logger.warning(
+        "git.exe on PATH: %s | GIT_PYTHON_REFRESH=%s | frozen=%s",
+        git_exe or "NOT FOUND",
+        os.environ.get("GIT_PYTHON_REFRESH", "<not set>"),
+        getattr(sys, "frozen", False),
+    )
+
     logger.warning("Checking pytextrank dependency chain:")
     for module_name, package_name in _PYTEXTRANK_DEPS:
         try:
@@ -117,6 +129,14 @@ def _import_pytextrank():
     """Import pytextrank with diagnostic logging on failure."""
     logger.debug("Importing pytextrank...")
     try:
+        # pytextrank/version.py does `from git import Repo` at module level.
+        # GitPython raises ImportError if git.exe isn't on PATH (e.g. end-user
+        # machines without Git installed). Setting this env var tells GitPython
+        # to silently skip the git binary check instead of raising.
+        import os
+
+        os.environ.setdefault("GIT_PYTHON_REFRESH", "quiet")
+
         import pytextrank
 
         ver = getattr(pytextrank, "__version__", "?")
