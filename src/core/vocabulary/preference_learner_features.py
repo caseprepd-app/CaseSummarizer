@@ -38,6 +38,53 @@ from src.core.vocabulary.term_sources import TermSources
 from src.user_preferences import get_user_preferences
 
 # Medical suffixes for domain-specific feature
+# Normalization ceiling for Markov gibberish scores.
+# Scores above this are clipped to 1.0. Empirically, real English words
+# score 1.5-3.5 and obvious gibberish scores 4.0-7.0.
+_GIBBERISH_SCORE_CEILING = 8.0
+
+
+def _compute_gibberish_scores(term: str) -> tuple[float, float]:
+    """
+    Compute normalized worst and mean Markov gibberish scores for a term.
+
+    Scores each word's character bigram probability against English.
+    Returns (worst, mean) normalized to 0-1 (higher = more gibberish).
+
+    Args:
+        term: The vocabulary term (single or multi-word)
+
+    Returns:
+        Tuple of (normalized_worst, normalized_mean). Both 0.0 if Markov
+        detector is unavailable or term has no scoreable words.
+    """
+    try:
+        from src.core.utils.gibberish_filter import GibberishFilter
+
+        detector = GibberishFilter.get_instance()._markov
+        if detector is None:
+            return 0.0, 0.0
+    except Exception:
+        return 0.0, 0.0
+
+    words = [w.lower() for w in term.split() if len(w) >= 3]
+    if not words:
+        return 0.0, 0.0
+
+    scores = []
+    for word in words:
+        clean = "".join(c for c in word if c.isalpha())
+        if len(clean) < 3:
+            continue
+        raw = detector.calculate_probability_of_being_gibberish(clean)
+        scores.append(min(raw / _GIBBERISH_SCORE_CEILING, 1.0))
+
+    if not scores:
+        return 0.0, 0.0
+
+    return max(scores), sum(scores) / len(scores)
+
+
 MEDICAL_SUFFIXES = (
     "itis",
     "osis",
@@ -180,6 +227,9 @@ FEATURE_NAMES = [
     # User-defined indicator pattern features
     "matches_positive_indicator",  # User-defined positive pattern match
     "matches_negative_indicator",  # User-defined negative pattern match
+    # Markov chain gibberish scores (normalized 0-1, higher = more gibberish)
+    "normalized_worst_gibberish_score",  # Max score across words (one bad word ruins phrase)
+    "normalized_mean_gibberish_score",  # Mean score across words (overall phrase quality)
 ]
 
 
@@ -197,7 +247,7 @@ def extract_features(term_data: dict[str, Any]) -> np.ndarray:
                   May include "sources" (TermSources) and "total_docs_in_session"
 
     Returns:
-        numpy array of 53 features (5 count bins + log_count + 47 other features)
+        numpy array of 55 features (5 count bins + log_count + 49 other features)
 
     Raises:
         ValueError: If term_data is not a dict or missing required fields
@@ -441,6 +491,14 @@ def extract_features(term_data: dict[str, Any]) -> np.ndarray:
     matches_positive_indicator = 1.0 if matches_positive(term) else 0.0
     matches_negative_indicator = 1.0 if matches_negative(term) else 0.0
 
+    # === Markov chain gibberish scores ===
+    # Normalized to 0-1 (higher = more gibberish). Computed from character
+    # bigram probabilities. Complements max_consonant_run with a statistical
+    # signal the model can learn nonlinear thresholds from.
+    normalized_worst_gibberish_score, normalized_mean_gibberish_score = _compute_gibberish_scores(
+        term
+    )
+
     # === TermSources-based per-document features ===
     # These features provide richer signals about term reliability by
     # tracking which source documents contributed each occurrence.
@@ -544,5 +602,8 @@ def extract_features(term_data: dict[str, Any]) -> np.ndarray:
             # User-defined indicator pattern features (2)
             matches_positive_indicator,
             matches_negative_indicator,
+            # Markov chain gibberish scores (2)
+            normalized_worst_gibberish_score,
+            normalized_mean_gibberish_score,
         ]
     )
