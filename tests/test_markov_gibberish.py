@@ -17,11 +17,17 @@ class TestMarkovDetector:
         assert detector is not None
 
     def test_random_chars_flagged(self):
-        """Random character strings score above threshold."""
+        """Random character strings score above threshold (5.5)."""
         detector = _build_markov_detector()
-        assert detector.is_gibberish("xkjwqr")
-        assert detector.is_gibberish("zxcvbn")
-        assert detector.is_gibberish("qqqqq")
+        assert detector.is_gibberish("xkjwqr")  # 6.20
+        assert detector.is_gibberish("zxcvbn")  # 6.46
+        assert detector.is_gibberish("qqqqq")  # 5.88
+
+    def test_borderline_not_hard_filtered(self):
+        """Scores 4.0-5.5 pass Markov — handled by ML feature instead."""
+        detector = _build_markov_detector()
+        assert not detector.is_gibberish("kthxbai")  # 4.44 — gray zone
+        assert not detector.is_gibberish("abcxyz")  # 4.96 — gray zone
 
     def test_real_words_pass(self):
         """Real English words score below threshold."""

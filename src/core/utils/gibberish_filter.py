@@ -54,7 +54,7 @@ def _build_markov_detector():
 
         corpus = "\n".join(nltk_words.words())
         model = train_on_content(corpus, string.ascii_lowercase)
-        return Detector(model, threshold=4.0)
+        return Detector(model, threshold=5.5)
     except ImportError:
         logger.debug("gibberish-detector not installed; Markov layer disabled")
         return None
