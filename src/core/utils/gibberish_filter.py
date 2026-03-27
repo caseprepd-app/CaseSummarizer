@@ -2,13 +2,15 @@
 Gibberish Filter Utility
 
 Detects nonsense/random character sequences that pass pattern-based filters.
-Uses spell checking combined with edit distance and sequence similarity
-to distinguish true gibberish from typos.
+Two-layer approach:
 
-Uses dual metrics:
-- Edit distance ratio: How many characters changed relative to word length
-- Sequence similarity: How similar the word is to its best correction
-- BOTH must pass thresholds, otherwise it's gibberish (strict when they disagree)
+Layer 1 — Markov chain (gibberish-detector): Scores character bigram
+    probabilities against English. Catches obvious garbage like "xkjwqr"
+    or "qqqqq" cheaply — no spell-checker lookup needed.
+
+Layer 2 — Spell-checker with dual metrics: For words that *look* plausibly
+    English (pass Markov check), uses edit distance ratio + sequence
+    similarity to distinguish real typos from subtler garbage like "modmess".
 
 This catches PDF garbage like "modmess" (sim=0.77) while allowing real typos
 like "Jenidns" (sim=0.86) and "Smitb" (sim=0.80).
@@ -24,6 +26,7 @@ Usage:
 """
 
 import logging
+import string
 import threading
 
 from spellchecker import SpellChecker
@@ -37,30 +40,56 @@ logger = logging.getLogger(__name__)
 SIMILARITY_THRESHOLD = GIBBERISH_SIMILARITY_THRESHOLD
 
 
+def _build_markov_detector():
+    """
+    Build and cache a Markov chain gibberish detector trained on NLTK words.
+
+    Returns:
+        gibberish_detector.detector.Detector instance, or None if unavailable
+    """
+    try:
+        from gibberish_detector.detector import Detector
+        from gibberish_detector.trainer import train_on_content
+        from nltk.corpus import words as nltk_words
+
+        corpus = "\n".join(nltk_words.words())
+        model = train_on_content(corpus, string.ascii_lowercase)
+        return Detector(model, threshold=4.0)
+    except ImportError:
+        logger.debug("gibberish-detector not installed; Markov layer disabled")
+        return None
+    except Exception as e:
+        logger.warning("Failed to build Markov gibberish model: %s", e)
+        return None
+
+
 class GibberishFilter:
     """
-    Wrapper for gibberish detection using spell checking with dual metrics.
+    Two-layer gibberish detection: Markov chain + spell-checker.
 
-    Uses BOTH edit distance ratio AND sequence similarity to distinguish
-    gibberish from typos.
+    Layer 1 (fast): Markov chain scores character bigram probabilities.
+        Words with scores above 4.0 are obvious gibberish (e.g. "xkjwqr").
+
+    Layer 2 (thorough): For words that pass the Markov check, uses spell
+        checking with dual metrics (edit distance ratio AND similarity).
+        Both must pass for a word to be considered a valid typo.
 
     A word is considered gibberish if:
-    1. It's not in the dictionary, AND
-    2. It has no correction, OR its best correction fails EITHER metric:
-       - Edit distance ratio > 35% (too many character changes)
-       - Sequence similarity < 80% (not similar enough)
-
-    This is stricter than just checking for corrections, catching PDF garbage
-    like "modmess" while still allowing real typos like "Jenidns" and "Smitb".
+    - Markov check flags it as gibberish, OR
+    - It's not in the dictionary AND has no close correction
     """
 
     _instance = None
     _instance_lock = threading.Lock()
     _spell = None
+    _markov = None
 
     def __init__(self):
-        """Initialize the spell checker."""
+        """Initialize the spell checker and Markov detector."""
         self._spell = SpellChecker()
+        self._markov = _build_markov_detector()
+        if self._markov:
+            logger.debug("Markov gibberish detector loaded")
 
     @classmethod
     def get_instance(cls) -> "GibberishFilter":
@@ -75,6 +104,12 @@ class GibberishFilter:
                 if cls._instance is None:
                     cls._instance = cls()
         return cls._instance
+
+    @classmethod
+    def reset_singleton(cls) -> None:
+        """Reset the singleton instance (for testing)."""
+        with cls._instance_lock:
+            cls._instance = None
 
     def is_gibberish(self, text: str) -> bool:
         """
@@ -105,10 +140,10 @@ class GibberishFilter:
 
     def _is_word_gibberish(self, word: str) -> bool:
         """
-        Check if a single word is gibberish using dual metrics.
+        Check if a single word is gibberish using two layers.
 
-        Uses edit distance ratio AND sequence similarity.
-        Both must pass for a word to be considered a valid typo.
+        Layer 1: Markov chain — catches obvious garbage cheaply.
+        Layer 2: Spell-checker with dual metrics — catches subtler noise.
 
         Args:
             word: Cleaned lowercase word to check
@@ -120,13 +155,33 @@ class GibberishFilter:
         if word in self._spell:
             return False
 
+        # Layer 1: Markov chain (fast pre-check)
+        if self._markov and self._markov.is_gibberish(word):
+            logger.debug("Markov flagged gibberish: '%s'", word)
+            return True
+
+        # Layer 2: Spell-checker with dual metrics
+        return self._spellcheck_gibberish(word)
+
+    def _spellcheck_gibberish(self, word: str) -> bool:
+        """
+        Check if a word is gibberish using spell-checker dual metrics.
+
+        Uses edit distance ratio AND sequence similarity.
+        Both must pass for a word to be considered a valid typo.
+
+        Args:
+            word: Cleaned lowercase word to check
+
+        Returns:
+            True if word is gibberish
+        """
         # Short words (<=4 chars): metrics break down, be lenient
         if len(word) <= 4:
             best = self._spell.correction(word)
             if best and best != word:
                 return False  # Has a correction = probably typo
             candidates = self._spell.candidates(word)
-            # Has candidates = probably typo; otherwise gibberish
             return not candidates
 
         # Get best correction

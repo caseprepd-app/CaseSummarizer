@@ -436,6 +436,11 @@ class VocabularyExtractor:
                 original_kb,
             )
 
+        # 0. Clean PDF artifacts (ligatures, mojibake, encoding errors)
+        from src.core.utils.text_cleaner import clean_extracted_text
+
+        text = clean_extracted_text(text)
+
         # 1. Run all enabled algorithms (parallel when possible)
         all_results = self._run_algorithms_parallel(text)
 
@@ -520,6 +525,11 @@ class VocabularyExtractor:
                 VOCABULARY_MAX_TEXT_KB,
                 original_kb,
             )
+
+        # 0. Clean PDF artifacts (ligatures, mojibake, encoding errors)
+        from src.core.utils.text_cleaner import clean_extracted_text
+
+        text = clean_extracted_text(text)
 
         # Separate algorithms into fast (BM25, RAKE) and slow (NER)
         fast_algorithms = []

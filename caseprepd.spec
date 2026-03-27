@@ -60,6 +60,12 @@ hidden_imports = [
     # Tiktoken encoding registry
     "tiktoken_ext.openai_public",
     "tiktoken_ext",
+    # Markov chain gibberish detection (lazy-loaded in gibberish_filter.py)
+    "gibberish_detector",
+    "gibberish_detector.detector",
+    "gibberish_detector.trainer",
+    "gibberish_detector.model",
+    "gibberish_detector.serializer",
     # Scikit-learn internals often missed
     "sklearn.utils._typedefs",
     "sklearn.utils._cython_blas",
