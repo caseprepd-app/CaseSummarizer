@@ -7,6 +7,21 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.0.28] - 2026-03-27
+
+### Added
+- Key excerpts ranked by interestingness score (vocab hits, person entities, word rarity, rejected term penalty, gibberish penalty) — most useful excerpts now sort to the top
+- Markov chain gibberish detection with spell-checker fallback for vocabulary filtering
+- ftfy text cleaning for OCR artifacts and encoding issues
+- Normalized gibberish scores as ML features (worst + mean per term)
+
+### Fixed
+- Export (HTML/PDF/Word) was missing key excerpts due to wrong output key lookup
+- Raised Markov gibberish hard-filter threshold from 4.0 to 5.5 to reduce false positives
+
+### Infrastructure
+- GitHub Pages version auto-updates during rebuild
+
 ## [1.0.27] - 2026-03-25
 
 ### Fixed
