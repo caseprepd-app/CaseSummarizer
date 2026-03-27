@@ -486,6 +486,13 @@ def _forward_message(msg_type, data, internal_queue, result_queue, state):
             logger.error("Failed to start default SemanticWorker: %s", e, exc_info=True)
             result_queue.put(("error", f"Default semantic search failed: {e}"))
 
+    elif msg_type == "ner_complete":
+        # Save vocab data in state for key excerpts interestingness scoring
+        if isinstance(data, dict):
+            with state["worker_lock"]:
+                state["vocab_data"] = data.get("vocab", [])
+        result_queue.put((msg_type, data))
+
     else:
         # Forward all other messages as-is
         logger.debug("Forwarding message: %s", msg_type)
@@ -519,6 +526,7 @@ def _spawn_key_sentences(state, internal_queue):
         chunk_metadata = state.get("chunk_metadata")
         chunk_embeddings = state.get("chunk_embeddings")
         documents = state.get("documents") or []
+        vocab_data = state.get("vocab_data") or []
 
     if not chunk_texts or chunk_embeddings is None:
         logger.debug("Skipping key excerpts: no chunk data available")
@@ -536,11 +544,13 @@ def _spawn_key_sentences(state, internal_queue):
             from src.core.summarization.key_sentences import extract_key_passages
 
             embeddings_array = np.array(chunk_embeddings, dtype=np.float32)
+            scorer_inputs = _build_scorer_inputs(vocab_data)
             results = extract_key_passages(
                 chunk_texts=chunk_texts,
                 chunk_embeddings=embeddings_array,
                 chunk_metadata=chunk_metadata,
                 total_pages=total_pages,
+                scorer_inputs=scorer_inputs,
             )
             # Serialize KeySentence dataclasses to dicts for pickling across processes
             serialized = [
@@ -560,3 +570,65 @@ def _spawn_key_sentences(state, internal_queue):
 
     thread = threading.Thread(target=_extract, daemon=True, name="key-excerpts")
     thread.start()
+
+
+def _build_scorer_inputs(vocab_data: list[dict]) -> dict:
+    """
+    Build interestingness scorer inputs from vocab data and feedback CSV.
+
+    Lives here (not in summarization) to avoid cross-module imports
+    between summarization and vocabulary packages.
+
+    Args:
+        vocab_data: Vocabulary extraction results (list of term dicts)
+
+    Returns:
+        Dict with keys: vocab_terms, person_terms, rejected_terms,
+        frequency_rank_map
+    """
+    from src.core.vocab_schema import VF
+
+    vocab_terms = {}
+    person_terms = set()
+    for term_data in vocab_data:
+        term = term_data.get(VF.TERM, "")
+        if not term:
+            continue
+        term_lower = term.lower()
+        quality = term_data.get(VF.QUALITY_SCORE, 0)
+        vocab_terms[term_lower] = quality
+        if term_data.get(VF.IS_PERSON) == VF.YES:
+            person_terms.add(term_lower)
+
+    # Load rejected terms from feedback CSV
+    rejected_terms = set()
+    try:
+        from src.core.vocabulary.feedback_manager import FeedbackManager
+
+        fm = FeedbackManager()
+        rejected_terms = set(fm.get_rated_terms(rating_filter=-1))
+    except Exception as e:
+        logger.debug("Could not load rejected terms: %s", e)
+
+    # Build Google frequency rank map for rarity scoring
+    frequency_rank_map = {}
+    try:
+        from src.core.vocabulary.frequency_data import load_raw_frequency_data
+
+        freq_data = load_raw_frequency_data()
+        if freq_data:
+            sorted_words = sorted(
+                freq_data.items(),
+                key=lambda x: x[1],
+                reverse=True,
+            )
+            frequency_rank_map = {word: rank for rank, (word, _) in enumerate(sorted_words)}
+    except Exception as e:
+        logger.debug("Could not load frequency data: %s", e)
+
+    return {
+        "vocab_terms": vocab_terms,
+        "person_terms": person_terms,
+        "rejected_terms": rejected_terms,
+        "frequency_rank_map": frequency_rank_map,
+    }

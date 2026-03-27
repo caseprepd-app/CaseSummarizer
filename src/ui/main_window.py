@@ -1832,8 +1832,8 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             if semantic_panel and semantic_panel._results:
                 semantic_results = [r for r in semantic_panel._results if r.is_exportable]
 
-        # Gather summary text
-        summary = self.output_display._outputs.get("Summary", "")
+        # Gather key excerpts text
+        summary = self.output_display._outputs.get("Key Excerpts", "")
         if not summary:
             summary = self.output_display._outputs.get("Meta-Summary", "")
         summary_text = summary.strip() if summary else ""

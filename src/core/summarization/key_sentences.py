@@ -43,7 +43,7 @@ class KeySentence:
     text: str
     source_file: str
     position: int  # Global sentence index (for ordering)
-    score: float  # Distance to cluster centroid (lower = more representative)
+    score: float  # Interestingness score (higher = more useful to user)
 
 
 def compute_sentence_count(total_pages: int) -> int:
@@ -68,6 +68,7 @@ def extract_key_passages(
     chunk_metadata: list[dict],
     n: int | None = None,
     total_pages: int = 0,
+    scorer_inputs: dict | None = None,
 ) -> list[KeySentence]:
     """
     Extract the most representative passages from pre-computed chunk data.
@@ -76,15 +77,21 @@ def extract_key_passages(
     re-embedding needed. Chunks (after recursive sentence splitting) naturally
     contain speaker turns and Q&A context.
 
+    Passages are sorted by interestingness score (most useful first) using
+    vocab overlap, named entities, word rarity, and rejected term penalties.
+
     Args:
         chunk_texts: List of chunk text strings
         chunk_embeddings: (num_chunks, embedding_dim) array from FAISS builder
         chunk_metadata: List of dicts with 'source_file' and 'chunk_num'
         n: Number of key passages. If None, auto-scales with page count.
         total_pages: Total pages across all documents (for auto-scaling K).
+        scorer_inputs: Pre-built dict with keys: vocab_terms, person_terms,
+            rejected_terms, frequency_rank_map. Built by caller to avoid
+            cross-module imports.
 
     Returns:
-        List of KeySentence objects sorted by chunk position.
+        List of KeySentence objects sorted by interestingness (best first).
     """
     if not chunk_texts or len(chunk_embeddings) == 0:
         logger.warning("No chunk data for key passages extraction")
@@ -118,20 +125,14 @@ def extract_key_passages(
     # Cluster and select
     selected_indices = _cluster_and_select(filtered_embeddings, n)
 
-    # Build result sorted by chunk position
-    results = []
-    for idx in selected_indices:
-        meta = filtered_metadata[idx]
-        results.append(
-            KeySentence(
-                text=filtered_texts[idx],
-                source_file=meta.get("source_file", "unknown"),
-                position=meta.get("chunk_num", idx),
-                score=0.0,
-            )
-        )
+    # Score and rank by interestingness
+    results = _score_and_rank(
+        selected_indices,
+        filtered_texts,
+        filtered_metadata,
+        scorer_inputs,
+    )
 
-    results.sort(key=lambda s: s.position)
     logger.debug("Key passages: returning %d passages", len(results))
     return results
 
@@ -199,3 +200,59 @@ def _cluster_and_select(embeddings: np.ndarray, n: int) -> list[int]:
         selected.append(int(cluster_indices[best_local]))
 
     return selected
+
+
+def _score_and_rank(
+    selected_indices: list[int],
+    texts: list[str],
+    metadata: list[dict],
+    scorer_inputs: dict | None,
+) -> list[KeySentence]:
+    """
+    Score selected excerpts by interestingness and sort best-first.
+
+    Falls back to document position order if scoring is unavailable.
+
+    Args:
+        selected_indices: Indices chosen by K-means clustering
+        texts: All filtered chunk texts
+        metadata: All filtered chunk metadata
+        scorer_inputs: Pre-built dict with scoring data (may be None)
+
+    Returns:
+        List of KeySentence sorted by score (highest first)
+    """
+    from src.core.summarization.excerpt_scorer import score_excerpt
+
+    has_inputs = scorer_inputs and (
+        scorer_inputs.get("vocab_terms") or scorer_inputs.get("frequency_rank_map")
+    )
+
+    results = []
+    for idx in selected_indices:
+        meta = metadata[idx]
+        chunk_text = texts[idx]
+
+        if has_inputs:
+            interestingness = score_excerpt(
+                chunk_text,
+                scorer_inputs.get("vocab_terms", {}),
+                scorer_inputs.get("person_terms", set()),
+                scorer_inputs.get("rejected_terms", set()),
+                scorer_inputs.get("frequency_rank_map", {}),
+            )
+        else:
+            interestingness = 0.0
+
+        results.append(
+            KeySentence(
+                text=chunk_text,
+                source_file=meta.get("source_file", "unknown"),
+                position=meta.get("chunk_num", idx),
+                score=interestingness,
+            )
+        )
+
+    # Sort by interestingness (highest first)
+    results.sort(key=lambda s: s.score, reverse=True)
+    return results
