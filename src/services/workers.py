@@ -410,6 +410,7 @@ class ProgressiveExtractionWorker(BaseWorker):
         self._search_succeeded = threading.Event()
         self._search_error_lock = threading.Lock()
         self._search_error_msg: str | None = None
+        self._index_progress: tuple[int, int] = (0, 0)  # (current, total) chunks
 
     def execute(self):
         """Execute two-phase progressive extraction."""
@@ -529,14 +530,22 @@ class ProgressiveExtractionWorker(BaseWorker):
         while semantic_thread.is_alive() and wait_count < max_waits and not self.is_stopped:
             wait_seconds = wait_count * SEMANTIC_JOIN_TIMEOUT_SECONDS
             wait_minutes = wait_seconds // 60
+            current, total = self._index_progress
             if wait_count == 0:
                 logger.debug("Vocabulary done, waiting for semantic search index to finish...")
                 self.send_progress(100, "Vocabulary complete. Building semantic search index...")
+            elif total > 0:
+                pct = int((current / max(total, 1)) * 100)
+                elapsed = f"{wait_minutes}m" if wait_minutes >= 1 else f"{wait_seconds}s"
+                self.send_progress(
+                    100,
+                    f"Indexing passages ({current}/{total}, {pct}%) — {elapsed} elapsed...",
+                )
             else:
                 elapsed = f"{wait_minutes}m" if wait_minutes >= 1 else f"{wait_seconds}s"
                 self.send_progress(
                     100,
-                    f"Semantic search index still building ({elapsed} elapsed)...",
+                    f"Preparing search index ({elapsed} elapsed)...",
                 )
             semantic_thread.join(timeout=SEMANTIC_JOIN_TIMEOUT_SECONDS)
             wait_count += 1
@@ -667,13 +676,16 @@ class ProgressiveExtractionWorker(BaseWorker):
             # Build vector store
             total_chunks = len(all_chunks)
             self.ui_queue.put(
-                QueueMessage.progress(26, f"Building search index (0/{total_chunks} passages)...")
+                QueueMessage.progress(26, f"Indexing passages (0/{total_chunks}, 0%)...")
             )
 
             def on_index_progress(current, total):
+                """Report chunk embedding progress to UI and parent thread."""
                 from src.services.silly_messages import get_silly_message
 
-                msg = f"Building search index ({current}/{total} passages)..."
+                self._index_progress = (current, total)
+                pct = int((current / max(total, 1)) * 100)
+                msg = f"Indexing passages ({current}/{total}, {pct}%)..."
                 # Higher silly message rate for incremental progress (15% vs 4%)
                 if random.randint(1, 7) == 1:
                     msg = get_silly_message()
