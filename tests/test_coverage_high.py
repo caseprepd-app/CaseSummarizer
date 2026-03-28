@@ -322,7 +322,7 @@ class TestSemanticRetrieverRetrieveContext:
         return retriever
 
     def test_retrieve_returns_context_and_sources(self):
-        """retrieve_context returns formatted context with source attributions."""
+        """retrieve_context returns raw chunk text and single source."""
         retriever = self._make_retriever()
 
         chunk = FakeMergedChunk(
@@ -337,14 +337,10 @@ class TestSemanticRetrieverRetrieveContext:
         )
         retriever._hybrid_retriever.get_chunk_count.return_value = 5
 
-        with patch(
-            "src.core.vector_store.semantic_retriever._get_effective_semantic_context_window", return_value=4096
-        ):
-            result = retriever.retrieve_context("Who is the plaintiff?", k=5, min_score=0.0)
+        result = retriever.retrieve_context("Who is the plaintiff?", k=5, min_score=0.0)
 
         assert result.chunks_retrieved == 1
-        assert "complaint.pdf" in result.context
-        assert "Parties" in result.context
+        assert "plaintiff filed" in result.context
         assert result.sources[0].filename == "complaint.pdf"
         assert result.sources[0].relevance_score == 0.9
 
@@ -358,10 +354,7 @@ class TestSemanticRetrieverRetrieveContext:
         )
         retriever._hybrid_retriever.get_chunk_count.return_value = 1
 
-        with patch(
-            "src.core.vector_store.semantic_retriever._get_effective_semantic_context_window", return_value=4096
-        ):
-            result = retriever.retrieve_context("test?", k=5, min_score=0.5)
+        result = retriever.retrieve_context("test?", k=5, min_score=0.5)
 
         assert result.chunks_retrieved == 0
         assert result.context == ""
@@ -389,10 +382,7 @@ class TestSemanticRetrieverRetrieveContext:
         )
         retriever._hybrid_retriever.get_chunk_count.return_value = 2
 
-        with patch(
-            "src.core.vector_store.semantic_retriever._get_effective_semantic_context_window", return_value=4096
-        ):
-            result = retriever.retrieve_context("test?", k=5, min_score=0.0)
+        result = retriever.retrieve_context("test?", k=5, min_score=0.0)
 
         assert result.chunks_retrieved == 1
         assert result.sources[0].relevance_score == 0.9
@@ -404,10 +394,7 @@ class TestSemanticRetrieverRetrieveContext:
         retriever._hybrid_retriever.retrieve.return_value = FakeMergedRetrievalResult(chunks=[])
         retriever._hybrid_retriever.get_chunk_count.return_value = 0
 
-        with patch(
-            "src.core.vector_store.semantic_retriever._get_effective_semantic_context_window", return_value=4096
-        ):
-            result = retriever.retrieve_context("anything?", k=5, min_score=0.0)
+        result = retriever.retrieve_context("anything?", k=5, min_score=0.0)
 
         assert result.chunks_retrieved == 0
         assert result.context == ""

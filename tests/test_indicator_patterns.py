@@ -322,8 +322,8 @@ class TestFeatureExtraction:
         extract_features, FEATURE_NAMES = mock_all_deps
         term_data = {"Term": "test", "occurrences": 1, "algorithms": ""}
         features = extract_features(term_data)
-        assert len(features) == 53
-        assert len(FEATURE_NAMES) == 53
+        assert len(features) == 55
+        assert len(FEATURE_NAMES) == 55
 
 
 class TestDefaultRegexOverrides:

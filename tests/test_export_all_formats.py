@@ -29,7 +29,7 @@ def _make_stub(filepath="report.html"):
     stub.output_display._semantic_panel._results = [qa]
 
     # Summary text
-    stub.output_display._outputs = {"Summary": "A test summary."}
+    stub.output_display._outputs = {"Key Excerpts": "A test summary."}
 
     # after() for button reset
     stub.after = MagicMock()

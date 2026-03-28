@@ -12,6 +12,10 @@ from unittest.mock import MagicMock, patch
 
 import numpy as np
 
+from src.core.vocabulary.preference_learner_features import FEATURE_NAMES
+
+_N_FEATURES = len(FEATURE_NAMES)
+
 
 def _make_term_data(term="Dr. Smith", occurrences=10, algorithms="ner bm25", is_person=1):
     """Create a minimal term data dict for testing."""
@@ -26,7 +30,7 @@ def _make_term_data(term="Dr. Smith", occurrences=10, algorithms="ner bm25", is_
     }
 
 
-def _make_mock_learner(is_trained=True, is_ensemble=False, n_features=53):
+def _make_mock_learner(is_trained=True, is_ensemble=False, n_features=_N_FEATURES):
     """Create a mock learner with LR model (and optionally RF)."""
     learner = MagicMock()
     learner.is_trained = is_trained

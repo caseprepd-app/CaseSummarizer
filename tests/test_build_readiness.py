@@ -177,6 +177,11 @@ HIDDEN_IMPORTS_NON_UI = [
     "sklearn.utils._cython_blas",
     "sklearn.neighbors._partition_nodes",
     "sklearn.tree._utils",
+    "gibberish_detector",
+    "gibberish_detector.detector",
+    "gibberish_detector.model",
+    "gibberish_detector.serializer",
+    "gibberish_detector.trainer",
 ]
 
 
