@@ -8,10 +8,7 @@ short passages, unicode handling, and empty inputs.
 from unittest.mock import MagicMock, patch
 
 from src.core.semantic.citation_excerpt import (
-    SEPARATOR,
     _build_windows,
-    _get_top_chunk,
-    _strip_source_prefix,
     extract_citation_excerpt,
 )
 
@@ -136,29 +133,6 @@ def test_empty_question_still_works():
 
     assert isinstance(result, str)
     assert len(result) > 0
-
-
-def test_get_top_chunk_single():
-    """Single chunk (no separator) is returned as-is."""
-    assert _get_top_chunk("only chunk") == "only chunk"
-
-
-def test_get_top_chunk_multiple():
-    """First chunk is returned when multiple chunks are separated."""
-    context = f"first chunk{SEPARATOR}second chunk{SEPARATOR}third"
-    assert _get_top_chunk(context) == "first chunk"
-
-
-def test_strip_source_prefix():
-    """Source prefix like [file.pdf, page 3]: is removed."""
-    text = "[complaint.pdf, page 3]: The defendant was served."
-    assert _strip_source_prefix(text) == "The defendant was served."
-
-
-def test_strip_source_prefix_no_prefix():
-    """Text without a prefix is returned unchanged."""
-    text = "No prefix here."
-    assert _strip_source_prefix(text) == "No prefix here."
 
 
 def test_build_windows_coverage():

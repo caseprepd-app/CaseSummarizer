@@ -1,14 +1,16 @@
 """
 Semantic Retriever for CasePrepd.
 
-Retrieves relevant document context for user questions using hybrid search
-combining BM25+ (lexical) and FAISS (semantic) algorithms.
+Retrieves the single best document chunk for user questions using hybrid
+search combining BM25+ (lexical) and FAISS (semantic) algorithms, then
+cross-encoder reranking to pick the top-1 result.
 
-Architecture (Hybrid Retrieval):
+Architecture:
 - Loads documents from FAISS index on disk (backward compatible)
 - Builds BM25+ index on-the-fly for lexical search
-- Combines results from both algorithms using weighted merging
-- Returns formatted context string with source attribution
+- Retrieves k candidates via hybrid search (k scales with corpus size)
+- Cross-encoder reranks candidates and returns the single best chunk
+- Returns raw chunk text + source metadata for citation extraction
 
 Integration:
 - Used by SemanticWorker in background thread
@@ -26,21 +28,10 @@ from src.config import (
     RETRIEVAL_ENABLE_BM25,
     RETRIEVAL_ENABLE_FAISS,
     RETRIEVAL_MIN_SCORE,
-    SEMANTIC_CONTEXT_WINDOW,
     SEMANTIC_RETRIEVAL_K,
 )
 
 logger = logging.getLogger(__name__)
-
-
-def _get_effective_semantic_context_window() -> int:
-    """
-    Get semantic search context window (fixed token budget for retrieval).
-
-    Returns:
-        Context window size in tokens
-    """
-    return SEMANTIC_CONTEXT_WINDOW
 
 
 def _get_effective_algorithm_weights() -> dict[str, float]:
@@ -303,207 +294,130 @@ class SemanticRetriever:
         self, question: str, k: int | None = None, min_score: float | None = None
     ) -> RetrievalResult:
         """
-        Retrieve top-k relevant chunks for a question.
+        Retrieve the single best chunk for a question.
 
-        Uses query transformation (if available) to expand vague queries,
-        then hybrid search (BM25+ + FAISS) to find the most relevant chunks.
-        Filters by minimum relevance score if specified.
+        Uses hybrid search (BM25+ + FAISS) to find candidates, then
+        cross-encoder reranking to select the top-1 result. Returns
+        raw chunk text (no source prefix) for citation extraction.
 
         Args:
             question: The user's question
-            k: Number of chunks to retrieve. None = all chunks (from config or explicit)
+            k: Candidate pool size for hybrid retrieval (default: from config)
             min_score: Minimum relevance score (0-1) to include (default: from config)
 
         Returns:
-            RetrievalResult with formatted context and source information
+            RetrievalResult with 0 or 1 sources and raw chunk text as context
         """
         import time
 
         start_time = time.perf_counter()
-
-        # Use config default if not specified
-        if k is None:
-            k = SEMANTIC_RETRIEVAL_K
-
-        # If k is still None (config says use all), use total chunk count
-        if k is None:
-            k = self.get_chunk_count()
-            logger.debug("Using all %d chunks for retrieval", k)
-        else:
-            # Adaptive k: scale with corpus size so small documents don't
-            # over-retrieve.  Config value acts as ceiling, not fixed target.
-            chunk_count = self.get_chunk_count()
-            adaptive_k = min(k, max(5, chunk_count // 3))
-            if adaptive_k != k:
-                logger.debug("Adaptive k: %d -> %d (corpus=%d chunks)", k, adaptive_k, chunk_count)
-            k = adaptive_k
-
         min_score = min_score if min_score is not None else RETRIEVAL_MIN_SCORE
 
-        logger.debug("Query: '%s...' (k=%d, min_score=%s)", question[:50], k, min_score)
+        # Determine candidate pool size (k controls how many the reranker sees)
+        candidate_k = self._get_candidate_k(k)
+        logger.debug(
+            "Query: '%s...' (candidates=%d, min_score=%s)", question[:50], candidate_k, min_score
+        )
 
-        # Retrieve chunks using hybrid retrieval
+        # Retrieve and deduplicate candidates
+        sorted_chunks = self._retrieve_candidates(question, candidate_k)
+
+        # Rerank to find the single best chunk
+        if self._reranker and sorted_chunks:
+            sorted_chunks = self._reranker.rerank(query=question, chunks=sorted_chunks, top_k=1)
+
+        # Take the top-1 chunk if it passes the quality floor
+        best = self._select_best_chunk(sorted_chunks, min_score)
+
+        elapsed_ms = (time.perf_counter() - start_time) * 1000
+        if best:
+            logger.debug(
+                "Best chunk: %s #%d (score=%.3f) in %.1fms",
+                best.filename,
+                best.chunk_num,
+                best.combined_score,
+                elapsed_ms,
+            )
+        else:
+            self._log_empty_result(sorted_chunks, min_score)
+
+        return self._build_result(best, elapsed_ms)
+
+    def _get_candidate_k(self, k: int | None) -> int:
+        """
+        Determine candidate pool size for hybrid retrieval.
+
+        Adaptive: scales with corpus size. Config value is ceiling, not target.
+        None means use all chunks.
+        """
+        if k is None:
+            k = SEMANTIC_RETRIEVAL_K
+        if k is None:
+            return self.get_chunk_count()
+        chunk_count = self.get_chunk_count()
+        adaptive_k = min(k, max(5, chunk_count // 3))
+        if adaptive_k != k:
+            logger.debug("Adaptive k: %d -> %d (corpus=%d)", k, adaptive_k, chunk_count)
+        return adaptive_k
+
+    def _retrieve_candidates(self, question: str, k: int) -> list:
+        """
+        Run hybrid retrieval and deduplicate by chunk identity.
+
+        Returns:
+            List of MergedChunk objects sorted by score descending
+        """
         merged_result = self._hybrid_retriever.retrieve(question, k=k)
-
-        logger.debug("Received %d merged chunks from hybrid retriever", len(merged_result.chunks))
-
-        all_chunks = {}  # chunk_id -> best chunk result (avoid duplicates)
-
+        all_chunks = {}
         for chunk in merged_result.chunks:
             chunk_key = f"{chunk.filename}_{chunk.chunk_num}"
-
-            # Keep the best score for each chunk
             if (
                 chunk_key not in all_chunks
                 or chunk.combined_score > all_chunks[chunk_key].combined_score
             ):
                 all_chunks[chunk_key] = chunk
+        return sorted(all_chunks.values(), key=lambda c: c.combined_score, reverse=True)[:k]
 
-        # Sort all chunks by score descending and take top k
-        sorted_chunks = sorted(all_chunks.values(), key=lambda c: c.combined_score, reverse=True)[
-            :k
-        ]
+    def _select_best_chunk(self, sorted_chunks: list, min_score: float):
+        """Return the top chunk if it passes min_score, else None."""
+        if not sorted_chunks:
+            return None
+        best = sorted_chunks[0]
+        if best.combined_score < min_score:
+            return None
+        return best
 
-        # Rerank with cross-encoder if enabled (improves precision)
-        if self._reranker and sorted_chunks:
-            from src.config import RERANKER_TOP_K
-
-            sorted_chunks = self._reranker.rerank(
-                query=question,
-                chunks=sorted_chunks,
-                top_k=RERANKER_TOP_K,
-            )
-            logger.debug("Reranked to top %d chunks", len(sorted_chunks))
-
-        # Filter by minimum score and build results
-        # Track token count to stay within context window (approx 1 word = 1.3 tokens)
-        context_parts = []
-        sources = []
-        estimated_tokens = 0
-        # Semantic context scales with LLM context based on GPU VRAM
-        semantic_context_window = _get_effective_semantic_context_window()
-        # Reserve tokens for: system prompt (~200 tokens), question (~30 tokens),
-        # formatting (~70 tokens), and LLM output (semantic_max_tokens from config).
-        # Previous formula (80% for context) overflowed on small context windows,
-        # causing prompt template overflow on small context windows.
-        from src.config_defaults import get_default
-        from src.core.semantic.semantic_constants import (
-            COMPACT_PROMPT_THRESHOLD,
-            COMPACT_SEMANTIC_PROMPT,
-            FULL_SEMANTIC_PROMPT,
-        )
-        from src.core.semantic.token_budget import count_tokens as _count_tokens
-
-        semantic_max_output_tokens = get_default("semantic_max_tokens")
-        template = (
-            COMPACT_SEMANTIC_PROMPT
-            if semantic_context_window <= COMPACT_PROMPT_THRESHOLD
-            else FULL_SEMANTIC_PROMPT
-        )
-        prompt_overhead_tokens = (
-            _count_tokens(template.replace("{context}", "").replace("{question}", "")) + 30
-        )  # ~30 tokens for a typical question
-        max_context_tokens = max(
-            200,  # minimum to avoid empty context
-            semantic_context_window - semantic_max_output_tokens - prompt_overhead_tokens,
-        )
-        logger.debug(
-            "Context window: %s, output reserve: %s, overhead: %s, max context tokens: %s",
-            semantic_context_window,
-            semantic_max_output_tokens,
-            prompt_overhead_tokens,
-            max_context_tokens,
-        )
-        chunks_included = 0
-        chunks_skipped_score = 0
-        chunks_skipped_limit = 0
-
-        for chunk in sorted_chunks:
-            # Skip low-relevance chunks
-            if chunk.combined_score < min_score:
-                chunks_skipped_score += 1
-                continue
-
-            # Format source citation for context
-            source_cite = f"[{chunk.filename}"
-            if chunk.section_name and chunk.section_name != "N/A":
-                source_cite += f", {chunk.section_name}"
-            source_cite += "]:"
-
-            chunk_text = f"{source_cite}\n{chunk.text}"
-            word_count = len(chunk.text.split())
-            chunk_tokens = _count_tokens(chunk_text)
-
-            # Check if adding this chunk would exceed context window
-            if estimated_tokens + chunk_tokens > max_context_tokens:
-                chunks_skipped_limit += 1
-                if chunks_skipped_limit == 1:
-                    logger.debug("Context window limit reached (%d tokens)", estimated_tokens)
-                continue
-
-            context_parts.append(chunk_text)
-            estimated_tokens += chunk_tokens
-            chunks_included += 1
-
-            sources.append(
-                SourceInfo(
-                    filename=chunk.filename,
-                    chunk_num=chunk.chunk_num,
-                    section=chunk.section_name,
-                    relevance_score=chunk.combined_score,
-                    word_count=word_count,
-                    sources=chunk.sources,  # Track which algorithms found this
+    def _log_empty_result(self, sorted_chunks: list, min_score: float) -> None:
+        """Log diagnostic info when no chunk passed quality filters."""
+        logger.warning("No chunk passed filters (min_score=%s)", min_score)
+        if sorted_chunks:
+            for i, chunk in enumerate(sorted_chunks[:3]):
+                logger.debug(
+                    "  [%d] %.4f | %s | %s",
+                    i + 1,
+                    chunk.combined_score,
+                    chunk.sources,
+                    chunk.filename,
                 )
+
+    def _build_result(self, best_chunk, elapsed_ms: float) -> RetrievalResult:
+        """Build RetrievalResult from the single best chunk (or empty)."""
+        if best_chunk is None:
+            return RetrievalResult(
+                context="", sources=[], chunks_retrieved=0, retrieval_time_ms=elapsed_ms
             )
-
-        # Combine context parts with separator
-        context = "\n\n---\n\n".join(context_parts) if context_parts else ""
-
-        # Always log retrieval summary when no results (helps diagnose issues)
-        if chunks_included == 0:
-            logger.warning(
-                "No chunks passed filters! sorted_chunks=%d, skipped_score=%d, skipped_limit=%d, min_score=%s",
-                len(sorted_chunks),
-                chunks_skipped_score,
-                chunks_skipped_limit,
-                min_score,
-            )
-            # Log actual scores to diagnose why chunks are failing
-            if sorted_chunks:
-                logger.debug("Top chunk scores (combined_score | sources):")
-                for i, chunk in enumerate(sorted_chunks[:5]):
-                    logger.debug(
-                        "  [%d] %.6f | %s | %s",
-                        i + 1,
-                        chunk.combined_score,
-                        chunk.sources,
-                        chunk.filename,
-                    )
-        elif chunks_skipped_score > 0 or chunks_skipped_limit > 0:
-            logger.debug(
-                "Chunks: %d included, %d below min_score, %d exceeded context limit",
-                chunks_included,
-                chunks_skipped_score,
-                chunks_skipped_limit,
-            )
-
-        elapsed_ms = (time.perf_counter() - start_time) * 1000
-
-        logger.debug("Retrieved %d chunks in %.1fms", len(sources), elapsed_ms)
-        for src in sources:
-            algo_info = " via %s" % src.sources if src.sources else ""
-            logger.debug(
-                "  - %s (chunk %d, score %.3f%s)",
-                src.filename,
-                src.chunk_num,
-                src.relevance_score,
-                algo_info,
-            )
-
+        source = SourceInfo(
+            filename=best_chunk.filename,
+            chunk_num=best_chunk.chunk_num,
+            section=best_chunk.section_name,
+            relevance_score=best_chunk.combined_score,
+            word_count=len(best_chunk.text.split()),
+            sources=best_chunk.sources,
+        )
         return RetrievalResult(
-            context=context,
-            sources=sources,
-            chunks_retrieved=len(sources),
+            context=best_chunk.text,
+            sources=[source],
+            chunks_retrieved=1,
             retrieval_time_ms=elapsed_ms,
         )
 

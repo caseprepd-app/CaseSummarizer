@@ -91,31 +91,6 @@ class TestRetrievalResult:
         assert result.retrieval_time_ms == 42.5
 
 
-class TestContextWindowHelper:
-    """Tests for _get_effective_semantic_context_window."""
-
-    def test_falls_back_to_config_when_prefs_unavailable(self):
-        """Returns SEMANTIC_CONTEXT_WINDOW when user preferences cannot be loaded."""
-        from src.config import SEMANTIC_CONTEXT_WINDOW
-        from src.core.vector_store.semantic_retriever import _get_effective_semantic_context_window
-
-        with patch(
-            "src.user_preferences.get_user_preferences",
-            side_effect=Exception("prefs unavailable"),
-        ):
-            result = _get_effective_semantic_context_window()
-
-        assert result == SEMANTIC_CONTEXT_WINDOW
-
-    def test_returns_fixed_constant(self):
-        """Always returns SEMANTIC_CONTEXT_WINDOW (no dynamic GPU sizing)."""
-        from src.config import SEMANTIC_CONTEXT_WINDOW
-        from src.core.vector_store.semantic_retriever import _get_effective_semantic_context_window
-
-        result = _get_effective_semantic_context_window()
-        assert result == SEMANTIC_CONTEXT_WINDOW
-
-
 class TestAlgorithmWeightsHelper:
     """Tests for _get_effective_algorithm_weights."""
 
@@ -431,3 +406,108 @@ class TestAdaptiveK:
         call_args = retriever._hybrid_retriever.retrieve.call_args
         actual_k = call_args[1].get("k", call_args[0][1] if len(call_args[0]) > 1 else None)
         assert actual_k == 30
+
+
+class TestSingleChunkRetrieval:
+    """Tests for single-chunk retrieval behavior."""
+
+    def _make_retriever(self, chunk_count=20):
+        """Create a SemanticRetriever with mocked hybrid retriever."""
+        from src.core.vector_store.semantic_retriever import SemanticRetriever
+
+        retriever = object.__new__(SemanticRetriever)
+        retriever._hybrid_retriever = MagicMock()
+        retriever._hybrid_retriever.get_chunk_count.return_value = chunk_count
+        retriever._reranker = None
+        retriever.embeddings = MagicMock()
+        return retriever
+
+    def _make_merged_chunk(self, text="Relevant text.", score=0.8, filename="doc.pdf", num=0):
+        """Create a MergedChunk for testing."""
+        from src.core.retrieval.chunk_merger import MergedChunk
+
+        return MergedChunk(
+            chunk_id=f"{filename}_{num}",
+            text=text,
+            combined_score=score,
+            sources=["FAISS"],
+            filename=filename,
+            chunk_num=num,
+            section_name="Body",
+            metadata={},
+        )
+
+    @patch("src.core.vector_store.semantic_retriever.SEMANTIC_RETRIEVAL_K", 20)
+    @patch("src.core.vector_store.semantic_retriever.RETRIEVAL_MIN_SCORE", 0.0)
+    def test_returns_at_most_one_source(self):
+        """retrieve_context should return 0 or 1 sources (single-chunk)."""
+        from src.core.retrieval.chunk_merger import MergedRetrievalResult
+
+        retriever = self._make_retriever()
+        retriever._hybrid_retriever.retrieve.return_value = MergedRetrievalResult(
+            chunks=[self._make_merged_chunk()],
+            total_algorithms=1,
+            processing_time_ms=0,
+            query="Q?",
+        )
+
+        result = retriever.retrieve_context("Who filed?")
+        assert result.chunks_retrieved <= 1
+        assert len(result.sources) <= 1
+
+    @patch("src.core.vector_store.semantic_retriever.SEMANTIC_RETRIEVAL_K", 20)
+    @patch("src.core.vector_store.semantic_retriever.RETRIEVAL_MIN_SCORE", 0.0)
+    def test_context_is_raw_chunk_text(self):
+        """Context should be raw chunk text without separators or source prefix."""
+        from src.core.retrieval.chunk_merger import MergedRetrievalResult
+
+        retriever = self._make_retriever()
+        retriever._hybrid_retriever.retrieve.return_value = MergedRetrievalResult(
+            chunks=[self._make_merged_chunk(text="The plaintiff filed suit.")],
+            total_algorithms=1,
+            processing_time_ms=0,
+            query="Q?",
+        )
+
+        result = retriever.retrieve_context("Who filed?")
+        assert result.context == "The plaintiff filed suit."
+        assert "---" not in result.context
+        assert "[" not in result.context  # No source prefix
+
+    @patch("src.core.vector_store.semantic_retriever.SEMANTIC_RETRIEVAL_K", 20)
+    @patch("src.core.vector_store.semantic_retriever.RETRIEVAL_MIN_SCORE", 0.5)
+    def test_below_min_score_returns_empty(self):
+        """Chunk below min_score should produce empty result."""
+        from src.core.retrieval.chunk_merger import MergedRetrievalResult
+
+        retriever = self._make_retriever()
+        retriever._hybrid_retriever.retrieve.return_value = MergedRetrievalResult(
+            chunks=[self._make_merged_chunk(score=0.3)],
+            total_algorithms=1,
+            processing_time_ms=0,
+            query="Q?",
+        )
+
+        result = retriever.retrieve_context("Who filed?")
+        assert result.chunks_retrieved == 0
+        assert result.context == ""
+
+    @patch("src.core.vector_store.semantic_retriever.SEMANTIC_RETRIEVAL_K", 20)
+    @patch("src.core.vector_store.semantic_retriever.RETRIEVAL_MIN_SCORE", 0.0)
+    def test_reranker_called_with_top_k_one(self):
+        """Reranker should be called with top_k=1."""
+        from src.core.retrieval.chunk_merger import MergedRetrievalResult
+
+        retriever = self._make_retriever()
+        retriever._reranker = MagicMock()
+        retriever._reranker.rerank.return_value = [self._make_merged_chunk()]
+        retriever._hybrid_retriever.retrieve.return_value = MergedRetrievalResult(
+            chunks=[self._make_merged_chunk()],
+            total_algorithms=1,
+            processing_time_ms=0,
+            query="Q?",
+        )
+
+        retriever.retrieve_context("Who filed?")
+        call_kwargs = retriever._reranker.rerank.call_args[1]
+        assert call_kwargs["top_k"] == 1

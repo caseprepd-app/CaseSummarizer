@@ -1,22 +1,20 @@
 """
 Focused citation excerpt extraction using embedding similarity.
 
-Selects the best ~250-char window from the top retrieval chunk using
+Selects the best ~250-char window from the retrieved chunk using
 the same embedding model that FAISS used for retrieval. This is
 semantically consistent: FAISS found the chunk by embedding similarity
 to the question, and we use the same method to find the best sub-chunk.
 
 Algorithm:
-1. Split context by separator -> take the top chunk (highest relevance)
-2. Strip the [filename]: prefix (redundant with Source: line)
-3. Create overlapping ~250-char windows with 50% overlap, snapped to words
-4. Embed question + all windows using the same embedding model
-5. Pick window with highest cosine similarity to question
-6. Snap to sentence boundaries where possible
-7. Add ... markers if excerpt doesn't start/end at chunk boundaries
+1. Create overlapping ~250-char windows with 50% overlap, snapped to words
+2. Embed question + all windows using the same embedding model
+3. Pick window with highest cosine similarity to question
+4. Snap to sentence boundaries where possible
+5. Add ... markers if excerpt doesn't start/end at chunk boundaries
 
 Inputs:
-    context: str - concatenated chunks separated by "\\n\\n---\\n\\n"
+    context: str - raw chunk text from single-chunk retrieval
     question: str - the question that was asked
     embeddings: HuggingFaceEmbeddings - same model used for FAISS
     max_chars: int - target excerpt length (~250)
@@ -26,13 +24,10 @@ Outputs:
 """
 
 import logging
-import re
 
 import numpy as np
 
 logger = logging.getLogger(__name__)
-
-SEPARATOR = "\n\n---\n\n"
 
 
 def extract_citation_excerpt(
@@ -45,7 +40,7 @@ def extract_citation_excerpt(
     Extract a focused ~max_chars excerpt from context using embedding similarity.
 
     Args:
-        context: Raw citation text with chunks joined by SEPARATOR.
+        context: Raw chunk text (single chunk, no separators or source prefix).
         question: The question that was asked.
         embeddings: HuggingFaceEmbeddings model (same as FAISS).
         max_chars: Target excerpt length in characters.
@@ -56,12 +51,7 @@ def extract_citation_excerpt(
     if not context or not context.strip():
         return ""
 
-    chunk = _get_top_chunk(context)
-    chunk = _strip_source_prefix(chunk)
-    chunk = chunk.strip()
-
-    if not chunk:
-        return ""
+    chunk = context.strip()
 
     # Short chunk: return as-is
     if len(chunk) <= max_chars:
@@ -80,38 +70,6 @@ def extract_citation_excerpt(
     return _format_excerpt(chunk, start, end)
 
 
-def _get_top_chunk(context: str) -> str:
-    """
-    Extract the first (highest-relevance) chunk from separated context.
-
-    Args:
-        context: Chunks joined by SEPARATOR.
-
-    Returns:
-        First chunk text.
-    """
-    chunks = context.split(SEPARATOR)
-    return chunks[0] if chunks else ""
-
-
-def _strip_source_prefix(chunk: str) -> str:
-    """
-    Remove [filename, section]: prefix from chunk text.
-
-    These prefixes are redundant with the Source: line shown in the UI.
-    Matches patterns like: [complaint.pdf, page 3]:
-
-    Args:
-        chunk: Raw chunk text possibly starting with source prefix.
-
-    Returns:
-        Chunk text with prefix removed.
-    """
-    # Match [anything]: at the start, possibly with leading whitespace
-    stripped = re.sub(r"^\s*\[[^\]]+\]\s*:\s*", "", chunk)
-    return stripped
-
-
 def _build_windows(text: str, window_size: int) -> list[tuple[int, str]]:
     """
     Create overlapping windows snapped to word boundaries.
@@ -123,7 +81,7 @@ def _build_windows(text: str, window_size: int) -> list[tuple[int, str]]:
         window_size: Target window size in characters.
 
     Returns:
-        List of (start_position, window_text) tuples.
+        List of (start_position, end_position, window_text) tuples.
     """
     stride = max(window_size // 2, 1)
     windows = []
@@ -199,18 +157,8 @@ def _format_excerpt(full_text: str, start: int, end: int) -> str:
     """
     Format excerpt with sentence snapping and ellipsis markers.
 
-    Tries to snap to sentence boundaries (. ! ?) when nearby.
     Adds ... at start/end if the excerpt doesn't cover chunk boundaries.
-
-    Args:
-        full_text: The complete chunk text.
-        start: Start position of the selected window.
-        end: End position of the selected window.
-
-    Returns:
-        Formatted excerpt with ellipsis markers as needed.
     """
-    # Use NUPunkt sentence spans to snap to nearest boundaries
     from src.core.utils.sentence_splitter import split_sentence_spans
 
     spans = split_sentence_spans(full_text)
@@ -219,14 +167,11 @@ def _format_excerpt(full_text: str, start: int, end: int) -> str:
     snapped_end = end
 
     if spans:
-        # Snap start: find the last sentence boundary at or before start
         for _sent, (s, _e) in spans:
             if s <= start:
                 snapped_start = s
             else:
                 break
-
-        # Snap end: find the first sentence that ends at or after end
         for _sent, (_s, e) in spans:
             if e >= end:
                 snapped_end = e
@@ -234,7 +179,6 @@ def _format_excerpt(full_text: str, start: int, end: int) -> str:
 
     excerpt = full_text[snapped_start:snapped_end].strip()
 
-    # Add ellipsis markers
     if snapped_start > 0:
         excerpt = "..." + excerpt
     if snapped_end < len(full_text):
@@ -248,13 +192,6 @@ def _truncate_to_sentence(text: str, max_chars: int) -> str:
     Fallback: truncate text to max_chars at a sentence boundary.
 
     Used when embeddings are unavailable.
-
-    Args:
-        text: Text to truncate.
-        max_chars: Maximum character count.
-
-    Returns:
-        Truncated text ending at a sentence boundary if possible.
     """
     if len(text) <= max_chars:
         return text
@@ -264,7 +201,6 @@ def _truncate_to_sentence(text: str, max_chars: int) -> str:
         len(text),
         max_chars,
     )
-    # Use NUPunkt sentence splitter to find clean boundary
     from src.core.utils.sentence_splitter import split_sentences
 
     sentences = split_sentences(text)

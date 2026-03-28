@@ -31,21 +31,6 @@ class TestCitationExcerpt:
         result = extract_citation_excerpt(context, "Who?", None, max_chars=250)
         assert result == context
 
-    def test_strips_source_prefix(self):
-        """Removes [filename]: prefix from chunk."""
-        from src.core.semantic.citation_excerpt import _strip_source_prefix
-
-        assert _strip_source_prefix("[complaint.pdf]: The plaintiff") == "The plaintiff"
-        assert _strip_source_prefix("[doc.pdf, page 3]: Text") == "Text"
-        assert _strip_source_prefix("No prefix here") == "No prefix here"
-
-    def test_get_top_chunk(self):
-        """Returns first chunk from separator-separated context."""
-        from src.core.semantic.citation_excerpt import SEPARATOR, _get_top_chunk
-
-        context = f"First chunk{SEPARATOR}Second chunk{SEPARATOR}Third chunk"
-        assert _get_top_chunk(context) == "First chunk"
-
     def test_build_windows(self):
         """Builds overlapping windows from text."""
         from src.core.semantic.citation_excerpt import _build_windows

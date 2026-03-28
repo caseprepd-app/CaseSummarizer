@@ -632,9 +632,9 @@ SEMANTIC_SIMILARITY_THRESHOLD = _d("semantic_similarity_threshold")
 
 # Semantic Search Context Window
 # Controls how much retrieved context is passed to the prompt template.
-# See semantic_retriever._get_effective_semantic_context_window() for dynamic logic.
-# This constant is a FALLBACK value used if user preferences are unavailable.
-SEMANTIC_CONTEXT_WINDOW = 4096  # Fallback tokens for retrieval context
+# Deprecated: token budget management removed with single-chunk retrieval (Mar 2026).
+# Kept for backward compatibility. See src/deprecated/multi_chunk_retrieval.py.
+SEMANTIC_CONTEXT_WINDOW = 4096
 
 # Chat History Settings
 SEMANTIC_CONVERSATION_CONTEXT_PAIRS = 3  # Include last N search pairs in follow-ups
@@ -772,7 +772,7 @@ if TESSERACT_BUNDLED_DIR.exists():
     os.environ["TESSDATA_PREFIX"] = str(TESSERACT_BUNDLED_DIR / "tessdata")
 
 RERANKER_MAX_LENGTH = 8192
-RERANKER_TOP_K = _d("reranker_top_k")
+RERANKER_TOP_K = _d("reranker_top_k")  # Deprecated: hardcoded to 1 in retrieve_context()
 
 
 # ============================================================================

@@ -466,23 +466,17 @@ class SemanticOrchestrator:
 
     def _calculate_relevance(self, retrieval_result: RetrievalResult) -> float:
         """
-        Calculate overall relevance score from retrieval results.
-
-        Uses average relevance score of retrieved chunks.
+        Get relevance score from the single best retrieved chunk.
 
         Args:
-            retrieval_result: Result from SemanticRetriever
+            retrieval_result: Result from SemanticRetriever (0 or 1 sources)
 
         Returns:
             Relevance score (0-1)
         """
         if not retrieval_result.sources:
             return 0.0
-
-        avg_score = sum(s.relevance_score for s in retrieval_result.sources) / len(
-            retrieval_result.sources
-        )
-        return round(avg_score, 2)
+        return round(retrieval_result.sources[0].relevance_score, 2)
 
     def get_exportable_results(self) -> list[SemanticResult]:
         """

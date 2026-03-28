@@ -190,25 +190,22 @@ class TestCalculateRelevance:
         result = RetrievalResult(context="", sources=[], chunks_retrieved=0, retrieval_time_ms=0)
         assert orch._calculate_relevance(result) == 0.0
 
-    def test_averages_source_scores(self):
-        """Should return average of source relevance scores."""
+    def test_returns_top_source_score(self):
+        """Should return the single source's relevance score directly."""
         from src.core.vector_store.semantic_retriever import RetrievalResult, SourceInfo
 
         orch = self._make_orchestrator()
         sources = [
             SourceInfo(
-                filename="a.pdf", chunk_num=0, section="N/A", relevance_score=0.8, word_count=50
-            ),
-            SourceInfo(
-                filename="b.pdf", chunk_num=1, section="N/A", relevance_score=0.6, word_count=50
+                filename="a.pdf", chunk_num=0, section="N/A", relevance_score=0.85, word_count=50
             ),
         ]
         result = RetrievalResult(
-            context="x", sources=sources, chunks_retrieved=2, retrieval_time_ms=0
+            context="x", sources=sources, chunks_retrieved=1, retrieval_time_ms=0
         )
 
         relevance = orch._calculate_relevance(result)
-        assert abs(relevance - 0.7) < 0.01
+        assert abs(relevance - 0.85) < 0.01
 
 
 class TestGenerateAnswerForResult:
