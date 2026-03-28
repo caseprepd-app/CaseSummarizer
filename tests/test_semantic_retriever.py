@@ -344,3 +344,90 @@ class TestGetAlgorithmStatus:
 
         assert "FAISS" in status
         assert "BM25+" in status
+
+
+class TestAdaptiveK:
+    """Tests for adaptive coarse retrieval k (Task 2A)."""
+
+    def _make_retriever(self, chunk_count):
+        """Create a SemanticRetriever with mocked hybrid retriever."""
+        from src.core.vector_store.semantic_retriever import SemanticRetriever
+
+        retriever = object.__new__(SemanticRetriever)
+        retriever._hybrid_retriever = MagicMock()
+        retriever._hybrid_retriever.get_chunk_count.return_value = chunk_count
+        retriever._reranker = None
+        retriever.embeddings = MagicMock()
+        return retriever
+
+    @patch("src.core.vector_store.semantic_retriever.SEMANTIC_RETRIEVAL_K", 20)
+    @patch("src.core.vector_store.semantic_retriever.RETRIEVAL_MIN_SCORE", 0.0)
+    def test_small_corpus_reduces_k(self):
+        """25-chunk document should retrieve ~8 candidates, not 20."""
+        retriever = self._make_retriever(25)
+        # Mock the hybrid retriever to return empty result
+        from src.core.retrieval.chunk_merger import MergedRetrievalResult
+
+        retriever._hybrid_retriever.retrieve.return_value = MergedRetrievalResult(
+            chunks=[], total_algorithms=1, processing_time_ms=0, query="Q?"
+        )
+
+        retriever.retrieve_context("Who filed?")
+
+        # Check what k was passed to hybrid retriever
+        call_args = retriever._hybrid_retriever.retrieve.call_args
+        actual_k = call_args[1].get("k", call_args[0][1] if len(call_args[0]) > 1 else None)
+        # 25 // 3 = 8, min(20, max(5, 8)) = 8
+        assert actual_k == 8
+
+    @patch("src.core.vector_store.semantic_retriever.SEMANTIC_RETRIEVAL_K", 20)
+    @patch("src.core.vector_store.semantic_retriever.RETRIEVAL_MIN_SCORE", 0.0)
+    def test_large_corpus_uses_full_k(self):
+        """500-chunk document should still get 20 (config ceiling)."""
+        retriever = self._make_retriever(500)
+        from src.core.retrieval.chunk_merger import MergedRetrievalResult
+
+        retriever._hybrid_retriever.retrieve.return_value = MergedRetrievalResult(
+            chunks=[], total_algorithms=1, processing_time_ms=0, query="Q?"
+        )
+
+        retriever.retrieve_context("Who filed?")
+
+        call_args = retriever._hybrid_retriever.retrieve.call_args
+        actual_k = call_args[1].get("k", call_args[0][1] if len(call_args[0]) > 1 else None)
+        # 500 // 3 = 166, min(20, max(5, 166)) = 20
+        assert actual_k == 20
+
+    @patch("src.core.vector_store.semantic_retriever.SEMANTIC_RETRIEVAL_K", 20)
+    @patch("src.core.vector_store.semantic_retriever.RETRIEVAL_MIN_SCORE", 0.0)
+    def test_tiny_corpus_floors_at_five(self):
+        """Very small corpus should floor k at 5."""
+        retriever = self._make_retriever(6)
+        from src.core.retrieval.chunk_merger import MergedRetrievalResult
+
+        retriever._hybrid_retriever.retrieve.return_value = MergedRetrievalResult(
+            chunks=[], total_algorithms=1, processing_time_ms=0, query="Q?"
+        )
+
+        retriever.retrieve_context("Who filed?")
+
+        call_args = retriever._hybrid_retriever.retrieve.call_args
+        actual_k = call_args[1].get("k", call_args[0][1] if len(call_args[0]) > 1 else None)
+        # 6 // 3 = 2, max(5, 2) = 5, min(20, 5) = 5
+        assert actual_k == 5
+
+    @patch("src.core.vector_store.semantic_retriever.SEMANTIC_RETRIEVAL_K", None)
+    def test_none_k_uses_all_chunks(self):
+        """When config k is None, should use all chunks (no adaptive logic)."""
+        retriever = self._make_retriever(30)
+        from src.core.retrieval.chunk_merger import MergedRetrievalResult
+
+        retriever._hybrid_retriever.retrieve.return_value = MergedRetrievalResult(
+            chunks=[], total_algorithms=1, processing_time_ms=0, query="Q?"
+        )
+
+        retriever.retrieve_context("Who filed?")
+
+        call_args = retriever._hybrid_retriever.retrieve.call_args
+        actual_k = call_args[1].get("k", call_args[0][1] if len(call_args[0]) > 1 else None)
+        assert actual_k == 30

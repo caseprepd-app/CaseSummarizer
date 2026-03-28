@@ -329,6 +329,14 @@ class SemanticRetriever:
         if k is None:
             k = self.get_chunk_count()
             logger.debug("Using all %d chunks for retrieval", k)
+        else:
+            # Adaptive k: scale with corpus size so small documents don't
+            # over-retrieve.  Config value acts as ceiling, not fixed target.
+            chunk_count = self.get_chunk_count()
+            adaptive_k = min(k, max(5, chunk_count // 3))
+            if adaptive_k != k:
+                logger.debug("Adaptive k: %d -> %d (corpus=%d chunks)", k, adaptive_k, chunk_count)
+            k = adaptive_k
 
         min_score = min_score if min_score is not None else RETRIEVAL_MIN_SCORE
 

@@ -135,11 +135,20 @@ class CrossEncoderReranker:
         scored_chunks = list(zip(normalized_scores, raw_scores, chunks))
         scored_chunks.sort(key=lambda x: x[0], reverse=True)
 
-        # Take top_k, filtering out chunks below minimum relevance
+        # Dynamic mean-cutoff: keep chunks above the mean score, capped at top_k.
+        # This replaces fixed top_k selection — an easy question with 4 great
+        # chunks returns 4 (not 5), a hard question may return 1 or 0.
+        mean_score = float(np.mean(normalized_scores))
+        logger.debug("Mean normalized score: %.3f (top_k cap=%d)", mean_score, top_k)
+
         reranked = []
         filtered_count = 0
-        for i, (norm_score, raw_score, chunk) in enumerate(scored_chunks[:top_k]):
-            # Filter out genuinely irrelevant chunks
+        for i, (norm_score, raw_score, chunk) in enumerate(scored_chunks):
+            # Hard cap at top_k
+            if len(reranked) >= top_k:
+                break
+
+            # Floor: always filter genuinely irrelevant chunks
             if float(norm_score) < self.MIN_RELEVANCE_SCORE:
                 filtered_count += 1
                 logger.debug(
@@ -149,6 +158,19 @@ class CrossEncoderReranker:
                     chunk.chunk_num,
                     norm_score,
                     self.MIN_RELEVANCE_SCORE,
+                )
+                continue
+
+            # Mean cutoff: skip below-average chunks
+            if float(norm_score) < mean_score:
+                filtered_count += 1
+                logger.debug(
+                    "BELOW-MEAN #%d: %s chunk %d - rerank=%.3f < mean %.3f",
+                    i + 1,
+                    chunk.filename,
+                    chunk.chunk_num,
+                    norm_score,
+                    mean_score,
                 )
                 continue
 
@@ -178,9 +200,10 @@ class CrossEncoderReranker:
 
         if filtered_count > 0:
             logger.debug(
-                "Filtered %d chunks below relevance threshold %s",
+                "Filtered %d chunks (threshold=%s, mean=%.3f)",
                 filtered_count,
                 self.MIN_RELEVANCE_SCORE,
+                mean_score,
             )
 
         logger.debug("Returned %d of %d chunks", len(reranked), len(chunks))

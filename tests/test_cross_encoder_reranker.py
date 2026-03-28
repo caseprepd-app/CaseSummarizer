@@ -227,7 +227,8 @@ class TestRerankerMetadata:
 
     def test_rerank_position_stored(self):
         """chunk.metadata['rerank_position'] records the 1-based rank after reranking."""
-        reranker = self._reranker_with_scores([3.0, 1.0])
+        # Use equal scores so both are at the mean (not filtered by mean cutoff)
+        reranker = self._reranker_with_scores([3.0, 3.0])
         chunks = [
             _make_chunk("Best.", chunk_num=0, score=0.9),
             _make_chunk("Second.", chunk_num=1, score=0.7),
@@ -301,3 +302,93 @@ class TestRerankerIsAvailable:
         reranker._model = MagicMock()  # Simulate already-loaded model
 
         assert reranker.is_available() is True
+
+
+class TestMeanCutoffReranking:
+    """Tests for dynamic mean-cutoff reranking behavior (Task 2B)."""
+
+    def _reranker_with_scores(self, scores):
+        """Return a reranker whose mock model returns the given scores."""
+        from src.core.retrieval.cross_encoder_reranker import CrossEncoderReranker
+
+        reranker = CrossEncoderReranker()
+        reranker._model = MagicMock()
+        reranker._model.predict.return_value = np.array(scores)
+        return reranker
+
+    def test_single_chunk_always_returned(self):
+        """A single chunk above MIN_RELEVANCE_SCORE should always be returned."""
+        reranker = self._reranker_with_scores([2.0])
+        chunks = [_make_chunk("Only chunk.", chunk_num=0)]
+
+        result = reranker.rerank("Q?", chunks=chunks, top_k=5)
+
+        # sigmoid(2.0)≈0.88, mean=0.88, chunk is at mean → included
+        assert len(result) == 1
+
+    def test_all_above_mean_returns_all(self):
+        """When all chunks have equal scores, all are at the mean and returned."""
+        reranker = self._reranker_with_scores([2.0, 2.0, 2.0])
+        chunks = [_make_chunk(f"Chunk {i}.", chunk_num=i) for i in range(3)]
+
+        result = reranker.rerank("Q?", chunks=chunks, top_k=5)
+
+        assert len(result) == 3
+
+    def test_below_mean_chunks_filtered(self):
+        """Chunks below the mean sigmoid score should be filtered out."""
+        # sigmoid(5)≈0.993, sigmoid(-0.5)≈0.378, mean≈0.686
+        # Only chunk 0 (0.993) is above mean
+        reranker = self._reranker_with_scores([5.0, -0.5])
+        chunks = [
+            _make_chunk("Great chunk.", chunk_num=0),
+            _make_chunk("Mediocre chunk.", chunk_num=1),
+        ]
+
+        result = reranker.rerank("Q?", chunks=chunks, top_k=5)
+
+        assert len(result) == 1
+        assert result[0].chunk_num == 0
+
+    def test_all_below_min_relevance_returns_empty(self):
+        """When all chunks are below MIN_RELEVANCE_SCORE, return empty."""
+        reranker = self._reranker_with_scores([-5.0, -6.0, -7.0])
+        chunks = [_make_chunk(f"Chunk {i}.", chunk_num=i) for i in range(3)]
+
+        result = reranker.rerank("Q?", chunks=chunks, top_k=5)
+
+        assert result == []
+
+    def test_mean_cutoff_respects_top_k_cap(self):
+        """Mean cutoff should still respect the top_k cap."""
+        # All equal high scores: all pass mean cutoff
+        reranker = self._reranker_with_scores([3.0, 3.0, 3.0, 3.0])
+        chunks = [_make_chunk(f"Chunk {i}.", chunk_num=i) for i in range(4)]
+
+        result = reranker.rerank("Q?", chunks=chunks, top_k=2)
+
+        assert len(result) <= 2
+
+    def test_empty_input_returns_empty(self):
+        """Empty chunks input should return empty list."""
+        from src.core.retrieval.cross_encoder_reranker import CrossEncoderReranker
+
+        reranker = CrossEncoderReranker()
+        result = reranker.rerank("Q?", chunks=[], top_k=5)
+
+        assert result == []
+
+    def test_mixed_scores_returns_above_mean_only(self):
+        """With mixed scores, only above-mean chunks that pass floor are returned."""
+        # sigmoid(4)≈0.982, sigmoid(3)≈0.953, sigmoid(0)=0.5, sigmoid(-2)≈0.119
+        # mean ≈ (0.982+0.953+0.5+0.119)/4 ≈ 0.639
+        # Above mean: chunks 0,1 (0.982,0.953). Chunk 2 (0.5) below mean.
+        # Chunk 3 (0.119) below MIN_RELEVANCE_SCORE
+        reranker = self._reranker_with_scores([4.0, 3.0, 0.0, -2.0])
+        chunks = [_make_chunk(f"Chunk {i}.", chunk_num=i) for i in range(4)]
+
+        result = reranker.rerank("Q?", chunks=chunks, top_k=5)
+
+        assert len(result) == 2
+        assert result[0].chunk_num == 0
+        assert result[1].chunk_num == 1
