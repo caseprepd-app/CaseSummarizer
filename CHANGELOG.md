@@ -7,6 +7,24 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.0.29] - 2026-03-28
+
+### Changed
+- Single-chunk retrieval: semantic search now returns only the top-1 reranked chunk instead of assembling multiple chunks — eliminates wasted computation and relevance score dilution
+- Adaptive retrieval k: candidate pool scales with corpus size (small documents retrieve fewer candidates); config value is ceiling, not fixed target
+- Dynamic mean-cutoff reranking: cross-encoder reranker keeps only chunks above the mean score (capped at top_k) instead of always returning a fixed count
+
+### Fixed
+- Score explainer crash when feature count changed (mock feature vector size mismatch)
+- Export All stub key mismatch ("Summary" → "Key Excerpts") causing empty summary in Word/PDF exports
+- Build readiness test missing gibberish_detector hidden imports
+- Feature vector size assertions updated from 53 to 55
+
+### Infrastructure
+- 10 new test files covering export modules, header/footer remover, export service, semantic orchestrator, hybrid retriever (~170 new tests)
+- Deprecated multi-chunk context assembly code moved to src/deprecated/
+- Chunk-level progress during semantic indexing
+
 ## [1.0.28] - 2026-03-27
 
 ### Added
