@@ -254,7 +254,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
         # Note: CTkOptionMenu doesn't support hover_color, so only use fg_color
         self.export_dropdown = ctk.CTkOptionMenu(
             self.button_frame,
-            values=["Export...", "TXT", "PDF", "HTML"],
+            values=["Export...", "TXT", "Word (.docx)", "PDF", "HTML"],
             command=self._on_export_format_selected,
             width=120,
             fg_color=BUTTON_STYLES["primary"]["fg_color"],
@@ -2627,7 +2627,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
             messagebox.showwarning("No Data", "No data to export.\n\nProcess documents first.")
             return
 
-        ext_map = {"txt": ".txt", "pdf": ".pdf", "html": ".html"}
+        ext_map = {"txt": ".txt", "word": ".docx", "pdf": ".pdf", "html": ".html"}
         prefs = get_user_preferences()
         export_path = (
             prefs.get("last_export_path") or DocumentService().get_default_documents_folder()
@@ -2653,6 +2653,15 @@ class DynamicOutputWidget(ctk.CTkFrame):
             visible_columns = self._get_visible_columns()
             return export_service.export_combined_html(
                 vocab_data, semantic_results, summary_text, filepath, visible_columns
+            )
+        elif format_key == "word":
+            include_details = self._should_include_vocab_details()
+            return export_service.export_combined_to_word(
+                vocab_data,
+                semantic_results,
+                filepath,
+                include_vocab_details=include_details,
+                summary_text=summary_text,
             )
         elif format_key == "pdf":
             include_details = self._should_include_vocab_details()
@@ -2713,7 +2722,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
         if choice == "Export...":
             return  # Placeholder, do nothing
 
-        format_map = {"TXT": "txt", "PDF": "pdf", "HTML": "html"}
+        format_map = {"TXT": "txt", "Word (.docx)": "word", "PDF": "pdf", "HTML": "html"}
         if choice in format_map:
             self._export_all(format_map[choice])
 
