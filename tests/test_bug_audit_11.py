@@ -44,6 +44,7 @@ def _make_main_window_stub():
     stub._preprocessing_active = False
     stub._semantic_answering_active = False
     stub._key_sentences_pending = False
+    stub._followup_pending = False
     stub._semantic_failed = False
     # Widget mocks
     stub.followup_btn = MagicMock()

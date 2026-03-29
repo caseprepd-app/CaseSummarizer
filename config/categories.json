@@ -40,6 +40,5 @@
     "QUANTITY": "Technical",
     "ORDINAL": "Technical",
     "CARDINAL": "Technical"
-  },
-  "llm_prompt_categories": "Person, Place, Medical, Technical, Unknown"
+  }
 }

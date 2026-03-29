@@ -129,7 +129,7 @@ class PdfDocumentBuilder(DocumentBuilder):
                     # Truncate long text with ellipsis indicator
                     cell_str = str(cell_text)
                     if len(cell_str) > 25:
-                        logger.warning(
+                        logger.debug(
                             "PDF table cell truncated from %d to 25 chars: '%.40s...'",
                             len(cell_str),
                             cell_str,

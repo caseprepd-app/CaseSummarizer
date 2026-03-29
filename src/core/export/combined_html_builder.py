@@ -203,66 +203,36 @@ def _build_search_section(semantic_results: list, include_verification: bool) ->
 
     Args:
         semantic_results: List of SemanticResult objects
-        include_verification: Whether to show verification badges
+        include_verification: Unused (verification removed), kept for API compat
 
     Returns:
         HTML fragment for the search section
     """
-    has_verification = False
     items = []
 
     for i, result in enumerate(semantic_results, 1):
-        answer_html = ""
-        reliability_badge = ""
-
-        if include_verification and hasattr(result, "verification") and result.verification:
-            has_verification = True
-            v = result.verification
-            reliability = v.overall_reliability
-            if reliability >= 0.7:
-                rel_class = "reliability-high"
-                rel_text = f"HIGH ({int(reliability * 100)}%)"
-            elif reliability >= 0.5:
-                rel_class = "reliability-medium"
-                rel_text = f"MEDIUM ({int(reliability * 100)}%)"
-            else:
-                rel_class = "reliability-low"
-                rel_text = f"LOW ({int(reliability * 100)}%)"
-            reliability_badge = f'<span class="reliability {rel_class}">{rel_text}</span>'
-
-            if v.answer_rejected:
-                answer_html = f'<span class="unreliable">{_escape(result.quick_answer)}</span>'
-            else:
-                for span in v.spans:
-                    prob = span.hallucination_prob
-                    if prob < 0.3:
-                        css_class = "verified"
-                    elif prob < 0.5:
-                        css_class = "uncertain"
-                    elif prob < 0.7:
-                        css_class = "suspicious"
-                    elif prob < 0.85:
-                        css_class = "unreliable"
-                    else:
-                        css_class = "hallucinated"
-                    answer_html += f'<span class="{css_class}">{_escape(span.text)}</span>'
-        else:
-            answer_html = _escape(result.quick_answer)
-
         citation = _escape(result.citation) if result.citation else "(no citation)"
         source = _escape(result.source_summary) if result.source_summary else "(source unknown)"
         q_truncated = _escape(result.question[:80])
         ellipsis = "..." if len(result.question) > 80 else ""
 
+        # Only render Answer div if there's actual content
+        answer_block = ""
+        if result.quick_answer:
+            answer_html = _escape(result.quick_answer)
+            answer_block = (
+                f'                <div class="label">Answer</div>\n'
+                f'                <div class="answer">{answer_html}</div>'
+            )
+
         items.append(f"""        <div class="qa-item">
             <div class="qa-header" onclick="toggleQAItem(this)">
-                <span>Q{i}: {q_truncated}{ellipsis}{reliability_badge}</span>
+                <span>Q{i}: {q_truncated}{ellipsis}</span>
                 <span class="toggle">&#x25BC; Hide</span>
             </div>
             <div class="qa-content">
                 <div class="question">{_escape(result.question)}</div>
-                <div class="label">Answer</div>
-                <div class="answer">{answer_html}</div>
+{answer_block}
                 <div class="label">Citation</div>
                 <div class="citation">{citation}</div>
                 <div class="label">Source</div>
@@ -271,17 +241,6 @@ def _build_search_section(semantic_results: list, include_verification: bool) ->
         </div>""")
 
     items_html = "\n".join(items)
-
-    legend = ""
-    if has_verification:
-        legend = """        <div class="legend">
-            <span class="legend-title">Verification:</span>
-            <span class="verified">&#x25A0; Verified</span>
-            <span class="uncertain">&#x25A0; Uncertain</span>
-            <span class="suspicious">&#x25A0; Suspicious</span>
-            <span class="unreliable">&#x25A0; Unreliable</span>
-            <span class="hallucinated">&#x25A0; Hallucinated</span>
-        </div>"""
 
     return f"""        <div class="section-controls">
             <input type="text" id="qa-search" placeholder="Search questions and answers..."
@@ -293,8 +252,7 @@ def _build_search_section(semantic_results: list, include_verification: bool) ->
         </div>
         <div id="qa-container">
 {items_html}
-        </div>
-{legend}"""
+        </div>"""
 
 
 def _build_summary_section(summary_text: str) -> str:

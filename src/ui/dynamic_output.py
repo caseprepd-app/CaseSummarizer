@@ -265,9 +265,8 @@ class DynamicOutputWidget(ctk.CTkFrame):
         self._outputs = {
             "Names & Vocabulary": [],  # Primary output - people + terms
             "Search": [],  # Semantic search results
-            "Key Excerpts": "",  # Combined summary (replaces "Meta-Summary")
+            "Key Excerpts": "",  # Combined summary
             # Backward compatibility keys
-            "Meta-Summary": "",
             "Rare Word List (CSV)": [],
             "Semantic Results": [],
         }
@@ -1159,7 +1158,6 @@ class DynamicOutputWidget(ctk.CTkFrame):
             "Search": [],  # Semantic search results
             "Key Excerpts": "",  # Combined summary
             # Backward compatibility keys
-            "Meta-Summary": "",
             "Rare Word List (CSV)": [],
             "Semantic Results": [],
         }
@@ -1225,7 +1223,6 @@ class DynamicOutputWidget(ctk.CTkFrame):
 
         # Legacy support
         if meta_summary:
-            self._outputs["Meta-Summary"] = meta_summary
             if not self._outputs.get("Key Excerpts"):
                 self._outputs["Key Excerpts"] = meta_summary
         if vocab_csv_data is not None:
@@ -1263,14 +1260,16 @@ class DynamicOutputWidget(ctk.CTkFrame):
             self._display_semantic_results(search_data)
 
         # Key Excerpts tab
-        summary = self._outputs.get("Key Excerpts") or self._outputs.get("Meta-Summary")
+        summary = self._outputs.get("Key Excerpts")
         if summary:
+            self.summary_text_display.configure(state="normal")
             self.summary_text_display.delete("0.0", "end")
             self.summary_text_display.insert("0.0", summary)
 
         # Individual document summaries (if any) - append to key excerpts tab
         # Batch into single .insert() to reduce Tk text widget recalculations
         if self._document_summaries:
+            self.summary_text_display.configure(state="normal")
             separator = "=" * 50
             parts = [f"\n\n{separator}\n", "INDIVIDUAL DOCUMENT SUMMARIES\n", f"{separator}\n\n"]
             for doc_name, doc_summary in sorted(self._document_summaries.items()):
@@ -1279,6 +1278,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
 
         # Show summary content if we have any (hide status label)
         if summary or self._document_summaries:
+            self.summary_text_display.configure(state="disabled")
             self.show_summary_content()
 
         # Only auto-switch to Vocab if user isn't already viewing
@@ -1900,6 +1900,8 @@ class DynamicOutputWidget(ctk.CTkFrame):
         if vocab_tv is None:
             return
 
+        # Track which treeview was right-clicked for use in context menu actions
+        self._right_clicked_vocab_tv = vocab_tv
         tv = vocab_tv.widget
 
         # Check if click is on header region
@@ -2130,10 +2132,12 @@ class DynamicOutputWidget(ctk.CTkFrame):
         try:
             self._add_to_user_exclusion_list(term)
 
-            # Remove from current display
-            selected = self.csv_treeview.selection()
+            # Remove from current display (use whichever treeview was right-clicked)
+            active_tv = getattr(self, "_right_clicked_vocab_tv", None)
+            tv_widget = active_tv.widget if active_tv else self.csv_treeview
+            selected = tv_widget.selection() if tv_widget else ()
             if selected:
-                self.csv_treeview.delete(selected[0])
+                tv_widget.delete(selected[0])
 
                 # Also remove from internal data (both legacy and primary keys)
                 for key in ("Names & Vocabulary", "Rare Word List (CSV)"):
@@ -2598,9 +2602,7 @@ class DynamicOutputWidget(ctk.CTkFrame):
 
     def _get_summary_text(self) -> str:
         """Return the key excerpts text for export."""
-        return (
-            self._outputs.get("Key Excerpts") or self._outputs.get("Meta-Summary") or ""
-        ).strip()
+        return (self._outputs.get("Key Excerpts") or "").strip()
 
     def _export_all(self, format_key: str):
         """

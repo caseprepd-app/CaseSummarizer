@@ -26,9 +26,6 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from src.core.config import load_yaml_with_fallback
-from src.core.semantic.semantic_constants import (
-    UNANSWERED_TEXT,
-)
 from src.core.vector_store.semantic_retriever import RetrievalResult, SemanticRetriever
 
 logger = logging.getLogger(__name__)
@@ -87,9 +84,9 @@ class SemanticResult:
     @property
     def is_answered(self) -> bool:
         """Whether this question received a meaningful answer from the documents."""
-        from src.core.semantic.semantic_constants import UNANSWERED_TEXT
-
-        return not (self.relevance == 0.0 and self.quick_answer == UNANSWERED_TEXT)
+        # After LLM removal (Mar 2026), quick_answer is always "".
+        # Relevance > 0 is the definitive signal that retrieval found something.
+        return self.relevance > 0.0
 
     @property
     def is_exportable(self) -> bool:
@@ -97,15 +94,11 @@ class SemanticResult:
         import math
 
         from src.config import SEMANTIC_EXPORT_RELEVANCE_FLOOR
-        from src.core.semantic.semantic_constants import UNANSWERED_TEXT
 
         # Filter NaN or non-finite relevance
         if not math.isfinite(self.relevance):
             return False
-        # Filter unanswered
-        if self.relevance == 0.0 and self.quick_answer == UNANSWERED_TEXT:
-            return False
-        # Retrieval relevance must meet floor
+        # Retrieval relevance must meet floor (catches unanswered at 0.0)
         if self.relevance < SEMANTIC_EXPORT_RELEVANCE_FLOOR:
             return False
         return True
@@ -438,7 +431,7 @@ class SemanticOrchestrator:
                 )
             result = SemanticResult(
                 question=question,
-                quick_answer=UNANSWERED_TEXT,
+                quick_answer="",
                 citation="No relevant excerpts found in documents.",
                 source_summary="",
                 relevance=0.0,
@@ -521,7 +514,8 @@ class SemanticOrchestrator:
 
         for i, result in enumerate(exportable, 1):
             lines.append(f"Q{i}: {result.question}")
-            lines.append(f"Quick Answer: {result.quick_answer}")
+            if result.quick_answer:
+                lines.append(f"Quick Answer: {result.quick_answer}")
             lines.append(f"Citation: {result.citation}")
             if result.source_summary:
                 lines.append(f"   [Source: {result.source_summary}]")

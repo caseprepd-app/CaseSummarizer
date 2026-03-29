@@ -200,7 +200,6 @@ def _register_all_settings():
 
     Settings are grouped by category (tab):
     - Performance: Parallel processing, CPU allocation
-    - Summarization: AI summary settings
     - Vocabulary: Term extraction settings
     """
     # Import lazily to avoid circular imports
@@ -1146,7 +1145,7 @@ def _register_all_settings():
             "Remove index pages",
             "Remove index/concordance pages from the end of transcripts.\n\n"
             "These are alphabetical reference pages that list where topics "
-            "appear — useful in print but noise for AI summarization.",
+            "appear — useful in print but noise for search and vocabulary extraction.",
         ),
         (
             "preprocess_headers_footers",

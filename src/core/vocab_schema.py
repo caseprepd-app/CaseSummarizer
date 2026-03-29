@@ -34,9 +34,7 @@ class VF:
     BM25 = "BM25"
     TOPICRANK = "TopicRank"
     MEDICALNER = "MedicalNER"
-    GLINER = "GLiNER"
     YAKE = "YAKE"
-    KEYBERT = "KeyBERT"
     ALGO_COUNT = "Algo Count"
 
     # --- Additional columns ---

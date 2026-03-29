@@ -16,10 +16,10 @@ Clicking a file row in the left panel shows its extracted text in a "Document" t
 The vocabulary table shows a term, its score, and occurrence count — but not *where* it appears. Clicking a term should show document excerpts with the term highlighted. The `# Docs` column shows a count but not which documents. This would let users make better keep/skip decisions.
 
 ### 4. Progress Estimation for Long Operations
-There's a processing timer but no ETA or percentage. Summarization takes 30+ minutes. The status bar just says what step is running. Users have no idea if it'll be 5 more minutes or 50. Even a rough chunk-based progress bar (e.g., "Summarizing chunk 12 of 47") would help.
+There's a processing timer but no ETA or percentage. Processing typically takes seconds to a few minutes depending on document size. The status bar just says what step is running. Even a rough progress bar would help users gauge remaining time.
 
 ### 5. Grow the Developer Dataset
-Currently **117 observations** (as of Mar 2026). The ML model activates at 30 and Random Forest joins the ensemble at 40 — both thresholds are well cleared. Continue building toward 150–200 samples across diverse case types for a stronger out-of-box experience for new users.
+Currently **129 observations** (as of Mar 2026). The ML model activates at 30 and Random Forest joins the ensemble at 40 — both thresholds are well cleared. Continue building toward 150–200 samples across diverse case types for a stronger out-of-box experience for new users.
 
 ---
 
@@ -66,8 +66,8 @@ After extraction, show summary statistics (total word count, page count, documen
 
 ## Not Missing (Confirmed Working)
 - Multi-format extraction (PDF, DOCX, TXT, RTF, OCR)
-- 8 vocabulary algorithms with ML preference learning
-- Hybrid Q&A retrieval (FAISS + BM25) with follow-up questions
+- 6 vocabulary algorithms with ML preference learning
+- Hybrid retrieval (FAISS + BM25) with follow-up questions
 - 5 export formats per tab (TXT, CSV, Word, PDF, HTML)
 - Settings with 30+ tunable parameters
 - Subprocess IPC architecture with crash recovery

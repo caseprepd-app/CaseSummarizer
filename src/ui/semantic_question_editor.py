@@ -13,7 +13,6 @@ Features:
 """
 
 import logging
-import shutil
 from pathlib import Path
 from tkinter import messagebox, ttk
 
@@ -28,11 +27,6 @@ from src.ui.theme import BUTTON_STYLES, COLORS, FONTS
 
 # Default questions YAML path
 DEFAULT_QUESTIONS_PATH = Path(__file__).parent.parent.parent / "config" / "semantic_questions.yaml"
-
-# Backup path for reset functionality
-BACKUP_QUESTIONS_PATH = (
-    Path(__file__).parent.parent.parent / "config" / "semantic_questions_default.yaml"
-)
 
 
 class SemanticQuestionEditor(BaseModalDialog):
@@ -353,7 +347,7 @@ class SemanticQuestionEditor(BaseModalDialog):
             logger.error("Unexpected error moving question down", exc_info=True)
 
     def _reset_to_defaults(self):
-        """Reset questions to default values."""
+        """Reset questions to the original defaults saved at dialog open."""
         if not messagebox.askyesno(
             "Reset to Defaults",
             "This will restore the original default searches.\n\n"
@@ -361,19 +355,6 @@ class SemanticQuestionEditor(BaseModalDialog):
         ):
             return
 
-        # Try to restore from backup file
-        if BACKUP_QUESTIONS_PATH.exists():
-            try:
-                shutil.copy(BACKUP_QUESTIONS_PATH, self.yaml_path)
-                self._load_questions()
-                self._has_changes = True
-                self.status_label.configure(text="Reset to defaults (unsaved)")
-                logger.debug("Reset from backup")
-                return
-            except Exception as e:
-                logger.debug("Backup restore failed: %s", e)
-
-        # If no backup, restore from original
         import copy
 
         self._questions = copy.deepcopy(self._original_questions)

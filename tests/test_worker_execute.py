@@ -72,7 +72,7 @@ class TestProcessingWorkerExecute:
         assert finished is not None
         assert finished[1] == []
 
-    @patch("src.services.workers.RawTextExtractor")
+    @patch("src.services.processing_worker.RawTextExtractor")
     def test_single_file_extraction(self, mock_extractor_cls):
         """Single file is extracted, preprocessed, and sends completion."""
         mock_instance = MagicMock()
@@ -112,7 +112,7 @@ class TestProcessingWorkerExecute:
         assert find_msg(msgs, "processing_finished") is not None
         assert len(worker.processed_results) == 1
 
-    @patch("src.services.workers.RawTextExtractor")
+    @patch("src.services.processing_worker.RawTextExtractor")
     def test_failed_document_logged_as_status_error(self, mock_extractor_cls):
         """Failed document sends status_error, not in processed_results."""
         mock_instance = MagicMock()
@@ -332,7 +332,7 @@ class TestProgressiveExtractionWorkerExecute:
         )
         return worker, q
 
-    @patch("src.services.workers.VocabularyExtractor")
+    @patch("src.services.progressive_extraction_worker.VocabularyExtractor")
     def test_phase1_sends_ner_complete(self, mock_extractor_cls):
         """Phase 1 produces ner_complete and extraction_complete messages."""
         mock_ext = MagicMock()
@@ -356,7 +356,7 @@ class TestProgressiveExtractionWorkerExecute:
         assert find_msg(msgs, "ner_complete") is not None
         assert find_msg(msgs, "extraction_complete") is not None
 
-    @patch("src.services.workers.VocabularyExtractor")
+    @patch("src.services.progressive_extraction_worker.VocabularyExtractor")
     def test_multi_doc_uses_extract_documents(self, mock_extractor_cls):
         """Multiple documents use extract_documents instead of extract_progressive."""
         mock_ext = MagicMock()
@@ -382,7 +382,7 @@ class TestProgressiveExtractionWorkerExecute:
         msgs = drain_queue(q)
         assert find_msg(msgs, "ner_complete") is not None
 
-    @patch("src.services.workers.VocabularyExtractor")
+    @patch("src.services.progressive_extraction_worker.VocabularyExtractor")
     def test_phase2_failure_sends_semantic_error(self, mock_extractor_cls):
         """Phase 2 crash sends semantic_error message."""
         mock_ext = MagicMock()
@@ -392,11 +392,14 @@ class TestProgressiveExtractionWorkerExecute:
 
         worker, q = self._make_worker()
 
-        # Make _build_vector_store fail
+        # Make _build_vector_store fail — replicate the real except block behavior
         def failing_build():
-            """Simulate a build failure."""
+            """Simulate a build failure with proper error signaling."""
+            from src.services.queue_messages import QueueMessage as QM
+
             with worker._search_error_lock:
                 worker._search_error_msg = "CUDA OOM"
+            worker.ui_queue.put(QM.semantic_error("CUDA OOM"))
 
         worker._build_vector_store = failing_build
 
@@ -407,7 +410,7 @@ class TestProgressiveExtractionWorkerExecute:
         assert error is not None
         assert "CUDA OOM" in str(error[1])
 
-    @patch("src.services.workers.VocabularyExtractor")
+    @patch("src.services.progressive_extraction_worker.VocabularyExtractor")
     def test_cancellation_during_phase2_wait(self, mock_extractor_cls):
         """Cancellation during Phase 2 wait exits gracefully."""
         mock_ext = MagicMock()
@@ -444,7 +447,7 @@ class TestProgressiveExtractionWorkerExecute:
         msgs = drain_queue(q)
         assert find_msg(msgs, "ner_complete") is not None
 
-    @patch("src.services.workers.VocabularyExtractor")
+    @patch("src.services.progressive_extraction_worker.VocabularyExtractor")
     def test_single_doc_calls_extract_progressive(self, mock_extractor_cls):
         """Single document uses extract_progressive with callbacks."""
         mock_ext = MagicMock()

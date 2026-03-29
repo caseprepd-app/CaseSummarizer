@@ -32,7 +32,7 @@ class TestQAThreadErrorPropagation:
         )
         return worker
 
-    @patch("src.services.workers.VocabularyExtractor")
+    @patch("src.services.progressive_extraction_worker.VocabularyExtractor")
     def test_qa_success_sets_event(self, mock_extractor_cls):
         """When _build_vector_store succeeds, _qa_succeeded should be set."""
         worker = self._make_worker()
@@ -62,7 +62,7 @@ class TestQAThreadErrorPropagation:
         assert worker._search_succeeded.is_set(), "Success event should be set"
         assert worker._search_error_msg is None, "No error message on success"
 
-    @patch("src.services.workers.VocabularyExtractor")
+    @patch("src.services.progressive_extraction_worker.VocabularyExtractor")
     def test_qa_failure_stores_error_message(self, mock_extractor_cls):
         """When _build_vector_store crashes, _search_error_msg should be set."""
         worker = self._make_worker()
@@ -81,7 +81,7 @@ class TestQAThreadErrorPropagation:
         assert not worker._search_succeeded.is_set(), "Success event should NOT be set"
         assert worker._search_error_msg == "embedding model failed"
 
-    @patch("src.services.workers.VocabularyExtractor")
+    @patch("src.services.progressive_extraction_worker.VocabularyExtractor")
     def test_qa_failure_sends_error_to_queue(self, mock_extractor_cls):
         """When _build_vector_store crashes, error messages go to UI queue."""
         worker = self._make_worker()

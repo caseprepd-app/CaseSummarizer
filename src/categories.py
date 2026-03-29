@@ -77,7 +77,6 @@ def _get_default_config() -> dict:
             {"id": "Unknown", "description": "Unclassified terms"},
         ],
         "ner_mapping": {"PERSON": "Person", "ORG": "Place", "GPE": "Place", "LOC": "Place"},
-        "llm_prompt_categories": "Person, Place, Medical, Technical, Unknown",
     }
 
 

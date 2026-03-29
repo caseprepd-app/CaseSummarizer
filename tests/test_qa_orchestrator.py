@@ -73,6 +73,15 @@ class TestSemanticResultRelevance:
         result = SemanticResult(question="Q?", relevance=0.0, quick_answer=UNANSWERED_TEXT)
         assert result.is_answered is False
 
+    def test_is_answered_zero_relevance_empty_quick_answer(self):
+        """Result with relevance=0 and empty quick_answer is not answered.
+
+        Regression: _ask_single_question always sets quick_answer='',
+        so is_answered must detect unanswered via relevance, not quick_answer.
+        """
+        result = SemanticResult(question="Q?", relevance=0.0, quick_answer="")
+        assert result.is_answered is False
+
     def test_is_exportable_above_floor(self):
         """Result above export relevance floor is exportable."""
         result = SemanticResult(question="Q?", relevance=0.75, citation="text")

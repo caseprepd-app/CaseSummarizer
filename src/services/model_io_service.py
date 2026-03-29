@@ -178,9 +178,8 @@ def _validate_csv_columns(src_path: Path) -> tuple[bool, str, list[str]]:
 
     warning = ""
     if extra:
-        # Tolerate columns from older versions (e.g. GLiNER_detection,
-        # KeyBERT_detection, keybert_score) — they'll be silently dropped
-        # by DictWriter(extrasaction="ignore") during write-back.
+        # Tolerate extra columns from older versions — they are silently
+        # dropped by DictWriter(extrasaction="ignore") during write-back.
         logger.debug("Ignoring extra CSV columns from older version: %s", sorted(extra))
         warning += f" (dropped {len(extra)} unrecognized column(s): {', '.join(sorted(extra))})"
 

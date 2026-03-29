@@ -366,7 +366,7 @@ VOCABULARY_RARITY_THRESHOLD = 180000
 # "rarity": Sorts by word frequency (rare words first) - useful before ML model is trained
 VOCABULARY_SORT_METHOD = "quality_score"
 
-# Legacy setting for backwards compatibility (deprecated - use VOCABULARY_SORT_METHOD)
+# Derived boolean for code that checks rarity sort directly
 VOCABULARY_SORT_BY_RARITY = VOCABULARY_SORT_METHOD == "rarity"
 
 # Minimum occurrences for term extraction (filters single-occurrence OCR errors/typos)
@@ -630,10 +630,8 @@ SEMANTIC_RETRIEVAL_K = _d("semantic_retrieval_k")
 SEMANTIC_MAX_TOKENS = _d("semantic_max_tokens")
 SEMANTIC_SIMILARITY_THRESHOLD = _d("semantic_similarity_threshold")
 
-# Semantic Search Context Window
-# Controls how much retrieved context is passed to the prompt template.
-# Deprecated: token budget management removed with single-chunk retrieval (Mar 2026).
-# Kept for backward compatibility. See src/deprecated/multi_chunk_retrieval.py.
+# Semantic Search Context Window — only used by deprecated multi-chunk retrieval.
+# Single-chunk retrieval (Mar 2026) does not reference this value.
 SEMANTIC_CONTEXT_WINDOW = 4096
 
 # Chat History Settings
@@ -772,7 +770,9 @@ if TESSERACT_BUNDLED_DIR.exists():
     os.environ["TESSDATA_PREFIX"] = str(TESSERACT_BUNDLED_DIR / "tessdata")
 
 RERANKER_MAX_LENGTH = 8192
-RERANKER_TOP_K = _d("reranker_top_k")  # Deprecated: hardcoded to 1 in retrieve_context()
+RERANKER_TOP_K = _d(
+    "reranker_top_k"
+)  # Currently unused — reranker top_k is hardcoded to 1 in semantic_retriever.py
 
 
 # ============================================================================

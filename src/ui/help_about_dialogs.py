@@ -173,7 +173,7 @@ SYSTEM REQUIREMENTS
         """Build the Workflow tab content."""
         self._build_tab_content(
             "Workflow",
-            f"""THE 5-STEP WORKFLOW
+            f"""THE 4-STEP WORKFLOW
 
 STEP 1: SELECT FILES
 Drag files onto the file list, click "+ Add Files", or use Ctrl+O.
@@ -201,7 +201,7 @@ Processing time depends on document size and your computer's speed.
 
 You'll see progress updates as it works.
 
-STEP 5: REVIEW & EXPORT
+STEP 4: REVIEW & EXPORT
 Results appear in tabs:
 - Vocabulary: Table of extracted terms
 - Semantic Search: Search results and follow-up input
@@ -224,10 +224,13 @@ Ctrl+Q    Exit Application""",
             f"""VOCABULARY EXTRACTION
 
 How It Works:
-{APP_NAME} uses multiple algorithms to find important terms:
+{APP_NAME} uses 6 algorithms to find important terms:
 - NER (Named Entity Recognition): Identifies people, places, organizations
 - RAKE: Finds technical phrases and key terms
 - BM25 Corpus Analysis: Compares against your past work to find case-specific terms
+- TopicRank: Graph-based keyword extraction for key topics
+- YAKE: Statistical keyword extraction (no model required)
+- MedicalNER: Specialized detection of medical and clinical terms
 
 The "Quality Score" predicts how useful each term is. Higher scores = more likely to be relevant vocabulary you need.
 

@@ -69,9 +69,19 @@ hidden_imports = [
     # Scikit-learn internals often missed
     "sklearn.utils._typedefs",
     "sklearn.utils._cython_blas",
-
     "sklearn.neighbors._partition_nodes",
     "sklearn.tree._utils",
+    # Retrieval algorithms (lazy-loaded)
+    "src.core.retrieval.algorithms.bm25_plus",
+    "src.core.retrieval.algorithms.faiss_semantic",
+    # Nomic embed dependency
+    "einops",
+    # FAISS vector store
+    "faiss",
+    # BM25 ranking
+    "rank_bm25",
+    # Image deskew for OCR preprocessing
+    "deskew",
 ]
 
 # ── Collect submodules for large packages ──────────────────────────────
@@ -151,7 +161,7 @@ added_data.extend(pkg_data)
 
 # ── Collect dynamic libraries ──────────────────────────────────────────
 added_binaries = []
-binary_packages = ["torch", "tokenizers", "thinc", "sklearn", "scipy"]
+binary_packages = ["torch", "tokenizers", "thinc", "sklearn", "scipy", "faiss"]
 
 for pkg in binary_packages:
     try:

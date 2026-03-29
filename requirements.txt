@@ -1,5 +1,9 @@
 huggingface-hub>=1.6.0,<2.0
 numpy>=2.4.0,<3.0
+# Image handling for OCR preprocessing
+Pillow>=10.0.0,<12.0
+# Required by langchain-community and langchain-text-splitters
+langchain-core>=0.3.0,<1.0
 customtkinter>=5.2.0,<6.0
 spacy>=3.8.0,<4.0
 nltk>=3.8.0,<4.0

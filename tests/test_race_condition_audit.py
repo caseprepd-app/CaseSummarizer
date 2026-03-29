@@ -301,25 +301,25 @@ class TestCancellationInterruptsWaitLoop:
     """Verify that setting is_stopped exits the semantic thread wait loop."""
 
     def _get_workers_source(self):
-        """Return workers.py source."""
-        import src.services.workers as mod
+        """Return progressive_extraction_worker.py source."""
+        import src.services.progressive_extraction_worker as mod
 
         return inspect.getsource(mod)
 
-    def _get_execute_body(self, src):
-        """Extract ProgressiveExtractionWorker.execute body."""
+    def _get_wait_body(self, src):
+        """Extract ProgressiveExtractionWorker._wait_for_search_indexing body."""
         match = re.search(
-            r"class ProgressiveExtractionWorker.*?def execute\(self\).*?\n(.*?)(?=\n    def |\Z)",
+            r"def _wait_for_search_indexing\(self.*?\n(.*?)(?=\n    def |\Z)",
             src,
             re.DOTALL,
         )
-        assert match, "ProgressiveExtractionWorker.execute not found"
+        assert match, "ProgressiveExtractionWorker._wait_for_search_indexing not found"
         return match.group(1)
 
     def test_wait_loop_checks_is_stopped(self):
         """The semantic thread wait loop must include 'not self.is_stopped' as a condition."""
         src = self._get_workers_source()
-        body = self._get_execute_body(src)
+        body = self._get_wait_body(src)
         # Find the while loop that joins the semantic thread
         loop_match = re.search(r"while semantic_thread\.is_alive\(\)(.*?):", body)
         assert loop_match, "semantic thread wait loop not found in execute()"

@@ -323,13 +323,12 @@ class SemanticService:
             Dict with keys: retrieval, generation
         """
         from src.core.semantic.semantic_constants import (
-            PENDING_GENERATION_TEXT,
             PENDING_RETRIEVAL_TEXT,
         )
 
         return {
             "retrieval": PENDING_RETRIEVAL_TEXT,
-            "generation": PENDING_GENERATION_TEXT,
+            "generation": "",  # No LLM generation step
         }
 
     def get_semantic_result_class(self):

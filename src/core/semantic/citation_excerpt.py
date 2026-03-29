@@ -67,10 +67,10 @@ def extract_citation_excerpt(
         return _truncate_to_sentence(chunk, max_chars)
 
     start, end, window_text = _select_best_window(windows, question, embeddings)
-    return _format_excerpt(chunk, start, end)
+    return _format_excerpt(chunk, start, end, max_chars=max_chars)
 
 
-def _build_windows(text: str, window_size: int) -> list[tuple[int, str]]:
+def _build_windows(text: str, window_size: int) -> list[tuple[int, int, str]]:
     """
     Create overlapping windows snapped to word boundaries.
 
@@ -153,11 +153,12 @@ def _select_best_window(
     return windows[best_idx]
 
 
-def _format_excerpt(full_text: str, start: int, end: int) -> str:
+def _format_excerpt(full_text: str, start: int, end: int, max_chars: int = 0) -> str:
     """
     Format excerpt with sentence snapping and ellipsis markers.
 
     Adds ... at start/end if the excerpt doesn't cover chunk boundaries.
+    Falls back to unsnapped positions if snapping exceeds 2x max_chars.
     """
     from src.core.utils.sentence_splitter import split_sentence_spans
 
@@ -176,6 +177,17 @@ def _format_excerpt(full_text: str, start: int, end: int) -> str:
             if e >= end:
                 snapped_end = e
                 break
+
+    # Guard against oversized excerpts from long legal sentences
+    original_len = end - start
+    if max_chars > 0 and (snapped_end - snapped_start) > max_chars * 2:
+        snapped_start = start
+        snapped_end = end
+        logger.debug(
+            "Sentence snap exceeded 2x max_chars (%d), falling back to unsnapped (%d chars)",
+            max_chars * 2,
+            original_len,
+        )
 
     excerpt = full_text[snapped_start:snapped_end].strip()
 

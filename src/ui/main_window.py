@@ -57,7 +57,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
     - _create_left_panel, _create_right_panel, _create_status_bar
     """
 
-    _FOLLOWUP_TIMEOUT_POLLS = 540_000  # 15 hours at 100 ms per poll
+    _FOLLOWUP_TIMEOUT_POLLS = 3_000  # 5 minutes at 100 ms per poll
 
     def __init__(self, worker_manager=None):
         super().__init__()
@@ -131,7 +131,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         self._tab_followup_result = None  # Stash when _poll_queue() steals a tab followup result
         self._status_clear_id = None  # Tk after-ID for auto-clearing status bar
         self._status_error_hold_until = None  # Timestamp until error message is held
-        self._deferred_status_id = None  # Tk after-ID for deferred status update
+        # (_deferred_status_id already initialized above with type annotation)
 
         # Initialize ttk styles with UI scale factor and font offset.
         # Must happen AFTER super().__init__() creates the Tk root (ttk.Style needs it).
@@ -466,6 +466,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             or self._preprocessing_active
             or self._semantic_answering_active
             or self._key_sentences_pending
+            or self._followup_pending
         ):
             logger.warning("Cannot clear files during active processing")
             return
@@ -515,9 +516,22 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         """
         Remove a single file from the session by filename.
 
+        Blocked during active processing to prevent state inconsistency
+        with the worker subprocess.
+
         Args:
             filename: The display filename to remove.
         """
+        if (
+            self._processing_active
+            or self._preprocessing_active
+            or self._semantic_answering_active
+            or self._key_sentences_pending
+            or self._followup_pending
+        ):
+            self.set_status("Cannot remove files during processing")
+            return
+
         # Remove from selected_files (match by basename)
         self.selected_files = [f for f in self.selected_files if Path(f).name != filename]
 
@@ -590,8 +604,12 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         if not paths_to_process:
             return
 
-        # Check OCR availability before starting (runs once per batch)
-        ocr_allowed = self._check_ocr_availability()
+        # Check OCR availability once per batch (not on retries)
+        if not hasattr(self, "_ocr_allowed_cache"):
+            self._ocr_allowed_cache = None
+        if self._worker_ready_retries == 0:
+            self._ocr_allowed_cache = self._check_ocr_availability()
+        ocr_allowed = self._ocr_allowed_cache
 
         # Disable controls during preprocessing
         self.add_files_btn.configure(state="disabled")
@@ -1379,29 +1397,6 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         logger.debug("Polling started (semantic search)")
         self._poll_queue()
 
-    def _on_semantic_complete(self, semantic_results: list):
-        """Handle search completion."""
-        self._completed_tasks.add("semantic")
-        self._semantic_results = semantic_results
-
-        # Display results using update_outputs
-        if semantic_results:
-            self.output_display.update_outputs(semantic_results=semantic_results)
-            self.set_status(f"Semantic Search: {len(semantic_results)} searches completed")
-            # Enable follow-up question controls
-            self.followup_btn.configure(state="normal")
-            self.followup_entry.configure(
-                state="normal",
-                placeholder_text="Search your documents...",
-                placeholder_text_color="white",
-            )
-        else:
-            self.set_status(
-                "Semantic Search complete. No results found — try different search terms."
-            )
-
-        self._finalize_tasks()
-
     def _all_tasks_complete(self) -> bool:
         """Check if all pending tasks are done (completed or failed)."""
         for task_name, is_pending in self._pending_tasks.items():
@@ -1580,7 +1575,17 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         if self._destroying:
             return
 
-        # Timeout guard: stop polling after 15 hours (safety net for crashed subprocess)
+        # Dead-worker detection: if subprocess crashed, stop polling immediately
+        if not self._worker_manager.is_alive():
+            logger.error("Worker process died during followup search")
+            self._followup_pending = False
+            self._followup_poll_count = 0
+            self.followup_btn.configure(state="normal", text="Search")
+            self.followup_entry.configure(state="normal")
+            self.set_status_error("Search failed — worker process crashed. Please restart the app.")
+            return
+
+        # Timeout guard: stop polling after 5 minutes (safety net for stuck subprocess)
         self._followup_poll_count += 1
         if self._followup_poll_count >= self._FOLLOWUP_TIMEOUT_POLLS:
             logger.warning("Follow-up polling timed out after %d polls", self._followup_poll_count)
@@ -1717,7 +1722,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             self._worker_manager.send_command("followup", {"question": question})
 
             # Wait for main thread to deliver result via _handle_queue_message
-            timeout = 54000  # 15 hours — CPU-only Ollama can take hours
+            timeout = 300  # 5 minutes — retrieval is fast, no LLM
             got_result = self._panel_followup_event.wait(timeout=timeout)
 
             if not got_result:
@@ -1834,8 +1839,6 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
 
         # Gather key excerpts text
         summary = self.output_display._outputs.get("Key Excerpts", "")
-        if not summary:
-            summary = self.output_display._outputs.get("Meta-Summary", "")
         summary_text = summary.strip() if summary else ""
 
         # Check we have something to export

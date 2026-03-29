@@ -1,6 +1,8 @@
 """
-User Preferences Manager for CasePrepd
-Manages user-specific preferences like default prompts per model.
+User Preferences Manager for CasePrepd.
+
+Manages persistent user preferences: logging, vocabulary extraction,
+ML training parameters, display settings, and other configurable options.
 """
 
 import json
@@ -15,7 +17,8 @@ class UserPreferencesManager:
     """
     Manages user preferences stored in config/user_preferences.json.
 
-    Handles default prompt selection per model with graceful fallbacks.
+    Handles logging levels, vocabulary settings, ML training parameters,
+    display preferences, and other user-configurable options with graceful fallbacks.
     """
 
     def __init__(self, preferences_file: Path):

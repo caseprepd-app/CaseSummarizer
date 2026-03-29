@@ -85,7 +85,7 @@ class TestQAThreadDaemon:
 
         from src.services.workers import ProgressiveExtractionWorker
 
-        source = inspect.getsource(ProgressiveExtractionWorker.execute)
+        source = inspect.getsource(ProgressiveExtractionWorker._run_search_indexing)
         # Should have daemon=False for the Q&A thread
         assert "daemon=False" in source
 
@@ -114,7 +114,7 @@ class TestQAErrorLock:
 
         from src.services.workers import ProgressiveExtractionWorker
 
-        source = inspect.getsource(ProgressiveExtractionWorker.execute)
+        source = inspect.getsource(ProgressiveExtractionWorker._wait_for_search_indexing)
         # The read should be inside a `with self._search_error_lock:` block
         assert "with self._search_error_lock:" in source
 
