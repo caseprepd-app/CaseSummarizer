@@ -25,11 +25,11 @@ class TestPlaceholderConstants:
         assert PENDING_RETRIEVAL_TEXT
         assert isinstance(PENDING_RETRIEVAL_TEXT, str)
 
-    def test_pending_generation_text(self):
-        from src.core.semantic.semantic_constants import PENDING_GENERATION_TEXT
+    def test_pending_generation_text_removed(self):
+        """PENDING_GENERATION_TEXT was removed (LLM integration removed Mar 2026)."""
+        import src.core.semantic.semantic_constants as consts
 
-        assert PENDING_GENERATION_TEXT
-        assert isinstance(PENDING_GENERATION_TEXT, str)
+        assert not hasattr(consts, "PENDING_GENERATION_TEXT")
 
     def test_ollama_unavailable_text_removed(self):
         """OLLAMA_UNAVAILABLE_TEXT was removed (Ollama integration removed Mar 2026)."""
@@ -111,7 +111,6 @@ class TestRetrieveForQuestion:
     def test_low_quality_retrieval_returns_unanswered(self, mock_orchestrator):
         """When retrieval quality is below gate, return unanswered immediately."""
         orch, mock_retriever, _ = mock_orchestrator
-        from src.core.semantic.semantic_constants import UNANSWERED_TEXT
 
         # Set low relevance score
         mock_source = MagicMock()
@@ -121,7 +120,7 @@ class TestRetrieveForQuestion:
 
         result = orch.retrieve_for_question("Something irrelevant?")
 
-        assert result.quick_answer == UNANSWERED_TEXT
+        assert result.quick_answer == ""
         assert result.relevance == 0.0
 
 
@@ -140,14 +139,14 @@ class TestGenerateAnswerForResult:
     def test_unanswered_returns_as_is(self, mock_orchestrator):
         """Unanswered results pass through unchanged."""
         orch, _, _ = mock_orchestrator
-        from src.core.semantic.semantic_constants import UNANSWERED_TEXT
         from src.core.semantic.semantic_orchestrator import SemanticResult
 
-        result = SemanticResult(question="test", quick_answer=UNANSWERED_TEXT)
+        result = SemanticResult(question="test", quick_answer="", relevance=0.0)
 
         returned = orch.generate_answer_for_result(result)
 
-        assert returned.quick_answer == UNANSWERED_TEXT
+        assert returned.quick_answer == ""
+        assert returned.relevance == 0.0
 
 
 # ---------------------------------------------------------------------------

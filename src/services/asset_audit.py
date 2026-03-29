@@ -180,11 +180,6 @@ def run_asset_audit() -> None:
     _log_asset("Forenames dataset", names_dir / "international_forenames.csv", base)
     _log_asset("Surnames dataset", names_dir / "international_surnames.csv", base)
 
-    keywords_dir = base / "data" / "keywords"
-    if keywords_dir.exists():
-        for f in sorted(keywords_dir.iterdir()):
-            _log_asset(f"Keywords: {f.name}", f, base)
-
     # -- Config Files --
     for config_name in [
         "app_name.txt",

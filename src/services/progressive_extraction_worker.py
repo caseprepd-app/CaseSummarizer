@@ -280,6 +280,8 @@ class ProgressiveExtractionWorker(BaseWorker):
                 )
             )
             self.ui_queue.put(QueueMessage.semantic_error("Search index timed out"))
+        elif self.is_stopped:
+            logger.debug("Search indexing cancelled by user")
         elif not self._search_succeeded.is_set():
             with self._search_error_lock:
                 error_detail = self._search_error_msg or "unknown error"

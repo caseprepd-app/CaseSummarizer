@@ -66,11 +66,9 @@ class TestSemanticResultRelevance:
         result = SemanticResult(question="Q?", relevance=0.5)
         assert result.is_answered is True
 
-    def test_is_answered_zero_relevance_with_unanswered_text(self):
-        """Result with relevance=0 and unanswered text is not answered."""
-        from src.core.semantic.semantic_constants import UNANSWERED_TEXT
-
-        result = SemanticResult(question="Q?", relevance=0.0, quick_answer=UNANSWERED_TEXT)
+    def test_is_answered_zero_relevance_with_empty_answer(self):
+        """Result with relevance=0 and empty answer is not answered."""
+        result = SemanticResult(question="Q?", relevance=0.0, quick_answer="")
         assert result.is_answered is False
 
     def test_is_answered_zero_relevance_empty_quick_answer(self):
@@ -94,9 +92,7 @@ class TestSemanticResultRelevance:
 
     def test_is_exportable_zero_relevance_unanswered(self):
         """Unanswered result is not exportable."""
-        from src.core.semantic.semantic_constants import UNANSWERED_TEXT
-
-        result = SemanticResult(question="Q?", relevance=0.0, quick_answer=UNANSWERED_TEXT)
+        result = SemanticResult(question="Q?", relevance=0.0, quick_answer="")
         assert result.is_exportable is False
 
     def test_is_exportable_nan_relevance(self):

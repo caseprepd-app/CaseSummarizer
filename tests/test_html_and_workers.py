@@ -219,53 +219,18 @@ class TestExportQaHtml:
         content = out.read_text(encoding="utf-8")
         assert "0 Q&amp;A pairs" in content
 
-    def test_verification_coloring(self, tmp_path):
+    def test_no_verification_branch(self, tmp_path):
+        """Verification branch was removed (lettucedetect deleted Mar 2026)."""
         from src.core.export.html_builder import export_semantic_html
 
         out = tmp_path / "qa.html"
         result = self._mock_result()
-        # Create mock verification
-        span = MagicMock()
-        span.text = "verified text"
-        span.hallucination_prob = 0.1
-        verification = MagicMock()
-        verification.overall_reliability = 0.85
-        verification.answer_rejected = False
-        verification.spans = [span]
-        result.verification = verification
-
-        success = export_semantic_html([result], str(out), include_verification=True)
-        assert success is True
-        content = out.read_text(encoding="utf-8")
-        assert "verified" in content
-        assert "HIGH" in content
-        assert "legend" in content.lower()
-
-    def test_rejected_answer_styling(self, tmp_path):
-        from src.core.export.html_builder import export_semantic_html
-
-        out = tmp_path / "qa.html"
-        result = self._mock_result()
-        verification = MagicMock()
-        verification.overall_reliability = 0.2
-        verification.answer_rejected = True
-        verification.spans = []
-        result.verification = verification
+        result.verification = MagicMock()  # attribute exists but is ignored
 
         success = export_semantic_html([result], str(out))
         assert success is True
         content = out.read_text(encoding="utf-8")
-        assert "unreliable" in content
-        assert "LOW" in content
-
-    def test_no_verification(self, tmp_path):
-        from src.core.export.html_builder import export_semantic_html
-
-        out = tmp_path / "qa.html"
-        success = export_semantic_html([self._mock_result()], str(out), include_verification=False)
-        assert success is True
-        content = out.read_text(encoding="utf-8")
-        # No legend when verification is off
+        # No verification legend or coloring — feature removed
         assert "legend" not in content.lower() or "Verification" not in content
 
     def test_long_question_truncated_in_header(self, tmp_path):

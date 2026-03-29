@@ -151,7 +151,7 @@ WHAT DOES IT DO?
 2. SEMANTIC SEARCH
    Search your documents by meaning and get answers with source citations. Perfect for quickly finding specific information or creating handoff documents for colleagues.
 
-3. KEY SENTENCES
+3. KEY EXCERPTS
    Automatically extracts the most important sentences from your case documents, giving you a quick overview of the key facts and details.
 
 WHO IS IT FOR?

@@ -2735,8 +2735,8 @@ class DynamicOutputWidget(ctk.CTkFrame):
         try:
             state = "normal" if enabled else "disabled"
             self.export_dropdown.configure(state=state)
-        except Exception:
-            pass  # Widget may not exist yet
+        except Exception as e:
+            logger.debug("Export dropdown state change failed: %s", e)
 
     def _on_treeview_click(self, event, vocab_tv: VocabTreeview | None = None):
         """

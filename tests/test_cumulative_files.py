@@ -49,6 +49,8 @@ def _make_table(on_remove=None):
 
 def _make_window_stub():
     """Create a MainWindow stub with attributes needed by file methods."""
+    import threading
+
     stub = MagicMock()
     stub.selected_files = []
     stub.processing_results = []
@@ -59,12 +61,21 @@ def _make_window_stub():
     stub._semantic_searching_active = False
     stub._semantic_answering_active = False
     stub._key_sentences_pending = False
+    stub._followup_pending = False
     stub._semantic_ready = False
+    stub._semantic_failed = False
+    stub._semantic_results_lock = threading.Lock()
+    stub._semantic_results = []
+    stub._vector_store_path = None
     stub._queue_poll_id = None
     stub._worker_ready_retries = 0
     stub._worker_manager = MagicMock()
     stub._worker_manager.is_ready.return_value = True
     stub._destroying = False
+    stub.output_display = MagicMock()
+    stub.output_display.document_preview_filename = None
+    stub.followup_btn = MagicMock()
+    stub.followup_entry = MagicMock()
     return stub
 
 

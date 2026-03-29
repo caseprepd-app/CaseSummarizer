@@ -29,7 +29,7 @@ added_data = [
 
 # Data subdirectories — only include if they contain files
 import glob
-for subdir in ["frequency", "keywords", "names"]:
+for subdir in ["frequency", "names"]:
     pattern = os.path.join("data", subdir, "*")
     if glob.glob(pattern):
         added_data.append((pattern, os.path.join("data", subdir)))

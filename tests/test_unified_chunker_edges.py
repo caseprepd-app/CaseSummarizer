@@ -24,7 +24,6 @@ def mock_chunker():
             min_tokens=10,
             target_tokens=50,
             max_tokens=100,
-            apply_coreference=False,
         )
         yield chunker
 

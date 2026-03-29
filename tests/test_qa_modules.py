@@ -60,43 +60,5 @@ class TestCitationExcerpt:
 
 
 # ============================================================================
-# C. Semantic Constants
+# C. Semantic Constants (LLM prompt constants removed Mar 2026)
 # ============================================================================
-
-
-class TestQAConstants:
-    """Tests for Q&A prompt templates and constants."""
-
-    def test_prompts_have_placeholders(self):
-        """Both prompts contain {context} and {question} placeholders."""
-        from src.core.semantic.semantic_constants import (
-            COMPACT_SEMANTIC_PROMPT,
-            FULL_SEMANTIC_PROMPT,
-        )
-
-        for prompt in [COMPACT_SEMANTIC_PROMPT, FULL_SEMANTIC_PROMPT]:
-            assert "{context}" in prompt
-            assert "{question}" in prompt
-
-    def test_compact_prompt_shorter(self):
-        """Compact prompt is shorter than full prompt."""
-        from src.core.semantic.semantic_constants import (
-            COMPACT_SEMANTIC_PROMPT,
-            FULL_SEMANTIC_PROMPT,
-        )
-
-        assert len(COMPACT_SEMANTIC_PROMPT) < len(FULL_SEMANTIC_PROMPT)
-
-    def test_unanswered_text_defined(self):
-        """UNANSWERED_TEXT is a non-empty string."""
-        from src.core.semantic.semantic_constants import UNANSWERED_TEXT
-
-        assert isinstance(UNANSWERED_TEXT, str)
-        assert len(UNANSWERED_TEXT) > 0
-
-    def test_compact_prompt_threshold(self):
-        """Threshold is a reasonable integer."""
-        from src.core.semantic.semantic_constants import COMPACT_PROMPT_THRESHOLD
-
-        assert isinstance(COMPACT_PROMPT_THRESHOLD, int)
-        assert COMPACT_PROMPT_THRESHOLD >= 2048

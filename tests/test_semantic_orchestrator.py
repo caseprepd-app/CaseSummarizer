@@ -45,10 +45,9 @@ class TestSemanticResult:
 
     def test_is_answered_false_for_unanswered(self):
         """is_answered should be False for unanswered results."""
-        from src.core.semantic.semantic_constants import UNANSWERED_TEXT
         from src.core.semantic.semantic_orchestrator import SemanticResult
 
-        r = SemanticResult(question="Q?", relevance=0.0, quick_answer=UNANSWERED_TEXT)
+        r = SemanticResult(question="Q?", relevance=0.0, quick_answer="")
         assert r.is_answered is False
 
     def test_is_exportable_true_above_floor(self):

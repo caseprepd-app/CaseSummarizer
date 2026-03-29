@@ -287,11 +287,10 @@ class SemanticOrchestrator:
         self, question: str, is_followup: bool = False, is_default: bool = False
     ) -> SemanticResult:
         """
-        Ask a single question and generate both quick_answer and citation.
+        Ask a single question and build a SemanticResult.
 
-        Produces CSV-style output with:
-        - citation: Raw text from BM25+/vector retrieval (always populated)
-        - quick_answer: Extraction-based answer from retrieved chunks
+        LLM generation was removed (Mar 2026). quick_answer is always empty.
+        Citation contains the top retrieved excerpt from BM25+/vector search.
 
         Args:
             question: The question to ask
@@ -299,7 +298,7 @@ class SemanticOrchestrator:
             is_default: Whether this question is from the default questions list
 
         Returns:
-            SemanticResult with quick_answer, citation, and metadata
+            SemanticResult with citation and metadata
         """
         # Retrieve relevant context (this becomes the citation)
         retrieval_result = self.retriever.retrieve_context(question)

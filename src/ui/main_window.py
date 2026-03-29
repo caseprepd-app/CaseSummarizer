@@ -469,6 +469,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             or self._followup_pending
         ):
             logger.warning("Cannot clear files during active processing")
+            self.set_status("Cannot clear files during processing")
             return
 
         self.selected_files.clear()
@@ -1260,6 +1261,9 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         # Reset processing state
         self._semantic_answering_active = False
         self._preprocessing_active = False
+        self._key_sentences_pending = False
+        self._followup_pending = False
+        self._followup_poll_count = 0
 
         # Finalize as a partial completion
         completed = len(self._completed_tasks)
@@ -1663,9 +1667,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
                     self.output_display.update_outputs(
                         semantic_results=list(self._semantic_results)
                     )
-                answer_len = (
-                    len(followup_result.quick_answer) if followup_result.quick_answer else 0
-                )
+                answer_len = len(followup_result.citation) if followup_result.citation else 0
                 self.set_status(f"Follow-up answered: {answer_len} chars")
                 logger.debug("Follow-up result displayed successfully")
             else:
@@ -1737,7 +1739,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             if data is not None:
                 with self._semantic_results_lock:
                     self._semantic_results.append(data)
-                logger.debug("Follow-up answered: %s chars", len(data.quick_answer))
+                logger.debug("Follow-up answered: %s chars", len(data.citation))
             return data
 
         except Exception as e:

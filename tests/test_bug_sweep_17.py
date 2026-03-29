@@ -27,14 +27,14 @@ class TestFollowupAttributeFix:
         # The .answer property exists for backward compat but delegates to quick_answer
         assert result.answer == "answer text"
 
-    def test_main_window_uses_quick_answer(self):
-        """_ask_followup_for_semantic_panel uses data.quick_answer, not data.answer."""
+    def test_main_window_uses_citation_length(self):
+        """Follow-up result uses citation length, not quick_answer length."""
         import inspect
 
         from src.ui.main_window import MainWindow
 
         source = inspect.getsource(MainWindow._ask_followup_for_semantic_panel)
-        assert "data.quick_answer" in source
+        assert "data.citation" in source
         assert "data.answer" not in source
 
 

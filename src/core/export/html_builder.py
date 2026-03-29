@@ -703,7 +703,7 @@ def export_semantic_html(
     Args:
         results: List of SemanticResult objects
         file_path: Output file path (.html)
-        include_verification: Include verification coloring
+        include_verification: Unused (kept for API compatibility)
         title: Document title
 
     Returns:
@@ -716,52 +716,10 @@ def export_semantic_html(
         timestamp = format_export_timestamp()
         summary = f"{len(results)} Q&A pairs — Generated {timestamp}"
 
-        # Track if we need legend
-        has_verification = False
-
         # Build Q&A items
         items = []
         for i, result in enumerate(results, 1):
-            # Build answer with verification coloring if available
-            answer_html = ""
-            reliability_badge = ""
-
-            if include_verification and hasattr(result, "verification") and result.verification:
-                has_verification = True
-                v = result.verification
-
-                # Reliability badge
-                reliability = v.overall_reliability
-                if reliability >= 0.7:
-                    rel_class = "reliability-high"
-                    rel_text = f"HIGH ({int(reliability * 100)}%)"
-                elif reliability >= 0.5:
-                    rel_class = "reliability-medium"
-                    rel_text = f"MEDIUM ({int(reliability * 100)}%)"
-                else:
-                    rel_class = "reliability-low"
-                    rel_text = f"LOW ({int(reliability * 100)}%)"
-                reliability_badge = f'<span class="reliability {rel_class}">{rel_text}</span>'
-
-                # Color-coded spans
-                if v.answer_rejected:
-                    answer_html = f'<span class="unreliable">{_escape(result.quick_answer)}</span>'
-                else:
-                    for span in v.spans:
-                        prob = span.hallucination_prob
-                        if prob < 0.3:
-                            css_class = "verified"
-                        elif prob < 0.5:
-                            css_class = "uncertain"
-                        elif prob < 0.7:
-                            css_class = "suspicious"
-                        elif prob < 0.85:
-                            css_class = "unreliable"
-                        else:
-                            css_class = "hallucinated"
-                        answer_html += f'<span class="{css_class}">{_escape(span.text)}</span>'
-            else:
-                answer_html = _escape(result.quick_answer)
+            answer_html = _escape(result.quick_answer)
 
             # Build Q&A item
             citation = _escape(result.citation) if result.citation else "(no citation)"
@@ -769,7 +727,7 @@ def export_semantic_html(
 
             item = f"""        <div class="qa-item">
             <div class="qa-header" onclick="toggleItem(this)">
-                <span>Q{i}: {_escape(result.question[:80])}{"..." if len(result.question) > 80 else ""}{reliability_badge}</span>
+                <span>Q{i}: {_escape(result.question[:80])}{"..." if len(result.question) > 80 else ""}</span>
                 <span class="toggle">▼ Hide</span>
             </div>
             <div class="qa-content">
@@ -785,19 +743,7 @@ def export_semantic_html(
             items.append(item)
 
         search_items = "\n".join(items)
-
-        # Build legend if verification was used
-        if has_verification:
-            legend = """    <div class="legend">
-        <span class="legend-title">Verification:</span>
-        <span class="verified">■ Verified</span>
-        <span class="uncertain">■ Uncertain</span>
-        <span class="suspicious">■ Suspicious</span>
-        <span class="unreliable">■ Unreliable</span>
-        <span class="hallucinated">■ Hallucinated</span>
-    </div>"""
-        else:
-            legend = ""
+        legend = ""
 
         # Generate HTML
         html_content = SEMANTIC_HTML_TEMPLATE.format(

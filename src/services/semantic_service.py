@@ -159,7 +159,7 @@ class SemanticService:
 
         return self._orchestrator.run_default_questions(progress_callback)
 
-    def ask_question(self, question: str) -> dict | None:
+    def ask_question(self, question: str) -> "SemanticResult | None":
         """
         Ask a follow-up question.
 
@@ -184,15 +184,11 @@ class SemanticService:
             List of question strings
         """
         if self._orchestrator is None:
-            # Load questions without full orchestrator
-            from src.core.config import load_yaml_with_fallback
-            from src.core.semantic.semantic_orchestrator import DEFAULT_QUESTIONS_PATH
+            # Load questions via DefaultQuestionsManager (single source of truth)
+            from src.core.semantic.default_questions_manager import get_default_questions_manager
 
-            config = load_yaml_with_fallback(
-                DEFAULT_QUESTIONS_PATH, fallback={}, log_prefix="[SemanticService]"
-            )
-
-            return [q.get("text", "") for q in config.get("questions", [])]
+            manager = get_default_questions_manager()
+            return manager.get_enabled_questions()
 
         return self._orchestrator.get_default_questions()
 

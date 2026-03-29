@@ -294,12 +294,6 @@ class TestBundledConfigFiles:
         assert path.is_file(), f"Missing: {path}"
         assert path.stat().st_size > 0, f"Empty: {path}"
 
-    def test_chunking_config_yaml_exists(self):
-        """config/chunking_config.yaml must exist and be non-empty."""
-        path = BUNDLED_CONFIG_DIR / "chunking_config.yaml"
-        assert path.is_file(), f"Missing: {path}"
-        assert path.stat().st_size > 0, f"Empty: {path}"
-
     def test_word_frequency_file_exists(self):
         """data/frequency/Word_rarity-count_1w.txt must exist and be non-empty."""
         from src.config import GOOGLE_WORD_FREQUENCY_FILE

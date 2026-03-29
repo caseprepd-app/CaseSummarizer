@@ -28,7 +28,6 @@ import logging
 import re
 import time
 from dataclasses import dataclass, field
-from pathlib import Path
 
 import tiktoken
 
@@ -237,15 +236,6 @@ class UnifiedChunker:
 
         return final_chunks
 
-    def _paragraph_chunk(self, text: str) -> list[str]:
-        """
-        Fallback paragraph-based chunking.
-
-        Splits on double newlines (paragraph boundaries).
-        """
-        paragraphs = re.split(r"\n\s*\n", text)
-        return [p.strip() for p in paragraphs if p.strip()]
-
     def _enforce_token_limits(self, chunks: list[str]) -> list[str]:
         """
         Enforce min/max token limits on chunks.
@@ -412,34 +402,6 @@ class UnifiedChunker:
                 return match.group(0)[:50]
 
         return None
-
-    def chunk_pdf(self, file_path: Path, source_file: str | None = None) -> list[UnifiedChunk]:
-        """
-        Load and chunk a PDF file.
-
-        Args:
-            file_path: Path to the PDF file
-            source_file: Optional source filename for metadata
-
-        Returns:
-            List of UnifiedChunk objects
-        """
-        from langchain_community.document_loaders import PyPDFLoader
-
-        source = source_file or file_path.name
-
-        try:
-            loader = PyPDFLoader(str(file_path))
-            documents = loader.load()
-
-            full_text = "\n\n".join(doc.page_content for doc in documents)
-            logger.debug("Loaded %s pages from PDF: %s", len(documents), source)
-
-            return self.chunk_text(full_text, source_file=source)
-
-        except Exception as e:
-            logger.error("Failed to chunk PDF %s: %s", file_path, e, exc_info=True)
-            return []
 
     def clear_cache(self):
         """Clear the chunk cache and token count cache."""

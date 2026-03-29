@@ -243,7 +243,6 @@ CORPUS_DIR = APPDATA_DIR / "corpus"
 CORPUS_MIN_DOCUMENTS = 5  # Minimum docs before BM25 activates
 BM25_ENABLED = True  # User can disable in settings
 BM25_MIN_SCORE_THRESHOLD = _d("bm25_min_score_threshold")
-BM25_WEIGHT = 0.8  # Legacy - kept for backward compatibility
 
 # BM25+ Algorithm Parameters (unified across vocabulary and retrieval)
 # Using BM25+ parameters which are strictly better than standard BM25
@@ -335,14 +334,6 @@ def load_model_configs():
 
 
 # Default Processing Settings
-DEFAULT_SUMMARY_WORDS = 200
-MIN_SUMMARY_WORDS = 100
-MAX_SUMMARY_WORDS = 500
-
-# Legacy summary slider settings (used by Key Excerpts word-count UI)
-SUMMARY_WORD_COUNT_TOLERANCE = 20
-SUMMARY_SLIDER_INCREMENT = 50
-
 # Vocabulary Extractor Data Files
 LEGAL_EXCLUDE_LIST_PATH = BUNDLED_CONFIG_DIR / "legal_exclude.txt"
 MEDICAL_TERMS_LIST_PATH = BUNDLED_CONFIG_DIR / "medical_terms.txt"
@@ -591,11 +582,6 @@ _user_workers = max(1, min(8, USER_DEFINED_MAX_WORKER_COUNT))
 # Compute actual max workers based on settings
 PARALLEL_MAX_WORKERS = _user_workers if USER_PICKS_MAX_WORKER_COUNT else min(os.cpu_count() or 4, 4)
 
-# License Configuration
-LICENSE_FILE = CONFIG_DIR / "license.dat"
-LICENSE_API_BASE_URL = "https://api.localscribe.example.com"  # Placeholder - will be updated
-LICENSE_CACHE_HOURS = 24
-
 # Logging Configuration
 LOG_FILE = LOGS_DIR / "processing.log"
 LOG_FORMAT = "[%(levelname)s %(asctime)s] %(message)s"
@@ -629,13 +615,6 @@ VECTOR_STORE_DIR.mkdir(parents=True, exist_ok=True)
 SEMANTIC_RETRIEVAL_K = _d("semantic_retrieval_k")
 SEMANTIC_MAX_TOKENS = _d("semantic_max_tokens")
 SEMANTIC_SIMILARITY_THRESHOLD = _d("semantic_similarity_threshold")
-
-# Semantic Search Context Window — only used by deprecated multi-chunk retrieval.
-# Single-chunk retrieval (Mar 2026) does not reference this value.
-SEMANTIC_CONTEXT_WINDOW = 4096
-
-# Chat History Settings
-SEMANTIC_CONVERSATION_CONTEXT_PAIRS = 3  # Include last N search pairs in follow-ups
 
 # ============================================================================
 # Hybrid Retrieval Configuration (BM25+ Integration)
@@ -695,7 +674,7 @@ UNIFIED_CHUNK_MAX_TOKENS = _d("unified_chunk_max_tokens")
 UNIFIED_CHUNK_OVERLAP_TOKENS = _d("unified_chunk_overlap_tokens")
 
 # tiktoken encoding for token counting
-# cl100k_base is compatible with most modern models (GPT-3.5+, Claude, Llama)
+# cl100k_base — standard BPE encoding for consistent chunk token counting
 UNIFIED_CHUNK_ENCODING = "cl100k_base"
 
 # Search Export: minimum relevance to include in exports
@@ -770,9 +749,6 @@ if TESSERACT_BUNDLED_DIR.exists():
     os.environ["TESSDATA_PREFIX"] = str(TESSERACT_BUNDLED_DIR / "tessdata")
 
 RERANKER_MAX_LENGTH = 8192
-RERANKER_TOP_K = _d(
-    "reranker_top_k"
-)  # Currently unused — reranker top_k is hardcoded to 1 in semantic_retriever.py
 
 
 # ============================================================================

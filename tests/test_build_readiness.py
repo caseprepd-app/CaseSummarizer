@@ -182,6 +182,12 @@ HIDDEN_IMPORTS_NON_UI = [
     "gibberish_detector.model",
     "gibberish_detector.serializer",
     "gibberish_detector.trainer",
+    "src.core.retrieval.algorithms.bm25_plus",
+    "src.core.retrieval.algorithms.faiss_semantic",
+    "einops",
+    "faiss",
+    "rank_bm25",
+    "deskew",
 ]
 
 

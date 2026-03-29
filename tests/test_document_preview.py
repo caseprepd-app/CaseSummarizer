@@ -258,6 +258,11 @@ class TestFileSelectedFlow:
         stub.output_display = MagicMock()
         stub.output_display.document_preview_filename = "test.pdf"
         stub.set_status = MagicMock()
+        stub._processing_active = False
+        stub._preprocessing_active = False
+        stub._semantic_answering_active = False
+        stub._key_sentences_pending = False
+        stub._followup_pending = False
 
         MainWindow._remove_file(stub, "test.pdf")
 
@@ -275,6 +280,11 @@ class TestFileSelectedFlow:
         stub.output_display = MagicMock()
         stub.output_display.document_preview_filename = "a.pdf"
         stub.set_status = MagicMock()
+        stub._processing_active = False
+        stub._preprocessing_active = False
+        stub._semantic_answering_active = False
+        stub._key_sentences_pending = False
+        stub._followup_pending = False
 
         MainWindow._remove_file(stub, "b.pdf")
 
