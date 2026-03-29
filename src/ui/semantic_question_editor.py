@@ -13,20 +13,20 @@ Features:
 """
 
 import logging
-from pathlib import Path
 from tkinter import messagebox, ttk
 
 import customtkinter as ctk
 import yaml
 
-from src.config import load_yaml_with_fallback
+from src.config import BUNDLED_CONFIG_DIR, load_yaml_with_fallback
 from src.ui.base_dialog import BaseModalDialog
 
 logger = logging.getLogger(__name__)
 from src.ui.theme import BUTTON_STYLES, COLORS, FONTS
 
-# Default questions YAML path
-DEFAULT_QUESTIONS_PATH = Path(__file__).parent.parent.parent / "config" / "semantic_questions.yaml"
+# Default questions YAML path — uses centralized BUNDLED_CONFIG_DIR
+# (see src/core/paths.py docstring for why __file__-based paths are forbidden)
+DEFAULT_QUESTIONS_PATH = BUNDLED_CONFIG_DIR / "semantic_questions.yaml"
 
 
 class SemanticQuestionEditor(BaseModalDialog):

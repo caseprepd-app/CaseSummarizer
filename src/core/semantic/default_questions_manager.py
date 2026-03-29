@@ -13,17 +13,16 @@ import threading
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
+from src.core.paths import get_config_dir
+
 logger = logging.getLogger(__name__)
 
-# Default questions file location
-DEFAULT_QUESTIONS_PATH = (
-    Path(__file__).parent.parent.parent.parent / "config" / "default_questions.json"
-)
+# Default questions file location — uses centralized path resolution
+# (see src/core/paths.py docstring for why __file__-based paths are forbidden)
+DEFAULT_QUESTIONS_PATH = get_config_dir() / "default_questions.json"
 
 # Legacy text file (for migration)
-LEGACY_QUESTIONS_PATH = (
-    Path(__file__).parent.parent.parent.parent / "config" / "semantic_default_questions.txt"
-)
+LEGACY_QUESTIONS_PATH = get_config_dir() / "semantic_default_questions.txt"
 
 
 @dataclass

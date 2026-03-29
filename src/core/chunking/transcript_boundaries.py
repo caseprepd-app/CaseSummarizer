@@ -39,12 +39,46 @@ _SPEAKER_PATTERNS = [
 _QUICK_CHECK_MARKERS = ["BY MR", "BY MS", "THE COURT", "THE WITNESS", "EXAMINATION"]
 
 
+def _has_transcript_markers(text: str) -> bool:
+    """
+    Check whether text contains transcript markers using multi-position sampling.
+
+    Sampling strategy (avoids scanning entire multi-MB documents):
+    - Documents <= 20K chars: check the entire text.
+    - Documents > 20K chars: check first 10K + a 10K window from the middle.
+
+    Python slicing is bounds-safe (returns empty/short string if indices
+    exceed length), so no IndexError is possible here.
+    """
+    if not text:
+        return False
+
+    length = len(text)
+
+    if length <= 20_000:
+        # Short enough to check everything
+        sample = text.upper()
+        return any(marker in sample for marker in _QUICK_CHECK_MARKERS)
+
+    # Sample first 10K and middle 10K
+    first_sample = text[:10_000].upper()
+    if any(marker in first_sample for marker in _QUICK_CHECK_MARKERS):
+        return True
+
+    mid_start = (length // 2) - 5_000
+    mid_sample = text[mid_start : mid_start + 10_000].upper()
+    return any(marker in mid_sample for marker in _QUICK_CHECK_MARKERS)
+
+
 def inject_speaker_boundaries(text: str) -> str:
     """
     Inject paragraph breaks at speaker-turn boundaries.
 
     Ensures \\n\\n before each speaker turn so the sentence splitter
     treats them as natural chunk boundaries.
+
+    Uses multi-position sampling (first 10K + middle 10K) so transcripts
+    with long preambles are still detected.
 
     No-op on non-transcript documents (returns text unchanged).
 
@@ -54,9 +88,7 @@ def inject_speaker_boundaries(text: str) -> str:
     Returns:
         Text with paragraph breaks at speaker turns
     """
-    # Quick check: skip if no transcript markers found
-    text_upper = text[:20000].upper()
-    if not any(marker in text_upper for marker in _QUICK_CHECK_MARKERS):
+    if not _has_transcript_markers(text):
         return text
 
     changes = 0

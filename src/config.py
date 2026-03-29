@@ -12,16 +12,18 @@ import yaml
 
 from src.config_defaults import get_default as _factory_default
 from src.core.config import load_yaml_with_fallback  # noqa: F401 — re-exported for UI layer
+from src.core.paths import get_base_dir, get_config_dir
 from src.core.vocab_schema import VF
 
 
-def _d(key: str):
+def _resolve_user_preference(key: str):
     """
-    Get a config value: user preference first, then factory default.
+    Read user preference for a config key, falling back to factory default.
 
     Lazy-imports get_user_preferences to avoid circular imports
-    (config.py is imported before user_preferences singleton is ready).
-    Values are frozen at import time (per-session); restart to pick up changes.
+    (config.py is imported before the user_preferences singleton is ready).
+
+    Guards against JSON float precision drift (e.g. 0.8 stored as 0.79999...).
     """
     factory = _factory_default(key)
     try:
@@ -29,9 +31,6 @@ def _d(key: str):
 
         value = get_user_preferences().get(key)
         if value is not None:
-            # Guard against JSON float precision drift (e.g. 0.8 → 0.7999999999999998).
-            # If the stored value is approximately equal to factory default, use factory
-            # to avoid cascading imprecision in downstream calculations.
             if isinstance(value, float) and isinstance(factory, float):
                 if abs(value - factory) < 1e-9:
                     return factory
@@ -39,6 +38,34 @@ def _d(key: str):
     except Exception as e:
         logging.warning("Config value recovery for '%s': %s", key, e)
     return factory
+
+
+def _frozen_setting(key: str):
+    """
+    Read a setting ONCE at import time and freeze it for the session.
+
+    Use this for settings that are read frequently in tight loops where
+    the overhead of a dict lookup on every access would be wasteful, or
+    for settings that should not change mid-session (e.g., ML training
+    parameters, scoring weights).
+    """
+    return _resolve_user_preference(key)
+
+
+def get_live_setting(key: str):
+    """
+    Read a setting live from user preferences on every call.
+
+    Use this for settings the user can change via the Settings dialog
+    and expects to take effect immediately (e.g., relevance thresholds,
+    export floors, citation limits). The cost is one dict lookup per call.
+    """
+    return _resolve_user_preference(key)
+
+
+# Alias for backward compatibility with existing _d() calls.
+# New code should use _frozen_setting() or get_live_setting() explicitly.
+_d = _frozen_setting
 
 
 def _auto_embedding_batch_size() -> int:
@@ -62,13 +89,9 @@ logger = logging.getLogger(__name__)
 DEBUG_MODE = os.environ.get("DEBUG", "false").lower() == "true"
 
 # Base directory for bundled files (works in both dev and PyInstaller frozen mode)
-# In dev: src/config.py -> parent.parent = project root
-# In frozen (onedir): sys._MEIPASS = dist/CasePrepd/_internal/
-if getattr(sys, "frozen", False):
-    BUNDLED_BASE_DIR = Path(sys._MEIPASS)
-else:
-    BUNDLED_BASE_DIR = Path(__file__).parent.parent
-BUNDLED_CONFIG_DIR = BUNDLED_BASE_DIR / "config"
+# Single source of truth lives in src/core/paths.py — see that module's docstring.
+BUNDLED_BASE_DIR = get_base_dir()
+BUNDLED_CONFIG_DIR = get_config_dir()
 
 # Application Name (loaded from config/app_name.txt for easy rebranding)
 # This file contains just the app name on a single line

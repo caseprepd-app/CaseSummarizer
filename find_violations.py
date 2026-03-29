@@ -127,6 +127,58 @@ def check_services_ui_violation(source_module: str, imported_module: str) -> boo
     return False
 
 
+# Files exempt from the raw-path check (they have legitimate reasons):
+# - src/core/paths.py: THE canonical source of truth for path resolution
+# - src/splash.py: must be self-contained (no src.* imports allowed)
+_RAW_PATH_EXEMPT = {"src.core.paths", "src.splash"}
+
+
+def find_raw_path_violations(filepath: Path, source_module: str) -> list[dict]:
+    """
+    Detect __file__-based config/data path computation.
+
+    Files should use src.core.paths (get_config_dir, get_data_dir)
+    instead of computing paths from __file__. The __file__ pattern
+    breaks in PyInstaller frozen builds.
+    """
+    if source_module in _RAW_PATH_EXEMPT:
+        return []
+    if "deprecated" in source_module:
+        return []
+
+    try:
+        content = filepath.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError):
+        return []
+
+    violations = []
+    for i, line in enumerate(content.splitlines(), start=1):
+        stripped = line.strip()
+        if stripped.startswith("#"):
+            continue
+        if "Path(__file__)" not in line:
+            continue
+        # Check if the path chain reaches config/ or data/
+        has_config = '/ "config"' in line or "/ 'config'" in line
+        has_data = '/ "data"' in line or "/ 'data'" in line
+        if has_config or has_data:
+            target = "config" if has_config else "data"
+            violations.append(
+                {
+                    "file": str(filepath),
+                    "line": i,
+                    "source": source_module,
+                    "imports": "",
+                    "reason": (
+                        f"Raw __file__ path to {target}/. "
+                        "Use get_config_dir() or get_data_dir() "
+                        "from src.core.paths instead."
+                    ),
+                }
+            )
+    return violations
+
+
 def find_all_violations(project_root: Path, verbose: bool = False) -> dict:
     """Scan all Python files and find import violations."""
 
@@ -135,6 +187,7 @@ def find_all_violations(project_root: Path, verbose: bool = False) -> dict:
         "ui_imports_core": [],  # UI bypassing services
         "core_imports_ui": [],  # Core depending on UI
         "services_imports_ui": [],  # Services depending on UI
+        "raw_file_paths": [],  # __file__-based config/data paths
     }
 
     src_dir = project_root / "src"
@@ -201,6 +254,10 @@ def find_all_violations(project_root: Path, verbose: bool = False) -> dict:
                     }
                 )
 
+        # Check for raw __file__-based config/data paths (not import-based)
+        raw_path_hits = find_raw_path_violations(filepath, source_module)
+        violations["raw_file_paths"].extend(raw_path_hits)
+
     return violations
 
 
@@ -221,6 +278,11 @@ def print_violations(violations: dict) -> int:
         ),
         ("core_imports_ui", "CORE IMPORTING UI", "Core modules should never depend on UI"),
         ("services_imports_ui", "SERVICES IMPORTING UI", "Services should never depend on UI"),
+        (
+            "raw_file_paths",
+            "RAW __file__ PATHS TO config/ OR data/",
+            "Use get_config_dir()/get_data_dir() from src.core.paths instead of Path(__file__)",
+        ),
     ]
 
     for key, title, description in categories:

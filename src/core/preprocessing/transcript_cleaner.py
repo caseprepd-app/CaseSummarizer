@@ -21,8 +21,8 @@ Usage:
 import json
 import logging
 import re
-from pathlib import Path
 
+from src.core.paths import get_config_dir
 from src.core.preprocessing.base import BasePreprocessor, PreprocessingResult
 
 logger = logging.getLogger(__name__)
@@ -35,7 +35,7 @@ def _load_transcript_patterns() -> dict:
     Returns:
         Dict with pattern configurations, or empty dict if file not found.
     """
-    config_path = Path(__file__).parent.parent.parent.parent / "config" / "transcript_patterns.json"
+    config_path = get_config_dir() / "transcript_patterns.json"
     if not config_path.exists():
         logger.debug("Config not found: %s, using defaults", config_path)
         return {}

@@ -49,7 +49,6 @@ class SemanticPanel(ctk.CTkFrame):
         self,
         master,
         on_edit_questions: Callable | None = None,
-        on_ask_followup: Callable[[str], SemanticResult | None] | None = None,
         **kwargs,
     ):
         """
@@ -58,12 +57,10 @@ class SemanticPanel(ctk.CTkFrame):
         Args:
             master: Parent widget
             on_edit_questions: Callback when "Edit Questions" is clicked
-            on_ask_followup: Callback(question_text) -> SemanticResult for follow-ups
         """
         super().__init__(master, **kwargs)
 
         self.on_edit_questions = on_edit_questions
-        self.on_ask_followup = on_ask_followup
 
         # Results storage
         self._results: list[SemanticResult] = []
@@ -540,15 +537,6 @@ class SemanticPanel(ctk.CTkFrame):
         if not exportable:
             return ""
         return self._format_csv_export(exportable)
-
-    def set_followup_callback(self, callback: Callable[[str], SemanticResult | None]):
-        """
-        Set callback for follow-up questions.
-
-        Args:
-            callback: Function(question_text) -> SemanticResult
-        """
-        self.on_ask_followup = callback
 
     def set_edit_callback(self, callback: Callable):
         """

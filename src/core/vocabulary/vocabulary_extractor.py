@@ -44,6 +44,7 @@ from src.config import (
     VOCABULARY_RARITY_THRESHOLD,
     VOCABULARY_SORT_METHOD,
 )
+from src.core.paths import get_config_dir
 from src.core.vocab_schema import VF
 from src.core.vocabulary.algorithms.base import BaseExtractionAlgorithm
 from src.core.vocabulary.preference_learner import get_meta_learner
@@ -232,9 +233,7 @@ class VocabularyExtractor:
             logger.debug("User exclusion list has %s terms", len(self.user_exclude_list))
 
         # Load common medical/legal words blacklist
-        common_blacklist_path = (
-            Path(__file__).parent.parent.parent.parent / "config" / "common_medical_legal.txt"
-        )
+        common_blacklist_path = get_config_dir() / "common_medical_legal.txt"
         self.common_words_blacklist = self._load_word_list(common_blacklist_path)
 
         # Load frequency dataset

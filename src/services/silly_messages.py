@@ -7,7 +7,8 @@ to add personality to the status bar during brief transitions.
 
 import logging
 import random
-from pathlib import Path
+
+from src.core.paths import get_config_dir
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +23,7 @@ _FALLBACK_MESSAGES = [
 _messages: list[str] = []
 
 # Load messages from config file at import time
-_config_path = Path(__file__).parent.parent.parent / "config" / "silly_messages.txt"
+_config_path = get_config_dir() / "silly_messages.txt"
 try:
     _messages = [
         line.strip()

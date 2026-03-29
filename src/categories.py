@@ -15,12 +15,14 @@ Usage:
 import json
 import logging
 from functools import lru_cache
-from pathlib import Path
+
+from src.core.paths import get_config_dir
 
 logger = logging.getLogger(__name__)
 
-# Path to categories configuration file
-CATEGORIES_FILE = Path(__file__).parent.parent / "config" / "categories.json"
+# Path to categories configuration file — uses centralized path resolution
+# (see src/core/paths.py docstring for why __file__-based paths are forbidden)
+CATEGORIES_FILE = get_config_dir() / "categories.json"
 
 
 class CategoriesError(Exception):

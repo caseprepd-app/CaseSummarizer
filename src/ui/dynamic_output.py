@@ -1688,16 +1688,6 @@ class DynamicOutputWidget(ctk.CTkFrame):
             logger.debug("No semantic search results to display")
             return
 
-        # Set up follow-up callback if not already done
-        # (must be done after MainWindow is fully initialized, not in __init__)
-        if self._semantic_panel.on_ask_followup is None:
-            main_window = self.winfo_toplevel()
-            if hasattr(main_window, "_ask_followup_for_semantic_panel"):
-                self._semantic_panel.set_followup_callback(
-                    main_window._ask_followup_for_semantic_panel
-                )
-                logger.debug("Follow-up callback connected to MainWindow")
-
         # Display results and show the search panel (hide status label)
         self._semantic_panel.display_results(results)
         self.show_semantic_content()

@@ -25,7 +25,9 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from src.config import get_live_setting
 from src.core.config import load_yaml_with_fallback
+from src.core.paths import get_config_dir
 from src.core.vector_store.semantic_retriever import RetrievalResult, SemanticRetriever
 
 logger = logging.getLogger(__name__)
@@ -33,13 +35,10 @@ logger = logging.getLogger(__name__)
 if TYPE_CHECKING:
     pass
 
-# Default questions YAML path (relative to this file: src/core/semantic/ -> config/)
-DEFAULT_QUESTIONS_PATH = (
-    Path(__file__).parent.parent.parent.parent / "config" / "semantic_questions.yaml"
-)
-DEFAULT_QUESTIONS_TXT_PATH = (
-    Path(__file__).parent.parent.parent.parent / "config" / "semantic_default_questions.txt"
-)
+# Default questions paths — uses centralized path resolution
+# (see src/core/paths.py docstring for why __file__-based paths are forbidden)
+DEFAULT_QUESTIONS_PATH = get_config_dir() / "semantic_questions.yaml"
+DEFAULT_QUESTIONS_TXT_PATH = get_config_dir() / "semantic_default_questions.txt"
 
 
 @dataclass
@@ -93,13 +92,11 @@ class SemanticResult:
         """Whether this result meets quality thresholds for export."""
         import math
 
-        from src.config import SEMANTIC_EXPORT_RELEVANCE_FLOOR
-
         # Filter NaN or non-finite relevance
         if not math.isfinite(self.relevance):
             return False
         # Retrieval relevance must meet floor (catches unanswered at 0.0)
-        if self.relevance < SEMANTIC_EXPORT_RELEVANCE_FLOOR:
+        if self.relevance < get_live_setting("semantic_export_relevance_floor"):
             return False
         return True
 
@@ -320,32 +317,34 @@ class SemanticOrchestrator:
             )
 
         # Check if retrieval quality is sufficient to attempt answering
-        from src.config import RETRIEVAL_RELEVANCE_GATE
 
         best_score = max((s.relevance_score for s in retrieval_result.sources), default=0.0)
-        has_quality_context = retrieval_result.context and best_score >= RETRIEVAL_RELEVANCE_GATE
+        has_quality_context = retrieval_result.context and best_score >= get_live_setting(
+            "retrieval_relevance_gate"
+        )
 
         if has_quality_context:
             # Citation: focused excerpt via embedding similarity
-            from src.config import SEMANTIC_CITATION_MAX_CHARS
             from src.core.semantic.citation_excerpt import extract_citation_excerpt
 
             citation = extract_citation_excerpt(
                 context=retrieval_result.context.strip(),
                 question=question,
                 embeddings=self.embeddings,
-                max_chars=SEMANTIC_CITATION_MAX_CHARS,
+                max_chars=get_live_setting("semantic_citation_max_chars"),
             )
 
             source_summary = self.retriever.get_relevant_sources_summary(retrieval_result)
             relevance = self._calculate_relevance(retrieval_result)
         else:
             # Low retrieval scores = question likely unanswerable from these documents
-            if retrieval_result.context and best_score < RETRIEVAL_RELEVANCE_GATE:
+            if retrieval_result.context and best_score < get_live_setting(
+                "retrieval_relevance_gate"
+            ):
                 logger.debug(
                     "Retrieval quality gate: best_score=%.3f < gate=%s -- treating as unanswerable",
                     best_score,
-                    RETRIEVAL_RELEVANCE_GATE,
+                    get_live_setting("retrieval_relevance_gate"),
                 )
             citation = "No relevant excerpts found in documents."
             source_summary = ""
@@ -393,20 +392,19 @@ class SemanticOrchestrator:
                 question[:50],
             )
 
-        from src.config import RETRIEVAL_RELEVANCE_GATE
-
         best_score = max((s.relevance_score for s in retrieval_result.sources), default=0.0)
-        has_quality_context = retrieval_result.context and best_score >= RETRIEVAL_RELEVANCE_GATE
+        has_quality_context = retrieval_result.context and best_score >= get_live_setting(
+            "retrieval_relevance_gate"
+        )
 
         if has_quality_context:
-            from src.config import SEMANTIC_CITATION_MAX_CHARS
             from src.core.semantic.citation_excerpt import extract_citation_excerpt
 
             citation = extract_citation_excerpt(
                 context=retrieval_result.context.strip(),
                 question=question,
                 embeddings=self.embeddings,
-                max_chars=SEMANTIC_CITATION_MAX_CHARS,
+                max_chars=get_live_setting("semantic_citation_max_chars"),
             )
             source_summary = self.retriever.get_relevant_sources_summary(retrieval_result)
             relevance = self._calculate_relevance(retrieval_result)
@@ -422,11 +420,13 @@ class SemanticOrchestrator:
                 is_followup=is_followup,
             )
         else:
-            if retrieval_result.context and best_score < RETRIEVAL_RELEVANCE_GATE:
+            if retrieval_result.context and best_score < get_live_setting(
+                "retrieval_relevance_gate"
+            ):
                 logger.debug(
                     "Retrieval quality gate: best_score=%.3f < gate=%s",
                     best_score,
-                    RETRIEVAL_RELEVANCE_GATE,
+                    get_live_setting("retrieval_relevance_gate"),
                 )
             result = SemanticResult(
                 question=question,

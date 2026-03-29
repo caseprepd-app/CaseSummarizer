@@ -40,11 +40,11 @@ class TestBundledBaseDirResolution:
         assert (BUNDLED_BASE_DIR / "src").is_dir()
         assert (BUNDLED_BASE_DIR / "config").is_dir()
 
-    def test_config_uses_sys_frozen_check(self):
-        """config.py source code checks sys.frozen for BUNDLED_BASE_DIR."""
-        import src.config as mod
+    def test_paths_module_uses_sys_frozen_check(self):
+        """src/core/paths.py checks sys.frozen for base dir resolution."""
+        import src.core.paths as paths_mod
 
-        source = Path(mod.__file__).read_text(encoding="utf-8")
+        source = Path(paths_mod.__file__).read_text(encoding="utf-8")
         assert 'getattr(sys, "frozen", False)' in source
         assert "sys._MEIPASS" in source
 

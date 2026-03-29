@@ -14,7 +14,6 @@ import csv
 import logging
 import math
 import threading
-from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -52,7 +51,9 @@ def _load_names_datasets() -> tuple[set[str], set[str]]:
         if _forenames_set is not None and _surnames_set is not None:
             return _forenames_set, _surnames_set
 
-        data_dir = Path(__file__).parent.parent.parent.parent / "data" / "names"
+        from src.core.paths import get_data_dir
+
+        data_dir = get_data_dir() / "names"
         all_countries: set[str] = set()
         country_sets: dict[str, set[str]] = {}  # name -> set of countries
 

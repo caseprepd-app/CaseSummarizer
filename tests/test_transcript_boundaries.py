@@ -1,10 +1,62 @@
 """
 Tests for transcript-aware speaker-turn boundary injection.
 
-Covers inject_speaker_boundaries() from src.core.chunking.transcript_boundaries.
+Covers inject_speaker_boundaries() and _has_transcript_markers()
+from src.core.chunking.transcript_boundaries.
 """
 
-from src.core.chunking.transcript_boundaries import inject_speaker_boundaries
+from src.core.chunking.transcript_boundaries import (
+    _has_transcript_markers,
+    inject_speaker_boundaries,
+)
+
+
+class TestMultiPositionSampling:
+    """Tests for multi-position transcript marker sampling."""
+
+    def test_empty_string_no_crash(self):
+        """Empty string returns False without error."""
+        assert _has_transcript_markers("") is False
+
+    def test_short_doc_with_markers(self):
+        """Short document (< 1000 chars) with markers is detected."""
+        text = "THE COURT: Overruled."
+        assert _has_transcript_markers(text) is True
+
+    def test_short_doc_without_markers(self):
+        """Short document without markers is not detected."""
+        text = "This is a normal paragraph of text."
+        assert _has_transcript_markers(text) is False
+
+    def test_markers_only_in_middle(self):
+        """Document with markers only in the middle half is detected."""
+        # 30K of filler, then markers in the middle, then more filler
+        preamble = "X" * 14_000
+        middle = "\nTHE COURT: Sustained.\n"
+        suffix = "Y" * 14_000
+        text = preamble + middle + suffix
+        assert len(text) > 20_000
+        assert _has_transcript_markers(text) is True
+
+    def test_markers_only_at_start(self):
+        """Document with markers only at the start is detected."""
+        text = "BY MR. SMITH: Good morning.\n" + ("Z" * 30_000)
+        assert _has_transcript_markers(text) is True
+
+    def test_no_markers_anywhere_large_doc(self):
+        """Large document with no markers returns False."""
+        text = "A" * 50_000
+        assert _has_transcript_markers(text) is False
+
+    def test_long_preamble_markers_in_middle(self):
+        """Transcript with 25K preamble is still detected via mid-sample."""
+        preamble = "Table of contents entry\n" * 1200  # ~28K chars
+        transcript = "\nBY MR. JONES: Please state your name.\n"
+        suffix = "More text " * 1000
+        text = preamble + transcript + suffix
+        assert len(text) > 20_000
+        result = inject_speaker_boundaries(text)
+        assert "\n\nBY MR. JONES:" in result
 
 
 class TestInjectSpeakerBoundaries:

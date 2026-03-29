@@ -27,15 +27,11 @@ class TestFollowupAttributeFix:
         # The .answer property exists for backward compat but delegates to quick_answer
         assert result.answer == "answer text"
 
-    def test_main_window_uses_citation_length(self):
-        """Follow-up result uses citation length, not quick_answer length."""
-        import inspect
-
+    def test_main_window_no_panel_followup(self):
+        """Panel follow-up was removed — only main search bar exists."""
         from src.ui.main_window import MainWindow
 
-        source = inspect.getsource(MainWindow._ask_followup_for_semantic_panel)
-        assert "data.citation" in source
-        assert "data.answer" not in source
+        assert not hasattr(MainWindow, "_ask_followup_for_semantic_panel")
 
 
 # ============================================================
@@ -99,33 +95,32 @@ class TestEmbeddingsThreadSafety:
 
 
 # ============================================================
-# Bug #4: Panel followup race condition fix
+# Bug #4: Panel followup removed — single search bar only
 # ============================================================
 
 
-class TestPanelFollowupEvent:
-    """Bug #4: Panel followup uses threading.Event instead of queue polling."""
+class TestPanelFollowupRemoved:
+    """Bug #4 (updated): Panel follow-up removed; only main search bar exists."""
 
-    def test_event_attributes_exist(self):
-        """MainWindow should have _panel_followup_event and _panel_followup_data."""
-        # We can't instantiate MainWindow, but we can check the __init__ code
+    def test_no_panel_followup_attributes(self):
+        """MainWindow should NOT have _panel_followup_event or _panel_followup_data."""
         import inspect
 
         from src.ui.main_window import MainWindow
 
         source = inspect.getsource(MainWindow.__init__)
-        assert "_panel_followup_event" in source
-        assert "_panel_followup_data" in source
+        assert "_panel_followup_event" not in source
+        assert "_panel_followup_data" not in source
 
-    def test_handle_queue_message_routes_followup(self):
-        """_handle_queue_message should handle semantic_followup_result messages."""
+    def test_handle_queue_message_routes_tab_followup(self):
+        """_handle_queue_message routes semantic_followup_result to tab only."""
         import inspect
 
         from src.ui.main_window import MainWindow
 
         source = inspect.getsource(MainWindow._handle_queue_message)
         assert "semantic_followup_result" in source
-        assert "_panel_followup_event" in source
+        assert "_panel_followup_event" not in source
 
 
 # ============================================================

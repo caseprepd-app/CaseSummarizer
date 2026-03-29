@@ -63,13 +63,13 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         super().__init__()
         self._worker_manager = worker_manager
 
-        from src.config import APP_NAME, DEBUG_MODE
+        from src.config import APP_NAME, BUNDLED_BASE_DIR, DEBUG_MODE
 
         self.title(f"{APP_NAME} [DEBUG]" if DEBUG_MODE else APP_NAME)
         from src.ui.scaling import scale_value
 
         self.geometry(f"{scale_value(1200)}x{scale_value(750)}")
-        icon_path = Path(__file__).parent.parent.parent / "assets" / "icon.ico"
+        icon_path = BUNDLED_BASE_DIR / "assets" / "icon.ico"
         if icon_path.exists():
             self.iconbitmap(str(icon_path))
         self.minsize(scale_value(900), scale_value(600))
@@ -125,9 +125,6 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         self._followup_pending: bool = False
         self._pending_followup_index: int | None = None
 
-        # Panel follow-up IPC: background thread waits on event, main thread delivers result
-        self._panel_followup_event = threading.Event()
-        self._panel_followup_data = None  # Stores SemanticResult for panel followup
         self._tab_followup_result = None  # Stash when _poll_queue() steals a tab followup result
         self._status_clear_id = None  # Tk after-ID for auto-clearing status bar
         self._status_error_hold_until = None  # Timestamp until error message is held
@@ -948,7 +945,6 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
                 self._finalize_tasks()
 
         elif msg_type == "semantic_followup_result":
-            # Route to whichever followup consumer is active.
             # _poll_queue() and _poll_followup_result() both drain the same queue, so
             # _poll_queue() may steal a tab-followup result when _key_sentences_pending
             # keeps it running after processing completes.
@@ -956,11 +952,6 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
                 # Tab followup is waiting — stash so _poll_followup_result() can pick it up
                 self._tab_followup_result = data
                 logger.debug("Tab followup result stashed (intercepted by _poll_queue)")
-            elif not self._panel_followup_event.is_set():
-                # Panel followup is waiting — deliver via event
-                self._panel_followup_data = data
-                self._panel_followup_event.set()
-                logger.debug("Panel followup result delivered via event")
             else:
                 logger.debug("Followup result received but no consumer waiting")
 
@@ -1687,64 +1678,6 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             logger.debug("Error processing follow-up result: %s", e)
             self.set_status_error("Follow-up error. Try rephrasing your search.")
             messagebox.showerror("Error", f"Error displaying result: {e!s}")
-
-    def _ask_followup_for_semantic_panel(self, question: str):
-        """
-        Ask a follow-up question from the SemanticPanel widget.
-
-        This method is called by SemanticPanel's built-in follow-up input.
-        It returns a SemanticResult directly (unlike _ask_followup which updates UI).
-        Sends command to worker subprocess and polls synchronously (runs in thread).
-
-        Args:
-            question: The follow-up question text
-
-        Returns:
-            SemanticResult object with the answer, or None on error
-        """
-        if not question:
-            return None
-
-        # Check prerequisites
-        if not self._vector_store_path or not self._semantic_ready:
-            logger.debug("Follow-up unavailable: no vector store or semantic search not ready")
-            return None
-
-        # NOTE: This method runs in a background thread (from SemanticPanel._ask_followup)
-        # Do NOT call GUI methods like set_status() here - it causes freezes!
-        # Do NOT poll the shared result_queue here — it races with _poll_queue on main thread.
-        # Instead, wait on _panel_followup_event which _handle_queue_message sets.
-
-        try:
-            # Reset event and send command
-            self._panel_followup_event.clear()
-            self._panel_followup_data = None
-
-            logger.debug("Sending followup (panel): %.80s", question)
-            self._worker_manager.send_command("followup", {"question": question})
-
-            # Wait for main thread to deliver result via _handle_queue_message
-            timeout = 300  # 5 minutes — retrieval is fast, no LLM
-            got_result = self._panel_followup_event.wait(timeout=timeout)
-
-            if not got_result:
-                logger.warning(
-                    "Follow-up timed out after %ss for question: %.80s", timeout, question
-                )
-                return None
-
-            data = self._panel_followup_data
-            self._panel_followup_data = None
-
-            if data is not None:
-                with self._semantic_results_lock:
-                    self._semantic_results.append(data)
-                logger.debug("Follow-up answered: %s chars", len(data.citation))
-            return data
-
-        except Exception as e:
-            logger.debug("Follow-up error: %s", e)
-            return None
 
     # =========================================================================
     # Settings

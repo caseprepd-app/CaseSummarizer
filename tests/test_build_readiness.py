@@ -116,24 +116,24 @@ class TestFrozenModePathResolution:
             f"BUNDLED_CONFIG_DIR: {fragile}"
         )
 
-    def test_parent_parent_usage_count_in_source(self):
-        """Exactly 1 Path(__file__).parent.parent occurrence (BUNDLED_BASE_DIR definition).
+    def test_no_raw_file_paths_in_config(self):
+        """src/config.py must not compute paths from __file__.
 
-        All other constants should use BUNDLED_BASE_DIR or BUNDLED_CONFIG_DIR.
-        If this count increases, a new fragile constant was added.
+        Path resolution is centralized in src/core/paths.py.
+        config.py imports get_base_dir/get_config_dir from there.
         """
         import src.config as config
 
         source = Path(config.__file__).read_text(encoding="utf-8")
-        count = source.count("Path(__file__).parent.parent")
-        assert count == 1, (
-            f"Expected 1 Path(__file__).parent.parent occurrence "
-            f"(only the BUNDLED_BASE_DIR definition), found {count}. "
-            f"New constants should use BUNDLED_BASE_DIR or BUNDLED_CONFIG_DIR."
+        count = source.count("Path(__file__)")
+        assert count == 0, (
+            f"Found {count} Path(__file__) occurrence(s) in src/config.py. "
+            f"Path resolution is centralized in src/core/paths.py — "
+            f"use get_base_dir()/get_config_dir() instead."
         )
 
     def test_frozen_mode_simulation(self, tmp_path, monkeypatch):
-        """Monkeypatch sys.frozen + sys._MEIPASS, reload config, verify BUNDLED_BASE_DIR."""
+        """Monkeypatch sys.frozen + sys._MEIPASS, reload paths and config."""
         fake_meipass = str(tmp_path / "_internal")
         os.makedirs(fake_meipass, exist_ok=True)
 
@@ -144,7 +144,11 @@ class TestFrozenModePathResolution:
         monkeypatch.setattr(sys, "frozen", True, raising=False)
         monkeypatch.setattr(sys, "_MEIPASS", fake_meipass, raising=False)
 
-        # Reload config to pick up frozen mode
+        # Reload paths first (source of truth), then config
+        import src.core.paths
+
+        importlib.reload(src.core.paths)
+
         import src.config
 
         importlib.reload(src.config)
@@ -154,6 +158,7 @@ class TestFrozenModePathResolution:
             # Restore dev mode
             monkeypatch.delattr(sys, "frozen", raising=False)
             monkeypatch.delattr(sys, "_MEIPASS", raising=False)
+            importlib.reload(src.core.paths)
             importlib.reload(src.config)
 
 

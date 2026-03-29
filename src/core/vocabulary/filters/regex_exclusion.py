@@ -11,6 +11,7 @@ import logging
 import re
 from pathlib import Path
 
+from src.core.paths import get_config_dir
 from src.core.vocabulary.filters.base import BaseVocabularyFilter, FilterResult
 
 logger = logging.getLogger(__name__)
@@ -44,12 +45,8 @@ class RegexExclusionFilter(BaseVocabularyFilter):
                           Defaults to config/vocab_exclude_patterns.txt
         """
         if patterns_file is None:
-            # Default to config directory
-            patterns_file = (
-                Path(__file__).parent.parent.parent.parent.parent
-                / "config"
-                / "vocab_exclude_patterns.txt"
-            )
+            # Default to config directory (centralized path resolution)
+            patterns_file = get_config_dir() / "vocab_exclude_patterns.txt"
         self.patterns_file = Path(patterns_file)
         self.patterns: list[re.Pattern] = []
         self._load_patterns()
