@@ -2,7 +2,7 @@
 Chunk Scoring Utilities for Redundancy Detection.
 
 Detects near-duplicate chunks using cosine similarity on embedding vectors.
-Used by the summarization pipeline to skip redundant LLM calls.
+Used by the extraction pipeline to skip redundant chunks.
 """
 
 import logging
@@ -19,7 +19,7 @@ class ChunkScores:
     Per-chunk redundancy flags.
 
     Attributes:
-        skip: True = redundant, skip this chunk during summarization.
+        skip: True = redundant, skip this chunk during processing.
         skip_reason: Human-readable reason (e.g. "redundant with chunk 3") or "".
     """
 

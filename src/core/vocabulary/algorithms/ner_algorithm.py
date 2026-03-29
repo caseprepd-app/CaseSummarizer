@@ -313,7 +313,7 @@ class NERAlgorithm(BaseExtractionAlgorithm):
         """Map spaCy entity label to our simplified types.
 
         Uses shared categories config from config/categories.json to ensure
-        consistent categorization across NER and LLM extraction methods.
+        consistent categorization across NER and other extraction methods.
         """
         mapping = get_ner_mapping()
         return mapping.get(ent_label, "Unknown")

@@ -45,7 +45,7 @@ DEFAULT_QUESTIONS_TXT_PATH = (
 @dataclass
 class SemanticResult:
     """
-    Single question-answer pair with metadata.
+    Single question-citation pair with metadata.
 
     CSV-style output with three main columns:
     - Question: The question that was asked
@@ -116,12 +116,12 @@ class QuestionDef:
 
 class SemanticOrchestrator:
     """
-    Coordinates semantic search process: vector search + answer generation.
+    Coordinates semantic search process: vector search + citation extraction.
 
     Manages the full semantic search workflow:
     1. Load questions from YAML config
     2. For each question, perform vector similarity search
-    3. Generate answer from retrieved context
+    3. Extract citation excerpt from retrieved context
     4. Track results with export flags
 
     Example:
@@ -526,7 +526,7 @@ class SemanticOrchestrator:
         """
         Format exportable results as CSV.
 
-        Columns: Question, Quick Answer, Citation, Source
+        Columns: Question, Citation, Source
 
         Returns:
             CSV string with headers
@@ -542,12 +542,10 @@ class SemanticOrchestrator:
         writer = csv.writer(output)
 
         # Header row
-        writer.writerow(["Question", "Quick Answer", "Citation", "Source"])
+        writer.writerow(["Question", "Citation", "Source"])
 
         # Data rows
         for result in exportable:
-            writer.writerow(
-                [result.question, result.quick_answer, result.citation, result.source_summary]
-            )
+            writer.writerow([result.question, result.citation, result.source_summary])
 
         return output.getvalue()

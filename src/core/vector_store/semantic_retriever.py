@@ -425,7 +425,7 @@ class SemanticRetriever:
         """
         Format source information for display.
 
-        Creates a readable summary of sources used in the answer.
+        Creates a readable summary of sources used in the retrieval result.
 
         Args:
             result: RetrievalResult from retrieve_context()

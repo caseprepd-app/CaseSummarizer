@@ -484,7 +484,7 @@ def filter_common_phrases(
     WHY CENTRALIZED FILTERING:
     We filter here (after merging) rather than in each algorithm because:
     1. Single point of control for tuning thresholds
-    2. Consistent behavior across NER, RAKE, BM25, and LLM sources
+    2. Consistent behavior across NER, RAKE, and BM25 sources
     3. Catches common single words that individual algorithms miss (like RAKE)
 
     Uses centralized is_person_entry() for consistent person detection.

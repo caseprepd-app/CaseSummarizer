@@ -407,7 +407,7 @@ class ProgressiveExtractionWorker(BaseWorker):
                     28, f"Search index ready! ({result.chunk_count} passages indexed)"
                 )
             )
-            # Run redundancy detection on embeddings for summarization
+            # Run redundancy detection on embeddings
             chunk_scores = None
             if result.chunk_embeddings:
                 try:

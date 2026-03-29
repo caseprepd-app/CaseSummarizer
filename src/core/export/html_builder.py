@@ -719,11 +719,18 @@ def export_semantic_html(
         # Build Q&A items
         items = []
         for i, result in enumerate(results, 1):
-            answer_html = _escape(result.quick_answer)
-
             # Build Q&A item
             citation = _escape(result.citation) if result.citation else "(no citation)"
             source = _escape(result.source_summary) if result.source_summary else "(source unknown)"
+
+            # Only render Answer div if there's actual content
+            answer_block = ""
+            if result.quick_answer:
+                answer_html = _escape(result.quick_answer)
+                answer_block = (
+                    f'                <div class="label">Answer</div>\n'
+                    f'                <div class="answer">{answer_html}</div>'
+                )
 
             item = f"""        <div class="qa-item">
             <div class="qa-header" onclick="toggleItem(this)">
@@ -732,8 +739,7 @@ def export_semantic_html(
             </div>
             <div class="qa-content">
                 <div class="question">{_escape(result.question)}</div>
-                <div class="label">Answer</div>
-                <div class="answer">{answer_html}</div>
+{answer_block}
                 <div class="label">Citation</div>
                 <div class="citation">{citation}</div>
                 <div class="label">Source</div>

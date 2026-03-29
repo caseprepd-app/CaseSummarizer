@@ -21,7 +21,7 @@ class WordDocumentBuilder(DocumentBuilder):
     Word document builder using python-docx.
 
     Creates .docx files with proper formatting for vocabulary
-    and Q&A exports including colored verification spans.
+    and Q&A exports.
     """
 
     def __init__(self, title: str = "CasePrepd Export"):

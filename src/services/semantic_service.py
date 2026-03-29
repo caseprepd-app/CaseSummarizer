@@ -300,14 +300,14 @@ class SemanticService:
 
     def generate_answer_for_followup(self, orchestrator, result):
         """
-        Phase 2: Generate answer for a partial SemanticResult.
+        No-op stub -- answer generation was removed (Mar 2026).
 
         Args:
             orchestrator: SemanticOrchestrator instance
             result: Partial SemanticResult from retrieve_for_followup
 
         Returns:
-            Updated SemanticResult with final answer
+            The same SemanticResult, unchanged
         """
         return orchestrator.generate_answer_for_result(result)
 

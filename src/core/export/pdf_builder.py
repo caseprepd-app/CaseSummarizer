@@ -41,7 +41,7 @@ class PdfDocumentBuilder(DocumentBuilder):
     PDF document builder using fpdf2.
 
     Creates PDF files with proper formatting for vocabulary
-    and Q&A exports including colored verification spans.
+    and Q&A exports.
     """
 
     def __init__(self, title: str = "CasePrepd Export"):
