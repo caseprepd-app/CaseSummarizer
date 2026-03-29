@@ -137,22 +137,99 @@ class TestPdfTruncationEllipsis:
     """Bug #5: PDF cells truncated with '...' indicator."""
 
     def test_long_cell_gets_ellipsis(self):
-        """Cells > 25 chars should end with '...'."""
+        """add_table truncates cells > 25 chars to 22 chars + '...'."""
+
         from src.core.export.pdf_builder import PdfDocumentBuilder
 
         builder = PdfDocumentBuilder()
-        # We test the logic directly: > 25 chars → 22 chars + "..."
         long_text = "cervical radiculopathy syndrome"
         assert len(long_text) > 25
-        truncated = long_text[:22] + "..."
-        assert truncated.endswith("...")
-        assert len(truncated) == 25
+
+        # Capture what add_table passes to pdf.cell() for the data row
+        cell_calls = []
+        original_cell = builder.pdf.cell
+
+        def capture_cell(*args, **kwargs):
+            cell_calls.append(args)
+            return original_cell(*args, **kwargs)
+
+        builder.pdf.cell = capture_cell
+        builder.add_table(["Term"], [[long_text]])
+
+        # Data row cell is the second call (first is the header)
+        data_cells = [c for c in cell_calls if len(c) >= 3]
+        # Header uses size 8 height, data uses size 7 height
+        data_row_texts = [c[2] for c in data_cells if c[1] == 7]
+        assert len(data_row_texts) >= 1
+        assert data_row_texts[0].endswith("...")
+        assert len(data_row_texts[0]) == 25
 
     def test_short_cell_no_ellipsis(self):
-        """Cells <= 25 chars should not be modified."""
+        """Cells <= 25 chars are rendered without truncation."""
+        from src.core.export.pdf_builder import PdfDocumentBuilder
+
+        builder = PdfDocumentBuilder()
         short_text = "negligence"
         assert len(short_text) <= 25
-        # No truncation needed
+
+        cell_calls = []
+        original_cell = builder.pdf.cell
+
+        def capture_cell(*args, **kwargs):
+            cell_calls.append(args)
+            return original_cell(*args, **kwargs)
+
+        builder.pdf.cell = capture_cell
+        builder.add_table(["Term"], [[short_text]])
+
+        data_row_texts = [c[2] for c in cell_calls if len(c) >= 3 and c[1] == 7]
+        assert len(data_row_texts) >= 1
+        assert data_row_texts[0] == short_text
+        assert "..." not in data_row_texts[0]
+
+    def test_exactly_25_chars_no_ellipsis(self):
+        """Cells of exactly 25 chars should not be truncated."""
+        from src.core.export.pdf_builder import PdfDocumentBuilder
+
+        builder = PdfDocumentBuilder()
+        text_25 = "a" * 25
+        assert len(text_25) == 25
+
+        cell_calls = []
+        original_cell = builder.pdf.cell
+
+        def capture_cell(*args, **kwargs):
+            cell_calls.append(args)
+            return original_cell(*args, **kwargs)
+
+        builder.pdf.cell = capture_cell
+        builder.add_table(["Term"], [[text_25]])
+
+        data_row_texts = [c[2] for c in cell_calls if len(c) >= 3 and c[1] == 7]
+        assert len(data_row_texts) >= 1
+        assert data_row_texts[0] == text_25
+
+    def test_26_chars_gets_truncated(self):
+        """Cells of 26 chars (just over threshold) should be truncated."""
+        from src.core.export.pdf_builder import PdfDocumentBuilder
+
+        builder = PdfDocumentBuilder()
+        text_26 = "a" * 26
+        assert len(text_26) == 26
+
+        cell_calls = []
+        original_cell = builder.pdf.cell
+
+        def capture_cell(*args, **kwargs):
+            cell_calls.append(args)
+            return original_cell(*args, **kwargs)
+
+        builder.pdf.cell = capture_cell
+        builder.add_table(["Term"], [[text_26]])
+
+        data_row_texts = [c[2] for c in cell_calls if len(c) >= 3 and c[1] == 7]
+        assert len(data_row_texts) >= 1
+        assert data_row_texts[0] == "a" * 22 + "..."
 
 
 # ============================================================

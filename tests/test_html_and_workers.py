@@ -109,14 +109,19 @@ class TestBuildVocabularyHtml:
         assert "Term" in html
 
     def test_custom_visible_columns(self):
+        """Custom visible_columns should show specified columns and hide others."""
         from src.core.export.html_builder import build_vocabulary_html
 
         html = build_vocabulary_html(
             self._sample_vocab(),
             visible_columns=["Term", "Score"],
         )
-        assert isinstance(html, str)
+        assert "<!DOCTYPE html>" in html
+        # Term and Score should be visible (no col-hidden class)
         assert "Term" in html
+        assert "Score" in html
+        # Is Person and Found By should be hidden (have col-hidden class)
+        assert "col-hidden" in html
 
     def test_empty_vocab(self):
         from src.core.export.html_builder import build_vocabulary_html
@@ -290,6 +295,7 @@ class TestProcessingWorker:
         assert worker.is_stopped
 
     def test_empty_files_sends_finished(self):
+        """Empty file list should send processing_finished with empty results."""
         from src.services.workers import ProcessingWorker
 
         q = Queue()
@@ -297,6 +303,8 @@ class TestProcessingWorker:
         worker.execute()
         msg = q.get(timeout=2)
         assert msg[0] == "processing_finished"
+        # Payload should be an empty list (no results for zero files)
+        assert msg[1] == []
 
 
 # ============================================================================
