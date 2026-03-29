@@ -7,6 +7,23 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.0.31] - 2026-03-29
+
+### Fixed
+- Settings changes (relevance thresholds, citation limits) now take effect immediately without restarting the app
+- Removed duplicate search input from result panels — one search bar, no confusion
+- Transcript detection now samples first and middle of document, catching transcripts with long preambles (previously limited to first 20K characters)
+- Combined export dropdown now includes Word (.docx) option that was missing despite backend support
+- Config file paths centralized via src/core/paths.py — eliminates fragile __file__-based path chains in 9 files
+
+### Changed
+- Renamed internal `_d()` config function to `_frozen_setting()` / `get_live_setting()` for clarity
+- find_violations.py now enforces centralized path resolution (flags __file__-based config paths)
+
+### Infrastructure
+- New src/core/paths.py: single source of truth for config/data/assets directory resolution
+- 7 new transcript boundary tests covering all document size categories
+
 ## [1.0.30] - 2026-03-29
 
 ### Fixed

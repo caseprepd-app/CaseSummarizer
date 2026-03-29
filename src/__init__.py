@@ -1,3 +1,3 @@
 """CasePrepd - 100% Offline Legal Document Processor"""
 
-__version__ = "1.0.30"
+__version__ = "1.0.31"
