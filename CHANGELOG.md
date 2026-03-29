@@ -7,6 +7,36 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.0.30] - 2026-03-29
+
+### Fixed
+- Stop button now resets all pending flags (_key_sentences_pending, _followup_pending), preventing infinite poll loops and blocked follow-up searches after cancellation
+- Clear Files shows status message when blocked during processing instead of failing silently
+- Follow-up status bar displays citation length instead of always-zero quick_answer length
+- Search cancellation correctly logged as user action, not misreported as indexing failure
+- Default questions loaded from single source (DefaultQuestionsManager) instead of dual YAML/JSON paths
+- ask_question() return type annotation corrected to SemanticResult
+- Silent exception handlers in export dropdowns now log errors instead of bare pass
+- "Key Sentences" → "Key Excerpts" in README and Help dialog
+- 26 pre-existing test failures repaired (stale imports of removed constants and parameters)
+
+### Changed
+- Workers split into individual modules: processing_worker.py, semantic_worker.py, progressive_extraction_worker.py (workers.py is now a re-export shim)
+- Stale LLM/answer-generation references updated across 12 docstrings and comments
+- CSV export no longer includes empty "Quick Answer" column
+- HTML export omits empty Answer div when quick_answer is blank
+
+### Removed
+- Dead code: REJECTION_TEXT, hallucination verification branch (70 lines), chunk_pdf(), _paragraph_chunk(), 12 dead config constants (summary, license, BM25_WEIGHT, RERANKER_TOP_K)
+- pypdf dependency (only consumer was deleted chunk_pdf method)
+- Dead data/keywords directory reference from spec and asset audit
+- Deleted test for removed token_budget module and chunking_config.yaml
+
+### Infrastructure
+- 18 new tests covering CSV export columns, HTML quick_answer guard, cancellation vs failure, default questions routing, type annotations
+- 5 existing tests hardened with real behavioral assertions and boundary edge cases
+- Suite: 3760 passed, 10 skipped, 1 xfailed
+
 ## [1.0.29] - 2026-03-28
 
 ### Changed
