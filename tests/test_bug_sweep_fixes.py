@@ -86,25 +86,25 @@ class TestBackwardCompatShims:
 
 
 class TestWorkerUsesCanonicalImports:
-    """Verify workers.py uses the canonical src.services path."""
+    """Verify worker modules use the canonical src.services path."""
 
     def test_workers_imports_base_worker_from_services(self):
-        """workers.py should import BaseWorker from src.services, not src.ui."""
+        """Worker modules should import BaseWorker from src.services, not src.ui."""
         import inspect
 
-        import src.services.workers as workers_mod
+        import src.services.processing_worker as mod
 
-        source = inspect.getsource(workers_mod)
+        source = inspect.getsource(mod)
         assert "from src.services.base_worker import BaseWorker" in source
         assert "from src.ui.base_worker import BaseWorker" not in source
 
     def test_workers_imports_queue_messages_from_services(self):
-        """workers.py should import QueueMessage from src.services, not src.ui."""
+        """Worker modules should import QueueMessage from src.services, not src.ui."""
         import inspect
 
-        import src.services.workers as workers_mod
+        import src.services.semantic_worker as mod
 
-        source = inspect.getsource(workers_mod)
+        source = inspect.getsource(mod)
         assert "from src.services.queue_messages import QueueMessage" in source
         assert "from src.ui.queue_messages import QueueMessage" not in source
 

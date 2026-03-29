@@ -3,7 +3,6 @@ Tests for semantic search core modules.
 
 Covers:
 - Citation excerpt extraction (citation_excerpt.py) — window building, truncation
-- Token budget utilities (token_budget.py) — counting, budget math
 - Semantic constants (semantic_constants.py) — prompt templates, thresholds
 """
 
@@ -58,79 +57,6 @@ class TestCitationExcerpt:
         long_text = "The plaintiff filed a motion. " * 50
         result = extract_citation_excerpt(long_text, "Who filed?", None, max_chars=200)
         assert len(result) <= 250  # some tolerance
-
-
-# ============================================================================
-# D. Token Budget
-# ============================================================================
-
-
-class TestTokenBudget:
-    """Tests for token counting and budget computation."""
-
-    def test_count_tokens_simple(self):
-        """Counts tokens for simple text."""
-        from src.core.semantic.token_budget import count_tokens
-
-        count = count_tokens("Hello world")
-        assert count >= 2
-
-    def test_count_tokens_empty(self):
-        """Empty string returns 0 tokens."""
-        from src.core.semantic.token_budget import count_tokens
-
-        assert count_tokens("") == 0
-
-    def test_compute_context_budget(self):
-        """Budget = context_window - template - question - output - margin."""
-        from src.core.semantic.token_budget import compute_context_budget
-
-        budget = compute_context_budget(
-            context_window=4096,
-            prompt_template_tokens=100,
-            question_tokens=20,
-            max_output_tokens=256,
-            safety_margin=16,
-        )
-        assert budget == 4096 - 100 - 20 - 256 - 16
-
-    def test_compute_context_budget_minimum(self):
-        """Budget never goes below 64 tokens."""
-        from src.core.semantic.token_budget import compute_context_budget
-
-        budget = compute_context_budget(
-            context_window=100,
-            prompt_template_tokens=50,
-            question_tokens=50,
-            max_output_tokens=50,
-        )
-        assert budget == 64
-
-    def test_ensure_fits_short_text(self):
-        """Short text passes through unchanged."""
-        from src.core.semantic.token_budget import _ensure_fits
-
-        text = "Short text"
-        assert _ensure_fits(text, 1000) == text
-
-    def test_ensure_fits_truncates(self):
-        """Long text is truncated to fit budget."""
-        from src.core.semantic.token_budget import _ensure_fits, count_tokens
-
-        long_text = "word " * 1000
-        result = _ensure_fits(long_text, 50)
-        assert count_tokens(result) <= 50
-
-    def test_build_windows(self):
-        """Builds correct number of overlapping windows."""
-        from src.core.semantic.token_budget import _build_windows
-
-        text = "x" * 1000
-        windows = _build_windows(text, 0.6, 3)
-        assert len(windows) == 3
-        # Each window ~600 chars
-        for w in windows:
-            assert abs(len(w) - 600) < 50
 
 
 # ============================================================================

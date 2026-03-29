@@ -272,22 +272,6 @@ class TestBaseDialogNoneCheck:
 
 
 # ============================================================
-# Bug #13: token_budget thread safety
-# ============================================================
-
-
-class TestTokenBudgetThreadSafety:
-    """Bug #13: _get_encoder() has a lock."""
-
-    def test_encoder_lock_exists(self):
-        """The lock variable exists in the module."""
-        from src.core.semantic import token_budget
-
-        assert hasattr(token_budget, "_encoder_lock")
-        assert isinstance(token_budget._encoder_lock, type(threading.Lock()))
-
-
-# ============================================================
 # Bug #14: export_service thread safety
 # ============================================================
 
