@@ -277,6 +277,9 @@ class UserPreferencesManager:
         elif key == "vocab_min_occurrences":
             if not isinstance(value, int) or value < 1 or value > 5:
                 raise ValueError(f"vocab_min_occurrences must be 1-5, got {value}")
+        elif key == "vocab_occurrence_exception_score":
+            if not isinstance(value, int) or value < 50 or value > 100:
+                raise ValueError(f"vocab_occurrence_exception_score must be 50-100, got {value}")
         elif key == "phrase_mean_rarity_threshold":
             if not isinstance(value, (int, float)) or value < 0.1 or value > 0.9:
                 raise ValueError(f"phrase_mean_rarity_threshold must be 0.1-0.9, got {value}")

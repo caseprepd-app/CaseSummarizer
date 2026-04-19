@@ -790,6 +790,9 @@ class VocabularyExtractor:
         min_occurrences = get_user_preferences().get(
             "vocab_min_occurrences", VOCABULARY_MIN_OCCURRENCES
         )
+        occurrence_exception_score = get_user_preferences().get(
+            "vocab_occurrence_exception_score", VOCABULARY_OCCURRENCE_EXCEPTION_SCORE
+        )
 
         # Track iteration count for periodic GIL yield
         iteration_count = 0
@@ -884,11 +887,14 @@ class VocabularyExtractor:
             seen_terms.add(lower_term)
 
             # Frequency filters — divert to filtered list instead of discarding
-            # High-scoring single-occurrence items (score >= 85) stay in main list
+            # Terms below the occurrence floor pass through only if score meets the exception threshold.
             if merged.frequency > frequency_threshold:
                 term_data[VF.FILTER_REASON] = "too frequent"
                 filtered_terms.append(term_data)
-            elif merged.frequency < min_occurrences and final_quality_score >= 85:
+            elif (
+                merged.frequency < min_occurrences
+                and final_quality_score >= occurrence_exception_score
+            ):
                 vocabulary.append(term_data)
             elif merged.frequency < min_occurrences:
                 term_data[VF.FILTER_REASON] = "below min occurrences"

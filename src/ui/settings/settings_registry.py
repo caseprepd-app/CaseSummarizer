@@ -331,9 +331,12 @@ def _register_all_settings():
         from src.services import VocabularyService
         from src.ui.theme import COLORS
 
-        frame = ctk.CTkFrame(parent, fg_color="transparent")
+        # Start collapsed — CTkFrame defaults to 200px height, which would create
+        # dead space when no warning is needed (corpus has 5+ docs).
+        frame = ctk.CTkFrame(parent, fg_color="transparent", height=1)
         frame._warning_frame = None
         frame._warning_label = None
+        frame.pack_propagate(False)  # stay at height=1 until a warning is shown
 
         def update_warning():
             """Update the warning banner based on current corpus status."""
@@ -365,9 +368,12 @@ def _register_all_settings():
                     frame._warning_label.configure(text=warning_text)
                     if not frame._warning_frame.winfo_ismapped():
                         frame._warning_frame.pack(fill="x", pady=(0, 10), padx=5)
+                frame.pack_propagate(True)  # expand to fit the warning banner
             else:
                 if frame._warning_frame is not None and frame._warning_frame.winfo_ismapped():
                     frame._warning_frame.pack_forget()
+                frame.pack_propagate(False)  # collapse back to 1px
+                frame.configure(height=1)
 
         update_warning()
         frame.bind("<Map>", lambda e: update_warning())
@@ -884,6 +890,27 @@ def _register_all_settings():
             max_value=5,
             getter=lambda: prefs.get("vocab_min_occurrences", 2),
             setter=lambda v: prefs.set("vocab_min_occurrences", int(v)),
+        )
+    )
+
+    SettingsRegistry.register(
+        SettingDefinition(
+            key="vocab_occurrence_exception_score",
+            label="Occurrence floor exception score",
+            category="Vocabulary",
+            setting_type=SettingType.SPINBOX,
+            tooltip=(
+                "A term that falls below the occurrence floor will still appear if its "
+                "quality score meets or exceeds this threshold.\n\n"
+                "Set to 100 to disable exceptions entirely. Lower values allow more "
+                "low-occurrence terms to slip through based on score alone.\n\n"
+                "Default 97 means only near-perfect-scoring terms bypass the floor."
+            ),
+            default=97,
+            min_value=50,
+            max_value=100,
+            getter=lambda: prefs.get("vocab_occurrence_exception_score", 97),
+            setter=lambda v: prefs.set("vocab_occurrence_exception_score", int(v)),
         )
     )
 

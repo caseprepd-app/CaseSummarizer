@@ -390,6 +390,10 @@ VOCABULARY_SORT_BY_RARITY = VOCABULARY_SORT_METHOD == "rarity"
 # Note: PERSON entities are exempt (party names may appear once but are important)
 VOCABULARY_MIN_OCCURRENCES = 2
 
+# Score required for a term to appear despite falling below the occurrence floor.
+# Default 97 means only near-perfect-scoring terms bypass the minimum occurrences filter.
+VOCABULARY_OCCURRENCE_EXCEPTION_SCORE = 97
+
 # Phrase Component Rarity Filtering
 # Filters multi-word phrases where ALL component words are too common.
 # Example: "the same", "left side" - high RAKE scores but no vocabulary value.
