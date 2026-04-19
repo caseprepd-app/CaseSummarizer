@@ -7,6 +7,16 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.0.32] - 2026-04-19
+
+### Fixed
+- Occurrence floor bypass now uses a user-configurable exception score (default 97) instead of a hard-coded value of 85
+- Vocabulary settings panel no longer wastes 200px of vertical space when the corpus warning banner is hidden
+- Missing `VOCABULARY_OCCURRENCE_EXCEPTION_SCORE` import in vocabulary_extractor.py causing NameError at runtime
+
+### Added
+- Exception score setting in Vocabulary tab, visually paired with the occurrence floor setting for discoverability
+
 ## [1.0.31] - 2026-03-29
 
 ### Fixed
