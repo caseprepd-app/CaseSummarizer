@@ -7,6 +7,27 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.0.33] - 2026-04-20
+
+### Fixed
+- `after()` callback leaks on window destroy — preprocessing and extraction retries now cancel pending callbacks via `_cancel_and_reschedule` helper
+- Tooltip dismiss timer leaks in widgets and vocabulary treeview — prior dismiss ID is cancelled before scheduling a new one
+- Follow-up search button now disables on empty/whitespace input (prevents no-op clicks)
+- Clearer error when "Process Files" is clicked with no valid files ready — distinguishes no-files / still-preparing / all-failed cases
+- Legacy docstrings and log messages referencing the obsolete scispaCy package updated to reference the bundled `en_ner_bc5cdr_md` model instead
+
+### Changed
+- Worker subprocess lifetime wrapped in a context manager with 4-layer shutdown defense (`__exit__`, atexit hook, main try/finally, `daemon=True` backstop) — no more orphaned workers on unexpected exit paths
+- Worker process now sends result messages via `QueueMessage` factory methods consistently — eliminates raw-tuple DRY violations
+- Tests refreshed to match the new button-state helper and reschedule indirection
+
+### Added
+- 91 new unit tests covering previously untested modules: `src/core/paths.py`, `SingletonHolder`, `logging_config` utilities, role profiles, corpus registry (delete/combine/list/exists/sanitize)
+- 42 regression tests for the bug-sweep fixes: after-callback lifecycle, tooltip leaks, worker lifecycle, QueueMessage refactor, UI polish
+
+### Infrastructure
+- 18 existing shallow tests hardened with content-verifying assertions (replaced `is not None` / truthiness checks)
+
 ## [1.0.32] - 2026-04-19
 
 ### Fixed
