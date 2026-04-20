@@ -55,48 +55,76 @@ def _index_medical_docs(retriever):
 
 
 class TestEmptyQueryString:
-    """Verify empty-string queries do not crash."""
+    """Verify empty-string queries do not crash and return zero results."""
 
-    def test_empty_query_returns_no_crash(self):
-        """Pass empty string as query; expect empty results or ValueError."""
+    def test_empty_query_returns_zero_results(self):
+        """Empty query has no search tokens, so BM25 must return zero chunks."""
         retriever = _bm25_only_retriever()
         _index_medical_docs(retriever)
 
         result = retriever.retrieve("", k=5)
 
-        assert isinstance(result, MergedRetrievalResult)
-        # Empty query should return zero or very low relevance
-        assert len(result.chunks) == 0 or all(c.combined_score >= 0 for c in result.chunks)
+        # No query tokens means no keyword overlap -> zero chunks
+        assert len(result.chunks) == 0
+        # Metadata should still be valid (no error set)
+        assert result.metadata.get("error") is None
 
 
 class TestSpecialCharactersQuery:
-    """Verify queries with only special characters are handled."""
+    """Verify queries with only special characters match nothing."""
 
-    def test_special_chars_graceful(self):
-        """Query with only special chars; expect no crash."""
+    def test_special_chars_return_zero_results(self):
+        """Special chars aren't tokens in medical docs, so BM25 returns zero matches."""
         retriever = _bm25_only_retriever()
         _index_medical_docs(retriever)
 
         result = retriever.retrieve("!@#$%^&*()", k=5)
 
-        assert isinstance(result, MergedRetrievalResult)
-        # No real words to match; should be empty or harmless
-        assert len(result.chunks) == 0 or all(c.combined_score >= 0 for c in result.chunks)
+        # No real word tokens that match any medical doc -> zero chunks
+        assert len(result.chunks) == 0
+        # No error — this is a clean zero-match, not a failure
+        assert result.metadata.get("error") is None
 
 
 class TestVeryLongQuery:
-    """Verify a 1000+ word query completes without hang or OOM."""
+    """Verify a 1000+ word query completes without error or timeout."""
 
     @pytest.mark.timeout(30)
-    def test_long_query_completes(self):
-        """Query with 1000+ words finishes within timeout."""
+    def test_long_query_completes_without_error(self):
+        """Query with 1200 repeated words finishes cleanly with valid metadata."""
         retriever = _bm25_only_retriever()
         _index_medical_docs(retriever)
 
         long_query = " ".join(["medication"] * 1200)
         result = retriever.retrieve(long_query, k=5)
 
-        assert isinstance(result, MergedRetrievalResult)
+        # Query must have completed successfully — no error flag
+        assert result.metadata.get("error") is None
+        # k bound respected: never more than k chunks
+        assert len(result.chunks) <= 5
+        # The original query is preserved in the result for traceability
+        assert result.query == long_query
+        # processing_time_ms present and positive
+        assert result.processing_time_ms > 0
+
+    @pytest.mark.timeout(30)
+    def test_long_query_with_diverse_terms(self):
+        """Long query containing medical terms from docs returns matches."""
+        retriever = _bm25_only_retriever()
+        _index_medical_docs(retriever)
+
+        # Mix of filler and real doc terms
+        long_query = (
+            " ".join(["filler"] * 500)
+            + " appendicitis postoperative discharge amoxicillin "
+            + " ".join(["filler"] * 500)
+        )
+        result = retriever.retrieve(long_query, k=5)
+
+        # Should find matches since terms appear in the indexed docs
+        assert len(result.chunks) >= 1
+        # Top result's score must be positive
+        assert result.chunks[0].combined_score > 0
 
 
 class TestAllAlgorithmsFailAfterIndex:

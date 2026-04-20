@@ -372,31 +372,47 @@ class TestFAISSRetriever:
 class TestCrossEncoderReranker:
     """CrossEncoderReranker re-ranks chunks using cross-encoder model."""
 
-    def test_class_exists(self):
+    def test_class_has_required_interface(self):
+        """CrossEncoderReranker exposes rerank, is_available, and a loadable model attribute."""
         from src.core.retrieval.cross_encoder_reranker import CrossEncoderReranker
 
         r = CrossEncoderReranker()
-        assert r is not None
+        # Minimum contract: rerank method, is_available method, model attribute
+        assert callable(r.rerank)
+        assert (
+            callable(r.is_available)
+            or isinstance(r.is_available, bool)
+            or hasattr(r, "is_available")
+        )
+        # rerank is the core entry — it must accept (query, chunks) kwargs
+        import inspect
+
+        sig = inspect.signature(r.rerank)
+        params = list(sig.parameters)
+        assert "query" in params or len(params) >= 2  # (self, query, chunks, ...)
 
     def test_has_rerank_method(self):
+        """rerank is a callable method on CrossEncoderReranker."""
         from src.core.retrieval.cross_encoder_reranker import CrossEncoderReranker
 
         r = CrossEncoderReranker()
-        assert hasattr(r, "rerank")
         assert callable(r.rerank)
 
     def test_has_is_available_method(self):
+        """is_available check is exposed (method or attribute)."""
         from src.core.retrieval.cross_encoder_reranker import CrossEncoderReranker
 
         r = CrossEncoderReranker()
         assert hasattr(r, "is_available")
 
-    def test_min_relevance_score(self):
+    def test_min_relevance_score_is_valid_threshold(self):
+        """MIN_RELEVANCE_SCORE is a float in (0, 1) — a valid probability threshold."""
         from src.core.retrieval.cross_encoder_reranker import CrossEncoderReranker
 
         r = CrossEncoderReranker()
-        assert hasattr(r, "MIN_RELEVANCE_SCORE")
-        assert 0 < r.MIN_RELEVANCE_SCORE < 1
+        assert 0.0 < r.MIN_RELEVANCE_SCORE < 1.0
+        # Must be a numeric value
+        assert isinstance(r.MIN_RELEVANCE_SCORE, (int, float))
 
 
 # ---------------------------------------------------------------------------
@@ -407,19 +423,25 @@ class TestCrossEncoderReranker:
 class TestHybridRetriever:
     """HybridRetriever combines BM25+ and FAISS algorithms."""
 
-    def test_creation_defaults(self):
+    def test_creation_defaults_starts_unindexed(self):
+        """A freshly constructed BM25-only retriever is not yet indexed and has zero chunks."""
         from src.core.retrieval.hybrid_retriever import HybridRetriever
 
         r = HybridRetriever(enable_faiss=False)
-        assert r is not None
+        # Invariants: unindexed, zero chunks, BM25 enabled in algorithms
+        assert r.is_indexed is False
+        assert r.get_chunk_count() == 0
+        assert "BM25+" in r._algorithms
 
     def test_not_indexed_initially(self):
+        """HybridRetriever reports not-indexed status before index_documents is called."""
         from src.core.retrieval.hybrid_retriever import HybridRetriever
 
         r = HybridRetriever(enable_faiss=False)
         assert r.is_indexed is False
 
     def test_get_chunk_count_zero(self):
+        """Chunk count is exactly 0 before indexing."""
         from src.core.retrieval.hybrid_retriever import HybridRetriever
 
         r = HybridRetriever(enable_faiss=False)
@@ -440,11 +462,20 @@ class TestHybridRetriever:
         assert r.algorithm_weights["BM25+"] == 0.5
 
     def test_get_algorithm_status(self):
+        """Algorithm status dict reports BM25+ as an enabled algorithm."""
         from src.core.retrieval.hybrid_retriever import HybridRetriever
 
         r = HybridRetriever(enable_faiss=False)
         status = r.get_algorithm_status()
-        assert isinstance(status, dict)
+        # BM25+ must be present in status since we enabled it
+        assert "BM25+" in status
+        # FAISS is disabled — should NOT be in status (or marked disabled)
+        if "FAISS" in status:
+            # If reported, its entry should indicate disabled
+            faiss_entry = status["FAISS"]
+            assert faiss_entry is False or (
+                isinstance(faiss_entry, dict) and faiss_entry.get("enabled") is False
+            )
 
     def test_index_and_retrieve_bm25_only(self):
         """Integration test: index documents and retrieve with BM25+ only."""
@@ -474,20 +505,25 @@ class TestHybridRetriever:
 class TestVectorStoreBuilder:
     """VectorStoreBuilder creates FAISS indexes."""
 
-    def test_class_exists(self):
+    def test_class_exposes_expected_interface(self):
+        """VectorStoreBuilder exposes the core build/cleanup methods as callables."""
         from src.core.vector_store.vector_store_builder import VectorStoreBuilder
 
-        assert VectorStoreBuilder is not None
+        # Core methods must exist and be callable
+        assert callable(VectorStoreBuilder.create_from_documents)
+        assert callable(VectorStoreBuilder.cleanup_stale_stores)
 
     def test_has_create_method(self):
+        """create_from_documents is a callable method on the class."""
         from src.core.vector_store.vector_store_builder import VectorStoreBuilder
 
-        assert hasattr(VectorStoreBuilder, "create_from_documents")
+        assert callable(VectorStoreBuilder.create_from_documents)
 
     def test_has_cleanup_method(self):
+        """cleanup_stale_stores is a callable method on the class."""
         from src.core.vector_store.vector_store_builder import VectorStoreBuilder
 
-        assert hasattr(VectorStoreBuilder, "cleanup_stale_stores")
+        assert callable(VectorStoreBuilder.cleanup_stale_stores)
 
 
 # ---------------------------------------------------------------------------
@@ -498,20 +534,25 @@ class TestVectorStoreBuilder:
 class TestSemanticRetrieverStructure:
     """SemanticRetriever loads vector stores and retrieves context."""
 
-    def test_class_exists(self):
+    def test_class_exposes_required_interface(self):
+        """SemanticRetriever has the core retrieve_context + get_chunk_count callables."""
         from src.core.vector_store.semantic_retriever import SemanticRetriever
 
-        assert SemanticRetriever is not None
+        # Contract: these are the methods callers depend on
+        assert callable(SemanticRetriever.retrieve_context)
+        assert callable(SemanticRetriever.get_chunk_count)
 
     def test_has_retrieve_context_method(self):
+        """retrieve_context is callable."""
         from src.core.vector_store.semantic_retriever import SemanticRetriever
 
-        assert hasattr(SemanticRetriever, "retrieve_context")
+        assert callable(SemanticRetriever.retrieve_context)
 
     def test_has_get_chunk_count_method(self):
+        """get_chunk_count is callable."""
         from src.core.vector_store.semantic_retriever import SemanticRetriever
 
-        assert hasattr(SemanticRetriever, "get_chunk_count")
+        assert callable(SemanticRetriever.get_chunk_count)
 
     def test_source_info_dataclass(self):
         from src.core.vector_store.semantic_retriever import SourceInfo

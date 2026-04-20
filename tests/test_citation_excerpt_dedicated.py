@@ -33,7 +33,7 @@ def _make_embeddings(best_window_idx=0):
 
 
 def test_extract_citation_basic():
-    """Passage with a relevant portion returns a focused excerpt."""
+    """Passage with a relevant portion returns a focused excerpt containing query words."""
     passage = "The defendant filed a motion to dismiss. " * 10
     question = "What motion was filed?"
 
@@ -43,12 +43,17 @@ def test_extract_citation_basic():
     ):
         result = extract_citation_excerpt(passage, question, _make_embeddings(), max_chars=100)
 
-    assert len(result) > 0
-    assert isinstance(result, str)
+    # Passage >100 chars, so result should be a focused window, not entire passage
+    assert len(result) < len(passage)
+    # Result must contain content from the source passage
+    assert "motion" in result.lower() or "defendant" in result.lower()
+    # Since the passage starts at offset 0, and best window = 0, no leading ellipsis
+    # But should have trailing ellipsis because excerpt doesn't reach end
+    assert result.endswith("...")
 
 
 def test_extract_citation_no_match_returns_string():
-    """Query that doesn't match still returns a string, never crashes."""
+    """Query with no lexical overlap: still returns substantive excerpt from source."""
     passage = "The weather was sunny and warm all day long. " * 10
     question = "What is the speed of light?"
 
@@ -58,8 +63,12 @@ def test_extract_citation_no_match_returns_string():
     ):
         result = extract_citation_excerpt(passage, question, _make_embeddings(), max_chars=100)
 
-    assert isinstance(result, str)
-    assert len(result) > 0
+    # Result must come from the source passage (not fabricated or empty)
+    assert "weather" in result.lower() or "sunny" in result.lower() or "warm" in result.lower()
+    # Focused excerpt is shorter than full passage
+    assert len(result) < len(passage)
+    # Length should be roughly around max_chars (allowing ellipses + sentence snap)
+    assert len(result) <= 2 * 100 + 10
 
 
 def test_short_passage_returned_as_is():
@@ -122,7 +131,7 @@ def test_whitespace_only_passage():
 
 
 def test_empty_question_still_works():
-    """Empty question does not crash; an excerpt is still returned."""
+    """Empty question does not crash; an excerpt drawn from source is returned."""
     passage = "The court issued its ruling on Monday. " * 10
 
     with patch(
@@ -131,8 +140,10 @@ def test_empty_question_still_works():
     ):
         result = extract_citation_excerpt(passage, "", _make_embeddings(), max_chars=100)
 
-    assert isinstance(result, str)
-    assert len(result) > 0
+    # Excerpt must contain content from the source passage
+    assert "court" in result.lower() or "ruling" in result.lower() or "monday" in result.lower()
+    # Should be a focused window, not the full passage
+    assert len(result) < len(passage)
 
 
 def test_build_windows_coverage():
@@ -149,7 +160,7 @@ def test_build_windows_coverage():
 
 
 def test_none_embeddings_fallback():
-    """When embeddings is None, sentence-truncation fallback is used."""
+    """When embeddings is None, sentence-truncation fallback produces truncated excerpt."""
     passage = "First sentence. Second sentence. Third sentence. " * 10
 
     with patch(
@@ -158,5 +169,8 @@ def test_none_embeddings_fallback():
     ):
         result = extract_citation_excerpt(passage, "query", embeddings=None, max_chars=50)
 
-    assert isinstance(result, str)
+    # Fallback starts from beginning, so "First sentence" should be in the excerpt
+    assert "First sentence" in result
+    # Fallback must append "..." when text is truncated (len(passage) > max_chars)
+    assert result.endswith("...")
     assert len(result) <= 60  # max_chars + ellipsis

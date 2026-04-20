@@ -365,15 +365,17 @@ class TestQAReadyHandler:
         assert stub._vector_store_path == "/tmp/vs"
 
     def test_enables_followup_controls(self):
-        """semantic_ready enables follow-up button and entry with white placeholder."""
+        """semantic_ready enables the search entry and delegates button state to the helper."""
         stub = _make_stub()
         _call_handler(stub, "semantic_ready", {"chunk_count": 50})
-        stub.followup_btn.configure.assert_called_with(state="normal")
+        # Entry is enabled directly with the ready placeholder
         stub.followup_entry.configure.assert_any_call(
             state="normal",
             placeholder_text="Search your documents...",
             placeholder_text_color="white",
         )
+        # Button state is set by _update_followup_btn_state (depends on entry text)
+        stub._update_followup_btn_state.assert_called()
 
     def test_does_not_mark_qa_complete(self):
         """semantic_ready should NOT add 'qa' to _completed_tasks."""
@@ -597,11 +599,12 @@ class TestQACompleteHandler:
         assert "semantic" in stub._completed_tasks
 
     def test_enables_followup_button(self):
-        """qa_complete enables the follow-up button."""
+        """qa_complete refreshes the follow-up button state via the shared helper."""
         stub = _make_stub()
         stub._all_tasks_complete = MagicMock(return_value=False)
         _call_handler(stub, "semantic_complete", [MagicMock()])
-        stub.followup_btn.configure.assert_called_with(state="normal")
+        # Button is enabled/disabled based on current entry text — helper decides
+        stub._update_followup_btn_state.assert_called()
 
     def test_updates_display_with_results(self):
         """qa_complete updates output display when results exist."""

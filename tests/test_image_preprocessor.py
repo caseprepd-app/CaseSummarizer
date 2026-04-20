@@ -101,23 +101,28 @@ class TestImagePreprocessor:
         assert stats.original_size == (100, 100)
 
     def test_preprocess_grayscale_image(self):
-        """Test preprocessing a grayscale image."""
+        """Preprocessing a grayscale image preserves content and emits expected stats."""
         preprocessor = ImagePreprocessor()
         image = Image.new("L", (100, 100), color=255)
 
         result, stats = preprocessor.preprocess(image)
 
-        assert isinstance(result, Image.Image)
+        # Grayscale image produces a grayscale-ish result (L or 1 mode after thresholding)
+        assert result.mode in ("L", "1")
         assert stats.original_size == (100, 100)
+        assert stats.binarized is True
 
     def test_preprocess_rgba_image(self):
-        """Test preprocessing an RGBA image."""
+        """RGBA images are handled and downconverted during preprocessing."""
         preprocessor = ImagePreprocessor()
         image = Image.new("RGBA", (100, 100), color=(255, 255, 255, 255))
 
-        result, _stats = preprocessor.preprocess(image)
+        result, stats = preprocessor.preprocess(image)
 
-        assert isinstance(result, Image.Image)
+        # RGBA must be converted away (to grayscale + binarized) during the pipeline
+        assert result.mode in ("L", "1")
+        # Grayscale stage should have been recorded
+        assert "grayscale" in stats.stage_times
 
     def test_stats_tracks_stages(self):
         """Test that stats tracks all preprocessing stages."""
@@ -194,7 +199,7 @@ class TestImagePreprocessor:
         assert stats.total_time_ms > 0
 
     def test_preprocess_with_text(self):
-        """Test preprocessing an image with text."""
+        """Preprocessing an image with text produces a binarized image with expected size and stats."""
         preprocessor = ImagePreprocessor()
 
         # Create image with text
@@ -204,21 +209,33 @@ class TestImagePreprocessor:
 
         result, stats = preprocessor.preprocess(image)
 
-        assert isinstance(result, Image.Image)
+        # Binarized image has L or 1 mode
+        assert result.mode in ("L", "1")
         assert stats.binarized is True
+        assert stats.denoised is True
+        # Original size must be recorded; preprocessing may have added border
+        assert stats.original_size == (200, 50)
+        assert result.size[0] >= 200  # border may add pixels
+        assert result.size[1] >= 50
 
 
 class TestPreprocessForOCRFunction:
     """Tests for the convenience function."""
 
     def test_preprocess_for_ocr_basic(self):
-        """Test the convenience function works."""
+        """The convenience function applies the full pipeline with default settings."""
         image = Image.new("RGB", (100, 100), color="white")
 
         result, stats = preprocess_for_ocr(image)
 
-        assert isinstance(result, Image.Image)
-        assert isinstance(stats, PreprocessingStats)
+        # Default pipeline binarizes and adds a border; output must reflect that
+        assert result.mode in ("L", "1")
+        assert stats.binarized is True
+        assert stats.denoised is True
+        assert stats.border_added is True  # default border_size=10
+        # All stage times must be recorded
+        assert "binarize" in stats.stage_times
+        assert stats.total_time_ms > 0
 
     def test_preprocess_for_ocr_custom_params(self):
         """Test convenience function with custom parameters."""
@@ -268,23 +285,30 @@ class TestSkewDetection:
     """Tests for skew detection and correction."""
 
     def test_no_skew_on_clean_image(self):
-        """Test that clean images have minimal detected skew."""
+        """Solid-color image has no edges, so skew correction should not be applied."""
         preprocessor = ImagePreprocessor()
         # Create a solid white image - no skew should be detected
         image = Image.new("L", (100, 100), color=255)
 
         _, stats = preprocessor.preprocess(image)
 
-        # Skew correction should not have been applied (no significant skew)
-        # Note: The exact behavior depends on the deskew library
-        assert isinstance(stats.skew_angle, float)
+        # A solid image has no angular features; detection should report zero skew
+        # and must not apply correction to clean images
+        assert stats.skew_corrected is False
+        # skew_angle should be zero or very close to zero for featureless image
+        assert abs(stats.skew_angle) < 1.0
 
-    def test_skew_angle_limits(self):
-        """Test that extreme skew angles are limited."""
+    def test_skew_angle_limits_stored_and_applied(self):
+        """max_skew_angle is stored and used as the clamping limit."""
         preprocessor = ImagePreprocessor(max_skew_angle=5.0)
-
-        # The max_skew_angle should be stored
         assert preprocessor.max_skew_angle == 5.0
+
+        # Verify it's actually used by checking it against a real image run:
+        # clean image -> no correction, but max_skew_angle is respected attribute
+        image = Image.new("L", (100, 100), color=255)
+        _, stats = preprocessor.preprocess(image)
+        # Skew angle on clean image is within the max limit
+        assert abs(stats.skew_angle) <= 5.0
 
 
 class TestOrientationDetection:
@@ -315,11 +339,16 @@ class TestOrientationDetection:
         assert stats.orientation_corrected is False
 
     def test_orientation_confidence_threshold(self):
-        """Test that orientation confidence threshold is respected."""
-        # High threshold should prevent most corrections
+        """High confidence threshold prevents orientation correction on low-confidence detections."""
+        # A very high threshold (99.0) means no real-world detection will exceed it
         preprocessor = ImagePreprocessor(orientation_confidence_threshold=99.0)
-
         assert preprocessor.orientation_confidence_threshold == 99.0
+
+        # Verify it has the effect of blocking orientation correction on plain images
+        image = Image.new("RGB", (100, 100), color="white")
+        _, stats = preprocessor.preprocess(image)
+        # With 99.0 threshold, no correction can be applied
+        assert stats.orientation_corrected is False
 
 
 class TestDocumentDetection:
@@ -348,7 +377,7 @@ class TestDocumentDetection:
         assert isinstance(result, Image.Image)
 
     def test_document_detection_with_rectangle(self):
-        """Test document detection with a clear rectangular shape."""
+        """Document detection on a clear white-on-dark rectangle produces a valid image output."""
         preprocessor = ImagePreprocessor(
             enable_orientation_correction=False,  # Skip to speed up test
             enable_document_detection=True,
@@ -358,21 +387,37 @@ class TestDocumentDetection:
         # Create image with dark background and white rectangle (document)
         image = Image.new("RGB", (200, 200), color=(50, 50, 50))
         draw = ImageDraw.Draw(image)
-        # Draw a white rectangle in the center
+        # Draw a white rectangle in the center — area = 120x120 = 14400 / 40000 = 36% > 5% threshold
         draw.rectangle([40, 40, 160, 160], fill="white", outline="white")
 
-        result, _stats = preprocessor.preprocess(image)
+        result, stats = preprocessor.preprocess(image)
 
-        # Should detect the rectangular document
-        assert isinstance(result, Image.Image)
-        # Document detection may or may not work depending on contrast
-        # At minimum, it shouldn't crash
+        # The result must be a valid PIL image with positive dimensions
+        assert result.size[0] > 0
+        assert result.size[1] > 0
+        # Stats must record that document-detection stage ran (timing is present)
+        assert "document_crop" in stats.stage_times
+        assert stats.stage_times["document_crop"] >= 0
 
-    def test_min_document_area_ratio(self):
-        """Test that minimum document area ratio is respected."""
-        preprocessor = ImagePreprocessor(min_document_area_ratio=0.5)
-
+    def test_min_document_area_ratio_blocks_small_documents(self):
+        """A very high min_document_area_ratio blocks detection of small rectangles."""
+        # 0.5 means document must be >= 50% of image area
+        preprocessor = ImagePreprocessor(
+            enable_orientation_correction=False,
+            enable_document_detection=True,
+            min_document_area_ratio=0.5,
+        )
         assert preprocessor.min_document_area_ratio == 0.5
+
+        # Draw a small rectangle (only 4% of image area) — below the 50% threshold
+        image = Image.new("RGB", (200, 200), color=(50, 50, 50))
+        draw = ImageDraw.Draw(image)
+        draw.rectangle([40, 40, 80, 80], fill="white", outline="white")  # 40x40 = 1600/40000 = 4%
+
+        _, stats = preprocessor.preprocess(image)
+
+        # Below-threshold rectangle must not be cropped out
+        assert stats.document_cropped is False
 
     def test_order_corners_helper(self):
         """Test the corner ordering helper function."""

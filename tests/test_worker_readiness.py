@@ -558,8 +558,10 @@ class TestPreprocessingReadinessGuard:
         stub.set_status.assert_called_once()
         msg = stub.set_status.call_args[0][0]
         assert "starting up" in msg.lower() or "please wait" in msg.lower()
-        stub.after.assert_called_once()
-        assert stub.after.call_args[0][0] == 3000
+        # Retry is scheduled via _cancel_and_reschedule(attr, 3000, callback)
+        stub._cancel_and_reschedule.assert_called_once()
+        reschedule_args = stub._cancel_and_reschedule.call_args[0]
+        assert reschedule_args[1] == 3000
         stub._worker_manager.send_command.assert_not_called()
 
     def test_retry_counter_increments(self):
@@ -660,8 +662,10 @@ class TestExtractionReadinessGuard:
                 if "starting up" in c[0][0].lower() or "please wait" in c[0][0].lower()
             ]
             assert len(retry_calls) == 1
-            stub.after.assert_called_once()
-            assert stub.after.call_args[0][0] == 3000
+            # Retry is scheduled via _cancel_and_reschedule(attr, 3000, callback)
+            stub._cancel_and_reschedule.assert_called_once()
+            reschedule_args = stub._cancel_and_reschedule.call_args[0]
+            assert reschedule_args[1] == 3000
             stub._worker_manager.send_command.assert_not_called()
 
     def test_gives_up_after_max_retries(self):

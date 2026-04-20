@@ -67,40 +67,54 @@ class TestStenographerProfile:
         return StenographerProfile()
 
     def test_creation(self):
+        """StenographerProfile is constructible without arguments."""
         profile = self._make()
-        assert profile is not None
+        # Verify interface methods exist
+        assert hasattr(profile, "detect_person_role")
+        assert hasattr(profile, "detect_place_relevance")
 
     def test_detect_person_role_plaintiff(self):
+        """A person mentioned as 'plaintiff X' is classified as Plaintiff."""
         profile = self._make()
-        text = "SMITH, the Plaintiff, testified that he was injured."
-        role = profile.detect_person_role("Smith", text)
-        # Should detect some role (Plaintiff or Person in case)
-        assert isinstance(role, str) and len(role) > 0
+        # Pattern requires "plaintiff <Name>" form
+        text = "The plaintiff John Smith testified that he was injured."
+        role = profile.detect_person_role("John Smith", text)
+        # Should detect exact "Plaintiff" role from stenographer profile
+        assert role == "Plaintiff"
 
     def test_detect_person_role_defendant_attorney(self):
+        """An attorney-for-defendant pattern yields the 'Defendant attorney' role."""
         profile = self._make()
-        text = "MR. JONES, attorney for the defendant, objected."
-        role = profile.detect_person_role("Jones", text)
-        assert role != ""
+        # Pattern: "defendant attorney <Name>" ([\'s]? optional matches single char)
+        text = "The defendant attorney Michael Jones objected to the question."
+        role = profile.detect_person_role("Michael Jones", text)
+        # Exact role string from STENOGRAPHER_PERSON_PATTERNS
+        assert role == "Defendant attorney"
 
     def test_detect_person_role_unknown(self):
+        """Person absent from text falls back to 'Person in case'."""
         profile = self._make()
         text = "The weather was nice that day."
         role = profile.detect_person_role("Nobody", text)
-        # Should return a default role or empty string
-        assert isinstance(role, str)
+        # Fallback when no pattern matches
+        assert role == "Person in case"
 
     def test_detect_place_relevance_medical(self):
+        """Hospital mentioned after 'at' is tagged as 'Medical facility'."""
         profile = self._make()
-        text = "The patient was treated at General Hospital for his injuries."
-        relevance = profile.detect_place_relevance("General Hospital", text)
-        assert isinstance(relevance, str)
+        # Pattern: "(?:at|to|from|near)\s+(... Hospital|Medical Center|Clinic)"
+        text = "The patient was treated at Lenox Hill Hospital for his injuries."
+        relevance = profile.detect_place_relevance("Lenox Hill Hospital", text)
+        # Exact category from STENOGRAPHER_PLACE_PATTERNS
+        assert relevance == "Medical facility"
 
     def test_detect_place_relevance_unknown(self):
+        """Place not mentioned in text falls back to 'Location mentioned in case'."""
         profile = self._make()
         text = "The sky was blue."
         relevance = profile.detect_place_relevance("Unknown Place", text)
-        assert isinstance(relevance, str)
+        # Exact fallback string from source
+        assert relevance == "Location mentioned in case"
 
 
 # ---------------------------------------------------------------------------
@@ -154,10 +168,14 @@ class TestDefaultQuestionsManager:
         assert len(questions) >= 1
 
     def test_get_enabled_questions(self, tmp_path):
+        """get_enabled_questions returns the text of each enabled question."""
         mgr = self._make(tmp_path)
         enabled = mgr.get_enabled_questions()
-        assert isinstance(enabled, list)
-        assert all(isinstance(q, str) for q in enabled)
+        # Each element must be a non-empty question string (not blank)
+        assert all(isinstance(q, str) and q.strip() for q in enabled)
+        # All enabled entries are a subset of all questions
+        all_texts = {q.text for q in mgr.get_all_questions()}
+        assert set(enabled).issubset(all_texts)
 
     def test_get_enabled_count(self, tmp_path):
         mgr = self._make(tmp_path)
@@ -286,11 +304,19 @@ class TestQAExporter:
         assert callable(export_semantic_results)
 
     def test_empty_results(self):
+        """Empty results list: exporter completes without error and never emits Q&A content."""
         from src.core.export.semantic_exporter import export_semantic_results
 
         mock_builder = MagicMock()
         export_semantic_results([], mock_builder)
-        # Should call builder methods but not crash
+        # With no results, no per-result content should have been written.
+        # Confirm no add_paragraph call contains a question/answer payload.
+        for call in mock_builder.add_paragraph.call_args_list:
+            args = call.args
+            if args:
+                text = str(args[0]).lower()
+                # Should not contain any answer markers for fake Q&A
+                assert "an accident occurred" not in text
 
     def test_with_results(self):
         from src.core.export.semantic_exporter import export_semantic_results
@@ -322,11 +348,16 @@ class TestCombinedHtmlBuilder:
         assert callable(build_combined_html)
 
     def test_empty_data(self):
+        """Empty inputs produce valid, complete HTML scaffolding (open + close tags)."""
         from src.core.export.combined_html_builder import build_combined_html
 
         html = build_combined_html(vocab_data=[], semantic_results=[], summary_text="")
-        assert isinstance(html, str)
-        assert "<html" in html.lower()
+        lower = html.lower()
+        # Must be a full HTML document with open and close tags
+        assert "<html" in lower
+        assert "</html>" in lower
+        # Should have body and some structural markup
+        assert "<body" in lower or "<div" in lower
 
     def test_vocab_only(self):
         from src.core.export.combined_html_builder import build_combined_html
@@ -389,6 +420,7 @@ class TestExportServiceCombined:
         assert "test" in content
 
     def test_get_vocabulary_html_content_returns_string(self):
+        """Vocabulary HTML export includes the term, score, and source fields."""
         from src.services.export_service import ExportService
 
         svc = ExportService()
@@ -403,8 +435,10 @@ class TestExportServiceCombined:
                 }
             ]
         )
-        assert isinstance(html, str)
+        # All per-row fields must appear in the rendered HTML
         assert "plaintiff" in html
+        assert "80" in html
+        assert "NER" in html
 
     def test_combined_word_export(self, tmp_path):
         from unittest.mock import patch
