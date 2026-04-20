@@ -22,6 +22,8 @@ import threading
 import traceback
 from queue import Empty, Queue
 
+from src.services.queue_messages import MessageType, QueueMessage
+
 logger = logging.getLogger(__name__)
 
 
@@ -137,7 +139,7 @@ def worker_process_main(command_queue, result_queue):
     forwarder.start()
 
     # Signal GUI that the worker is ready to accept commands
-    result_queue.put(("worker_ready", None))
+    result_queue.put(QueueMessage.worker_ready())
     logger.info("Worker ready signal sent")
 
     # Run command loop in main thread (blocks until shutdown)
@@ -188,7 +190,7 @@ def _command_loop(command_queue, internal_queue, result_queue, state):
         logger.debug("Dispatching command: %s", cmd_type)
         logger.debug("  args: %s", _summarize_command_args(cmd_type, args))
         try:
-            result_queue.put(("command_ack", {"cmd": cmd_type}))
+            result_queue.put(QueueMessage.command_ack(cmd_type))
         except Exception as e:
             logger.error("Failed to send command_ack for %s: %s", cmd_type, e, exc_info=True)
             continue
@@ -198,7 +200,7 @@ def _command_loop(command_queue, internal_queue, result_queue, state):
         except Exception as e:
             logger.error("Command dispatch error (%s): %s", cmd_type, e, exc_info=True)
             try:
-                result_queue.put(("error", f"Worker error: {e}"))
+                result_queue.put(QueueMessage.error(f"Worker error: {e}"))
             except Exception as put_err:
                 logger.error("Failed to send dispatch error to GUI: %s", put_err)
 
@@ -215,7 +217,7 @@ def _dispatch_command(cmd_type, args, internal_queue, state):
     """
     if cmd_type not in ("process_files", "extract", "run_qa", "followup"):
         logger.warning("Unknown command: %s", cmd_type)
-        internal_queue.put(("error", f"Unknown command: {cmd_type}"))
+        internal_queue.put(QueueMessage.error(f"Unknown command: {cmd_type}"))
         return
 
     # Stop any running worker before starting a new one
@@ -280,7 +282,9 @@ def _run_qa(args, internal_queue, state):
         embeddings = state.get("embeddings")
 
     if not vector_store_path or not embeddings:
-        internal_queue.put(("error", "Semantic search not ready: no vector store or embeddings"))
+        internal_queue.put(
+            QueueMessage.error("Semantic search not ready: no vector store or embeddings")
+        )
         return
 
     from src.services.workers import SemanticWorker
@@ -308,10 +312,11 @@ def _run_followup(args, internal_queue, state):
         embeddings = state.get("embeddings")
 
     if not vector_store_path or not embeddings:
-        internal_queue.put(("semantic_followup_result", None))
+        internal_queue.put(QueueMessage.semantic_followup_result(None))
         return
 
     def do_followup():
+        """Invoke SemanticOrchestrator.ask_followup in a daemon thread."""
         try:
             from src.core.semantic import SemanticOrchestrator
 
@@ -321,10 +326,10 @@ def _run_followup(args, internal_queue, state):
             )
             result = orchestrator.ask_followup(question)
             logger.debug("Follow-up answered: %d chars", len(result.answer) if result else 0)
-            internal_queue.put(("semantic_followup_result", result))
+            internal_queue.put(QueueMessage.semantic_followup_result(result))
         except Exception as e:
             logger.error("Follow-up error: %s", e, exc_info=True)
-            internal_queue.put(("semantic_followup_result", None))
+            internal_queue.put(QueueMessage.semantic_followup_result(None))
 
     thread = threading.Thread(target=do_followup, daemon=True, name="followup")
     thread.start()
@@ -379,7 +384,7 @@ def _forwarder_loop(internal_queue, result_queue, command_queue, state):
         except Exception as exc:
             logger.error("Forwarder loop error reading internal queue: %s", exc, exc_info=True)
             try:
-                result_queue.put(("error", f"Internal forwarder error: {exc}"))
+                result_queue.put(QueueMessage.error(f"Internal forwarder error: {exc}"))
             except Exception as inner_exc:
                 logger.error(
                     "Failed to send error to GUI via result_queue: %s", inner_exc, exc_info=True
@@ -397,7 +402,7 @@ def _forwarder_loop(internal_queue, result_queue, command_queue, state):
         except Exception as exc:
             logger.error("Forwarder loop error processing %s: %s", msg_type, exc, exc_info=True)
             try:
-                result_queue.put(("error", f"Internal error processing {msg_type}: {exc}"))
+                result_queue.put(QueueMessage.error(f"Internal error processing {msg_type}: {exc}"))
             except Exception as inner_exc:
                 logger.error(
                     "Failed to send error to GUI via result_queue: %s", inner_exc, exc_info=True
@@ -433,13 +438,17 @@ def _forward_message(msg_type, data, internal_queue, result_queue, state):
             data.get("chunk_count", "?"),
         )
 
-        # Forward semantic_ready WITHOUT embeddings/chunk data (not picklable or too large)
+        # Forward semantic_ready WITHOUT embeddings/chunk data (not picklable or too
+        # large). Intentionally bypasses QueueMessage.semantic_ready() because that
+        # factory's schema always includes the stripped keys; the GUI side treats
+        # absence-of-key as "not available" and re-adding them as None would break
+        # that contract. Use the MessageType constant so the wire string stays centralized.
         forwarded_data = {
             "vector_store_path": data.get("vector_store_path"),
             "chunk_count": data.get("chunk_count", 0),
             "chunk_scores": data.get("chunk_scores"),
         }
-        result_queue.put(("semantic_ready", forwarded_data))
+        result_queue.put((MessageType.SEMANTIC_READY, forwarded_data))
 
         # Spawn key excerpts extraction as fire-and-forget daemon thread
         _spawn_key_sentences(state, internal_queue)
@@ -454,12 +463,12 @@ def _forward_message(msg_type, data, internal_queue, result_queue, state):
 
         if not ask_default:
             logger.debug("Default questions disabled by user, skipping SemanticWorker")
-            result_queue.put(("semantic_complete", []))
+            result_queue.put(QueueMessage.semantic_complete([]))
             return
 
         # Auto-spawn SemanticWorker in subprocess instead of forwarding
         logger.debug("Intercepted trigger_default_semantic, auto-spawning SemanticWorker")
-        result_queue.put(("trigger_default_semantic_started", None))
+        result_queue.put(QueueMessage.trigger_default_semantic_started())
 
         # Spawn SemanticWorker using saved state
         try:
@@ -481,10 +490,10 @@ def _forward_message(msg_type, data, internal_queue, result_queue, state):
                 logger.warning(
                     "Cannot start default semantic search: missing embeddings or vector_store_path"
                 )
-                result_queue.put(("semantic_complete", []))
+                result_queue.put(QueueMessage.semantic_complete([]))
         except Exception as e:
             logger.error("Failed to start default SemanticWorker: %s", e, exc_info=True)
-            result_queue.put(("error", f"Default semantic search failed: {e}"))
+            result_queue.put(QueueMessage.error(f"Default semantic search failed: {e}"))
 
     elif msg_type == "ner_complete":
         # Save vocab data in state for key excerpts interestingness scoring
@@ -494,7 +503,10 @@ def _forward_message(msg_type, data, internal_queue, result_queue, state):
         result_queue.put((msg_type, data))
 
     else:
-        # Forward all other messages as-is
+        # Forward all other messages as-is. We cannot use a QueueMessage factory
+        # here because msg_type is dynamic — any worker-produced type flows through
+        # this branch. Workers themselves are expected to use QueueMessage when
+        # they place messages on internal_queue.
         logger.debug("Forwarding message: %s", msg_type)
         try:
             result_queue.put((msg_type, data))
@@ -530,7 +542,7 @@ def _spawn_key_sentences(state, internal_queue):
 
     if not chunk_texts or chunk_embeddings is None:
         logger.debug("Skipping key excerpts: no chunk data available")
-        internal_queue.put(("key_sentences_result", []))
+        internal_queue.put(QueueMessage.key_sentences_result([]))
         return
 
     # Estimate total pages from document data
@@ -538,6 +550,7 @@ def _spawn_key_sentences(state, internal_queue):
     total_pages = sum(d.get("page_count") or 0 for d in documents)
 
     def _extract():
+        """Run extract_key_passages and push the result onto internal_queue."""
         try:
             import numpy as np
 
@@ -562,11 +575,11 @@ def _spawn_key_sentences(state, internal_queue):
                 }
                 for ks in results
             ]
-            internal_queue.put(("key_sentences_result", serialized))
+            internal_queue.put(QueueMessage.key_sentences_result(serialized))
             logger.debug("Key excerpts extracted: %d passages", len(serialized))
         except Exception as e:
             logger.error("Key excerpts extraction failed: %s", e, exc_info=True)
-            internal_queue.put(("key_sentences_error", str(e)))
+            internal_queue.put(QueueMessage.key_sentences_error(str(e)))
 
     thread = threading.Thread(target=_extract, daemon=True, name="key-excerpts")
     thread.start()

@@ -15,6 +15,7 @@ Usage:
     manager.shutdown(blocking=True)
 """
 
+import atexit
 import gc
 import logging
 import multiprocessing
@@ -70,6 +71,41 @@ class WorkerProcessManager:
         self.process = None
         self._started = False
         self._worker_ready = False
+        self._atexit_registered = False
+
+    def __enter__(self):
+        """Enter context manager. Does not auto-start — call start() explicitly.
+
+        Can be used as a context manager — shutdown() runs on exit
+        regardless of exception.
+        """
+        return self
+
+    def __exit__(self, exc_type, exc, tb):
+        """Shut down the worker subprocess on context exit.
+
+        Runs even if the wrapped block raised an exception. Does not
+        suppress exceptions.
+        """
+        self.shutdown(blocking=True)
+        return False
+
+    def _atexit_shutdown(self):
+        """Shutdown hook registered with atexit as Layer 1 backstop.
+
+        Idempotent: no-op if the worker was never started or already shut
+        down.  Swallows and logs all exceptions because atexit callbacks
+        should never raise (the interpreter is already exiting).
+
+        Tradeoff: atexit does NOT fire for os._exit(), segfaults, or
+        SIGKILL — that's why daemon=True stays as the OS-level backstop.
+        """
+        if not self._started:
+            return
+        try:
+            self.shutdown(blocking=True)
+        except Exception as e:
+            logger.debug("atexit worker shutdown failed: %s", e)
 
     def start(self):
         """
@@ -95,6 +131,12 @@ class WorkerProcessManager:
         )
         self.process.start()
         self._started = True
+        # Layer 1: atexit backstop in case main() skips explicit shutdown
+        # (e.g. exception between start() and the try/finally in main).
+        # Guarded so repeated start()/restart() don't re-register.
+        if not self._atexit_registered:
+            atexit.register(self._atexit_shutdown)
+            self._atexit_registered = True
         logger.info("Worker subprocess started (PID: %s)", self.process.pid)
 
     def send_command(self, cmd_type, args=None):

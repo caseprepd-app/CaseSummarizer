@@ -160,7 +160,9 @@ def main():
             pass  # Best-effort crash log; original exception re-raised below
         raise
 
-    # 3. Setup stdout/stderr crash log (separate from structured logging)
+    # 3. Setup stdout/stderr crash log (separate from structured logging).
+    # Outer try/finally ensures the splash is killed on any failure path
+    # between here and MainWindow creation.
     try:
         setup_file_logging(LOGS_DIR)
 
@@ -180,12 +182,14 @@ def main():
         _logger = logging.getLogger(__name__)
 
         def _uncaught_exception(exc_type, exc_value, exc_tb):
+            """Log uncaught main-thread exceptions (defer KeyboardInterrupt to default)."""
             if issubclass(exc_type, KeyboardInterrupt):
                 sys.__excepthook__(exc_type, exc_value, exc_tb)
                 return
             _logger.critical("Uncaught exception", exc_info=(exc_type, exc_value, exc_tb))
 
         def _uncaught_thread_exception(args):
+            """Log uncaught thread exceptions (silently ignore SystemExit)."""
             if args.exc_type is SystemExit:
                 return
 
@@ -212,28 +216,35 @@ def main():
 
         apply_scaling()
 
-        # 8. Start persistent worker subprocess for pipeline tasks (GIL-free)
+        # 8. Start persistent worker subprocess for pipeline tasks (GIL-free).
+        # Layer 3: wrap worker lifetime in a `with` block so shutdown runs
+        # on any exit path (normal return, exception in MainWindow.__init__,
+        # or exception in mainloop()). The surrounding try/finally ensures
+        # the splash is killed even if MainWindow creation raises.
         from src.services.worker_manager import WorkerProcessManager
 
-        worker_manager = WorkerProcessManager()
-        worker_manager.start()
+        with WorkerProcessManager() as worker_manager:
+            worker_manager.start()
 
-        # 9. Create main window
-        app = MainWindow(worker_manager=worker_manager)
+            # 9. Create main window
+            app = MainWindow(worker_manager=worker_manager)
+
+            # Force main window to front (splash had -topmost, so GUI may be behind it)
+            app.lift()
+            app.focus_force()
+            app.attributes("-topmost", True)
+            app.after(200, lambda: app.attributes("-topmost", False))
+
+            # Kill splash now that the main window is up
+            kill(splash_proc)
+            splash_proc = None
+
+            app.mainloop()
+            # worker_manager.shutdown(blocking=True) runs automatically via __exit__
     finally:
-        # Kill splash even if startup fails (prevents orphaned splash window)
+        # Belt-and-suspenders: kill splash if it's still alive
+        # (covers any failure between setup_file_logging and MainWindow show).
         kill(splash_proc)
-
-    # Force main window to front (splash had -topmost, so GUI may be behind it)
-    app.lift()
-    app.focus_force()
-    app.attributes("-topmost", True)
-    app.after(200, lambda: app.attributes("-topmost", False))
-
-    app.mainloop()
-
-    # 11. Clean up worker subprocess after GUI closes
-    worker_manager.shutdown(blocking=True)
 
 
 if __name__ == "__main__":

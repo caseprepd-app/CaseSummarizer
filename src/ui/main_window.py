@@ -41,6 +41,40 @@ except ImportError:
 PENDING_ANSWER_TEXT = "Answer pending..."
 
 
+def _pick_no_valid_files_msg(selected_files: list, processing_results: list) -> tuple[str, str]:
+    """
+    Choose a (title, message) pair when _perform_tasks has no usable results.
+
+    Distinguishes three cases so the user knows what to do:
+    - No files selected at all.
+    - Files selected but preprocessing has not produced any results yet.
+    - Files selected, preprocessing produced results, but every file failed.
+
+    Args:
+        selected_files: List of selected file paths (may be empty).
+        processing_results: List of per-file result dicts from preprocessing.
+            Each dict is expected to carry a "status" key whose value is
+            "success" on a good preprocess.
+
+    Returns:
+        Tuple of (title, message) suitable for messagebox display.
+    """
+    if not selected_files:
+        return ("No Files", "Please add files before processing.")
+    if not processing_results:
+        return (
+            "Still Preparing Files",
+            "Files are still being prepared. Please wait a moment and try again.",
+        )
+    failed = sum(1 for r in processing_results if r.get("status") != "success")
+    total = len(processing_results)
+    return (
+        "All Files Failed",
+        f"All {failed} of {total} files failed preprocessing. "
+        "Check the file list for errors, then remove or replace failed files.",
+    )
+
+
 class MainWindow(WindowLayoutMixin, ctk.CTk):
     """
     Main application window for CasePrepd.
@@ -129,6 +163,12 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         self._status_clear_id = None  # Tk after-ID for auto-clearing status bar
         self._status_error_hold_until = None  # Timestamp until error message is held
         # (_deferred_status_id already initialized above with type annotation)
+
+        # Worker-ready retry after-IDs (tracked so rapid re-invocation can cancel
+        # orphaned callbacks; otherwise stacked .after() schedules leak — fixes
+        # "Add Files clicked twice stacks retries" class of bugs).
+        self._preprocessing_retry_id: str | None = None
+        self._extraction_retry_id: str | None = None
 
         # Initialize ttk styles with UI scale factor and font offset.
         # Must happen AFTER super().__init__() creates the Tk root (ttk.Style needs it).
@@ -626,10 +666,15 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
                 return
             retries = self._worker_ready_retries
             self.set_status(f"Processing engine starting up, please wait... ({retries}/20)")
-            self.after(3000, lambda: self._start_preprocessing(paths_to_process))
+            self._cancel_and_reschedule(
+                "_preprocessing_retry_id",
+                3000,
+                lambda: self._start_preprocessing(paths_to_process),
+            )
             return
 
         self._worker_ready_retries = 0  # Reset retry counter on success
+        self._preprocessing_retry_id = None  # Retry completed / not needed
 
         # Start timer
         self._start_timer()
@@ -841,13 +886,14 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             # Embeddings stay in worker subprocess (not picklable)
             self._semantic_ready = True
             self._key_sentences_pending = True  # Daemon thread extracting in subprocess
-            # Enable search input whenever search index is ready
-            self.followup_btn.configure(state="normal")
+            # Enable search input whenever search index is ready; button
+            # reflects whether the entry has any text (empty → disabled).
             self.followup_entry.configure(
                 state="normal",
                 placeholder_text="Search your documents...",
                 placeholder_text_color="white",
             )
+            self._update_followup_btn_state()
             self.set_status(
                 f"Search index ready ({chunk_count} passages). Running default searches..."
             )
@@ -919,7 +965,7 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
                 self.set_status(f"Default searches complete: {len(semantic_results)} responses")
             else:
                 self.set_status("Default searches complete: no matches found")
-            self.followup_btn.configure(state="normal")
+            self._update_followup_btn_state()
             self._semantic_answering_active = False
             if self._pending_tasks.get("semantic"):
                 self._completed_tasks.add("semantic")
@@ -1191,8 +1237,17 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             logger.warning("_perform_tasks called while already processing — ignored")
             return
 
-        if not self.processing_results:
-            messagebox.showwarning("No Files", "Please add files first.")
+        if not self.processing_results or all(
+            r.get("status") != "success" for r in self.processing_results
+        ):
+            title, message = _pick_no_valid_files_msg(self.selected_files, self.processing_results)
+            messagebox.showwarning(title, message)
+            logger.info(
+                "Aborting _perform_tasks: %s (selected=%d, results=%d)",
+                title,
+                len(self.selected_files),
+                len(self.processing_results),
+            )
             return
 
         # Disable controls during processing
@@ -1339,10 +1394,13 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
                 return
             retries = self._worker_ready_retries
             self.set_status(f"Processing engine starting up, please wait... ({retries}/20)")
-            self.after(3000, self._start_progressive_extraction)
+            self._cancel_and_reschedule(
+                "_extraction_retry_id", 3000, self._start_progressive_extraction
+            )
             return
 
         self._worker_ready_retries = 0  # Reset retry counter on success
+        self._extraction_retry_id = None  # Retry completed / not needed
 
         # Send extraction command to worker subprocess
         logger.debug(
@@ -1451,9 +1509,9 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         self.clear_files_btn.configure(state="normal")
         self._update_generate_button_state()
 
-        # Enable follow-up if search succeeded
+        # Enable follow-up if search succeeded (empty entry keeps button disabled)
         if success and not self._semantic_failed:
-            self.followup_btn.configure(state="normal")
+            self._update_followup_btn_state()
 
         # Show Export All button after successful processing
         if success and not self._export_all_visible:
@@ -1502,6 +1560,30 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             stats["processing_time"] = time.time() - self._processing_start_time
 
         return stats
+
+    def _update_followup_btn_state(self, _event=None):
+        """
+        Enable or disable the search button based on entry content.
+
+        Called from <KeyRelease> / <FocusIn> bindings on the follow-up entry,
+        and once at widget creation. Does not touch the button when the entry
+        itself is disabled (no search index yet) — that state is managed by
+        the semantic_ready / semantic_failed flows, and we must not override
+        their intent. Whitespace-only text counts as empty.
+        """
+        entry = getattr(self, "followup_entry", None)
+        btn = getattr(self, "followup_btn", None)
+        if entry is None or btn is None:
+            return
+        # Respect disabled entry (search not ready / search in progress)
+        try:
+            entry_state = str(entry.cget("state"))
+        except Exception:
+            entry_state = "normal"
+        if entry_state == "disabled":
+            return
+        text = entry.get().strip() if entry.get() else ""
+        btn.configure(state="normal" if text else "disabled")
 
     def _ask_followup(self):
         """Ask a follow-up search using the semantic search system (async version)."""
@@ -1575,8 +1657,9 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             logger.error("Worker process died during followup search")
             self._followup_pending = False
             self._followup_poll_count = 0
-            self.followup_btn.configure(state="normal", text="Search")
+            self.followup_btn.configure(text="Search")
             self.followup_entry.configure(state="normal")
+            self._update_followup_btn_state()
             self.set_status_error("Search failed — worker process crashed. Please restart the app.")
             return
 
@@ -1586,8 +1669,9 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             logger.warning("Follow-up polling timed out after %d polls", self._followup_poll_count)
             self._followup_pending = False
             self._followup_poll_count = 0
-            self.followup_btn.configure(state="normal", text="Search")
+            self.followup_btn.configure(text="Search")
             self.followup_entry.configure(state="normal")
+            self._update_followup_btn_state()
             self.set_status_error("Search timed out — worker may have crashed")
             return
 
@@ -1635,11 +1719,12 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
             self.after(100, self._poll_followup_result)
             return
 
-        # Got a result - re-enable controls
+        # Got a result - re-enable controls (empty entry keeps button disabled)
         self._followup_pending = False
         self._followup_poll_count = 0
-        self.followup_btn.configure(state="normal", text="Search")
+        self.followup_btn.configure(text="Search")
         self.followup_entry.configure(state="normal")
+        self._update_followup_btn_state()
         self.followup_entry.focus()
 
         try:
@@ -2078,6 +2163,27 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
     # Cleanup
     # =========================================================================
 
+    def _cancel_and_reschedule(self, attr_name: str, delay_ms: int, callback):
+        """
+        Cancel any previously-scheduled after() for `attr_name` and schedule a new one.
+
+        Stores the new after-id back on `self` under `attr_name`. Safe to call
+        repeatedly — prevents orphaned retry callbacks from stacking.
+
+        Args:
+            attr_name: Instance attribute that holds the tracked after-id.
+            delay_ms: Delay in milliseconds before invoking `callback`.
+            callback: Zero-arg callable to invoke after the delay.
+        """
+        existing = getattr(self, attr_name, None)
+        if existing:
+            try:
+                self.after_cancel(existing)
+            except Exception:
+                pass
+        new_id = self.after(delay_ms, callback)
+        setattr(self, attr_name, new_id)
+
     def destroy(self):
         """Clean up resources before destroying window."""
         self._destroying = True
@@ -2098,6 +2204,18 @@ class MainWindow(WindowLayoutMixin, ctk.CTk):
         if hasattr(self, "_deferred_status_id") and self._deferred_status_id:
             self.after_cancel(self._deferred_status_id)
             self._deferred_status_id = None
+        if getattr(self, "_preprocessing_retry_id", None):
+            try:
+                self.after_cancel(self._preprocessing_retry_id)
+            except Exception:
+                pass
+            self._preprocessing_retry_id = None
+        if getattr(self, "_extraction_retry_id", None):
+            try:
+                self.after_cancel(self._extraction_retry_id)
+            except Exception:
+                pass
+            self._extraction_retry_id = None
 
         # Shut down the worker subprocess (non-blocking to avoid GUI hang)
         if self._worker_manager:

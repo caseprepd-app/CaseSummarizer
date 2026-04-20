@@ -56,7 +56,7 @@ class ScispaCyAlgorithm(BaseExtractionAlgorithm):
         self._nlp = None
 
     def _load_nlp(self):
-        """Load scispaCy en_ner_bc5cdr_md model from bundled path or package."""
+        """Load the en_ner_bc5cdr_md spaCy model from bundled path or package."""
         import sys
 
         import spacy
@@ -73,7 +73,7 @@ class ScispaCyAlgorithm(BaseExtractionAlgorithm):
             )
         else:
             model_path = "en_ner_bc5cdr_md"
-            logger.warning("Using pip-installed scispaCy model (not bundled)")
+            logger.warning("Using pip-installed en_ner_bc5cdr_md model (bundled copy not found)")
         try:
             self._nlp = spacy.load(model_path)
         except OSError:

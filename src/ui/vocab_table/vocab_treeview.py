@@ -428,3 +428,18 @@ class VocabTreeview:
             except Exception:
                 pass
             self._tooltip = None
+
+    def cleanup(self):
+        """
+        Cancel pending tooltip timers and destroy any tooltip window.
+
+        Call this before the parent widget is destroyed so deferred
+        `_show_tooltip` callbacks cannot fire on a dead widget.
+        """
+        if self._tooltip_after_id:
+            try:
+                self._parent.after_cancel(self._tooltip_after_id)
+            except Exception:
+                pass
+            self._tooltip_after_id = None
+        self._hide_tooltip(None)

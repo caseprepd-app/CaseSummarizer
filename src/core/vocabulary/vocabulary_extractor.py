@@ -297,7 +297,7 @@ class VocabularyExtractor:
                 logger.warning("TopicRank unavailable: %s: %s", type(e).__name__, e, exc_info=True)
                 skipped.append("TopicRank")
 
-            # Conditionally add MedicalNER if scispacy is installed
+            # Conditionally add MedicalNER if the bundled en_ner_bc5cdr_md spaCy model loads
             try:
                 from src.core.vocabulary.algorithms.scispacy_algorithm import ScispaCyAlgorithm
 
@@ -305,7 +305,7 @@ class VocabularyExtractor:
                 self.algorithms.append(medical_ner)
                 logger.debug("MedicalNER algorithm enabled")
             except ImportError:
-                logger.debug("MedicalNER unavailable (scispacy not installed)")
+                logger.debug("MedicalNER unavailable (en_ner_bc5cdr_md spaCy model not found)")
                 skipped.append("MedicalNER")
 
             # Conditionally add YAKE if installed

@@ -107,3 +107,19 @@ def _do_reset():
         reset_questions()
     except ImportError:
         pass
+
+    # CorpusManager -- BM25 IDF index singleton tied to active corpus path
+    try:
+        from src.core.vocabulary.corpus_manager import reset_corpus_manager
+
+        reset_corpus_manager()
+    except ImportError:
+        pass
+
+    # GibberishFilter -- singleton holding spell checker + Markov detector
+    try:
+        from src.core.utils.gibberish_filter import GibberishFilter
+
+        GibberishFilter.reset_singleton()
+    except ImportError:
+        pass

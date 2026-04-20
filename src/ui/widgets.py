@@ -385,6 +385,15 @@ class FileReviewTable(ctk.CTkFrame):
         # Register with global tooltip manager
         tooltip_manager.register(self._tooltip_window, owner=self)
 
+        # Cancel any previously-scheduled auto-dismiss before scheduling a new
+        # one. Without this, rapid re-show (e.g. hover cycling) leaks after-IDs
+        # that fire on whichever tooltip happens to be current.
+        previous_dismiss = getattr(self, "_tooltip_dismiss_id", None)
+        if previous_dismiss:
+            with contextlib.suppress(Exception):
+                self.after_cancel(previous_dismiss)
+            self._tooltip_dismiss_id = None
+
         # Auto-dismiss after 15 seconds (handles minimized window, etc.)
         try:
             self._tooltip_dismiss_id = self.after(15000, self._hide_tooltip)

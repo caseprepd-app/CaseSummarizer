@@ -335,6 +335,9 @@ class WindowLayoutMixin:
         )
         self.followup_entry.grid(row=1, column=0, sticky="ew", padx=(0, 5))
         self.followup_entry.bind("<Return>", lambda e: self._ask_followup())
+        # Live-disable Search button when entry is empty (saves a round-trip warning)
+        self.followup_entry.bind("<KeyRelease>", self._update_followup_btn_state)
+        self.followup_entry.bind("<FocusIn>", self._update_followup_btn_state)
 
         self.followup_btn = ctk.CTkButton(
             self.followup_frame,
@@ -345,6 +348,8 @@ class WindowLayoutMixin:
             state="disabled",  # Enabled after search vector store is built
         )
         self.followup_btn.grid(row=1, column=1)
+        # Establish correct initial state (empty entry → disabled button)
+        self._update_followup_btn_state()
 
     def _show_search_tips(self):
         """Open the Search Tips dialog."""

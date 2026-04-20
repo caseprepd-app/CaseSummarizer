@@ -31,6 +31,11 @@ class MessageType:
     ERROR = "error"
     STATUS_ERROR = "status_error"  # Non-fatal error displayed in status bar (orange)
 
+    # Worker subprocess lifecycle / control
+    WORKER_READY = "worker_ready"
+    COMMAND_ACK = "command_ack"
+    TRIGGER_DEFAULT_SEMANTIC_STARTED = "trigger_default_semantic_started"
+
     # Document processing
     FILE_PROCESSED = "file_processed"
     PROCESSING_FINISHED = "processing_finished"
@@ -61,6 +66,7 @@ class MessageType:
 
     # Key Excerpts (representative passages via K-means clustering on chunk embeddings)
     KEY_SENTENCES_RESULT = "key_sentences_result"
+    KEY_SENTENCES_ERROR = "key_sentences_error"
 
     # Progressive Vocabulary Loading
     PARTIAL_VOCAB_COMPLETE = "partial_vocab_complete"  # BM25 + RAKE results before NER
@@ -105,6 +111,34 @@ class QueueMessage:
             message: Human-readable error description
         """
         return (MessageType.ERROR, message)
+
+    @staticmethod
+    def worker_ready() -> tuple[str, None]:
+        """
+        Signal that the worker subprocess has started and is ready for commands.
+
+        Sent once at subprocess startup by worker_process_main.
+        """
+        return (MessageType.WORKER_READY, None)
+
+    @staticmethod
+    def command_ack(cmd_type: str) -> tuple[str, dict]:
+        """
+        Acknowledge receipt of a dispatched command.
+
+        Args:
+            cmd_type: The command string that was received (e.g. "extract")
+        """
+        return (MessageType.COMMAND_ACK, {"cmd": cmd_type})
+
+    @staticmethod
+    def trigger_default_semantic_started() -> tuple[str, None]:
+        """
+        Signal that the subprocess has auto-spawned the default SemanticWorker.
+
+        Used in place of forwarding trigger_default_semantic to the GUI.
+        """
+        return (MessageType.TRIGGER_DEFAULT_SEMANTIC_STARTED, None)
 
     @staticmethod
     def status_error(message: str) -> tuple[str, str]:
@@ -414,6 +448,19 @@ class QueueMessage:
             sentences: List of KeySentence objects (or serializable dicts)
         """
         return (MessageType.KEY_SENTENCES_RESULT, sentences)
+
+    @staticmethod
+    def key_sentences_error(error: str) -> tuple[str, str]:
+        """
+        Create key excerpts extraction error message.
+
+        Sent when the key-excerpts background thread raises. Payload is a
+        plain string so it is always picklable across processes.
+
+        Args:
+            error: Human-readable error description
+        """
+        return (MessageType.KEY_SENTENCES_ERROR, error)
 
     @staticmethod
     def extraction_started() -> tuple[str, None]:
