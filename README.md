@@ -79,6 +79,50 @@ The developer dataset is never deleted — it just gets increasingly outweighed 
 - **Structured log:** `%APPDATA%/CasePrepd/logs/caseprepd.log` (rotating)
 - **Crash log:** `%APPDATA%/CasePrepd/crash.log` (import failures only)
 
+## Headless / CLI mode
+
+Run the full pipeline from the command line without launching the GUI. Useful for scripting, batch jobs, or piping outputs into other tools.
+
+```bash
+# All three outputs (vocabulary, key excerpts, combined) for every document in docs/
+python -m src.cli --input docs/ --output out/
+
+# Specific files, vocabulary only
+python -m src.cli --input case1.pdf case2.pdf --output out/ --only vocab
+
+# Run a search and emit machine-readable JSON
+python -m src.cli --input docs/ --output out/ --query "knee injury" --format json
+
+# Both human (.docx/.txt) and machine (.json) outputs
+python -m src.cli --input docs/ --output out/ --format both
+```
+
+**Arguments:**
+
+| Flag | Description |
+|---|---|
+| `--input` | One or more files, or a directory (recursively scanned for supported types). Required. |
+| `--output` | Directory where outputs are written. Created if missing. Required. |
+| `--only` | Repeatable. Limit outputs to `vocab`, `excerpts`, and/or `combined`. Default: all three. |
+| `--query` | Run a single semantic search with this phrase. Default: no search. |
+| `--format` | `human` (default), `json`, or `both`. |
+| `--verbose` / `-v` | Enable debug logging. |
+
+**Supported input types:** `.pdf`, `.docx`, `.txt`, `.rtf`, `.png`, `.jpg`, `.jpeg`.
+
+**Output files:**
+
+| File | When | Format |
+|---|---|---|
+| `vocabulary.docx` | `--only vocab` (or default) | human |
+| `key_excerpts.txt` | `--only excerpts` (or default) | human |
+| `combined.docx` | `--only combined` (or default) | human |
+| `vocabulary.json` | `--format json` or `both` | machine |
+| `excerpts.json` | `--format json` or `both` | machine |
+| `search.json` | `--format json`/`both` and `--query` given | machine |
+
+The CLI runs the same pipeline as the GUI (extraction → preprocessing → vocabulary → semantic indexing → key-excerpt extraction) entirely in-process — no subprocess, no Tk. First run is slow because embedding models load from disk; subsequent runs reuse the cached models.
+
 ## Tests
 
 **Important:** Always activate the virtual environment before running tests.
